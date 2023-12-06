@@ -1,7 +1,7 @@
 defmodule Backpex.MixProject do
   use Mix.Project
 
-  @version "0.1.0"
+  @version "0.1.1"
   @source_url "https://github.com/naymspace/backpex"
 
   def project do
@@ -12,9 +12,12 @@ defmodule Backpex.MixProject do
       elixirc_paths: elixirc_paths(Mix.env()),
       start_permanent: Mix.env() == :prod,
       deps: deps(),
-      package: package(),
       aliases: aliases(),
       dialyzer: dialyzer(),
+
+      # Hex.pm
+      package: package(),
+      description: "Phoenix Admin Panel built with PETAL.",
 
       # Docs
       name: "Backpex",
