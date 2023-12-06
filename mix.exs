@@ -12,9 +12,12 @@ defmodule Backpex.MixProject do
       elixirc_paths: elixirc_paths(Mix.env()),
       start_permanent: Mix.env() == :prod,
       deps: deps(),
-      package: package(),
       aliases: aliases(),
       dialyzer: dialyzer(),
+
+      # Hex.pm
+      package: package(),
+      description: "Phoenix Admin Panel built with PETAL.",
 
       # Docs
       name: "Backpex",
