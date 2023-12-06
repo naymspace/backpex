@@ -1,0 +1,7 @@
+<div>
+  <%= @live_resource.render_resource_slot(assigns, :show, :before_page_title) %>
+  <%= @live_resource.render_resource_slot(assigns, :show, :page_title) %>
+
+  <%= @live_resource.render_resource_slot(assigns, :show, :before_main) %>
+  <%= @live_resource.render_resource_slot(assigns, :show, :main) %>
+</div>

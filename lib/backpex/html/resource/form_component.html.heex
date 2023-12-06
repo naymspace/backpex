@@ -1,0 +1,67 @@
+<div id="form-component">
+  <.form
+    :let={form}
+    for={@changeset}
+    id="resource-form"
+    phx-target={@myself}
+    phx-change="validate"
+    phx-submit="save"
+    phx-value-action-key={
+      if @action_type == :item do
+        @action_to_confirm.key
+      else
+        nil
+      end
+    }
+    as={:change}
+    multipart
+  >
+    <div>
+      <div class="first:pt-3 last:pb-3">
+        <.edit_panel form={form} panel_fields={visible_fields_by_panel(@fields, :default, assigns)} {assigns} />
+        <.edit_panel
+          :for={{name, label} <- @panels}
+          :if={visible_fields_by_panel(@fields, name, assigns) != []}
+          form={form}
+          panel_fields={visible_fields_by_panel(@fields, name, assigns)}
+          label={label}
+          class="mt-4"
+          {assigns}
+        />
+      </div>
+    </div>
+    <div class="flex items-center justify-end space-x-4 rounded-b-xl bg-gray-50 px-6 py-3">
+      <div :if={form_errors?(@show_form_errors, @changeset)}>
+        <p class="text-sm italic text-red-500">
+          <%= Backpex.translate("There are errors in the form.") %>
+        </p>
+      </div>
+      <%= if @action_type == :item do %>
+        <button type="button" class="btn" phx-click="close-modal">
+          <%= @action_to_confirm.module.cancel_label(assigns) %>
+        </button>
+
+        <button
+          type="submit"
+          class={["btn", if(form_errors?(@show_form_errors, @changeset), do: "btn-error", else: "btn-primary")]}
+          phx-disable-with={@action_to_confirm.module.confirm_label(assigns) <> "..."}
+        >
+          <%= @action_to_confirm.module.confirm_label(assigns) %>
+        </button>
+      <% else %>
+        <.link navigate={@live_resource.return_to(@socket, assigns, @live_action, @item)}>
+          <button type="button" class="btn">
+            <%= Backpex.translate("Cancel") %>
+          </button>
+        </.link>
+        <button
+          type="submit"
+          class={["btn", if(form_errors?(@show_form_errors, @changeset), do: "btn-error", else: "btn-primary")]}
+          phx-disable-with={@save_label <> "..."}
+        >
+          <%= @save_label %>
+        </button>
+      <% end %>
+    </div>
+  </.form>
+</div>

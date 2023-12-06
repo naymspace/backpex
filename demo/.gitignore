@@ -1,0 +1,28 @@
+# System / Docker
+.vscode
+.bash_history
+.env
+/.elixir_ls/
+.DS_Store
+
+# NPM / Yarn
+.npm
+node_modules
+yarn-error.log
+
+# Phoenix
+/_build/
+/cover/
+/deps/
+/doc/
+/.cache
+/.fetch
+erl_crash.dump
+*.ez
+demo-*.tar
+/priv/cert
+/priv/static/assets/
+/priv/static/cache_manifest.json
+report.*.json
+openapi.json
+ecto_erd.puml

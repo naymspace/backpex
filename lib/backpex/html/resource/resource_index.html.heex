@@ -1,0 +1,45 @@
+<div>
+  <%= if @live_action == :resource_action do %>
+    <.modal title={ResourceAction.name(@resource_action, :title)}>
+      <.live_component
+        module={Backpex.FormComponent}
+        id={:modal}
+        live_resource={@live_resource}
+        action_type={:resource}
+        {Map.drop(assigns, [:socket, :flash])}
+      />
+    </.modal>
+  <% end %>
+
+  <%= if @action_to_confirm && has_modal?(@action_to_confirm.module) do %>
+    <.modal title={@action_to_confirm.module.label(assigns)}>
+      <div class="px-5 py-3">
+        <%= @action_to_confirm.module.confirm(assigns) %>
+      </div>
+      <div>
+        <.live_component
+          module={Backpex.FormComponent}
+          id={:item_action_modal}
+          live_resource={@live_resource}
+          action_type={:item}
+          {Map.drop(assigns, [:socket, :flash, :fields])}
+        />
+      </div>
+    </.modal>
+  <% end %>
+
+  <%= @live_resource.render_resource_slot(assigns, :index, :before_page_title) %>
+  <%= @live_resource.render_resource_slot(assigns, :index, :page_title) %>
+
+  <%= @live_resource.render_resource_slot(assigns, :index, :before_actions) %>
+  <%= @live_resource.render_resource_slot(assigns, :index, :actions) %>
+
+  <%= @live_resource.render_resource_slot(assigns, :index, :before_filters) %>
+  <%= @live_resource.render_resource_slot(assigns, :index, :filters) %>
+
+  <%= @live_resource.render_resource_slot(assigns, :index, :before_metrics) %>
+  <%= @live_resource.render_resource_slot(assigns, :index, :metrics) %>
+
+  <%= @live_resource.render_resource_slot(assigns, :index, :before_main) %>
+  <%= @live_resource.render_resource_slot(assigns, :index, :main) %>
+</div>

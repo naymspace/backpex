@@ -1,0 +1,34 @@
+defmodule Backpex.HTML do
+  @moduledoc """
+  Contains common HTML functions.
+  """
+
+  @doc """
+  Prettifies any input and show a placeholder in case the value is `nil`.
+
+  ## Examples
+
+      iex> Backpex.HTML.pretty_value(nil)
+      "—"
+
+      iex> Backpex.HTML.pretty_value("")
+      "—"
+
+      iex> Backpex.HTML.pretty_value(1_000_000)
+      "1.000.000"
+
+      iex> Backpex.HTML.pretty_value(1.11)
+      1.11
+
+      iex> Backpex.HTML.pretty_value("Hello, universe")
+      "Hello, universe"
+  """
+  def pretty_value(input) when is_nil(input), do: "—"
+
+  def pretty_value(""), do: "—"
+
+  def pretty_value(input) when is_integer(input),
+    do: Number.Delimit.number_to_delimited(input, precision: 0, delimiter: ".")
+
+  def pretty_value(input), do: input
+end

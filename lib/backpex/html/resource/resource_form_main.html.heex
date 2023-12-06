@@ -1,0 +1,12 @@
+<.main_container>
+  <div class="card bg-base-100 shadow-sm">
+    <div class="card-body p-0">
+      <.live_component
+        module={Backpex.FormComponent}
+        id={:edit}
+        live_resource={@live_resource}
+        {Map.drop(assigns, [:socket, :flash])}
+      />
+    </div>
+  </div>
+</.main_container>

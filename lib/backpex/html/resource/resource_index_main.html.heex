@@ -1,0 +1,42 @@
+<.main_container>
+  <div class="relative">
+    <div class="mb-4 overflow-hidden rounded-xl bg-white shadow-sm">
+      <div
+        class="overflow-x-auto"
+        x-data="{
+          hasOverflow: false,
+          setHasOverflow() { this.hasOverflow = $el.clientWidth < $el.scrollWidth }
+        }"
+        x-init="$nextTick(() => setHasOverflow())"
+        x-on:resize.window="setHasOverflow()"
+      >
+        <%= if assigns.item_count > 0 do %>
+          <.resource_index_table {assigns} />
+        <% else %>
+          <.empty_state {assigns} />
+        <% end %>
+      </div>
+    </div>
+  </div>
+  <div class="mt-4 flex flex-wrap items-center justify-between gap-y-4">
+    <.pagination
+      path={
+        URI.decode(
+          Router.get_path(
+            @socket,
+            @live_resource,
+            @params,
+            :index,
+            Map.merge(@query_options, %{filters_changed: @filters_changed, page: ":page"})
+          )
+        )
+      }
+      current_page={@query_options.page}
+      total_pages={@total_pages}
+    />
+    <div class="flex items-center">
+      <.pagination_info total={@item_count} query_options={@query_options} />
+      <.select_per_page options={@per_page_options} query_options={@query_options} />
+    </div>
+  </div>
+</.main_container>
