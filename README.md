@@ -26,3 +26,7 @@ See our comprehensive [docs](https://hexdocs.pm/backpex/) for more information.
 - Run `mix dialyzer --plt` inside the `app` container to generate the initial PLT file.
 
 Now you can visit [`localhost:4000`](http://localhost:4000) from your browser.
+
+## License
+
+Backpex source code is licensed under the [MIT License](LICENSE.md).
