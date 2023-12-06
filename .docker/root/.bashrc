@@ -1,0 +1,1 @@
+source /etc/bash.bashrc

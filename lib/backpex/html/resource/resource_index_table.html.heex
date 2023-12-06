@@ -1,0 +1,128 @@
+<table
+  class="table !static"
+  x-cloak
+  x-data="{
+    actionsWidth: null,
+    headerHeight: null,
+    setActionsWidth() {
+      $nextTick(
+        () => {
+          document.querySelectorAll('.item-action-column')
+            .forEach((x) => {
+              this.actionsWidth = this.actionsWidth > x.clientWidth ? this.actionsWidth : x.clientWidth
+            })
+        }
+      )
+    },
+  }
+  "
+  x-init="setActionsWidth()"
+  x-on:resize.window="setActionsWidth()"
+>
+  <thead class="bg-gray-50 uppercase text-gray-700">
+    <tr>
+      <th :if={Enum.any?(index_item_actions(@item_actions))}>
+        <input
+          phx-click="toggle-item-selection"
+          type="checkbox"
+          class="checkbox checkbox-sm"
+          checked={@select_all}
+          x-init={"$el.indeterminate = #{Enum.any?(@selected_items) && not @select_all}"}
+          aria-label={Backpex.translate("Select all items")}
+        />
+      </th>
+      <th :for={{name, %{label: label} = field_options} <- @fields} :if={active?(@active_fields, name)}>
+        <div class={["font-medium", align(field_options), index_column_class(assigns, field_options)]}>
+          <%= if Enum.member?(@orderable_fields, name) do %>
+            <.order_link
+              live_resource={@live_resource}
+              socket={@socket}
+              params={@params}
+              label={label}
+              name={name}
+              query_options={@query_options}
+            />
+          <% else %>
+            <%= label %>
+          <% end %>
+        </div>
+      </th>
+      <th class="action-header-spacer" />
+      <th
+        x-bind:class="hasOverflow ? 'border-gray-200 border-l' : ''"
+        x-bind:style={"hasOverflow ? '#{shadow_sm_left()}' : ''"}
+        class="absolute right-0 rounded-tr-xl bg-gray-50 px-0"
+      >
+        <.toggle_columns
+          socket={@socket}
+          active_fields={@active_fields}
+          live_resource={@live_resource}
+          current_url={@current_url}
+          class="flex justify-end pt-1 pr-4 font-medium"
+          x_style="'width: ' + actionsWidth + 'px !important'"
+        />
+      </th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr
+      :for={%{id: id} = item <- @items}
+      x-on:resize.window="setRowHeight()"
+      x-init="setRowHeight()"
+      x-data="{ rowHeight: null, setRowHeight() { $nextTick( () => {this.rowHeight = $el.getBoundingClientRect().height }) } }"
+      id={"item-#{id}"}
+      class={if selected?(@selected_items, item), do: "bg-gray-50", else: "bg-transparent"}
+    >
+      <td :if={Enum.any?(index_item_actions(@item_actions))} class="relative">
+        <div :if={selected?(@selected_items, item)} class="absolute inset-y-0 left-0 w-0.5 bg-gray-500" />
+        <input
+          id={id}
+          phx-click="update-selected-items"
+          phx-value-id={id}
+          type="checkbox"
+          class="checkbox checkbox-sm"
+          checked={selected?(@selected_items, item)}
+          aria-label={Backpex.translate({"Select item with id: %{id}", %{id: id}})}
+        />
+      </td>
+      <td :for={{name, field_options} <- @fields} :if={active?(@active_fields, name)} class="text-gray-500">
+        <div class={[align(field_options), index_column_class(assigns, field_options)]}>
+          <.resource_field name={name} item={item} {assigns} />
+        </div>
+      </td>
+      <td class="p-0">
+        <div x-bind:style="'width: ' + actionsWidth + 'px !important'"></div>
+      </td>
+      <td
+        x-bind:class="hasOverflow ? 'border-gray-100 border-l' : ''"
+        x-bind:style={"hasOverflow ? '#{shadow_sm_left()}' : ''"}
+        class={[
+          "absolute right-0 py-0 px-4 rounded-br-xl item-action-column text-gray-500",
+          if(selected?(@selected_items, item), do: "bg-gray-50", else: "bg-white")
+        ]}
+      >
+        <div
+          class="flex items-center justify-end space-x-2"
+          x-bind:style="`height: ${rowHeight - 1}px !important; width: ${actionsWidth - 32}px !important`"
+        >
+          <div
+            :for={{key, action} <- row_item_actions(@item_actions)}
+            :if={LiveResource.can?(assigns, key, item, @live_resource)}
+            class="tooltip"
+            data-tip={action.module.label(assigns)}
+          >
+            <button
+              type="button"
+              phx-click="item-action"
+              phx-value-action-key={key}
+              phx-value-item-id={item.id}
+              aria-label={action.module.label(assigns)}
+            >
+              <%= action.module.icon(assigns) %>
+            </button>
+          </div>
+        </div>
+      </td>
+    </tr>
+  </tbody>
+</table>

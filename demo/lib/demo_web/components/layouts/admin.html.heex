@@ -1,0 +1,50 @@
+<Backpex.HTML.Layout.app_shell fluid={@fluid?}>
+  <:topbar>
+    <Backpex.HTML.Layout.topbar_branding />
+
+    <Backpex.HTML.Layout.topbar_dropdown>
+      <:label>
+        <label tabindex="0" class="btn btn-square btn-ghost">
+          <Heroicons.user class="h-8 w-8" />
+        </label>
+      </:label>
+      <li>
+        <.link navigate="/" class="flex justify-between text-red-600 hover:bg-gray-100">
+          <p>Logout</p>
+          <Heroicons.arrow_right_on_rectangle class="h-5 w-5" />
+        </.link>
+      </li>
+    </Backpex.HTML.Layout.topbar_dropdown>
+  </:topbar>
+  <:sidebar>
+    <Backpex.HTML.Layout.sidebar_item current_url={@current_url} navigate="/admin/users">
+      <Heroicons.user class="h-5 w-5" /> Users
+    </Backpex.HTML.Layout.sidebar_item>
+    <Backpex.HTML.Layout.sidebar_item current_url={@current_url} navigate="/admin/addresses">
+      <Heroicons.building_office_2 class="h-5 w-5" /> Addresses
+    </Backpex.HTML.Layout.sidebar_item>
+    <Backpex.HTML.Layout.sidebar_item current_url={@current_url} navigate="/admin/products">
+      <Heroicons.shopping_bag class="h-5 w-5" /> Products
+    </Backpex.HTML.Layout.sidebar_item>
+    <Backpex.HTML.Layout.sidebar_item current_url={@current_url} navigate="/admin/invoices">
+      <Heroicons.document_text class="h-5 w-5" /> Invoices
+    </Backpex.HTML.Layout.sidebar_item>
+    <Backpex.HTML.Layout.sidebar_item current_url={@current_url} navigate="/admin/film-reviews">
+      <Heroicons.film class="h-5 w-5" /> Film Reviews
+    </Backpex.HTML.Layout.sidebar_item>
+    <Backpex.HTML.Layout.sidebar_section id="blog">
+      <:label>Blog</:label>
+      <Backpex.HTML.Layout.sidebar_item current_url={@current_url} navigate="/admin/posts">
+        <Heroicons.book_open class="h-5 w-5" /> Posts
+      </Backpex.HTML.Layout.sidebar_item>
+      <Backpex.HTML.Layout.sidebar_item current_url={@current_url} navigate="/admin/categories">
+        <Heroicons.tag class="h-5 w-5" /> Categories
+      </Backpex.HTML.Layout.sidebar_item>
+      <Backpex.HTML.Layout.sidebar_item current_url={@current_url} navigate="/admin/tags">
+        <Heroicons.tag class="h-5 w-5" /> Tags
+      </Backpex.HTML.Layout.sidebar_item>
+    </Backpex.HTML.Layout.sidebar_section>
+  </:sidebar>
+  <Backpex.HTML.Layout.flash_messages flash={@flash} />
+  <%= @inner_content %>
+</Backpex.HTML.Layout.app_shell>

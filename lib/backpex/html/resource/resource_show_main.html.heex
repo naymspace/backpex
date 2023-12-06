@@ -1,0 +1,12 @@
+<.main_container>
+  <.show_panel panel_fields={visible_fields_by_panel(@fields, :default, assigns)} {assigns} />
+
+  <.show_panel
+    :for={{name, label} <- @panels}
+    :if={visible_fields_by_panel(@fields, name, assigns) != []}
+    panel_fields={visible_fields_by_panel(@fields, name, assigns)}
+    label={label}
+    class="mt-4"
+    {assigns}
+  />
+</.main_container>
