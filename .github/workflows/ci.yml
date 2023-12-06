@@ -1,0 +1,32 @@
+name: CI
+
+on:
+  push:
+  release:
+    types: [published]
+
+jobs:
+  ci:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: erlef/setup-beam@v1
+        with:
+          otp-version: '26.1.2'
+          elixir-version: '1.15.7'
+
+      - name: Install Dependencies
+        run: mix deps.get
+
+      - name: Check Formatting
+        run: mix format --check-formatted
+
+      - name: Run Tests
+        run: mix test
+
+      - name: Publish package
+        if: github.event_name == 'release'
+        env:
+          HEX_API_KEY: ${{ secrets.HEX_API_KEY }}
+        run: mix hex.publish --yes

@@ -12,6 +12,7 @@ defmodule Backpex.MixProject do
       elixirc_paths: elixirc_paths(Mix.env()),
       start_permanent: Mix.env() == :prod,
       deps: deps(),
+      package: package(),
       aliases: aliases(),
       dialyzer: dialyzer(),
 
@@ -46,6 +47,15 @@ defmodule Backpex.MixProject do
       {:sobelow, "~> 0.8", only: [:dev, :test]},
       {:money, "~> 1.12.1"},
       {:tailwind_formatter, "~> 0.3.2", only: [:dev, :test], runtime: false}
+    ]
+  end
+
+  defp package do
+    [
+      files: ~w(lib priv mix.exs README.md LICENSE.md),
+      maintainers: ["Florian Arens", "Phil-Bastian Berndt", "Simon Hansen"],
+      licenses: ["MIT"],
+      links: %{"GitHub" => @source_url}
     ]
   end
 
