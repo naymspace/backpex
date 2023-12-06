@@ -2,11 +2,11 @@
 
 [![CI](https://github.com/naymspace/backpex/actions/workflows/ci.yml/badge.svg)](https://github.com/naymspace/backpex/actions/workflows/ci.yml)
 [![Hex](https://img.shields.io/hexpm/v/backpex.svg)](https://hex.pm/packages/backpex)
-[![Hex Docs](https://img.shields.io/badge/hex-docs-green)](https://hexdocs.pm/backpex/)
+[![Hex Docs](https://img.shields.io/badge/hex-docs-green)](https://hexdocs.pm/backpex)
 
 Backpex is a simple admin dashboard that makes it easy to manage existing resources in your application.
 
-See our comprehensive [docs](https://hexdocs.pm/backpex/) for more information.
+See our comprehensive [docs](https://hexdocs.pm/backpex) for more information.
 
 ## Development
 
