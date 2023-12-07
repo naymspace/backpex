@@ -6,7 +6,7 @@ updates:
       interval: 'daily'
     reviewers:
       - 'krns'
-    open-pull-requests-limit: -1
+    open-pull-requests-limit: 10
   - package-ecosystem: 'mix'
     directory: '/'
     schedule:
@@ -14,7 +14,7 @@ updates:
     insecure-external-code-execution: allow
     reviewers:
       - 'krns'
-    open-pull-requests-limit: -1
+    open-pull-requests-limit: 10
   - package-ecosystem: 'mix'
     directory: '/demo/'
     schedule:
@@ -22,11 +22,11 @@ updates:
     insecure-external-code-execution: allow
     reviewers:
       - 'krns'
-    open-pull-requests-limit: -1
+    open-pull-requests-limit: 10
   - package-ecosystem: 'npm'
     directory: '/demo/'
     schedule:
       interval: 'daily'
     reviewers:
       - 'krns'
-    open-pull-requests-limit: -1
+    open-pull-requests-limit: 10
