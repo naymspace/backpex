@@ -247,10 +247,10 @@ defmodule Backpex.HTML.Resource do
   defp filter_badge(assigns) do
     ~H"""
     <div class="join relative ring-1 ring-gray-400">
-      <div class="badge badge-outline join-item border-0 bg-gray-200 p-4 font-semibold">
+      <div class="badge badge-outline join-item h-auto border-0 bg-gray-200 px-4 py-1.5 font-semibold">
         <%= @filter.module.label() %>
       </div>
-      <div class="badge badge-outline join-item border-0 p-4">
+      <div class="badge badge-outline join-item h-auto border-0 px-4 py-1.5">
         <%= component(
           &@filter.module.render/1,
           [value: @value],

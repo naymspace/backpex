@@ -20,7 +20,7 @@ defmodule DemoWeb.PostLive do
   def filters do
     [
       user_id: %{
-        module: DemoWeb.Filters.PostUserSelect
+        module: DemoWeb.Filters.PostUserMultiSelect
       },
       likes: %{
         module: DemoWeb.Filters.PostLikeRange,
