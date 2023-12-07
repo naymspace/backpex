@@ -6,10 +6,7 @@ updates:
       interval: 'daily'
     reviewers:
       - 'krns'
-    pull-request-branch-name:
-      separator: "/"
     open-pull-requests-limit: -1
-    open-security-pull-requests-limit: -1
   - package-ecosystem: 'mix'
     directory: '/'
     schedule:
@@ -17,10 +14,7 @@ updates:
     insecure-external-code-execution: allow
     reviewers:
       - 'krns'
-    pull-request-branch-name:
-      separator: "/"
     open-pull-requests-limit: -1
-    open-security-pull-requests-limit: -1
   - package-ecosystem: 'mix'
     directory: '/demo/'
     schedule:
@@ -28,17 +22,11 @@ updates:
     insecure-external-code-execution: allow
     reviewers:
       - 'krns'
-    pull-request-branch-name:
-      separator: "/"
     open-pull-requests-limit: -1
-    open-security-pull-requests-limit: -1
   - package-ecosystem: 'npm'
     directory: '/demo/'
     schedule:
       interval: 'daily'
     reviewers:
       - 'krns'
-    pull-request-branch-name:
-      separator: "/"
     open-pull-requests-limit: -1
-    open-security-pull-requests-limit: -1
