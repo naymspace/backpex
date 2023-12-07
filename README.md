@@ -8,6 +8,10 @@ Backpex is a simple admin dashboard that makes it easy to manage existing resour
 
 See our comprehensive [docs](https://hexdocs.pm/backpex) for more information.
 
+## Screenshot ([Live Demo](https://backpex.live/admin/users))
+
+![Backpex Screenshot](priv/static/images/screenshot.png)
+
 ## Development
 
 ### Requirements
