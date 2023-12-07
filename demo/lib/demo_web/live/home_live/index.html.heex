@@ -4,9 +4,9 @@
     <div class="mx-auto max-w-2xl lg:mx-0 lg:max-w-xl lg:flex-shrink-0 lg:pt-8">
       <Backpex.HTML.Layout.backpex_logo class="w-16" />
       <div class="mt-24 sm:mt-32 lg:mt-16">
-        <span class="badge badge-primary">
-          Coming soon!
-        </span>
+        <.link href="https://hex.pm/packages/backpex" class="badge badge-primary hover:badge-outline">
+          Beta version available!
+        </.link>
       </div>
       <h1 class="mt-10 text-4xl font-bold tracking-tight text-gray-900 sm:text-6xl">
         Phoenix Admin Panel built with
@@ -26,13 +26,11 @@
         Easily extendable with your own layouts, views, field types, filters and more!
       </p>
       <div class="mt-10 flex items-center">
-        <.link navigate="/admin/users">
-          <button class="btn btn-primary" class="mr-6">View Demo</button>
+        <.link navigate="/admin/users" class="mr-6">
+          <button class="btn btn-primary">View Demo</button>
         </.link>
-        <!-- coming soon...
-          <.link class="text-sm font-semibold leading-6 text-gray-900 hover:underline">Documentation</.link>
-          <Heroicons.arrow_right class="ml-2 h-4 w-4" />
-        -->
+        <.link href="https://hexdocs.pm/backpex" class="text-sm font-semibold leading-6 text-gray-900 hover:underline">Documentation</.link>
+        <Heroicons.arrow_right class="ml-2 h-4 w-4" />
       </div>
       <div :if={not @form_hidden?} class="bg-white py-8 sm:py-12 lg:py-16">
         <h2 class="text-xl font-bold tracking-tight text-gray-900 sm:text-lg">
