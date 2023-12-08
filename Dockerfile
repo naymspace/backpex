@@ -71,7 +71,7 @@ RUN mix do deps.get, deps.compile, assets.deploy, release --overwrite
 # Stage: runtime
 ########################################################################
 
-FROM alpine:3.18.5 as runtime
+FROM alpine:3.19.0 as runtime
 
 ENV APP_HOME=/opt/app
 WORKDIR $APP_HOME
