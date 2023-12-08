@@ -127,6 +127,8 @@ defmodule Backpex.Filters.Boolean do
         Enum.map(options(), fn %{predicate: p, key: k} -> {k, p} end)
         |> Enum.into(%{})
       end
+
+      defoverridable query: 3
     end
   end
 end
