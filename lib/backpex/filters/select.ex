@@ -49,6 +49,11 @@ defmodule Backpex.Filters.Select do
       @behaviour Backpex.Filters.Select
 
       @impl Backpex.Filter
+      def query(query, attribute, value) do
+        where(query, [x], field(x, ^attribute) == ^value)
+      end
+
+      @impl Backpex.Filter
       def render(var!(assigns)) do
         var!(assigns) =
           var!(assigns)
