@@ -80,6 +80,8 @@ defmodule Backpex.Filters.Select do
 
       defp selected(""), do: nil
       defp selected(value), do: value
+
+      defoverridable query: 3
     end
   end
 end

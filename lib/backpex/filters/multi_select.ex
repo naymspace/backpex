@@ -126,6 +126,8 @@ defmodule Backpex.Filters.MultiSelect do
         </div>
         """
       end
+
+      defoverridable query: 3
     end
   end
 end
