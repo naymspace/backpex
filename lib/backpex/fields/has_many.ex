@@ -339,9 +339,9 @@ defmodule Backpex.Fields.HasMany do
 
     ~H"""
     <%= if is_nil(@link) do %>
-      <p class={@live_action in [:index, :resource_action] && "truncate"}>
+      <span class={@live_action in [:index, :resource_action] && "truncate"}>
         <%= HTML.pretty_value(@display_text) %>
-      </p>
+      </span>
     <% else %>
       <.link navigate={@link} class={["hover:underline", @live_action in [:index, :resource_action] && "truncate"]}>
         <%= @display_text %>
