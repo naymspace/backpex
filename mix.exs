@@ -49,7 +49,7 @@ defmodule Backpex.MixProject do
       {:mix_audit, "~> 2.0", only: [:dev, :test], runtime: false},
       {:sobelow, "~> 0.8", only: [:dev, :test]},
       {:money, "~> 1.12.1"},
-      {:tailwind_formatter, "~> 0.3.2", only: [:dev, :test], runtime: false}
+      {:tailwind_formatter, "~> 0.4.0", only: [:dev, :test], runtime: false}
     ]
   end
 
