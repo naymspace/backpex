@@ -110,7 +110,7 @@ defmodule Backpex.HTML.Form do
           @form,
           @field_name,
           @options,
-          Map.to_list(@rest) |> IO.inspect()
+          Map.to_list(@rest)
         ) %>
       </div>
       <.error_tag form={@form} name={@field_name} field_options={@field_options} />
