@@ -92,8 +92,11 @@ defmodule Backpex.HTML.Form do
   end
 
   def field_input(%{type: "select"} = assigns) do
+    rest = if Map.get(assigns, :value), do: Map.put(assigns.rest, :value, assigns.value), else: assigns.rest
+
     assigns =
       assigns
+      |> assign(:rest, rest)
       |> assign_new(:errors, fn -> Keyword.get_values(assigns.form.errors || [], assigns.field_name) end)
 
     ~H"""
@@ -107,7 +110,7 @@ defmodule Backpex.HTML.Form do
           @form,
           @field_name,
           @options,
-          Map.to_list(@rest)
+          Map.to_list(@rest) |> IO.inspect()
         ) %>
       </div>
       <.error_tag form={@form} name={@field_name} field_options={@field_options} />
