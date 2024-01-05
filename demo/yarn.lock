@@ -2962,10 +2962,10 @@ to-regex-range@^5.0.1:
   dependencies:
     is-number "^7.0.0"
 
-topbar@^2.0.1:
-  version "2.0.1"
-  resolved "https://registry.yarnpkg.com/topbar/-/topbar-2.0.1.tgz#03a0ae1a92ff9566af8b0c7ddf711f5303bf40a3"
-  integrity sha512-4KvcxrJuGS3wkx8QacT7dfnkwyPJOuDzGUvHO/GDZqgoEEEFKTnZqCC6PYcvuZ0OfMNdyyKeAzVB2MPk0BIe8A==
+topbar@^2.0.2:
+  version "2.0.2"
+  resolved "https://registry.yarnpkg.com/topbar/-/topbar-2.0.2.tgz#fd5890a84553da2469f35d24e6304e7f71d179e2"
+  integrity sha512-hCKoSaWxXqGIgjag8rIVajysE41as7ti5z9GDO5rcx2zmII1/rY5zvO9IgKwbf50HL82EzlimL6OmPYPUgbpEw==
 
 trim-newlines@^4.0.2:
   version "4.1.1"
