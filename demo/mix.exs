@@ -57,7 +57,7 @@ defmodule Demo.MixProject do
       {:credo, "~> 1.6.1", only: [:dev, :test], runtime: false},
       {:sobelow, "~> 0.8", only: [:dev, :test]},
       {:mix_audit, "~> 2.0", only: [:dev, :test], runtime: false},
-      {:sentry, "~> 9.0"},
+      {:sentry, "~> 10.1"},
       {:ex_machina, "~> 2.3"},
       {:hackney, "~> 1.17", override: true},
       {:faker, "~> 0.17"},
