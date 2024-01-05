@@ -98,7 +98,7 @@ defmodule Backpex.Filters.MultiSelect do
           </div>
           <ul
             tabindex="0"
-            class="dropdown-content z-[1] menu bg-base-100 rounded-box max-h-96 w-60 overflow-y-auto p-2 shadow"
+            class="dropdown-content z-[1] menu bg-base-100 rounded-box min-w-60 max-h-96 w-max overflow-y-auto p-2 shadow"
             x-show="open"
             @click.outside="open = false"
           >
