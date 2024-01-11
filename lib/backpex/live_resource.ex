@@ -197,7 +197,7 @@ defmodule Backpex.LiveResource do
       def can?(_assigns, :my_item_action, item), do: item.role == :admin
 
       def can?(assigns, :my_resource_action, nil), do: assigns.current_user == :admin
-      
+
   > Note that item actions are always displayed if they are defined. If you want to remove item actions completely, you must restrict access to them with `can?/3` and remove the action with the `item_actions/1` function.
 
   ## Resource Actions
@@ -659,8 +659,8 @@ defmodule Backpex.LiveResource do
     * `:layout` - Layout to be used by the LiveResource.
     * `:schema` - Schema for the resource.
     * `:repo` - Ecto repo that will be used to perform CRUD operations for the given schema.
-    * `:update_changeset` - Changeset that will be used when updating items. Optionally takes the target as the third parameter.
-    * `:create_changeset` - Changeset that will be used when creating items. Optionally takes the target as the third parameter.
+    * `:update_changeset` - Changeset to use when updating items. Optionally takes the target as the third parameter and the assigns as the fourth.
+    * `:create_changeset` - Changeset to use when creating items. Optionally takes the target as the third parameter and the assigns as the fourth.
     * `:pubsub` - PubSub name of the project.
     * `:topic` - The topic for PubSub.
     * `:event_prefix` - The event prefix for Pubsub, to differentiate between events of different resources when subscribed to multiple resources.
@@ -1008,7 +1008,8 @@ defmodule Backpex.LiveResource do
           Backpex.LiveResource.call_changeset_function(
             item,
             changeset_function,
-            default_attrs(live_action, fields, assigns)
+            default_attrs(live_action, fields, assigns),
+            assigns
           )
 
         socket
@@ -1967,13 +1968,13 @@ defmodule Backpex.LiveResource do
   @doc """
   Calls the changeset function with the given change and target.
   """
-  def call_changeset_function(item, changeset_function, change, target \\ nil) do
+  def call_changeset_function(item, changeset_function, change, assigns, target \\ nil) do
     arity = :erlang.fun_info(changeset_function)[:arity]
 
-    if arity == 2 do
-      changeset_function.(item, change)
-    else
-      changeset_function.(item, change, target)
+    case arity do
+      2 -> changeset_function.(item, change)
+      3 -> changeset_function.(item, change, target)
+      4 -> changeset_function.(item, change, target, assigns)
     end
   end
 
