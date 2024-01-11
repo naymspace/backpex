@@ -80,7 +80,7 @@ defmodule Backpex.FormComponent do
 
     changeset =
       Ecto.Changeset.change(assigns.item_action_types)
-      |> validate_change(changeset_function, change, target)
+      |> validate_change(changeset_function, change, assigns, target)
 
     socket = assign(socket, changeset: changeset)
 
@@ -96,7 +96,7 @@ defmodule Backpex.FormComponent do
     changeset =
       Ecto.Changeset.change(item)
       |> put_assocs(assocs)
-      |> validate_change(changeset_function, change, target)
+      |> validate_change(changeset_function, change, assigns, target)
 
     send(self(), {:update_changeset, changeset})
 
@@ -144,7 +144,7 @@ defmodule Backpex.FormComponent do
 
     changeset =
       Ecto.Changeset.change(assigns.item_action_types)
-      |> validate_change(changeset_function, change, nil)
+      |> validate_change(changeset_function, change, assigns, nil)
 
     socket = assign(socket, changeset: changeset)
 
@@ -162,7 +162,7 @@ defmodule Backpex.FormComponent do
     changeset =
       Ecto.Changeset.change(item)
       |> put_assocs(assocs)
-      |> validate_change(changeset_function, change, nil)
+      |> validate_change(changeset_function, change, assigns, nil)
 
     socket = assign(socket, changeset: changeset)
 
@@ -193,9 +193,9 @@ defmodule Backpex.FormComponent do
     {:noreply, socket}
   end
 
-  defp validate_change(item, changeset_function, change, target) do
+  defp validate_change(item, changeset_function, change, assigns, target) do
     item
-    |> LiveResource.call_changeset_function(changeset_function, change, target)
+    |> LiveResource.call_changeset_function(changeset_function, change, assigns, target)
     |> Map.put(:action, :validate)
   end
 

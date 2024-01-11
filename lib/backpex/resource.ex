@@ -300,7 +300,7 @@ defmodule Backpex.Resource do
 
     changeset
     |> prepare_for_validation()
-    |> LiveResource.call_changeset_function(changeset_function, change)
+    |> LiveResource.call_changeset_function(changeset_function, change, assigns)
     |> repo.update()
     |> broadcast("updated", assigns)
   end
@@ -335,7 +335,7 @@ defmodule Backpex.Resource do
 
     changeset
     |> prepare_for_validation()
-    |> LiveResource.call_changeset_function(changeset_function, change)
+    |> LiveResource.call_changeset_function(changeset_function, change, assigns)
     |> repo.insert()
     |> broadcast("created", assigns)
   end
