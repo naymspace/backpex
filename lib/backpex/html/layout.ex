@@ -408,7 +408,7 @@ defmodule Backpex.HTML.Layout do
   def field_container(assigns) do
     ~H"""
     <div class={"#{@class} flex flex-col items-stretch space-y-2 px-6 py-4 sm:flex-row sm:space-y-0 sm:py-3"}>
-      <div :for={label <- @label} class={"#{get_align_class(label[:align])} w-1/4"}>
+      <div :for={label <- @label} class={"#{get_align_class(label[:align])} hyphens-auto break-words pr-2 sm:w-1/4"}>
         <%= render_slot(@label) %>
       </div>
 
