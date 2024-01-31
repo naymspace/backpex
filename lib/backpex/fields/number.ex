@@ -39,7 +39,7 @@ defmodule Backpex.Fields.Number do
   def render_index_form(assigns) do
     assigns =
       assigns
-      |> assign(:input_id, "index_input_#{assigns.item.id}")
+      |> assign(:input_id, "index_input_#{assigns.item.id}_#{assigns.name}")
       |> assign_new(:valid, fn -> true end)
 
     ~H"""
