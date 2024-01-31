@@ -440,10 +440,13 @@ defmodule Backpex.HTML.Layout do
       |> assign(:classes, get_modal_classes(assigns))
 
     ~H"""
-    <div :if={@open} id="modal">
+    <div id="modal">
       <div
         id="modal-overlay"
-        class="animate-fade-in fixed inset-0 z-50 bg-gray-900 bg-opacity-30 transition-opacity"
+        class={[
+          "animate-fade-in fixed inset-0 z-50 bg-gray-900 bg-opacity-30 transition-opacity",
+          unless(@open, do: "hidden")
+        ]}
         aria-hidden="true"
       >
       </div>
@@ -458,9 +461,9 @@ defmodule Backpex.HTML.Layout do
       >
         <div
           class={@classes}
-          phx-click-away={hide_modal(@target, @close_event_name)}
-          phx-window-keydown={hide_modal(@target, @close_event_name)}
-          phx-key="escape"
+          phx-click-away={@open && hide_modal(@target, @close_event_name)}
+          phx-window-keydown={@open && hide_modal(@target, @close_event_name)}
+          phx-key={@open && "escape"}
         >
           <!-- Header -->
           <div class="border-b border-gray-100 px-5 py-3">
