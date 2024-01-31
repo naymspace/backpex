@@ -37,7 +37,10 @@ defmodule Backpex.Fields.Number do
 
   @impl Backpex.Field
   def render_index_form(assigns) do
-    assigns = assign_new(assigns, :valid, fn -> true end)
+    assigns =
+      assigns
+      |> assign(:input_id, "index_input_#{assigns.item.id}_#{assigns.name}")
+      |> assign_new(:valid, fn -> true end)
 
     ~H"""
     <div>
@@ -56,7 +59,8 @@ defmodule Backpex.Fields.Number do
           class: ["input input-sm", if(@valid, do: "hover:input-bordered", else: "input-error")],
           value: @value,
           phx_debounce: "100",
-          readonly: @readonly
+          readonly: @readonly,
+          id: @input_id
         ) %>
       </.form>
     </div>
