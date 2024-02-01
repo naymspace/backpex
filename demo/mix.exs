@@ -54,7 +54,7 @@ defmodule Demo.MixProject do
       {:gettext, "~> 0.18"},
       {:plug_cowboy, "~> 2.5"},
       {:dialyxir, "~> 1.0", only: [:dev, :test], runtime: false},
-      {:credo, "~> 1.6.1", only: [:dev, :test], runtime: false},
+      {:credo, "~> 1.7.3", only: [:dev, :test], runtime: false},
       {:sobelow, "~> 0.8", only: [:dev, :test]},
       {:mix_audit, "~> 2.0", only: [:dev, :test], runtime: false},
       {:sentry, "~> 9.0"},
