@@ -65,7 +65,7 @@ defmodule Demo.MixProject do
       {:phoenix_swoosh, "~> 1.0"},
       {:gen_smtp, "~> 1.1"},
       {:backpex, path: "../."},
-      {:tailwind_formatter, "~> 0.3.2", only: [:dev, :test], runtime: false},
+      {:tailwind_formatter, "~> 0.4.0", only: [:dev, :test], runtime: false},
       {:csv, "~> 3.2.0"},
       {:tesla, "~> 1.4"},
       {:jason, ">= 1.0.0"}
