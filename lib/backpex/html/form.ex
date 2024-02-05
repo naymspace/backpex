@@ -102,7 +102,7 @@ defmodule Backpex.HTML.Form do
     ~H"""
     <div phx-feedback-for={PhoenixForm.input_name(@form, @field_name)}>
       <div class={[
-        "phx-no-feedback:[&>*]:select phx-no-feedback:[&>*]:select-bordered phx-no-feedback:[&>*]:text-gray-900 [&>*]:w-full",
+        "[&>*]:w-full phx-no-feedback:[&>*]:select phx-no-feedback:[&>*]:select-bordered phx-no-feedback:[&>*]:text-gray-900",
         @errors == [] && "[&>*]:select [&>*]:select-bordered [&>*]:text-gray-900",
         @errors != [] && "[&>*]:select [&>*]:select-error [&>*]:bg-red-50 [&>*]:text-red-800"
       ]}>
@@ -131,9 +131,9 @@ defmodule Backpex.HTML.Form do
         name={PhoenixForm.input_name(@form, @field_name)}
         type={@type}
         class={[
-          "phx-no-feedback:input phx-no-feedback:input-bordered w-full",
+          "w-full phx-no-feedback:input phx-no-feedback:input-bordered",
           @errors == [] && "input input-bordered",
-          @errors != [] && "input input-error bg-red-50 placeholder-danger"
+          @errors != [] && "input input-error placeholder-danger bg-red-50"
         ]}
         value={PhoenixForm.normalize_value(@type, @value)}
         {@rest}

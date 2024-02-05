@@ -90,7 +90,7 @@ defmodule Backpex.HTML.Layout do
             <% end %>
           </.topbar>
         </div>
-        <main class="flex flex-col h-[calc(100vh-4rem)] mt-[4rem]">
+        <main class="h-[calc(100vh-4rem)] mt-[4rem] flex flex-col">
           <div class="flex-1">
             <div class={["mx-auto mt-5 px-4 sm:px-6 md:px-8", if(@fluid, do: "", else: "max-w-7xl")]}>
               <%= render_slot(@inner_block) %>

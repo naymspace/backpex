@@ -1,5 +1,5 @@
 <table
-  class="table !static"
+  class="!static table"
   x-cloak
   x-data="{
     actionsWidth: null,
@@ -97,7 +97,7 @@
         x-bind:class="hasOverflow ? 'border-gray-100 border-l' : ''"
         x-bind:style={"hasOverflow ? '#{shadow_sm_left()}' : ''"}
         class={[
-          "absolute right-0 py-0 px-4 rounded-br-xl item-action-column text-gray-500",
+          "item-action-column absolute right-0 rounded-br-xl px-4 py-0 text-gray-500",
           if(selected?(@selected_items, item), do: "bg-gray-50", else: "bg-white")
         ]}
       >
