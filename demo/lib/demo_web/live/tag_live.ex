@@ -26,8 +26,22 @@ defmodule DemoWeb.TagLive do
       },
       inserted_at: %{
         module: Backpex.Fields.DateTime,
-        label: "Date"
+        label: "Inserted At",
+        only: [:show, :index]
       }
     ]
+  end
+
+  @impl Backpex.LiveResource
+  def item_actions(default_actions) do
+    Enum.concat(
+      [
+        duplicate: %{
+          module: DemoWeb.ItemActions.DuplicateTag,
+          only: [:row]
+        }
+      ],
+      default_actions
+    )
   end
 end

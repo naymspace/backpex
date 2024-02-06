@@ -188,7 +188,7 @@ defmodule Backpex.ItemAction do
   @callback handle(socket :: Phoenix.LiveView.Socket.t(), items :: list(map()), params :: map()) ::
               {:noreply, Phoenix.LiveView.Socket.t()} | {:reply, map(), Phoenix.LiveView.Socket.t()}
 
-  @optional_callbacks confirm: 1, confirm_label: 1, cancel_label: 1, changeset: 3, fields: 0
+  @optional_callbacks confirm: 1, confirm_label: 1, cancel_label: 1, fields: 0, changeset: 3
 
   @doc """
   Defines `Backpex.ItemAction` behaviour and provides default implementations.
@@ -197,13 +197,6 @@ defmodule Backpex.ItemAction do
     quote do
       @before_compile Backpex.ItemAction
       @behaviour Backpex.ItemAction
-
-      @impl Backpex.ItemAction
-      def init_change(_assigns) do
-        types = Backpex.Field.changeset_types(fields())
-
-        {%{}, types}
-      end
     end
   end
 
@@ -219,11 +212,19 @@ defmodule Backpex.ItemAction do
       def fields, do: []
 
       @impl Backpex.ItemAction
+      @impl Backpex.ItemAction
       def changeset(_change, _attrs, metadata) do
         assigns = Keyword.get(metadata, :assigns)
 
         init_change(assigns)
         |> Ecto.Changeset.change()
+      end
+
+      @impl Backpex.ItemAction
+      def init_change(_assigns) do
+        types = Backpex.Field.changeset_types(fields())
+
+        {%{}, types}
       end
     end
   end
