@@ -1364,7 +1364,14 @@ defmodule Backpex.LiveResource do
       end
 
       @impl Phoenix.LiveView
-      def handle_info({"backpex:" <> unquote(event_prefix) <> "deleted", item}, socket) do
+      def handle_info({"backpex:" <> unquote(event_prefix) <> "created", item}, socket)
+          when socket.assigns.live_action in [:index, :resource_action] do
+        {:noreply, refresh_items(socket)}
+      end
+
+      @impl Phoenix.LiveView
+      def handle_info({"backpex:" <> unquote(event_prefix) <> "deleted", item}, socket)
+          when socket.assigns.live_action in [:index, :resource_action] do
         if Enum.filter(socket.assigns.items, &(&1.id == item.id)) != [] do
           {:noreply, refresh_items(socket)}
         else
@@ -1373,17 +1380,9 @@ defmodule Backpex.LiveResource do
       end
 
       @impl Phoenix.LiveView
-      def handle_info({"backpex:" <> unquote(event_prefix) <> "created", item}, socket) do
-        {:noreply, refresh_items(socket)}
-      end
-
-      @impl Phoenix.LiveView
-      def handle_info({"backpex:" <> unquote(event_prefix) <> "updated", item}, socket) do
-        if Enum.filter(socket.assigns.items, &(&1.id == item.id)) != [] do
-          {:noreply, update_item(socket, item)}
-        else
-          {:noreply, socket}
-        end
+      def handle_info({"backpex:" <> unquote(event_prefix) <> "updated", item}, socket)
+          when socket.assigns.live_action in [:index, :resource_action, :show] do
+        {:noreply, update_item(socket, item)}
       end
 
       @impl Phoenix.LiveView
@@ -1419,10 +1418,27 @@ defmodule Backpex.LiveResource do
 
       def get_empty_filter_key, do: @empty_filter_key
 
-      defp update_item(socket, item) do
-        items = Enum.map(socket.assigns.items, &if(&1.id == item.id, do: item, else: &1))
+      defp update_item(socket, %{id: id} = _item) do
+        %{assigns: %{live_action: live_action} = assigns} = socket
 
-        assign(socket, :items, items)
+        fields = filtered_fields_by_action(fields(), assigns, :show)
+        item = Resource.get(assigns, &item_query(&1, live_action, assigns), fields, id)
+
+        socket =
+          cond do
+            live_action in [:index, :resource_action] ->
+              items = Enum.map(socket.assigns.items, &if(&1.id == id, do: item, else: &1))
+
+              assign(socket, :items, items)
+
+            live_action == :show ->
+              assign(socket, :item, item)
+
+            true ->
+              socket
+          end
+
+        socket
       end
 
       defp refresh_items(socket) do
