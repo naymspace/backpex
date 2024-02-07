@@ -68,7 +68,7 @@ defmodule Backpex.ResourceAction do
   @callback fields() :: list()
 
   @doc """
-  Initial change. The result will be passed to `Backpex.ResourceAction.changeset/2` in order to generate a changeset.
+  Initial change. The result will be passed to `Backpex.ResourceAction.changeset/3` in order to generate a changeset.
 
   This function is optional and can be used to use changesets with schemas in resource actions. If this function
   is not provided a changeset will be generated automatically based on the provided types in `Backpex.ResourceAction.fields/0`.
@@ -80,6 +80,12 @@ defmodule Backpex.ResourceAction do
 
   @doc """
   The changeset to be used in the resource action. It may be used to validate form inputs.
+
+  Additional metadata is passed as a keyword list via the third parameter.
+
+  The list of metadata:
+  - `:assigns` - the assigns
+  - `:target` - the name of the `form` target that triggered the changeset call. Default to `nil` if the call was not triggered by a form field.
   """
   @callback changeset(
               change ::
