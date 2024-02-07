@@ -894,7 +894,7 @@ defmodule Backpex.LiveResource do
           |> assign(:resource_action_id, id)
           |> assign(:item, action.module.init_change())
           |> apply_index()
-          |> assign(:changeset_function, &action.module.changeset/2)
+          |> assign(:changeset_function, &action.module.changeset/3)
           |> assign_changeset(action.module.fields())
       end
 

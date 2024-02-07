@@ -86,7 +86,8 @@ defmodule Backpex.ResourceAction do
                 Ecto.Schema.t()
                 | Ecto.Changeset.t()
                 | {Ecto.Changeset.data(), Ecto.Changeset.types()},
-              attrs :: map()
+              attrs :: map(),
+              metadata :: keyword()
             ) :: Ecto.Changeset.t()
 
   @doc """

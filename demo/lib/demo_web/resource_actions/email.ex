@@ -30,14 +30,14 @@ defmodule DemoWeb.ResourceActions.Email do
   @required_fields ~w[text users]a
 
   @impl Backpex.ResourceAction
-  def changeset(change, attrs) do
+  def changeset(change, attrs, _metadata \\ []) do
     change
     |> cast(attrs, @required_fields)
     |> validate_required(@required_fields)
   end
 
   @impl Backpex.ResourceAction
-  def handle(_socket, _params) do
+  def handle(_socket, params) do
     # Send mail
 
     # We suppose there was no error.

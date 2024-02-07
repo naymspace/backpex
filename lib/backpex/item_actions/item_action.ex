@@ -150,7 +150,8 @@ defmodule Backpex.ItemAction do
                 Ecto.Schema.t()
                 | Ecto.Changeset.t()
                 | {Ecto.Changeset.data(), Ecto.Changeset.types()},
-              attrs :: map()
+              attrs :: map(),
+              metadata :: keyword()
             ) :: Ecto.Changeset.t()
 
   @doc """
@@ -181,7 +182,7 @@ defmodule Backpex.ItemAction do
   @callback handle(socket :: Phoenix.LiveView.Socket.t(), items :: list(map()), params :: map()) ::
               {:noreply, Phoenix.LiveView.Socket.t()} | {:reply, map(), Phoenix.LiveView.Socket.t()}
 
-  @optional_callbacks confirm: 1, confirm_label: 1, cancel_label: 1, changeset: 2, fields: 0
+  @optional_callbacks confirm: 1, confirm_label: 1, cancel_label: 1, changeset: 3, fields: 0
 
   @doc """
   Defines `Backpex.ItemAction` behaviour and provides default implementations.
@@ -212,7 +213,7 @@ defmodule Backpex.ItemAction do
       def fields, do: []
 
       @impl Backpex.ItemAction
-      def changeset(change, attrs), do: Ecto.Changeset.change(init_change())
+      def changeset(_change, _attrs, _metadata), do: Ecto.Changeset.change(init_change())
     end
   end
 end

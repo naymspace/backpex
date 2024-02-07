@@ -67,7 +67,7 @@ defmodule DemoWeb.ResourceActions.Upload do
   @required_fields ~w[description]a
 
   @impl Backpex.ResourceAction
-  def changeset(change, attrs) do
+  def changeset(change, attrs, _metadata \\ []) do
     change
     |> cast(attrs, @required_fields)
     |> validate_required(@required_fields)
