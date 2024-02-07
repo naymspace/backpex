@@ -1,0 +1,91 @@
+# Upgrading to v0.2
+
+## Bump Your Deps
+
+Update Backpex to the latest version:
+
+```elixir
+  defp deps do
+    [
+      {:backpex, "~> 0.2.0"}
+    ]
+  end
+```
+
+## Change arity of changeset functions
+
+See [Pull Request](https://github.com/naymspace/backpex/pull/94).
+
+We are introducing a new way to pass metadata to changeset functions. Previously, we supported changeset functions with
+different arities to optionally pass the `assigns` and `target` name to changesets.
+
+With this release, we require the arity of all changeset functions you provide to be `3`.
+
+The metadata, previously passed as additional parameters, is now passed as a keyword list to changesets as the third parameter.
+
+Currently we pass the following metadata to changesets:
+
+- `:assigns` - the assigns
+- `:target` - the name of the `form` target that triggered the changeset call
+
+
+When you previously had a LiveResource and Schema that looked like the following:
+
+```elixir
+defmodule MyAppWeb.UserLive do
+  use Backpex.LiveResource,
+      ...
+      update_changeset: &MyApp.User.changeset/2,
+      create_changeset: &MyApp.User.changeset/2,
+end
+
+
+defmodule MyApp.User do
+  ...
+
+  def changeset(user, attrs) do
+      ...
+  end
+end
+```
+
+You have to change it to the following:
+
+```elixir
+defmodule MyAppWeb.UserLive do
+  use Backpex.LiveResource,
+    ...
+    update_changeset: &MyApp.User.changeset/3,
+    create_changeset: &MyApp.User.changeset/3,
+end
+
+
+defmodule MyApp.User do
+  ...
+
+  def changeset(user, attrs, metadata) do
+    # fetch assigns from metadata
+    assigns = Keyword.get(metadata, :assigns)
+
+    # fetch target from metadata
+    assigns = Keyword.get(metadata, :target)
+
+    ...
+  end
+end
+```
+
+This change applies to Resource and Item Actions as well.
+
+For example:
+
+```elixir
+defmodule MyApp.EmailResourceAction
+  use Backpex.ResourceAction
+
+  @impl Backpex.ResourceAction
+  def changeset(change, attrs, _metadata \\ []) do
+    ...
+  end
+end
+```
