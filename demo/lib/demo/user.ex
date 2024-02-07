@@ -44,7 +44,7 @@ defmodule Demo.User do
   @optional_fields ~w[avatar deleted_at permissions age]a
 
   @doc false
-  def changeset(user, attrs) do
+  def changeset(user, attrs, _metadata \\ []) do
     user
     |> cast(attrs, @required_fields ++ @optional_fields)
     |> cast_assoc(:users_addresses, with: &UsersAddresses.changeset/2)

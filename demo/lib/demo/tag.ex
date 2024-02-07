@@ -16,13 +16,13 @@ defmodule Demo.Tag do
 
   @required_fields ~w[name inserted_at]a
 
-  def update_changeset(category, attrs) do
+  def update_changeset(category, attrs, _metadata \\ []) do
     category
     |> cast(attrs, @required_fields)
     |> validate_required(@required_fields)
   end
 
-  def create_changeset(category, attrs) do
+  def create_changeset(category, attrs, metadata) do
     category
     |> cast(attrs, @required_fields)
     |> validate_required(@required_fields)

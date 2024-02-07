@@ -1985,13 +1985,12 @@ defmodule Backpex.LiveResource do
   Calls the changeset function with the given change and target.
   """
   def call_changeset_function(item, changeset_function, change, assigns, target \\ nil) do
-    arity = :erlang.fun_info(changeset_function)[:arity]
+    metadata =
+      Keyword.new()
+      |> Keyword.put(:assigns, assigns)
+      |> Keyword.put(:target, target)
 
-    case arity do
-      2 -> changeset_function.(item, change)
-      3 -> changeset_function.(item, change, target)
-      4 -> changeset_function.(item, change, target, assigns)
-    end
+    changeset_function.(item, change, metadata)
   end
 
   def maybe_put_empty_filter(%{} = filters, empty_filter_key) when filters == %{} do

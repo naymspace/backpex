@@ -3,8 +3,8 @@ defmodule DemoWeb.TagLive do
     layout: {DemoWeb.Layouts, :admin},
     schema: Demo.Tag,
     repo: Demo.Repo,
-    update_changeset: &Demo.Tag.update_changeset/2,
-    create_changeset: &Demo.Tag.create_changeset/2,
+    update_changeset: &Demo.Tag.update_changeset/3,
+    create_changeset: &Demo.Tag.create_changeset/3,
     pubsub: Demo.PubSub,
     topic: "tags",
     event_prefix: "tag_"

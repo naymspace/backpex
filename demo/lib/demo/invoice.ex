@@ -20,13 +20,13 @@ defmodule Demo.Invoice do
   @required_fields ~w[company amount]a
   @optional_fields ~w[]a
 
-  def update_changeset(invoice, attrs) do
+  def update_changeset(invoice, attrs, _metadata \\ []) do
     invoice
     |> cast(attrs, @required_fields ++ @optional_fields)
     |> validate_required(@required_fields)
   end
 
-  def create_changeset(invoice, attrs) do
+  def create_changeset(invoice, attrs, _metadata \\ []) do
     invoice
     |> cast(attrs, @required_fields ++ @optional_fields)
     |> validate_required(@required_fields)

@@ -26,7 +26,7 @@ defmodule Demo.Product do
   @required_fields ~w[name quantity manufacturer price]a
   @optional_fields ~w[]a
 
-  def changeset(product, attrs) do
+  def changeset(product, attrs, _metadata \\ []) do
     product
     |> cast(attrs, @required_fields ++ @optional_fields)
     |> cast_assoc(:suppliers,
