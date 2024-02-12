@@ -28,7 +28,7 @@ defmodule DemoWeb.ItemActions.SoftDelete do
   @required_fields ~w[reason]a
 
   @impl Backpex.ItemAction
-  def changeset(change, attrs, _metadata) do
+  def changeset(change, attrs, metadata) do
     change
     |> cast(attrs, @required_fields)
     |> validate_required(@required_fields)
