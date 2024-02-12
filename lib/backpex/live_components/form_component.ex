@@ -51,7 +51,7 @@ defmodule Backpex.FormComponent do
 
   defp assign_changeset(%{assigns: %{action_to_confirm: action_to_confirm}} = socket) do
     init_change = action_to_confirm.module.init_change(socket.assigns)
-    changeset_function = &action_to_confirm.module.changeset/4
+    changeset_function = &action_to_confirm.module.changeset/3
 
     socket
     |> assign(item_action_types: init_change)
