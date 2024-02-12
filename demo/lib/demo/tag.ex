@@ -14,7 +14,7 @@ defmodule Demo.Tag do
     timestamps()
   end
 
-  @required_fields ~w[name inserted_at]a
+  @required_fields ~w[name]a
 
   def update_changeset(category, attrs, _metadata \\ []) do
     category

@@ -197,13 +197,6 @@ defmodule Backpex.ItemAction do
     quote do
       @before_compile Backpex.ItemAction
       @behaviour Backpex.ItemAction
-
-      @impl Backpex.ItemAction
-      def init_change(_assigns) do
-        types = Backpex.Field.changeset_types(fields())
-
-        {%{}, types}
-      end
     end
   end
 
@@ -224,6 +217,13 @@ defmodule Backpex.ItemAction do
 
         init_change(assigns)
         |> Ecto.Changeset.change()
+      end
+
+      @impl Backpex.ItemAction
+      def init_change(_assigns) do
+        types = Backpex.Field.changeset_types(fields())
+
+        {%{}, types}
       end
     end
   end
