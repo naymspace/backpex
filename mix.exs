@@ -104,7 +104,8 @@ defmodule Backpex.MixProject do
   defp groups_for_extras do
     [
       Introduction: ~r/guides\/introduction\/.?/,
-      Advanced: ~r/guides\/advanced\/.?/
+      Advanced: ~r/guides\/advanced\/.?/,
+      "Upgrade Guides": ~r{guides/upgrading/.*}
     ]
   end
 
