@@ -96,14 +96,16 @@ defmodule Backpex.MixProject do
     [
       "guides/introduction/installation.md",
       "guides/introduction/translations.md",
-      "guides/advanced/full_text_search.md"
+      "guides/advanced/full_text_search.md",
+      "guides/upgrading/v0.2.md"
     ]
   end
 
   defp groups_for_extras do
     [
       Introduction: ~r/guides\/introduction\/.?/,
-      Advanced: ~r/guides\/advanced\/.?/
+      Advanced: ~r/guides\/advanced\/.?/,
+      "Upgrade Guides": ~r{guides/upgrading/.*}
     ]
   end
 

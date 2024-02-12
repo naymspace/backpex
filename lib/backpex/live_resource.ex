@@ -24,8 +24,8 @@ defmodule Backpex.LiveResource do
           layout: {MyAppWeb.LayoutView, :admin},
           schema: MyApp.User,
           repo: MyApp.Repo,
-          update_changeset: &MyApp.User.update_changeset/2,
-          create_changeset: &MyApp.User.create_changeset/2
+          update_changeset: &MyApp.User.update_changeset/3,
+          create_changeset: &MyApp.User.create_changeset/3
 
         @impl Backpex.LiveResource
         def singular_name(), do: "User"
@@ -80,8 +80,8 @@ defmodule Backpex.LiveResource do
           layout: {MyAppWeb.LayoutView, :admin}, # Specify the layout you created in the step before
           schema: Event, # Schema of the resource
           repo: MyApp.Repo, # Ecto repository
-          update_changeset: &Event.update_changeset/2, # Changeset to be used for update queries
-          create_changeset: &Event.create_changeset/2,  # Changeset to be used for create queries
+          update_changeset: &Event.update_changeset/3, # Changeset to be used for update queries
+          create_changeset: &Event.create_changeset/3,  # Changeset to be used for create queries
           pubsub: Demo.PubSub, # PubSub name of the project.
           topic: "events", # The topic for PubSub
           event_prefix: "event_", # The event prefix for Pubsub, to differentiate between events of different resources when subscribed to multiple resources
@@ -651,16 +651,24 @@ defmodule Backpex.LiveResource do
         layout: {MyAppWeb.LayoutView, :admin},
         schema: MyApp.User,
         repo: MyApp.Repo,
-        update_changeset: &MyApp.User.update_changeset/2,
-        create_changeset: &MyApp.User.create_changeset/2
+        update_changeset: &MyApp.User.update_changeset/3,
+        create_changeset: &MyApp.User.create_changeset/3
 
   ## Options
 
     * `:layout` - Layout to be used by the LiveResource.
     * `:schema` - Schema for the resource.
     * `:repo` - Ecto repo that will be used to perform CRUD operations for the given schema.
-    * `:update_changeset` - Changeset to use when updating items. Optionally takes the target as the third parameter and the assigns as the fourth.
-    * `:create_changeset` - Changeset to use when creating items. Optionally takes the target as the third parameter and the assigns as the fourth.
+    * `:update_changeset` - Changeset to use when updating items. Additional metadata is passed as a keyword list via the third parameter.
+
+      The list of metadata:
+      - `:assigns` - the assigns
+      - `:target` - the name of the `form` target that triggered the changeset call. Default to `nil` if the call was not triggered by a form field.
+    * `:create_changeset` - Changeset to use when creating items. Additional metadata is passed as a keyword list via the third parameter.
+
+      The list of metadata:
+      - `:assigns` - the assigns
+      - `:target` - the name of the `form` target that triggered the changeset call. Default to `nil` if the call was not triggered by a form field.
     * `:pubsub` - PubSub name of the project.
     * `:topic` - The topic for PubSub.
     * `:event_prefix` - The event prefix for Pubsub, to differentiate between events of different resources when subscribed to multiple resources.
@@ -894,7 +902,7 @@ defmodule Backpex.LiveResource do
           |> assign(:resource_action_id, id)
           |> assign(:item, action.module.init_change())
           |> apply_index()
-          |> assign(:changeset_function, &action.module.changeset/2)
+          |> assign(:changeset_function, &action.module.changeset/3)
           |> assign_changeset(action.module.fields())
       end
 
@@ -1985,13 +1993,12 @@ defmodule Backpex.LiveResource do
   Calls the changeset function with the given change and target.
   """
   def call_changeset_function(item, changeset_function, change, assigns, target \\ nil) do
-    arity = :erlang.fun_info(changeset_function)[:arity]
+    metadata =
+      Keyword.new()
+      |> Keyword.put(:assigns, assigns)
+      |> Keyword.put(:target, target)
 
-    case arity do
-      2 -> changeset_function.(item, change)
-      3 -> changeset_function.(item, change, target)
-      4 -> changeset_function.(item, change, target, assigns)
-    end
+    changeset_function.(item, change, metadata)
   end
 
   def maybe_put_empty_filter(%{} = filters, empty_filter_key) when filters == %{} do

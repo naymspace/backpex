@@ -3,8 +3,8 @@ defmodule DemoWeb.UserLive do
     layout: {DemoWeb.Layouts, :admin},
     schema: Demo.User,
     repo: Demo.Repo,
-    update_changeset: &Demo.User.changeset/2,
-    create_changeset: &Demo.User.changeset/2,
+    update_changeset: &Demo.User.changeset/3,
+    create_changeset: &Demo.User.changeset/3,
     pubsub: Demo.PubSub,
     topic: "users",
     event_prefix: "user_"
