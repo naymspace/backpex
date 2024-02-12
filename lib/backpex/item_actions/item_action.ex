@@ -212,7 +212,6 @@ defmodule Backpex.ItemAction do
       def fields, do: []
 
       @impl Backpex.ItemAction
-      @impl Backpex.ItemAction
       def changeset(_change, _attrs, metadata) do
         assigns = Keyword.get(metadata, :assigns)
 
