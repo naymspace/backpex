@@ -55,7 +55,7 @@ defmodule Backpex.FormComponent do
 
     socket
     |> assign(item_action_types: init_change)
-    |> assign_new(:changeset_function, fn -> changeset_function end)
+    |> assign(:changeset_function, changeset_function)
     |> assign_new(:changeset, fn ->
       init_change
       |> Ecto.Changeset.change()
