@@ -54,7 +54,7 @@ defmodule DemoWeb.ItemActions.DuplicateTag do
     def handle(socket, [item | _items] = items, params) do
       result =
         %Demo.Tag{}
-        |> Demo.Tag.create_changeset(params)
+        |> Demo.Tag.create_changeset(params, [target: nil, assigns: socket.assigns])
         |> Repo.insert()
 
       socket =
