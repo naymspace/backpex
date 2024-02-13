@@ -22,8 +22,6 @@ defmodule DemoWeb.ItemActions.DuplicateTag do
           placeholder: "Tag name"
         }
       ]
-
-      # DemoWeb.TagLive.fields()
     end
 
     @impl Backpex.ItemAction
@@ -33,14 +31,14 @@ defmodule DemoWeb.ItemActions.DuplicateTag do
     def confirm(_assigns), do: "Please complete the form to duplicate the item."
 
     @impl Backpex.ItemAction
-    def confirm_label(assigns), do: "Duplicate"
+    def confirm_label(_assigns), do: "Duplicate"
 
     @impl Backpex.ItemAction
-    def cancel_label(assigns), do: "Cancel"
+    def cancel_label(_assigns), do: "Cancel"
 
     @impl Backpex.ItemAction
-    def changeset(item, change, target, assigns) do
-      Demo.Tag.create_changeset(item, change)
+    def changeset(item, change, metadata) do
+      Demo.Tag.create_changeset(item, change, metadata)
     end
 
     @impl Backpex.ItemAction
@@ -51,7 +49,7 @@ defmodule DemoWeb.ItemActions.DuplicateTag do
     end
 
     @impl Backpex.ItemAction
-    def handle(socket, [item | _items] = items, params) do
+    def handle(socket, _items, params) do
       result =
         %Demo.Tag{}
         |> Demo.Tag.create_changeset(params, [target: nil, assigns: socket.assigns])
@@ -59,7 +57,7 @@ defmodule DemoWeb.ItemActions.DuplicateTag do
 
       socket =
         case result do
-          {:ok, created} ->
+          {:ok, _created} ->
             put_flash(socket, :info, "Item has been duplicated.")
 
           _error ->
