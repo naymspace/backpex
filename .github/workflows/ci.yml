@@ -174,7 +174,7 @@ jobs:
 
   test-compile:
     needs: build-testing
-    name: "Test compile"
+    name: "Test compile demo"
     runs-on: ubuntu-latest
     container:
       image: ${{ needs.build-testing.outputs.image }}
@@ -187,7 +187,7 @@ jobs:
 
   test-demo:
     needs: build-testing
-    name: "Test demo"
+    name: "Run tests demo"
     runs-on: ubuntu-latest
     container:
       image: ${{ needs.build-testing.outputs.image }}
@@ -213,7 +213,7 @@ jobs:
 
   deps-audit:
     needs: build-testing
-    name: "Deps audit"
+    name: "Audit deps demo"
     runs-on: ubuntu-latest
     container:
       image: ${{ needs.build-testing.outputs.image }}
