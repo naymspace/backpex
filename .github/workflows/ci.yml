@@ -191,10 +191,13 @@ jobs:
     runs-on: ubuntu-latest
     container:
       image: ${{ needs.build-testing.outputs.image }}
+      env:
+        POSTGRES_DB: test
+        POSTGRES_PASSWORD: postgres
     services:
       postgres:
         image: postgres:14-alpine
-        
+
     steps:
       - name: Run test
         working-directory: /opt/app/demo
