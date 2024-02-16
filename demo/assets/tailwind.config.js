@@ -36,8 +36,8 @@ module.exports = {
     }
   },
   plugins: [
-    require("@tailwindcss/typography"),
-    require("daisyui"),
+    require('@tailwindcss/typography'),
+    require('daisyui'),
     plugin(({ addVariant }) => addVariant('phx-no-feedback', ['.phx-no-feedback&', '.phx-no-feedback &'])),
     plugin(({ addVariant }) => addVariant('phx-click-loading', ['.phx-click-loading&', '.phx-click-loading &'])),
     plugin(({ addVariant }) => addVariant('phx-submit-loading', ['.phx-submit-loading&', '.phx-submit-loading &'])),
