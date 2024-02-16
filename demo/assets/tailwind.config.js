@@ -31,7 +31,7 @@ module.exports = {
     extend: {
       colors: {
         transparent: 'transparent',
-        current: 'currentColor',
+        current: 'currentColor'
       }
     }
   },
