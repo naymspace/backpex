@@ -57,9 +57,6 @@ jobs:
         run: |
           mix compile --warnings-as-errors --force
 
-      - name: Copy PLTs to priv/plts
-        run: cp priv/plts ${{ github.workspace }}/priv/plts
-
       - name: Dialyzer
         run: |
           mix dialyzer --force-check
