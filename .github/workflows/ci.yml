@@ -5,10 +5,14 @@ on:
   release:
     types: [published]
 
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME_TESTING: ${{ github.repository }}/testing
+  IMAGE_NAME_RUNTIME: ${{ github.repository }}/runtime
 
 jobs:
   test:
-    name: "Test Backpex"
+    name: "Test backpex"
     runs-on: ubuntu-latest
     strategy:
       matrix:
@@ -17,7 +21,7 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v2
+        uses: actions/checkout@v4
       
       - uses: erlef/setup-beam@v1
         with:
@@ -77,6 +81,87 @@ jobs:
         run: |
           mix gettext.extract --check-up-to-date
 
-      - name: Run Demo Tests
+  build-demo:
+    name: "Build and push demo"
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Log in to the container registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract metadata (tags, labels) for Docker
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME_TESTING }}
+
+      - name: Build container
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+    outputs:
+      image: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME_TESTING }}
+
+  test-demo:
+    needs: build-demo
+    name: "Test demo"
+    runs-on: ubuntu-latest
+    container:
+      # we need to get the image by the output of the previous job because
+      # we can not acces envs here 
+      image: ${{ needs.build-demo.outputs.image }}
+  
+    steps:
+      - name: Test
         run: |
-          cd demo && mix test
+          yarn test
+
+      - name: lint
+        run: |
+          yarn lint
+
+      - name: lint:mix
+        run: |
+          yarn lint:mix
+          
+      - name: lint:dialyzer
+        run: |
+          yarn lint:dialyzer
+
+      - name: lint:credo
+        run: |
+          yarn lint:credo
+
+      - name: lint:sobelow
+        run: |
+          yarn lint:sobelow
+
+      - name: lint:style
+        run: |
+          yarn lint:style
+          
+      - name: lint:standard
+        run: |
+          yarn lint:standard
+
+      - name: lint:deps-unused
+        run: |
+          yarn lint:deps-unused
+          
+      - name: lint:gettext
+        run: |
+          yarn lint:gettext
