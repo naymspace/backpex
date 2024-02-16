@@ -133,13 +133,9 @@ jobs:
         run: |
           mix hex.info
 
-      # - name: Test
-      #   working-directory: /opt/app
-      #   run: |
-      #     yarn test
-
       - name: Run linters
         run: |
+          ls -l
           cd /opt/app
           yarn lint
           yarn lint:mix
