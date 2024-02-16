@@ -29,7 +29,7 @@ jobs:
           elixir-version: ${{ matrix.elixir }}
 
       - name: Restore deps and _build cache
-        uses: actions/cache@v1
+        uses: actions/cache@v4
         with:
           path: |
             deps
