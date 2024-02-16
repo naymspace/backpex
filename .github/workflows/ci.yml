@@ -133,9 +133,13 @@ jobs:
         run: |
           mix hex.info
 
+      - name: Debug
+        run: |
+          pwd
+          ls -la
+
       - name: Run linters
         run: |
-          ls -l
           cd /opt/app
           yarn lint
           yarn lint:mix
