@@ -129,42 +129,56 @@ jobs:
       image: ${{ needs.build-demo.outputs.image }}
   
     steps:
+      - name: Run hex info
+        run: |
+          mix hex.info
+
       - name: Test
+        working-directory: /opt/app
         run: |
           yarn test
 
       - name: lint
+        working-directory: /opt/app
         run: |
           yarn lint
 
       - name: lint:mix
+        working-directory: /opt/app
         run: |
           yarn lint:mix
           
       - name: lint:dialyzer
+        working-directory: /opt/app  
         run: |
-          yarn lint:dialyzer
+            yarn lint:dialyzer
 
       - name: lint:credo
+        working-directory: /opt/app
         run: |
           yarn lint:credo
 
       - name: lint:sobelow
+        working-directory: /opt/app
         run: |
           yarn lint:sobelow
 
       - name: lint:style
+        working-directory: /opt/app
         run: |
           yarn lint:style
           
       - name: lint:standard
+        working-directory: /opt/app
         run: |
           yarn lint:standard
 
       - name: lint:deps-unused
+        working-directory: /opt/app
         run: |
           yarn lint:deps-unused
           
       - name: lint:gettext
+        working-directory: /opt/app
         run: |
           yarn lint:gettext
