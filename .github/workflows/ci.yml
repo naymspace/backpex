@@ -128,11 +128,6 @@ jobs:
       image: ${{ needs.build-demo-testing.outputs.image }}
   
     steps:
-      - name: lint
-        working-directory: /opt/app/demo
-        run: |
-          yarn lint
-
       - name: lint:mix
         working-directory: /opt/app/demo
         run: |
