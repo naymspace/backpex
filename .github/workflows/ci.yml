@@ -1,32 +1,83 @@
 name: CI
 
 on:
-  push:
-  release:
-    types: [published]
+    push:
+    release:
+      types: [published]
+
 
 jobs:
-  ci:
+  test:
+    name: "Test Backpex"
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        elixir: ['1.15.7']
+        erlang: ['26.1.2']
+
     steps:
-      - uses: actions/checkout@v4
-
-      - uses: erlef/setup-beam@v1
+      - name: Checkout code
+        uses: actions/checkout@v2
+      
+      - name: Setup Elixir
+        uses: actions/setup-elixir@v1
         with:
-          otp-version: '26.1.2'
-          elixir-version: '1.15.7'
+          otp-version: ${{ matrix.erlang }}
+          elixir-version: ${{ matrix.elixir }}
+  
+      - name: Restore deps and _build cache
+        uses: actions/cache@v1
+        with:
+          path: |
+            deps
+            _build
+            .mix
+          key: deps-${{ runner.os }}-mix-${{ hashFiles(format('{0}{1}', github.workspace, '/mix.lock')) }}
+          restore-keys: |
+            deps-${{ runner.os }}-mix-
 
-      - name: Install Dependencies
-        run: mix deps.get
+      - name: Install dependencies
+        run: |
+          mix local.hex --force --if-missing
+          mix local.rebar --force --if-missing
+          mix deps.get
+      
+      - name: Run tests
+        run: |
+          mix test
+      
+      - name: Check formatting
+        run: |
+          mix format --check-formatted
+      
+      - name: Compile with warnings as errors
+        run: |
+          mix compile --warnings-as-errors --force
 
-      - name: Check Formatting
-        run: mix format --check-formatted
+      - name: Dialyzer
+        run: |
+          mix dialyzer --force-check
 
-      - name: Run Tests
-        run: mix test
+      - name: Credo
+        run: |
+          mix credo
 
-      - name: Publish package
-        if: github.event_name == 'release'
-        env:
-          HEX_API_KEY: ${{ secrets.HEX_API_KEY }}
-        run: mix hex.publish --yes
+      - name: Sobelow
+        run: |
+          mix sobelow --config
+
+      - name: Deps Unused
+        run: |
+          mix deps.unlock --check-unused
+
+      - name: Deps Audit 
+        run: |
+          mix deps.audit
+      
+      - name: Gettext Check
+        run: |
+          mix gettext.extract --check-up-to-date
+
+      - name: Run Demo Tests
+        run: |
+          cd demo && mix test
