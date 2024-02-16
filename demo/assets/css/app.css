@@ -3,7 +3,6 @@
 @import "tailwindcss/utilities";
 
 @layer utilities {
-
   /* LiveView specific classes */
   .phx-no-feedback.invalid-feedback,
   .phx-no-feedback .invalid-feedback {
