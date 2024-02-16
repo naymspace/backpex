@@ -129,8 +129,6 @@ jobs:
     name: "Lint demo"
     runs-on: ubuntu-latest
     container:
-      # we need to get the image by the output of the previous job because
-      # we can not acces envs here 
       image: ${{ needs.build-testing.outputs.image }}
   
     steps:
@@ -174,26 +172,48 @@ jobs:
         run: |
           yarn lint:gettext
 
-  test-demo:
+  test-compile:
     needs: build-testing
-    name: "Test demo"
+    name: "Test compile"
     runs-on: ubuntu-latest
     container:
-      # we need to get the image by the output of the previous job because
-      # we can not acces envs here 
       image: ${{ needs.build-testing.outputs.image }}
-    
+
     steps:
       - name: Compile with warnings as errors
         working-directory: /opt/app/demo
         run: |
           mix compile --warnings-as-errors --force
 
+  test-demo:
+    needs: build-testing
+    name: "Test demo"
+    runs-on: ubuntu-latest
+    container:
+      image: ${{ needs.build-testing.outputs.image }}
+    services:
+      postgres:
+        image: postgres:14-alpine
+      options: >-
+        --health-cmd pg_isready
+        --health-interval 10s
+        --health-timeout 5s 
+        --health-retries 5
+
+    steps:
       - name: Run test
         working-directory: /opt/app/demo
         run: |
           yarn test
 
+  deps-audit:
+    needs: build-testing
+    name: "Deps audit"
+    runs-on: ubuntu-latest
+    container:
+      image: ${{ needs.build-testing.outputs.image }}
+
+    steps:
       - name: Deps audit
         working-directory: /opt/app/demo
         continue-on-error: true
@@ -203,7 +223,7 @@ jobs:
   build-runtime:
     name: "Build runtime"
     runs-on: ubuntu-latest
-    needs: [test-demo, lint-demo]
+    needs: [lint-demo, test-compile, test-demo, deps-audit]
 
     permissions:
       contents: read
