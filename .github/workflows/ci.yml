@@ -82,7 +82,7 @@ jobs:
           mix gettext.extract --check-up-to-date
 
   build-demo:
-    name: "Build and push demo"
+    name: "Build and push demo testing"
     runs-on: ubuntu-latest
 
     permissions:
@@ -117,7 +117,7 @@ jobs:
           build-args: |
             MIX_ENV=test
     outputs:
-      image: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME_TESTING }}
+      image: ${{ steps.meta.outputs.tags }}
 
   test-demo:
     needs: build-demo
