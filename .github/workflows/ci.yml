@@ -167,7 +167,7 @@ jobs:
         id: plts-cache
         with:
           path: /opt/app/demo/priv/plts
-          key: ${{ runner.os }}-demo-plts-mixlockhash-${{ hashFiles('/opt/app/demo/mix.lock') }}
+          key: ${{ runner.os }}-demo-plts-mixlockhash-${{ hashFiles(format('{0}{1}', github.workspace, '/opt/app/demo/mix.lock')) }}
           restore-keys: |
             ${{ runner.os }}-demo-plts-
 
