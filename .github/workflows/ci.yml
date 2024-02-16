@@ -34,7 +34,6 @@ jobs:
           path: |
             deps
             _build
-            .mix
           key: deps-${{ runner.os }}-mix-${{ hashFiles(format('{0}{1}', github.workspace, '/mix.lock')) }}
           restore-keys: |
             deps-${{ runner.os }}-mix-
