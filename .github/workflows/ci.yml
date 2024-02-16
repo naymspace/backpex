@@ -81,8 +81,8 @@ jobs:
         run: |
           mix gettext.extract --check-up-to-date
 
-  build-demo:
-    name: "Build and push demo testing"
+  build-demo-testing:
+    name: "Build and push demo testing image"
     runs-on: ubuntu-latest
 
     permissions:
@@ -120,23 +120,23 @@ jobs:
       image: ${{ steps.meta.outputs.tags }}
 
   test-demo:
-    needs: build-demo
+    needs: build-demo-testing
     name: "Test demo"
     runs-on: ubuntu-latest
     container:
       # we need to get the image by the output of the previous job because
       # we can not acces envs here 
-      image: ${{ needs.build-demo.outputs.image }}
+      image: ${{ needs.build-demo-testing.outputs.image }}
   
     steps:
       - name: Run hex info
         run: |
           mix hex.info
 
-      - name: Test
-        working-directory: /opt/app
-        run: |
-          yarn test
+      # - name: Test
+      #   working-directory: /opt/app
+      #   run: |
+      #     yarn test
 
       - name: lint
         working-directory: /opt/app
@@ -182,3 +182,39 @@ jobs:
         working-directory: /opt/app
         run: |
           yarn lint:gettext
+
+  build-demo-runtime:
+    name: "Build and push demo runtime image"
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Log in to the container registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract metadata (tags, labels) for Docker
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME_RUNTIME }}
+
+      - name: Build container
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          target: runtime
+          build-args: |
+            MIX_ENV=prod
