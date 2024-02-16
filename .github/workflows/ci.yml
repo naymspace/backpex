@@ -226,7 +226,7 @@ jobs:
 
   build-runtime:
     name: "Build runtime"
-    runs-on: docker:git
+    runs-on: ubuntu-latest
     # needs: [lint-demo, test-compile, test-demo, deps-audit]
 
     permissions:
