@@ -118,41 +118,60 @@ jobs:
     outputs:
       image: ${{ steps.meta.outputs.tags }}
 
-  test-demo:
+  lint-demo:
     needs: build-demo-testing
     name: "Lint demo"
     runs-on: ubuntu-latest
+    container:
+      # we need to get the image by the output of the previous job because
+      # we can not acces envs here 
+      image: ${{ needs.build-demo-testing.outputs.image }}
   
     steps:
-      - name: "Run linter inside demo testing image"
-        uses: addnab/docker-run-action@v3
-        with:
-          image: ${{ needs.build-demo-testing.outputs.image }}
-          run: |
-            cd /opt/app
-            yarn lint:mix
+      - name: lint
+        working-directory: /opt/app/demo
+        run: |
+          yarn lint
 
-      # - name: Run hex info
-      #   run: |
-      #     mix hex.info
+      - name: lint:mix
+        working-directory: /opt/app/demo
+        run: |
+          yarn lint:mix
+          
+      - name: lint:dialyzer
+        working-directory: /opt/app/demo  
+        run: |
+          yarn lint:dialyzer
 
-      # - name: Debug
-      #   run: |
-      #     pwd
-      #     ls -la
+      - name: lint:credo
+        working-directory: /opt/app/demo
+        run: |
+          yarn lint:credo
 
-      # - name: Run linters
-      #   run: |
-      #     cd /opt/app
-      #     yarn lint
-      #     yarn lint:mix
-      #     yarn lint:dialyzer
-      #     yarn lint:credo
-      #     yarn lint:sobelow
-      #     yarn lint:style
-      #     yarn lint:standard
-      #     yarn lint:deps-unused
-      #     yarn lint:gettext
+      - name: lint:sobelow
+        working-directory: /opt/app/demo
+        run: |
+          yarn lint:sobelow
+
+      - name: lint:style
+        working-directory: /opt/app/demo
+        run: |
+          yarn lint:style
+          
+      - name: lint:standard
+        working-directory: /opt/app/demo
+        run: |
+          yarn lint:standard
+
+      - name: lint:deps-unused
+        working-directory: /opt/app/demo
+        run: |
+          yarn lint:deps-unused
+          
+      - name: lint:gettext
+        working-directory: /opt/app/demo
+        run: |
+          yarn lint:gettext
 
   build-demo-runtime:
     name: "Build and push demo runtime image"
