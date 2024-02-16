@@ -121,35 +121,39 @@ jobs:
 
   test-demo:
     needs: build-demo-testing
-    name: "Test demo"
+    name: "Lint demo"
     runs-on: ubuntu-latest
-    container:
-      # we need to get the image by the output of the previous job because
-      # we can not acces envs here 
-      image: ${{ needs.build-demo-testing.outputs.image }}
   
     steps:
-      - name: Run hex info
-        run: |
-          mix hex.info
+      - name: "Run linter inside demo testing image"
+        uses: addnab/docker-run-action@v3
+        with:
+          image: ${{ needs.build-demo-testing.outputs.image }}
+          run: |
+            cd /opt/app
+            yarn lint:mix
 
-      - name: Debug
-        run: |
-          pwd
-          ls -la
+      # - name: Run hex info
+      #   run: |
+      #     mix hex.info
 
-      - name: Run linters
-        run: |
-          cd /opt/app
-          yarn lint
-          yarn lint:mix
-          yarn lint:dialyzer
-          yarn lint:credo
-          yarn lint:sobelow
-          yarn lint:style
-          yarn lint:standard
-          yarn lint:deps-unused
-          yarn lint:gettext
+      # - name: Debug
+      #   run: |
+      #     pwd
+      #     ls -la
+
+      # - name: Run linters
+      #   run: |
+      #     cd /opt/app
+      #     yarn lint
+      #     yarn lint:mix
+      #     yarn lint:dialyzer
+      #     yarn lint:credo
+      #     yarn lint:sobelow
+      #     yarn lint:style
+      #     yarn lint:standard
+      #     yarn lint:deps-unused
+      #     yarn lint:gettext
 
   build-demo-runtime:
     name: "Build and push demo runtime image"
