@@ -138,49 +138,17 @@ jobs:
       #   run: |
       #     yarn test
 
-      - name: lint
-        working-directory: /opt/app
+      - name: Run linters
         run: |
+          cd /opt/app
           yarn lint
-
-      - name: lint:mix
-        working-directory: /opt/app
-        run: |
           yarn lint:mix
-          
-      - name: lint:dialyzer
-        working-directory: /opt/app  
-        run: |
-            yarn lint:dialyzer
-
-      - name: lint:credo
-        working-directory: /opt/app
-        run: |
+          yarn lint:dialyzer
           yarn lint:credo
-
-      - name: lint:sobelow
-        working-directory: /opt/app
-        run: |
           yarn lint:sobelow
-
-      - name: lint:style
-        working-directory: /opt/app
-        run: |
           yarn lint:style
-          
-      - name: lint:standard
-        working-directory: /opt/app
-        run: |
           yarn lint:standard
-
-      - name: lint:deps-unused
-        working-directory: /opt/app
-        run: |
           yarn lint:deps-unused
-          
-      - name: lint:gettext
-        working-directory: /opt/app
-        run: |
           yarn lint:gettext
 
   build-demo-runtime:
