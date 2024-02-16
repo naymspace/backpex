@@ -19,12 +19,11 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v2
       
-      - name: Setup Elixir
-        uses: actions/setup-elixir@v1
+      - uses: erlef/setup-beam@v1
         with:
           otp-version: ${{ matrix.erlang }}
           elixir-version: ${{ matrix.elixir }}
-  
+
       - name: Restore deps and _build cache
         uses: actions/cache@v1
         with:
