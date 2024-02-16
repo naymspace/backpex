@@ -147,7 +147,7 @@ jobs:
 
   lint-demo:
     needs: build-testing
-    name: "Lint demo"
+    name: "Lint (Demo)"
     runs-on: ubuntu-latest
     container:
       image: ${{ needs.build-testing.outputs.image }}
@@ -208,7 +208,7 @@ jobs:
 
   test-compile:
     needs: build-testing
-    name: "Test compile demo"
+    name: "Compile (Demo)"
     runs-on: ubuntu-latest
     container:
       image: ${{ needs.build-testing.outputs.image }}
@@ -221,7 +221,7 @@ jobs:
 
   test-demo:
     needs: build-testing
-    name: "Run tests demo"
+    name: "Test (Demo)"
     runs-on: ubuntu-latest
     container:
       image: ${{ needs.build-testing.outputs.image }}
@@ -247,7 +247,7 @@ jobs:
 
   deps-audit:
     needs: build-testing
-    name: "Audit deps demo"
+    name: "Deps Audit (Demo)"
     runs-on: ubuntu-latest
     container:
       image: ${{ needs.build-testing.outputs.image }}
