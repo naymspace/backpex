@@ -113,6 +113,9 @@ jobs:
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
+          build-args: |
+            --target builder
+            --build-arg MIX_ENV=test
     outputs:
       image: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME_TESTING }}
 
