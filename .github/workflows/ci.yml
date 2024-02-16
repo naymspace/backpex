@@ -194,12 +194,7 @@ jobs:
     services:
       postgres:
         image: postgres:14-alpine
-      options: >-
-        --health-cmd pg_isready
-        --health-interval 10s
-        --health-timeout 5s 
-        --health-retries 5
-
+        
     steps:
       - name: Run test
         working-directory: /opt/app/demo
