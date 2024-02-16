@@ -34,6 +34,7 @@ jobs:
           path: |
             deps
             _build
+            priv/plts
           key: deps-${{ runner.os }}-mix-${{ hashFiles(format('{0}{1}', github.workspace, '/mix.lock')) }}
           restore-keys: |
             deps-${{ runner.os }}-mix-
@@ -55,6 +56,9 @@ jobs:
       - name: Compile with warnings as errors
         run: |
           mix compile --warnings-as-errors --force
+
+      - name: Copy PLTs to priv/plts
+        run: cp priv/plts ${{ github.workspace }}/priv/plts
 
       - name: Dialyzer
         run: |
