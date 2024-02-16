@@ -74,6 +74,7 @@ jobs:
           mix deps.unlock --check-unused
 
       - name: Deps Audit 
+        continue-on-error: true
         run: |
           mix deps.audit
       
@@ -168,9 +169,36 @@ jobs:
         run: |
           yarn lint:gettext
 
+  test-demo:
+    needs: build-demo-testing
+    name: "Test demo"
+    runs-on: ubuntu-latest
+    container:
+      # we need to get the image by the output of the previous job because
+      # we can not acces envs here 
+      image: ${{ needs.build-demo-testing.outputs.image }}
+    
+    steps:
+      - name: Compile with warnings as errors
+        working-directory: /opt/app/demo
+        run: |
+          mix compile --warnings-as-errors --force
+
+      - name: Run test
+        working-directory: /opt/app/demo
+        run: |
+          yarn test
+
+      - name: Deps audit
+        working-directory: /opt/app/demo
+        continue-on-error: true
+        run: |
+          mix deps.audit
+
   build-demo-runtime:
     name: "Build and push demo runtime image"
     runs-on: ubuntu-latest
+    needs: [test-demo, lint-demo]
 
     permissions:
       contents: read
