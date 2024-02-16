@@ -82,8 +82,8 @@ jobs:
         run: |
           mix gettext.extract --check-up-to-date
 
-  build-demo-testing:
-    name: "Build and push demo testing image"
+  build-testing:
+    name: "Build testing"
     runs-on: ubuntu-latest
 
     permissions:
@@ -120,13 +120,13 @@ jobs:
       image: ${{ steps.meta.outputs.tags }}
 
   lint-demo:
-    needs: build-demo-testing
+    needs: build-testing
     name: "Lint demo"
     runs-on: ubuntu-latest
     container:
       # we need to get the image by the output of the previous job because
       # we can not acces envs here 
-      image: ${{ needs.build-demo-testing.outputs.image }}
+      image: ${{ needs.build-testing.outputs.image }}
   
     steps:
       - name: lint:mix
@@ -170,13 +170,13 @@ jobs:
           yarn lint:gettext
 
   test-demo:
-    needs: build-demo-testing
+    needs: build-testing
     name: "Test demo"
     runs-on: ubuntu-latest
     container:
       # we need to get the image by the output of the previous job because
       # we can not acces envs here 
-      image: ${{ needs.build-demo-testing.outputs.image }}
+      image: ${{ needs.build-testing.outputs.image }}
     
     steps:
       - name: Compile with warnings as errors
@@ -195,8 +195,8 @@ jobs:
         run: |
           mix deps.audit
 
-  build-demo-runtime:
-    name: "Build and push demo runtime image"
+  build-runtime:
+    name: "Build runtime"
     runs-on: ubuntu-latest
     needs: [test-demo, lint-demo]
 
