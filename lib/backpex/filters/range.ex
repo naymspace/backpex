@@ -22,6 +22,8 @@ defmodule Backpex.Filters.Range do
   > In addition it will add a `render` and `render_form` function in order to display the corresponding filter.
   > It will also implement the `Backpex.Filter.query` function to define a range query.
   """
+  use Phoenix.Component, global_prefixes: ~w(x-)
+  import Ecto.Query, warn: false
 
   @doc """
   The type return value defines the rendered input fields of the range filter.
@@ -32,75 +34,14 @@ defmodule Backpex.Filters.Range do
     quote do
       use BackpexWeb, :filter
 
-      @behaviour Backpex.Filters.Range
+      alias Backpex.Filters.Range, as: RangeFilter
 
-      @dialyzer {:no_match, render_type: 0, maybe_parse: 3}
-      @dialyzer {:no_unused, render_type: 0, parse_float_or_int: 1, is_date?: 1}
-
-      @impl Backpex.Filter
-      def query(query, attribute, %{"start" => start_at, "end" => end_at}) do
-        maybe_parse_range(start_at, end_at)
-        |> do_query(query, attribute)
-      end
+      @behaviour RangeFilter
 
       @impl Backpex.Filter
-      def query(query, attribute, _params) do
-        query
-      end
-
-      defp do_query({nil, nil}, query, _attribute), do: query
-
-      defp do_query({start_at, nil}, query, attribute) do
-        where(query, [x], field(x, ^attribute) >= ^start_at)
-      end
-
-      defp do_query({nil, end_at}, query, attribute) do
-        where(query, [x], field(x, ^attribute) <= ^end_at)
-      end
-
-      defp do_query({start_at, end_at}, query, attribute) do
-        where(query, [x], field(x, ^attribute) >= ^start_at and field(x, ^attribute) <= ^end_at)
-      end
-
-      defp maybe_parse_range(start_at, end_at) do
+      def query(query, attribute, params) do
         type = type()
-
-        {maybe_parse(type, start_at), maybe_parse(type, end_at, true)}
-      end
-
-      defp maybe_parse(type, value, is_end? \\ false)
-
-      defp maybe_parse(_type, "", _is_end?), do: nil
-
-      defp maybe_parse(:date, value, _is_end?), do: if(is_date?(value), do: value, else: nil)
-
-      defp maybe_parse(:datetime, value, false = _is_end?),
-        do: if(is_date?(value), do: value <> "T00:00:00+00:00", else: nil)
-
-      defp maybe_parse(:datetime, value, _is_end?), do: if(is_date?(value), do: value <> "T23:59:59+00:00", else: nil)
-
-      defp maybe_parse(:number, value, _is_end?), do: parse_float_or_int(value)
-
-      defp parse_float_or_int(value) do
-        case {Integer.parse(value), Float.parse(value)} do
-          {{value, ""}, _parsed_float} -> value
-          {_parsed_integer, {value, ""}} -> value
-          {_parsed_integer_err, _parsed_float_err} -> nil
-        end
-      end
-
-      defp render_type do
-        case type() do
-          :datetime -> :date
-          other -> other
-        end
-      end
-
-      defp is_date?(date) do
-        case Date.from_iso8601(date) do
-          {:ok, _} -> true
-          _err -> false
-        end
+        RangeFilter.query(query, type, attribute, params)
       end
 
       @impl Backpex.Filter
@@ -111,60 +52,149 @@ defmodule Backpex.Filters.Range do
           |> assign(:max, var!(assigns).value["end"])
 
         ~H"""
-        <span :if={@max == ""}>&gt; <%= @min %></span>
-        <span :if={@min == ""}>&lt; <%= @max %></span>
-        <span :if={@min != "" and @max != ""}><%= @min %> &mdash; <%= @max %></span>
+        <RangeFilter.render min={@min} max={@max} />
         """
       end
 
       @impl Backpex.Filter
-      def render_form(var!(assigns) = assigns) do
+      def render_form(var!(assigns)) do
+        type = RangeFilter.render_type(__MODULE__.type())
+        var!(assigns) = assign(var!(assigns), :type, type)
+
         ~H"""
-        <.inputs_for :let={f} field={@form[@field]}>
-          <.range_input_set form={f} type={render_type()} value={@value} />
-        </.inputs_for>
+        <Backpex.Filters.Range.render_form form={@form} field={@field} value={@value} type={@type} />
         """
       end
 
-      defp range_input_set(%{type: :date} = var!(assigns)) do
-        ~H"""
-        <div class="mt-2">
-          <%= Phoenix.HTML.Form.date_input(
-            @form,
-            "start",
-            value: @value["start"],
-            class: "input input-sm input-bordered mb-2 w-full"
-          ) %>
-          <%= Phoenix.HTML.Form.date_input(
-            @form,
-            "end",
-            value: @value["end"],
-            class: "input input-sm input-bordered w-full"
-          ) %>
-        </div>
-        """
-      end
-
-      defp range_input_set(%{type: :number} = var!(assigns)) do
-        ~H"""
-        <div class="mt-2">
-          <%= Phoenix.HTML.Form.number_input(
-            @form,
-            "start",
-            value: @value["start"],
-            class: "input input-sm input-bordered mb-2 w-full"
-          ) %>
-          <%= Phoenix.HTML.Form.number_input(
-            @form,
-            "end",
-            value: @value["end"],
-            class: "input input-sm input-bordered w-full"
-          ) %>
-        </div>
-        """
-      end
-
-      defoverridable query: 3
+      defoverridable query: 3, render: 1, render_form: 1
     end
   end
+
+  attr :max, :string, required: true
+  attr :min, :string, required: true
+
+  def render(assigns) do
+    ~H"""
+    <span :if={@max == ""}>&gt; <%= @min %></span>
+    <span :if={@min == ""}>&lt; <%= @max %></span>
+    <span :if={@min != "" and @max != ""}><%= @min %> &mdash; <%= @max %></span>
+    """
+  end
+
+  attr :form, :any, required: true
+  attr :field, :atom, required: true
+  attr :value, :any, required: true
+
+  def render_form(assigns) do
+    ~H"""
+    <.inputs_for :let={f} field={@form[@field]}>
+      <.range_input_set form={f} type={@type} value={@value} />
+    </.inputs_for>
+    """
+  end
+
+  attr :form, :any, required: true
+  attr :type, :atom, required: true
+  attr :value, :any, required: true
+
+  def range_input_set(%{type: :date} = assigns) do
+    ~H"""
+    <div class="mt-2">
+      <%= Phoenix.HTML.Form.date_input(
+        @form,
+        "start",
+        value: @value["start"],
+        class: "input input-sm input-bordered mb-2 w-full"
+      ) %>
+      <%= Phoenix.HTML.Form.date_input(
+        @form,
+        "end",
+        value: @value["end"],
+        class: "input input-sm input-bordered w-full"
+      ) %>
+    </div>
+    """
+  end
+
+  def range_input_set(%{type: :number} = assigns) do
+    ~H"""
+    <div class="mt-2">
+      <%= Phoenix.HTML.Form.number_input(
+        @form,
+        "start",
+        value: @value["start"],
+        class: "input input-sm input-bordered mb-2 w-full"
+      ) %>
+      <%= Phoenix.HTML.Form.number_input(
+        @form,
+        "end",
+        value: @value["end"],
+        class: "input input-sm input-bordered w-full"
+      ) %>
+    </div>
+    """
+  end
+
+  def query(query, type, attribute, %{"start" => start_at, "end" => end_at}) do
+    maybe_parse_range(type, start_at, end_at)
+    |> do_query(query, attribute)
+  end
+
+  def query(query, _type, _attribute, _params) do
+    query
+  end
+
+  def do_query({nil, nil}, query, _attribute), do: query
+
+  def do_query({start_at, nil}, query, attribute) do
+    where(query, [x], field(x, ^attribute) >= ^start_at)
+  end
+
+  def do_query({nil, end_at}, query, attribute) do
+    where(query, [x], field(x, ^attribute) <= ^end_at)
+  end
+
+  def do_query({start_at, end_at}, query, attribute) do
+    where(query, [x], field(x, ^attribute) >= ^start_at and field(x, ^attribute) <= ^end_at)
+  end
+
+  def maybe_parse_range(type, start_at, end_at) do
+    {maybe_parse(type, start_at), maybe_parse(type, end_at, true)}
+  end
+
+  def maybe_parse(type, value, is_end? \\ false)
+
+  def maybe_parse(_type, "", _is_end?), do: nil
+
+  def maybe_parse(:date, value, _is_end?) do
+    if is_date?(value), do: value, else: nil
+  end
+
+  def maybe_parse(:datetime, value, false = _is_end?) do
+    if is_date?(value), do: value <> "T00:00:00+00:00", else: nil
+  end
+
+  def maybe_parse(:datetime, value, _is_end?) do
+    if is_date?(value), do: value <> "T23:59:59+00:00", else: nil
+  end
+
+  def maybe_parse(:number, value, _is_end?), do: parse_float_or_int(value)
+
+  def parse_float_or_int(value) do
+    case {Integer.parse(value), Float.parse(value)} do
+      {{value, ""}, _parsed_float} -> value
+      {_parsed_integer, {value, ""}} -> value
+      {_parsed_integer_err, _parsed_float_err} -> nil
+    end
+  end
+
+  def is_date?(date) do
+    case Date.from_iso8601(date) do
+      {:ok, _} -> true
+      _err -> false
+    end
+  end
+
+  def render_type(:datetime = _type), do: :date
+  def render_type(type), do: type
 end
