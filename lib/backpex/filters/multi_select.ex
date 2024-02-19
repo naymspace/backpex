@@ -66,7 +66,7 @@ defmodule Backpex.Filters.MultiSelect do
         """
       end
 
-      defoverridable query: 3
+      defoverridable query: 3, render: 1, render_form: 1
     end
   end
 
