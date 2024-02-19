@@ -38,6 +38,8 @@ defmodule Backpex.Filters.Boolean do
   > In addition it will add a `render` and `render_form` function in order to display the corresponding filter.
   > It will also implement the `Backpex.Filter.query` function to define a boolean query.
   """
+  use Phoenix.Component, global_prefixes: ~w(x-)
+  import Ecto.Query, warn: false
 
   @doc """
   The list of options for the select filter.
@@ -48,87 +50,115 @@ defmodule Backpex.Filters.Boolean do
     quote do
       use BackpexWeb, :filter
 
+      alias Backpex.Filters.Boolean, as: BooleanFilter
+
       @behaviour Backpex.Filters.Boolean
 
       @impl Backpex.Filter
-      def query(query, _attribute, []), do: query
-
       def query(query, attribute, value) do
-        Enum.reduce(value, nil, fn
-          v, nil ->
-            Map.get(predicates(), v)
-
-          v, p ->
-            dynamic(^p or ^Map.get(predicates(), v))
-        end)
-        |> maybe_query(query)
+        BooleanFilter.query(query, options(), attribute, value)
       end
-
-      defp maybe_query(nil, query), do: query
-      defp maybe_query(predicates, query), do: where(query, ^predicates)
 
       @impl Backpex.Filter
       def render(var!(assigns)) do
-        var!(assigns) =
-          var!(assigns)
-          |> assign(:label, option_value_to_label(options(), var!(assigns).value))
+        var!(assigns) = assign(var!(assigns), :options, options())
 
         ~H"""
-        <%= @label %>
+        <BooleanFilter.render options={@options} value={@value} />
         """
-      end
-
-      defp option_value_to_label(options, values) do
-        Enum.map(values, fn key -> find_option_label(options, key) end)
-        |> Enum.intersperse(", ")
-      end
-
-      defp find_option_label(options, key) do
-        Enum.find_value(options, fn option ->
-          if option.key == key, do: option.label
-        end) || ""
       end
 
       @impl Backpex.Filter
       def render_form(var!(assigns) = assigns) do
-        checked = if is_nil(assigns.value), do: [], else: assigns.value
-        options = Enum.map(options(), fn %{label: l, key: k} -> {l, k} end)
-
-        var!(assigns) =
-          var!(assigns)
-          |> assign(:checked, checked)
-          |> assign(:options, options)
+        var!(assigns) = assign(var!(assigns), :options, options())
 
         ~H"""
-        <div class="mt-2 flex flex-col space-y-2">
-          <%= Phoenix.HTML.Form.hidden_input(@form, @field, name: Phoenix.HTML.Form.input_name(@form, @field), value: "") %>
-          <%= for {label, key} <- @options do %>
-            <label class="flex cursor-pointer items-center gap-x-2">
-              <%= Phoenix.HTML.Form.checkbox(
-                @form,
-                @field,
-                name: Phoenix.HTML.Form.input_name(@form, @field) <> "[]",
-                class: "checkbox checkbox-sm checkbox-primary",
-                checked: to_string(key) in @checked,
-                checked_value: key,
-                unchecked_value: "",
-                hidden_input: false
-              ) %>
-              <span class="label-text">
-                <%= label %>
-              </span>
-            </label>
-          <% end %>
-        </div>
+        <BooleanFilter.render_form form={@form} field={@field} value={@value} options={@options} />
         """
       end
 
-      defp predicates do
-        Enum.map(options(), fn %{predicate: p, key: k} -> {k, p} end)
-        |> Enum.into(%{})
-      end
-
-      defoverridable query: 3
+      defoverridable query: 3, render: 1, render_form: 1
     end
+  end
+
+  attr :value, :any, required: true
+  attr :options, :list, required: true
+
+  def render(assigns) do
+    assigns = assign(assigns, :label, option_value_to_label(assigns.options, assigns.value))
+
+    ~H"""
+    <%= @label %>
+    """
+  end
+
+  attr :form, :any, required: true
+  attr :field, :atom, required: true
+  attr :value, :any, required: true
+  attr :options, :list, required: true
+
+  def render_form(assigns) do
+    checked = if is_nil(assigns.value), do: [], else: assigns.value
+    options = Enum.map(assigns.options, fn %{label: l, key: k} -> {l, k} end)
+
+    assigns =
+      assigns
+      |> assign(:checked, checked)
+      |> assign(:options, options)
+
+    ~H"""
+    <div class="mt-2 flex flex-col space-y-2">
+      <%= Phoenix.HTML.Form.hidden_input(@form, @field, name: Phoenix.HTML.Form.input_name(@form, @field), value: "") %>
+      <%= for {label, key} <- @options do %>
+        <label class="flex cursor-pointer items-center gap-x-2">
+          <%= Phoenix.HTML.Form.checkbox(
+            @form,
+            @field,
+            name: Phoenix.HTML.Form.input_name(@form, @field) <> "[]",
+            class: "checkbox checkbox-sm checkbox-primary",
+            checked: to_string(key) in @checked,
+            checked_value: key,
+            unchecked_value: "",
+            hidden_input: false
+          ) %>
+          <span class="label-text">
+            <%= label %>
+          </span>
+        </label>
+      <% end %>
+    </div>
+    """
+  end
+
+  def query(query, _options, _attribute, []), do: query
+
+  def query(query, options, _attribute, value) do
+    Enum.reduce(value, nil, fn
+      v, nil ->
+        Map.get(predicates(options), v)
+
+      v, p ->
+        dynamic(^p or ^Map.get(predicates(options), v))
+    end)
+    |> maybe_query(query)
+  end
+
+  def maybe_query(nil, query), do: query
+  def maybe_query(predicates, query), do: where(query, ^predicates)
+
+  def option_value_to_label(options, values) do
+    Enum.map(values, fn key -> find_option_label(options, key) end)
+    |> Enum.intersperse(", ")
+  end
+
+  def find_option_label(options, key) do
+    Enum.find_value(options, fn option ->
+      if option.key == key, do: option.label
+    end) || ""
+  end
+
+  def predicates(options) do
+    Enum.map(options, fn %{predicate: p, key: k} -> {k, p} end)
+    |> Enum.into(%{})
   end
 end
