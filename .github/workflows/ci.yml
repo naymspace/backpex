@@ -132,8 +132,8 @@ jobs:
 
       - uses: erlef/setup-beam@v1
         with:
-          otp-version: ${{ steps.elixir_version.outputs.version }}
-          elixir-version: ${{ steps.otp_version.outputs.version }}
+          otp-version: ${{ steps.otp_version.outputs.version }}
+          elixir-version: ${{ steps.elixir_version.outputs.version }}
 
       - name: Publish package on hex.pm
         if: github.event_name == 'release'
