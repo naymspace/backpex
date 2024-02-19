@@ -110,6 +110,7 @@ jobs:
         run: mix hex.publish --yes
 
   publish:
+    needs: test
     name: "Publish package on hex.pm"
     runs-on: ubuntu-latest
     if: github.event_name == 'release'
