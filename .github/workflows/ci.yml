@@ -121,11 +121,11 @@ jobs:
 
       - name: Determine the elixir version
         id: elixir_version
-        run: echo "::set-output name=version::$(grep -h elixir .tool-versions | awk '{ print $2 }' | awk -F - '{print $1}')"
+        run: echo "{version}={grep -h elixir .tool-versions | awk '{ print $2 }' | awk -F - '{print $1}'}" >> $GITHUB_OUTPUT
 
       - name: Determine the otp version
         id: otp_version
-        run: echo "::set-output name=version::$(grep -h erlang .tool-versions | awk '{ print $2 }')"
+        run: echo "{version}={grep -h erlang .tool-versions | awk '{ print $2 }'}" >> $GITHUB_OUTPUT
 
       - name: Use versions
         run: echo "Using Elixir version ${{ steps.elixir_version.outputs.version }} and OTP version ${{ steps.otp_version.outputs.version }}"
