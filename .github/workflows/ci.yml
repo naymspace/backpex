@@ -212,7 +212,7 @@ jobs:
       - name: lint:dialyzer
         working-directory: /opt/app/demo  
         run: |
-          yarn lint:dialyzer
+          mix dialyzer --force-check
 
       - name: lint:credo
         working-directory: /opt/app/demo
