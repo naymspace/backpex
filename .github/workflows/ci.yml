@@ -112,6 +112,7 @@ jobs:
 
   publish:
     needs: test
+    if: github.event_name == 'release'
     name: "Publish package on hex.pm"
     runs-on: ubuntu-latest
 
@@ -136,7 +137,6 @@ jobs:
           elixir-version: ${{ steps.elixir_version.outputs.version }}
 
       - name: Publish package on hex.pm
-        if: github.event_name == 'release'
         env:
           HEX_API_KEY: ${{ secrets.HEX_API_KEY }}
         run: mix hex.publish --yes
