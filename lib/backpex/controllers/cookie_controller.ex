@@ -11,6 +11,8 @@ defmodule Backpex.CookieController do
   @toggle_metrics_key "metric_visibility"
 
   def update(conn, %{"toggle_columns" => form_data}) do
+    IO.inspect(form_data, label: :form_data_debug)
+
     resource = Map.get(form_data, @form_resource_key)
 
     to = redirect_url(form_data)

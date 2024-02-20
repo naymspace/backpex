@@ -23,10 +23,6 @@ defmodule DemoWeb.TagLive do
         label: "Name",
         searchable: true,
         placeholder: "Tag name"
-      },
-      inserted_at: %{
-        module: Backpex.Fields.DateTime,
-        label: "Date"
       }
     ]
   end

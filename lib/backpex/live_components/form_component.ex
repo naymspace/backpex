@@ -19,6 +19,7 @@ defmodule Backpex.FormComponent do
       |> assign(assigns)
       |> assign_new(:action_type, fn -> nil end)
       |> update_assigns()
+      |> assign_form()
 
     {:ok, socket}
   end
@@ -76,6 +77,13 @@ defmodule Backpex.FormComponent do
     |> assign(:fields, resource_action.module.fields())
   end
 
+  defp assign_form(socket) do
+    changeset = socket.assigns.changeset
+    form = Phoenix.Component.to_form(changeset, as: :change)
+
+    assign(socket, :form, form)
+  end
+
   def handle_event(
         "validate",
         %{"change" => change, "_target" => target},
@@ -87,7 +95,12 @@ defmodule Backpex.FormComponent do
       Ecto.Changeset.change(assigns.item_action_types)
       |> validate_change(assigns.changeset_function, change, assigns, target)
 
-    socket = assign(socket, changeset: changeset)
+    form = Phoenix.Component.to_form(changeset, as: :change)
+
+    socket =
+      socket
+      |> assign(:form, form)
+      |> assign(:changeset, changeset)
 
     {:noreply, socket}
   end
@@ -103,7 +116,11 @@ defmodule Backpex.FormComponent do
       |> put_assocs(assocs)
       |> validate_change(changeset_function, change, assigns, target)
 
+    form = Phoenix.Component.to_form(changeset, as: :change)
+
     send(self(), {:update_changeset, changeset})
+
+    socket = assign(socket, :form, form)
 
     {:noreply, socket}
   end
@@ -150,10 +167,15 @@ defmodule Backpex.FormComponent do
       Ecto.Changeset.change(assigns.item_action_types)
       |> validate_change(assigns.changeset_function, change, assigns, nil)
 
-    socket = assign(socket, changeset: changeset)
+    form = Phoenix.Component.to_form(changeset, as: :change)
 
-    case changeset do
-      %{valid?: true} -> save_items(socket, assigns, key, change)
+    socket =
+      socket
+      |> assign(:form, form)
+      |> assign(:changeset, changeset)
+
+    case form do
+      %{errors: []} -> save_items(socket, assigns, key, change)
       _changeset -> {:noreply, assign(socket, show_form_errors: true)}
     end
   end
@@ -168,12 +190,17 @@ defmodule Backpex.FormComponent do
       |> put_assocs(assocs)
       |> validate_change(changeset_function, change, assigns, nil)
 
-    socket = assign(socket, changeset: changeset)
+    form = Phoenix.Component.to_form(changeset, as: :change)
+
+    socket =
+      socket
+      |> assign(:form, form)
+      |> assign(:changeset, changeset)
 
     send(self(), {:update_changeset, changeset})
 
-    case changeset do
-      %{valid?: true} -> save_items(socket, assigns, change)
+    case form do
+      %{errors: []} -> save_items(socket, assigns, change)
       _changeset -> {:noreply, assign(socket, show_form_errors: true)}
     end
   end

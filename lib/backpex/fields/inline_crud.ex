@@ -131,8 +131,7 @@ defmodule Backpex.Fields.InlineCRUD do
                 </p>
                 <BackpexForm.field_input
                   type={input_type(child_field_options) |> Atom.to_string()}
-                  form={f_nested}
-                  field_name={child_field_name}
+                  field={f_nested[child_field_name]}
                   field_options={child_field_options}
                 />
               </div>

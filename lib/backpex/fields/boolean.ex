@@ -27,8 +27,7 @@ defmodule Backpex.Fields.Boolean do
         <:label align={Backpex.Field.align_label(@field_options, assigns, :top)}>
           <Layout.input_label text={@field_options[:label]} />
         </:label>
-        <BackpexForm.field_input type="toggle" form={@form} field_name={@name} field_options={@field_options} />
-        <BackpexForm.error_tag form={@form} name={@name} field_options={@field_options} />
+        <BackpexForm.field_input type="toggle" field={@form[@name]} field_options={@field_options} />
       </Layout.field_container>
     </div>
     """

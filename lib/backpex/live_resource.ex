@@ -1193,11 +1193,7 @@ defmodule Backpex.LiveResource do
       end
 
       @impl Phoenix.LiveView
-      def handle_event(
-            "select-page-size",
-            %{"select_per_page" => %{"per_page" => per_page}},
-            socket
-          ) do
+      def handle_event("select-page-size", %{"select_per_page" => %{"value" => per_page}}, socket) do
         %{assigns: %{query_options: query_options, params: params} = assigns} = socket
 
         per_page = String.to_integer(per_page)
@@ -1217,11 +1213,7 @@ defmodule Backpex.LiveResource do
       end
 
       @impl Phoenix.LiveView
-      def handle_event(
-            "index-search",
-            %{"index_search" => %{"search_input" => search_input}},
-            socket
-          ) do
+      def handle_event("index-search", %{"index_search" => %{"value" => search_input}}, socket) do
         %{assigns: %{query_options: query_options, params: params} = assigns} = socket
 
         to =

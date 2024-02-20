@@ -60,8 +60,7 @@ defmodule Backpex.Fields.Select do
         </:label>
         <BackpexForm.field_input
           type="select"
-          form={@form}
-          field_name={@name}
+          field={@form[@name]}
           field_options={@field_options}
           options={@options}
           {@prompt}

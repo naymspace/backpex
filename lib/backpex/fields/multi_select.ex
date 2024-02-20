@@ -128,13 +128,12 @@ defmodule Backpex.Fields.MultiSelect do
           <Layout.input_label text={@field_options[:label]} />
         </:label>
         <.multi_select
-          form={@form}
+          field={@form[@name]}
           prompt={@prompt}
           not_found_text={@not_found_text}
           options={@options}
           selected={@selected}
           search_input={@search_input}
-          name={@name}
           field_options={@field_options}
           show_select_all={@show_select_all}
           show_more={false}

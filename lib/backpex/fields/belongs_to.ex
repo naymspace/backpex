@@ -96,8 +96,7 @@ defmodule Backpex.Fields.BelongsTo do
         </:label>
         <BackpexForm.field_input
           type="select"
-          form={@form}
-          field_name={@owner_key}
+          field={@form[@owner_key]}
           field_options={@field_options}
           options={@options}
           {@prompt}
