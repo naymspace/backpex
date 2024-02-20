@@ -73,7 +73,7 @@ defmodule Backpex.ResourceAction do
   This function is optional and can be used to use changesets with schemas in resource actions. If this function
   is not provided a changeset will be generated automatically based on the provided types in `Backpex.ResourceAction.fields/0`.
   """
-  @callback init_change() ::
+  @callback init_change(assigns :: map()) ::
               Ecto.Schema.t()
               | Ecto.Changeset.t()
               | {Ecto.Changeset.data(), Ecto.Changeset.types()}
@@ -112,7 +112,7 @@ defmodule Backpex.ResourceAction do
       @behaviour Backpex.ResourceAction
 
       @impl Backpex.ResourceAction
-      def init_change do
+      def init_change(_assigns) do
         types = Backpex.Field.changeset_types(fields())
 
         {%{}, types}
