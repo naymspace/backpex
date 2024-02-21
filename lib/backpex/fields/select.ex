@@ -79,8 +79,8 @@ defmodule Backpex.Fields.Select do
     end
   end
 
-  defp value?({_label, value}, to_compare), do: value == to_compare
-  defp value?(value, to_compare), do: value == to_compare
+  defp value?({_label, value}, to_compare), do: to_string(value) == to_string(to_compare)
+  defp value?(value, to_compare), do: to_string(value) == to_string(to_compare)
 
   defp assign_prompt(assigns, %{prompt: prompt} = _field_options), do: assign(assigns, :prompt, %{prompt: prompt})
   defp assign_prompt(assigns, _field_options), do: assign(assigns, :prompt, %{})
