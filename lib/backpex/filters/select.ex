@@ -66,7 +66,10 @@ defmodule Backpex.Filters.Select do
 
       @impl Backpex.Filter
       def render_form(var!(assigns) = assigns) do
-        var!(assigns) = assign(var!(assigns), :options, options())
+        var!(assigns) =
+          var!(assigns)
+          |> assign(:options, options())
+          |> assign(:prompt, prompt())
 
         ~H"""
         <SelectFilter.render_form form={@form} field={@field} value={@value} options={@options} prompt={@prompt} />
