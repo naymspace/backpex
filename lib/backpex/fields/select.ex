@@ -26,15 +26,9 @@ defmodule Backpex.Fields.Select do
   @impl Backpex.Field
   def render_value(assigns) do
     options = Map.get(assigns.field_options, :options)
+    label = get_label(assigns.value, options)
 
-    label =
-      assigns.value
-      |> Atom.to_string()
-      |> get_label(options)
-
-    assigns =
-      assigns
-      |> assign(:label, label)
+    assigns = assign(assigns, :label, label)
 
     ~H"""
     <p class={@live_action in [:index, :resource_action] && "truncate"}>
