@@ -533,8 +533,9 @@ defmodule Backpex.LiveResource do
       end
 
   Currently supported by the following fields:
-  - `Backpex.Fields.Text`
   - `Backpex.Fields.Number`
+  - `Backpex.Fields.Select`
+  - `Backpex.Fields.Text`
 
   > Note you can add index editable support to your custom fields by defining the `render_index_form/1` function and enabling index editable for your field.
   '''
