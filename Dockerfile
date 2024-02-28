@@ -85,7 +85,7 @@ SHELL ["/bin/bash", "-c"]
 COPY --from=builder /etc/bashrc.d /etc/bashrc.d
 COPY --from=builder /etc/bash.bashrc /etc/bash.bashrc
 COPY --from=builder /opt/scripts /opt/scripts
-COPY .bashrc /root/
+COPY .docker/root/.bashrc /root/
 
 RUN chown -R nobody:nobody /opt
 
