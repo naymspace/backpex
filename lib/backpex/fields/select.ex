@@ -65,6 +65,48 @@ defmodule Backpex.Fields.Select do
     """
   end
 
+  @impl Backpex.Field
+  def render_index_form(assigns) do
+    options = Map.get(assigns.field_options, :options)
+
+    assigns =
+      assigns
+      |> assign(:input_id, "index_input_#{assigns.item.id}_#{assigns.name}")
+      |> assign_new(:valid, fn -> true end)
+      |> assign(:options, options)
+      |> assign_prompt(assigns.field_options)
+
+    ~H"""
+    <div>
+      <.form
+        :let={f}
+        for={%{}}
+        as={:index_form}
+        class="relative"
+        phx-change="update-field"
+        phx-submit="update-field"
+        phx-target={@myself}
+      >
+        <%= Phoenix.HTML.Form.select(
+          f,
+          :index_input,
+          @options,
+          class: ["select select-sm", if(@valid, do: "hover:input-bordered", else: "select-error")],
+          selected: @value,
+          disabled: @readonly,
+          id: @input_id,
+          prompt: Map.get(@prompt, :prompt)
+        ) %>
+      </.form>
+    </div>
+    """
+  end
+
+  @impl Phoenix.LiveComponent
+  def handle_event("update-field", %{"index_form" => %{"index_input" => value}}, socket) do
+    Backpex.Field.handle_index_editable(socket, %{} |> Map.put(socket.assigns.name, value))
+  end
+
   defp get_label(value, options) do
     case Enum.find(options, fn option -> value?(option, value) end) do
       nil -> value
