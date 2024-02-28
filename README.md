@@ -17,7 +17,6 @@ See our comprehensive [docs](https://hexdocs.pm/backpex) for more information.
 ### Requirements
 
 - [Docker](https://www.docker.com/)
-- [Mutagen Compose](https://mutagen.io/documentation/orchestration/compose)
 
 ### Recommended Extensions
 
