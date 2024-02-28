@@ -30,7 +30,7 @@ See our comprehensive [docs](https://hexdocs.pm/backpex) for more information.
 - In `demo` directpry run `cp .env.example .env` and set values accordingly.
   - Generate `SECRET_KEY_BASE` via `mix phx.gen.secret`.
   - Generate `LIVE_VIEW_SIGNING_SALT` via `mix phx.gen.secret 32`.
-- Run `mutagen-compose up` (`yarn watch` is triggered autoamtically).
+- Run `docker compose up` (`yarn watch` is triggered automatically).
 - Run `mix dialyzer --plt` inside the `app` container to generate the initial PLT file.
 
 Now you can visit [`localhost:4000`](http://localhost:4000) from your browser.
