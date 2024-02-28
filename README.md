@@ -27,7 +27,7 @@ See our comprehensive [docs](https://hexdocs.pm/backpex) for more information.
 ### Setup
 
 - Clone the repository.
-- In `demo` directpry run `cp .env.example .env` and set values accordingly.
+- In `demo` directory run `cp .env.example .env` and set values accordingly.
   - Generate `SECRET_KEY_BASE` via `mix phx.gen.secret`.
   - Generate `LIVE_VIEW_SIGNING_SALT` via `mix phx.gen.secret 32`.
 - Run `docker compose up` (`yarn watch` is triggered automatically).
