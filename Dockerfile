@@ -89,7 +89,7 @@ COPY .docker/root/.bashrc /root/
 
 RUN chown -R nobody:nobody /opt
 
-ENV PATH=/opt/app/_build/prod/rel/demo/bin:$PATH \
+ENV PATH=/opt/scripts/:/opt/app/_build/prod/rel/demo/bin:$PATH \
     MIX_ENV=prod
 
 COPY --from=release --chown=nobody:nobody /opt/app/demo/_build/${MIX_ENV}/rel/demo .
