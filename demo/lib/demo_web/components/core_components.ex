@@ -27,12 +27,9 @@ defmodule DemoWeb.CoreComponents do
   Builds sentry meta tag.
   """
   def sentry_meta_tag do
-    included_environments = Sentry.Config.included_environments()
-    environment_name = Sentry.Config.environment_name()
-
-    case environment_name in included_environments do
-      true -> tag(:meta, name: "sentry-dsn", content: Sentry.Config.dsn())
-      false -> nil
+    case Application.get_env(:sentry, :dsn) do
+      nil -> nil
+      dsn -> tag(:meta, name: "sentry-dsn", content: dsn)
     end
   end
 
