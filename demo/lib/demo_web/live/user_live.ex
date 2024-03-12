@@ -112,8 +112,7 @@ defmodule DemoWeb.UserLive do
         module: Backpex.Fields.Select,
         label: "Role",
         options: [Admin: "admin", User: "user"],
-        prompt: "Choose role...",
-        index_editable: true
+        prompt: "Choose role..."
       },
       posts: %{
         module: Backpex.Fields.HasMany,
