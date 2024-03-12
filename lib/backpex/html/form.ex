@@ -4,6 +4,8 @@ defmodule Backpex.HTML.Form do
   """
   use BackpexWeb, :html
 
+  alias Phoenix.HTML.Form
+
   @doc """
   Renders an input.
   """
@@ -57,7 +59,7 @@ defmodule Backpex.HTML.Form do
   end
 
   def field_input(%{type: "checkbox", value: value} = assigns) do
-    assigns = assign_new(assigns, :checked, fn -> Phoenix.HTML.Form.normalize_value("checkbox", value) end)
+    assigns = assign_new(assigns, :checked, fn -> Form.normalize_value("checkbox", value) end)
 
     ~H"""
     <div phx-feedback-for={@name} class={@class}>
@@ -105,7 +107,7 @@ defmodule Backpex.HTML.Form do
   end
 
   def field_input(%{type: "toggle", value: value} = assigns) do
-    assigns = assign_new(assigns, :checked, fn -> Phoenix.HTML.Form.normalize_value("checkbox", value) end)
+    assigns = assign_new(assigns, :checked, fn -> Form.normalize_value("checkbox", value) end)
 
     ~H"""
     <div phx-feedback-for={@name} class={@class}>
