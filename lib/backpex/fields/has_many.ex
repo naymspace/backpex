@@ -157,7 +157,8 @@ defmodule Backpex.Fields.HasMany do
     from(queryable, as: ^schema_name)
     |> maybe_options_query(field_options, assigns)
     |> maybe_search_query(schema_name, field_options, display_field, Keyword.get(opts, :search))
-    |> then(&repo.aggregate(subquery(&1), :count, :id))
+    |> subquery()
+    |> repo.aggregate(:count, :id)
   end
 
   defp assign_selected(%{assigns: %{selected: _selected}} = socket), do: socket
