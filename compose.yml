@@ -10,7 +10,7 @@ services:
       - STARTUP_COMMAND_1=mix do deps.get, ecto.create, ecto.migrate
       - STARTUP_COMMAND_2=yarn install --pure-lockfile
     volumes:
-      - code:/opt/app
+      - .:/opt/app
     ports:
       - 4000:4000
     depends_on:
@@ -27,14 +27,3 @@ services:
       interval: 5s
       timeout: 5s
       retries: 5
-volumes:
-  code: null
-x-mutagen:
-  sync:
-    defaults:
-      ignore:
-        vcs: true
-    code:
-      alpha: "."
-      beta: "volume://code"
-      mode: "two-way-resolved"

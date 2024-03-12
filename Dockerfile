@@ -71,7 +71,7 @@ RUN mix do deps.get, deps.compile, assets.deploy, release --overwrite
 # Stage: runtime
 ########################################################################
 
-FROM alpine:3.18.5 as runtime
+FROM alpine:3.19.1 as runtime
 
 ENV APP_HOME=/opt/app
 WORKDIR $APP_HOME
@@ -85,11 +85,11 @@ SHELL ["/bin/bash", "-c"]
 COPY --from=builder /etc/bashrc.d /etc/bashrc.d
 COPY --from=builder /etc/bash.bashrc /etc/bash.bashrc
 COPY --from=builder /opt/scripts /opt/scripts
-COPY .bashrc /root/
+COPY .docker/root/.bashrc /root/
 
 RUN chown -R nobody:nobody /opt
 
-ENV PATH=/opt/app/_build/prod/rel/demo/bin:$PATH \
+ENV PATH=/opt/scripts/:/opt/app/bin:$PATH \
     MIX_ENV=prod
 
 COPY --from=release --chown=nobody:nobody /opt/app/demo/_build/${MIX_ENV}/rel/demo .

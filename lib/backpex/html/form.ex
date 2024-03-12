@@ -13,7 +13,7 @@ defmodule Backpex.HTML.Form do
 
   attr(:form, :atom, required: true, doc: "the form")
   attr(:field_name, :atom, required: true, doc: "the field name")
-  attr(:field_options, :atom, required: true, doc: "the field options")
+  attr(:field_options, :map, required: true, doc: "the field options")
   attr(:options, :list, doc: "the options to be used for a select input")
   attr(:value, :any, doc: "the value of the form input")
 
@@ -102,7 +102,7 @@ defmodule Backpex.HTML.Form do
     ~H"""
     <div phx-feedback-for={PhoenixForm.input_name(@form, @field_name)}>
       <div class={[
-        "phx-no-feedback:[&>*]:select phx-no-feedback:[&>*]:select-bordered phx-no-feedback:[&>*]:text-gray-900 [&>*]:w-full",
+        "[&>*]:w-full phx-no-feedback:[&>*]:select phx-no-feedback:[&>*]:select-bordered phx-no-feedback:[&>*]:text-gray-900",
         @errors == [] && "[&>*]:select [&>*]:select-bordered [&>*]:text-gray-900",
         @errors != [] && "[&>*]:select [&>*]:select-error [&>*]:bg-red-50 [&>*]:text-red-800"
       ]}>
@@ -131,9 +131,9 @@ defmodule Backpex.HTML.Form do
         name={PhoenixForm.input_name(@form, @field_name)}
         type={@type}
         class={[
-          "phx-no-feedback:input phx-no-feedback:input-bordered w-full",
+          "w-full phx-no-feedback:input phx-no-feedback:input-bordered",
           @errors == [] && "input input-bordered",
-          @errors != [] && "input input-error bg-red-50 placeholder-danger"
+          @errors != [] && "input input-error placeholder-danger bg-red-50"
         ]}
         value={PhoenixForm.normalize_value(@type, @value)}
         {@rest}
@@ -162,7 +162,7 @@ defmodule Backpex.HTML.Form do
   attr(:search_input, :string, required: true, doc: "to prefill and or persist the search term for rerendering")
   attr(:event_target, :any, required: true, doc: "the target that handles the events of this component")
   attr(:name, :string, required: true, doc: "name of the field the select should be for")
-  attr(:field_options, :string, required: true, doc: "field options for the corresponding field")
+  attr(:field_options, :map, required: true, doc: "field options for the corresponding field")
   attr(:form, :any, required: true, doc: "form the select should be part of")
   attr(:selected, :list, required: true, doc: "the selected values")
   attr(:show_select_all, :boolean, required: true, doc: "whether to display the select all button")

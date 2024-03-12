@@ -50,11 +50,17 @@ defmodule Backpex.FormComponent do
   end
 
   defp assign_changeset(%{assigns: %{action_to_confirm: action_to_confirm}} = socket) do
-    init_change = action_to_confirm.module.init_change()
+    init_change = action_to_confirm.module.init_change(socket.assigns)
+    changeset_function = &action_to_confirm.module.changeset/3
 
     socket
     |> assign(item_action_types: init_change)
-    |> assign_new(:changeset, fn -> action_to_confirm.module.changeset(init_change, %{}) end)
+    |> assign(:changeset_function, changeset_function)
+    |> assign_new(:changeset, fn ->
+      init_change
+      |> Ecto.Changeset.change()
+      |> LiveResource.call_changeset_function(changeset_function, %{}, socket.assigns)
+    end)
   end
 
   defp apply_action(socket, action) when action in [:edit, :new] do
@@ -76,11 +82,10 @@ defmodule Backpex.FormComponent do
         %{assigns: %{action_type: :item} = assigns} = socket
       ) do
     target = Enum.at(target, 1)
-    changeset_function = &assigns.action_to_confirm.module.changeset/2
 
     changeset =
       Ecto.Changeset.change(assigns.item_action_types)
-      |> validate_change(changeset_function, change, assigns, target)
+      |> validate_change(assigns.changeset_function, change, assigns, target)
 
     socket = assign(socket, changeset: changeset)
 
@@ -139,12 +144,11 @@ defmodule Backpex.FormComponent do
         %{"action-key" => key, "change" => change},
         %{assigns: %{action_type: :item} = assigns} = socket
       ) do
-    changeset_function = &assigns.action_to_confirm.module.changeset/2
     key = String.to_existing_atom(key)
 
     changeset =
       Ecto.Changeset.change(assigns.item_action_types)
-      |> validate_change(changeset_function, change, assigns, nil)
+      |> validate_change(assigns.changeset_function, change, assigns, nil)
 
     socket = assign(socket, changeset: changeset)
 
