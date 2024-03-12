@@ -254,7 +254,7 @@ defmodule Backpex.HTML.Form do
   attr(:options, :list, required: true, doc: "a list of options for the select")
   attr(:search_input, :string, required: true, doc: "to prefill and or persist the search term for rerendering")
   attr(:event_target, :any, required: true, doc: "the target that handles the events of this component")
-  attr(:field_options, :string, required: true, doc: "field options for the corresponding field")
+  attr(:field_options, :map, required: true, doc: "field options for the corresponding field")
   attr(:field, :any, required: true, doc: "form field the select should be for")
   attr(:selected, :list, required: true, doc: "the selected values")
   attr(:show_select_all, :boolean, required: true, doc: "whether to display the select all button")

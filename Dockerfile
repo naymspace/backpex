@@ -24,7 +24,6 @@ COPY .docker/root/.bashrc /root/
 COPY .docker/opt/scripts/ /opt/scripts
 ADD https://github.com/naymspace/env-secrets-expand/raw/main/env-secrets-expand.sh /opt/scripts/
 RUN chmod -R +x /opt/scripts/
-ENV PATH=/opt/scripts/:/opt/app/_build/prod/rel/demo/bin:$PATH
 
 ARG MIX_ENV=prod
 ENV MIX_ENV=$MIX_ENV
@@ -85,11 +84,11 @@ SHELL ["/bin/bash", "-c"]
 COPY --from=builder /etc/bashrc.d /etc/bashrc.d
 COPY --from=builder /etc/bash.bashrc /etc/bash.bashrc
 COPY --from=builder /opt/scripts /opt/scripts
-COPY .bashrc /root/
+COPY .docker/root/.bashrc /root/
 
 RUN chown -R nobody:nobody /opt
 
-ENV PATH=/opt/app/_build/prod/rel/demo/bin:$PATH \
+ENV PATH=/opt/scripts/:/opt/app/bin:$PATH \
     MIX_ENV=prod
 
 COPY --from=release --chown=nobody:nobody /opt/app/demo/_build/${MIX_ENV}/rel/demo .

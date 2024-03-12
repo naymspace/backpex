@@ -67,4 +67,27 @@ defmodule Backpex.Fields.Date do
     </div>
     """
   end
+
+  @impl Backpex.Field
+  def render_form_readonly(assigns) do
+    ~H"""
+    <div>
+      <Layout.field_container>
+        <:label align={Backpex.Field.align_label(@field_options, assigns, :top)}>
+          <Layout.input_label text={@field_options[:label]} />
+        </:label>
+        <BackpexForm.field_input
+          type="date"
+          form={@form}
+          field_name={@name}
+          field_options={@field_options}
+          phx-debounce={Backpex.Field.debounce(@field_options, assigns)}
+          phx-throttle={Backpex.Field.throttle(@field_options, assigns)}
+          readonly
+          disabled
+        />
+      </Layout.field_container>
+    </div>
+    """
+  end
 end

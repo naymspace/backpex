@@ -36,6 +36,27 @@ defmodule Backpex.Fields.Number do
   end
 
   @impl Backpex.Field
+  def render_form_readonly(assigns) do
+    ~H"""
+    <div>
+      <Layout.field_container>
+        <:label align={Backpex.Field.align_label(@field_options, assigns)}>
+          <Layout.input_label text={@field_options[:label]} />
+        </:label>
+        <BackpexForm.field_input
+          type="text"
+          form={@form}
+          field_name={@name}
+          field_options={@field_options}
+          readonly
+          disabled
+        />
+      </Layout.field_container>
+    </div>
+    """
+  end
+
+  @impl Backpex.Field
   def render_index_form(assigns) do
     form = to_form(%{"value" => assigns.value}, as: :index_form)
 
