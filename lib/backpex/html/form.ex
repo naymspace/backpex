@@ -47,8 +47,10 @@ defmodule Backpex.HTML.Form do
   def field_input(%{field: %Phoenix.HTML.FormField{} = field} = assigns) do
     translated_errors =
       field.errors
-      |> Enum.map(&translate_form_error(&1, assigns.field_options))
-      |> Enum.map(&elem(&1, 0))
+      |> Enum.map(fn error ->
+        {text, _error} = translate_form_error(error, assigns.field_options)
+        text
+      end)
 
     assigns
     |> assign(field: nil, id: assigns.id || field.id)
