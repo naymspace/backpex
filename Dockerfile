@@ -65,7 +65,7 @@ FROM builder as release
 ENV MIX_ENV=prod
 
 # Compile and create the release
-RUN mix do deps.get, deps.compile, assets.deploy, release --overwrite
+RUN mix do deps.get, deps.compile, assets.deploy, sentry.package_source_code, release --overwrite
 
 ########################################################################
 # Stage: runtime
