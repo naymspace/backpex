@@ -24,6 +24,7 @@ COPY .docker/root/.bashrc /root/
 COPY .docker/opt/scripts/ /opt/scripts
 ADD https://github.com/naymspace/env-secrets-expand/raw/main/env-secrets-expand.sh /opt/scripts/
 RUN chmod -R +x /opt/scripts/
+ENV PATH=/opt/scripts/:/opt/app/_build/prod/rel/demo/bin:$PATH
 
 ARG MIX_ENV=prod
 ENV MIX_ENV=$MIX_ENV
