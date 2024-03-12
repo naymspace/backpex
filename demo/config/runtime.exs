@@ -14,7 +14,9 @@ config :demo, Demo.Repo,
   ssl: get_env("DB_SSL", "false") |> to_existing_atom()
 
 config :demo, DemoWeb.Endpoint,
-  http: [:inet6, port: get_env("PORT", "4000") |> to_integer()],
+  http: [
+    port: get_env("PORT", "4000") |> to_integer()
+  ],
   url: [
     scheme: get_env("URL_SCHEME", "http"),
     host: get_env("HOST", "localhost"),

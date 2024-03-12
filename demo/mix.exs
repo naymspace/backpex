@@ -52,7 +52,6 @@ defmodule Demo.MixProject do
       {:ecto_psql_extras, "~> 0.2"},
       {:circular_buffer, "~> 0.4.0"},
       {:gettext, "~> 0.18"},
-      {:plug_cowboy, "~> 2.5"},
       {:dialyxir, "~> 1.0", only: [:dev, :test], runtime: false},
       {:credo, "~> 1.7.5", only: [:dev, :test], runtime: false},
       {:sobelow, "~> 0.8", only: [:dev, :test]},
@@ -68,7 +67,8 @@ defmodule Demo.MixProject do
       {:tailwind_formatter, "~> 0.4.0", only: [:dev, :test], runtime: false},
       {:csv, "~> 3.2.0"},
       {:tesla, "~> 1.4"},
-      {:jason, ">= 1.0.0"}
+      {:jason, ">= 1.0.0"},
+      {:bandit, "~> 1.0"}
     ]
   end
 
