@@ -10,7 +10,6 @@ defmodule Backpex.Fields.BelongsTo do
     * `:options_query` - Manipulates the list of available options in the select.
       Defaults to `fn (query, _field) -> query end` which returns all entries.
     * `:prompt` - The text to be displayed when no option is selected.
-      Allows the same values as [`Phoenix.Html.Form.select`](https://hexdocs.pm/phoenix_html/Phoenix.HTML.Form.html#select/4) for customization of the prompt.
 
   ## Example
 

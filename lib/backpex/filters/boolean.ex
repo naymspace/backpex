@@ -91,29 +91,27 @@ defmodule Backpex.Filters.Boolean do
 
       @impl Backpex.Filter
       def render_form(var!(assigns) = assigns) do
-        checked = if is_nil(assigns.value), do: [], else: assigns.value
+        value = if is_nil(assigns.value), do: [], else: assigns.value
         options = Enum.map(options(), fn %{label: l, key: k} -> {l, k} end)
 
         var!(assigns) =
           var!(assigns)
-          |> assign(:checked, checked)
+          |> assign(:value, value)
           |> assign(:options, options)
 
         ~H"""
         <div class="mt-2 flex flex-col space-y-2">
-          <%= Phoenix.HTML.Form.hidden_input(@form, @field, name: Phoenix.HTML.Form.input_name(@form, @field), value: "") %>
-          <%= for {label, key} <- @options do %>
+          <input type="hidden" name={@form[@field].name} value="" />
+          <%= for {label, value} <- @options do %>
             <label class="flex cursor-pointer items-center gap-x-2">
-              <%= Phoenix.HTML.Form.checkbox(
-                @form,
-                @field,
-                name: Phoenix.HTML.Form.input_name(@form, @field) <> "[]",
-                class: "checkbox checkbox-sm checkbox-primary",
-                checked: to_string(key) in @checked,
-                checked_value: key,
-                unchecked_value: "",
-                hidden_input: false
-              ) %>
+              <input
+                id={"#{@form[@field].name}[]-#{value}"}
+                type="checkbox"
+                name={@form[@field].name <> "[]"}
+                class="checkbox checkbox-sm checkbox-primary"
+                value={value}
+                checked={to_string(value) in @value}
+              />
               <span class="label-text">
                 <%= label %>
               </span>

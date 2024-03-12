@@ -73,13 +73,10 @@ defmodule Backpex.Filters.Select do
       @impl Backpex.Filter
       def render_form(var!(assigns) = assigns) do
         ~H"""
-        <%= Phoenix.HTML.Form.select(
-          @form,
-          @field,
-          [{prompt(), nil} | options()],
-          class: "select select-sm select-bordered mt-2 w-full",
-          selected: selected(@value)
-        ) %>
+        <select name={@form[@field].name} class="select select-sm select-bordered mt-2 w-full">
+          <option value=""><%= prompt() %></option>
+          <%= Phoenix.HTML.Form.options_for_select(options(), selected(@value)) %>
+        </select>
         """
       end
 

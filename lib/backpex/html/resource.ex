@@ -278,7 +278,7 @@ defmodule Backpex.HTML.Resource do
     <div class="space-y-5">
       <div :for={{field, filter} <- @filters}>
         <% value = Map.get(@filter_options, Atom.to_string(field), nil) %>
-        <.form :let={f} for={%{}} as={:filters} phx-change="change-filter" phx-submit="change-filter">
+        <.form :let={f} for={to_form(%{}, as: :filters)} phx-change="change-filter" phx-submit="change-filter">
           <div>
             <div class="relative flex w-full flex-wrap justify-start gap-2">
               <div class="text-sm font-medium text-gray-900"><%= filter.module.label() %></div>
@@ -960,13 +960,22 @@ defmodule Backpex.HTML.Resource do
   defp metric_toggle(assigns) do
     visible = Backpex.Metric.metrics_visible?(assigns.metric_visibility, assigns.live_resource)
 
-    assigns = assign(assigns, :visible, visible)
+    form =
+      to_form(
+        %{"_resource" => assigns.live_resource, "_cookie_redirect_url" => assigns.current_url},
+        as: :toggle_metrics
+      )
+
+    assigns =
+      assigns
+      |> assign(:visible, visible)
+      |> assign(:form, form)
 
     ~H"""
     <div :if={length(@metrics) > 0}>
-      <.form :let={f} method="POST" for={%{}} as={:toggle_metrics} action={cookie_path(@socket)}>
-        <%= Phoenix.HTML.Form.hidden_input(f, :_resource, value: @live_resource) %>
-        <%= Phoenix.HTML.Form.hidden_input(f, :_cookie_redirect_url, value: @current_url) %>
+      <.form method="POST" for={@form} action={cookie_path(@socket)}>
+        <input type="hidden" name={@form[:_resource].name} value={@form[:_resource].value} />
+        <input type="hidden" name={@form[:_cookie_redirect_url].name} value={@form[:_cookie_redirect_url].value} />
         <div class="tooltip" data-tip={Backpex.translate("Toggle metrics")}>
           <button
             type="submit"
