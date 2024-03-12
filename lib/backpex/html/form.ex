@@ -266,8 +266,10 @@ defmodule Backpex.HTML.Form do
   def multi_select(assigns) do
     translated_errors =
       assigns.field.errors
-      |> Enum.map(&translate_form_error(&1, assigns.field_options))
-      |> Enum.map(&elem(&1, 0))
+      |> Enum.map(fn error ->
+        {text, _error} = translate_form_error(error, assigns.field_options)
+        text
+      end)
 
     assigns = assign(assigns, :errors, translated_errors)
 
