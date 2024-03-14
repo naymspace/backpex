@@ -52,9 +52,6 @@ defmodule Backpex.Fields.HasManyThrough do
   alias Backpex.LiveResource
   alias Ecto.Changeset
 
-  @dialyzer {:no_return, render_form: 1, editables: 3}
-  @dialyzer {:no_unused, has_error?: 2}
-
   @impl Phoenix.LiveComponent
   def update(assigns, socket) do
     socket =
