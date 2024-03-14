@@ -35,7 +35,7 @@ defmodule Backpex.Filters.Range do
       @behaviour Backpex.Filters.Range
 
       @dialyzer {:no_match, render_type: 0, maybe_parse: 3}
-      @dialyzer {:no_unused, render_type: 0, parse_float_or_int: 1, is_date?: 1}
+      @dialyzer {:no_unused, render_type: 0, parse_float_or_int: 1, date?: 1}
 
       @impl Backpex.Filter
       def query(query, attribute, %{"start" => start_at, "end" => end_at}) do
@@ -72,12 +72,12 @@ defmodule Backpex.Filters.Range do
 
       defp maybe_parse(_type, "", _is_end?), do: nil
 
-      defp maybe_parse(:date, value, _is_end?), do: if(is_date?(value), do: value, else: nil)
+      defp maybe_parse(:date, value, _is_end?), do: if(date?(value), do: value, else: nil)
 
       defp maybe_parse(:datetime, value, false = _is_end?),
-        do: if(is_date?(value), do: value <> "T00:00:00+00:00", else: nil)
+        do: if(date?(value), do: value <> "T00:00:00+00:00", else: nil)
 
-      defp maybe_parse(:datetime, value, _is_end?), do: if(is_date?(value), do: value <> "T23:59:59+00:00", else: nil)
+      defp maybe_parse(:datetime, value, _is_end?), do: if(date?(value), do: value <> "T23:59:59+00:00", else: nil)
 
       defp maybe_parse(:number, value, _is_end?), do: parse_float_or_int(value)
 
@@ -96,7 +96,7 @@ defmodule Backpex.Filters.Range do
         end
       end
 
-      defp is_date?(date) do
+      defp date?(date) do
         case Date.from_iso8601(date) do
           {:ok, _} -> true
           _err -> false

@@ -236,7 +236,8 @@ defmodule Backpex.Resource do
     |> apply_search(schema, full_text_search, search_options)
     |> apply_filters(filter_options, live_resource.get_empty_filter_key())
     |> exclude(:preload)
-    |> then(&repo.aggregate(subquery(&1), :count, :id))
+    |> subquery()
+    |> repo.aggregate(:count, :id)
   end
 
   @doc """
@@ -361,6 +362,7 @@ defmodule Backpex.Resource do
     |> Module.split()
     |> List.last()
     |> String.downcase()
+    # credo:disable-for-next-line Credo.Check.Warning.UnsafeToAtom
     |> String.to_atom()
   end
 
