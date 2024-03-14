@@ -6,6 +6,7 @@ config :demo,
   generators: [binary_id: true]
 
 config :demo, DemoWeb.Endpoint,
+  adapter: Bandit.PhoenixAdapter,
   url: [host: "localhost"],
   render_errors: [
     formats: [html: DemoWeb.ErrorHTML],

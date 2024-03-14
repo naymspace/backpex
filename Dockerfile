@@ -24,6 +24,7 @@ COPY .docker/root/.bashrc /root/
 COPY .docker/opt/scripts/ /opt/scripts
 ADD https://github.com/naymspace/env-secrets-expand/raw/main/env-secrets-expand.sh /opt/scripts/
 RUN chmod -R +x /opt/scripts/
+ENV PATH=/opt/scripts/:/opt/app/_build/prod/rel/demo/bin:$PATH
 
 ARG MIX_ENV=prod
 ENV MIX_ENV=$MIX_ENV
@@ -64,13 +65,13 @@ FROM builder as release
 ENV MIX_ENV=prod
 
 # Compile and create the release
-RUN mix do deps.get, deps.compile, assets.deploy, release --overwrite
+RUN mix do deps.get, deps.compile, assets.deploy, sentry.package_source_code, release --overwrite
 
 ########################################################################
 # Stage: runtime
 ########################################################################
 
-FROM alpine:3.18.5 as runtime
+FROM alpine:3.19.1 as runtime
 
 ENV APP_HOME=/opt/app
 WORKDIR $APP_HOME

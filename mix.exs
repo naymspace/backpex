@@ -43,7 +43,7 @@ defmodule Backpex.MixProject do
       {:jason, "~> 1.2"},
       {:heroicons, "~> 0.5.0"},
       {:number, "~> 1.0.3"},
-      {:credo, "~> 1.6.1", only: [:dev, :test], runtime: false},
+      {:credo, "~> 1.7.5", only: [:dev, :test], runtime: false},
       {:mix_audit, "~> 2.0", only: [:dev, :test], runtime: false},
       {:sobelow, "~> 0.8", only: [:dev, :test]},
       {:money, "~> 1.12.1"},
