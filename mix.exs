@@ -13,7 +13,6 @@ defmodule Backpex.MixProject do
       start_permanent: Mix.env() == :prod,
       deps: deps(),
       aliases: aliases(),
-      dialyzer: dialyzer(),
 
       # Hex.pm
       package: package(),
@@ -44,7 +43,6 @@ defmodule Backpex.MixProject do
       {:jason, "~> 1.2"},
       {:heroicons, "~> 0.5.0"},
       {:number, "~> 1.0.3"},
-      {:dialyxir, "~> 1.0", only: [:dev, :test], runtime: false},
       {:credo, "~> 1.7.5", only: [:dev, :test], runtime: false},
       {:mix_audit, "~> 2.0", only: [:dev, :test], runtime: false},
       {:sobelow, "~> 0.8", only: [:dev, :test]},
@@ -64,16 +62,7 @@ defmodule Backpex.MixProject do
 
   defp aliases do
     [
-      lint: ["format --check-formatted", "dialyzer", "credo", "sobelow --config"]
-    ]
-  end
-
-  defp dialyzer do
-    [
-      plt_core_path: "priv/plts",
-      plt_local_path: "priv/plts",
-      plt_add_apps: [:ex_unit],
-      ignore_warnings: "dialyzer.ignore-warnings"
+      lint: ["format --check-formatted", "credo", "sobelow --config"]
     ]
   end
 

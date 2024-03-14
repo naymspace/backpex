@@ -34,9 +34,6 @@ defmodule Backpex.Filters.Range do
 
       @behaviour Backpex.Filters.Range
 
-      @dialyzer {:no_match, render_type: 0, maybe_parse: 3}
-      @dialyzer {:no_unused, render_type: 0, parse_float_or_int: 1, date?: 1}
-
       @impl Backpex.Filter
       def query(query, attribute, %{"start" => start_at, "end" => end_at}) do
         maybe_parse_range(start_at, end_at)

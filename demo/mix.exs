@@ -12,7 +12,6 @@ defmodule Demo.MixProject do
       start_permanent: Mix.env() == :prod,
       deps: deps(),
       aliases: aliases(),
-      dialyzer: dialyzer(),
       gettext: gettext()
     ]
   end
@@ -52,7 +51,6 @@ defmodule Demo.MixProject do
       {:ecto_psql_extras, "~> 0.2"},
       {:circular_buffer, "~> 0.4.0"},
       {:gettext, "~> 0.18"},
-      {:dialyxir, "~> 1.0", only: [:dev, :test], runtime: false},
       {:credo, "~> 1.7.5", only: [:dev, :test], runtime: false},
       {:sobelow, "~> 0.8", only: [:dev, :test]},
       {:mix_audit, "~> 2.0", only: [:dev, :test], runtime: false},
@@ -80,15 +78,6 @@ defmodule Demo.MixProject do
       "ecto.reset": ["ecto.rollback --all", "ecto.setup"],
       test: ["ecto.create --quiet", "ecto.migrate --quiet", "test --warnings-as-errors"],
       "assets.deploy": ["tailwind default --minify", "esbuild default --minify", "phx.digest"]
-    ]
-  end
-
-  defp dialyzer do
-    [
-      plt_core_path: "../priv/plts",
-      plt_local_path: "priv/plts",
-      plt_add_apps: [:ex_unit, :mix],
-      ignore_warnings: "dialyzer.ignore-warnings"
     ]
   end
 

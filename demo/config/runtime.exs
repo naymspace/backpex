@@ -10,8 +10,7 @@ config :demo, Demo.Repo,
   password: get_env("DB_PASSWORD", "postgres"),
   database: get_env("DB_DATABASE", "postgres"),
   port: get_env("DB_PORT", "5432") |> to_integer(),
-  pool_size: get_env("DB_POOL_SIZE", "5") |> to_integer(),
-  ssl: get_env("DB_SSL", "false") |> to_existing_atom()
+  pool_size: get_env("DB_POOL_SIZE", "5") |> to_integer()
 
 config :demo, DemoWeb.Endpoint,
   http: [
