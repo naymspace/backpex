@@ -401,7 +401,7 @@ defmodule Backpex.Field do
       raise Backpex.ForbiddenError
     end
 
-    %{assigns: %{item: item} = assigns} = socket
+    %{assigns: %{item: item, live_resource: live_resource} = assigns} = socket
 
     result =
       assigns
@@ -410,8 +410,13 @@ defmodule Backpex.Field do
 
     socket =
       case result do
-        {:ok, _item} -> assign(socket, :valid, true)
-        _error -> assign(socket, :valid, false)
+        {:ok, item} ->
+          socket
+          |> assign(:valid, true)
+          |> live_resource.on_item_updated(item)
+
+        _error ->
+          assign(socket, :valid, false)
       end
 
     {:noreply, socket}
