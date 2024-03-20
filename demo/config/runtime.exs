@@ -1,5 +1,5 @@
 import Config
-import System, only: [get_env: 0, get_env: 1, get_env: 2, fetch_env!: 1]
+import System, only: [get_env: 1, get_env: 2, fetch_env!: 1]
 import String, only: [to_integer: 1, to_atom: 1, to_existing_atom: 1, split: 2]
 
 config :demo, analytics: get_env("ANALYTICS", "false") |> to_existing_atom()
@@ -10,11 +10,12 @@ config :demo, Demo.Repo,
   password: get_env("DB_PASSWORD", "postgres"),
   database: get_env("DB_DATABASE", "postgres"),
   port: get_env("DB_PORT", "5432") |> to_integer(),
-  pool_size: get_env("DB_POOL_SIZE", "5") |> to_integer(),
-  ssl: get_env("DB_SSL", "false") |> to_existing_atom()
+  pool_size: get_env("DB_POOL_SIZE", "5") |> to_integer()
 
 config :demo, DemoWeb.Endpoint,
-  http: [:inet6, port: get_env("PORT", "4000") |> to_integer()],
+  http: [
+    port: get_env("PORT", "4000") |> to_integer()
+  ],
   url: [
     scheme: get_env("URL_SCHEME", "http"),
     host: get_env("HOST", "localhost"),
@@ -38,9 +39,8 @@ config :demo, DemoWeb.DashboardAuthPlug,
 config :logger, level: get_env("LOGGER_LEVEL", "debug") |> to_atom()
 
 config :sentry,
-  dsn: get_env("SENTRY_DSN", "https://dummy@app.getsentry.com/1"),
-  environment_name: get_env("SENTRY_ENV", "local"),
-  included_environments: [get_env("SENTRY_ENV", "local")]
+  dsn: get_env("SENTRY_DSN"),
+  environment_name: get_env("SENTRY_ENV", "local")
 
 if config_env() == :prod do
   config :libcluster,

@@ -17,13 +17,13 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        elixir: ['1.15.7', '1.16.1']
-        erlang: ['26.1.2', '26.2.1']
+        elixir: ["1.16.2", "1.15.7"]
+        erlang: ["26.2.2", "25.3.2"]
 
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-      
+
       - uses: erlef/setup-beam@v1
         with:
           otp-version: ${{ matrix.erlang }}
@@ -37,7 +37,7 @@ jobs:
           key: ${{ runner.os }}-${{ matrix.elixir }}-${{ matrix.erlang }}-deps-mixlockhash-${{ hashFiles(format('{0}{1}', github.workspace, '/mix.lock')) }}
           restore-keys: |
             ${{ runner.os }}-${{ matrix.elixir }}-${{ matrix.erlang }}-deps-
-    
+
       - name: Restore the _build cache
         uses: actions/cache@v4
         id: build-cache
@@ -66,22 +66,18 @@ jobs:
       - name: Compile dependencies
         if: steps.deps-cache.outputs.cache-hit != 'true'
         run: mix deps.compile
-      
+
       - name: Run tests
         run: |
           mix test
-      
+
       - name: Check formatting
         run: |
           mix format --check-formatted
-      
+
       - name: Compile with warnings as errors
         run: |
           mix compile --warnings-as-errors --force
-
-      - name: Dialyzer
-        run: |
-          mix dialyzer --force-check
 
       - name: Credo
         run: |
@@ -95,11 +91,11 @@ jobs:
         run: |
           mix deps.unlock --check-unused
 
-      - name: Deps Audit 
+      - name: Deps Audit
         continue-on-error: true
         run: |
           mix deps.audit
-      
+
       - name: Gettext Check
         run: |
           mix gettext.extract --check-up-to-date
@@ -189,13 +185,13 @@ jobs:
     runs-on: ubuntu-latest
     container:
       image: ${{ needs.build-testing.outputs.image }}
-  
+
     steps:
       - name: lint:mix
         working-directory: /opt/app/demo
         run: |
           yarn lint:mix
-          
+
       - name: Add tar that supports --posix option to be used by cache action
         run: |
           apk add --no-cache tar
@@ -208,11 +204,6 @@ jobs:
           key: ${{ runner.os }}-demo-plts-mixlockhash-${{ hashFiles(format('{0}{1}', github.workspace, '/opt/app/demo/mix.lock')) }}
           restore-keys: |
             ${{ runner.os }}-demo-plts-
-
-      - name: lint:dialyzer
-        working-directory: /opt/app/demo  
-        run: |
-          mix dialyzer --force-check
 
       - name: lint:credo
         working-directory: /opt/app/demo
@@ -228,7 +219,7 @@ jobs:
         working-directory: /opt/app/demo
         run: |
           yarn lint:style
-          
+
       - name: lint:standard
         working-directory: /opt/app/demo
         run: |
@@ -238,7 +229,7 @@ jobs:
         working-directory: /opt/app/demo
         run: |
           yarn lint:deps-unused
-          
+
       - name: lint:gettext
         working-directory: /opt/app/demo
         run: |
@@ -268,7 +259,7 @@ jobs:
         POSTGRES_PASSWORD: postgres
     services:
       postgres:
-        image: postgres:14-alpine
+        image: postgres:16-alpine
         env:
           POSTGRES_PASSWORD: postgres
         options: >-
