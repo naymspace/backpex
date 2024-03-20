@@ -31,6 +31,7 @@ defmodule Backpex.Filters.Select do
   > When you `use Backpex.Filters.Select`, the `Backpex.Filters.Select` module will set `@behavior Backpex.Filters.Select`.
   > In addition it will add a `render` and `render_form` function in order to display the corresponding filter.
   """
+  use BackpexWeb, :filter
 
   @doc """
   The select's default option.
@@ -45,48 +46,79 @@ defmodule Backpex.Filters.Select do
   defmacro __using__(_opts) do
     quote do
       use BackpexWeb, :filter
+      use Backpex.Filter
+
+      alias Backpex.Filters.Select, as: SelectFilter
 
       @behaviour Backpex.Filters.Select
 
       @impl Backpex.Filter
-      def query(query, attribute, value) do
-        where(query, [x], field(x, ^attribute) == ^value)
+      defdelegate query(query, attribute, value), to: SelectFilter
+
+      @impl Backpex.Filter
+      def render(assigns) do
+        assigns = assign(assigns, :options, options())
+        SelectFilter.render(assigns)
       end
 
       @impl Backpex.Filter
-      def render(var!(assigns)) do
-        var!(assigns) =
-          var!(assigns)
-          |> assign(:label, option_value_to_label(options(), var!(assigns).value))
+      def render_form(assigns) do
+        assigns =
+          assigns
+          |> assign(:options, options())
+          |> assign(:prompt, prompt())
 
-        ~H"""
-        <%= @label %>
-        """
+        SelectFilter.render_form(assigns)
       end
 
-      defp option_value_to_label(options, value) do
-        Enum.find_value(options, fn {option_label, option_value} ->
-          if option_value == value, do: option_label
-        end)
-      end
-
-      @impl Backpex.Filter
-      def render_form(var!(assigns) = assigns) do
-        ~H"""
-        <%= Phoenix.HTML.Form.select(
-          @form,
-          @field,
-          [{prompt(), nil} | options()],
-          class: "select select-sm select-bordered mt-2 w-full",
-          selected: selected(@value)
-        ) %>
-        """
-      end
-
-      defp selected(""), do: nil
-      defp selected(value), do: value
-
-      defoverridable query: 3
+      defoverridable query: 3, render: 1, render_form: 1
     end
+  end
+
+  attr :value, :any, required: true
+  attr :options, :list, required: true
+
+  def render(assigns) do
+    assigns = assign(assigns, :label, option_value_to_label(assigns.options, assigns.value))
+
+    ~H"""
+    <%= @label %>
+    """
+  end
+
+  attr :form, :any, required: true
+  attr :field, :atom, required: true
+  attr :value, :any, required: true
+  attr :options, :list, required: true
+  attr :prompt, :string, required: true
+
+  def render_form(assigns) do
+    assigns =
+      assigns
+      |> assign(:options, [{assigns.prompt, nil} | assigns.options])
+      |> assign(:selected, selected(assigns.value))
+
+    ~H"""
+    <%= Phoenix.HTML.Form.select(
+      @form,
+      @field,
+      @options,
+      class: "select select-sm select-bordered mt-2 w-full",
+      selected: @selected
+    ) %>
+    """
+  end
+
+  def selected(""), do: nil
+  def selected(value), do: value
+
+  def query(query, attribute, value) do
+    where(query, [x], field(x, ^attribute) == ^value)
+  end
+
+  def option_value_to_label(options, value) do
+    Enum.find_value(options, fn {option_label, option_value} ->
+      if option_value == value, do: option_label
+    end)
   end
 end
