@@ -62,7 +62,7 @@ defmodule Backpex.Filters.Select do
       end
 
       @impl Backpex.Filter
-      def render_form(assigns = assigns) do
+      def render_form(assigns) do
         assigns =
           assigns
           |> assign(:options, options())
