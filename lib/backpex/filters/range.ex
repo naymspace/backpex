@@ -24,7 +24,6 @@ defmodule Backpex.Filters.Range do
   """
   use BackpexWeb, :filter
 
-
   @doc """
   The type return value defines the rendered input fields of the range filter.
   """

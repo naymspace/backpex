@@ -28,7 +28,6 @@ defmodule Backpex.Filters.MultiSelect do
   """
   use BackpexWeb, :filter
 
-
   @doc """
   The list of options for the multi select filter.
   """
