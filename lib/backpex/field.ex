@@ -415,7 +415,8 @@ defmodule Backpex.Field do
           |> assign(:valid, true)
           |> live_resource.on_item_updated(item)
 
-        _error -> assign(socket, :valid, false)
+        _error ->
+          assign(socket, :valid, false)
       end
 
     {:noreply, socket}
