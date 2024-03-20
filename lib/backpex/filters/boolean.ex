@@ -43,9 +43,11 @@ defmodule Backpex.Filters.Boolean do
   @doc """
   The list of options for the select filter.
   """
+  @callback options :: [map()]
 
   defmacro __using__(_opts) do
     quote do
+      use BackpexWeb, :filter
       use Backpex.Filter
 
       alias Backpex.Filters.Boolean, as: BooleanFilter

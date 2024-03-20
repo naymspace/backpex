@@ -45,6 +45,7 @@ defmodule Backpex.Filters.Select do
 
   defmacro __using__(_opts) do
     quote do
+      use BackpexWeb, :filter
       use Backpex.Filter
 
       alias Backpex.Filters.Select, as: SelectFilter

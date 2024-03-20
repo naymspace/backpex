@@ -28,6 +28,7 @@ defmodule Backpex.Filters.MultiSelect do
   """
   use BackpexWeb, :filter
 
+
   @doc """
   The list of options for the multi select filter.
   """
@@ -35,6 +36,7 @@ defmodule Backpex.Filters.MultiSelect do
 
   defmacro __using__(_opts) do
     quote do
+      use BackpexWeb, :filter
       use Backpex.Filter
 
       alias Backpex.Filters.MultiSelect, as: MultiSelectFilter

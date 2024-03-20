@@ -24,6 +24,7 @@ defmodule Backpex.Filters.Range do
   """
   use BackpexWeb, :filter
 
+
   @doc """
   The type return value defines the rendered input fields of the range filter.
   """
@@ -31,6 +32,7 @@ defmodule Backpex.Filters.Range do
 
   defmacro __using__(_opts) do
     quote do
+      use BackpexWeb, :filter
       use Backpex.Filter
 
       alias Backpex.Filters.Range, as: RangeFilter
