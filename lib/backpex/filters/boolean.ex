@@ -60,14 +60,12 @@ defmodule Backpex.Filters.Boolean do
       @impl Backpex.Filter
       def render(assigns) do
         assigns = assign(assigns, :options, options())
-
         BooleanFilter.render(assigns)
       end
 
       @impl Backpex.Filter
       def render_form(assigns) do
         assigns = assign(assigns, :options, options())
-
         BooleanFilter.render_form(assigns)
       end
 

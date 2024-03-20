@@ -47,7 +47,6 @@ defmodule Backpex.Filters.MultiSelect do
       @impl Backpex.Filter
       def render(assigns) do
         assigns = assign(assigns, :options, options())
-
         MultiSelectFilter.render(assigns)
       end
 

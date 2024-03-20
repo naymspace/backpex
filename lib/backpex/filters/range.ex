@@ -51,7 +51,6 @@ defmodule Backpex.Filters.Range do
       def render_form(assigns) do
         type = RangeFilter.render_type(type())
         assigns = assign(assigns, :type, type)
-
         Backpex.Filters.Range.render_form(assigns)
       end
 
