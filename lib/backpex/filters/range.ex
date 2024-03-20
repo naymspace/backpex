@@ -161,15 +161,15 @@ defmodule Backpex.Filters.Range do
   def maybe_parse(_type, "", _is_end?), do: nil
 
   def maybe_parse(:date, value, _is_end?) do
-    if is_date?(value), do: value, else: nil
+    if date?(value), do: value, else: nil
   end
 
   def maybe_parse(:datetime, value, false = _is_end?) do
-    if is_date?(value), do: value <> "T00:00:00+00:00", else: nil
+    if date?(value), do: value <> "T00:00:00+00:00", else: nil
   end
 
   def maybe_parse(:datetime, value, _is_end?) do
-    if is_date?(value), do: value <> "T23:59:59+00:00", else: nil
+    if date?(value), do: value <> "T23:59:59+00:00", else: nil
   end
 
   def maybe_parse(:number, value, _is_end?), do: parse_float_or_int(value)
@@ -182,7 +182,7 @@ defmodule Backpex.Filters.Range do
     end
   end
 
-  def is_date?(date) do
+  def date?(date) do
     case Date.from_iso8601(date) do
       {:ok, _} -> true
       _err -> false
