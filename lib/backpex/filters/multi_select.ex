@@ -26,8 +26,7 @@ defmodule Backpex.Filters.MultiSelect do
   > When you `use Backpex.Filters.MultiSelect`, the `Backpex.Filters.MultiSelect` module will set `@behavior Backpex.Filters.Select`.
   > In addition it will add a `render` and `render_form` function in order to display the corresponding filter.
   """
-  use Phoenix.Component, global_prefixes: ~w(x-)
-  import Ecto.Query, warn: false
+  use BackpexWeb, :filter
 
   @doc """
   The list of options for the multi select filter.
@@ -36,7 +35,7 @@ defmodule Backpex.Filters.MultiSelect do
 
   defmacro __using__(_opts) do
     quote do
-      use BackpexWeb, :filter
+      use Backpex.Filter
 
       alias Backpex.Filters.MultiSelect, as: MultiSelectFilter
 
@@ -46,24 +45,20 @@ defmodule Backpex.Filters.MultiSelect do
       defdelegate query(query, attribute, value), to: MultiSelectFilter
 
       @impl Backpex.Filter
-      def render(var!(assigns)) do
-        var!(assigns) = assign(var!(assigns), :options, options())
+      def render(assigns) do
+        assigns = assign(assigns, :options, options())
 
-        ~H"""
-        <MultiSelectFilter.render options={@options} value={@value} />
-        """
+        MultiSelectFilter.render(assigns)
       end
 
       @impl Backpex.Filter
-      def render_form(var!(assigns) = assigns) do
-        var!(assigns) =
-          var!(assigns)
+      def render_form(assigns) do
+        assigns =
+          assigns
           |> assign(:options, options())
           |> assign(:prompt, prompt())
 
-        ~H"""
-        <MultiSelectFilter.render_form form={@form} field={@field} value={@value} options={@options} prompt={@prompt} />
-        """
+        MultiSelectFilter.render_form(assigns)
       end
 
       defoverridable query: 3, render: 1, render_form: 1

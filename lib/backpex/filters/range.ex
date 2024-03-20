@@ -22,8 +22,7 @@ defmodule Backpex.Filters.Range do
   > In addition it will add a `render` and `render_form` function in order to display the corresponding filter.
   > It will also implement the `Backpex.Filter.query` function to define a range query.
   """
-  use Phoenix.Component, global_prefixes: ~w(x-)
-  import Ecto.Query, warn: false
+  use BackpexWeb, :filter
 
   @doc """
   The type return value defines the rendered input fields of the range filter.
@@ -32,7 +31,7 @@ defmodule Backpex.Filters.Range do
 
   defmacro __using__(_opts) do
     quote do
-      use BackpexWeb, :filter
+      use Backpex.Filter
 
       alias Backpex.Filters.Range, as: RangeFilter
 
@@ -40,40 +39,34 @@ defmodule Backpex.Filters.Range do
 
       @impl Backpex.Filter
       def query(query, attribute, params) do
-        type = type()
-        RangeFilter.query(query, type, attribute, params)
+        RangeFilter.query(query, type(), attribute, params)
       end
 
       @impl Backpex.Filter
-      def render(var!(assigns)) do
-        var!(assigns) =
-          var!(assigns)
-          |> assign(:min, var!(assigns).value["start"])
-          |> assign(:max, var!(assigns).value["end"])
-
-        ~H"""
-        <RangeFilter.render min={@min} max={@max} />
-        """
+      def render(assigns) do
+        RangeFilter.render(assigns)
       end
 
       @impl Backpex.Filter
-      def render_form(var!(assigns)) do
+      def render_form(assigns) do
         type = RangeFilter.render_type(type())
-        var!(assigns) = assign(var!(assigns), :type, type)
+        assigns = assign(assigns, :type, type)
 
-        ~H"""
-        <Backpex.Filters.Range.render_form form={@form} field={@field} value={@value} type={@type} />
-        """
+        Backpex.Filters.Range.render_form(assigns)
       end
 
       defoverridable query: 3, render: 1, render_form: 1
     end
   end
 
-  attr :max, :string, required: true
-  attr :min, :string, required: true
+  attr :value, :map, required: true
 
   def render(assigns) do
+    assigns =
+      assigns
+      |> assign(:min, assigns.value["start"])
+      |> assign(:max, assigns.value["end"])
+
     ~H"""
     <span :if={@max == ""}>&gt; <%= @min %></span>
     <span :if={@min == ""}>&lt; <%= @max %></span>

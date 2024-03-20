@@ -38,17 +38,15 @@ defmodule Backpex.Filters.Boolean do
   > In addition it will add a `render` and `render_form` function in order to display the corresponding filter.
   > It will also implement the `Backpex.Filter.query` function to define a boolean query.
   """
-  use Phoenix.Component, global_prefixes: ~w(x-)
-  import Ecto.Query, warn: false
+  use BackpexWeb, :filter
 
   @doc """
   The list of options for the select filter.
   """
-  @callback options :: [map()]
 
   defmacro __using__(_opts) do
     quote do
-      use BackpexWeb, :filter
+      use Backpex.Filter
 
       alias Backpex.Filters.Boolean, as: BooleanFilter
 
@@ -60,21 +58,17 @@ defmodule Backpex.Filters.Boolean do
       end
 
       @impl Backpex.Filter
-      def render(var!(assigns)) do
-        var!(assigns) = assign(var!(assigns), :options, options())
+      def render(assigns) do
+        assigns = assign(assigns, :options, options())
 
-        ~H"""
-        <BooleanFilter.render options={@options} value={@value} />
-        """
+        BooleanFilter.render(assigns)
       end
 
       @impl Backpex.Filter
-      def render_form(var!(assigns) = assigns) do
-        var!(assigns) = assign(var!(assigns), :options, options())
+      def render_form(assigns) do
+        assigns = assign(assigns, :options, options())
 
-        ~H"""
-        <BooleanFilter.render_form form={@form} field={@field} value={@value} options={@options} />
-        """
+        BooleanFilter.render_form(assigns)
       end
 
       defoverridable query: 3, render: 1, render_form: 1

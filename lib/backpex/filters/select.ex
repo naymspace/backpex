@@ -31,8 +31,7 @@ defmodule Backpex.Filters.Select do
   > When you `use Backpex.Filters.Select`, the `Backpex.Filters.Select` module will set `@behavior Backpex.Filters.Select`.
   > In addition it will add a `render` and `render_form` function in order to display the corresponding filter.
   """
-  use Phoenix.Component, global_prefixes: ~w(x-)
-  import Ecto.Query, warn: false
+  use BackpexWeb, :filter
 
   @doc """
   The select's default option.
@@ -46,7 +45,7 @@ defmodule Backpex.Filters.Select do
 
   defmacro __using__(_opts) do
     quote do
-      use BackpexWeb, :filter
+      use Backpex.Filter
 
       alias Backpex.Filters.Select, as: SelectFilter
 
@@ -56,24 +55,19 @@ defmodule Backpex.Filters.Select do
       defdelegate query(query, attribute, value), to: SelectFilter
 
       @impl Backpex.Filter
-      def render(var!(assigns)) do
-        var!(assigns) = assign(var!(assigns), :options, options())
-
-        ~H"""
-        <SelectFilter.render options={@options} value={@value} />
-        """
+      def render(assigns) do
+        assigns = assign(assigns, :options, options())
+        SelectFilter.render(assigns)
       end
 
       @impl Backpex.Filter
-      def render_form(var!(assigns) = assigns) do
-        var!(assigns) =
-          var!(assigns)
+      def render_form(assigns = assigns) do
+        assigns =
+          assigns
           |> assign(:options, options())
           |> assign(:prompt, prompt())
 
-        ~H"""
-        <SelectFilter.render_form form={@form} field={@field} value={@value} options={@options} prompt={@prompt} />
-        """
+        SelectFilter.render_form(assigns)
       end
 
       defoverridable query: 3, render: 1, render_form: 1
