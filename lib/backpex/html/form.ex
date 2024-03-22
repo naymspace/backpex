@@ -45,16 +45,9 @@ defmodule Backpex.HTML.Form do
   slot :inner_block
 
   def field_input(%{field: %Phoenix.HTML.FormField{} = field} = assigns) do
-    translated_errors =
-      field.errors
-      |> Enum.map(fn error ->
-        {text, _error} = translate_form_error(error, assigns.field_options)
-        text
-      end)
-
     assigns
     |> assign(field: nil, id: assigns.id || field.id)
-    |> assign(:errors, translated_errors)
+    |> assign(:errors, translate_form_errors(field, assigns.field_options))
     |> assign_new(:name, fn -> if assigns.multiple, do: field.name <> "[]", else: field.name end)
     |> assign_new(:value, fn -> field.value end)
     |> field_input()
@@ -233,9 +226,6 @@ defmodule Backpex.HTML.Form do
     """
   end
 
-  defp translate_form_error(error, %{translate_error: translate_error} = _field_options), do: translate_error.(error)
-  defp translate_form_error(error, _field_options), do: error
-
   @doc """
   Generates a generic error message.
   """
@@ -266,14 +256,7 @@ defmodule Backpex.HTML.Form do
   attr(:search_event, :string, default: "search", doc: "the event that will be sent when the search input changes")
 
   def multi_select(assigns) do
-    translated_errors =
-      assigns.field.errors
-      |> Enum.map(fn error ->
-        {text, _error} = translate_form_error(error, assigns.field_options)
-        text
-      end)
-
-    assigns = assign(assigns, :errors, translated_errors)
+    assigns = assign(assigns, :errors, translate_form_errors(assigns.field, assigns.field_options))
 
     ~H"""
     <div class="dropdown w-full">
@@ -372,6 +355,19 @@ defmodule Backpex.HTML.Form do
 
   def form_errors?(false, _form), do: false
   def form_errors?(true = _show_errors, form), do: form.errors != []
+
+  defp translate_form_errors(form_field, field_options) do
+    translator_func =
+      case field_options do
+        %{translate_error: translate_error} = _field_options ->
+          fn error -> translate_error.(error) end
+
+        _field_options ->
+          &Function.identity/1
+      end
+
+    Enum.map(form_field.errors, fn error -> translator_func.(error) |> elem(0) end)
+  end
 
   defp selected?(id, selected), do: Enum.any?(selected, fn {_label, value} -> id == value end)
 end
