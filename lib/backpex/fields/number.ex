@@ -29,7 +29,7 @@ defmodule Backpex.Fields.Number do
         <:label align={Backpex.Field.align_label(@field_options, assigns)}>
           <Layout.input_label text={@field_options[:label]} />
         </:label>
-        <BackpexForm.field_input type="text" form={@form} field_name={@name} field_options={@field_options} />
+        <BackpexForm.field_input type="text" field={@form[@name]} field_options={@field_options} />
       </Layout.field_container>
     </div>
     """
@@ -43,14 +43,7 @@ defmodule Backpex.Fields.Number do
         <:label align={Backpex.Field.align_label(@field_options, assigns)}>
           <Layout.input_label text={@field_options[:label]} />
         </:label>
-        <BackpexForm.field_input
-          type="text"
-          form={@form}
-          field_name={@name}
-          field_options={@field_options}
-          readonly
-          disabled
-        />
+        <BackpexForm.field_input type="text" field={@form[@name]} field_options={@field_options} readonly disabled />
       </Layout.field_container>
     </div>
     """
@@ -58,31 +51,24 @@ defmodule Backpex.Fields.Number do
 
   @impl Backpex.Field
   def render_index_form(assigns) do
+    form = to_form(%{"value" => assigns.value}, as: :index_form)
+
     assigns =
       assigns
-      |> assign(:input_id, "index_input_#{assigns.item.id}_#{assigns.name}")
+      |> assign(:form, form)
       |> assign_new(:valid, fn -> true end)
 
     ~H"""
     <div>
-      <.form
-        :let={f}
-        for={%{}}
-        as={:index_form}
-        class="relative"
-        phx-change="update-field"
-        phx-submit="update-field"
-        phx-target={@myself}
-      >
-        <%= Phoenix.HTML.Form.text_input(
-          f,
-          :index_input,
-          class: ["input input-sm", if(@valid, do: "hover:input-bordered", else: "input-error")],
-          value: @value,
-          phx_debounce: "100",
-          readonly: @readonly,
-          id: @input_id
-        ) %>
+      <.form for={@form} class="relative" phx-change="update-field" phx-submit="update-field" phx-target={@myself}>
+        <input
+          type="text"
+          name={@form[:value].name}
+          value={@form[:value].value}
+          class={["input input-sm", @valid && "hover:input-bordered", !@valid && "input-error"]}
+          phx-debounce="100"
+          readonly={@readonly}
+        />
       </.form>
     </div>
     """

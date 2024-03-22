@@ -58,8 +58,7 @@ defmodule Backpex.Fields.Date do
         </:label>
         <BackpexForm.field_input
           type="date"
-          form={@form}
-          field_name={@name}
+          field={@form[@name]}
           field_options={@field_options}
           phx-debounce={Backpex.Field.debounce(@field_options, assigns)}
           phx-throttle={Backpex.Field.throttle(@field_options, assigns)}
@@ -79,8 +78,7 @@ defmodule Backpex.Fields.Date do
         </:label>
         <BackpexForm.field_input
           type="date"
-          form={@form}
-          field_name={@name}
+          field={@form[@name]}
           field_options={@field_options}
           phx-debounce={Backpex.Field.debounce(@field_options, assigns)}
           phx-throttle={Backpex.Field.throttle(@field_options, assigns)}

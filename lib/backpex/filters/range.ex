@@ -94,18 +94,13 @@ defmodule Backpex.Filters.Range do
   def range_input_set(%{type: :date} = assigns) do
     ~H"""
     <div class="mt-2">
-      <%= Phoenix.HTML.Form.date_input(
-        @form,
-        "start",
-        value: @value["start"],
-        class: "input input-sm input-bordered mb-2 w-full"
-      ) %>
-      <%= Phoenix.HTML.Form.date_input(
-        @form,
-        "end",
-        value: @value["end"],
-        class: "input input-sm input-bordered w-full"
-      ) %>
+      <input
+        type="date"
+        name={@form[:start].name}
+        class="input input-sm input-bordered mb-2 w-full"
+        value={@value["start"]}
+      />
+      <input type="date" name={@form[:end].name} class="input input-sm input-bordered w-full" value={@value["end"]} />
     </div>
     """
   end
@@ -113,18 +108,13 @@ defmodule Backpex.Filters.Range do
   def range_input_set(%{type: :number} = assigns) do
     ~H"""
     <div class="mt-2">
-      <%= Phoenix.HTML.Form.number_input(
-        @form,
-        "start",
-        value: @value["start"],
-        class: "input input-sm input-bordered mb-2 w-full"
-      ) %>
-      <%= Phoenix.HTML.Form.number_input(
-        @form,
-        "end",
-        value: @value["end"],
-        class: "input input-sm input-bordered w-full"
-      ) %>
+      <input
+        type="number"
+        name={@form[:start].name}
+        class="input input-sm input-bordered mb-2 w-full"
+        value={@value["start"]}
+      />
+      <input type="number" name={@form[:end].name} class="input input-sm input-bordered w-full" value={@value["end"]} />
     </div>
     """
   end

@@ -63,8 +63,7 @@ defmodule Backpex.Fields.Currency do
         </:label>
         <BackpexForm.field_input
           type="number"
-          form={@form}
-          field_name={@name}
+          field={@form[@name]}
           field_options={@field_options}
           value={@casted_value}
           phx-debounce={Backpex.Field.debounce(@field_options, assigns)}

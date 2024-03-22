@@ -6,7 +6,6 @@ defmodule Backpex.Fields.Select do
 
     * `:options` - Required (keyword) list of options to be used for the select.
     * `:prompt` - The text to be displayed when no option is selected.
-      Allows the same values as [`Phoenix.Html.Form.select`](https://hexdocs.pm/phoenix_html/Phoenix.HTML.Form.html#select/4) for customization of the prompt.
 
   ## Example
 
@@ -54,8 +53,7 @@ defmodule Backpex.Fields.Select do
         </:label>
         <BackpexForm.field_input
           type="select"
-          form={@form}
-          field_name={@name}
+          field={@form[@name]}
           field_options={@field_options}
           options={@options}
           {@prompt}
@@ -67,43 +65,34 @@ defmodule Backpex.Fields.Select do
 
   @impl Backpex.Field
   def render_index_form(assigns) do
+    form = to_form(%{"value" => assigns.value}, as: :index_form)
     options = Map.get(assigns.field_options, :options)
 
     assigns =
       assigns
-      |> assign(:input_id, "index_input_#{assigns.item.id}_#{assigns.name}")
-      |> assign_new(:valid, fn -> true end)
+      |> assign(:form, form)
       |> assign(:options, options)
+      |> assign_new(:valid, fn -> true end)
       |> assign_prompt(assigns.field_options)
 
     ~H"""
     <div>
-      <.form
-        :let={f}
-        for={%{}}
-        as={:index_form}
-        class="relative"
-        phx-change="update-field"
-        phx-submit="update-field"
-        phx-target={@myself}
-      >
-        <%= Phoenix.HTML.Form.select(
-          f,
-          :index_input,
-          @options,
-          class: ["select select-sm", if(@valid, do: "hover:input-bordered", else: "select-error")],
-          selected: @value,
-          disabled: @readonly,
-          id: @input_id,
-          prompt: Map.get(@prompt, :prompt)
-        ) %>
+      <.form for={@form} class="relative" phx-change="update-field" phx-submit="update-field" phx-target={@myself}>
+        <select
+          name={@form[:value].name}
+          class={["select select-sm", if(@valid, do: "hover:input-bordered", else: "select-error")]}
+          disabled={@readonly}
+        >
+          <option :if={@prompt} value=""><%= Map.get(@prompt, :prompt) %></option>
+          <%= Phoenix.HTML.Form.options_for_select(@options, @value) %>
+        </select>
       </.form>
     </div>
     """
   end
 
   @impl Phoenix.LiveComponent
-  def handle_event("update-field", %{"index_form" => %{"index_input" => value}}, socket) do
+  def handle_event("update-field", %{"index_form" => %{"value" => value}}, socket) do
     Backpex.Field.handle_index_editable(socket, %{} |> Map.put(socket.assigns.name, value))
   end
 

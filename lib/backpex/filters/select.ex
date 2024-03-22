@@ -65,7 +65,7 @@ defmodule Backpex.Filters.Select do
       def render_form(assigns) do
         assigns =
           assigns
-          |> assign(:options, options())
+          |> assign(:options, [{prompt(), nil} | options()])
           |> assign(:prompt, prompt())
 
         SelectFilter.render_form(assigns)
@@ -93,19 +93,11 @@ defmodule Backpex.Filters.Select do
   attr :prompt, :string, required: true
 
   def render_form(assigns) do
-    assigns =
-      assigns
-      |> assign(:options, [{assigns.prompt, nil} | assigns.options])
-      |> assign(:selected, selected(assigns.value))
-
     ~H"""
-    <%= Phoenix.HTML.Form.select(
-      @form,
-      @field,
-      @options,
-      class: "select select-sm select-bordered mt-2 w-full",
-      selected: @selected
-    ) %>
+    <select name={@form[@field].name} class="select select-sm select-bordered mt-2 w-full">
+      <option value=""><%= @prompt %></option>
+      <%= Phoenix.HTML.Form.options_for_select(@options, selected(@value)) %>
+    </select>
     """
   end
 

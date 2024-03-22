@@ -27,7 +27,7 @@ defmodule Backpex.Fields.Textarea do
         <:label align={Backpex.Field.align_label(@field_options, assigns, :top)}>
           <Layout.input_label text={@field_options[:label]} />
         </:label>
-        <BackpexForm.field_input type="textarea" form={@form} field_name={@name} field_options={@field_options} />
+        <BackpexForm.field_input type="textarea" field={@form[@name]} field_options={@field_options} />
       </Layout.field_container>
     </div>
     """
@@ -41,14 +41,7 @@ defmodule Backpex.Fields.Textarea do
         <:label align={Backpex.Field.align_label(@field_options, assigns, :top)}>
           <Layout.input_label text={@field_options[:label]} />
         </:label>
-        <BackpexForm.field_input
-          type="textarea"
-          form={@form}
-          field_name={@name}
-          field_options={@field_options}
-          readonly
-          disabled
-        />
+        <BackpexForm.field_input type="textarea" field={@form[@name]} field_options={@field_options} readonly disabled />
       </Layout.field_container>
     </div>
     """

@@ -39,12 +39,7 @@
           Get notified when we're launching.
         </h2>
         <.form :if={not @subscribed?} class="mt-4 flex gap-x-4" for={@form} phx-change="validate" phx-submit="subscribe">
-          <%= Phoenix.HTML.Form.text_input(
-            @form,
-            :email,
-            class: "input input-bordered h-12 w-64"
-          ) %>
-
+          <input type="text" name={@form[:email].name} class="input input-bordered h-12 w-64" />
           <button class="btn" type="submit" class="mr-6" color="white">Subscribe</button>
         </.form>
 

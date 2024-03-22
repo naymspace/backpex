@@ -83,16 +83,16 @@ defmodule Backpex.Filters.MultiSelect do
   attr :prompt, :string, required: true
 
   def render_form(assigns) do
-    checked = if is_nil(assigns.value), do: [], else: assigns.value
-    assigns = assign(assigns, :checked, checked)
+    value = if is_nil(assigns.value), do: [], else: assigns.value
+    assigns = assign(assigns, :value, value)
 
     ~H"""
     <div class="mt-2" x-data="{ open: false }">
       <div tabindex="0" @click="open = !open" role="button" class="select select-sm select-bordered w-full">
-        <%= if @checked == [] do %>
+        <%= if @value == [] do %>
           <%= @prompt %>
         <% else %>
-          <%= "#{Enum.count(@checked)} #{Backpex.translate("selected")}" %>
+          <%= "#{Enum.count(@value)} #{Backpex.translate("selected")}" %>
         <% end %>
       </div>
       <ul
@@ -102,19 +102,17 @@ defmodule Backpex.Filters.MultiSelect do
         @click.outside="open = false"
       >
         <div class="space-y-2">
-          <%= Phoenix.HTML.Form.hidden_input(@form, @field, name: Phoenix.HTML.Form.input_name(@form, @field), value: "") %>
-          <%= for {label, key} <- @options do %>
+          <input type="hidden" name={@form[@field].name} value="" />
+          <%= for {label, v} <- @options do %>
             <label class="flex cursor-pointer items-center gap-x-2">
-              <%= Phoenix.HTML.Form.checkbox(
-                @form,
-                @field,
-                name: Phoenix.HTML.Form.input_name(@form, @field) <> "[]",
-                class: "checkbox checkbox-sm checkbox-primary",
-                checked: to_string(key) in @checked,
-                checked_value: key,
-                unchecked_value: "",
-                hidden_input: false
-              ) %>
+              <input
+                id={"#{@form[@field].name}[]-#{v}"}
+                type="checkbox"
+                name={@form[@field].name <> "[]"}
+                class="checkbox checkbox-sm checkbox-primary"
+                value={v}
+                checked={to_string(v) in @value}
+              />
               <span class="label-text">
                 <%= label %>
               </span>
