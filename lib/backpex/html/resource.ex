@@ -961,10 +961,8 @@ defmodule Backpex.HTML.Resource do
     visible = Backpex.Metric.metrics_visible?(assigns.metric_visibility, assigns.live_resource)
 
     form =
-      to_form(
-        %{"_resource" => assigns.live_resource, "_cookie_redirect_url" => assigns.current_url},
-        as: :toggle_metrics
-      )
+      %{"_resource" => assigns.live_resource, "_cookie_redirect_url" => assigns.current_url}
+      |> to_form(as: :toggle_metrics)
 
     assigns =
       assigns
