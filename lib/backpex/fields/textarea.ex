@@ -4,9 +4,9 @@ defmodule Backpex.Fields.Textarea do
 
   ## Options
 
-  * `:placeholder` - Optional placeholder value.
-  * `:debounce` - Optional integer timeout value (in milliseconds), or "blur".
-  * `:throttle` - Optional integer timeout value (in milliseconds).
+  * `:placeholder` - Optional placeholder value or function that receives the assigns.
+  * `:debounce` - Optional integer timeout value (in milliseconds), "blur" or function that receives the assigns.
+  * `:throttle` - Optional integer timeout value (in milliseconds) or function that receives the assigns.
   """
   use BackpexWeb, :field
 

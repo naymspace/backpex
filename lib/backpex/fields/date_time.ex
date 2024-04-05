@@ -10,8 +10,8 @@ defmodule Backpex.Fields.DateTime do
 
     * `:format` - Format string which will be used to format the date time value.
       Defaults to `#{@default_format}`
-    * `:debounce` - Optional integer timeout value (in milliseconds), or "blur".
-    * `:throttle` - Optional integer timeout value (in milliseconds).
+    * `:debounce` - Optional integer timeout value (in milliseconds), "blur" or function that receives the assigns.
+    * `:throttle` - Optional integer timeout value (in milliseconds) or function that receives the assigns.
 
   ## Example
 
