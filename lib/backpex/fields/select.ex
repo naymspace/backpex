@@ -96,8 +96,6 @@ defmodule Backpex.Fields.Select do
     Backpex.Field.handle_index_editable(socket, %{} |> Map.put(socket.assigns.name, value))
   end
 
-  defp get_label(assigns, options) when is_function(options), do: get_label(assigns, options.(assigns))
-
   defp get_label(value, options) do
     case Enum.find(options, fn option -> value?(option, value) end) do
       nil -> value
