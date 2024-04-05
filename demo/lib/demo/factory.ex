@@ -52,6 +52,7 @@ defmodule Demo.Factory do
       user: build(:user),
       likes: Enum.random(0..1_000),
       category: build(:category),
+      second_category: build(:category),
       tags: build_list(2, :tag)
     }
   end

@@ -15,7 +15,15 @@ admin_user = insert(:user, role: :admin)
 users = [admin_user | insert_list(9, :user)]
 
 for _index <- 0..50 do
-  insert(:post, category: Enum.random(categories), tags: [Enum.random(tags)], user: Enum.random(users))
+  first_category = Enum.random(categories)
+  second_category = Enum.random(Enum.filter(categories, fn category -> category != first_category end))
+
+  insert(:post,
+    category: first_category,
+    second_category: second_category,
+    tags: [Enum.random(tags)],
+    user: Enum.random(users)
+  )
 end
 
 insert_list(10, :product)

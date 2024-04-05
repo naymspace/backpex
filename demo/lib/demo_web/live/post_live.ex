@@ -154,6 +154,14 @@ defmodule DemoWeb.PostLive do
         searchable: true,
         live_resource: DemoWeb.CategoryLive
       },
+      second_category: %{
+        module: Backpex.Fields.BelongsTo,
+        label: "Second Category",
+        display_field: :name,
+        searchable: true,
+        live_resource: DemoWeb.CategoryLive,
+        custom_alias: :second_category
+      },
       tags: %{
         module: Backpex.Fields.ManyToMany,
         label: "Tags",
