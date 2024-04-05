@@ -10,8 +10,8 @@ defmodule Backpex.Fields.Date do
 
     * `:format` - Defines the date format printed on the index view.
       Defaults to `#{@default_format}`.
-    * `:debounce` - Optional integer timeout value (in milliseconds), or "blur".
-    * `:throttle` - Optional integer timeout value (in milliseconds).
+    * `:debounce` - Optional integer timeout value (in milliseconds), "blur" or function that receives the assignes.
+    * `:throttle` - Optional integer timeout value (in milliseconds) or function that receives the assignes.
 
   ## Example
 
