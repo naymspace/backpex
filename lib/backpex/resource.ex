@@ -102,10 +102,12 @@ defmodule Backpex.Resource do
 
   defp maybe_join(query, associations) do
     Enum.reduce(associations, query, fn
-      %{queryable: queryable, owner_key: owner_key, cardinality: :one}, query ->
+      %{queryable: queryable, owner_key: owner_key, cardinality: :one} = association, query ->
+        custom_alias = Map.get(association, :custom_alias, name_by_schema(queryable))
+
         from(item in query,
           left_join: b in ^queryable,
-          as: ^name_by_schema(queryable),
+          as: ^custom_alias,
           on: field(item, ^owner_key) == b.id
         )
 
@@ -380,8 +382,12 @@ defmodule Backpex.Resource do
   defp associations(fields, schema) do
     fields
     |> Enum.filter(fn {_name, field_options} = field -> field_options.module.association?(field) end)
-    |> Enum.map(fn {name, _field_options} ->
-      schema.__schema__(:association, name) |> Map.from_struct()
+    |> Enum.map(fn
+      {name, %{custom_alias: custom_alias}} ->
+        schema.__schema__(:association, name) |> Map.from_struct() |> Map.put(:custom_alias, custom_alias)
+
+      {name, _field_options} ->
+        schema.__schema__(:association, name) |> Map.from_struct()
     end)
   end
 end
