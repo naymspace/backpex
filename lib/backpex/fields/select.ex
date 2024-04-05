@@ -25,7 +25,7 @@ defmodule Backpex.Fields.Select do
   @impl Backpex.Field
   def render_value(assigns) do
     options = Map.get(assigns.field_options, :options)
-    label = get_label(assigns, options)
+    label = get_label(assigns.value, options)
 
     assigns = assign(assigns, :label, label)
 
@@ -38,11 +38,11 @@ defmodule Backpex.Fields.Select do
 
   @impl Backpex.Field
   def render_form(assigns) do
-    options = Map.get(assigns.field_options, :options)
+    options = get_options(assigns)
 
     assigns =
       assigns
-      |> assign_options(options)
+      |> assign(:options, options)
       |> assign_prompt(assigns.field_options)
 
     ~H"""
@@ -66,12 +66,12 @@ defmodule Backpex.Fields.Select do
   @impl Backpex.Field
   def render_index_form(assigns) do
     form = to_form(%{"value" => assigns.value}, as: :index_form)
-    options = Map.get(assigns.field_options, :options)
+    options = get_options(assigns)
 
     assigns =
       assigns
       |> assign(:form, form)
-      |> assign_options(options)
+      |> assign(:options, options)
       |> assign_new(:valid, fn -> true end)
       |> assign_prompt(assigns.field_options)
 
@@ -98,7 +98,7 @@ defmodule Backpex.Fields.Select do
 
   defp get_label(assigns, options) when is_function(options), do: get_label(assigns, options.(assigns))
 
-  defp get_label(%{value: value} = _assigns, options) do
+  defp get_label(value, options) do
     case Enum.find(options, fn option -> value?(option, value) end) do
       nil -> value
       {label, _value} -> label
@@ -112,6 +112,10 @@ defmodule Backpex.Fields.Select do
   defp assign_prompt(assigns, %{prompt: prompt} = _field_options), do: assign(assigns, :prompt, %{prompt: prompt})
   defp assign_prompt(assigns, _field_options), do: assign(assigns, :prompt, %{})
 
-  defp assign_options(assigns, options) when is_function(options), do: assign(assigns, :options, options.(assigns))
-  defp assign_options(assigns, options), do: assign(assigns, :options, options)
+  defp get_options(assigns) do
+    case Map.get(assigns.field_options, :options) do
+      options when is_function(options) -> options.(assigns)
+      options -> options
+    end
+  end
 end
