@@ -81,10 +81,11 @@ defmodule Backpex.Resource do
         case field do
           {_name, %{display_field: display_field, select: select}} ->
             queryable = Map.get(association, :queryable)
+            custom_alias = Map.get(association, :custom_alias, name_by_schema(queryable))
 
             preload_query =
               queryable
-              |> from(as: ^name_by_schema(queryable))
+              |> from(as: ^custom_alias)
               |> select_merge(^%{display_field => select})
 
             {assoc_field, preload_query}
