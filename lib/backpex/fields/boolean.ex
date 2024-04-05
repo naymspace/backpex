@@ -4,8 +4,8 @@ defmodule Backpex.Fields.Boolean do
 
   ## Options
 
-  * `:debounce` - Optional integer timeout value (in milliseconds), "blur" or function that receives the assignes.
-  * `:throttle` - Optional integer timeout value (in milliseconds) or function that receives the assignes.
+  * `:debounce` - Optional integer timeout value (in milliseconds), "blur" or function that receives the assigns.
+  * `:throttle` - Optional integer timeout value (in milliseconds) or function that receives the assigns.
   """
   use BackpexWeb, :field
 
