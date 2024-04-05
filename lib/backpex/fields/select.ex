@@ -97,6 +97,7 @@ defmodule Backpex.Fields.Select do
   end
 
   defp get_label(assigns, options) when is_function(options), do: get_label(assigns, options.(assigns))
+
   defp get_label(%{value: value} = _assigns, options) do
     case Enum.find(options, fn option -> value?(option, value) end) do
       nil -> value
