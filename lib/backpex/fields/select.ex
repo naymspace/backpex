@@ -56,7 +56,7 @@ defmodule Backpex.Fields.Select do
           field={@form[@name]}
           field_options={@field_options}
           options={@options}
-          {@prompt}
+          prompt={@prompt}
         />
       </Layout.field_container>
     </div>
@@ -108,11 +108,14 @@ defmodule Backpex.Fields.Select do
   defp value?(value, to_compare), do: to_string(value) == to_string(to_compare)
 
   defp assign_prompt(assigns, field_options) do
-    case Map.get(field_options, :prompt) do
-      nil -> nil
-      prompt when is_function(prompt) -> prompt.(assigns)
-      prompt -> prompt
-    end
+    prompt =
+      case Map.get(field_options, :prompt) do
+        nil -> nil
+        prompt when is_function(prompt) -> prompt.(assigns)
+        prompt -> prompt
+      end
+
+    assign(assigns, :prompt, prompt)
   end
 
   defp get_options(assigns) do

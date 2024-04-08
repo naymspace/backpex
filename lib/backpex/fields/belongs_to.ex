@@ -139,10 +139,13 @@ defmodule Backpex.Fields.BelongsTo do
   defp maybe_options_query(query, _field_options, _assigns), do: query
 
   defp assign_prompt(assigns, field_options) do
-    case Map.get(field_options, :prompt) do
-      nil -> nil
-      prompt when is_function(prompt) -> prompt.(assigns)
-      prompt -> prompt
-    end
+    prompt =
+      case Map.get(field_options, :prompt) do
+        nil -> nil
+        prompt when is_function(prompt) -> prompt.(assigns)
+        prompt -> prompt
+      end
+
+    assign(assigns, :prompt, prompt)
   end
 end

@@ -34,7 +34,7 @@ defmodule Backpex.Fields.MultiSelect do
       socket
       |> assign(assigns)
       |> assign(:not_found_text, not_found_text(assigns.field_options))
-      |> assign(:prompt, assign_prompt(assigns, assigns.field_options))
+      |> assign(:prompt, prompt(assigns, assigns.field_options))
       |> assign(:search_input, "")
       |> assign_options()
       |> assign_selected()
@@ -219,7 +219,7 @@ defmodule Backpex.Fields.MultiSelect do
   defp not_found_text(%{not_found_text: not_found_text} = _field_options), do: not_found_text
   defp not_found_text(_field_options), do: Backpex.translate("No options found")
 
-  defp assign_prompt(assigns, field_options) do
+  defp prompt(assigns, field_options) do
     case Map.get(field_options, :prompt) do
       nil -> Backpex.translate("Select options...")
       prompt when is_function(prompt) -> prompt.(assigns)

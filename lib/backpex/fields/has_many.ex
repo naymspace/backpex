@@ -58,7 +58,7 @@ defmodule Backpex.Fields.HasMany do
     %{assigns: %{field_options: field_options} = assigns} = socket
 
     socket
-    |> assign_new(:prompt, fn -> assign_prompt(assigns, field_options) end)
+    |> assign_new(:prompt, fn -> prompt(assigns, field_options) end)
     |> assign_new(:not_found_text, fn -> not_found_text(field_options) end)
     |> assign_new(:search_input, fn -> "" end)
     |> assign_new(:offset, fn -> 0 end)
@@ -391,7 +391,7 @@ defmodule Backpex.Fields.HasMany do
   defp display_field_form({_name, field_options} = field),
     do: Map.get(field_options, :display_field_form, display_field(field))
 
-  defp assign_prompt(assigns, field_options) do
+  defp prompt(assigns, field_options) do
     case Map.get(field_options, :prompt) do
       nil -> Backpex.translate("Select options...")
       prompt when is_function(prompt) -> prompt.(assigns)
