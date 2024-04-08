@@ -7,7 +7,7 @@ defmodule Backpex.Fields.MultiSelect do
   ## Options
 
     * `:options` - Required (keyword) list of options to be used for the select.
-    * `:prompt` - The text to be displayed when no options are selected.
+    * `:prompt` - The text to be displayed when no options are selected or function that receives the assigns.
       Defaults to "Select options...".
     * `:not_found_text` - The text to be displayed when no options are found.
       Defaults to "No options found".
@@ -34,7 +34,7 @@ defmodule Backpex.Fields.MultiSelect do
       socket
       |> assign(assigns)
       |> assign(:not_found_text, not_found_text(assigns.field_options))
-      |> assign(:prompt, prompt(assigns.field_options))
+      |> assign(:prompt, prompt(assigns, assigns.field_options))
       |> assign(:search_input, "")
       |> assign_options()
       |> assign_selected()
@@ -219,6 +219,11 @@ defmodule Backpex.Fields.MultiSelect do
   defp not_found_text(%{not_found_text: not_found_text} = _field_options), do: not_found_text
   defp not_found_text(_field_options), do: Backpex.translate("No options found")
 
-  defp prompt(%{prompt: prompt} = _field_options), do: prompt
-  defp prompt(_field_options), do: Backpex.translate("Select options...")
+  defp prompt(assigns, field_options) do
+    case Map.get(field_options, :prompt) do
+      nil -> Backpex.translate("Select options...")
+      prompt when is_function(prompt) -> prompt.(assigns)
+      prompt -> prompt
+    end
+  end
 end

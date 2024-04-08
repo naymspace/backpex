@@ -4,8 +4,8 @@ defmodule Backpex.Fields.Select do
 
   ## Options
 
-    * `:options` - Required (keyword) list of options to be used for the select.
-    * `:prompt` - The text to be displayed when no option is selected.
+    * `:options` - Required (keyword) list of options or function that receives the assigns.
+    * `:prompt` - The text to be displayed when no option is selected or function that receives the assigns.
 
   ## Example
 
@@ -38,7 +38,7 @@ defmodule Backpex.Fields.Select do
 
   @impl Backpex.Field
   def render_form(assigns) do
-    options = Map.get(assigns.field_options, :options)
+    options = get_options(assigns)
 
     assigns =
       assigns
@@ -56,7 +56,7 @@ defmodule Backpex.Fields.Select do
           field={@form[@name]}
           field_options={@field_options}
           options={@options}
-          {@prompt}
+          prompt={@prompt}
         />
       </Layout.field_container>
     </div>
@@ -66,7 +66,7 @@ defmodule Backpex.Fields.Select do
   @impl Backpex.Field
   def render_index_form(assigns) do
     form = to_form(%{"value" => assigns.value}, as: :index_form)
-    options = Map.get(assigns.field_options, :options)
+    options = get_options(assigns)
 
     assigns =
       assigns
@@ -107,6 +107,21 @@ defmodule Backpex.Fields.Select do
   defp value?({_label, value}, to_compare), do: to_string(value) == to_string(to_compare)
   defp value?(value, to_compare), do: to_string(value) == to_string(to_compare)
 
-  defp assign_prompt(assigns, %{prompt: prompt} = _field_options), do: assign(assigns, :prompt, %{prompt: prompt})
-  defp assign_prompt(assigns, _field_options), do: assign(assigns, :prompt, %{})
+  defp assign_prompt(assigns, field_options) do
+    prompt =
+      case Map.get(field_options, :prompt) do
+        nil -> nil
+        prompt when is_function(prompt) -> prompt.(assigns)
+        prompt -> prompt
+      end
+
+    assign(assigns, :prompt, prompt)
+  end
+
+  defp get_options(assigns) do
+    case Map.get(assigns.field_options, :options) do
+      options when is_function(options) -> options.(assigns)
+      options -> options
+    end
+  end
 end
