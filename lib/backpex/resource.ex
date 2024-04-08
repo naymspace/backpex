@@ -177,7 +177,7 @@ defmodule Backpex.Resource do
 
   def apply_criteria(query, criteria, fields) do
     Enum.reduce(criteria, query, fn
-      {:order, %{by: by, direction: direction, schema: schema}}, query ->
+      {:order, %{by: by, direction: direction, schema: schema, field_name: field_name}}, query ->
         schema_name = name_by_schema(schema)
 
         direction =
@@ -189,7 +189,7 @@ defmodule Backpex.Resource do
         field =
           Enum.find(fields, fn
             {^by, field} -> field
-            {_name, %{display_field: ^by} = field} -> field
+            {^field_name, %{display_field: ^by} = field} -> field
             _field -> nil
           end)
 

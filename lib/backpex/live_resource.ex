@@ -1838,12 +1838,13 @@ defmodule Backpex.LiveResource do
 
     order =
       if orderable?(field) do
-        {_field_name, field_options} = field
+        {field_name, field_options} = field
 
         %{
           by: field_options.module.display_field(field),
           schema: field_options.module.schema(field, schema),
-          direction: query_options.order_direction
+          direction: query_options.order_direction,
+          field_name: field_name
         }
       else
         init_order
