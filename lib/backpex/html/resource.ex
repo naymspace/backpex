@@ -624,7 +624,9 @@ defmodule Backpex.HTML.Resource do
 
     ~H"""
     <.form for={@form} class={@class} phx-change="select-page-size" phx-submit="select-page-size">
-      <input type="select" name={@form[:value].name} class="select select-sm select-bordered" selected={@selected} />
+      <select name={@form[:value].name} class="select select-sm select-bordered">
+        <%= Phoenix.HTML.Form.options_for_select(@options, @selected) %>
+      </select>
     </.form>
     """
   end
