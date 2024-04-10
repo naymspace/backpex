@@ -24,7 +24,7 @@ defmodule Backpex.Fields.Select do
 
   @impl Backpex.Field
   def render_value(assigns) do
-    options = Map.get(assigns.field_options, :options)
+    options = get_options(assigns)
     label = get_label(assigns.value, options)
 
     assigns = assign(assigns, :label, label)
