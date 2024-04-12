@@ -24,7 +24,7 @@ defmodule Backpex.Fields.Select do
 
   @impl Backpex.Field
   def render_value(assigns) do
-    options = Map.get(assigns.field_options, :options)
+    options = get_options(assigns)
     label = get_label(assigns.value, options)
 
     assigns = assign(assigns, :label, label)
@@ -83,7 +83,7 @@ defmodule Backpex.Fields.Select do
           class={["select select-sm", if(@valid, do: "hover:input-bordered", else: "select-error")]}
           disabled={@readonly}
         >
-          <option :if={@prompt} value=""><%= Map.get(@prompt, :prompt) %></option>
+          <option :if={@prompt} value=""><%= @prompt %></option>
           <%= Phoenix.HTML.Form.options_for_select(@options, @value) %>
         </select>
       </.form>

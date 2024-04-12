@@ -19,6 +19,9 @@ defmodule DemoWeb.PostLive do
   @impl Backpex.LiveResource
   def filters do
     [
+      category_id: %{
+        module: DemoWeb.Filters.PostCategorySelect
+      },
       user_id: %{
         module: DemoWeb.Filters.PostUserMultiSelect
       },

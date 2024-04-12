@@ -65,7 +65,7 @@ defmodule Backpex.Filters.Select do
       def render_form(assigns) do
         assigns =
           assigns
-          |> assign(:options, [{prompt(), nil} | options()])
+          |> assign(:options, options())
           |> assign(:prompt, prompt())
 
         SelectFilter.render_form(assigns)

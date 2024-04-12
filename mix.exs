@@ -68,6 +68,7 @@ defmodule Backpex.MixProject do
 
   defp docs() do
     [
+      main: "Backpex.LiveResource",
       logo: "priv/static/images/logo.svg",
       extras: extras(),
       extra_section: "GUIDES",
