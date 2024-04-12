@@ -51,7 +51,6 @@ defmodule BackpexWeb do
   def filter do
     quote do
       use Phoenix.Component, global_prefixes: ~w(x-)
-      use Phoenix.HTML
       import Ecto.Query, warn: false
     end
   end
@@ -59,7 +58,6 @@ defmodule BackpexWeb do
   def metric do
     quote do
       use Phoenix.Component, global_prefixes: ~w(x-)
-      use Phoenix.HTML
       import Ecto.Query
       @behaviour Backpex.Metric
     end
