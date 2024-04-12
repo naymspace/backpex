@@ -156,7 +156,7 @@ defmodule Backpex.Resource do
 
   defp search_condition({name, %{queryable: queryable} = field_options}, search_string) do
     field_name = Map.get(field_options, :display_field, name)
-    schema_name = name_by_schema(queryable)
+    schema_name = Map.get(field_options, :custom_alias, name_by_schema(queryable))
 
     dynamic(^field_options.module.search_condition(schema_name, field_name, search_string))
   end
