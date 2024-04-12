@@ -15,14 +15,13 @@ defmodule Demo.Post do
 
     belongs_to(:user, Demo.User, type: :binary_id)
     belongs_to(:category, Demo.Category, type: :binary_id)
-    belongs_to(:second_category, Demo.Category, type: :binary_id)
     many_to_many(:tags, Demo.Tag, join_through: Demo.PostsTags, on_replace: :delete)
 
     timestamps()
   end
 
   @required_fields ~w[title body published]a
-  @optional_fields ~w[show_likes user_id category_id second_category_id likes]a
+  @optional_fields ~w[show_likes user_id category_id likes]a
 
   def update_changeset(post, attrs, _metadata \\ []) do
     post

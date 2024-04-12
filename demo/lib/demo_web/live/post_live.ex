@@ -152,15 +152,8 @@ defmodule DemoWeb.PostLive do
         label: "Category",
         display_field: :name,
         searchable: true,
-        live_resource: DemoWeb.CategoryLive
-      },
-      second_category: %{
-        module: Backpex.Fields.BelongsTo,
-        label: "Second Category",
-        display_field: :name,
-        searchable: true,
         live_resource: DemoWeb.CategoryLive,
-        custom_alias: :second_category
+        custom_alias: :custom_category
       },
       tags: %{
         module: Backpex.Fields.ManyToMany,
