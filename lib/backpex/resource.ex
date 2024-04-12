@@ -178,7 +178,7 @@ defmodule Backpex.Resource do
   def apply_criteria(query, criteria, fields) do
     Enum.reduce(criteria, query, fn
       {:order, %{by: by, direction: direction, schema: schema, field_name: field_name}}, query ->
-        schema_name = name_by_schema(schema)
+        schema_name = get_custom_alias(fields, name_by_schema(schema))
 
         direction =
           case direction do
@@ -217,6 +217,12 @@ defmodule Backpex.Resource do
       _criteria, query ->
         query
     end)
+  end
+
+  defp get_custom_alias(fields, schema) do
+    fields
+    |> Keyword.get(schema, %{custom_alias: schema})
+    |> Map.get(:custom_alias)
   end
 
   @doc """
