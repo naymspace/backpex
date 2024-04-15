@@ -366,7 +366,7 @@ defmodule Backpex.HTML.Form do
           &Function.identity/1
       end
 
-    Enum.map(form_field.errors, fn error -> translator_func.(error) |> elem(0) end)
+    Enum.map(form_field.errors, fn error -> translator_func.(error) |> Backpex.translate(:error) end)
   end
 
   defp selected?(id, selected), do: Enum.any?(selected, fn {_label, value} -> id == value end)
