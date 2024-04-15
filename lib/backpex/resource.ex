@@ -81,10 +81,11 @@ defmodule Backpex.Resource do
         case field do
           {_name, %{display_field: display_field, select: select}} ->
             queryable = Map.get(association, :queryable)
+            custom_alias = Map.get(association, :custom_alias, name_by_schema(queryable))
 
             preload_query =
               queryable
-              |> from(as: ^name_by_schema(queryable))
+              |> from(as: ^custom_alias)
               |> select_merge(^%{display_field => select})
 
             {assoc_field, preload_query}
@@ -102,10 +103,12 @@ defmodule Backpex.Resource do
 
   defp maybe_join(query, associations) do
     Enum.reduce(associations, query, fn
-      %{queryable: queryable, owner_key: owner_key, cardinality: :one}, query ->
+      %{queryable: queryable, owner_key: owner_key, cardinality: :one} = association, query ->
+        custom_alias = Map.get(association, :custom_alias, name_by_schema(queryable))
+
         from(item in query,
           left_join: b in ^queryable,
-          as: ^name_by_schema(queryable),
+          as: ^custom_alias,
           on: field(item, ^owner_key) == b.id
         )
 
@@ -153,7 +156,7 @@ defmodule Backpex.Resource do
 
   defp search_condition({name, %{queryable: queryable} = field_options}, search_string) do
     field_name = Map.get(field_options, :display_field, name)
-    schema_name = name_by_schema(queryable)
+    schema_name = Map.get(field_options, :custom_alias, name_by_schema(queryable))
 
     dynamic(^field_options.module.search_condition(schema_name, field_name, search_string))
   end
@@ -174,8 +177,8 @@ defmodule Backpex.Resource do
 
   def apply_criteria(query, criteria, fields) do
     Enum.reduce(criteria, query, fn
-      {:order, %{by: by, direction: direction, schema: schema}}, query ->
-        schema_name = name_by_schema(schema)
+      {:order, %{by: by, direction: direction, schema: schema, field_name: field_name}}, query ->
+        schema_name = get_custom_alias(fields, name_by_schema(schema))
 
         direction =
           case direction do
@@ -186,7 +189,7 @@ defmodule Backpex.Resource do
         field =
           Enum.find(fields, fn
             {^by, field} -> field
-            {_name, %{display_field: ^by} = field} -> field
+            {^field_name, %{display_field: ^by} = field} -> field
             _field -> nil
           end)
 
@@ -214,6 +217,12 @@ defmodule Backpex.Resource do
       _criteria, query ->
         query
     end)
+  end
+
+  defp get_custom_alias(fields, schema) do
+    fields
+    |> Keyword.get(schema, %{custom_alias: schema})
+    |> Map.get(:custom_alias)
   end
 
   @doc """
@@ -380,8 +389,12 @@ defmodule Backpex.Resource do
   defp associations(fields, schema) do
     fields
     |> Enum.filter(fn {_name, field_options} = field -> field_options.module.association?(field) end)
-    |> Enum.map(fn {name, _field_options} ->
-      schema.__schema__(:association, name) |> Map.from_struct()
+    |> Enum.map(fn
+      {name, %{custom_alias: custom_alias}} ->
+        schema.__schema__(:association, name) |> Map.from_struct() |> Map.put(:custom_alias, custom_alias)
+
+      {name, _field_options} ->
+        schema.__schema__(:association, name) |> Map.from_struct()
     end)
   end
 end

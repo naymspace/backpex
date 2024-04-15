@@ -155,7 +155,8 @@ defmodule DemoWeb.PostLive do
         label: "Category",
         display_field: :name,
         searchable: true,
-        live_resource: DemoWeb.CategoryLive
+        live_resource: DemoWeb.CategoryLive,
+        custom_alias: :custom_category
       },
       tags: %{
         module: Backpex.Fields.ManyToMany,
