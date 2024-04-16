@@ -163,7 +163,7 @@ jobs:
           build-args: |
             MIX_ENV=test
     outputs:
-      image: ${{ steps.docker.outputs.digest }}
+      image: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME_TESTING }}@${{ steps.docker.outputs.digest }}
 
   lint-demo:
     needs: build-testing
