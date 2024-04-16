@@ -182,15 +182,6 @@ jobs:
         run: |
           apk add --no-cache tar
 
-      - name: Restore the plts cache
-        uses: actions/cache@v4
-        id: plts-cache
-        with:
-          path: /opt/app/demo/priv/plts
-          key: ${{ runner.os }}-demo-plts-mixlockhash-${{ hashFiles(format('{0}{1}', github.workspace, '/opt/app/demo/mix.lock')) }}
-          restore-keys: |
-            ${{ runner.os }}-demo-plts-
-
       - name: lint:credo
         working-directory: /opt/app/demo
         run: |
