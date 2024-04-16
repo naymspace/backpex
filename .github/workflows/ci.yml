@@ -47,15 +47,6 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-${{ matrix.elixir }}-${{ matrix.erlang }}-build-
 
-      - name: Restore the plts cache
-        uses: actions/cache@v4
-        id: plts-cache
-        with:
-          path: priv/plts
-          key: ${{ runner.os }}-${{ matrix.elixir }}-${{ matrix.erlang }}-plts-mixlockhash-${{ hashFiles(format('{0}{1}', github.workspace, '/mix.lock')) }}
-          restore-keys: |
-            ${{ runner.os }}-${{ matrix.elixir }}-${{ matrix.erlang }}-plts-
-
       - name: Install dependencies
         if: steps.deps-cache.outputs.cache-hit != 'true'
         run: |
@@ -99,12 +90,6 @@ jobs:
       - name: Gettext Check
         run: |
           mix gettext.extract --check-up-to-date
-
-      - name: Publish package on hex.pm
-        if: github.event_name == 'release'
-        env:
-          HEX_API_KEY: ${{ secrets.HEX_API_KEY }}
-        run: mix hex.publish --yes
 
   publish:
     needs: test
