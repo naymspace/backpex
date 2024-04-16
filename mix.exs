@@ -1,7 +1,7 @@
 defmodule Backpex.MixProject do
   use Mix.Project
 
-  @version "0.1.1"
+  @version "0.2.0"
   @source_url "https://github.com/naymspace/backpex"
 
   def project do
@@ -13,7 +13,6 @@ defmodule Backpex.MixProject do
       start_permanent: Mix.env() == :prod,
       deps: deps(),
       aliases: aliases(),
-      dialyzer: dialyzer(),
 
       # Hex.pm
       package: package(),
@@ -38,18 +37,17 @@ defmodule Backpex.MixProject do
       {:ecto_sql, "~> 3.6"},
       {:postgrex, ">= 0.0.0"},
       {:phoenix_html, "~> 3.0"},
-      {:phoenix_live_view, "~> 0.19.0"},
+      {:phoenix_live_view, "~> 0.20.0"},
       {:floki, ">= 0.30.0"},
       {:gettext, "~> 0.18"},
       {:jason, "~> 1.2"},
       {:heroicons, "~> 0.5.0"},
       {:number, "~> 1.0.3"},
-      {:dialyxir, "~> 1.0", only: [:dev, :test], runtime: false},
-      {:credo, "~> 1.6.1", only: [:dev, :test], runtime: false},
+      {:credo, "~> 1.7.5", only: [:dev, :test], runtime: false},
       {:mix_audit, "~> 2.0", only: [:dev, :test], runtime: false},
       {:sobelow, "~> 0.8", only: [:dev, :test]},
       {:money, "~> 1.12.1"},
-      {:tailwind_formatter, "~> 0.3.2", only: [:dev, :test], runtime: false}
+      {:tailwind_formatter, "~> 0.4.0", only: [:dev, :test], runtime: false}
     ]
   end
 
@@ -64,21 +62,13 @@ defmodule Backpex.MixProject do
 
   defp aliases do
     [
-      lint: ["format --check-formatted", "dialyzer", "credo", "sobelow --config"]
-    ]
-  end
-
-  defp dialyzer do
-    [
-      plt_core_path: "priv/plts",
-      plt_local_path: "priv/plts",
-      plt_add_apps: [:ex_unit],
-      ignore_warnings: "dialyzer.ignore-warnings"
+      lint: ["format --check-formatted", "credo", "sobelow --config"]
     ]
   end
 
   defp docs() do
     [
+      main: "Backpex.LiveResource",
       logo: "priv/static/images/logo.svg",
       extras: extras(),
       extra_section: "GUIDES",
@@ -96,14 +86,16 @@ defmodule Backpex.MixProject do
     [
       "guides/introduction/installation.md",
       "guides/introduction/translations.md",
-      "guides/advanced/full_text_search.md"
+      "guides/advanced/full_text_search.md",
+      "guides/upgrading/v0.2.md"
     ]
   end
 
   defp groups_for_extras do
     [
       Introduction: ~r/guides\/introduction\/.?/,
-      Advanced: ~r/guides\/advanced\/.?/
+      Advanced: ~r/guides\/advanced\/.?/,
+      "Upgrade Guides": ~r{guides/upgrading/.*}
     ]
   end
 

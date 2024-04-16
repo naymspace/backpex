@@ -106,6 +106,23 @@ defmodule Backpex.Field do
         end
       }
 
+  ## Custom Alias Configuration
+
+  Backpex automatically generates aliases for queries in your fields. However, if you try to add two `BelongsTo` fields of the same association, you will encounter an error indicating that the alias is already in use by another field. To resolve this issue, Backpex allows the assignment of custom aliases to fields, eliminating naming conflicts in queries.
+
+  To use a custom alias, especially with a `:select` query, define it within your field configuration. This allows you to reference associated data via the custom alias.
+
+  Example usage of a custom alias together with a `:select`:
+
+      second_category: %{
+        module: Backpex.Fields.BelongsTo,
+        label: "Second Category",
+        display_field: :name,
+        searchable: true,
+        custom_alias: :second_category,
+        select: dynamic([second_category: sc], sc.name)
+      },
+
   ## Computed Fields
 
   Sometimes you want to compute new fields based on existing fields.
@@ -401,7 +418,7 @@ defmodule Backpex.Field do
       raise Backpex.ForbiddenError
     end
 
-    %{assigns: %{item: item} = assigns} = socket
+    %{assigns: %{item: item, live_resource: live_resource} = assigns} = socket
 
     result =
       assigns
@@ -410,8 +427,13 @@ defmodule Backpex.Field do
 
     socket =
       case result do
-        {:ok, _item} -> assign(socket, :valid, true)
-        _error -> assign(socket, :valid, false)
+        {:ok, item} ->
+          socket
+          |> assign(:valid, true)
+          |> live_resource.on_item_updated(item)
+
+        _error ->
+          assign(socket, :valid, false)
       end
 
     {:noreply, socket}

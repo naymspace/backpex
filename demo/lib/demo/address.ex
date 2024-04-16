@@ -20,19 +20,19 @@ defmodule Demo.Address do
   @required_fields ~w[street zip city country]a
 
   @doc false
-  def changeset(address, attrs) do
+  def changeset(address, attrs, _metadata \\ []) do
     address
     |> cast(attrs, @required_fields)
     |> validate_required(@required_fields)
   end
 
-  def update_changeset(address, attrs) do
+  def update_changeset(address, attrs, _metadata \\ []) do
     address
     |> cast(attrs, @required_fields)
     |> validate_required(@required_fields)
   end
 
-  def create_changeset(address, attrs) do
+  def create_changeset(address, attrs, _metadata \\ []) do
     address
     |> cast(attrs, @required_fields)
     |> validate_required(@required_fields)

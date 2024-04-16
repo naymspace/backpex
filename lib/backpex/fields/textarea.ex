@@ -4,9 +4,9 @@ defmodule Backpex.Fields.Textarea do
 
   ## Options
 
-  * `:placeholder` - Optional placeholder value.
-  * `:debounce` - Optional integer timeout value (in milliseconds), or "blur".
-  * `:throttle` - Optional integer timeout value (in milliseconds).
+  * `:placeholder` - Optional placeholder value or function that receives the assigns.
+  * `:debounce` - Optional integer timeout value (in milliseconds), "blur" or function that receives the assigns.
+  * `:throttle` - Optional integer timeout value (in milliseconds) or function that receives the assigns.
   """
   use BackpexWeb, :field
 
@@ -27,7 +27,7 @@ defmodule Backpex.Fields.Textarea do
         <:label align={Backpex.Field.align_label(@field_options, assigns, :top)}>
           <Layout.input_label text={@field_options[:label]} />
         </:label>
-        <BackpexForm.field_input type="textarea" form={@form} field_name={@name} field_options={@field_options} />
+        <BackpexForm.field_input type="textarea" field={@form[@name]} field_options={@field_options} />
       </Layout.field_container>
     </div>
     """
@@ -41,14 +41,7 @@ defmodule Backpex.Fields.Textarea do
         <:label align={Backpex.Field.align_label(@field_options, assigns, :top)}>
           <Layout.input_label text={@field_options[:label]} />
         </:label>
-        <BackpexForm.field_input
-          type="textarea"
-          form={@form}
-          field_name={@name}
-          field_options={@field_options}
-          readonly
-          disabled
-        />
+        <BackpexForm.field_input type="textarea" field={@form[@name]} field_options={@field_options} readonly disabled />
       </Layout.field_container>
     </div>
     """

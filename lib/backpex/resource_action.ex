@@ -68,25 +68,32 @@ defmodule Backpex.ResourceAction do
   @callback fields() :: list()
 
   @doc """
-  Initial change. The result will be passed to `Backpex.ResourceAction.changeset/2` in order to generate a changeset.
+  Initial change. The result will be passed to `Backpex.ResourceAction.changeset/3` in order to generate a changeset.
 
   This function is optional and can be used to use changesets with schemas in resource actions. If this function
   is not provided a changeset will be generated automatically based on the provided types in `Backpex.ResourceAction.fields/0`.
   """
-  @callback init_change() ::
+  @callback init_change(assigns :: map()) ::
               Ecto.Schema.t()
               | Ecto.Changeset.t()
               | {Ecto.Changeset.data(), Ecto.Changeset.types()}
 
   @doc """
   The changeset to be used in the resource action. It may be used to validate form inputs.
+
+  Additional metadata is passed as a keyword list via the third parameter.
+
+  The list of metadata:
+  - `:assigns` - the assigns
+  - `:target` - the name of the `form` target that triggered the changeset call. Default to `nil` if the call was not triggered by a form field.
   """
   @callback changeset(
               change ::
                 Ecto.Schema.t()
                 | Ecto.Changeset.t()
                 | {Ecto.Changeset.data(), Ecto.Changeset.types()},
-              attrs :: map()
+              attrs :: map(),
+              metadata :: keyword()
             ) :: Ecto.Changeset.t()
 
   @doc """
@@ -105,7 +112,7 @@ defmodule Backpex.ResourceAction do
       @behaviour Backpex.ResourceAction
 
       @impl Backpex.ResourceAction
-      def init_change do
+      def init_change(_assigns) do
         types = Backpex.Field.changeset_types(fields())
 
         {%{}, types}

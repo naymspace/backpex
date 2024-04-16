@@ -3,8 +3,8 @@ defmodule DemoWeb.InvoiceLive do
     layout: {DemoWeb.Layouts, :admin},
     schema: Demo.Invoice,
     repo: Demo.Repo,
-    update_changeset: &Demo.Invoice.update_changeset/2,
-    create_changeset: &Demo.Invoice.create_changeset/2,
+    update_changeset: &Demo.Invoice.update_changeset/3,
+    create_changeset: &Demo.Invoice.create_changeset/3,
     pubsub: Demo.PubSub,
     topic: "invoices",
     event_prefix: "invoice_"

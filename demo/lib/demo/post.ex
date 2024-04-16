@@ -23,14 +23,14 @@ defmodule Demo.Post do
   @required_fields ~w[title body published]a
   @optional_fields ~w[show_likes user_id category_id likes]a
 
-  def update_changeset(post, attrs) do
+  def update_changeset(post, attrs, _metadata \\ []) do
     post
     |> cast(attrs, @required_fields ++ @optional_fields)
     |> validate_required(@required_fields)
     |> maybe_remove_likes()
   end
 
-  def create_changeset(post, attrs) do
+  def create_changeset(post, attrs, _metadata \\ []) do
     post
     |> cast(attrs, @required_fields ++ @optional_fields)
     |> validate_required(@required_fields)

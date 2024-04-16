@@ -121,7 +121,7 @@ defmodule Backpex.Fields.Upload do
           file_name = gallery_file_name(entry)
           dest = Path.join([:code.priv_dir(:my_app), "static", gallery_static_dir(), file_name])
           File.cp!(path, dest)
-          {:ok, gallery_file_url(file_name))}
+          {:ok, gallery_file_url(file_name)}
         end)
 
         {completed, []} = uploaded_entries(socket, :gallery)

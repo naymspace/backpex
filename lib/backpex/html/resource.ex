@@ -182,20 +182,23 @@ defmodule Backpex.HTML.Resource do
   attr(:placeholder, :string, required: true, doc: "placeholder for the search input")
 
   def index_search_form(assigns) do
+    form = to_form(%{"value" => assigns.value}, as: :index_search)
+    search_enabled = not is_nil(assigns.full_text_search) or assigns.searchable_fields != []
+
     assigns =
       assigns
-      |> assign(:search_enabled, not is_nil(assigns.full_text_search) or assigns.searchable_fields != [])
+      |> assign(:search_enabled, search_enabled)
+      |> assign(:form, form)
 
     ~H"""
-    <.form :let={f} :if={@search_enabled} for={%{}} as={:index_search} phx-change="index-search" phx-submit="index-search">
-      <%= Phoenix.HTML.Form.search_input(
-        f,
-        :search_input,
-        class: "input input-sm input-bordered",
-        placeholder: @placeholder,
-        phx_debounce: "200",
-        value: @value
-      ) %>
+    <.form :if={@search_enabled} for={@form} phx-change="index-search" phx-submit="index-search">
+      <input
+        name={@form[:value].name}
+        class="input input-sm input-bordered"
+        placeholder={@placeholder}
+        phx-debounce="200"
+        value={@form[:value].value}
+      />
     </.form>
     """
   end
@@ -247,10 +250,10 @@ defmodule Backpex.HTML.Resource do
   defp filter_badge(assigns) do
     ~H"""
     <div class="join relative ring-1 ring-gray-400">
-      <div class="badge badge-outline join-item border-0 bg-gray-200 p-4 font-semibold">
+      <div class="badge badge-outline join-item h-auto border-0 bg-gray-200 px-4 py-1.5 font-semibold">
         <%= @filter.module.label() %>
       </div>
-      <div class="badge badge-outline join-item border-0 p-4">
+      <div class="badge badge-outline join-item h-auto border-0 px-4 py-1.5">
         <%= component(
           &@filter.module.render/1,
           [value: @value],
@@ -275,7 +278,7 @@ defmodule Backpex.HTML.Resource do
     <div class="space-y-5">
       <div :for={{field, filter} <- @filters}>
         <% value = Map.get(@filter_options, Atom.to_string(field), nil) %>
-        <.form :let={f} for={%{}} as={:filters} phx-change="change-filter" phx-submit="change-filter">
+        <.form :let={f} for={to_form(%{}, as: :filters)} phx-change="change-filter" phx-submit="change-filter">
           <div>
             <div class="relative flex w-full flex-wrap justify-start gap-2">
               <div class="text-sm font-medium text-gray-900"><%= filter.module.label() %></div>
@@ -338,6 +341,13 @@ defmodule Backpex.HTML.Resource do
   attr(:x_style, :string, default: "", doc: "alpine-bound inline styles for the root div")
 
   def toggle_columns(assigns) do
+    form =
+      to_form(%{"_resource" => assigns.live_resource, "_cookie_redirect_url" => assigns.current_url},
+        as: :toggle_columns
+      )
+
+    assigns = assign(assigns, :form, form)
+
     ~H"""
     <div class={["dropdown", @class]} x-bind:style={@x_style}>
       <label tabindex="0" class="hover:cursor-pointer">
@@ -347,10 +357,10 @@ defmodule Backpex.HTML.Resource do
         <Heroicons.view_columns aria-hidden="true" solid class="h-5 w-5 text-gray-400" />
       </label>
       <div tabindex="0" class="dropdown-content z-[1] menu bg-base-100 rounded-box w-52 p-4 shadow">
-        <.form :let={f} method="POST" for={%{}} as={:toggle_columns} action={cookie_path(@socket)}>
-          <%= Phoenix.HTML.Form.hidden_input(f, :_resource, value: @live_resource) %>
-          <%= Phoenix.HTML.Form.hidden_input(f, :_cookie_redirect_url, value: @current_url) %>
-          <.toggle_columns_inputs active_fields={@active_fields} form={f} />
+        <.form method="POST" for={@form} action={cookie_path(@socket)}>
+          <input type="hidden" name={@form[:_resource].name} value={@form[:_resource].value} />
+          <input type="hidden" name={@form[:_cookie_redirect_url].name} value={@form[:_cookie_redirect_url].value} />
+          <.toggle_columns_inputs active_fields={@active_fields} form={@form} />
           <button class="btn btn-sm btn-primary mt-4">
             <%= Backpex.translate("Save") %>
           </button>
@@ -368,13 +378,8 @@ defmodule Backpex.HTML.Resource do
     <div class="flex flex-col space-y-1">
       <div :for={{name, %{active: active, label: label}} <- @active_fields}>
         <label for={name} class="flex cursor-pointer items-center">
-          <%= Phoenix.HTML.Form.checkbox(
-            @form,
-            name,
-            id: name,
-            class: "checkbox checkbox-sm checkbox-primary",
-            checked: active
-          ) %>
+          <input type="hidden" name={@form[name].name} value="false" />
+          <input type="checkbox" name={@form[name].name} class="checkbox checkbox-sm checkbox-primary" checked={active} />
           <span class="label-text pl-2">
             <%= label %>
           </span>
@@ -610,22 +615,18 @@ defmodule Backpex.HTML.Resource do
   attr(:class, :string, default: "", doc: "Extra class to be added to the select.")
 
   def select_per_page(assigns) do
+    form = to_form(%{}, as: :select_per_page)
+
+    assigns =
+      assigns
+      |> assign(:form, form)
+      |> assign(:selected, assigns.query_options.per_page)
+
     ~H"""
-    <.form
-      :let={f}
-      for={%{}}
-      as={:select_per_page}
-      class={@class}
-      phx-change="select-page-size"
-      phx-submit="select-page-size"
-    >
-      <%= Phoenix.HTML.Form.select(
-        f,
-        :per_page,
-        @options,
-        class: "select select-sm select-bordered",
-        selected: @query_options.per_page
-      ) %>
+    <.form for={@form} class={@class} phx-change="select-page-size" phx-submit="select-page-size">
+      <select name={@form[:value].name} class="select select-sm select-bordered">
+        <%= Phoenix.HTML.Form.options_for_select(@options, @selected) %>
+      </select>
     </.form>
     """
   end
@@ -961,13 +962,20 @@ defmodule Backpex.HTML.Resource do
   defp metric_toggle(assigns) do
     visible = Backpex.Metric.metrics_visible?(assigns.metric_visibility, assigns.live_resource)
 
-    assigns = assign(assigns, :visible, visible)
+    form =
+      %{"_resource" => assigns.live_resource, "_cookie_redirect_url" => assigns.current_url}
+      |> to_form(as: :toggle_metrics)
+
+    assigns =
+      assigns
+      |> assign(:visible, visible)
+      |> assign(:form, form)
 
     ~H"""
     <div :if={length(@metrics) > 0}>
-      <.form :let={f} method="POST" for={%{}} as={:toggle_metrics} action={cookie_path(@socket)}>
-        <%= Phoenix.HTML.Form.hidden_input(f, :_resource, value: @live_resource) %>
-        <%= Phoenix.HTML.Form.hidden_input(f, :_cookie_redirect_url, value: @current_url) %>
+      <.form method="POST" for={@form} action={cookie_path(@socket)}>
+        <input type="hidden" name={@form[:_resource].name} value={@form[:_resource].value} />
+        <input type="hidden" name={@form[:_cookie_redirect_url].name} value={@form[:_cookie_redirect_url].value} />
         <div class="tooltip" data-tip={Backpex.translate("Toggle metrics")}>
           <button
             type="submit"

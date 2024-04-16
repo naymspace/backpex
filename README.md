@@ -1,15 +1,22 @@
 # Backpex
 
+[![CI](https://github.com/naymspace/backpex/actions/workflows/ci.yml/badge.svg)](https://github.com/naymspace/backpex/actions/workflows/ci.yml)
+[![Hex](https://img.shields.io/hexpm/v/backpex.svg)](https://hex.pm/packages/backpex)
+[![Hex Docs](https://img.shields.io/badge/hex-docs-green)](https://hexdocs.pm/backpex)
+
 Backpex is a simple admin dashboard that makes it easy to manage existing resources in your application.
 
-See our comprehensive [docs](https://hexdocs.pm/backpex/) for more information.
+See our comprehensive [docs](https://hexdocs.pm/backpex) for more information.
+
+## Screenshot ([Live Demo](https://backpex.live/admin/users))
+
+![Backpex Screenshot](priv/static/images/screenshot.png)
 
 ## Development
 
 ### Requirements
 
 - [Docker](https://www.docker.com/)
-- [Mutagen Compose](https://mutagen.io/documentation/orchestration/compose)
 
 ### Recommended Extensions
 
@@ -19,11 +26,10 @@ See our comprehensive [docs](https://hexdocs.pm/backpex/) for more information.
 ### Setup
 
 - Clone the repository.
-- In `demo` directpry run `cp .env.example .env` and set values accordingly.
+- In `demo` directory run `cp .env.example .env` and set values accordingly.
   - Generate `SECRET_KEY_BASE` via `mix phx.gen.secret`.
   - Generate `LIVE_VIEW_SIGNING_SALT` via `mix phx.gen.secret 32`.
-- Run `mutagen-compose up` (`yarn watch` is triggered autoamtically).
-- Run `mix dialyzer --plt` inside the `app` container to generate the initial PLT file.
+- Run `docker compose up` (`yarn watch` is triggered automatically).
 
 Now you can visit [`localhost:4000`](http://localhost:4000) from your browser.
 

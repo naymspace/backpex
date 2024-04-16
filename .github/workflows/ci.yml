@@ -1,32 +1,330 @@
 name: CI
 
 on:
+  workflow_dispatch:
   push:
   release:
     types: [published]
 
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME_TESTING: ${{ github.repository }}/testing
+  IMAGE_NAME_RUNTIME: ${{ github.repository }}/runtime
+
 jobs:
-  ci:
+  test:
+    name: "Test backpex"
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        elixir: ["1.16.2", "1.15.7"]
+        erlang: ["26.2.2", "25.3.2"]
+
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout code
+        uses: actions/checkout@v4
 
       - uses: erlef/setup-beam@v1
         with:
-          otp-version: '26.1.2'
-          elixir-version: '1.15.7'
+          otp-version: ${{ matrix.erlang }}
+          elixir-version: ${{ matrix.elixir }}
 
-      - name: Install Dependencies
-        run: mix deps.get
+      - name: Restore the deps cache
+        uses: actions/cache@v4
+        id: deps-cache
+        with:
+          path: deps
+          key: ${{ runner.os }}-${{ matrix.elixir }}-${{ matrix.erlang }}-deps-mixlockhash-${{ hashFiles(format('{0}{1}', github.workspace, '/mix.lock')) }}
+          restore-keys: |
+            ${{ runner.os }}-${{ matrix.elixir }}-${{ matrix.erlang }}-deps-
 
-      - name: Check Formatting
-        run: mix format --check-formatted
+      - name: Restore the _build cache
+        uses: actions/cache@v4
+        id: build-cache
+        with:
+          path: _build
+          key: ${{ runner.os }}-${{ matrix.elixir }}-${{ matrix.erlang }}-build-mixlockhash-${{ hashFiles(format('{0}{1}', github.workspace, '/mix.lock')) }}
+          restore-keys: |
+            ${{ runner.os }}-${{ matrix.elixir }}-${{ matrix.erlang }}-build-
 
-      - name: Run Tests
-        run: mix test
+      - name: Restore the plts cache
+        uses: actions/cache@v4
+        id: plts-cache
+        with:
+          path: priv/plts
+          key: ${{ runner.os }}-${{ matrix.elixir }}-${{ matrix.erlang }}-plts-mixlockhash-${{ hashFiles(format('{0}{1}', github.workspace, '/mix.lock')) }}
+          restore-keys: |
+            ${{ runner.os }}-${{ matrix.elixir }}-${{ matrix.erlang }}-plts-
 
-      - name: Publish package
+      - name: Install dependencies
+        if: steps.deps-cache.outputs.cache-hit != 'true'
+        run: |
+          mix local.hex --force --if-missing
+          mix local.rebar --force --if-missing
+          mix deps.get
+
+      - name: Compile dependencies
+        if: steps.deps-cache.outputs.cache-hit != 'true'
+        run: mix deps.compile
+
+      - name: Run tests
+        run: |
+          mix test
+
+      - name: Check formatting
+        run: |
+          mix format --check-formatted
+
+      - name: Compile with warnings as errors
+        run: |
+          mix compile --warnings-as-errors --force
+
+      - name: Credo
+        run: |
+          mix credo
+
+      - name: Sobelow
+        run: |
+          mix sobelow --config
+
+      - name: Deps Unused
+        run: |
+          mix deps.unlock --check-unused
+
+      - name: Deps Audit
+        continue-on-error: true
+        run: |
+          mix deps.audit
+
+      - name: Gettext Check
+        run: |
+          mix gettext.extract --check-up-to-date
+
+      - name: Publish package on hex.pm
         if: github.event_name == 'release'
         env:
           HEX_API_KEY: ${{ secrets.HEX_API_KEY }}
         run: mix hex.publish --yes
+
+  publish:
+    needs: test
+    if: github.event_name == 'release'
+    name: "Publish package on hex.pm"
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Determine the elixir version
+        id: elixir_version
+        run: echo "version=$(grep -h elixir .tool-versions | awk '{ print $2 }' | awk -F - '{print $1}')" >> $GITHUB_OUTPUT
+
+      - name: Determine the otp version
+        id: otp_version
+        run: echo "version=$(grep -h erlang .tool-versions | awk '{ print $2 }')" >> $GITHUB_OUTPUT
+
+      - name: Use versions
+        run: echo "Using Elixir version ${{ steps.elixir_version.outputs.version }} and OTP version ${{ steps.otp_version.outputs.version }}"
+
+      - uses: erlef/setup-beam@v1
+        with:
+          otp-version: ${{ steps.otp_version.outputs.version }}
+          elixir-version: ${{ steps.elixir_version.outputs.version }}
+
+      - name: Publish package on hex.pm
+        env:
+          HEX_API_KEY: ${{ secrets.HEX_API_KEY }}
+        run: mix hex.publish --yes
+
+  build-testing:
+    name: "Build testing"
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to the container registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract metadata (tags, labels) for Docker
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME_TESTING }}
+
+      - name: Build container
+        uses: docker/build-push-action@v5
+        with:
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME_TESTING }}:buildcache
+          cache-to: type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME_TESTING }}:buildcache,mode=max
+          target: builder
+          build-args: |
+            MIX_ENV=test
+    outputs:
+      image: ${{ steps.meta.outputs.tags }}
+
+  lint-demo:
+    needs: build-testing
+    name: "Lint (Demo)"
+    runs-on: ubuntu-latest
+    container:
+      image: ${{ needs.build-testing.outputs.image }}
+
+    steps:
+      - name: lint:mix
+        working-directory: /opt/app/demo
+        run: |
+          yarn lint:mix
+
+      - name: Add tar that supports --posix option to be used by cache action
+        run: |
+          apk add --no-cache tar
+
+      - name: Restore the plts cache
+        uses: actions/cache@v4
+        id: plts-cache
+        with:
+          path: /opt/app/demo/priv/plts
+          key: ${{ runner.os }}-demo-plts-mixlockhash-${{ hashFiles(format('{0}{1}', github.workspace, '/opt/app/demo/mix.lock')) }}
+          restore-keys: |
+            ${{ runner.os }}-demo-plts-
+
+      - name: lint:credo
+        working-directory: /opt/app/demo
+        run: |
+          yarn lint:credo
+
+      - name: lint:sobelow
+        working-directory: /opt/app/demo
+        run: |
+          yarn lint:sobelow
+
+      - name: lint:style
+        working-directory: /opt/app/demo
+        run: |
+          yarn lint:style
+
+      - name: lint:standard
+        working-directory: /opt/app/demo
+        run: |
+          yarn lint:standard
+
+      - name: lint:deps-unused
+        working-directory: /opt/app/demo
+        run: |
+          yarn lint:deps-unused
+
+      - name: lint:gettext
+        working-directory: /opt/app/demo
+        run: |
+          yarn lint:gettext
+
+  test-compile:
+    needs: build-testing
+    name: "Compile (Demo)"
+    runs-on: ubuntu-latest
+    container:
+      image: ${{ needs.build-testing.outputs.image }}
+
+    steps:
+      - name: Compile with warnings as errors
+        working-directory: /opt/app/demo
+        run: |
+          mix compile --warnings-as-errors --force
+
+  test-demo:
+    needs: build-testing
+    name: "Test (Demo)"
+    runs-on: ubuntu-latest
+    container:
+      image: ${{ needs.build-testing.outputs.image }}
+      env:
+        POSTGRES_DB: test
+        POSTGRES_PASSWORD: postgres
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_PASSWORD: postgres
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - name: Run test
+        working-directory: /opt/app/demo
+        run: |
+          yarn test
+
+  deps-audit:
+    needs: build-testing
+    name: "Deps Audit (Demo)"
+    runs-on: ubuntu-latest
+    container:
+      image: ${{ needs.build-testing.outputs.image }}
+
+    steps:
+      - name: Deps audit
+        working-directory: /opt/app/demo
+        continue-on-error: true
+        run: |
+          mix deps.audit
+
+  build-runtime:
+    name: "Build runtime"
+    runs-on: ubuntu-latest
+    needs: [lint-demo, test-compile, test-demo, deps-audit]
+
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to the container registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract metadata (tags, labels) for Docker
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME_RUNTIME }}
+
+      - name: Build container
+        uses: docker/build-push-action@v5
+        with:
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME_RUNTIME }}:buildcache
+          cache-to: type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME_RUNTIME }}:buildcache,mode=max
+          target: runtime
+          build-args: |
+            MIX_ENV=prod

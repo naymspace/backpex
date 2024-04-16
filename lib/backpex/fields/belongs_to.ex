@@ -9,8 +9,7 @@ defmodule Backpex.Fields.BelongsTo do
     * `:live_resource` - The live resource of the association. Used to generate links navigating to the association.
     * `:options_query` - Manipulates the list of available options in the select.
       Defaults to `fn (query, _field) -> query end` which returns all entries.
-    * `:prompt` - The text to be displayed when no option is selected.
-      Allows the same values as [`Phoenix.Html.Form.select`](https://hexdocs.pm/phoenix_html/Phoenix.HTML.Form.html#select/4) for customization of the prompt.
+    * `:prompt` - The text to be displayed when no option is selected or function that receives the assigns.
 
   ## Example
 
@@ -96,11 +95,10 @@ defmodule Backpex.Fields.BelongsTo do
         </:label>
         <BackpexForm.field_input
           type="select"
-          form={@form}
-          field_name={@owner_key}
+          field={@form[@owner_key]}
           field_options={@field_options}
           options={@options}
-          {@prompt}
+          prompt={@prompt}
         />
       </Layout.field_container>
     </div>
@@ -140,6 +138,14 @@ defmodule Backpex.Fields.BelongsTo do
 
   defp maybe_options_query(query, _field_options, _assigns), do: query
 
-  defp assign_prompt(assigns, %{prompt: prompt} = _field_options), do: assign(assigns, :prompt, %{prompt: prompt})
-  defp assign_prompt(assigns, _field_options), do: assign(assigns, :prompt, %{})
+  defp assign_prompt(assigns, field_options) do
+    prompt =
+      case Map.get(field_options, :prompt) do
+        nil -> nil
+        prompt when is_function(prompt) -> prompt.(assigns)
+        prompt -> prompt
+      end
+
+    assign(assigns, :prompt, prompt)
+  end
 end

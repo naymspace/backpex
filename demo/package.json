@@ -6,7 +6,6 @@
     "doctest": "env $(cat .env.test | xargs) mix test test/doc_test.exs",
     "lint": "run-p lint:*",
     "lint:mix": "mix format --check-formatted",
-    "lint:dialyzer": "mix dialyzer",
     "lint:credo": "mix credo --strict",
     "lint:sobelow": "mix sobelow --config",
     "lint:style": "stylelint assets/**/*.css",
@@ -20,20 +19,20 @@
     "gettext": "mix gettext.extract --merge"
   },
   "devDependencies": {
-    "@sentry/browser": "^7.85.0",
+    "@sentry/browser": "^7.110.0",
     "@tailwindcss/forms": "^0.5.7",
-    "@tailwindcss/typography": "^0.5.10",
-    "alpinejs": "^3.13.3",
-    "esbuild": "^0.19.7",
+    "@tailwindcss/typography": "^0.5.12",
+    "alpinejs": "^3.13.8",
+    "esbuild": "^0.20.2",
     "lodash": "^4.17.21",
     "npm-run-all": "^4.1.5",
     "standard": "^17.1.0",
     "stylelint": "^15.11.0",
     "stylelint-config-standard": "^34.0.0",
-    "tailwindcss": "^3.3.6",
-    "topbar": "^2.0.1"
+    "tailwindcss": "^3.4.3",
+    "topbar": "^2.0.2"
   },
   "dependencies": {
-    "daisyui": "^4.4.19"
+    "daisyui": "^4.10.1"
   }
 }

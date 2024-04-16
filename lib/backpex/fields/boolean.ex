@@ -4,8 +4,8 @@ defmodule Backpex.Fields.Boolean do
 
   ## Options
 
-  * `:debounce` - Optional integer timeout value (in milliseconds), or "blur".
-  * `:throttle` - Optional integer timeout value (in milliseconds).
+  * `:debounce` - Optional integer timeout value (in milliseconds), "blur" or function that receives the assigns.
+  * `:throttle` - Optional integer timeout value (in milliseconds) or function that receives the assigns.
   """
   use BackpexWeb, :field
 
@@ -27,8 +27,7 @@ defmodule Backpex.Fields.Boolean do
         <:label align={Backpex.Field.align_label(@field_options, assigns, :top)}>
           <Layout.input_label text={@field_options[:label]} />
         </:label>
-        <BackpexForm.field_input type="toggle" form={@form} field_name={@name} field_options={@field_options} />
-        <BackpexForm.error_tag form={@form} name={@name} field_options={@field_options} />
+        <BackpexForm.field_input type="toggle" field={@form[@name]} field_options={@field_options} />
       </Layout.field_container>
     </div>
     """

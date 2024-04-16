@@ -10,8 +10,8 @@ defmodule Backpex.Fields.DateTime do
 
     * `:format` - Format string which will be used to format the date time value.
       Defaults to `#{@default_format}`
-    * `:debounce` - Optional integer timeout value (in milliseconds), or "blur".
-    * `:throttle` - Optional integer timeout value (in milliseconds).
+    * `:debounce` - Optional integer timeout value (in milliseconds), "blur" or function that receives the assigns.
+    * `:throttle` - Optional integer timeout value (in milliseconds) or function that receives the assigns.
 
   ## Example
 
@@ -58,11 +58,32 @@ defmodule Backpex.Fields.DateTime do
         </:label>
         <BackpexForm.field_input
           type="datetime-local"
-          form={@form}
-          field_name={@name}
+          field={@form[@name]}
           field_options={@field_options}
           phx-debounce={Backpex.Field.debounce(@field_options, assigns)}
           phx-throttle={Backpex.Field.throttle(@field_options, assigns)}
+        />
+      </Layout.field_container>
+    </div>
+    """
+  end
+
+  @impl Backpex.Field
+  def render_form_readonly(assigns) do
+    ~H"""
+    <div>
+      <Layout.field_container>
+        <:label align={Backpex.Field.align_label(@field_options, assigns, :top)}>
+          <Layout.input_label text={@field_options[:label]} />
+        </:label>
+        <BackpexForm.field_input
+          type="datetime-local"
+          field={@form[@name]}
+          field_options={@field_options}
+          phx-debounce={Backpex.Field.debounce(@field_options, assigns)}
+          phx-throttle={Backpex.Field.throttle(@field_options, assigns)}
+          readonly
+          disabled
         />
       </Layout.field_container>
     </div>

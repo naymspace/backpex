@@ -49,7 +49,10 @@ defmodule DemoWeb.Telemetry do
       summary("vm.memory.total", unit: {:byte, :megabyte}),
       summary("vm.total_run_queue_lengths.total"),
       summary("vm.total_run_queue_lengths.cpu"),
-      summary("vm.total_run_queue_lengths.io")
+      summary("vm.total_run_queue_lengths.io"),
+
+      # Bandit Metrics
+      summary("bandit.request.stop.duration", unit: {:native, :millisecond})
     ]
   end
 

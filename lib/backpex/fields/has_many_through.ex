@@ -52,9 +52,6 @@ defmodule Backpex.Fields.HasManyThrough do
   alias Backpex.LiveResource
   alias Ecto.Changeset
 
-  @dialyzer {:no_return, render_form: 1, editables: 3}
-  @dialyzer {:no_unused, has_error?: 2}
-
   @impl Phoenix.LiveComponent
   def update(assigns, socket) do
     socket =
@@ -536,13 +533,7 @@ defmodule Backpex.Fields.HasManyThrough do
       <:label>
         <Layout.input_label text={@label} />
       </:label>
-      <BackpexForm.field_input
-        type="select"
-        form={@form}
-        field_name={@owner_key}
-        field_options={@field_options}
-        options={@options}
-      />
+      <BackpexForm.field_input type="select" field={@form[@owner_key]} field_options={@field_options} options={@options} />
     </Layout.field_container>
     """
   end

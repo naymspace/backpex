@@ -4,9 +4,8 @@ defmodule Backpex.Fields.Select do
 
   ## Options
 
-    * `:options` - Required (keyword) list of options to be used for the select.
-    * `:prompt` - The text to be displayed when no option is selected.
-      Allows the same values as [`Phoenix.Html.Form.select`](https://hexdocs.pm/phoenix_html/Phoenix.HTML.Form.html#select/4) for customization of the prompt.
+    * `:options` - Required (keyword) list of options or function that receives the assigns.
+    * `:prompt` - The text to be displayed when no option is selected or function that receives the assigns.
 
   ## Example
 
@@ -25,27 +24,21 @@ defmodule Backpex.Fields.Select do
 
   @impl Backpex.Field
   def render_value(assigns) do
-    options = Map.get(assigns.field_options, :options)
+    options = get_options(assigns)
+    label = get_label(assigns.value, options)
 
-    label =
-      assigns.value
-      |> Atom.to_string()
-      |> get_label(options)
-
-    assigns =
-      assigns
-      |> assign(:label, label)
+    assigns = assign(assigns, :label, label)
 
     ~H"""
     <p class={@live_action in [:index, :resource_action] && "truncate"}>
-      <%= @label %>
+      <%= HTML.pretty_value(@label) %>
     </p>
     """
   end
 
   @impl Backpex.Field
   def render_form(assigns) do
-    options = Map.get(assigns.field_options, :options)
+    options = get_options(assigns)
 
     assigns =
       assigns
@@ -60,15 +53,47 @@ defmodule Backpex.Fields.Select do
         </:label>
         <BackpexForm.field_input
           type="select"
-          form={@form}
-          field_name={@name}
+          field={@form[@name]}
           field_options={@field_options}
           options={@options}
-          {@prompt}
+          prompt={@prompt}
         />
       </Layout.field_container>
     </div>
     """
+  end
+
+  @impl Backpex.Field
+  def render_index_form(assigns) do
+    form = to_form(%{"value" => assigns.value}, as: :index_form)
+    options = get_options(assigns)
+
+    assigns =
+      assigns
+      |> assign(:form, form)
+      |> assign(:options, options)
+      |> assign_new(:valid, fn -> true end)
+      |> assign_prompt(assigns.field_options)
+
+    ~H"""
+    <div>
+      <.form for={@form} class="relative" phx-change="update-field" phx-submit="update-field" phx-target={@myself}>
+        <select
+          name={@form[:value].name}
+          class={["select select-sm", if(@valid, do: "hover:input-bordered", else: "select-error")]}
+          disabled={@readonly}
+        >
+          <option :if={@prompt} value=""><%= @prompt %></option>
+          <%= Phoenix.HTML.Form.options_for_select(@options, @value) %>
+        </select>
+      </.form>
+    </div>
+    """
+  end
+
+  @impl Phoenix.LiveComponent
+  def handle_event("update-field", %{"index_form" => %{"value" => value}}, socket) do
+    Backpex.Field.handle_index_editable(socket, %{} |> Map.put(socket.assigns.name, value))
   end
 
   defp get_label(value, options) do
@@ -79,9 +104,24 @@ defmodule Backpex.Fields.Select do
     end
   end
 
-  defp value?({_label, value}, to_compare), do: value == to_compare
-  defp value?(value, to_compare), do: value == to_compare
+  defp value?({_label, value}, to_compare), do: to_string(value) == to_string(to_compare)
+  defp value?(value, to_compare), do: to_string(value) == to_string(to_compare)
 
-  defp assign_prompt(assigns, %{prompt: prompt} = _field_options), do: assign(assigns, :prompt, %{prompt: prompt})
-  defp assign_prompt(assigns, _field_options), do: assign(assigns, :prompt, %{})
+  defp assign_prompt(assigns, field_options) do
+    prompt =
+      case Map.get(field_options, :prompt) do
+        nil -> nil
+        prompt when is_function(prompt) -> prompt.(assigns)
+        prompt -> prompt
+      end
+
+    assign(assigns, :prompt, prompt)
+  end
+
+  defp get_options(assigns) do
+    case Map.get(assigns.field_options, :options) do
+      options when is_function(options) -> options.(assigns)
+      options -> options
+    end
+  end
 end

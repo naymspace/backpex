@@ -199,4 +199,7 @@ msgstr ""
 
 msgid "Unselect %{label}"
 msgstr ""
+
+msgid "selected"
+msgstr ""
 ```

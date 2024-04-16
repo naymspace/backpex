@@ -4,8 +4,8 @@ defmodule Backpex.Fields.Currency do
 
   ## Options
 
-  * `:debounce` - Optional integer timeout value (in milliseconds), or "blur".
-  * `:throttle` - Optional integer timeout value (in milliseconds).
+  * `:debounce` - Optional integer timeout value (in milliseconds), "blur" or function that receives the assigns.
+  * `:throttle` - Optional integer timeout value (in milliseconds) or function that receives the assigns.
 
   ## Schema
 
@@ -63,8 +63,7 @@ defmodule Backpex.Fields.Currency do
         </:label>
         <BackpexForm.field_input
           type="number"
-          form={@form}
-          field_name={@name}
+          field={@form[@name]}
           field_options={@field_options}
           value={@casted_value}
           phx-debounce={Backpex.Field.debounce(@field_options, assigns)}

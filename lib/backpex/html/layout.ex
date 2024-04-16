@@ -90,7 +90,7 @@ defmodule Backpex.HTML.Layout do
             <% end %>
           </.topbar>
         </div>
-        <main class="flex flex-col h-[calc(100vh-4rem)] mt-[4rem]">
+        <main class="h-[calc(100vh-4rem)] mt-[4rem] flex flex-col">
           <div class="flex-1">
             <div class={["mx-auto mt-5 px-4 sm:px-6 md:px-8", if(@fluid, do: "", else: "max-w-7xl")]}>
               <%= render_slot(@inner_block) %>
@@ -408,7 +408,7 @@ defmodule Backpex.HTML.Layout do
   def field_container(assigns) do
     ~H"""
     <div class={"#{@class} flex flex-col items-stretch space-y-2 px-6 py-4 sm:flex-row sm:space-y-0 sm:py-3"}>
-      <div :for={label <- @label} class={"#{get_align_class(label[:align])} w-1/4"}>
+      <div :for={label <- @label} class={"#{get_align_class(label[:align])} hyphens-auto break-words pr-2 sm:w-1/4"}>
         <%= render_slot(@label) %>
       </div>
 
@@ -440,10 +440,13 @@ defmodule Backpex.HTML.Layout do
       |> assign(:classes, get_modal_classes(assigns))
 
     ~H"""
-    <div :if={@open} id="modal">
+    <div id="modal">
       <div
         id="modal-overlay"
-        class="animate-fade-in fixed inset-0 z-50 bg-gray-900 bg-opacity-30 transition-opacity"
+        class={[
+          "animate-fade-in fixed inset-0 z-50 bg-gray-900 bg-opacity-30 transition-opacity",
+          unless(@open, do: "hidden")
+        ]}
         aria-hidden="true"
       >
       </div>
@@ -458,9 +461,9 @@ defmodule Backpex.HTML.Layout do
       >
         <div
           class={@classes}
-          phx-click-away={hide_modal(@target, @close_event_name)}
-          phx-window-keydown={hide_modal(@target, @close_event_name)}
-          phx-key="escape"
+          phx-click-away={@open && hide_modal(@target, @close_event_name)}
+          phx-window-keydown={@open && hide_modal(@target, @close_event_name)}
+          phx-key={@open && "escape"}
         >
           <!-- Header -->
           <div class="border-b border-gray-100 px-5 py-3">

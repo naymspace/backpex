@@ -3,8 +3,8 @@ defmodule DemoWeb.ProductLive do
     layout: {DemoWeb.Layouts, :admin},
     schema: Demo.Product,
     repo: Demo.Repo,
-    update_changeset: &Demo.Product.changeset/2,
-    create_changeset: &Demo.Product.changeset/2,
+    update_changeset: &Demo.Product.changeset/3,
+    create_changeset: &Demo.Product.changeset/3,
     pubsub: Demo.PubSub,
     topic: "products",
     event_prefix: "product_"

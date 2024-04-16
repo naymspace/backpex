@@ -3,8 +3,8 @@ defmodule DemoWeb.PostLive do
     layout: {DemoWeb.Layouts, :admin},
     schema: Demo.Post,
     repo: Demo.Repo,
-    update_changeset: &Demo.Post.update_changeset/2,
-    create_changeset: &Demo.Post.create_changeset/2,
+    update_changeset: &Demo.Post.update_changeset/3,
+    create_changeset: &Demo.Post.create_changeset/3,
     pubsub: Demo.PubSub,
     topic: "posts",
     event_prefix: "post_",
@@ -19,8 +19,11 @@ defmodule DemoWeb.PostLive do
   @impl Backpex.LiveResource
   def filters do
     [
+      category_id: %{
+        module: DemoWeb.Filters.PostCategorySelect
+      },
       user_id: %{
-        module: DemoWeb.Filters.PostUserSelect
+        module: DemoWeb.Filters.PostUserMultiSelect
       },
       likes: %{
         module: DemoWeb.Filters.PostLikeRange,
@@ -152,7 +155,8 @@ defmodule DemoWeb.PostLive do
         label: "Category",
         display_field: :name,
         searchable: true,
-        live_resource: DemoWeb.CategoryLive
+        live_resource: DemoWeb.CategoryLive,
+        custom_alias: :custom_category
       },
       tags: %{
         module: Backpex.Fields.ManyToMany,
