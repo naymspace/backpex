@@ -91,12 +91,6 @@ jobs:
         run: |
           mix gettext.extract --check-up-to-date
 
-      - name: Publish package on hex.pm
-        if: github.event_name == 'release'
-        env:
-          HEX_API_KEY: ${{ secrets.HEX_API_KEY }}
-        run: mix hex.publish --yes
-
   publish:
     needs: test
     if: github.event_name == 'release'
@@ -156,7 +150,8 @@ jobs:
         with:
           images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME_TESTING }}
 
-      - name: Build container
+      - name: Build and push container
+        id: docker
         uses: docker/build-push-action@v5
         with:
           push: true
@@ -168,7 +163,7 @@ jobs:
           build-args: |
             MIX_ENV=test
     outputs:
-      image: ${{ steps.meta.outputs.tags }}
+      image: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME_TESTING }}@${{ steps.docker.outputs.digest }}
 
   lint-demo:
     needs: build-testing
@@ -186,15 +181,6 @@ jobs:
       - name: Add tar that supports --posix option to be used by cache action
         run: |
           apk add --no-cache tar
-
-      - name: Restore the plts cache
-        uses: actions/cache@v4
-        id: plts-cache
-        with:
-          path: /opt/app/demo/priv/plts
-          key: ${{ runner.os }}-demo-plts-mixlockhash-${{ hashFiles(format('{0}{1}', github.workspace, '/opt/app/demo/mix.lock')) }}
-          restore-keys: |
-            ${{ runner.os }}-demo-plts-
 
       - name: lint:credo
         working-directory: /opt/app/demo
