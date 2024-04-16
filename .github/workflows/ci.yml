@@ -150,7 +150,8 @@ jobs:
         with:
           images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME_TESTING }}
 
-      - name: Build container
+      - name: Build and push container
+        id: docker
         uses: docker/build-push-action@v5
         with:
           push: true
@@ -162,7 +163,7 @@ jobs:
           build-args: |
             MIX_ENV=test
     outputs:
-      image: ${{ steps.meta.outputs.tags }}
+      image: ${{ steps.docker.outputs.digest }}
 
   lint-demo:
     needs: build-testing
