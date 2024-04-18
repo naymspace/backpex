@@ -180,8 +180,6 @@ defmodule Backpex.Resource do
       {:order, %{by: by, direction: direction, schema: schema, field_name: field_name}}, query ->
         schema_name = get_custom_alias(fields, name_by_schema(schema))
 
-        IO.inspect(schema_name, label: :schema_name_debug)
-
         direction =
           case direction do
             :desc -> :desc_nulls_last
