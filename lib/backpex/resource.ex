@@ -180,6 +180,8 @@ defmodule Backpex.Resource do
       {:order, %{by: by, direction: direction, schema: schema, field_name: field_name}}, query ->
         schema_name = get_custom_alias(fields, name_by_schema(schema))
 
+        IO.inspect(schema_name, label: :schema_name_debug)
+
         direction =
           case direction do
             :desc -> :desc_nulls_last
@@ -220,9 +222,13 @@ defmodule Backpex.Resource do
   end
 
   defp get_custom_alias(fields, schema) do
-    fields
-    |> Keyword.get(schema, %{custom_alias: schema})
-    |> Map.get(:custom_alias)
+    case Keyword.get(fields, schema) do
+      %{custom_alias: custom_alias} ->
+        custom_alias
+
+      _field ->
+        schema
+    end
   end
 
   @doc """
