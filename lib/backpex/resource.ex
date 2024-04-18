@@ -224,7 +224,7 @@ defmodule Backpex.Resource do
       %{custom_alias: custom_alias} ->
         custom_alias
 
-      _field ->
+      _field_or_nil ->
         schema
     end
   end
