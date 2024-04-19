@@ -533,6 +533,8 @@ defmodule Backpex.LiveResource do
       end
 
   Currently supported by the following fields:
+  - `Backpex.Fields.Date`
+  - `Backpex.Fields.DateTime`
   - `Backpex.Fields.Number`
   - `Backpex.Fields.Select`
   - `Backpex.Fields.Text`
