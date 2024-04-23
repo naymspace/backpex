@@ -152,6 +152,7 @@ defmodule DemoWeb.PostLive do
             full_name: fragment("concat(?, ' ', ?)", user.first_name, user.last_name)
           })
         end,
+        index_editable: true,
         searchable: true,
         live_resource: DemoWeb.UserLive
       },
