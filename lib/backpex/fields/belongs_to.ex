@@ -72,7 +72,7 @@ defmodule Backpex.Fields.BelongsTo do
       |> assign_link()
 
     ~H"""
-    <div>
+    <div class={[@live_action in [:index, :resource_action] && "truncate"]}>
       <%= if @link do %>
         <.link navigate={@link} class={[@live_action in [:index, :resource_action] && "truncate", "hover:underline"]}>
           <%= @display_text %>
