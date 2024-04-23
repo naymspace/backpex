@@ -251,7 +251,7 @@ defmodule Backpex.HTML.Resource do
     ~H"""
     <div class="join relative ring-1 ring-gray-400">
       <div class="badge badge-outline join-item h-auto border-0 bg-gray-200 px-4 py-1.5 font-semibold">
-        <%= @filter.module.label() %>
+        <%= Map.get(@filter, :label, @filter.module.label()) %>
       </div>
       <div class="badge badge-outline join-item h-auto border-0 px-4 py-1.5">
         <%= component(
@@ -281,7 +281,7 @@ defmodule Backpex.HTML.Resource do
         <.form :let={f} for={to_form(%{}, as: :filters)} phx-change="change-filter" phx-submit="change-filter">
           <div>
             <div class="relative flex w-full flex-wrap justify-start gap-2">
-              <div class="text-sm font-medium text-gray-900"><%= filter.module.label() %></div>
+              <div class="text-sm font-medium text-gray-900"><%= Map.get(filter, :label, filter.module.label()) %></div>
               <.maybe_clear_button field={field} value={value} />
             </div>
             <div class="flex gap-4">
