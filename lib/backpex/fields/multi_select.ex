@@ -102,7 +102,7 @@ defmodule Backpex.Fields.MultiSelect do
     assigns = assign(assigns, :selected_labels, selected_labels)
 
     ~H"""
-    <div>
+    <div class={[@live_action in [:index, :resource_action] && "truncate"]}>
       <%= if @selected_labels == [], do: raw("&mdash;") %>
 
       <div class={["flex", @live_action == :show && "flex-wrap"]}>

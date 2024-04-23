@@ -179,7 +179,7 @@ defmodule Backpex.Fields.ManyToMany do
   @impl Backpex.Field
   def render_value(assigns) do
     ~H"""
-    <div>
+    <div class={[@live_action in [:index, :resource_action] && "truncate"]}>
       <%= if @value == [], do: raw("&mdash;") %>
 
       <div class={["flex", @live_action == :show && "flex-wrap"]}>
@@ -339,11 +339,11 @@ defmodule Backpex.Fields.ManyToMany do
 
     ~H"""
     <%= if is_nil(@link) do %>
-      <span class={@live_action in [:index, :resource_action] && "truncate"}>
+      <span>
         <%= HTML.pretty_value(@display_text) %>
       </span>
     <% else %>
-      <.link navigate={@link} class={["hover:underline", @live_action in [:index, :resource_action] && "truncate"]}>
+      <.link navigate={@link} class="hover:underline">
         <%= @display_text %>
       </.link>
     <% end %>
