@@ -534,6 +534,8 @@ defmodule Backpex.LiveResource do
 
   Currently supported by the following fields:
   - `Backpex.Fields.BelongsTo`
+  - `Backpex.Fields.Date`
+  - `Backpex.Fields.DateTime`
   - `Backpex.Fields.Number`
   - `Backpex.Fields.Select`
   - `Backpex.Fields.Text`
