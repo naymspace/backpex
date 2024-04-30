@@ -1501,6 +1501,9 @@ defmodule Backpex.LiveResource do
       def can?(_assigns, _action, _item), do: true
 
       @impl Backpex.LiveResource
+      def index_row_class(assigns, item, selected, index), do: nil
+
+      @impl Backpex.LiveResource
       def fields, do: []
 
       @impl Backpex.LiveResource
@@ -1515,7 +1518,13 @@ defmodule Backpex.LiveResource do
       @impl Backpex.LiveResource
       def item_actions(default_actions), do: default_actions
 
-      defoverridable can?: 3, fields: 0, filters: 0, filters: 1, resource_actions: 0, item_actions: 1
+      defoverridable can?: 3,
+                     fields: 0,
+                     filters: 0,
+                     filters: 1,
+                     resource_actions: 0,
+                     item_actions: 1,
+                     index_row_class: 4
     end
   end
 

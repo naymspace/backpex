@@ -1011,6 +1011,13 @@ defmodule Backpex.HTML.Resource do
     "flex #{class}"
   end
 
+  defp index_row_class(assigns, item, selected, index) do
+    base_class = if selected, do: "bg-gray-50", else: "bg-white"
+    extra_class = assigns.live_resource.index_row_class(assigns, item, selected, index)
+
+    [base_class, extra_class]
+  end
+
   defp align_class(:left), do: "justify-start text-left"
   defp align_class(:right), do: "justify-end text-right"
   defp align_class(:center), do: "justify-center text-center"
