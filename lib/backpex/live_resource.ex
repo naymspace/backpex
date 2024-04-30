@@ -551,9 +551,8 @@ defmodule Backpex.LiveResource do
       @impl Backpex.LiveResource
       def index_row_class(assigns, item, selected, index), do: "bg-yellow-100"
 
-  > Note that we call the function twice. Once for the row on the `tr` element and a second time for the item action overlay, because in most cases the overlay should have the same style applied. For this reason,
-  Tailwind CSS modifiers such as `even` and `odd` will not always work as intended. Use the provided index instead.
-  The index starts with 0 for the first item.
+  > Note that we call the function twice. Once for the row on the `tr` element and a second time for the item action overlay, because in most cases the overlay should have the same style applied.
+  For this reason, Tailwind CSS modifiers such as `even` and `odd` will not always work as intended. Use the provided index instead. The index starts with 0 for the first item.
   '''
 
   alias Backpex.Resource
