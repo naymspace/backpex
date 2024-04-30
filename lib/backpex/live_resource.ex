@@ -541,6 +541,19 @@ defmodule Backpex.LiveResource do
   - `Backpex.Fields.Text`
 
   > Note you can add index editable support to your custom fields by defining the `render_index_form/1` function and enabling index editable for your field.
+
+  ## Additional classes for index table rows
+
+  We provide the `Backpex.LiveResource.index_row_class` option to add additional classes to table rows
+  on the index view. This allows you, for example, to color the rows.
+
+      # in your resource configuration file
+      @impl Backpex.LiveResource
+      def index_row_class(assigns, item, selected, index), do: "bg-yellow-100"
+
+  > Note that we call the function twice. Once for the row on the `tr` element and a second time for the item action overlay, because in most cases the overlay should have the same style applied. For this reason,
+  Tailwind CSS modifiers such as `even` and `odd` will not always work as intended. Use the provided index instead.
+  The index starts with 0 for the first item.
   '''
 
   alias Backpex.Resource
@@ -579,6 +592,11 @@ defmodule Backpex.LiveResource do
   Replaces the default placeholder for the index search.
   """
   @callback search_placeholder() :: binary()
+
+  @doc """
+  An extra class to be added to table rows on the index view.
+  """
+  @callback index_row_class(assigns :: map(), item :: map(), selected :: boolean(), index :: integer()) :: binary()
 
   @doc """
   The function that can be used to restrict access to certain actions. It will be called before performing
