@@ -97,7 +97,7 @@
         x-bind:class="hasOverflow ? 'border-gray-100 border-l' : ''"
         x-bind:style={"hasOverflow ? '#{shadow_sm_left()}' : ''"}
         class={[
-          "item-action-column absolute right-0 px-4 py-0 text-gray-500",
+          "item-action-column absolute right-0 px-4 py-0 text-gray-500 last:rounded-br-xl",
           index_row_class(assigns, item, selected?(@selected_items, item), index)
         ]}
       >
