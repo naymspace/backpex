@@ -595,7 +595,8 @@ defmodule Backpex.LiveResource do
   @doc """
   An extra class to be added to table rows on the index view.
   """
-  @callback index_row_class(assigns :: map(), item :: map(), selected :: boolean(), index :: integer()) :: binary()
+  @callback index_row_class(assigns :: map(), item :: map(), selected :: boolean(), index :: integer()) ::
+              binary() | nil
 
   @doc """
   The function that can be used to restrict access to certain actions. It will be called before performing
