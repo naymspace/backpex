@@ -2,21 +2,32 @@
   class="!static table"
   x-cloak
   x-data="{
-    actionsWidth: null,
+    actionsWidth: 0,
     headerHeight: null,
     setActionsWidth() {
-      $nextTick(
-        () => {
-          document.querySelectorAll('.item-action-column')
-            .forEach((x) => {
-              this.actionsWidth = this.actionsWidth > x.clientWidth ? this.actionsWidth : x.clientWidth
-            })
-        }
-      )
+      $nextTick(() => {
+        this.actionsWidth = 0;
+
+        document.querySelectorAll('.item-action-column').forEach((x) => {
+          this.actionsWidth = Math.max(this.actionsWidth, x.clientWidth);
+        });
+
+        document.querySelectorAll('.item-actions-container').forEach((container) => {
+          container.style.width = `${this.actionsWidth - 32}px`;
+        });
+      });
     },
-  }
-  "
-  x-init="setActionsWidth()"
+    init() {
+      const config = { attributes: true, childList: true, subtree: true };
+
+      const callback = (mutationList, observer) => {
+        this.setActionsWidth();
+      }
+      const observer = new MutationObserver(callback);
+
+      observer.observe($el, config);
+    }
+  }"
   x-on:resize.window="setActionsWidth()"
 >
   <thead class="bg-gray-50 uppercase text-gray-700">
@@ -102,8 +113,8 @@
         ]}
       >
         <div
-          class="flex items-center justify-end space-x-2"
-          x-bind:style="`height: ${rowHeight - 1}px !important; width: ${actionsWidth - 32}px !important`"
+          class="item-actions-container flex items-center justify-end space-x-2"
+          x-bind:style="`height: ${rowHeight - 1}px !important;`"
         >
           <div
             :for={{key, action} <- row_item_actions(@item_actions)}
