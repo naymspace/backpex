@@ -2973,10 +2973,10 @@ to-regex-range@^5.0.1:
   dependencies:
     is-number "^7.0.0"
 
-topbar@^2.0.2:
-  version "2.0.2"
-  resolved "https://registry.yarnpkg.com/topbar/-/topbar-2.0.2.tgz#fd5890a84553da2469f35d24e6304e7f71d179e2"
-  integrity sha512-hCKoSaWxXqGIgjag8rIVajysE41as7ti5z9GDO5rcx2zmII1/rY5zvO9IgKwbf50HL82EzlimL6OmPYPUgbpEw==
+topbar@^3.0.0:
+  version "3.0.0"
+  resolved "https://registry.yarnpkg.com/topbar/-/topbar-3.0.0.tgz#7353f10852778f6352feac2f92015b673b5e96eb"
+  integrity sha512-mhczD7KfYi1anfoMPKRdl0wPSWiYc0YOK4KyycYs3EaNT15pVVNDG5CtfgZcEBWIPJEdfR7r8K4hTXDD2ECBVQ==
 
 trim-newlines@^4.0.2:
   version "4.1.1"
