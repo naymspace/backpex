@@ -19,7 +19,7 @@
     "gettext": "mix gettext.extract --merge"
   },
   "devDependencies": {
-    "@sentry/browser": "^7.113.0",
+    "@sentry/browser": "^8.3.0",
     "@tailwindcss/forms": "^0.5.7",
     "@tailwindcss/typography": "^0.5.13",
     "alpinejs": "^3.14.0",
