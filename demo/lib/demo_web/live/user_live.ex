@@ -62,7 +62,6 @@ defmodule DemoWeb.UserLive do
         max_file_size: 512_000,
         put_upload_change: &put_upload_change/3,
         consume_upload: &consume_upload/3,
-        # consume: &consume_avatar/3,
         remove: &remove_avatar/2,
         list_files: fn
           %{avatar: ""} -> []
