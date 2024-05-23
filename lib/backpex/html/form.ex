@@ -254,6 +254,7 @@ defmodule Backpex.HTML.Form do
   attr(:show_select_all, :boolean, required: true, doc: "whether to display the select all button")
   attr(:show_more, :boolean, required: true, doc: "whether there are more options to show")
   attr(:search_event, :string, default: "search", doc: "the event that will be sent when the search input changes")
+  attr(:hide_errors, :boolean, default: false, doc: "if errors should be hidden")
 
   def multi_select(assigns) do
     assigns = assign(assigns, :errors, translate_form_errors(assigns.field, assigns.field_options))

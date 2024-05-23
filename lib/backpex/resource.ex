@@ -254,14 +254,17 @@ defmodule Backpex.Resource do
   end
 
   @doc """
-  Gets a database record with the given fields by the given id, possibly being enhanced by the given item_query.
-  """
-  def get(assigns, item_query, fields, id) do
-    %{
-      repo: repo,
-      schema: schema
-    } = assigns
+  Gets a database record with the given fields by the given id.
 
+  ## Parameters
+
+  - `id`: The identifier for the specific item to be fetched.
+  - `repo` (module): The repository module.
+  - `schema`: The Ecto schema module corresponding to the item
+  - `item_query`: A function that modifies the base query. This function should accept an Ecto.Queryable and return an Ecto.Queryable. It's used to apply additional query logic.
+  - `fields` (list): A list of atoms representing the fields to be selected and potentially preloaded.
+  """
+  def get(id, repo, schema, item_query, fields) do
     schema_name = name_by_schema(schema)
     associations = associations(fields, schema)
 
@@ -276,24 +279,37 @@ defmodule Backpex.Resource do
 
   @doc """
   Deletes the given record from the database.
-  Additionally broadcasts the corresponding event, when PubSub is enabled.
+  Additionally broadcasts the corresponding event, when PubSub config is given.
+
+  ## Parameters
+
+  - `item` (struct): The item to be deleted.
+  - `repo` (module): The repository module.
+  - `pubsub` (map, default: `nil`): The PubSub config to use for broadcasting events.
   """
-  def delete(assigns, item) do
+  def delete(item, repo, pubsub \\ nil) do
     item
-    |> assigns.repo.delete()
-    |> broadcast("deleted", assigns)
+    |> repo.delete()
+    |> broadcast("deleted", pubsub)
   end
 
   @doc """
-  Deletes the given records from the database.
-  Additionally broadcasts the corresponding event, when PubSub is enabled.
+  Deletes multiple items from a given repository and schema.
+  Additionally broadcasts the corresponding event, when PubSub config is given.
+
+  ## Parameters
+
+  - `items` (list): A list of structs, each representing an entity to be deleted. The list must contain items that have an `id` field.
+  - `repo` (module): The repository module.
+  - `schema` (module): The Ecto schema module corresponding to the entities in `items`.
+  - `pubsub` (map, default: `nil`): The PubSub config to use for broadcasting events.
   """
-  def delete_all(assigns, items) do
-    case assigns.schema
+  def delete_all(items, repo, schema, pubsub \\ nil) do
+    case schema
          |> where([i], i.id in ^Enum.map(items, & &1.id))
-         |> assigns.repo.delete_all() do
+         |> repo.delete_all() do
       {_count_, nil} ->
-        Enum.each(items, fn item -> broadcast({:ok, item}, "deleted", assigns) end)
+        Enum.each(items, fn item -> broadcast({:ok, item}, "deleted", pubsub) end)
         {:ok, items}
 
       _error ->
@@ -302,33 +318,52 @@ defmodule Backpex.Resource do
   end
 
   @doc """
-  Tries to update the current item with the given changes.
-  Additionally broadcasts the corresponding event, when PubSub is enabled.
-  """
-  def update(assigns, change) do
-    %{
-      changeset: changeset,
-      changeset_function: changeset_function,
-      repo: repo
-    } = assigns
+  Handles the update of an existing item with specific parameters and options. It takes a repo module, a changeset function, an item, parameters for the changeset function, and additional options.
 
-    changeset
-    |> prepare_for_validation()
-    |> LiveResource.call_changeset_function(changeset_function, change, assigns)
+  ## Parameters
+
+  - `item` (struct): The Ecto schema struct.
+  - `attrs` (map): A map of parameters that will be passed to the `changeset_function`.
+  - `repo` (module): The repository module.
+  - `changeset_function` (function): The function that transforms the item and parameters into a changeset.
+  - `opts` (keyword list): A list of options for customizing the behavior of the insert function. The available options are:
+    - `:assigns` (map, default: `%{}`): The assigns that will be passed to the changeset function.
+    - `:pubsub` (map, default: `nil`): The PubSub config to use for broadcasting events.
+    - `:assocs` (list, default: `[]`): A list of associations.
+    - `:after_save` (function, default: `&{:ok, &1}`): A function to handle operations after the save.
+  """
+  def update(item, attrs, repo, changeset_function, opts) do
+    assigns = Keyword.get(opts, :assigns, %{})
+    pubsub = Keyword.get(opts, :pubsub, nil)
+    assocs = Keyword.get(opts, :assocs, [])
+    after_save = Keyword.get(opts, :after_save, &{:ok, &1})
+
+    item
+    |> change(attrs, changeset_function, assigns, assocs, nil, :update)
     |> repo.update()
-    |> broadcast("updated", assigns)
+    |> after_save(after_save)
+    |> broadcast("updated", pubsub)
   end
 
   @doc """
-  Tries to update many items with the given changes.
-  Additionally broadcasts the corresponding event, when PubSub is enabled.
+  Updates multiple items from a given repository and schema.
+  Additionally broadcasts the corresponding event, when PubSub config is given.
+
+  ## Parameters
+
+  - `items` (list): A list of structs, each representing an entity to be updated.
+  - `repo` (module): The repository module.
+  - `schema` (module): The Ecto schema module corresponding to the entities in `items`.
+  - `updates` (list): A list of updates passed to Ecto `update_all` function.
+  - `event_name` (string, default: `updated`): The name to be used when broadcasting the event.
+  - `pubsub` (map, default: `nil`): The PubSub config to use for broadcasting events.
   """
-  def update_all(assigns, items, updates, event \\ "updated") do
-    case assigns.schema
+  def update_all(items, repo, schema, updates, event_name \\ "updated", pubsub \\ nil) do
+    case schema
          |> where([i], i.id in ^Enum.map(items, & &1.id))
-         |> assigns.repo.update_all(updates) do
+         |> repo.update_all(updates) do
       {_count_, nil} ->
-        Enum.each(items, fn item -> broadcast({:ok, item}, event, assigns) end)
+        Enum.each(items, fn item -> broadcast({:ok, item}, event_name, pubsub) end)
         {:ok, items}
 
       _error ->
@@ -337,28 +372,65 @@ defmodule Backpex.Resource do
   end
 
   @doc """
-  Tries to insert the given changes as a new item for the current resource.
-  Additionally broadcasts the corresponding event, when PubSub is enabled.
-  """
-  def insert(assigns, change) do
-    %{
-      changeset: changeset,
-      changeset_function: changeset_function,
-      repo: repo
-    } = assigns
+  Inserts a new item into a repository with specific parameters and options. It takes a repo module, a changeset function, an item, parameters for the changeset function, and additional options.
 
-    changeset
-    |> prepare_for_validation()
-    |> LiveResource.call_changeset_function(changeset_function, change, assigns)
+  ## Parameters
+
+  - `item` (struct): The Ecto schema struct.
+  - `attrs` (map): A map of parameters that will be passed to the `changeset_function`.
+  - `repo` (module): The repository module.
+  - `changeset_function` (function): The function that transforms the item and parameters into a changeset.
+  - `opts` (keyword list): A list of options for customizing the behavior of the insert function. The available options are:
+    - `:assigns` (map, default: `%{}`): The assigns that will be passed to the changeset function.
+    - `:pubsub` (map, default: `nil`): The PubSub config to use for broadcasting events.
+    - `:assocs` (list, default: `[]`): A list of associations.
+    - `:after_save` (function, default: `&{:ok, &1}`): A function to handle operations after the save.
+  """
+  def insert(item, attrs, repo, changeset_function, opts) do
+    assigns = Keyword.get(opts, :assigns, %{})
+    pubsub = Keyword.get(opts, :pubsub, nil)
+    assocs = Keyword.get(opts, :assocs, [])
+    after_save = Keyword.get(opts, :after_save, &{:ok, &1})
+
+    item
+    |> change(attrs, changeset_function, assigns, assocs, nil, :insert)
     |> repo.insert()
-    |> broadcast("created", assigns)
+    |> after_save(after_save)
+    |> broadcast("created", pubsub)
   end
 
-  defp prepare_for_validation(changeset) do
-    changeset
-    |> Map.put(:action, nil)
-    |> Map.put(:errors, [])
-    |> Map.put(:valid?, true)
+  @doc """
+  Applies a change to a given item by calling the specified changeset function.
+
+  ## Parameters
+
+  - `item`: The initial data structure to be changed.
+  - `attrs`: A map of attributes that will be used to modify the item. These attributes are passed to the changeset function.
+  - `changeset_function`: A function used to generate the changeset. This function is usually defined elsewhere in your codebase and should follow the changeset Ecto convention.
+  - `assigns`: The assigns that will be passed to the changeset function.
+  - `assocs` (optional, default `[]`): A list of associations that should be put into the changeset.
+  - `target` (optional, default `nil`): The target to be passed to the changeset function.
+  - `action` (optional, default `:validate`): An atom indicating the action to be performed on the changeset.
+  """
+  def change(item, attrs, changeset_function, assigns, assocs \\ [], target \\ nil, action \\ :validate) do
+    item
+    |> LiveResource.call_changeset_function(changeset_function, attrs, assigns, target)
+    |> put_assocs(assocs)
+    |> Map.put(:action, action)
+  end
+
+  @doc """
+  Updates an Ecto changeset with a list of associations. It takes an existing changeset and a list of associations, and it updates the changeset with each association using `Ecto.Changeset.put_assoc/3`.
+
+  ## Parameters
+
+  - `changeset`: The changeset that you want to update with new associations.
+  - `assocs` (keyword): A keyword list of associations to be added to the changeset. Each element should be a tuple with the association's key as the first element and the associated value as the second element.
+  """
+  def put_assocs(changeset, assocs) do
+    Enum.reduce(assocs, changeset, fn {key, value}, acc ->
+      Ecto.Changeset.put_assoc(acc, key, value)
+    end)
   end
 
   @doc """
@@ -379,14 +451,20 @@ defmodule Backpex.Resource do
     |> String.to_atom()
   end
 
-  defp broadcast({:ok, item}, event, %{pubsub: %{name: pubsub, topic: topic, event_prefix: event_prefix}}) do
+  defp after_save({:ok, item}, func) do
+    {:ok, _item} = func.(item)
+  end
+
+  defp after_save(error, _func), do: error
+
+  defp broadcast({:ok, item}, event, %{name: pubsub, topic: topic, event_prefix: event_prefix}) do
     Phoenix.PubSub.broadcast(pubsub, topic, {event_name(event_prefix, event), item})
     Phoenix.PubSub.broadcast(pubsub, topic, {"backpex:" <> event_name(event_prefix, event), item})
 
     {:ok, item}
   end
 
-  defp broadcast({:error, _reason} = event, _event, _assigns), do: event
+  defp broadcast({:error, _reason} = event, _event, _pubsub), do: event
 
   defp event_name(event_prefix, event), do: event_prefix <> event
 

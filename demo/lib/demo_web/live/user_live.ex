@@ -60,7 +60,9 @@ defmodule DemoWeb.UserLive do
         accept: ~w(.jpg .jpeg),
         max_entries: 1,
         max_file_size: 512_000,
-        consume: &consume_avatar/3,
+        put_upload_change: &put_upload_change/3,
+        consume_upload: &consume_upload/3,
+        # consume: &consume_avatar/3,
         remove: &remove_avatar/2,
         list_files: fn
           %{avatar: ""} -> []
@@ -220,6 +222,26 @@ defmodule DemoWeb.UserLive do
     ]
   end
 
+  def put_upload_change(_socket, change, uploaded_entries) do
+    case uploaded_entries do
+      {[] = _completed, []} ->
+        change
+
+      {[entry | _] = _completed, []} ->
+        Map.put(change, "avatar", avatar_file_name(entry))
+    end
+  end
+
+  # sobelow_skip ["Traversal"]
+  defp consume_upload(_socket, %{path: path} = _meta, entry) do
+    file_name = avatar_file_name(entry)
+    dest = Path.join([:code.priv_dir(:demo), "static", avatar_static_dir(), file_name])
+
+    File.cp!(path, dest)
+
+    :ok
+  end
+
   defp avatar_static_dir, do: Path.join(["uploads", "user", "avatar"])
 
   defp avatar_file_url(file_name) do
@@ -230,21 +252,6 @@ defmodule DemoWeb.UserLive do
   defp avatar_file_name(entry) do
     [ext | _] = MIME.extensions(entry.client_type)
     "#{entry.uuid}.#{ext}"
-  end
-
-  # sobelow_skip ["Traversal"]
-  defp consume_avatar(socket, _resource, %{} = change) do
-    consume_uploaded_entries(socket, :avatar, fn %{path: path}, entry ->
-      file_name = avatar_file_name(entry)
-      dest = Path.join([:code.priv_dir(:demo), "static", avatar_static_dir(), file_name])
-      File.cp!(path, dest)
-      {:ok, avatar_file_url(file_name)}
-    end)
-
-    case uploaded_entries(socket, :avatar) do
-      {[] = _completed, []} -> change
-      {[entry | _] = _completed, []} -> Map.put(change, "avatar", avatar_file_name(entry))
-    end
   end
 
   defp remove_avatar(resource, _target) do

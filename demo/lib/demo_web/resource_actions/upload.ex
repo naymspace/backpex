@@ -4,7 +4,6 @@ defmodule DemoWeb.ResourceActions.Upload do
   use Backpex.ResourceAction
 
   import Ecto.Changeset
-  import Phoenix.LiveView
 
   @impl Backpex.ResourceAction
   def title, do: "Upload file"
@@ -20,7 +19,8 @@ defmodule DemoWeb.ResourceActions.Upload do
         upload_key: :upload,
         accept: ~w(.jpg .jpeg),
         max_entries: 1,
-        consume: &consume_upload/3,
+        put_upload_change: &put_upload_change/3,
+        consume_upload: &consume_upload/3,
         remove: &remove_upload/2,
         list_files: fn
           _item -> []
@@ -37,29 +37,27 @@ defmodule DemoWeb.ResourceActions.Upload do
 
   defp upload_static_dir, do: Path.join(["uploads", "user", "action"])
 
-  defp upload_file_url(file_name) do
-    static_path = Path.join([upload_static_dir(), file_name])
-    Phoenix.VerifiedRoutes.static_url(DemoWeb.Endpoint, "/" <> static_path)
-  end
-
   defp upload_file_name(entry) do
     [ext | _] = MIME.extensions(entry.client_type)
     "#{entry.uuid}.#{ext}"
   end
 
-  # sobelow_skip ["Traversal"]
-  defp consume_upload(socket, _resource, %{} = change) do
-    consume_uploaded_entries(socket, :upload, fn %{path: path}, entry ->
-      file_name = upload_file_name(entry)
-      dest = Path.join([:code.priv_dir(:demo), "static", upload_static_dir(), file_name])
-      File.cp!(path, dest)
-      {:ok, upload_file_url(file_name)}
-    end)
+  def put_upload_change(_socket, change, uploaded_entries) do
+    case uploaded_entries do
+      {[] = _completed, []} ->
+        change
 
-    case uploaded_entries(socket, :upload) do
-      {[] = _completed, []} -> change
-      {[entry | _] = _completed, []} -> Map.put(change, "upload", upload_file_name(entry))
+      {[entry | _] = _completed, []} ->
+        Map.put(change, "upload", upload_file_name(entry))
     end
+  end
+
+  # sobelow_skip ["Traversal"]
+  defp consume_upload(_socket, %{path: path} = _meta, entry) do
+    file_name = upload_file_name(entry)
+    dest = Path.join([:code.priv_dir(:demo), "static", upload_static_dir(), file_name])
+    File.cp!(path, dest)
+    :ok
   end
 
   defp remove_upload(_resource, _target), do: []
