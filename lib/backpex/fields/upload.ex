@@ -235,19 +235,17 @@ defmodule Backpex.Fields.Upload do
           <article>
             <%= if @uploads_allowed do %>
               <div :for={entry <- @field_uploads.entries}>
-                <div class="flex space-x-2">
-                  <p><%= Map.get(entry, :client_name) %></p>
+                <p class="inline"><%= Map.get(entry, :client_name) %></p>
 
-                  <button
-                    type="button"
-                    phx-click="cancel-entry"
-                    phx-value-ref={entry.ref}
-                    phx-value-id={@upload_key}
-                    phx-target="#form-component"
-                  >
-                    &times;
-                  </button>
-                </div>
+                <button
+                  type="button"
+                  phx-click="cancel-entry"
+                  phx-value-ref={entry.ref}
+                  phx-value-id={@upload_key}
+                  phx-target="#form-component"
+                >
+                  &times;
+                </button>
 
                 <p :for={err <- upload_errors(@field_uploads, entry)} class="text-xs italic text-red-500">
                   <%= error_to_string(err) %>
