@@ -357,7 +357,7 @@ defmodule Backpex.HTML.Form do
   def form_errors?(false, _form), do: false
   def form_errors?(true = _show_errors, form), do: form.errors != []
 
-  defp translate_form_errors(form_field, field_options) do
+  def translate_form_errors(form_field, field_options) do
     translator_func =
       case field_options do
         %{translate_error: translate_error} = _field_options ->

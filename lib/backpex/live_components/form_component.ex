@@ -39,9 +39,12 @@ defmodule Backpex.FormComponent do
   end
 
   defp maybe_assign_uploads(socket) do
-    Enum.reduce(socket.assigns.fields, socket, fn {_name, field_options} = field, acc ->
-      field_options.module.assign_uploads(field, acc)
-    end)
+    socket =
+      Enum.reduce(socket.assigns.fields, socket, fn {_name, field_options} = field, acc ->
+        field_options.module.assign_uploads(field, acc)
+      end)
+
+    assign_new(socket, :removed_uploads, fn -> Keyword.new() end)
   end
 
   defp assign_fields(%{assigns: %{action_to_confirm: action_to_confirm}} = socket) do
@@ -141,19 +144,25 @@ defmodule Backpex.FormComponent do
     upload_key = String.to_existing_atom(upload_key)
 
     {_field_name, field_options} =
+      field =
       socket.assigns.fields()
       |> Enum.find(fn {_name, field_options} ->
         Map.has_key?(field_options, :upload_key) and Map.get(field_options, :upload_key) == upload_key
       end)
 
-    item = Map.get(socket.assigns, :item)
-    file_paths = Upload.map_file_paths(field_options, field_options.remove.(item, file_key))
-    uploaded_files = Keyword.put(socket.assigns[:uploaded_files], upload_key, file_paths)
+    removed_uploads =
+      socket.assigns
+      |> Map.get(:removed_uploads, [])
+      |> Keyword.update(upload_key, [file_key], fn existing -> [file_key | existing] end)
+
+    files = Upload.list_existing_files(field, socket.assigns.item, Keyword.get(removed_uploads, upload_key, []))
+    uploaded_files = Keyword.put(socket.assigns[:uploaded_files], upload_key, files)
 
     socket =
       socket
+      |> assign(:removed_uploads, removed_uploads)
       |> assign(:uploaded_files, uploaded_files)
-      |> update_max_entries(field_options, field_options.max_entries - Enum.count(file_paths))
+      |> update_max_entries(field_options, field_options.max_entries - Enum.count(files))
 
     {:noreply, socket}
   end
@@ -209,7 +218,7 @@ defmodule Backpex.FormComponent do
       pubsub: assigns[:pubsub],
       assocs: Map.get(assigns, :assocs, []),
       after_save: fn item ->
-        consume_uploads(socket)
+        handle_uploads(socket)
         live_resource.on_item_created(socket, item)
 
         {:ok, item}
@@ -260,7 +269,7 @@ defmodule Backpex.FormComponent do
       pubsub: assigns[:pubsub],
       assocs: Map.get(assigns, :assocs, []),
       after_save: fn item ->
-        consume_uploads(socket)
+        handle_uploads(socket)
         live_resource.on_item_updated(socket, item)
 
         {:ok, item}
@@ -312,7 +321,7 @@ defmodule Backpex.FormComponent do
       %{valid?: true} ->
         result = resource_action.module.handle(socket, params)
 
-        if match?({:ok, _msg}, result), do: consume_uploads(socket)
+        if match?({:ok, _msg}, result), do: handle_uploads(socket)
 
         socket =
           socket
@@ -413,26 +422,31 @@ defmodule Backpex.FormComponent do
         %{put_upload_change: put_upload_change} = field_options
 
         uploaded_entries = uploaded_entries(socket, upload_key)
-        put_upload_change.(socket, acc, uploaded_entries, action)
+        removed_entries = Keyword.get(socket.assigns.removed_uploads, upload_key, [])
+
+        put_upload_change.(socket, acc, socket.assigns.item, uploaded_entries, removed_entries, action)
 
       _field, acc ->
         acc
     end)
   end
 
-  defp consume_uploads(%{assigns: %{uploads: _uploads}} = socket) do
+  defp handle_uploads(%{assigns: %{uploads: _uploads}} = socket) do
     for {_name, %{upload_key: upload_key} = field_options} = _field <- socket.assigns.fields do
       if Map.has_key?(socket.assigns.uploads, upload_key) do
-        %{consume_upload: consume_upload} = field_options
+        %{consume_upload: consume_upload, remove_uploads: remove_uploads} = field_options
 
         consume_uploaded_entries(socket, upload_key, fn meta, entry ->
           consume_upload.(socket, meta, entry)
         end)
+
+        removed_entries = Keyword.get(socket.assigns.removed_uploads, upload_key, [])
+        remove_uploads.(socket, removed_entries)
       end
     end
   end
 
-  defp consume_uploads(_socket), do: :ok
+  defp handle_uploads(_socket), do: :ok
 
   def render(assigns) do
     form_component(assigns)

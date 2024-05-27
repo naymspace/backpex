@@ -165,13 +165,11 @@ defmodule Backpex.Fields.Upload do
 
   @impl Backpex.Field
   def render_value(assigns) do
-    %{field_options: field_options, item: item} = assigns
+    %{field: field, item: item} = assigns
 
-    uploaded_files = map_file_paths(field_options, item)
+    uploaded_files = existing_file_paths(field, item, [])
 
-    assigns =
-      assigns
-      |> assign(:uploaded_files, uploaded_files)
+    assigns = assign(assigns, :uploaded_files, uploaded_files)
 
     ~H"""
     <div class="flex flex-col">
@@ -186,12 +184,14 @@ defmodule Backpex.Fields.Upload do
   def render_form(assigns) do
     upload_key = assigns.field_options.upload_key
     uploads_allowed = not is_nil(assigns.field_uploads)
+    form_errors = Backpex.HTML.Form.translate_form_errors(assigns.form[assigns.name], assigns.field_options)
 
     assigns =
       assigns
       |> assign(:upload_key, upload_key)
       |> assign(:uploads_allowed, uploads_allowed)
       |> assign(:uploaded_files, Keyword.get(assigns.uploaded_files, upload_key))
+      |> assign(:form_errors, form_errors)
 
     ~H"""
     <div>
@@ -275,6 +275,7 @@ defmodule Backpex.Fields.Upload do
               <%= error_to_string(err) %>
             </p>
           <% end %>
+          <Backpex.HTML.Form.error :for={msg <- @form_errors}><%= msg %></Backpex.HTML.Form.error>
         </section>
       </Layout.field_container>
     </div>
@@ -282,8 +283,8 @@ defmodule Backpex.Fields.Upload do
   end
 
   @impl Backpex.Field
-  def assign_uploads({_name, field_options}, socket) do
-    field_files = {field_options.upload_key, map_file_paths(field_options, socket.assigns.item)}
+  def assign_uploads({_name, field_options} = field, socket) do
+    field_files = {field_options.upload_key, existing_file_paths(field, socket.assigns.item, [])}
     max_entries = field_options.max_entries - (field_files |> elem(1) |> Enum.count())
     max_file_size = Map.get(field_options, :max_file_size, 8_000_000)
 
@@ -298,9 +299,7 @@ defmodule Backpex.Fields.Upload do
 
   defp assign_uploaded_files(socket, field_files) do
     uploaded_files = Map.get(socket.assigns, :uploaded_files, [])
-
-    socket
-    |> assign(:uploaded_files, [field_files | uploaded_files])
+    assign(socket, :uploaded_files, [field_files | uploaded_files])
   end
 
   defp allow_field_uploads(socket, _field_options, 0, _max_file_size), do: socket
@@ -314,32 +313,30 @@ defmodule Backpex.Fields.Upload do
   end
 
   @doc """
-  Maps uploaded files to keyword list with identifier and label.
-
-    ## Examples
-      iex> Backpex.Fields.Upload.map_file_paths(%{list_files: fn item -> item.file_paths end}, %{file_paths: ["xyz.png"]})
-      [{"xyz.png", "xyz.png"}]
+  Returns a list of existing files mapped to a label.
   """
-  def map_file_paths(field_options, file_paths) when is_list(file_paths) do
-    file_paths
+  def existing_file_paths(field, item, removed_files) do
+    files = list_existing_files(field, item, removed_files)
+
+    map_file_paths(field, files)
+  end
+
+  @doc """
+  Lists existing files based on item and list of removed files.
+  """
+  def list_existing_files({_field_name, field_options} = _field, item, removed_files) do
+    %{list_existing_files: list_existing_files} = field_options
+
+    list_existing_files.(item) -- removed_files
+  end
+
+  @doc """
+  Maps uploaded files to keyword list with identifier and label.
+  """
+  def map_file_paths({_field_name, field_options} = _field, files) when is_list(files) do
+    files
     |> Enum.map(&{&1, label_from_file(field_options, &1)})
   end
-
-  def map_file_paths(%{list_files: list_files} = field_options, item) do
-    item
-    |> list_files.()
-    |> Enum.map(&{&1, label_from_file(field_options, &1)})
-  end
-
-  def map_file_paths(field_options, item) do
-    item
-    |> Map.get(:file_paths, nil)
-    |> Enum.map(&label_from_file(field_options, &1))
-  end
-
-  defp error_to_string(:too_large), do: Backpex.translate("too large")
-  defp error_to_string(:too_many_files), do: Backpex.translate("too many files")
-  defp error_to_string(:not_accepted), do: Backpex.translate("unacceptable file type")
 
   @doc """
   Calls field option function to get label from filename. Defaults to filename.
@@ -352,4 +349,8 @@ defmodule Backpex.Fields.Upload do
   """
   def label_from_file(%{file_label: file_label} = _field_options, file), do: file_label.(file)
   def label_from_file(_field_options, file), do: file
+
+  defp error_to_string(:too_large), do: Backpex.translate("too large")
+  defp error_to_string(:too_many_files), do: Backpex.translate("too many files")
+  defp error_to_string(:not_accepted), do: Backpex.translate("unacceptable file type")
 end
