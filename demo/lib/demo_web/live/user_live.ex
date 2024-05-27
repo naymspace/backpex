@@ -60,7 +60,7 @@ defmodule DemoWeb.UserLive do
         accept: ~w(.jpg .jpeg),
         max_entries: 1,
         max_file_size: 512_000,
-        put_upload_change: &put_upload_change/3,
+        put_upload_change: &put_upload_change/4,
         consume_upload: &consume_upload/3,
         remove: &remove_avatar/2,
         list_files: fn
@@ -221,13 +221,24 @@ defmodule DemoWeb.UserLive do
     ]
   end
 
-  def put_upload_change(_socket, change, uploaded_entries) do
+  def put_upload_change(_socket, change, uploaded_entries, :validate) do
     case uploaded_entries do
-      {[] = _completed, []} ->
-        change
+      {[] = _completed, [entry | _] = _in_progress} ->
+        Map.put(change, "avatar", avatar_file_name(entry))
 
+      _no_uploads ->
+        change
+    end
+  end
+
+
+  def put_upload_change(_socket, change, uploaded_entries, :insert) do
+    case uploaded_entries do
       {[entry | _] = _completed, []} ->
         Map.put(change, "avatar", avatar_file_name(entry))
+
+      _no_uploads ->
+        change
     end
   end
 
@@ -238,7 +249,7 @@ defmodule DemoWeb.UserLive do
 
     File.cp!(path, dest)
 
-    :ok
+    {:ok, avatar_file_url(file_name)}
   end
 
   defp avatar_static_dir, do: Path.join(["uploads", "user", "avatar"])

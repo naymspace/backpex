@@ -85,9 +85,17 @@ defmodule Backpex.FormComponent do
   end
 
   def handle_event("validate", %{"change" => change, "_target" => target}, %{assigns: %{action_type: :item}} = socket) do
-    %{assigns: %{item_action_types: item_action_types, changeset_function: changeset_function} = assigns} = socket
+    %{
+      assigns: %{item_action_types: item_action_types, changeset_function: changeset_function, fields: fields} = assigns
+    } = socket
 
     target = Enum.at(target, 1)
+
+    change =
+      change
+      |> drop_readonly_changes(fields, assigns)
+      |> put_upload_change(socket, :validate)
+
     changeset = Resource.change(item_action_types, change, changeset_function, assigns, [], target)
     form = Phoenix.Component.to_form(changeset, as: :change)
 
@@ -99,10 +107,16 @@ defmodule Backpex.FormComponent do
   end
 
   def handle_event("validate", %{"change" => change, "_target" => target}, socket) do
-    %{assigns: %{item: item, changeset_function: changeset_function} = assigns} = socket
+    %{assigns: %{item: item, changeset_function: changeset_function, fields: fields} = assigns} = socket
 
     target = Enum.at(target, 1)
     assocs = Map.get(assigns, :assocs, [])
+
+    change =
+      change
+      |> drop_readonly_changes(fields, assigns)
+      |> put_upload_change(socket, :validate)
+
     changeset = Resource.change(item, change, changeset_function, assigns, assocs, target)
     form = Phoenix.Component.to_form(changeset, as: :change)
 
@@ -154,7 +168,7 @@ defmodule Backpex.FormComponent do
 
     change =
       change
-      |> put_upload_change(socket)
+      |> put_upload_change(socket, :insert)
       |> drop_readonly_changes(fields, assigns)
 
     handle_save(socket, live_action, change)
@@ -393,13 +407,13 @@ defmodule Backpex.FormComponent do
   defp flash_key(:ok), do: :info
   defp flash_key(:error), do: :error
 
-  defp put_upload_change(change, socket) do
+  defp put_upload_change(change, socket, action) do
     Enum.reduce(socket.assigns.fields, change, fn
       {_name, %{upload_key: upload_key} = field_options} = _field, acc ->
         %{put_upload_change: put_upload_change} = field_options
 
         uploaded_entries = uploaded_entries(socket, upload_key)
-        put_upload_change.(socket, acc, uploaded_entries)
+        put_upload_change.(socket, acc, uploaded_entries, action)
 
       _field, acc ->
         acc
