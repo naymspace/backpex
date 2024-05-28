@@ -234,7 +234,6 @@ defmodule DemoWeb.UserLive do
     end
   end
 
-
   def put_upload_change(_socket, change, item, uploaded_entries, removed_entries, :insert) do
     case {uploaded_entries, removed_entries} do
       {{[entry | _] = _completed, _in_progress}, _removed} ->
