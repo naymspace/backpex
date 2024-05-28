@@ -112,77 +112,110 @@ defmodule Backpex.Fields.Upload do
 
   ## Full Single File Example
 
-  TODO
+  In this example we implement an avatar upload that is attached to a user.
+
+      @impl Backpex.LiveResource
+      def fields do
+        [
+          avatar: %{
+            module: Backpex.Fields.Upload,
+            label: "Avatar",
+            upload_key: :avatar,
+            accept: ~w(.jpg .jpeg),
+            max_entries: 1,
+            max_file_size: 512_000,
+            put_upload_change: &put_upload_change/6,
+            consume_upload: &consume_upload/3,
+            remove_uploads: &remove_uploads/2,
+            list_existing_files: fn
+              %{avatar: ""} -> []
+              %{avatar: avatar} -> [avatar]
+            end,
+            render: fn
+              %{value: value} = assigns when value == "" or is_nil(value) ->
+                ~H"<p><%= Backpex.HTML.pretty_value(@value) %></p>"
+
+              assigns ->
+                ~H'<img class="h-10 w-auto" src={avatar_file_url(@value)} />'
+            end,
+            align: :center
+          },
+        ]
+
+        # Validate (uploads are in progress)
+        def put_upload_change(socket, change, item, uploaded_entries, removed_entries, :validate) do
+          case {uploaded_entries, removed_entries} do
+            # If there is an upload, we want to include it in the change.
+            {{[] = _completed, [entry | _] = _in_progress}, _removed} ->
+              Map.put(change, "avatar", avatar_file_name(entry))
+
+            # If there is no new upload, but a removed one, we want to reset the avatar.
+            {_uploaded, [entry]} ->
+              Map.put(change, "avatar", "")
+
+            # If there is no new upload and no removed upload, we want to do nothing.
+            _other ->
+              change
+          end
+        end
+
+        # Insert (Uploads are completed)
+        def put_upload_change(_socket, change, item, uploaded_entries, removed_entries, :insert) do
+          case {uploaded_entries, removed_entries} do
+            # If there is an completed upload, we want to include it in the change.
+            {{[entry | _] = _completed, _in_progress}, _removed} ->
+              Map.put(change, "avatar", avatar_file_name(entry))
+
+            # If there is no completed upload, but a removed one, we want to reset the avatar.
+            {_uploaded, [entry]} ->
+              Map.put(change, "avatar", "")
+
+            # If there is no completed upload and no removed upload, we want to do nothing.
+            _other ->
+              change
+          end
+        end
+
+        defp consume_upload(_socket, %{path: path} = _meta, entry) do
+          file_name = avatar_file_name(entry)
+          dest = Path.join([:code.priv_dir(:demo), "static", avatar_static_dir(), file_name])
+
+          # Copy the file to the destination
+          File.cp!(path, dest)
+
+          {:ok, avatar_file_url(file_name)}
+        end
+
+        # Remove all removed entries from disk.
+        defp remove_uploads(_socket, removed_entries) do
+          for file <- removed_entries do
+            file_name = avatar_file_name(entry)
+            file_path = Path.join([:code.priv_dir(:demo), "static", avatar_static_dir(), file_name])
+
+            File.rm!(path)
+          end
+        end
+
+        # Returns the place where we want to store the uploads.
+        defp avatar_static_dir, do: Path.join(["uploads", "user", "avatar"])
+
+        # Returns the url based on a file name.
+        defp avatar_file_url(file_name) do
+          static_path = Path.join([avatar_static_dir(), file_name])
+          Phoenix.VerifiedRoutes.static_url(DemoWeb.Endpoint, "/" <> static_path)
+        end
+
+        # Returns the name based on an entry.
+        defp avatar_file_name(entry) do
+          [ext | _] = MIME.extensions(entry.client_type)
+          "#{entry.uuid}.#{ext}"
+        end
 
   ## Full Multi File Example
 
   TODO
 
   TODO: remove old docs
-
-  ### Single File
-
-      @impl Backpex.LiveResource
-      def fields do
-      [
-        avatar: %{
-          module: Backpex.Fields.Upload,
-          label: "Avatar",
-          upload_key: :avatar,
-          accept: ~w(.jpg .jpeg),
-          max_entries: 1,
-          max_file_size: 12_000_000,
-          consume: &consume_avatar/3,
-          remove: &remove_avatar/2,
-          list_files: &list_files_avatar/1,
-          render: fn
-            %{value: ""} = assigns -> ~H"<%= Backpex.HTML.pretty_value(@value) %>"
-            assigns -> ~H'<img class="w-5 h-5 rounded-full" src={avatar_file_url(@value)} />'
-          end
-        },
-      ]
-      end
-
-      defp avatar_static_dir, do: Path.join(["uploads", "user", "avatar"])
-
-      defp avatar_file_url(file_name) do
-        static_path = Path.join([avatar_static_dir(), file_name])
-        Phoenix.VerifiedRoutes.static_url(MyAppWeb.Endpoint, "/" <> static_path)
-      end
-
-      defp avatar_file_name(entry) do
-        [ext | _] = MIME.extensions(entry.client_type)
-        "#{entry.uuid}.#{ext}"
-      end
-
-      # will be called in order to display files when editing item
-      defp list_files_avatar(%{avatar: ""}), do: []
-      defp list_files_avatar(%{avatar: avatar}), do: [avatar]
-
-      # will be called to consume avatar
-      # you may add completed file upload paths as part of the change in order to persist them
-      # you have to return the (modified) change
-      defp consume_avatar(socket, _resource, %{} = change) do
-        consume_uploaded_entries(socket, :avatar, fn %{path: path}, entry ->
-          file_name = avatar_file_name(entry)
-          dest = Path.join([:code.priv_dir(:my_app), "static", avatar_static_dir(), file_name])
-          File.cp!(path, dest)
-          {:ok, avatar_file_url(file_name)}
-        end)
-
-        case uploaded_entries(socket, :avatar) do
-          {[] = _completed, []} -> change
-          {[entry | _] = _completed, []} -> Map.put(change, "avatar", avatar_file_name(entry))
-        end
-      end
-
-      def remove_avatar(resource, _target) do
-        Repo.get_by!(User, id: resource.id)
-        |> User.changeset(%{avatar: ""})
-        |> Repo.update!()
-
-        []
-      end
 
   ### Multiple Files
 
