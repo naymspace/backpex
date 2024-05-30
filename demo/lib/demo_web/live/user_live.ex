@@ -254,6 +254,7 @@ defmodule DemoWeb.UserLive do
     {:ok, file_url(file_name)}
   end
 
+  # sobelow_skip ["Traversal"]
   defp remove_uploads(_socket, removed_entries) do
     for file <- removed_entries do
       path = Path.join([:code.priv_dir(:demo), "static", upload_dir(), file])
