@@ -297,6 +297,8 @@ defmodule Backpex.Fields.Upload do
 
   import Phoenix.LiveView, only: [allow_upload: 3]
 
+  alias Backpex.HTML.Form, as: BackpexForm
+
   @impl Backpex.Field
   def render_value(assigns) do
     %{field: field, item: item} = assigns
@@ -318,7 +320,7 @@ defmodule Backpex.Fields.Upload do
   def render_form(assigns) do
     upload_key = assigns.field_options.upload_key
     uploads_allowed = not is_nil(assigns.field_uploads)
-    form_errors = Backpex.HTML.Form.translate_form_errors(assigns.form[assigns.name], assigns.field_options)
+    form_errors = BackpexForm.translate_form_errors(assigns.form[assigns.name], assigns.field_options)
 
     assigns =
       assigns
@@ -419,7 +421,7 @@ defmodule Backpex.Fields.Upload do
               <%= error_to_string(err) %>
             </p>
           <% end %>
-          <Backpex.HTML.Form.error :for={msg <- @form_errors}><%= msg %></Backpex.HTML.Form.error>
+          <BackpexForm.error :for={msg <- @form_errors}><%= msg %></BackpexForm.error>
         </section>
       </Layout.field_container>
     </div>
