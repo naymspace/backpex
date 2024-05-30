@@ -18,6 +18,11 @@ defmodule Backpex.Fields.Upload do
     * `:put_upload_change` (function) - Required function to add file paths to the change.
     * `:remove_uploads` (function) - Required function that is being called after saving an item to be able to delete removed files
 
+
+  > #### Info {: .info}
+  >
+  > The following examples copy uploads to a static folder in the application. In a production environment, you should consider uploading files to an appropriate object store.
+
   ## Options in detail
 
   The `upload_key`, `accept`, `max_entries` and `max_file_size` options are forwarded to https://hexdocs.pm/phoenix_live_view/Phoenix.LiveView.html#allow_upload/3. See the documentation for more information.
