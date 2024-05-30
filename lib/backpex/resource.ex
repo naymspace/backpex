@@ -258,11 +258,11 @@ defmodule Backpex.Resource do
 
   ## Parameters
 
-  - `id`: The identifier for the specific item to be fetched.
-  - `repo` (module): The repository module.
-  - `schema`: The Ecto schema module corresponding to the item
-  - `item_query` (function): A function that modifies the base query. This function should accept an Ecto.Queryable and return an Ecto.Queryable. It's used to apply additional query logic.
-  - `fields` (list): A list of atoms representing the fields to be selected and potentially preloaded.
+  * `id`: The identifier for the specific item to be fetched.
+  * `repo` (module): The repository module.
+  * `schema`: The Ecto schema module corresponding to the item
+  * `item_query` (function): A function that modifies the base query. This function should accept an Ecto.Queryable and return an Ecto.Queryable. It's used to apply additional query logic.
+  * `fields` (list): A list of atoms representing the fields to be selected and potentially preloaded.
   """
   def get(id, repo, schema, item_query, fields) do
     schema_name = name_by_schema(schema)
@@ -283,9 +283,9 @@ defmodule Backpex.Resource do
 
   ## Parameters
 
-  - `item` (struct): The item to be deleted.
-  - `repo` (module): The repository module.
-  - `pubsub` (map, default: `nil`): The PubSub config to use for broadcasting events.
+  * `item` (struct): The item to be deleted.
+  * `repo` (module): The repository module.
+  * `pubsub` (map, default: `nil`): The PubSub config to use for broadcasting events.
   """
   def delete(item, repo, pubsub \\ nil) do
     item
@@ -299,10 +299,10 @@ defmodule Backpex.Resource do
 
   ## Parameters
 
-  - `items` (list): A list of structs, each representing an entity to be deleted. The list must contain items that have an `id` field.
-  - `repo` (module): The repository module.
-  - `schema` (module): The Ecto schema module corresponding to the entities in `items`.
-  - `pubsub` (map, default: `nil`): The PubSub config to use for broadcasting events.
+  * `items` (list): A list of structs, each representing an entity to be deleted. The list must contain items that have an `id` field.
+  * `repo` (module): The repository module.
+  * `schema` (module): The Ecto schema module corresponding to the entities in `items`.
+  * `pubsub` (map, default: `nil`): The PubSub config to use for broadcasting events.
   """
   def delete_all(items, repo, schema, pubsub \\ nil) do
     case schema
@@ -322,15 +322,15 @@ defmodule Backpex.Resource do
 
   ## Parameters
 
-  - `item` (struct): The Ecto schema struct.
-  - `attrs` (map): A map of parameters that will be passed to the `changeset_function`.
-  - `repo` (module): The repository module.
-  - `changeset_function` (function): The function that transforms the item and parameters into a changeset.
-  - `opts` (keyword list): A list of options for customizing the behavior of the insert function. The available options are:
-    - `:assigns` (map, default: `%{}`): The assigns that will be passed to the changeset function.
-    - `:pubsub` (map, default: `nil`): The PubSub config to use for broadcasting events.
-    - `:assocs` (list, default: `[]`): A list of associations.
-    - `:after_save` (function, default: `&{:ok, &1}`): A function to handle operations after the save.
+  * `item` (struct): The Ecto schema struct.
+  * `attrs` (map): A map of parameters that will be passed to the `changeset_function`.
+  * `repo` (module): The repository module.
+  * `changeset_function` (function): The function that transforms the item and parameters into a changeset.
+  * `opts` (keyword list): A list of options for customizing the behavior of the insert function. The available options are:
+    * `:assigns` (map, default: `%{}`): The assigns that will be passed to the changeset function.
+    * `:pubsub` (map, default: `nil`): The PubSub config to use for broadcasting events.
+    * `:assocs` (list, default: `[]`): A list of associations.
+    * `:after_save` (function, default: `&{:ok, &1}`): A function to handle operations after the save.
   """
   def update(item, attrs, repo, changeset_function, opts) do
     assigns = Keyword.get(opts, :assigns, %{})
@@ -351,12 +351,12 @@ defmodule Backpex.Resource do
 
   ## Parameters
 
-  - `items` (list): A list of structs, each representing an entity to be updated.
-  - `repo` (module): The repository module.
-  - `schema` (module): The Ecto schema module corresponding to the entities in `items`.
-  - `updates` (list): A list of updates passed to Ecto `update_all` function.
-  - `event_name` (string, default: `updated`): The name to be used when broadcasting the event.
-  - `pubsub` (map, default: `nil`): The PubSub config to use for broadcasting events.
+  * `items` (list): A list of structs, each representing an entity to be updated.
+  * `repo` (module): The repository module.
+  * `schema` (module): The Ecto schema module corresponding to the entities in `items`.
+  * `updates` (list): A list of updates passed to Ecto `update_all` function.
+  * `event_name` (string, default: `updated`): The name to be used when broadcasting the event.
+  * `pubsub` (map, default: `nil`): The PubSub config to use for broadcasting events.
   """
   def update_all(items, repo, schema, updates, event_name \\ "updated", pubsub \\ nil) do
     case schema
@@ -376,15 +376,15 @@ defmodule Backpex.Resource do
 
   ## Parameters
 
-  - `item` (struct): The Ecto schema struct.
-  - `attrs` (map): A map of parameters that will be passed to the `changeset_function`.
-  - `repo` (module): The repository module.
-  - `changeset_function` (function): The function that transforms the item and parameters into a changeset.
-  - `opts` (keyword list): A list of options for customizing the behavior of the insert function. The available options are:
-    - `:assigns` (map, default: `%{}`): The assigns that will be passed to the changeset function.
-    - `:pubsub` (map, default: `nil`): The PubSub config to use for broadcasting events.
-    - `:assocs` (list, default: `[]`): A list of associations.
-    - `:after_save` (function, default: `&{:ok, &1}`): A function to handle operations after the save.
+  * `item` (struct): The Ecto schema struct.
+  * `attrs` (map): A map of parameters that will be passed to the `changeset_function`.
+  * `repo` (module): The repository module.
+  * `changeset_function` (function): The function that transforms the item and parameters into a changeset.
+  * `opts` (keyword list): A list of options for customizing the behavior of the insert function. The available options are:
+    * `:assigns` (map, default: `%{}`): The assigns that will be passed to the changeset function.
+    * `:pubsub` (map, default: `nil`): The PubSub config to use for broadcasting events.
+    * `:assocs` (list, default: `[]`): A list of associations.
+    * `:after_save` (function, default: `&{:ok, &1}`): A function to handle operations after the save.
   """
   def insert(item, attrs, repo, changeset_function, opts) do
     assigns = Keyword.get(opts, :assigns, %{})
@@ -404,13 +404,13 @@ defmodule Backpex.Resource do
 
   ## Parameters
 
-  - `item`: The initial data structure to be changed.
-  - `attrs`: A map of attributes that will be used to modify the item. These attributes are passed to the changeset function.
-  - `changeset_function`: A function used to generate the changeset. This function is usually defined elsewhere in your codebase and should follow the changeset Ecto convention.
-  - `assigns`: The assigns that will be passed to the changeset function.
-  - `assocs` (optional, default `[]`): A list of associations that should be put into the changeset.
-  - `target` (optional, default `nil`): The target to be passed to the changeset function.
-  - `action` (optional, default `:validate`): An atom indicating the action to be performed on the changeset.
+  * `item`: The initial data structure to be changed.
+  * `attrs`: A map of attributes that will be used to modify the item. These attributes are passed to the changeset function.
+  * `changeset_function`: A function used to generate the changeset. This function is usually defined elsewhere in your codebase and should follow the changeset Ecto convention.
+  * `assigns`: The assigns that will be passed to the changeset function.
+  * `assocs` (optional, default `[]`): A list of associations that should be put into the changeset.
+  * `target` (optional, default `nil`): The target to be passed to the changeset function.
+  * `action` (optional, default `:validate`): An atom indicating the action to be performed on the changeset.
   """
   def change(item, attrs, changeset_function, assigns, assocs \\ [], target \\ nil, action \\ :validate) do
     item
@@ -424,8 +424,8 @@ defmodule Backpex.Resource do
 
   ## Parameters
 
-  - `changeset`: The changeset that you want to update with new associations.
-  - `assocs` (keyword): A keyword list of associations to be added to the changeset. Each element should be a tuple with the association's key as the first element and the associated value as the second element.
+  * `changeset`: The changeset that you want to update with new associations.
+  * `assocs` (keyword): A keyword list of associations to be added to the changeset. Each element should be a tuple with the association's key as the first element and the associated value as the second element.
   """
   def put_assocs(changeset, assocs) do
     Enum.reduce(assocs, changeset, fn {key, value}, acc ->
