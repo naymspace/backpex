@@ -18,7 +18,7 @@ defmodule Demo.User do
     field(:age, :integer)
     field(:role, Ecto.Enum, values: [:user, :admin])
     field(:permissions, {:array, :string})
-    field(:avatar, :string, default: "")
+    field(:avatar, :string)
     field(:deleted_at, :utc_datetime)
 
     has_many(:posts, Post, on_replace: :nilify)
@@ -40,8 +40,8 @@ defmodule Demo.User do
     timestamps()
   end
 
-  @required_fields ~w[avatar username first_name last_name role]a
-  @optional_fields ~w[deleted_at permissions age]a
+  @required_fields ~w[username first_name last_name role]a
+  @optional_fields ~w[avatar deleted_at permissions age]a
 
   @doc false
   def changeset(user, attrs, _metadata \\ []) do
@@ -62,9 +62,6 @@ defmodule Demo.User do
     |> validate_change(:avatar, fn
       :avatar, "too_many_files" ->
         [avatar: "has to be exactly one"]
-
-      :avatar, "" ->
-        [avatar: "can't be blank"]
 
       :avatar, _avatar ->
         []

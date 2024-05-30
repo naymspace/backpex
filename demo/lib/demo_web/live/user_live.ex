@@ -240,7 +240,7 @@ defmodule DemoWeb.UserLive do
         Map.put(change, "avatar", "too_many_files")
 
       [] ->
-        Map.put(change, "avatar", "")
+        Map.put(change, "avatar", nil)
     end
   end
 
