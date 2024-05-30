@@ -84,16 +84,15 @@ defmodule DemoWeb.ResourceActions.Upload do
     end
   end
 
-    defp consume_upload(_socket, _meta, entry) do
-      file_name = file_name(entry)
+  defp consume_upload(_socket, _meta, entry) do
+    file_name = file_name(entry)
 
-      # Copy file to destination
-      # dest = Path.join([:code.priv_dir(:demo), "static", upload_dir(), file_name])
-      # File.cp!(path, dest)
+    # Copy file to destination
+    # dest = Path.join([:code.priv_dir(:demo), "static", upload_dir(), file_name])
+    # File.cp!(path, dest)
 
-      {:ok, file_url(file_name)}
-    end
-
+    {:ok, file_url(file_name)}
+  end
 
   defp remove_uploads(_socket, _removed_entries), do: :ok
 
