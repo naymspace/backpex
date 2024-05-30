@@ -120,13 +120,14 @@ defmodule DemoWeb.ProductLive do
   defp put_upload_change(socket, change, item, uploaded_entries, removed_entries, action) do
     existing_files = list_existing_files(item) -- removed_entries
 
-    new_entries = case action do
-      :validate ->
-        elem(uploaded_entries, 1)
+    new_entries =
+      case action do
+        :validate ->
+          elem(uploaded_entries, 1)
 
-      :insert ->
-        elem(uploaded_entries, 0)
-    end
+        :insert ->
+          elem(uploaded_entries, 0)
+      end
 
     files = existing_files ++ Enum.map(new_entries, fn entry -> file_name(entry) end)
 
