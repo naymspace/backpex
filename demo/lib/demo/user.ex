@@ -40,8 +40,8 @@ defmodule Demo.User do
     timestamps()
   end
 
-  @required_fields ~w[username first_name last_name role]a
-  @optional_fields ~w[avatar deleted_at permissions age]a
+  @required_fields ~w[avatar username first_name last_name role]a
+  @optional_fields ~w[deleted_at permissions age]a
 
   @doc false
   def changeset(user, attrs, _metadata \\ []) do
@@ -59,6 +59,16 @@ defmodule Demo.User do
       drop_param: :web_links_delete
     )
     |> validate_required(@required_fields)
+    |> validate_change(:avatar, fn
+      :avatar, "too_many_files" ->
+        [avatar: "has to be exactly one"]
+
+      :avatar, "" ->
+        [avatar: "can't be blank"]
+
+      :avatar, _avatar ->
+        []
+    end)
   end
 
   @required_fields ~w[label url]a

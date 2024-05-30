@@ -57,22 +57,19 @@ defmodule DemoWeb.UserLive do
         module: Backpex.Fields.Upload,
         label: "Avatar",
         upload_key: :avatar,
-        accept: ~w(.jpg .jpeg),
+        accept: ~w(.jpg .jpeg .png),
         max_entries: 1,
         max_file_size: 512_000,
         put_upload_change: &put_upload_change/6,
         consume_upload: &consume_upload/3,
         remove_uploads: &remove_uploads/2,
-        list_existing_files: fn
-          %{avatar: ""} -> []
-          %{avatar: avatar} -> [avatar]
-        end,
+        list_existing_files: &list_existing_files/1,
         render: fn
           %{value: value} = assigns when value == "" or is_nil(value) ->
             ~H"<p><%= Backpex.HTML.pretty_value(@value) %></p>"
 
           assigns ->
-            ~H'<img class="h-10 w-auto" src={avatar_file_url(@value)} />'
+            ~H'<img class="h-10 w-auto" src={file_url(@value)} />'
         end,
         align: :center
       },
@@ -221,55 +218,59 @@ defmodule DemoWeb.UserLive do
     ]
   end
 
-  def put_upload_change(socket, change, item, uploaded_entries, removed_entries, :validate) do
-    case {uploaded_entries, removed_entries} do
-      {{[] = _completed, [entry | _] = _in_progress}, _removed} ->
-        Map.put(change, "avatar", avatar_file_name(entry))
+  defp list_existing_files(%{avatar: avatar} = _item) when avatar != "" and not is_nil(avatar), do: [avatar]
+  defp list_existing_files(item), do: []
 
-      {_uploaded, [entry]} ->
+  def put_upload_change(_socket, change, item, uploaded_entries, removed_entries, action) do
+    existing_files = list_existing_files(item) -- removed_entries
+
+    new_entries = case action do
+      :validate ->
+        elem(uploaded_entries, 1)
+
+      :insert ->
+        elem(uploaded_entries, 0)
+    end
+
+    files = existing_files ++ Enum.map(new_entries, fn entry -> file_name(entry) end)
+
+    case files do
+      [file] ->
+        Map.put(change, "avatar", file)
+
+      [file | _tail] ->
+        Map.put(change, "avatar", "too_many_files")
+
+      [] ->
         Map.put(change, "avatar", "")
-
-      _other ->
-        change
     end
   end
 
-  def put_upload_change(_socket, change, item, uploaded_entries, removed_entries, :insert) do
-    case {uploaded_entries, removed_entries} do
-      {{[entry | _] = _completed, _in_progress}, _removed} ->
-        Map.put(change, "avatar", avatar_file_name(entry))
-
-      {_uploaded, [entry]} ->
-        Map.put(change, "avatar", "")
-
-      _other ->
-        change
-    end
-  end
-
-  # sobelow_skip ["Traversal"]
   defp consume_upload(_socket, %{path: path} = _meta, entry) do
-    file_name = avatar_file_name(entry)
-    dest = Path.join([:code.priv_dir(:demo), "static", avatar_static_dir(), file_name])
+    file_name = file_name(entry)
+    dest = Path.join([:code.priv_dir(:demo), "static", upload_dir(), file_name])
 
     File.cp!(path, dest)
 
-    {:ok, avatar_file_url(file_name)}
+    {:ok, file_url(file_name)}
   end
 
-  defp remove_uploads(socket, removed_entries) do
-    # remove uploads
+  defp remove_uploads(_socket, removed_entries) do
+    for file <- removed_entries do
+      path = Path.join([:code.priv_dir(:demo), "static", upload_dir(), file])
+      File.rm!(path)
+    end
   end
 
-  defp avatar_static_dir, do: Path.join(["uploads", "user", "avatar"])
-
-  defp avatar_file_url(file_name) do
-    static_path = Path.join([avatar_static_dir(), file_name])
+  defp file_url(file_name) do
+    static_path = Path.join([upload_dir(), file_name])
     Phoenix.VerifiedRoutes.static_url(DemoWeb.Endpoint, "/" <> static_path)
   end
 
-  defp avatar_file_name(entry) do
+  defp file_name(entry) do
     [ext | _] = MIME.extensions(entry.client_type)
     "#{entry.uuid}.#{ext}"
   end
+
+  defp upload_dir, do: Path.join(["uploads", "user", "avatar"])
 end
