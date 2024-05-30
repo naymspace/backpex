@@ -9,9 +9,6 @@ defmodule DemoWeb.UserLive do
     topic: "users",
     event_prefix: "user_"
 
-  alias Demo.Repo
-  alias Demo.User
-
   @impl Backpex.LiveResource
   def singular_name, do: "User"
 
@@ -219,7 +216,7 @@ defmodule DemoWeb.UserLive do
   end
 
   defp list_existing_files(%{avatar: avatar} = _item) when avatar != "" and not is_nil(avatar), do: [avatar]
-  defp list_existing_files(item), do: []
+  defp list_existing_files(_item), do: []
 
   def put_upload_change(_socket, change, item, uploaded_entries, removed_entries, action) do
     existing_files = list_existing_files(item) -- removed_entries
@@ -239,7 +236,7 @@ defmodule DemoWeb.UserLive do
       [file] ->
         Map.put(change, "avatar", file)
 
-      [file | _tail] ->
+      [_file | _other_files] ->
         Map.put(change, "avatar", "too_many_files")
 
       [] ->

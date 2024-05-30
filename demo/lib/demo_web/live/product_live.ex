@@ -117,7 +117,7 @@ defmodule DemoWeb.ProductLive do
   defp list_existing_files(%{images: images} = _item) when is_list(images), do: images
   defp list_existing_files(_item), do: []
 
-  defp put_upload_change(socket, change, item, uploaded_entries, removed_entries, action) do
+  defp put_upload_change(_socket, change, item, uploaded_entries, removed_entries, action) do
     existing_files = list_existing_files(item) -- removed_entries
 
     new_entries =
