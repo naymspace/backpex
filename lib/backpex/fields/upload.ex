@@ -328,7 +328,16 @@ defmodule Backpex.Fields.Upload do
       |> assign(:form_errors, form_errors)
 
     ~H"""
-    <div>
+    <div x-data="{
+        dispatchChangeEvent(el) {
+          $nextTick(
+            () => {
+              form = document.getElementById('resource-form');
+              if (form) el.dispatchEvent(new Event('input', { bubbles: true }));
+            }
+          )
+        }
+      }">
       <Layout.field_container>
         <:label align={Backpex.Field.align_label(@field_options, assigns, :top)}>
           <Layout.input_label text={@field_options[:label]} />
@@ -365,7 +374,7 @@ defmodule Backpex.Fields.Upload do
           </div>
         </div>
 
-        <section :if={(@uploads_allowed && Enum.count(@field_uploads.entries) > 0) || @uploaded_files > 0} class="mt-2">
+        <section class="mt-2">
           <article>
             <%= if @uploads_allowed do %>
               <div :for={entry <- @field_uploads.entries}>
@@ -377,6 +386,7 @@ defmodule Backpex.Fields.Upload do
                   phx-value-ref={entry.ref}
                   phx-value-id={@upload_key}
                   phx-target="#form-component"
+                  @click="() => dispatchChangeEvent($el)"
                 >
                   &times;
                 </button>
@@ -390,13 +400,13 @@ defmodule Backpex.Fields.Upload do
             <%= if @type == :form do %>
               <div :for={{file_key, label} <- @uploaded_files}>
                 <p class="inline"><%= label %></p>
-
                 <button
                   type="button"
                   phx-click="cancel-existing-entry"
                   phx-value-ref={file_key}
                   phx-value-id={@upload_key}
                   phx-target="#form-component"
+                  @click="() => dispatchChangeEvent($el)"
                 >
                   &times;
                 </button>
@@ -419,7 +429,8 @@ defmodule Backpex.Fields.Upload do
   @impl Backpex.Field
   def assign_uploads({_name, field_options} = field, socket) do
     field_files = {field_options.upload_key, existing_file_paths(field, socket.assigns.item, [])}
-    max_entries = field_options.max_entries - (field_files |> elem(1) |> Enum.count())
+
+    max_entries = field_options.max_entries
     max_file_size = Map.get(field_options, :max_file_size, 8_000_000)
 
     if get_in(socket.assigns, [:uploads, field_options.upload_key]) do

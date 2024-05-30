@@ -143,8 +143,7 @@ defmodule Backpex.FormComponent do
   def handle_event("cancel-existing-entry", %{"ref" => file_key, "id" => upload_key}, socket) do
     upload_key = String.to_existing_atom(upload_key)
 
-    {_field_name, field_options} =
-      field =
+    field =
       socket.assigns.fields()
       |> Enum.find(fn {_name, field_options} ->
         Map.has_key?(field_options, :upload_key) and Map.get(field_options, :upload_key) == upload_key
@@ -155,14 +154,13 @@ defmodule Backpex.FormComponent do
       |> Map.get(:removed_uploads, [])
       |> Keyword.update(upload_key, [file_key], fn existing -> [file_key | existing] end)
 
-    files = Upload.list_existing_files(field, socket.assigns.item, Keyword.get(removed_uploads, upload_key, []))
+    files = Upload.existing_file_paths(field, socket.assigns.item, Keyword.get(removed_uploads, upload_key, []))
     uploaded_files = Keyword.put(socket.assigns[:uploaded_files], upload_key, files)
 
     socket =
       socket
       |> assign(:removed_uploads, removed_uploads)
       |> assign(:uploaded_files, uploaded_files)
-      |> update_max_entries(field_options, field_options.max_entries - Enum.count(files))
 
     {:noreply, socket}
   end
@@ -382,19 +380,6 @@ defmodule Backpex.FormComponent do
           |> assign(:form, form)
 
         {:noreply, socket}
-    end
-  end
-
-  defp update_max_entries(socket, %{upload_key: key} = field_options, count) do
-    upload_config = Map.get(socket.assigns, :uploads, %{})
-    upload_entry = Map.get(upload_config, key)
-
-    if is_nil(upload_entry) do
-      socket
-      |> allow_upload(key, accept: field_options.accept, max_entries: count)
-    else
-      socket
-      |> assign(:uploads, Map.put(upload_config, key, Map.merge(upload_entry, %{max_entries: count})))
     end
   end
 
