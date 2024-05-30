@@ -261,7 +261,7 @@ defmodule Backpex.Resource do
   - `id`: The identifier for the specific item to be fetched.
   - `repo` (module): The repository module.
   - `schema`: The Ecto schema module corresponding to the item
-  - `item_query`: A function that modifies the base query. This function should accept an Ecto.Queryable and return an Ecto.Queryable. It's used to apply additional query logic.
+  - `item_query` (function): A function that modifies the base query. This function should accept an Ecto.Queryable and return an Ecto.Queryable. It's used to apply additional query logic.
   - `fields` (list): A list of atoms representing the fields to be selected and potentially preloaded.
   """
   def get(id, repo, schema, item_query, fields) do
