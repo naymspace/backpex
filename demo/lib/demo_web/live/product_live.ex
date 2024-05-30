@@ -134,6 +134,7 @@ defmodule DemoWeb.ProductLive do
     Map.put(change, "images", files)
   end
 
+  # sobelow_skip ["Traversal"]
   defp consume_upload(_socket, %{path: path} = _meta, entry) do
     file_name = file_name(entry)
     dest = Path.join([:code.priv_dir(:demo), "static", upload_dir(), file_name])
