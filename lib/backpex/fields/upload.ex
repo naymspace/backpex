@@ -295,8 +295,6 @@ defmodule Backpex.Fields.Upload do
   """
   use BackpexWeb, :field
 
-  import Phoenix.LiveView, only: [allow_upload: 3]
-
   alias Backpex.HTML.Form, as: BackpexForm
 
   @impl Backpex.Field
@@ -452,7 +450,7 @@ defmodule Backpex.Fields.Upload do
   defp allow_field_uploads(socket, _field_options, 0, _max_file_size), do: socket
 
   defp allow_field_uploads(socket, field_options, max_entries, max_file_size) do
-    allow_upload(socket, field_options.upload_key,
+    Phoenix.LiveView.allow_upload(socket, field_options.upload_key,
       accept: field_options.accept,
       max_entries: max_entries,
       max_file_size: max_file_size
