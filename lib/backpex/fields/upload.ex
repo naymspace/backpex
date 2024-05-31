@@ -54,6 +54,7 @@ defmodule Backpex.Fields.Upload do
 
   **Parameters**
   * `:socket` - The socket.
+  * `:item` (struct) - The item without its changes.
   * `:meta` - The upload meta.
   * `:entry` - The upload entry.
 
@@ -61,7 +62,7 @@ defmodule Backpex.Fields.Upload do
 
   **Example**
 
-      defp consume_upload(_socket, %{path: path} = _meta, entry) do
+      defp consume_upload(_socket, _item, %{path: path} = _meta, entry) do
         file_name = ...
         file_url = ...
         static_dir = ...
@@ -107,11 +108,12 @@ defmodule Backpex.Fields.Upload do
 
   **Parameters**
   * `:socket` - The socket.
+  * `:item` (struct) - The item without its changes.
   * `removed_entries` (list) - A list of removed uploads during edit.
 
   **Example**
 
-      defp remove_uploads(_socket, removed_entries) do
+      defp remove_uploads(_socket, _item, removed_entries) do
         for file <- removed_entries do
           file_path = ...
           File.rm!(file_path)
@@ -172,8 +174,8 @@ defmodule Backpex.Fields.Upload do
               max_entries: 1,
               max_file_size: 512_000,
               put_upload_change: &put_upload_change/6,
-              consume_upload: &consume_upload/3,
-              remove_uploads: &remove_uploads/2,
+              consume_upload: &consume_upload/4,
+              remove_uploads: &remove_uploads/3,
               list_existing_files: &list_existing_files/1,
               render: fn
                 %{value: value} = assigns when value == "" or is_nil(value) ->
@@ -216,7 +218,7 @@ defmodule Backpex.Fields.Upload do
           end
         end
 
-        defp consume_upload(_socket, %{path: path} = _meta, entry) do
+        defp consume_upload(_socket, _item, %{path: path} = _meta, entry) do
           file_name = file_name(entry)
           dest = Path.join([:code.priv_dir(:demo), "static", upload_dir(), file_name])
 
@@ -225,7 +227,7 @@ defmodule Backpex.Fields.Upload do
           {:ok, file_url(file_name)}
         end
 
-        defp remove_uploads(_socket, removed_entries) do
+        defp remove_uploads(_socket, _item, removed_entries) do
           for file <- removed_entries do
             path = Path.join([:code.priv_dir(:demo), "static", upload_dir(), file])
             File.rm!(path)
@@ -289,8 +291,8 @@ defmodule Backpex.Fields.Upload do
               max_entries: 2,
               max_file_size: 512_000,
               put_upload_change: &put_upload_change/6,
-              consume_upload: &consume_upload/3,
-              remove_uploads: &remove_uploads/2,
+              consume_upload: &consume_upload/4,
+              remove_uploads: &remove_uploads/3,
               list_existing_files: &list_existing_files/1,
               render: fn
                 %{value: value} = assigns when is_list(value) ->
@@ -330,7 +332,7 @@ defmodule Backpex.Fields.Upload do
           Map.put(change, "images", files)
         end
 
-        defp consume_upload(_socket, %{path: path} = _meta, entry) do
+        defp consume_upload(_socket, _item, %{path: path} = _meta, entry) do
           file_name = file_name(entry)
           dest = Path.join([:code.priv_dir(:demo), "static", upload_dir(), file_name])
 
@@ -339,7 +341,7 @@ defmodule Backpex.Fields.Upload do
           {:ok, file_url(file_name)}
         end
 
-        defp remove_uploads(_socket, removed_entries) do
+        defp remove_uploads(_socket, _item, removed_entries) do
           for file <- removed_entries do
             path = Path.join([:code.priv_dir(:demo), "static", upload_dir(), file])
             File.rm!(path)

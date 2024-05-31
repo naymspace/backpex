@@ -36,8 +36,8 @@ defmodule DemoWeb.ProductLive do
         max_entries: 2,
         max_file_size: 512_000,
         put_upload_change: &put_upload_change/6,
-        consume_upload: &consume_upload/3,
-        remove_uploads: &remove_uploads/2,
+        consume_upload: &consume_upload/4,
+        remove_uploads: &remove_uploads/3,
         list_existing_files: &list_existing_files/1,
         render: fn
           %{value: value} = assigns when is_list(value) ->
@@ -135,7 +135,7 @@ defmodule DemoWeb.ProductLive do
   end
 
   # sobelow_skip ["Traversal"]
-  defp consume_upload(_socket, %{path: path} = _meta, entry) do
+  defp consume_upload(_socket, _item, %{path: path} = _meta, entry) do
     file_name = file_name(entry)
     dest = Path.join([:code.priv_dir(:demo), "static", upload_dir(), file_name])
 
@@ -145,7 +145,7 @@ defmodule DemoWeb.ProductLive do
   end
 
   # sobelow_skip ["Traversal"]
-  defp remove_uploads(_socket, removed_entries) do
+  defp remove_uploads(_socket, _item, removed_entries) do
     for file <- removed_entries do
       path = Path.join([:code.priv_dir(:demo), "static", upload_dir(), file])
       File.rm!(path)

@@ -20,8 +20,8 @@ defmodule DemoWeb.ResourceActions.Upload do
         accept: ~w(.jpg .jpeg .png),
         max_entries: 1,
         put_upload_change: &put_upload_change/6,
-        consume_upload: &consume_upload/3,
-        remove_uploads: &remove_uploads/2,
+        consume_upload: &consume_upload/4,
+        remove_uploads: &remove_uploads/3,
         list_existing_files: &list_existing_files/1,
         type: :string
       },
@@ -84,7 +84,7 @@ defmodule DemoWeb.ResourceActions.Upload do
     end
   end
 
-  defp consume_upload(_socket, _meta, entry) do
+  defp consume_upload(_socket, _item, _meta, entry) do
     file_name = file_name(entry)
 
     # Copy file to destination
@@ -94,7 +94,7 @@ defmodule DemoWeb.ResourceActions.Upload do
     {:ok, file_url(file_name)}
   end
 
-  defp remove_uploads(_socket, _removed_entries), do: :ok
+  defp remove_uploads(_socket, _item, _removed_entries), do: :ok
 
   defp file_url(file_name) do
     static_path = Path.join([upload_dir(), file_name])

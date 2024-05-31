@@ -421,12 +421,14 @@ defmodule Backpex.FormComponent do
       if Map.has_key?(socket.assigns.uploads, upload_key) do
         %{consume_upload: consume_upload, remove_uploads: remove_uploads} = field_options
 
+        item = socket.assigns.item
+
         consume_uploaded_entries(socket, upload_key, fn meta, entry ->
-          consume_upload.(socket, meta, entry)
+          consume_upload.(socket, item, meta, entry)
         end)
 
         removed_entries = Keyword.get(socket.assigns.removed_uploads, upload_key, [])
-        remove_uploads.(socket, removed_entries)
+        remove_uploads.(socket, item, removed_entries)
       end
     end
   end
