@@ -87,6 +87,7 @@ defmodule Backpex.MixProject do
       "guides/introduction/installation.md",
       "guides/introduction/translations.md",
       "guides/advanced/full_text_search.md",
+      "guides/upgrading/v0.3.md",
       "guides/upgrading/v0.2.md"
     ]
   end
