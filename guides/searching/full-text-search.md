@@ -1,6 +1,6 @@
 # Full-Text Search
 
-Backpex allows you to perform full-text searches on resources. It uses the built-in PostgreSQL full-text search functionality.
+Backpex allows you to perform full-text searches on resources. It uses the built-in [PostgreSQL full-text search functionality](https://www.postgresql.org/docs/current/textsearch.html).
 
 ## Create a Generated Column
 
@@ -20,18 +20,13 @@ ALTER TABLE film_reviews
 """)
 ```
 
-You can also concat multiple tsvectors in the generated column. This is useful if the table contains data in
-different languages. We recommend that you specify the language when using the `to_tsvector` function. Otherwise
-the default language will be used.
+You can also concat multiple tsvectors in the generated column. This is useful if the table contains data in different languages. We recommend that you specify the language when using the `to_tsvector` function. Otherwise the default language will be used.
 
 ## Create an Index
 
-To increase the speed of full-text searches, especially for resources with large amounts of data, you should create
-an index on the generated column created in the previous step.
+To increase the speed of full-text searches, especially for resources with large amounts of data, you should create an index on the generated column created in the previous step.
 
-We strongly recommend that you use a GIN index, as it makes full-text searches really fast.
-The disadvantage is that a GIN index takes up a lot of disk space, so if you are limited in disk space,
-feel free to use a GiST index instead.
+We strongly recommend that you use a GIN index, as it makes full-text searches really fast. The disadvantage is that a GIN index takes up a lot of disk space, so if you are limited in disk space, feel free to use a GiST index instead.
 
 ```elixir
 # in the database up migration
@@ -40,10 +35,6 @@ execute("""
 CREATE INDEX film_reviews_search_idx ON film_reviews USING GIN(generated_tsvector);
 """)
 ```
-    
-> #### Important {: .info}
->
-> Note that you must explicitly define up and down migrations. Otherwise, the index cannot be dropped.
 
 ```elixir
 # in the database down migration
@@ -55,8 +46,11 @@ DROP INDEX film_reviews_search_idx;
 drop table(:film_reviews)
 ```
 
-To enable full-text search, you need to specify the name of the generated column in the live resource of the
-corresponding resource.
+> #### Important {: .info}
+>
+> Note that you must explicitly define up and down migrations. Otherwise, the index cannot be dropped.
+
+To enable full-text search, you need to specify the name of the generated column in the live resource of the corresponding resource:
 
 ```elixir
 # in the live resource
@@ -64,3 +58,5 @@ corresponding resource.
 use Backpex.LiveResource,
   full_text_search: :generated_tsvector
 ```
+
+You can now perform full-text searches on the resource index view.

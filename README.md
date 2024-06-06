@@ -15,7 +15,6 @@ Welcome! Backpex is a highly customizable administration panel for Phoenix LiveV
   <a href="https://backpex.live/"><strong>Visit our Live Demo →</strong></a>
 </div>
 
-
 ## Learn More
 
 - [Installation](guides/get_started/installation.md)
@@ -36,4 +35,3 @@ Welcome! Backpex is a highly customizable administration panel for Phoenix LiveV
 ## Installation
 
 See our comprehensive [installation guide](guides/get_started/installation.md) for more information on how to install and configure Backpex in your Phoenix application.
-

@@ -1,6 +1,10 @@
 # Translations
 
-You are able to translate all strings used by Backpex. To do so, you need to configure translator functions in your application config:
+You are able to translate all strings used by Backpex. This includes general strings like "New", "Edit", "Delete", etc., as well as error messages.
+
+## Configuration
+
+In order to translate strings, you need to configure two translator functions in your application config:
 
 ```elixir
 config :backpex, :translator_function, {MyAppWeb.Helpers, :translate_backpex}
@@ -32,7 +36,7 @@ def translate_error({msg, opts}) do
 end
 ```
 
-You can place the functions in a module of your choice. In this example, we use `MyAppWeb.Helpers` and `MyAppWeb.ErrorHelpers`.
+You can place the functions in a module of your choice. In this example, we use `MyAppWeb.Helpers` and `MyAppWeb.ErrorHelpers`. Don't forget to use the correct module in your config as well.
 
 In addition, you need to create a Gettext template file in your application. You may use the following template. It contains all translations used by Backpex.
 

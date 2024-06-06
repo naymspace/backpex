@@ -149,40 +149,6 @@ defmodule Backpex.LiveResource do
         end
       end
 
-  ## Templates
-
-  You are able to customize certain parts of Backpex. While you may use our app shell layout only you may also define functions to provide additional templates to be rendered on the resource LiveView or completely overwrite certain parts like the header or main content.
-
-  See [render_resource_slot/3](Backpex.LiveResource.html#c:render_resource_slot/3) for supported positions.
-
-  **Example:**
-      # in your resource configuration file
-
-      # to add content above main on index view
-      def render_resource_slot(assigns, :index, :before_main), do: ~H"Hello World!"
-
-  ## Item Query
-
-  It is possible to manipulate the query when fetching resources for `index`, `show` and `edit` view by defining an `item_query` function.
-
-  In all queries we define a `from` query with a named binding to fetch all existing resources on `index` view or a specific resource on `show` / `edit` view.
-  After that, we call the `item_query` function. By default this returns the incoming query.
-
-  The `item_query` function makes it easy to add custom query expressions.
-
-  For example, you could filter posts by a published boolean on `index` view.
-
-      # in your resource configuration file
-
-      @impl Backpex.LiveResource
-      def item_query(query, :index, _assigns) do
-      query
-      |> where([post], post.published)
-      end
-
-  In this example we also made use of the named binding. It's always the name of the provided schema in `snake_case`.
-  It is recommended to build your `item_query` on top of the incoming query. Otherwise you will likely get binding errors.
-
   ## Authorize Actions
 
   Use `can?(_assigns, _action, _item)` function in you resource configuration to limit access to item actions
@@ -282,8 +248,6 @@ defmodule Backpex.LiveResource do
         ...,
         init_order: %{by: :inserted_at, direction: :desc}
 
-        # Routing
-
   ## Routing
 
   You are required to configure your router in order to point to the resources created in before steps.
@@ -315,41 +279,6 @@ defmodule Backpex.LiveResource do
         backpex_routes()
       end
 
-  ## Searching
-
-  You may flag fields as searchable. A search input will appear automatically on the resource index view.
-
-      # in your resource configuration file
-      @impl Backpex.LiveResource
-      def fields do
-        [
-          %{
-            ...,
-            searchable: true
-          }
-        ]
-      end
-
-  For a custom placeholder, you can use the `elixir search_placeholder/0` callback.
-
-      # in your resource configuration file
-      @impl Backpex.LiveResource
-      def search_placeholder, do: "This will be shown in the search input."
-
-  In addition to basic searching, Backpex allows you to perform full-text searches on resources (see [Full-Text Search Guide](full_text_search.md)).
-
-  ## Hooks
-
-  You may define hooks that are called after their respective action. Those hooks are `on_item_created`, `on_item_updated` and `on_item_deleted`.
-  These methods receive the socket and the corresponding item and are expected to return a socket.
-
-      # in your resource configuration file
-      @impl Backpex.LiveResource
-      def on_item_created(socket, item) do
-        # send an email on user creation
-        socket
-      end
-
   ## PubSub
 
   PubSub settings are required in order to support live updates.
@@ -368,45 +297,6 @@ defmodule Backpex.LiveResource do
       def handle_info({"event_created", item}, socket) do
         # make something in response to the event, for example show a toast to all users currently on the resource that an event has been created.
         {:noreply, socket}
-      end
-
-  ## Navigation
-
-  You may define a custom navigation path that is called after the item is saved.
-  The method receives the socket, the live action and the corresponding item and is expected to return a route path.
-
-      # in your resource configuration file
-      @impl Backpex.LiveResource
-      def return_to(socket, assigns, _action, _item) do
-        # return to user index after saving
-        Routes.user_path(socket, :index)
-      end
-
-  ## Panels
-
-  You are able to define panels to group certain fields together. Panels are displayed in the provided order.
-  The `Backpex.LiveResource.panels/0` function has to return a keyword list with an identifier and label for each panel.
-  You can move fields into panels with the `panel` field configuration that has to return the identifier of the corresponding panel. Fields without a panel are displayed in the `:default` panel. The `:default` panel has no label.
-
-  > Note that a panel is not displayed when there are no fields in it.
-
-      # in your resource configuration file
-      @impl Backpex.LiveResource
-      def panels do
-        [
-          contact: "Contact"
-        ]
-      end
-
-      # in your fields list
-      @impl Backpex.LiveResource
-      def fields do
-        [
-          %{
-            ...,
-            panel: :contact
-          }
-        ]
       end
 
   ## Default values
@@ -541,18 +431,6 @@ defmodule Backpex.LiveResource do
   - `Backpex.Fields.Text`
 
   > Note you can add index editable support to your custom fields by defining the `render_index_form/1` function and enabling index editable for your field.
-
-  ## Additional classes for index table rows
-
-  We provide the `Backpex.LiveResource.index_row_class` option to add additional classes to table rows
-  on the index view. This allows you, for example, to color the rows.
-
-      # in your resource configuration file
-      @impl Backpex.LiveResource
-      def index_row_class(assigns, item, selected, index), do: "bg-yellow-100"
-
-  > Note that we call the function twice. Once for the row on the `tr` element and a second time for the item action overlay, because in most cases the overlay should have the same style applied.
-  For this reason, Tailwind CSS modifiers such as `even` and `odd` will not always work as intended. Use the provided index instead. The index starts with 0 for the first item.
   '''
 
   alias Backpex.Resource

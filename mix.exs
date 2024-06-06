@@ -126,7 +126,7 @@ defmodule Backpex.MixProject do
       Introduction: ~r/README/,
       About: ~r/guides\/about\/.?/,
       "Get Started": ~r/guides\/get_started\/.?/,
-      LiveResource: ~r/guides\/live_resource\/.?/,
+      "Live Resource": ~r/guides\/live_resource\/.?/,
       Fields: ~r/guides\/fields\/.?/,
       Filter: ~r/guides\/filter\/.?/,
       Actions: ~r/guides\/actions\/.?/,
