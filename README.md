@@ -9,9 +9,12 @@
 
 Welcome! Backpex is a highly customizable administration panel for Phoenix LiveView applications. Quickly create beautiful CRUD views for your existing data using configurable *LiveResources*. Backpex integrates seamlessly with your existing Phoenix application and provides a simple way to manage your resources. It is highly customizable and can be extended with your own layouts, views, field types, filters and more.
 
-Visit our Live Demo at [backpex.live](https://backpex.live/admin/users)!
-
 ![Backpex Screenshot](https://github.com/naymspace/backpex/blob/develop/priv/static/images/screenshot.png)
+
+<div align="center">
+  <a href="https://backpex.live/"><strong>Visit our Live Demo →</strong></a>
+</div>
+
 
 ## Learn More
 
