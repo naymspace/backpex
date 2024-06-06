@@ -1,0 +1,1 @@
+# Additional classes for index table rows

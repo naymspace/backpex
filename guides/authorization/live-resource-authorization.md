@@ -1,0 +1,1 @@
+# LiveResource Authorization

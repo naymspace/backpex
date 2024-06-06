@@ -68,7 +68,7 @@ defmodule Backpex.MixProject do
 
   defp docs() do
     [
-      main: "Backpex.LiveResource",
+      main: "readme",
       logo: "priv/static/images/logo.svg",
       extras: extras(),
       extra_section: "GUIDES",
@@ -84,17 +84,55 @@ defmodule Backpex.MixProject do
 
   defp extras do
     [
-      "guides/introduction/installation.md",
-      "guides/introduction/translations.md",
-      "guides/advanced/full_text_search.md",
+      {"README.md", title: "Introduction"},
+      "guides/about/what-is-backpex.md",
+      "guides/about/why-we-built-backpex.md",
+      "guides/about/contribute-to-backpex.md",
+      "guides/get_started/prerequisites.md",
+      "guides/get_started/installation.md",
+      "guides/live_resource/what-is-a-live-resource.md",
+      "guides/live_resource/templates.md",
+      "guides/live_resource/item-query.md",
+      "guides/live_resource/ordering.md",
+      "guides/live_resource/hooks.md",
+      "guides/live_resource/navigation.md",
+      "guides/live_resource/panels.md",
+      "guides/live_resource/additional-classes-for-index-table-rows.md",
+      "guides/fields/what-is-a-field.md",
+      "guides/fields/custom-field.md",
+      "guides/fields/alignment.md",
+      "guides/fields/visibility.md",
+      "guides/fields/defaults.md",
+      "guides/fields/readonly.md",
+      "guides/fields/index-edit.md",
+      "guides/filter/how-to-add-a-filter.md",
+      "guides/filter/boolean-filter.md",
+      "guides/filter/select-filter.md",
+      "guides/filter/multi-select-filter.md",
+      "guides/filter/range-filter.md",
+      "guides/actions/item-actions.md",
+      "guides/actions/resource-actions.md",
+      "guides/authorization/live-resource-authorization.md",
+      "guides/authorization/field-authorization.md",
+      "guides/searching/basic-search.md",
+      "guides/searching/full-text-search.md",
+      "guides/translations/translations.md",
       "guides/upgrading/v0.2.md"
     ]
   end
 
   defp groups_for_extras do
     [
-      Introduction: ~r/guides\/introduction\/.?/,
-      Advanced: ~r/guides\/advanced\/.?/,
+      Introduction: ~r/README/,
+      About: ~r/guides\/about\/.?/,
+      "Get Started": ~r/guides\/get_started\/.?/,
+      LiveResource: ~r/guides\/live_resource\/.?/,
+      Fields: ~r/guides\/fields\/.?/,
+      Filter: ~r/guides\/filter\/.?/,
+      Actions: ~r/guides\/actions\/.?/,
+      Authorization: ~r/guides\/authorization\/.?/,
+      Searching: ~r/guides\/searching\/.?/,
+      Translations: ~r/guides\/translations\/.?/,
       "Upgrade Guides": ~r{guides/upgrading/.*}
     ]
   end
