@@ -1,4 +1,4 @@
-![Logo](https://github.com/naymspace/backpex/blob/develop/priv/static/images/logo.svg)
+<img src="https://github.com/naymspace/backpex/blob/develop/priv/static/images/logo.svg" width="100" height="100">
 
 [![CI](https://github.com/naymspace/backpex/actions/workflows/ci.yml/badge.svg)](https://github.com/naymspace/backpex/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://github.com/naymspace/backpex/blob/develop/LICENSE.md)
