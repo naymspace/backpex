@@ -1,15 +1,6 @@
 # Installation
 
-## Prerequisites
-
-Make sure you have a running phoenix application with [Tailwind CSS](https://tailwindcss.com/) and [daisyUI](https://daisyui.com/docs/install/) installed.
-
-> #### Important {: .info}
->
-> Backpex currently only supports daisyUI light mode.
-
-Backpex currently depends on [Ecto](https://hexdocs.pm/ecto/Ecto.html). Therefore there has to be a running
-ecto repository.
+The following guide will help you to install Backpex in your Phoenix application. We will guide you through the installation process and show you how to create a simple resource.
 
 ## Add Backpex to list of dependencies
 
@@ -19,22 +10,32 @@ In your `mix.exs`:
 defp deps do
   [
     ...
-    {:backpex, path: "backpex_path"}
+    {:backpex, "~> 0.2.0"}
   ]
 end
 ```
 
 ## Add Backpex files to tailwind content
 
+Backpex uses Tailwind CSS and daisyUI. Make sure to add the Backpex files to your tailwind content to make sure the styles are applied.
+
 In your `tailwind.config.js`:
 
 ```js
-content: ['./path_to_deps/backpex/**/*.*ex']
+..,
+content: [
+  ...,
+  'deps/backpex/**/*.*ex'
+]
 ```
+
+> #### Info {: .info}
+>
+> The path to the Backpex files may vary depending on your project setup.
 
 ## Setup formatter
 
-We recommend to add Backpex to the list of dependencies in your `.formatter.exs`.
+Backpex ships with a formatter configuration. To use it, add Backpex to the list of dependencies in your `.formatter.exs`.
 
 ```elixir
 # my_app/.formatter.exs
@@ -90,3 +91,11 @@ If you do not want to put effort into creating your own layout, feel free to use
 ```
 
 You can now create and configure the corresponding resources.
+
+## Create test resource
+
+## Setup routing
+
+## Configure LiveResource
+
+## Configure Routes

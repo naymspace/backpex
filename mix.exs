@@ -85,11 +85,17 @@ defmodule Backpex.MixProject do
   defp extras do
     [
       {"README.md", title: "Introduction"},
+
+      # About
       "guides/about/what-is-backpex.md",
       "guides/about/why-we-built-backpex.md",
       "guides/about/contribute-to-backpex.md",
+
+      # Get Started
       "guides/get_started/prerequisites.md",
       "guides/get_started/installation.md",
+
+      # Live Resource
       "guides/live_resource/what-is-a-live-resource.md",
       "guides/live_resource/templates.md",
       "guides/live_resource/item-query.md",
@@ -98,25 +104,46 @@ defmodule Backpex.MixProject do
       "guides/live_resource/navigation.md",
       "guides/live_resource/panels.md",
       "guides/live_resource/additional-classes-for-index-table-rows.md",
+
+      # Fields
       "guides/fields/what-is-a-field.md",
-      "guides/fields/custom-field.md",
+      "guides/fields/custom-fields.md",
       "guides/fields/alignment.md",
       "guides/fields/visibility.md",
       "guides/fields/defaults.md",
       "guides/fields/readonly.md",
+      "guides/fields/custom-alias.md",
+      "guides/fields/placeholder.md",
+      "guides/fields/debounce-and-throttle.md",
       "guides/fields/index-edit.md",
+      "guides/fields/error-customization.md",
+      "guides/fields/computed-fields.md",
+
+      # Filter
       "guides/filter/how-to-add-a-filter.md",
       "guides/filter/boolean-filter.md",
       "guides/filter/select-filter.md",
       "guides/filter/multi-select-filter.md",
       "guides/filter/range-filter.md",
+      "guides/filter/filter-presets.md",
+      "guides/filter/custom-filter.md",
+
+      # Actions
       "guides/actions/item-actions.md",
       "guides/actions/resource-actions.md",
+
+      # Authorization
       "guides/authorization/live-resource-authorization.md",
       "guides/authorization/field-authorization.md",
+
+      # Searching
       "guides/searching/basic-search.md",
       "guides/searching/full-text-search.md",
+
+      # Translations
       "guides/translations/translations.md",
+
+      # Upgrade Guides
       "guides/upgrading/v0.2.md"
     ]
   end

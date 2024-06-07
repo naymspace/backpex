@@ -2,49 +2,6 @@ defmodule Backpex.ResourceAction do
   @moduledoc ~S'''
   Behaviour implemented by all resource action modules.
 
-  ## Example
-
-      defmodule MyAppWeb.Actions.Invite do
-        use Backpex.ResourceAction
-
-        import Ecto.Changeset
-
-        @impl Backpex.ResourceAction
-        def title, do: "Invite user"
-
-        @impl Backpex.ResourceAction
-        def label, do: "Invite"
-
-        @impl Backpex.ResourceAction
-        def fields do
-          [
-            email: %{
-              module: Backpex.Fields.Text,
-              label: "Email",
-              type: :string
-            }
-          ]
-        end
-
-        @impl Backpex.ResourceAction
-        def changeset(change, attrs) do
-          change
-          |> cast(attrs, [:email])
-          |> validate_required([:email]))
-        end
-
-        @impl Backpex.ResourceAction
-        def handle(_socket, params) do
-          # Send mail
-
-          # Success
-          {:ok, "An email to #{params[:email]} was sent successfully."}
-
-          # Failure
-          {:error, "An error occurred while sending an email to #{params[:email]}!"}
-        end
-      end
-
   > #### `use Backpex.ResourceAction` {: .info}
   >
   > When you `use Backpex.ResourceAction`, the `Backpex.ResourceAction` module will set `@behavior Backpex.ResourceAction`.
