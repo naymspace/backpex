@@ -271,7 +271,7 @@ defmodule Backpex.Resource do
     |> maybe_preload(associations, fields)
     |> maybe_merge_dynamic_fields(fields)
     |> where([{^schema_name, schema_name}], schema_name.id == ^id)
-    |> repo.one()
+    |> repo.one!()
   end
 
   @doc """
