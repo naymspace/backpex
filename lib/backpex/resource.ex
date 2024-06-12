@@ -256,7 +256,7 @@ defmodule Backpex.Resource do
   @doc """
   Gets a database record with the given fields by the given id, possibly being enhanced by the given item_query.
   """
-  def get(assigns, item_query, fields, id) do
+  def get!(assigns, item_query, fields, id) do
     %{
       repo: repo,
       schema: schema

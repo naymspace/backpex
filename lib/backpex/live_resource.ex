@@ -841,7 +841,7 @@ defmodule Backpex.LiveResource do
         fields = filtered_fields_by_action(fields(), assigns, :edit)
 
         item =
-          Resource.get(
+          Resource.get!(
             assigns,
             &item_query(&1, live_action, assigns),
             fields,
@@ -870,7 +870,7 @@ defmodule Backpex.LiveResource do
         fields = filtered_fields_by_action(fields(), assigns, :show)
 
         item =
-          Resource.get(
+          Resource.get!(
             assigns,
             &item_query(&1, live_action, assigns),
             fields,
@@ -1444,7 +1444,7 @@ defmodule Backpex.LiveResource do
         %{assigns: %{live_action: live_action} = assigns} = socket
 
         fields = filtered_fields_by_action(fields(), assigns, :show)
-        item = Resource.get(assigns, &item_query(&1, live_action, assigns), fields, id)
+        item = Resource.get!(assigns, &item_query(&1, live_action, assigns), fields, id)
 
         socket =
           cond do
