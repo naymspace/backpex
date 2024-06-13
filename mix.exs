@@ -77,8 +77,8 @@ defmodule Backpex.MixProject do
       groups_for_functions: [
         Components: &(&1[:type] == :component)
       ],
-      source_ref: "develop",
-      source_url_pattern: "#{@source_url}/blob/develop/%{path}#L%{line}"
+      source_ref: @version,
+      source_url: @source_url
     ]
   end
 
