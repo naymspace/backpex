@@ -39,7 +39,8 @@ defmodule Backpex.ItemActions.Delete do
   def handle(socket, items, _params) do
     socket =
       try do
-        {:ok, _items} = Resource.delete_all(socket.assigns, items)
+        %{assigns: %{repo: repo, schema: schema, pubsub: pubsub}} = socket
+        {:ok, _items} = Resource.delete_all(items, repo, schema, pubsub)
 
         for item <- items do
           socket.assigns.live_resource.on_item_deleted(socket, item)

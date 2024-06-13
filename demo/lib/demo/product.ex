@@ -12,6 +12,7 @@ defmodule Demo.Product do
     field(:name, :string)
     field(:quantity, :integer)
     field(:manufacturer, :string)
+    field(:images, {:array, :string})
 
     field(:price, Backpex.Ecto.Amount.Type,
       currency: :EUR,
@@ -24,7 +25,7 @@ defmodule Demo.Product do
   end
 
   @required_fields ~w[name quantity manufacturer price]a
-  @optional_fields ~w[]a
+  @optional_fields ~w[images]a
 
   def changeset(product, attrs, _metadata \\ []) do
     product
@@ -35,5 +36,6 @@ defmodule Demo.Product do
       drop_param: :suppliers_delete
     )
     |> validate_required(@required_fields)
+    |> validate_length(:images, max: 2)
   end
 end

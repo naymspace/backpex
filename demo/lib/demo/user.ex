@@ -18,7 +18,7 @@ defmodule Demo.User do
     field(:age, :integer)
     field(:role, Ecto.Enum, values: [:user, :admin])
     field(:permissions, {:array, :string})
-    field(:avatar, :string, default: "")
+    field(:avatar, :string)
     field(:deleted_at, :utc_datetime)
 
     has_many(:posts, Post, on_replace: :nilify)
@@ -59,6 +59,13 @@ defmodule Demo.User do
       drop_param: :web_links_delete
     )
     |> validate_required(@required_fields)
+    |> validate_change(:avatar, fn
+      :avatar, "too_many_files" ->
+        [avatar: "has to be exactly one"]
+
+      :avatar, _avatar ->
+        []
+    end)
   end
 
   @required_fields ~w[label url]a
