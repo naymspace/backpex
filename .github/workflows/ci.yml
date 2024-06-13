@@ -17,8 +17,8 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        elixir: ["1.16.2", "1.15.7"]
-        erlang: ["26.2.2", "25.3.2"]
+        elixir: ["1.17.0", "1.16.3", "1.15.8"]
+        erlang: ["27.0", "26.2.5", "25.3.2.12"]
 
     steps:
       - name: Checkout code
