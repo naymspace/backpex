@@ -264,7 +264,7 @@ defmodule Backpex.Resource do
   * `item_query` (function): A function that modifies the base query. This function should accept an Ecto.Queryable and return an Ecto.Queryable. It's used to apply additional query logic.
   * `fields` (list): A list of atoms representing the fields to be selected and potentially preloaded.
   """
-  def get(id, repo, schema, item_query, fields) do
+  def get!(id, repo, schema, item_query, fields) do
     schema_name = name_by_schema(schema)
     associations = associations(fields, schema)
 
@@ -273,8 +273,15 @@ defmodule Backpex.Resource do
     |> maybe_join(associations)
     |> maybe_preload(associations, fields)
     |> maybe_merge_dynamic_fields(fields)
-    |> where([{^schema_name, schema_name}], schema_name.id == ^id)
-    |> repo.one()
+    |> where_id(schema_name, id)
+    |> repo.one!()
+  end
+
+  defp where_id(query, schema_name, id) do
+    case Ecto.UUID.cast(id) do
+      {:ok, valid_id} -> where(query, [{^schema_name, schema_name}], schema_name.id == ^valid_id)
+      :error -> where(query, [{^schema_name, schema_name}], true == false)
+    end
   end
 
   @doc """

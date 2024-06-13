@@ -846,7 +846,7 @@ defmodule Backpex.LiveResource do
         } = socket
 
         fields = filtered_fields_by_action(fields(), assigns, :edit)
-        item = Resource.get(params["backpex_id"], repo, schema, &item_query(&1, live_action, assigns), fields)
+        item = Resource.get!(params["backpex_id"], repo, schema, &item_query(&1, live_action, assigns), fields)
 
         unless can?(socket.assigns, :edit, item, __MODULE__),
           do: raise(Backpex.ForbiddenError)
@@ -875,7 +875,7 @@ defmodule Backpex.LiveResource do
         } = socket
 
         fields = filtered_fields_by_action(fields(), assigns, :show)
-        item = Resource.get(params["backpex_id"], repo, schema, &item_query(&1, live_action, assigns), fields)
+        item = Resource.get!(params["backpex_id"], repo, schema, &item_query(&1, live_action, assigns), fields)
 
         unless can?(assigns, :show, item, __MODULE__),
           do: raise(Backpex.ForbiddenError)
@@ -1444,7 +1444,7 @@ defmodule Backpex.LiveResource do
         %{assigns: %{live_action: live_action, repo: repo, schema: schema} = assigns} = socket
 
         fields = filtered_fields_by_action(fields(), assigns, :show)
-        item = Resource.get(id, repo, schema, &item_query(&1, live_action, assigns), fields)
+        item = Resource.get!(id, repo, schema, &item_query(&1, live_action, assigns), fields)
 
         socket =
           cond do

@@ -6,7 +6,7 @@ defmodule Backpex do
   @doc """
   Translates a string.
 
-  The type must be `:genral` or `:error`.
+  The type must be `:general` or `:error`.
   """
   def translate(msg, type \\ :general)
 
