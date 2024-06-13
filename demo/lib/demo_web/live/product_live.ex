@@ -19,7 +19,8 @@ defmodule DemoWeb.ProductLive do
   def filters do
     [
       quantity: %{
-        module: DemoWeb.Filters.ProductQuantityRange
+        module: DemoWeb.Filters.ProductQuantityRange,
+        label: "Quantity"
       }
     ]
   end
@@ -27,6 +28,31 @@ defmodule DemoWeb.ProductLive do
   @impl Backpex.LiveResource
   def fields do
     [
+      images: %{
+        module: Backpex.Fields.Upload,
+        label: "Images",
+        upload_key: :images,
+        accept: ~w(.jpg .jpeg .png),
+        max_entries: 2,
+        max_file_size: 512_000,
+        put_upload_change: &put_upload_change/6,
+        consume_upload: &consume_upload/4,
+        remove_uploads: &remove_uploads/3,
+        list_existing_files: &list_existing_files/1,
+        render: fn
+          %{value: value} = assigns when is_list(value) ->
+            ~H"""
+            <div>
+              <img :for={img <- @value} class="h-10 w-auto" src={file_url(img)} />
+            </div>
+            """
+
+          assigns ->
+            ~H"<p><%= Backpex.HTML.pretty_value(@value) %></p>"
+        end,
+        except: [:index, :resource_action],
+        align: :center
+      },
       name: %{
         module: Backpex.Fields.Text,
         label: "Name",
@@ -87,4 +113,54 @@ defmodule DemoWeb.ProductLive do
       }
     ]
   end
+
+  defp list_existing_files(%{images: images} = _item) when is_list(images), do: images
+  defp list_existing_files(_item), do: []
+
+  defp put_upload_change(_socket, change, item, uploaded_entries, removed_entries, action) do
+    existing_files = list_existing_files(item) -- removed_entries
+
+    new_entries =
+      case action do
+        :validate ->
+          elem(uploaded_entries, 1)
+
+        :insert ->
+          elem(uploaded_entries, 0)
+      end
+
+    files = existing_files ++ Enum.map(new_entries, fn entry -> file_name(entry) end)
+
+    Map.put(change, "images", files)
+  end
+
+  # sobelow_skip ["Traversal"]
+  defp consume_upload(_socket, _item, %{path: path} = _meta, entry) do
+    file_name = file_name(entry)
+    dest = Path.join([:code.priv_dir(:demo), "static", upload_dir(), file_name])
+
+    File.cp!(path, dest)
+
+    {:ok, file_url(file_name)}
+  end
+
+  # sobelow_skip ["Traversal"]
+  defp remove_uploads(_socket, _item, removed_entries) do
+    for file <- removed_entries do
+      path = Path.join([:code.priv_dir(:demo), "static", upload_dir(), file])
+      File.rm!(path)
+    end
+  end
+
+  defp file_url(file_name) do
+    static_path = Path.join([upload_dir(), file_name])
+    Phoenix.VerifiedRoutes.static_url(DemoWeb.Endpoint, "/" <> static_path)
+  end
+
+  defp file_name(entry) do
+    [ext | _] = MIME.extensions(entry.client_type)
+    "#{entry.uuid}.#{ext}"
+  end
+
+  defp upload_dir, do: Path.join(["uploads", "product", "images"])
 end

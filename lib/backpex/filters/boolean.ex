@@ -145,7 +145,7 @@ defmodule Backpex.Filters.Boolean do
 
   def find_option_label(options, key) do
     Enum.find_value(options, fn option ->
-      if option.key == key, do: option.label
+      if to_string(option.key) == to_string(key), do: option.label
     end) || ""
   end
 

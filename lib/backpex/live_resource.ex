@@ -533,11 +533,26 @@ defmodule Backpex.LiveResource do
       end
 
   Currently supported by the following fields:
+  - `Backpex.Fields.BelongsTo`
+  - `Backpex.Fields.Date`
+  - `Backpex.Fields.DateTime`
   - `Backpex.Fields.Number`
   - `Backpex.Fields.Select`
   - `Backpex.Fields.Text`
 
   > Note you can add index editable support to your custom fields by defining the `render_index_form/1` function and enabling index editable for your field.
+
+  ## Additional classes for index table rows
+
+  We provide the `Backpex.LiveResource.index_row_class` option to add additional classes to table rows
+  on the index view. This allows you, for example, to color the rows.
+
+      # in your resource configuration file
+      @impl Backpex.LiveResource
+      def index_row_class(assigns, item, selected, index), do: "bg-yellow-100"
+
+  > Note that we call the function twice. Once for the row on the `tr` element and a second time for the item action overlay, because in most cases the overlay should have the same style applied.
+  For this reason, Tailwind CSS modifiers such as `even` and `odd` will not always work as intended. Use the provided index instead. The index starts with 0 for the first item.
   '''
 
   alias Backpex.Resource
@@ -576,6 +591,12 @@ defmodule Backpex.LiveResource do
   Replaces the default placeholder for the index search.
   """
   @callback search_placeholder() :: binary()
+
+  @doc """
+  An extra class to be added to table rows on the index view.
+  """
+  @callback index_row_class(assigns :: map(), item :: map(), selected :: boolean(), index :: integer()) ::
+              binary() | nil
 
   @doc """
   The function that can be used to restrict access to certain actions. It will be called before performing
@@ -814,18 +835,18 @@ defmodule Backpex.LiveResource do
 
       def apply_action(socket, :edit) do
         %{
-          assigns: %{live_action: live_action, singular_name: singular_name, params: params} = assigns
+          assigns:
+            %{
+              live_action: live_action,
+              singular_name: singular_name,
+              params: params,
+              repo: repo,
+              schema: schema
+            } = assigns
         } = socket
 
         fields = filtered_fields_by_action(fields(), assigns, :edit)
-
-        item =
-          Resource.get(
-            assigns,
-            &item_query(&1, live_action, assigns),
-            fields,
-            params["backpex_id"]
-          )
+        item = Resource.get!(params["backpex_id"], repo, schema, &item_query(&1, live_action, assigns), fields)
 
         unless can?(socket.assigns, :edit, item, __MODULE__),
           do: raise(Backpex.ForbiddenError)
@@ -843,18 +864,18 @@ defmodule Backpex.LiveResource do
 
       def apply_action(socket, :show) do
         %{
-          assigns: %{live_action: live_action, singular_name: singular_name, params: params} = assigns
+          assigns:
+            %{
+              live_action: live_action,
+              singular_name: singular_name,
+              params: params,
+              repo: repo,
+              schema: schema
+            } = assigns
         } = socket
 
         fields = filtered_fields_by_action(fields(), assigns, :show)
-
-        item =
-          Resource.get(
-            assigns,
-            &item_query(&1, live_action, assigns),
-            fields,
-            params["backpex_id"]
-          )
+        item = Resource.get!(params["backpex_id"], repo, schema, &item_query(&1, live_action, assigns), fields)
 
         unless can?(assigns, :show, item, __MODULE__),
           do: raise(Backpex.ForbiddenError)
@@ -1420,10 +1441,10 @@ defmodule Backpex.LiveResource do
       def get_empty_filter_key, do: @empty_filter_key
 
       defp update_item(socket, %{id: id} = _item) do
-        %{assigns: %{live_action: live_action} = assigns} = socket
+        %{assigns: %{live_action: live_action, repo: repo, schema: schema} = assigns} = socket
 
         fields = filtered_fields_by_action(fields(), assigns, :show)
-        item = Resource.get(assigns, &item_query(&1, live_action, assigns), fields, id)
+        item = Resource.get!(id, repo, schema, &item_query(&1, live_action, assigns), fields)
 
         socket =
           cond do
@@ -1498,6 +1519,9 @@ defmodule Backpex.LiveResource do
       def can?(_assigns, _action, _item), do: true
 
       @impl Backpex.LiveResource
+      def index_row_class(assigns, item, selected, index), do: nil
+
+      @impl Backpex.LiveResource
       def fields, do: []
 
       @impl Backpex.LiveResource
@@ -1512,7 +1536,13 @@ defmodule Backpex.LiveResource do
       @impl Backpex.LiveResource
       def item_actions(default_actions), do: default_actions
 
-      defoverridable can?: 3, fields: 0, filters: 0, filters: 1, resource_actions: 0, item_actions: 1
+      defoverridable can?: 3,
+                     fields: 0,
+                     filters: 0,
+                     filters: 1,
+                     resource_actions: 0,
+                     item_actions: 1,
+                     index_row_class: 4
     end
   end
 

@@ -110,7 +110,7 @@ defmodule Backpex.Filters.Select do
 
   def option_value_to_label(options, value) do
     Enum.find_value(options, fn {option_label, option_value} ->
-      if option_value == value, do: option_label
+      if to_string(option_value) == to_string(value), do: option_label
     end)
   end
 end

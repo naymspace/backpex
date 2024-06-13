@@ -147,7 +147,7 @@ defmodule Backpex.Filters.MultiSelect do
 
   def find_option_label(options, key) do
     Enum.find_value(options, fn {l, k} ->
-      if k == key, do: l
+      if to_string(k) == to_string(key), do: l
     end) || ""
   end
 end

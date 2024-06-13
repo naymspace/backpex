@@ -20,13 +20,16 @@ defmodule DemoWeb.PostLive do
   def filters do
     [
       category_id: %{
-        module: DemoWeb.Filters.PostCategorySelect
+        module: DemoWeb.Filters.PostCategorySelect,
+        label: "Category"
       },
       user_id: %{
-        module: DemoWeb.Filters.PostUserMultiSelect
+        module: DemoWeb.Filters.PostUserMultiSelect,
+        label: "Users"
       },
       likes: %{
         module: DemoWeb.Filters.PostLikeRange,
+        label: "Likes",
         presets: [
           %{
             label: "Over 100",
@@ -40,6 +43,7 @@ defmodule DemoWeb.PostLive do
       },
       inserted_at: %{
         module: DemoWeb.Filters.DateTimeRange,
+        label: "Created at",
         presets: [
           %{
             label: "Last 7 Days",
@@ -72,6 +76,7 @@ defmodule DemoWeb.PostLive do
       },
       published: %{
         module: DemoWeb.Filters.PostPublished,
+        label: "Published?",
         default: ["published"],
         presets: [
           %{
@@ -147,6 +152,7 @@ defmodule DemoWeb.PostLive do
             full_name: fragment("concat(?, ' ', ?)", user.first_name, user.last_name)
           })
         end,
+        index_editable: true,
         searchable: true,
         live_resource: DemoWeb.UserLive
       },

@@ -33,6 +33,26 @@ defmodule Backpex.Fields.BelongsTo do
   alias Backpex.LiveResource
   alias Backpex.Router
 
+  @impl Phoenix.LiveComponent
+  def update(assigns, socket) do
+    %{schema: schema, name: name, field: field} = assigns
+
+    %{queryable: queryable, owner_key: owner_key} = schema.__schema__(:association, name)
+
+    display_field = display_field(field)
+    display_field_form = display_field_form(field, display_field)
+
+    socket =
+      socket
+      |> assign(assigns)
+      |> assign(queryable: queryable)
+      |> assign(owner_key: owner_key)
+      |> assign(display_field: display_field)
+      |> assign(display_field_form: display_field_form)
+
+    {:ok, socket}
+  end
+
   @impl Backpex.Field
   def render_value(%{value: value} = assigns) when is_nil(value) do
     ~H"""
@@ -44,15 +64,15 @@ defmodule Backpex.Fields.BelongsTo do
 
   @impl Backpex.Field
   def render_value(assigns) do
-    %{field: field, value: value} = assigns
+    %{value: value, display_field: display_field} = assigns
 
     assigns =
       assigns
-      |> assign(:display_text, Map.get(value, display_field(field)))
+      |> assign(:display_text, Map.get(value, display_field))
       |> assign_link()
 
     ~H"""
-    <div>
+    <div class={[@live_action in [:index, :resource_action] && "truncate"]}>
       <%= if @link do %>
         <.link navigate={@link} class={[@live_action in [:index, :resource_action] && "truncate", "hover:underline"]}>
           <%= @display_text %>
@@ -68,18 +88,15 @@ defmodule Backpex.Fields.BelongsTo do
 
   @impl Backpex.Field
   def render_form(assigns) do
-    %{schema: schema, repo: repo, field_options: field_options, name: name} = assigns
+    %{
+      repo: repo,
+      field_options: field_options,
+      queryable: queryable,
+      owner_key: owner_key,
+      display_field_form: display_field_form
+    } = assigns
 
-    %{queryable: queryable, owner_key: owner_key} = schema.__schema__(:association, name)
-
-    display_field = Map.get(field_options, :display_field_form, Map.get(field_options, :display_field))
-
-    options =
-      queryable
-      |> from()
-      |> maybe_options_query(field_options, assigns)
-      |> repo.all()
-      |> Enum.map(&{Map.get(&1, display_field), Map.get(&1, :id)})
+    options = get_options(repo, queryable, field_options, display_field_form, assigns)
 
     assigns =
       assigns
@@ -106,6 +123,42 @@ defmodule Backpex.Fields.BelongsTo do
   end
 
   @impl Backpex.Field
+  def render_index_form(assigns) do
+    %{repo: repo, field_options: field_options, queryable: queryable, display_field_form: display_field_form} = assigns
+
+    options = get_options(repo, queryable, field_options, display_field_form, assigns)
+
+    form = to_form(%{"value" => assigns.value}, as: :index_form)
+
+    assigns =
+      assigns
+      |> assign(:form, form)
+      |> assign(:options, options)
+      |> assign_new(:valid, fn -> true end)
+      |> assign_prompt(assigns.field_options)
+
+    ~H"""
+    <div>
+      <.form for={@form} class="relative" phx-change="update-field" phx-submit="update-field" phx-target={@myself}>
+        <select
+          name={@form[:value].name}
+          class={["select select-sm", if(@valid, do: "hover:input-bordered", else: "select-error")]}
+          disabled={@readonly}
+        >
+          <option :if={@prompt} value=""><%= @prompt %></option>
+          <%= Phoenix.HTML.Form.options_for_select(@options, @value && Map.get(@value, :id)) %>
+        </select>
+      </.form>
+    </div>
+    """
+  end
+
+  @impl Phoenix.LiveComponent
+  def handle_event("update-field", %{"index_form" => %{"value" => value}}, socket) do
+    Backpex.Field.handle_index_editable(socket, %{} |> Map.put(socket.assigns.owner_key, value))
+  end
+
+  @impl Backpex.Field
   def display_field({_name, field_options}) do
     Map.get(field_options, :display_field)
   end
@@ -118,6 +171,18 @@ defmodule Backpex.Fields.BelongsTo do
 
   @impl Backpex.Field
   def association?(_field), do: true
+
+  defp display_field_form({_name, field_options} = _field, display_field) do
+    Map.get(field_options, :display_field_form, display_field)
+  end
+
+  defp get_options(repo, queryable, field_options, display_field, assigns) do
+    queryable
+    |> from()
+    |> maybe_options_query(field_options, assigns)
+    |> repo.all()
+    |> Enum.map(&{Map.get(&1, display_field), Map.get(&1, :id)})
+  end
 
   defp assign_link(assigns) do
     %{socket: socket, field_options: field_options, value: value, live_resource: live_resource, params: params} =

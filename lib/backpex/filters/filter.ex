@@ -27,7 +27,7 @@ defmodule Backpex.Filter do
 
   ## Custom filters
 
-  Instead of using the pre-defined filters you can also define custom filters by using `Backpex.Filter` and implementing at least `label/0`, `query/3`, `render/1` and `render_form/1`.
+  Instead of using the pre-defined filters you can also define custom filters by using `Backpex.Filter` and implementing at least `query/3`, `render/1` and `render_form/1`.
 
   For example purposes let's define a custom select filter:
 
@@ -45,7 +45,7 @@ defmodule Backpex.Filter do
           <%= @label %>
           """
         end
-      
+
         @impl Backpex.Filter
         def render_form(assigns) do
           ~H"""
@@ -59,18 +59,18 @@ defmodule Backpex.Filter do
           />
           """
         end
-        
+
         @impl Backpex.Filter
         def query(query, attribute, value) do
           where(query, [x], field(x, ^attribute) == ^value)
         end
-        
+
         defp option_value_to_label(options, value) do
           Enum.find_value(options, fn {option_label, option_value} ->
             if option_value == value, do: option_label
           end)
         end
-        
+
         defp my_options, do: [
           {"Select an option...", nil},
           {"Open", :open},
@@ -96,6 +96,7 @@ defmodule Backpex.Filter do
       def filters, do: [
           begins_at: %{
             module: MyAppWeb.Filters.DateRange,
+            label: "Begins At",
             presets: [
             %{
               label: "Last 7 Days",
@@ -128,7 +129,7 @@ defmodule Backpex.Filter do
   @callback can?(Phoenix.LiveView.Socket.assigns()) :: boolean()
 
   @doc """
-  The filter's label.
+  If no label is defined on the filter map, this value is used as the filter label.
   """
   @callback label :: String.t()
 
@@ -146,6 +147,8 @@ defmodule Backpex.Filter do
   Renders the filters options form.
   """
   @callback render_form(Phoenix.LiveView.Socket.assigns()) :: Phoenix.LiveView.Rendered.t()
+
+  @optional_callbacks label: 0
 
   defmacro __using__(_opts) do
     quote do

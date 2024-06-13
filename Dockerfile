@@ -2,7 +2,7 @@
 # Stage: builder
 ########################################################################
 
-FROM hexpm/elixir:1.16.2-erlang-26.2.2-alpine-3.19.1 as builder
+FROM hexpm/elixir:1.16.3-erlang-26.2.5-alpine-3.20.0 as builder
 
 ENV MIX_HOME=/opt/mix \
     HEX_HOME=/opt/hex \
@@ -71,7 +71,7 @@ RUN mix do deps.get, deps.compile, assets.deploy, sentry.package_source_code, re
 # Stage: runtime
 ########################################################################
 
-FROM alpine:3.19.1 as runtime
+FROM alpine:3.20.0 as runtime
 
 ENV APP_HOME=/opt/app
 WORKDIR $APP_HOME

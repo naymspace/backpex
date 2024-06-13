@@ -89,4 +89,34 @@ defmodule Backpex.Fields.DateTime do
     </div>
     """
   end
+
+  @impl Backpex.Field
+  def render_index_form(assigns) do
+    form = to_form(%{"value" => assigns.value}, as: :index_form)
+
+    assigns =
+      assigns
+      |> assign(:form, form)
+      |> assign(:valid, Map.get(assigns, :valid, true))
+
+    ~H"""
+    <div>
+      <.form for={@form} phx-change="update-field" phx-submit="update-field" phx-target={@myself}>
+        <input
+          type="datetime-local"
+          name={@form[:value].name}
+          value={@form[:value].value}
+          class={["input input-sm w-52", @valid && "hover:input-bordered", !@valid && "input-error"]}
+          phx-debounce="100"
+          readonly={@readonly}
+        />
+      </.form>
+    </div>
+    """
+  end
+
+  @impl Phoenix.LiveComponent
+  def handle_event("update-field", %{"index_form" => %{"value" => value}}, socket) do
+    Backpex.Field.handle_index_editable(socket, %{} |> Map.put(socket.assigns.name, value))
+  end
 end

@@ -1,7 +1,7 @@
 defmodule Backpex.MixProject do
   use Mix.Project
 
-  @version "0.2.0"
+  @version "0.3.0"
   @source_url "https://github.com/naymspace/backpex"
 
   def project do
@@ -87,6 +87,7 @@ defmodule Backpex.MixProject do
       "guides/introduction/installation.md",
       "guides/introduction/translations.md",
       "guides/advanced/full_text_search.md",
+      "guides/upgrading/v0.3.md",
       "guides/upgrading/v0.2.md"
     ]
   end
