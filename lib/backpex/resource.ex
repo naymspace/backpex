@@ -256,7 +256,7 @@ defmodule Backpex.Resource do
   @doc """
   Gets a database record with the given fields by the given id, possibly being enhanced by the given item_query.
   """
-  def get(assigns, item_query, fields, id) do
+  def get!(assigns, item_query, fields, id) do
     %{
       repo: repo,
       schema: schema
@@ -270,8 +270,15 @@ defmodule Backpex.Resource do
     |> maybe_join(associations)
     |> maybe_preload(associations, fields)
     |> maybe_merge_dynamic_fields(fields)
-    |> where([{^schema_name, schema_name}], schema_name.id == ^id)
-    |> repo.one()
+    |> where_id(schema_name, id)
+    |> repo.one!()
+  end
+
+  defp where_id(query, schema_name, id) do
+    case Ecto.UUID.cast(id) do
+      {:ok, valid_id} -> where(query, [{^schema_name, schema_name}], schema_name.id == ^valid_id)
+      :error -> where(query, [{^schema_name, schema_name}], true == false)
+    end
   end
 
   @doc """
