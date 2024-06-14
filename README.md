@@ -15,9 +15,14 @@ Welcome! Backpex is a highly customizable administration panel for Phoenix LiveV
   <a href="https://backpex.live/"><strong>Visit our Live Demo →</strong></a>
 </div>
 
+## Installation & Documentation
+
+See our comprehensive [installation guide](guides/get_started/installation.md) for more information on how to install and configure Backpex in your Phoenix application.
+
+We also provide a detailed [documentation](https://hexdocs.pm/backpex) with guides on how to use Backpex and how to customize it to your needs.
+
 ## Learn More
 
-- [Installation](guides/get_started/installation.md)
 - [What is Backpex?](guides/about_backpex/what-is-backpex.md)
 - [Why we built Backpex?](guides/about_backpex/why-we-built-backpex.md)
 - [Contribute to Backpex](guides/about_backpex/contribute-to-backpex.md)
@@ -32,6 +37,6 @@ Welcome! Backpex is a highly customizable administration panel for Phoenix LiveV
 - **Associations**: Handle HasOne, BelongsTo and HasMany(Through) associations with minimal configuration. Customize available options and rendered columns.
 - **Metrics**: Easily add value metrics (like sums or averages) to your resources for a quick glance at your date. More metric types are in the making.
 
-## Installation
+## License
 
-See our comprehensive [installation guide](guides/get_started/installation.md) for more information on how to install and configure Backpex in your Phoenix application.
+Backpex source code is licensed under the [MIT License](https://github.com/naymspace/backpex/blob/main/LICENSE.md).
