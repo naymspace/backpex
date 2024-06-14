@@ -103,6 +103,8 @@ defmodule Backpex.MixProject do
       "guides/live_resource/hooks.md",
       "guides/live_resource/navigation.md",
       "guides/live_resource/panels.md",
+      "guides/live_resource/fluid-layout.md",
+      "guides/live_resource/listen-to-pubsub-events.md",
       "guides/live_resource/additional-classes-for-index-table-rows.md",
 
       # Fields

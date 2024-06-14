@@ -22,4 +22,8 @@ Backpex is styled using daisyUI. Make sure you have daisyUI installed in your ap
 
 Backpex currently depends on Ecto as the database layer. Make sure you have a running Ecto repository in your application.
 
+> #### Warning {: .warning}
+>
+> Backpex currently only supports UUID (binary_id) primary keys. Help us to support other primary key types by contributing to the project.
+
 If you meet all these prerequisites, you are ready to install and configure Backpex in your Phoenix application. See our [installation guide](guides/get_started/installation.md) for more information on how to install and configure Backpex.
