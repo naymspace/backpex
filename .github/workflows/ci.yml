@@ -117,6 +117,12 @@ jobs:
           otp-version: ${{ steps.otp_version.outputs.version }}
           elixir-version: ${{ steps.elixir_version.outputs.version }}
 
+      - name: Install dependencies
+        run: |
+          mix local.hex --force --if-missing
+          mix local.rebar --force --if-missing
+          mix deps.get
+
       - name: Publish package on hex.pm
         env:
           HEX_API_KEY: ${{ secrets.HEX_API_KEY }}

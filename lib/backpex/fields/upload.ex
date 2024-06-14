@@ -1,177 +1,377 @@
 defmodule Backpex.Fields.Upload do
   @moduledoc ~S"""
-  A field for handling an upload.
+  A field for handling uploads.
 
   > #### Warning {: .warning}
   >
-  > This field is in beta state. Use at your own risk.
+  > This field does **not** currently support `Phoenix.LiveView.UploadWriter` and direct / external uploads.
 
   ## Options
 
-    * `:upload_key` - Required identifier for the upload field.
-    * `:accept` - Required filetypes that will be accepted.
-    * `:max_entries` - Required number of max files that can be uploaded.
-    * `:max_file_size` - Optional maximum file size in bytes to be allowed to uploaded. Defaults 8 MB (`8_000_000`).
-    * `:list_files` - Required function that returns a list of all uploaded files.
-    * `:file_label` - Optional function to get the label of a single file.
-    * `:consume` - Required function to consume file uploads and handle changes in the item before it is saved (e.g. append file paths).
-    * `:remove` - Required function to remove a specific file.
+    * `:upload_key` (atom) - Required identifier for the upload field (the name of the upload).
+    * `:accept` (list) - Required filetypes that will be accepted.
+    * `:max_entries` (integer) - Required number of max files that can be uploaded.
+    * `:max_file_size` (integer) - Optional maximum file size in bytes to be allowed to uploaded. Defaults 8 MB (`8_000_000`).
+    * `:list_existing_files` (function) - Required function that returns a list of all uploaded files based on an item.
+    * `:file_label` (function) - Optional function to get the label of a single file.
+    * `:consume_upload` (function) - Required function to consume file uploads.
+    * `:put_upload_change` (function) - Required function to add file paths to the change.
+    * `:remove_uploads` (function) - Required function that is being called after saving an item to be able to delete removed files
 
-  ## Example
 
-  ### Single File
+  > #### Info {: .info}
+  >
+  > The following examples copy uploads to a static folder in the application. In a production environment, you should consider uploading files to an appropriate object store.
 
-      @impl Backpex.LiveResource
-      def fields do
-      [
-        avatar: %{
-          module: Backpex.Fields.Upload,
-          label: "Avatar",
-          upload_key: :avatar,
-          accept: ~w(.jpg .jpeg),
-          max_entries: 1,
-          max_file_size: 12_000_000,
-          consume: &consume_avatar/3,
-          remove: &remove_avatar/2,
-          list_files: &list_files_avatar/1,
-          render: fn
-            %{value: ""} = assigns -> ~H"<%= Backpex.HTML.pretty_value(@value) %>"
-            assigns -> ~H'<img class="w-5 h-5 rounded-full" src={avatar_file_url(@value)} />'
+  ## Options in detail
+
+  The `upload_key`, `accept`, `max_entries` and `max_file_size` options are forwarded to https://hexdocs.pm/phoenix_live_view/Phoenix.LiveView.html#allow_upload/3. See the documentation for more information.
+
+  ### `list_existing_files`
+
+  **Parameters**
+  * `:socket` - The socket.
+  * `:item` (struct) - The item without its changes.
+
+  The function is being used to display existing uploads. The function receives the socket and the item and has to return a list of strings. Removed files during an edit of an item are automatically removed from the list. This option is required.
+
+  **Example**
+
+      def list_existing_files(_socket, item), do: item.files
+
+  ### `file_label`
+
+  **Parameters**
+  * `:file` (string) - The file.
+
+  The function can be used to modify a file label based on a file. In the following example each file will have an "_upload" suffix. This option is optional.
+
+  **Example**
+
+      def file_label(file), do: file <> "_upload"
+
+  ### `consume_upload`
+
+  **Parameters**
+  * `:socket` - The socket.
+  * `:item` (struct) - The item without its changes.
+  * `:meta` - The upload meta.
+  * `:entry` - The upload entry.
+
+  The function is used to consume uploads. It is called after the item has been saved and is used to copy the files to a specific destination. Backpex will use this function as a callback for `consume_uploaded_entries`. See https://hexdocs.pm/phoenix_live_view/uploads.html#consume-uploaded-entries for more details. This option is required.
+
+  **Example**
+
+      defp consume_upload(_socket, _item, %{path: path} = _meta, entry) do
+        file_name = ...
+        file_url = ...
+        static_dir = ...
+        dest = Path.join([:code.priv_dir(:demo), "static", static_dir, file_name])
+
+        File.cp!(path, dest)
+
+        {:ok, file_url}
+      end
+
+  ### `put_upload_change`
+
+  **Parameters**
+    * `:socket` - The socket.
+    * `:change` (map) - The current change / attrs that will be passed to the changeset function.
+    * `:item` (struct) - The item without its changes. On create will this will be an empty map.
+    * `uploaded_entries` (tuple) - The completed and in progress entries for the upload.
+    * `removed_entries` (list) - A list of removed uploads during edit.
+    * `action` (atom) - The action (`:validate` or `:insert`)
+
+  This function is used to modify the change based on certain parameters. It is important because it ensures that file paths are added to the item change and therefore persisted in the database. This option is required.
+
+  **Example**
+
+      def put_upload_change(_socket, change, item, uploaded_entries, removed_entries, action) do
+        existing_files = item.files -- removed_entries
+
+        new_entries =
+          case action do
+            :validate ->
+              elem(uploaded_entries, 1)
+
+            :insert ->
+              elem(uploaded_entries, 0)
           end
-        },
-      ]
+
+        files = existing_files ++ Enum.map(new_entries, fn entry -> file_name(entry) end)
+
+        Map.put(change, "images", files)
       end
 
-      defp avatar_static_dir, do: Path.join(["uploads", "user", "avatar"])
+  ### `remove_uploads`
 
-      defp avatar_file_url(file_name) do
-        static_path = Path.join([avatar_static_dir(), file_name])
-        Phoenix.VerifiedRoutes.static_url(MyAppWeb.Endpoint, "/" <> static_path)
-      end
+  **Parameters**
+  * `:socket` - The socket.
+  * `:item` (struct) - The item without its changes.
+  * `removed_entries` (list) - A list of removed uploads during edit.
 
-      defp avatar_file_name(entry) do
-        [ext | _] = MIME.extensions(entry.client_type)
-        "#{entry.uuid}.#{ext}"
-      end
+  **Example**
 
-      # will be called in order to display files when editing item
-      defp list_files_avatar(%{avatar: ""}), do: []
-      defp list_files_avatar(%{avatar: avatar}), do: [avatar]
-
-      # will be called to consume avatar
-      # you may add completed file upload paths as part of the change in order to persist them
-      # you have to return the (modified) change
-      defp consume_avatar(socket, _resource, %{} = change) do
-        consume_uploaded_entries(socket, :avatar, fn %{path: path}, entry ->
-          file_name = avatar_file_name(entry)
-          dest = Path.join([:code.priv_dir(:my_app), "static", avatar_static_dir(), file_name])
-          File.cp!(path, dest)
-          {:ok, avatar_file_url(file_name)}
-        end)
-
-        case uploaded_entries(socket, :avatar) do
-          {[] = _completed, []} -> change
-          {[entry | _] = _completed, []} -> Map.put(change, "avatar", avatar_file_name(entry))
+      defp remove_uploads(_socket, _item, removed_entries) do
+        for file <- removed_entries do
+          file_path = ...
+          File.rm!(file_path)
         end
       end
 
-      def remove_avatar(resource, _target) do
-        Repo.get_by!(User, id: resource.id)
-        |> User.changeset(%{avatar: ""})
-        |> Repo.update!()
+  ## Full Single File Example
 
-        []
-      end
+  In this example we are adding an avatar upload for a user. We implement it so that exactly one avatar must exist.
 
-  ### Multiple Files
+      defmodule Demo.Repo.Migrations.AddAvatarToUsers do
+        use Ecto.Migration
 
-      @impl Backpex.LiveResource
-      def fields do
-      [
-        gallery: %{
-          module: Backpex.Fields.Upload,
-          label: "Gallery",
-          upload_key: :gallery,
-          accept: ~w(.jpg .jpeg),
-          max_entries: 5,
-          list_files: &list_files_gallery/2,
-          consume: &consume_gallery/3,
-          remove: &remove_gallery/3,
-        }
-      ]
-      end
-
-      defp gallery_static_dir, do: Path.join(["uploads", "user", "gallery"])
-
-      defp gallery_file_url(file_name) do
-        static_path = Path.join([gallery_static_dir(), file_name])
-        Phoenix.VerifiedRoutes.static_url(MyAppWeb.Endpoint, "/" <> static_path)
-      end
-
-      defp gallery_file_name(entry) do
-        [ext | _] = MIME.extensions(entry.client_type)
-        "#{entry.uuid}.#{ext}"
-      end
-
-      # will be called to consume uploads
-      # you may add completed file upload paths as part of the change in order to persist them
-      # you have to return the (modified) change
-      def consume_gallery(socket, item, %{} = change) do
-        consume_uploaded_entries(socket, :gallery, fn %{path: path}, entry ->
-          file_name = gallery_file_name(entry)
-          dest = Path.join([:code.priv_dir(:my_app), "static", gallery_static_dir(), file_name])
-          File.cp!(path, dest)
-          {:ok, gallery_file_url(file_name)}
-        end)
-
-        {completed, []} = uploaded_entries(socket, :gallery)
-
-        file_names = Enum.map(completed, fn entry -> gallery_file_name(entry) end)
-
-        file_names =
-          case item do
-            %{id: id} when is_binary(id) ->
-              (Repo.get_by!(Event, id: id) |> Map.get(:gallery)) ++ file_names
-
-            _ ->
-              file_names
+        def change do
+          alter table(:users) do
+            add(:avatar, :string, null: false, default: "")
           end
-
-        Map.put(change, "gallery", file_names)
+        end
       end
 
-      # will be called in order to display files when editing item
-      def list_files_gallery(%{gallery: gallery}), do: gallery
+      defmodule Demo.User do
+        use Ecto.Schema
 
-      # will be called when deleting certain file from existing item
-      # target is the key you provided in list/2
-      # remove files from file system and item, return new file paths to be displayed
-      def remove_gallery(item, target) do
-        element = Repo.get_by!(Event, id: item.id)
+        schema "users" do
+          field(:avatar, :string, default: "")
+          ...
+        end
 
-        file_paths =
-          Map.get(element, :gallery)
-          |> Enum.reject(&(&1 == target))
+        def changeset(user, attrs, _metadata \\ []) do
+          user
+          |> cast(attrs, [:avatar])
+          |> validate_required([:avatar])
+          |> validate_change(:avatar, fn
+            :avatar, "too_many_files" ->
+              [avatar: "has to be exactly one"]
 
-        Event.changeset(element, %{gallery: file_paths})
-        |> Repo.update!()
+            :avatar, "" ->
+              [avatar: "can't be blank"]
 
-        file_paths
+            :avatar, _avatar ->
+              []
+          end)
+        end
+      end
+
+      defmodule DemoWeb.UserLive do
+        use Backpex.LiveResource,
+          ...
+
+        @impl Backpex.LiveResource
+        def fields do
+          [
+            avatar: %{
+              module: Backpex.Fields.Upload,
+              label: "Avatar",
+              upload_key: :avatar,
+              accept: ~w(.jpg .jpeg .png),
+              max_entries: 1,
+              max_file_size: 512_000,
+              put_upload_change: &put_upload_change/6,
+              consume_upload: &consume_upload/4,
+              remove_uploads: &remove_uploads/3,
+              list_existing_files: &list_existing_files/1,
+              render: fn
+                %{value: value} = assigns when value == "" or is_nil(value) ->
+                  ~H"<p><%= Backpex.HTML.pretty_value(@value) %></p>"
+
+                assigns ->
+                  ~H'<img class="h-10 w-auto" src={file_url(@value)} />'
+              end
+            },
+            ...
+          ]
+        end
+
+        defp list_existing_files(%{avatar: avatar} = _item) when avatar != "" and not is_nil(avatar), do: [avatar]
+        defp list_existing_files(_item), do: []
+
+        def put_upload_change(_socket, change, item, uploaded_entries, removed_entries, action) do
+          existing_files = list_existing_files(item) -- removed_entries
+
+          new_entries =
+            case action do
+              :validate ->
+                elem(uploaded_entries, 1)
+
+              :insert ->
+                elem(uploaded_entries, 0)
+            end
+
+          files = existing_files ++ Enum.map(new_entries, fn entry -> file_name(entry) end)
+
+          case files do
+            [file] ->
+              Map.put(change, "avatar", file)
+
+            [_file | _other_files] ->
+              Map.put(change, "avatar", "too_many_files")
+
+            [] ->
+              Map.put(change, "avatar", "")
+          end
+        end
+
+        defp consume_upload(_socket, _item, %{path: path} = _meta, entry) do
+          file_name = file_name(entry)
+          dest = Path.join([:code.priv_dir(:demo), "static", upload_dir(), file_name])
+
+          File.cp!(path, dest)
+
+          {:ok, file_url(file_name)}
+        end
+
+        defp remove_uploads(_socket, _item, removed_entries) do
+          for file <- removed_entries do
+            path = Path.join([:code.priv_dir(:demo), "static", upload_dir(), file])
+            File.rm!(path)
+          end
+        end
+
+        defp file_url(file_name) do
+          static_path = Path.join([upload_dir(), file_name])
+          Phoenix.VerifiedRoutes.static_url(DemoWeb.Endpoint, "/" <> static_path)
+        end
+
+        defp file_name(entry) do
+          [ext | _] = MIME.extensions(entry.client_type)
+          "#{entry.uuid}.#{ext}"
+        end
+
+        defp upload_dir, do: Path.join(["uploads", "user", "avatar"])
+      end
+
+  ## Full Multi File Example
+
+  In this example, we are adding images to a product resource. We limit the images to a maximum of 2.
+
+      defmodule Demo.Repo.Migrations.AddImagesToProducts do
+        use Ecto.Migration
+
+        def change do
+          alter table(:products) do
+            dd(:images, {:array, :string})
+          end
+        end
+      end
+
+      defmodule Demo.Product do
+        use Ecto.Schema
+
+        schema "products" do
+          field(:images, {:array, :string})
+          ...
+        end
+
+        def changeset(user, attrs, _metadata \\ []) do
+          user
+          |> cast(attrs, [:images])
+          |> validate_length(:images, max: 2)
+        end
+      end
+
+      defmodule DemoWeb.ProductLive do
+        use Backpex.LiveResource,
+          ...
+
+        @impl Backpex.LiveResource
+        def fields do
+          [
+            images: %{
+              module: Backpex.Fields.Upload,
+              label: "Images",
+              upload_key: :images,
+              accept: ~w(.jpg .jpeg .png),
+              max_entries: 2,
+              max_file_size: 512_000,
+              put_upload_change: &put_upload_change/6,
+              consume_upload: &consume_upload/4,
+              remove_uploads: &remove_uploads/3,
+              list_existing_files: &list_existing_files/1,
+              render: fn
+                %{value: value} = assigns when is_list(value) ->
+                  ~H'''
+                  <div>
+                    <img :for={img <- @value} class="h-10 w-auto" src={file_url(img)} />
+                  </div>
+                  '''
+
+                assigns ->
+                  ~H'<p><%= Backpex.HTML.pretty_value(@value) %></p>'
+              end,
+              except: [:index, :resource_action],
+              align: :center
+            },
+            ...
+          ]
+        end
+
+        defp list_existing_files(%{images: images} = _item) when is_list(images), do: images
+        defp list_existing_files(_item), do: []
+
+        defp put_upload_change(_socket, change, item, uploaded_entries, removed_entries, action) do
+          existing_files = list_existing_files(item) -- removed_entries
+
+          new_entries =
+            case action do
+              :validate ->
+                elem(uploaded_entries, 1)
+
+              :insert ->
+                elem(uploaded_entries, 0)
+            end
+
+          files = existing_files ++ Enum.map(new_entries, fn entry -> file_name(entry) end)
+
+          Map.put(change, "images", files)
+        end
+
+        defp consume_upload(_socket, _item, %{path: path} = _meta, entry) do
+          file_name = file_name(entry)
+          dest = Path.join([:code.priv_dir(:demo), "static", upload_dir(), file_name])
+
+          File.cp!(path, dest)
+
+          {:ok, file_url(file_name)}
+        end
+
+        defp remove_uploads(_socket, _item, removed_entries) do
+          for file <- removed_entries do
+            path = Path.join([:code.priv_dir(:demo), "static", upload_dir(), file])
+            File.rm!(path)
+          end
+        end
+
+        defp file_url(file_name) do
+          static_path = Path.join([upload_dir(), file_name])
+          Phoenix.VerifiedRoutes.static_url(DemoWeb.Endpoint, "/" <> static_path)
+        end
+
+        defp file_name(entry) do
+          [ext | _] = MIME.extensions(entry.client_type)
+          "#{entry.uuid}.#{ext}"
+        end
+
+        defp upload_dir, do: Path.join(["uploads", "product", "images"])
       end
   """
   use BackpexWeb, :field
 
-  import Phoenix.LiveView, only: [allow_upload: 3]
+  alias Backpex.HTML.Form, as: BackpexForm
 
   @impl Backpex.Field
   def render_value(assigns) do
-    %{field_options: field_options, item: item} = assigns
+    %{field: field, item: item} = assigns
 
-    uploaded_files = map_file_paths(field_options, item)
+    uploaded_files = existing_file_paths(field, item, [])
 
-    assigns =
-      assigns
-      |> assign(:uploaded_files, uploaded_files)
+    assigns = assign(assigns, :uploaded_files, uploaded_files)
 
     ~H"""
     <div class="flex flex-col">
@@ -186,15 +386,26 @@ defmodule Backpex.Fields.Upload do
   def render_form(assigns) do
     upload_key = assigns.field_options.upload_key
     uploads_allowed = not is_nil(assigns.field_uploads)
+    form_errors = BackpexForm.translate_form_errors(assigns.form[assigns.name], assigns.field_options)
 
     assigns =
       assigns
       |> assign(:upload_key, upload_key)
       |> assign(:uploads_allowed, uploads_allowed)
       |> assign(:uploaded_files, Keyword.get(assigns.uploaded_files, upload_key))
+      |> assign(:form_errors, form_errors)
 
     ~H"""
-    <div>
+    <div x-data="{
+        dispatchChangeEvent(el) {
+          $nextTick(
+            () => {
+              form = document.getElementById('resource-form');
+              if (form) el.dispatchEvent(new Event('input', { bubbles: true }));
+            }
+          )
+        }
+      }">
       <Layout.field_container>
         <:label align={Backpex.Field.align_label(@field_options, assigns, :top)}>
           <Layout.input_label text={@field_options[:label]} />
@@ -231,23 +442,22 @@ defmodule Backpex.Fields.Upload do
           </div>
         </div>
 
-        <section :if={(@uploads_allowed && Enum.count(@field_uploads.entries) > 0) || @uploaded_files > 0} class="mt-2">
+        <section class="mt-2">
           <article>
             <%= if @uploads_allowed do %>
               <div :for={entry <- @field_uploads.entries}>
-                <div class="flex space-x-2">
-                  <p><%= Map.get(entry, :client_name) %></p>
+                <p class="inline"><%= Map.get(entry, :client_name) %></p>
 
-                  <button
-                    type="button"
-                    phx-click="cancel-entry"
-                    phx-value-ref={entry.ref}
-                    phx-value-id={@upload_key}
-                    phx-target="#form-component"
-                  >
-                    &times;
-                  </button>
-                </div>
+                <button
+                  type="button"
+                  phx-click="cancel-entry"
+                  phx-value-ref={entry.ref}
+                  phx-value-id={@upload_key}
+                  phx-target="#form-component"
+                  @click="() => dispatchChangeEvent($el)"
+                >
+                  &times;
+                </button>
 
                 <p :for={err <- upload_errors(@field_uploads, entry)} class="text-xs italic text-red-500">
                   <%= error_to_string(err) %>
@@ -258,13 +468,13 @@ defmodule Backpex.Fields.Upload do
             <%= if @type == :form do %>
               <div :for={{file_key, label} <- @uploaded_files}>
                 <p class="inline"><%= label %></p>
-
                 <button
                   type="button"
                   phx-click="cancel-existing-entry"
                   phx-value-ref={file_key}
                   phx-value-id={@upload_key}
                   phx-target="#form-component"
+                  @click="() => dispatchChangeEvent($el)"
                 >
                   &times;
                 </button>
@@ -277,6 +487,7 @@ defmodule Backpex.Fields.Upload do
               <%= error_to_string(err) %>
             </p>
           <% end %>
+          <BackpexForm.error :for={msg <- @form_errors}><%= msg %></BackpexForm.error>
         </section>
       </Layout.field_container>
     </div>
@@ -284,9 +495,10 @@ defmodule Backpex.Fields.Upload do
   end
 
   @impl Backpex.Field
-  def assign_uploads({_name, field_options}, socket) do
-    field_files = {field_options.upload_key, map_file_paths(field_options, socket.assigns.item)}
-    max_entries = field_options.max_entries - (field_files |> elem(1) |> Enum.count())
+  def assign_uploads({_name, field_options} = field, socket) do
+    field_files = {field_options.upload_key, existing_file_paths(field, socket.assigns.item, [])}
+
+    max_entries = field_options.max_entries
     max_file_size = Map.get(field_options, :max_file_size, 8_000_000)
 
     if get_in(socket.assigns, [:uploads, field_options.upload_key]) do
@@ -300,15 +512,13 @@ defmodule Backpex.Fields.Upload do
 
   defp assign_uploaded_files(socket, field_files) do
     uploaded_files = Map.get(socket.assigns, :uploaded_files, [])
-
-    socket
-    |> assign(:uploaded_files, [field_files | uploaded_files])
+    assign(socket, :uploaded_files, [field_files | uploaded_files])
   end
 
   defp allow_field_uploads(socket, _field_options, 0, _max_file_size), do: socket
 
   defp allow_field_uploads(socket, field_options, max_entries, max_file_size) do
-    allow_upload(socket, field_options.upload_key,
+    Phoenix.LiveView.allow_upload(socket, field_options.upload_key,
       accept: field_options.accept,
       max_entries: max_entries,
       max_file_size: max_file_size
@@ -316,37 +526,36 @@ defmodule Backpex.Fields.Upload do
   end
 
   @doc """
-  Maps uploaded files to keyword list with identifier and label.
-
-    ## Examples
-      iex> Backpex.Fields.Upload.map_file_paths(%{list_files: fn item -> item.file_paths end}, %{file_paths: ["xyz.png"]})
-      [{"xyz.png", "xyz.png"}]
+  Returns a list of existing files mapped to a label.
   """
-  def map_file_paths(field_options, file_paths) when is_list(file_paths) do
-    file_paths
+  def existing_file_paths(field, item, removed_files) do
+    files = list_existing_files(field, item, removed_files)
+
+    map_file_paths(field, files)
+  end
+
+  @doc """
+  Lists existing files based on item and list of removed files.
+  """
+  def list_existing_files({_field_name, field_options} = _field, item, removed_files) do
+    %{list_existing_files: list_existing_files} = field_options
+
+    list_existing_files.(item) -- removed_files
+  end
+
+  @doc """
+  Maps uploaded files to keyword list with identifier and label.
+  """
+  def map_file_paths({_field_name, field_options} = _field, files) when is_list(files) do
+    files
     |> Enum.map(&{&1, label_from_file(field_options, &1)})
   end
-
-  def map_file_paths(%{list_files: list_files} = field_options, item) do
-    item
-    |> list_files.()
-    |> Enum.map(&{&1, label_from_file(field_options, &1)})
-  end
-
-  def map_file_paths(field_options, item) do
-    item
-    |> Map.get(:file_paths, nil)
-    |> Enum.map(&label_from_file(field_options, &1))
-  end
-
-  defp error_to_string(:too_large), do: Backpex.translate("too large")
-  defp error_to_string(:too_many_files), do: Backpex.translate("too many files")
-  defp error_to_string(:not_accepted), do: Backpex.translate("unacceptable file type")
 
   @doc """
   Calls field option function to get label from filename. Defaults to filename.
 
-    ## Examples
+  ## Examples
+
       iex> Backpex.Fields.Upload.label_from_file(%{file_label: fn file -> file <> "xyz" end}, "file")
       "filexyz"
       iex> Backpex.Fields.Upload.label_from_file(%{}, "file")
@@ -354,4 +563,8 @@ defmodule Backpex.Fields.Upload do
   """
   def label_from_file(%{file_label: file_label} = _field_options, file), do: file_label.(file)
   def label_from_file(_field_options, file), do: file
+
+  defp error_to_string(:too_large), do: Backpex.translate("too large")
+  defp error_to_string(:too_many_files), do: Backpex.translate("too many files")
+  defp error_to_string(:not_accepted), do: Backpex.translate("unacceptable file type")
 end

@@ -1,7 +1,7 @@
 defmodule Backpex.MixProject do
   use Mix.Project
 
-  @version "0.2.0"
+  @version "0.3.0"
   @source_url "https://github.com/naymspace/backpex"
 
   def project do
@@ -77,8 +77,8 @@ defmodule Backpex.MixProject do
       groups_for_functions: [
         Components: &(&1[:type] == :component)
       ],
-      source_ref: "develop",
-      source_url_pattern: "#{@source_url}/blob/develop/%{path}#L%{line}"
+      source_ref: @version,
+      source_url: @source_url
     ]
   end
 
@@ -142,6 +142,7 @@ defmodule Backpex.MixProject do
       "guides/translations/translations.md",
 
       # Upgrade Guides
+      "guides/upgrading/v0.3.md",
       "guides/upgrading/v0.2.md"
     ]
   end

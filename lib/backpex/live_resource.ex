@@ -485,18 +485,18 @@ defmodule Backpex.LiveResource do
 
       def apply_action(socket, :edit) do
         %{
-          assigns: %{live_action: live_action, singular_name: singular_name, params: params} = assigns
+          assigns:
+            %{
+              live_action: live_action,
+              singular_name: singular_name,
+              params: params,
+              repo: repo,
+              schema: schema
+            } = assigns
         } = socket
 
         fields = filtered_fields_by_action(fields(), assigns, :edit)
-
-        item =
-          Resource.get(
-            assigns,
-            &item_query(&1, live_action, assigns),
-            fields,
-            params["backpex_id"]
-          )
+        item = Resource.get!(params["backpex_id"], repo, schema, &item_query(&1, live_action, assigns), fields)
 
         unless can?(socket.assigns, :edit, item, __MODULE__),
           do: raise(Backpex.ForbiddenError)
@@ -514,18 +514,18 @@ defmodule Backpex.LiveResource do
 
       def apply_action(socket, :show) do
         %{
-          assigns: %{live_action: live_action, singular_name: singular_name, params: params} = assigns
+          assigns:
+            %{
+              live_action: live_action,
+              singular_name: singular_name,
+              params: params,
+              repo: repo,
+              schema: schema
+            } = assigns
         } = socket
 
         fields = filtered_fields_by_action(fields(), assigns, :show)
-
-        item =
-          Resource.get(
-            assigns,
-            &item_query(&1, live_action, assigns),
-            fields,
-            params["backpex_id"]
-          )
+        item = Resource.get!(params["backpex_id"], repo, schema, &item_query(&1, live_action, assigns), fields)
 
         unless can?(assigns, :show, item, __MODULE__),
           do: raise(Backpex.ForbiddenError)
@@ -1091,10 +1091,10 @@ defmodule Backpex.LiveResource do
       def get_empty_filter_key, do: @empty_filter_key
 
       defp update_item(socket, %{id: id} = _item) do
-        %{assigns: %{live_action: live_action} = assigns} = socket
+        %{assigns: %{live_action: live_action, repo: repo, schema: schema} = assigns} = socket
 
         fields = filtered_fields_by_action(fields(), assigns, :show)
-        item = Resource.get(assigns, &item_query(&1, live_action, assigns), fields, id)
+        item = Resource.get!(id, repo, schema, &item_query(&1, live_action, assigns), fields)
 
         socket =
           cond do
