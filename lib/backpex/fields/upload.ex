@@ -256,7 +256,7 @@ defmodule Backpex.Fields.Upload do
 
         def change do
           alter table(:products) do
-            dd(:images, {:array, :string})
+            add(:images, {:array, :string})
           end
         end
       end
