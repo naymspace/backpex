@@ -18,6 +18,7 @@ defmodule Backpex.FormComponent do
       socket
       |> assign(assigns)
       |> assign_new(:action_type, fn -> nil end)
+      |> assign_new(:show_form_errors, fn -> false end)
       |> update_assigns()
       |> assign_form()
 
@@ -26,14 +27,12 @@ defmodule Backpex.FormComponent do
 
   defp update_assigns(%{assigns: %{action_type: :item}} = socket) do
     socket
-    |> assign_new(:show_form_errors, fn -> false end)
     |> assign_fields()
     |> assign_changeset()
   end
 
   defp update_assigns(%{assigns: assigns} = socket) do
     socket
-    |> assign(:show_form_errors, assigns.live_action == :edit)
     |> apply_action(assigns.live_action)
     |> maybe_assign_uploads()
   end
@@ -104,7 +103,10 @@ defmodule Backpex.FormComponent do
 
     send(self(), {:update_changeset, changeset})
 
-    socket = assign(socket, :form, form)
+    socket =
+      socket
+      |> assign(:form, form)
+      |> assign(:show_form_errors, false)
 
     {:noreply, socket}
   end
@@ -125,12 +127,17 @@ defmodule Backpex.FormComponent do
 
     send(self(), {:update_changeset, changeset})
 
-    socket = assign(socket, :form, form)
+    socket =
+      socket
+      |> assign(:form, form)
+      |> assign(:show_form_errors, false)
 
     {:noreply, socket}
   end
 
   def handle_event("validate", _params, socket) do
+    socket = assign(socket, :show_form_errors, false)
+
     {:noreply, socket}
   end
 
@@ -230,6 +237,7 @@ defmodule Backpex.FormComponent do
 
         socket =
           socket
+          |> assign(:show_form_errors, false)
           |> clear_flash()
           |> put_flash(:info, info_msg)
           |> push_navigate(to: return_to)
@@ -281,6 +289,7 @@ defmodule Backpex.FormComponent do
 
         socket =
           socket
+          |> assign(:show_form_errors, false)
           |> clear_flash()
           |> put_flash(:info, info_msg)
           |> push_navigate(to: return_to)
@@ -323,6 +332,7 @@ defmodule Backpex.FormComponent do
 
         socket =
           socket
+          |> assign(:show_form_errors, false)
           |> put_flash_message(result)
           |> push_redirect(to: return_to)
 
@@ -365,6 +375,7 @@ defmodule Backpex.FormComponent do
 
         {message, socket} =
           socket
+          |> assign(:show_form_errors, false)
           |> assign(selected_items: [])
           |> assign(select_all: false)
           |> action_to_confirm.module.handle(selected_items, params)
