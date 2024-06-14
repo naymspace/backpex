@@ -120,13 +120,11 @@ defmodule Backpex.MixProject do
       "guides/fields/computed-fields.md",
 
       # Filter
+      "guides/filter/what-is-a-filter.md",
       "guides/filter/how-to-add-a-filter.md",
-      "guides/filter/boolean-filter.md",
-      "guides/filter/select-filter.md",
-      "guides/filter/multi-select-filter.md",
-      "guides/filter/range-filter.md",
       "guides/filter/filter-presets.md",
       "guides/filter/custom-filter.md",
+      "guides/filter/visibility-and-authorization.md",
 
       # Actions
       "guides/actions/item-actions.md",
@@ -168,7 +166,7 @@ defmodule Backpex.MixProject do
     [
       Components: ~r/Backpex\.HTML.?/,
       Fields: ~r/Backpex\.Field.?/,
-      "Item Actions": ~r/Backpex\.ItemAction.?/,
+      Actions: ~r/Backpex\.(ItemAction|ResourceAction).?/,
       Filters: ~r/Backpex\.Filter.?/,
       Metrics: ~r/Backpex\.Metric.?/
     ]

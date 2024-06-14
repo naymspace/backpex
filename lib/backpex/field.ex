@@ -3,45 +3,7 @@ defmodule Backpex.Field do
   @moduledoc ~S'''
   Behaviour implemented by all fields.
 
-  A field defines how a column is rendered on index, show and edit views. In the resource configuration file you can configure
-  a list of fields. You may create your own field by implementing this behaviour. A field has to be a [LiveComponent](https://hexdocs.pm/phoenix_live_view/Phoenix.LiveComponent.html).
-
-  When creating your own field, you can use the `field` macro from the `BackpexWeb` module. It automatically implements the `Backpex.Field` behaviour
-  and defines some aliases and imports.
-
-  The simplest version of a custom field would look like this:
-
-      use BackpexWeb, :field
-
-      @impl Backpex.Field
-      def render_value(assigns) do
-        ~H"""
-        <p>
-          <%= HTML.pretty_value(@value) %>
-        </p>
-        """
-      end
-
-      @impl Backpex.Field
-      def render_form(assigns) do
-        ~H"""
-        <div>
-          <Layout.field_container>
-            <:label>
-              <Layout.input_label text={@field_options[:label]} />
-            </:label>
-            <BackpexForm.field_input type="text" form={@form} field_name={@name} field_options={@field_options} />
-          </Layout.field_container>
-        </div>
-        """
-      end
-
-  The `render_value/1` function returns markup that is used to display a value on `index` and `show` views.
-  The `render_form/1` function returns markup that is used to render a form on `edit` and `new` views.
-
-  The list of fields in the resource configuration has to be a keyword list. The key has to be the name of the column.
-  The value has to be a list of options represented as a map. At least you are required to provide the module of the field and a label as options.
-  For extra information and options you may have to look into the corresponding field documentation.
+  A field defines how a column is rendered on index, show and edit views. In the resource configuration file you can configure a list of fields. You may create your own field by implementing this behaviour. A field has to be a [LiveComponent](https://hexdocs.pm/phoenix_live_view/Phoenix.LiveComponent.html).
 
   ### Example
 
