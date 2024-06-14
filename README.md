@@ -15,6 +15,16 @@ Welcome! Backpex is a highly customizable administration panel for Phoenix LiveV
   <a href="https://backpex.live/"><strong>Visit our Live Demo →</strong></a>
 </div>
 
+## Key Features
+
+- **LiveResources**: Quickly create LiveResource modules for your database tables with fully customizable CRUD views. Bring your own layout or use our components.
+- **Search and Filters**: Define searchable fields on your resources and add custom filters. Get instant results with the power of Phoenix LiveView.
+- **Resource Actions**: Add your globally available custom actions (like user invitation or exports) with additional form fields to your LiveResources.
+- **Authorization**: Handle authorization for all your CRUD and custom actions via simple pattern matching. Optionally integrate your own authorization library.
+- **Field Types**: Many field types (e.g. Text, Number, Date, Upload) are supported out of the box. Easily create your own field type modules with custom logic.
+- **Associations**: Handle HasOne, BelongsTo and HasMany(Through) associations with minimal configuration. Customize available options and rendered columns.
+- **Metrics**: Easily add value metrics (like sums or averages) to your resources for a quick glance at your date. More metric types are in the making.
+
 ## Installation & Documentation
 
 See our comprehensive [installation guide](guides/get_started/installation.md) for more information on how to install and configure Backpex in your Phoenix application.
@@ -26,16 +36,6 @@ We also provide a detailed [documentation](https://hexdocs.pm/backpex) with guid
 - [What is Backpex?](guides/about_backpex/what-is-backpex.md)
 - [Why we built Backpex?](guides/about_backpex/why-we-built-backpex.md)
 - [Contribute to Backpex](guides/about_backpex/contribute-to-backpex.md)
-
-## Key Features
-
-- **LiveResources**: Quickly create LiveResource modules for your database tables with fully customizable CRUD views. Bring your own layout or use our components.
-- **Search and Filters**: Define searchable fields on your resources and add custom filters. Get instant results with the power of Phoenix LiveView.
-- **Resource Actions**: Add your globally available custom actions (like user invitation or exports) with additional form fields to your LiveResources.
-- **Authorization**: Handle authorization for all your CRUD and custom actions via simple pattern matching. Optionally integrate your own authorization library.
-- **Field Types**: Many field types (e.g. Text, Number, Date, Upload) are supported out of the box. Easily create your own field type modules with custom logic.
-- **Associations**: Handle HasOne, BelongsTo and HasMany(Through) associations with minimal configuration. Customize available options and rendered columns.
-- **Metrics**: Easily add value metrics (like sums or averages) to your resources for a quick glance at your date. More metric types are in the making.
 
 ## License
 
