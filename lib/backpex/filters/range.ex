@@ -1,8 +1,8 @@
 defmodule Backpex.Filters.Range do
   @moduledoc """
-  Range filters render two input fields of the same type. Backpex offers the `:date`, `:datetime` and the `number` type.
+  The range filter renders two input fields of the same type. Backpex offers the `:date`, `:datetime` and the `number` type.
 
-  A basic implementation of a date range filter would look like this:
+  See the following example for an implementation of a date range filter.
 
       defmodule MyAppWeb.Filters.DateRange do
         use Backpex.Filters.Range
@@ -14,6 +14,8 @@ defmodule Backpex.Filters.Range do
         def label, do: "Date Range (begins at)"
       end
 
+  > #### Information {: .info}
+  >
   > Note that the query function is already implemented via `Backpex.Filters.Range`.
 
   > #### `use Backpex.Filters.Range` {: .info}

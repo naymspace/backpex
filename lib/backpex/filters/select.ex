@@ -1,7 +1,6 @@
 defmodule Backpex.Filters.Select do
   @moduledoc """
-  The select filter behaviour. Renders a select box for the implemented `options/0` and `prompt/0` callbacks.
-  `prompt/0` defines the key for the `nil` value added as first option.
+  Tbe select filter renders a select box for the implemented `options/0` and `prompt/0` callbacks. The `prompt/0` callback defines the key for the `nil` value added as first option.
 
   See the following example for an implementation of an event status filter.
 

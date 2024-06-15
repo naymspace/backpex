@@ -1,13 +1,15 @@
 defmodule Backpex.Filters.Boolean do
   @moduledoc """
-  The Boolean Filter renders one checkbox per given option, hence multiple options can apply at the same time.
+  The boolean filter renders one checkbox per given option, hence multiple options can apply at the same time.
   Instead of implementing a `query` callback, you need to define predicates for each option leveraging [`Ecto.Query.dynamic/2`](https://hexdocs.pm/ecto/Ecto.Query.html#dynamic/2).
 
-  > Please note that only query elements will work as a predicate that also work in an [`Ecto.Query.where/3`](https://hexdocs.pm/ecto/Ecto.Query.html#where/3).
+  > #### Warning {: .warning}
+  >
+  > Note that only query elements will work as a predicate that also work in an [`Ecto.Query.where/3`](https://hexdocs.pm/ecto/Ecto.Query.html#where/3).
 
   If none is selected, the filter does not change the query. If multiple options are selected they are logically reduced via `orWhere`.
 
-  A really basic example is the following filter for a boolean column `:published`:
+  See the following example for an implementation of a boolean filter for a published field.
 
       defmodule MyAppWeb.Filters.EventPublished do
         use Backpex.Filters.Boolean

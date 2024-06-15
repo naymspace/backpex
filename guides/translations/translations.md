@@ -1,6 +1,10 @@
 # Translations
 
-You may configure translator functions in your application config:
+You are able to translate all strings used by Backpex. This includes general strings like "New", "Edit", "Delete", etc., as well as error messages.
+
+## Configuration
+
+In order to translate strings, you need to configure two translator functions in your application config:
 
 ```elixir
 config :backpex, :translator_function, {MyAppWeb.Helpers, :translate_backpex}
@@ -8,16 +12,13 @@ config :backpex, :translator_function, {MyAppWeb.Helpers, :translate_backpex}
 config :backpex, :error_translator_function, {MyAppWeb.ErrorHelpers, :translate_error}
 ```
 
-The first one is being used to translate general strings. The second one is being used to translate
-(changeset) errors.
+The first one is being used to translate general strings. The second one is being used to translate (changeset) errors.
 
 ## Using Gettext
 
-If you want to use Gettext, the translator functions should look like this:
+We recommend using Gettext for translations. If you want to use it, the translator functions should look like this:
 
 ```elixir
-# MyAppWeb.Helpers
-
 def translate_backpex({msg, opts}) do
   if count = opts[:count] do
     Gettext.dngettext(MyAppWeb.Gettext, "backpex", msg, msg, count, opts)
@@ -25,8 +26,6 @@ def translate_backpex({msg, opts}) do
     Gettext.dgettext(MyAppWeb.Gettext, "backpex", msg, opts)
   end
 end
-
-# MyAppWeb.ErrorHelpers
 
 def translate_error({msg, opts}) do
   if count = opts[:count] do
@@ -37,9 +36,11 @@ def translate_error({msg, opts}) do
 end
 ```
 
-Store this example template as `priv/gettext/backpex.pot`. It contains all translations used by Backpex.
+You can place the functions in a module of your choice. In this example, we use `MyAppWeb.Helpers` and `MyAppWeb.ErrorHelpers`. Don't forget to use the correct module in your config as well.
 
-```
+In addition, you need to create a Gettext template file in your application. You may use the following template. It contains all translations used by Backpex.
+
+```po
 ## This file is a PO Template file.
 msgid ""
 msgstr ""
