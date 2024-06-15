@@ -1,7 +1,6 @@
 defmodule Backpex.Filters.MultiSelect do
   @moduledoc """
-  The multi select filter behaviour. Renders a multi select box for the implemented `options/0` callback.
-  `prompt/0` defines the label for the multi select box.
+  The multi select filter renders checkboxes for a given list of options, hence allowing the user to select multiple values.
 
   See the following example for an implementation of a multi select user filter.
 
@@ -23,8 +22,7 @@ defmodule Backpex.Filters.MultiSelect do
 
   > #### `use Backpex.Filters.MultiSelect` {: .info}
   >
-  > When you `use Backpex.Filters.MultiSelect`, the `Backpex.Filters.MultiSelect` module will set `@behavior Backpex.Filters.Select`.
-  > In addition it will add a `render` and `render_form` function in order to display the corresponding filter.
+  > When you `use Backpex.Filters.MultiSelect`, the `Backpex.Filters.MultiSelect` module will set `@behavior Backpex.Filters.Select`. In addition it will add a `render` and `render_form` function in order to display the corresponding filter.
   """
   use BackpexWeb, :filter
 
