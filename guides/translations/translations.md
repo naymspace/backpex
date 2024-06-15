@@ -7,9 +7,9 @@ You are able to translate all strings used by Backpex. This includes general str
 In order to translate strings, you need to configure two translator functions in your application config:
 
 ```elixir
-config :backpex, :translator_function, {MyAppWeb.Helpers, :translate_backpex}
-
-config :backpex, :error_translator_function, {MyAppWeb.ErrorHelpers, :translate_error}
+config :backpex,
+  translator_function: {MyAppWeb.CoreComponents, :translate_backpex},
+  error_translator_function: {MyAppWeb.CoreComponents, :translate_error}
 ```
 
 The first one is being used to translate general strings. The second one is being used to translate (changeset) errors.
@@ -36,7 +36,7 @@ def translate_error({msg, opts}) do
 end
 ```
 
-You can place the functions in a module of your choice. In this example, we use `MyAppWeb.Helpers` and `MyAppWeb.ErrorHelpers`. Don't forget to use the correct module in your config as well.
+You can place the functions in a module of your choice. In this example, we use `MyAppWeb.CoreComponents`. Don't forget to use the correct module in your config as well.
 
 In addition, you need to create a Gettext template file in your application. You may use the following template. It contains all translations used by Backpex.
 
