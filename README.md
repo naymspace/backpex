@@ -1,4 +1,4 @@
-<img src="https://github.com/naymspace/backpex/blob/develop/priv/static/images/logo.svg" width="100" height="100">
+<img src="https://github.com/naymspace/backpex/blob/develop/priv/static/images/logo.svg?raw=true" width="100" height="100">
 
 [![CI](https://github.com/naymspace/backpex/actions/workflows/ci.yml/badge.svg)](https://github.com/naymspace/backpex/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://github.com/naymspace/backpex/blob/develop/LICENSE.md)
@@ -9,7 +9,7 @@
 
 Welcome! Backpex is a highly customizable administration panel for Phoenix LiveView applications. Quickly create beautiful CRUD views for your existing data using configurable *LiveResources*. Backpex integrates seamlessly with your existing Phoenix application and provides a simple way to manage your resources. It is highly customizable and can be extended with your own layouts, views, field types, filters and more.
 
-![Backpex Screenshot](https://github.com/naymspace/backpex/blob/develop/priv/static/images/screenshot.png)
+![Backpex Screenshot](https://github.com/naymspace/backpex/blob/develop/priv/static/images/screenshot.png?raw=true)
 
 <div align="center">
   <a href="https://backpex.live/"><strong>Visit our Live Demo →</strong></a>
