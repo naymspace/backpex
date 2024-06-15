@@ -33,9 +33,9 @@ We also provide a detailed [documentation](https://hexdocs.pm/backpex) with guid
 
 ## Learn More
 
-- [What is Backpex?](guides/about_backpex/what-is-backpex.md)
-- [Why we built Backpex?](guides/about_backpex/why-we-built-backpex.md)
-- [Contribute to Backpex](guides/about_backpex/contribute-to-backpex.md)
+- [What is Backpex?](guides/about/what-is-backpex.md)
+- [Why we built Backpex?](guides/about/why-we-built-backpex.md)
+- [Contribute to Backpex](guides/about/contribute-to-backpex.md)
 
 ## License
 
