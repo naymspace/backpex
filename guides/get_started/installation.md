@@ -10,7 +10,7 @@ In your `mix.exs`:
 defp deps do
   [
     ...
-    {:backpex, "~> 0.3.0"}
+    {:backpex, "~> 0.3.1"}
   ]
 end
 ```
@@ -109,7 +109,7 @@ Place the layout file in your `lib/myapp_web/templates/layout` directory. You ca
 We use the `icon/1` component to render icons in the layout. This component is part of the `core_components` module that ships with new Phoenix projects. See [`core_components.ex`](https://github.com/phoenixframework/phoenix/blob/main/priv/templates/phx.gen.live/core_components.ex). Feel free to use your own icon component or library.
 
 > #### Information {: .info}
-> 
+>
 > The `Backpex.HTML.Layout.app_shell/1` component accepts a boolean `fluid` to determine if a `LiveResource` should be rendered full width. There is a `fluid?` option you can configure in a `LiveResource`. See the [Fluid Layout documentation](live_resource/fluid-layout.md) for more information.
 
 ## Configure LiveResource
@@ -186,7 +186,7 @@ end
 The `fields/0` function returns a list of fields to display in the LiveResource. See [What is a Field?](fields/what-is-a-field.md) for more information.
 
 > #### Information {: .info}
-> 
+>
 > We recommend placing the *LiveResource* in the `lib/myapp_web/live` directory. You can name the module like you want, but in this case, we recommend using `post_live.ex`.
 
 ## Configure Routing
