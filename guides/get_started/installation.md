@@ -177,7 +177,7 @@ defmodule MyAppWeb.Live.PostLive do
     },
     views: %{
       module: Backpex.Fields.Number,
-      label: "First Name"
+      label: "Views"
     }
   ]
 end
