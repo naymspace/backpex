@@ -4,8 +4,6 @@ defmodule DemoWeb.CoreComponents do
   """
   use Phoenix.Component
 
-  import Phoenix.HTML.Tag
-
   @doc """
   Renders the analytics snippet.
   """
@@ -26,11 +24,12 @@ defmodule DemoWeb.CoreComponents do
   @doc """
   Builds sentry meta tag.
   """
-  def sentry_meta_tag do
-    case Application.get_env(:sentry, :dsn) do
-      nil -> nil
-      dsn -> tag(:meta, name: "sentry-dsn", content: dsn)
-    end
+  def sentry_meta_tag(assigns) do
+    assigns = assign(assigns, :dsn, Application.get_env(:sentry, :dsn))
+
+    ~H"""
+    <meta :if={@dsn} name="sentry-dsn" content={@dsn} />
+    """
   end
 
   @doc """
