@@ -278,10 +278,7 @@ defmodule Backpex.Resource do
   end
 
   defp where_id(query, schema_name, id) do
-    case Ecto.UUID.cast(id) do
-      {:ok, valid_id} -> where(query, [{^schema_name, schema_name}], schema_name.id == ^valid_id)
-      :error -> where(query, [{^schema_name, schema_name}], true == false)
-    end
+    where(query, [{^schema_name, schema_name}], schema_name.id == ^id)
   end
 
   @doc """

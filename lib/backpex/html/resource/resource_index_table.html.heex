@@ -70,13 +70,13 @@
       x-on:resize.window="setRowHeight()"
       x-init="setRowHeight()"
       x-data="{ rowHeight: null, setRowHeight() { $nextTick( () => {this.rowHeight = $el.getBoundingClientRect().height }) } }"
-      id={"item-#{id}"}
+      id={"row-item-#{id}"}
       class={index_row_class(assigns, item, selected?(@selected_items, item), index)}
     >
       <td :if={Enum.any?(index_item_actions(@item_actions))} class="relative">
         <div :if={selected?(@selected_items, item)} class="absolute inset-y-0 left-0 w-0.5 bg-gray-500" />
         <input
-          id={id}
+          id={"select-input-#{id}"}
           phx-click="update-selected-items"
           phx-value-id={id}
           type="checkbox"
