@@ -9,7 +9,7 @@ We provide a roadmap and a list of issues that you can work on to contribute to 
 - Roadmap: https://github.com/orgs/naymspace/projects/2
 - Issues: https://github.com/naymspace/backpex/issues
 
-Especially, issues labeled with `good-first-issue` are a good starting point for new contributors.
+Especially, [issues labeled with `good-first-issue`](https://github.com/naymspace/backpex/labels/good-first-issue) are a good starting point for new contributors.
 
 We also use GitHub's discussion feature to discuss new ideas and features.
 
