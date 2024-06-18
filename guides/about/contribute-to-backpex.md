@@ -4,13 +4,23 @@ We are excited to have you contribute to Backpex! We are always looking for ways
 
 ## What can I contribute?
 
-We are in the process of writing a roadmap to outline the features we plan to implement in the future. In the meantime, you can contribute to Backpex by:
+We provide a roadmap and a list of issues that you can work on to contribute to Backpex.
 
-- Reporting bugs
-- Requesting new features
+- Roadmap: https://github.com/orgs/naymspace/projects/2
+- Issues: https://github.com/naymspace/backpex/issues
+
+Especially, issues labeled with `good-first-issue` are a good starting point for new contributors.
+
+We also use GitHub's discussion feature to discuss new ideas and features.
+
+- Discussions: https://github.com/naymspace/backpex/discussions
+
+If you don't find an issue that you want to work on, you can always contribute to Backpex by:
+
+- Reporting bugs (create an issue)
+- Requesting new features (use the discussions)
 - Improving the documentation
 - Improving the demo application
-- Fixing bugs
 
 ## Fork the repository
 
