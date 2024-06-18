@@ -24,6 +24,6 @@ Backpex currently depends on Ecto as the database layer. Make sure you have a ru
 
 > #### Warning {: .warning}
 >
-> Backpex currently only supports UUID (binary_id) primary keys. Help us to support other primary key types by contributing to the project.
+> Backpex requires an `id` field in your database schema. We tested Backpex with UUID (binary_id) and integer (bigserial) primary keys.
 
 If you meet all these prerequisites, you are ready to install and configure Backpex in your Phoenix application. See our [installation guide](guides/get_started/installation.md) for more information on how to install and configure Backpex.
