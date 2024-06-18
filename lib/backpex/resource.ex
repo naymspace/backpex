@@ -266,6 +266,7 @@ defmodule Backpex.Resource do
   """
   def get!(id, repo, schema, item_query, fields) do
     schema_name = name_by_schema(schema)
+    id_type = schema.__schema__(:type, :id)
     associations = associations(fields, schema)
 
     from(item in schema, as: ^schema_name, distinct: item.id)
@@ -273,11 +274,25 @@ defmodule Backpex.Resource do
     |> maybe_join(associations)
     |> maybe_preload(associations, fields)
     |> maybe_merge_dynamic_fields(fields)
-    |> where_id(schema_name, id)
+    |> where_id(schema_name, id_type, id)
     |> repo.one!()
   end
 
-  defp where_id(query, schema_name, id) do
+  defp where_id(query, schema_name, :id, id) do
+    case Ecto.Type.cast(:id, id) do
+      {:ok, valid_id} -> where(query, [{^schema_name, schema_name}], schema_name.id == ^valid_id)
+      :error -> where(query, [{^schema_name, schema_name}], true == false)
+    end
+  end
+
+  defp where_id(query, schema_name, :binary_id, id) do
+    case Ecto.UUID.cast(id) do
+      {:ok, valid_id} -> where(query, [{^schema_name, schema_name}], schema_name.id == ^valid_id)
+      :error -> where(query, [{^schema_name, schema_name}], true == false)
+    end
+  end
+
+  defp where_id(query, schema_name, _id_type, id) do
     where(query, [{^schema_name, schema_name}], schema_name.id == ^id)
   end
 
