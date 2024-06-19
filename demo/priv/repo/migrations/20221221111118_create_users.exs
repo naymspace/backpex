@@ -7,7 +7,7 @@ defmodule Demo.Repo.Migrations.CreateUsers do
       add(:first_name, :string, null: false)
       add(:last_name, :string, null: false)
       add(:role, :string, null: false)
-      add(:avatar, :string, null: false, default: "")
+      add(:avatar, :string, null: true, default: "")
 
       timestamps()
     end
