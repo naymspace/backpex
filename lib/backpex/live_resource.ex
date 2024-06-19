@@ -559,7 +559,7 @@ defmodule Backpex.LiveResource do
           # redirect with updated query options
           options = Map.put(query_options, :filters, default_filter_options)
           to = Router.get_path(socket, __MODULE__, params, :index, options)
-          push_redirect(socket, to: to)
+          push_navigate(socket, to: to)
         else
           socket
         end
