@@ -28,7 +28,6 @@ insert_list(10, :address)
 |> Stream.drop(1)
 |> CSV.decode(
   headers: [
-    :id,
     :title,
     :overview
   ],

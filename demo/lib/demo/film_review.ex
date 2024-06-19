@@ -4,8 +4,6 @@ defmodule Demo.FilmReview do
   use Ecto.Schema
   import Ecto.Changeset
 
-  @primary_key {:id, :binary_id, autogenerate: true}
-
   schema "film_reviews" do
     field(:title, :string)
     field(:overview, :string)
