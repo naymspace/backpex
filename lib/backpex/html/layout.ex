@@ -153,13 +153,13 @@ defmodule Backpex.HTML.Layout do
     </div>
 
     <div
-      :if={live_flash(@flash, :error) && live_flash(@flash, :error) != ""}
+      :if={Phoenix.Flash.get(@flash, :error) && Phoenix.Flash.get(@flash, :error) != ""}
       class="alert my-4 bg-red-100 text-sm text-red-800"
       phx-value-key="error"
     >
       <Heroicons.x_circle class="h-5 w-5" />
       <span>
-        <%= live_flash(@flash, :error) %>
+        <%= Phoenix.Flash.get(@flash, :error) %>
       </span>
       <div>
         <button
