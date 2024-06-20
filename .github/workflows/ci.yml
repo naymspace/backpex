@@ -3,6 +3,10 @@ name: CI
 on:
   workflow_dispatch:
   push:
+  pull_request:
+    branches:
+      - main
+      - develop
   release:
     types: [published]
 
