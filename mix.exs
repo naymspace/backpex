@@ -1,7 +1,7 @@
 defmodule Backpex.MixProject do
   use Mix.Project
 
-  @version "0.3.2"
+  @version "0.4.0"
   @source_url "https://github.com/naymspace/backpex"
 
   def project do
@@ -36,7 +36,8 @@ defmodule Backpex.MixProject do
       {:phoenix_ecto, "~> 4.4"},
       {:ecto_sql, "~> 3.6"},
       {:postgrex, ">= 0.0.0"},
-      {:phoenix_html, "~> 3.0"},
+      {:phoenix_html, "~> 4.1.1"},
+      {:phoenix_html_helpers, "~> 1.0"},
       {:phoenix_live_view, "~> 0.20.0"},
       {:floki, ">= 0.30.0"},
       {:gettext, "~> 0.18"},

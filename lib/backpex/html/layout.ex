@@ -127,19 +127,19 @@ defmodule Backpex.HTML.Layout do
   @doc type: :component
   attr(:flash, :map,
     required: true,
-    doc: "flash map that will be passed to `Phoenix.LiveView.Helpers.live_flash/2`"
+    doc: "flash map that will be passed to `Phoenix.Flash.get/2`"
   )
 
   def flash_messages(assigns) do
     ~H"""
     <div
-      :if={live_flash(@flash, :info) && live_flash(@flash, :info) != ""}
+      :if={Phoenix.Flash.get(@flash, :info) && Phoenix.Flash.get(@flash, :info) != ""}
       class="alert my-4 bg-blue-100 text-sm text-blue-800"
       phx-value-key="info"
     >
       <Heroicons.information_circle class="h-5 w-5" />
       <span>
-        <%= live_flash(@flash, :info) %>
+        <%= Phoenix.Flash.get(@flash, :info) %>
       </span>
       <div>
         <button
@@ -153,13 +153,13 @@ defmodule Backpex.HTML.Layout do
     </div>
 
     <div
-      :if={live_flash(@flash, :error) && live_flash(@flash, :error) != ""}
+      :if={Phoenix.Flash.get(@flash, :error) && Phoenix.Flash.get(@flash, :error) != ""}
       class="alert my-4 bg-red-100 text-sm text-red-800"
       phx-value-key="error"
     >
       <Heroicons.x_circle class="h-5 w-5" />
       <span>
-        <%= live_flash(@flash, :error) %>
+        <%= Phoenix.Flash.get(@flash, :error) %>
       </span>
       <div>
         <button

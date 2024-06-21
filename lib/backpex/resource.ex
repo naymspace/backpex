@@ -420,9 +420,9 @@ defmodule Backpex.Resource do
   * `action` (optional, default `:validate`): An atom indicating the action to be performed on the changeset.
   """
   def change(item, attrs, changeset_function, assigns, assocs \\ [], target \\ nil, action \\ :validate) do
-    item
-    |> LiveResource.call_changeset_function(changeset_function, attrs, assigns, target)
+    Ecto.Changeset.change(item)
     |> put_assocs(assocs)
+    |> LiveResource.call_changeset_function(changeset_function, attrs, assigns, target)
     |> Map.put(:action, action)
   end
 
