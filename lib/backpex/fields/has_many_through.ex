@@ -47,7 +47,7 @@ defmodule Backpex.Fields.HasManyThrough do
 
   import Ecto.Query
   import Backpex.HTML.Layout, only: [modal: 1]
-  import Phoenix.HTML.Form, only: [inputs_for: 2, hidden_inputs_for: 1]
+  import PhoenixHTMLHelpers.Form, only: [hidden_inputs_for: 1]
 
   alias Backpex.LiveResource
   alias Ecto.Changeset
@@ -504,7 +504,7 @@ defmodule Backpex.Fields.HasManyThrough do
           |> Enum.map(& &1.data.id)
       end
 
-    inputs_for(form, association.pivot.field)
+    form.impl.to_form(form.source, form, association.pivot.field, [])
     |> Enum.filter(fn item ->
       !Enum.member?(deleted_ids, item.data.id)
     end)
