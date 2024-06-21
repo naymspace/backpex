@@ -352,8 +352,9 @@ defmodule Backpex.LiveResource do
       end
 
       def apply_action(socket, :new) do
-        %{assigns: %{schema: schema, singular_name: singular_name, create_button_label: create_button_label} = assigns} =
-          socket
+        %{
+          assigns: %{schema: schema, singular_name: singular_name, create_button_label: create_button_label} = assigns
+        } = socket
 
         unless can?(assigns, :new, nil, __MODULE__),
           do: raise(Backpex.ForbiddenError)
