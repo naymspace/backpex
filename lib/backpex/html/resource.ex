@@ -655,7 +655,7 @@ defmodule Backpex.HTML.Resource do
         patch={Router.get_path(@socket, @live_resource, @params, :new)}
       >
         <button class="btn btn-sm btn-outline btn-primary">
-          <%= Backpex.translate({"New %{resource}", %{resource: @singular_name}}) %>
+          <%= @create_button_label %>
         </button>
       </.link>
 
@@ -808,7 +808,7 @@ defmodule Backpex.HTML.Resource do
           >
             <.link :if={@create_allowed} patch={Router.get_path(@socket, @live_resource, @params, :new)}>
               <button class="btn btn-sm btn-outline btn-primary mt-6">
-                <%= Backpex.translate({"New %{resource}", %{resource: @singular_name}}) %>
+                <%= @create_button_label %>
               </button>
             </.link>
           </.empty_state_content>
