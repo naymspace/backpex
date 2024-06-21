@@ -129,9 +129,6 @@ msgstr ""
 msgid "Try a different filter setting or clear all filters."
 msgstr ""
 
-msgid "Get started by creating new %{resources}."
-msgstr ""
-
 msgid "Select options..."
 msgstr ""
 
