@@ -3,8 +3,8 @@ defmodule Demo.Repo.Migrations.CreateFilmReviews do
 
   def up do
     create table(:film_reviews) do
-      add(:title, :string, null: false)
-      add(:overview, :text, null: false)
+      add :title, :string, null: false
+      add :overview, :text, null: false
     end
 
     execute("""

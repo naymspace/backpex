@@ -3,8 +3,8 @@ defmodule Demo.Repo.Migrations.CreateInvoices do
 
   def change do
     create table(:invoices) do
-      add(:company, :string, null: false)
-      add(:amount, :bigint, null: false)
+      add :company, :string, null: false
+      add :amount, :bigint, null: false
 
       timestamps()
     end

@@ -13,7 +13,7 @@ defmodule Demo.Post do
     field(:show_likes, :boolean, virtual: true)
     field(:likes, :integer, default: 0)
 
-    belongs_to(:user, Demo.User, type: :binary_id)
+    belongs_to(:user, Demo.User, type: :id)
     belongs_to(:category, Demo.Category, type: :binary_id)
     many_to_many(:tags, Demo.Tag, join_through: Demo.PostsTags, on_replace: :delete)
 

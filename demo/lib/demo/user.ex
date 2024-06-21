@@ -8,8 +8,6 @@ defmodule Demo.User do
   alias Demo.Post
   alias Demo.UsersAddresses
 
-  @primary_key {:id, :binary_id, autogenerate: true}
-
   schema "users" do
     field(:username, :string)
     field(:first_name, :string)
