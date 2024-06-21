@@ -9,17 +9,16 @@ defmodule Demo.Product do
   @primary_key {:id, :binary_id, autogenerate: true}
 
   schema "products" do
-    field(:name, :string)
-    field(:quantity, :integer)
-    field(:manufacturer, :string)
-    field(:images, {:array, :string})
+    field :name, :string
+    field :quantity, :integer
+    field :manufacturer, :string
+    field :images, {:array, :string}
 
-    field(:price, Backpex.Ecto.Amount.Type,
+    field :price, Backpex.Ecto.Amount.Type,
       currency: :EUR,
       opts: [separator: ".", delimiter: ",", symbol_on_right: true, symbol_space: true]
-    )
 
-    has_many(:suppliers, Supplier, on_replace: :delete, on_delete: :delete_all)
+    has_many :suppliers, Supplier, on_replace: :delete, on_delete: :delete_all
 
     timestamps()
   end

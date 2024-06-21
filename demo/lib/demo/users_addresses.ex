@@ -11,10 +11,11 @@ defmodule Demo.UsersAddresses do
   @primary_key {:id, :binary_id, autogenerate: true}
 
   schema "users_addresses" do
-    belongs_to(:user, User, type: :id)
-    belongs_to(:address, Address, type: :binary_id)
-    field(:type, Ecto.Enum, values: [:shipping, :billing])
-    field(:primary, :boolean, default: false)
+    belongs_to :user, User, type: :id
+    belongs_to :address, Address, type: :binary_id
+
+    field :type, Ecto.Enum, values: [:shipping, :billing]
+    field :primary, :boolean, default: false
 
     timestamps()
   end

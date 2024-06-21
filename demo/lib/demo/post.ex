@@ -7,15 +7,16 @@ defmodule Demo.Post do
   @primary_key {:id, :binary_id, autogenerate: true}
 
   schema "posts" do
-    field(:title, :string)
-    field(:body, :string)
-    field(:published, :boolean, default: false)
-    field(:show_likes, :boolean, virtual: true)
-    field(:likes, :integer, default: 0)
+    field :title, :string
+    field :body, :string
+    field :published, :boolean, default: false
+    field :show_likes, :boolean, virtual: true
+    field :likes, :integer, default: 0
 
-    belongs_to(:user, Demo.User, type: :id)
-    belongs_to(:category, Demo.Category, type: :binary_id)
-    many_to_many(:tags, Demo.Tag, join_through: Demo.PostsTags, on_replace: :delete)
+    belongs_to :user, Demo.User, type: :id
+    belongs_to :category, Demo.Category, type: :binary_id
+
+    many_to_many :tags, Demo.Tag, join_through: Demo.PostsTags, on_replace: :delete
 
     timestamps()
   end

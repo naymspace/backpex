@@ -9,7 +9,7 @@ defmodule Demo.Tag do
   schema "tags" do
     field :name, :string
 
-    many_to_many(:posts, Demo.Post, join_through: Demo.PostsTags, on_replace: :delete)
+    many_to_many :posts, Demo.Post, join_through: Demo.PostsTags, on_replace: :delete
 
     timestamps()
   end
