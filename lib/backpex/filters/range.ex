@@ -96,13 +96,15 @@ defmodule Backpex.Filters.Range do
   def range_input_set(%{type: :date} = assigns) do
     ~H"""
     <div class="mt-2">
-      <input
-        type="date"
-        name={@form[:start].name}
-        class="input input-sm input-bordered mb-2 w-full"
-        value={@value["start"]}
-      />
-      <input type="date" name={@form[:end].name} class="input input-sm input-bordered w-full" value={@value["end"]} />
+      <label class="input input-sm input-bordered mb-2 flex w-full items-center">
+        <span class="w-10 text-gray-400"><%= Backpex.translate("From") %></span>
+        <input type="date" name={@form[:start].name} class="grow" value={@value["start"]} />
+      </label>
+
+      <label class="input input-sm input-bordered flex w-full items-center">
+        <span class="w-10 text-gray-400"><%= Backpex.translate("To") %></span>
+        <input type="date" name={@form[:end].name} class="grow" value={@value["end"]} />
+      </label>
     </div>
     """
   end
