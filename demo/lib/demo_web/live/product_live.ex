@@ -36,7 +36,7 @@ defmodule DemoWeb.ProductLive do
         max_entries: 2,
         max_file_size: 512_000,
         put_upload_change: &put_upload_change/6,
-        consume_upload: &consume_upload/5,
+        consume_upload: &consume_upload/4,
         remove_uploads: &remove_uploads/3,
         list_existing_files: &list_existing_files/1,
         render: fn
@@ -135,7 +135,7 @@ defmodule DemoWeb.ProductLive do
   end
 
   # sobelow_skip ["Traversal"]
-  defp consume_upload(_socket, _params, _item, %{path: path} = _meta, entry) do
+  defp consume_upload(_socket, item, %{path: path} = _meta, entry) do
     file_name = file_name(entry)
     dest = Path.join([:code.priv_dir(:demo), "static", upload_dir(), file_name])
 

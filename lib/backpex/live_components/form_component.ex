@@ -223,7 +223,7 @@ defmodule Backpex.FormComponent do
       pubsub: assigns[:pubsub],
       assocs: Map.get(assigns, :assocs, []),
       after_save: fn item ->
-        handle_uploads(socket, params)
+        handle_uploads(socket, item)
         live_resource.on_item_created(socket, item)
 
         {:ok, item}
@@ -275,7 +275,7 @@ defmodule Backpex.FormComponent do
       pubsub: assigns[:pubsub],
       assocs: Map.get(assigns, :assocs, []),
       after_save: fn item ->
-        handle_uploads(socket, params)
+        handle_uploads(socket, item)
         live_resource.on_item_updated(socket, item)
 
         {:ok, item}
@@ -427,15 +427,13 @@ defmodule Backpex.FormComponent do
     end)
   end
 
-  defp handle_uploads(%{assigns: %{uploads: _uploads}} = socket, params) do
+  defp handle_uploads(%{assigns: %{uploads: _uploads}} = socket, item) do
     for {_name, %{upload_key: upload_key} = field_options} = _field <- socket.assigns.fields do
       if Map.has_key?(socket.assigns.uploads, upload_key) do
         %{consume_upload: consume_upload, remove_uploads: remove_uploads} = field_options
 
-        item = socket.assigns.item
-
         consume_uploaded_entries(socket, upload_key, fn meta, entry ->
-          consume_upload.(socket, params, item, meta, entry)
+          consume_upload.(socket, item, meta, entry)
         end)
 
         removed_entries = Keyword.get(socket.assigns.removed_uploads, upload_key, [])
@@ -444,7 +442,7 @@ defmodule Backpex.FormComponent do
     end
   end
 
-  defp handle_uploads(_socket, _params), do: :ok
+  defp handle_uploads(_socket, _item), do: :ok
 
   def render(assigns) do
     form_component(assigns)

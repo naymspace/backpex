@@ -20,7 +20,7 @@ defmodule DemoWeb.ResourceActions.Upload do
         accept: ~w(.jpg .jpeg .png),
         max_entries: 1,
         put_upload_change: &put_upload_change/6,
-        consume_upload: &consume_upload/5,
+        consume_upload: &consume_upload/4,
         remove_uploads: &remove_uploads/3,
         list_existing_files: &list_existing_files/1,
         type: :string
@@ -84,7 +84,7 @@ defmodule DemoWeb.ResourceActions.Upload do
     end
   end
 
-  defp consume_upload(_socket, _params, _item, _meta, entry) do
+  defp consume_upload(_socket, _item, _meta, entry) do
     file_name = file_name(entry)
 
     # Copy file to destination
