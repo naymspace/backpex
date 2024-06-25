@@ -54,7 +54,6 @@ defmodule Backpex.Fields.Upload do
 
   **Parameters**
   * `:socket` - The socket.
-  * `:params` (map) - The current params that will be passed to the changeset function.
   * `:item` (struct) - The saved item (with its changes).
   * `:meta` - The upload meta.
   * `:entry` - The upload entry.
