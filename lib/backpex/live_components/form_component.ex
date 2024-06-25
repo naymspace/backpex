@@ -435,7 +435,7 @@ defmodule Backpex.FormComponent do
         item = socket.assigns.item
 
         consume_uploaded_entries(socket, upload_key, fn meta, entry ->
-          consume_upload.(socket, item, params, meta, entry)
+          consume_upload.(socket, params, item, meta, entry)
         end)
 
         removed_entries = Keyword.get(socket.assigns.removed_uploads, upload_key, [])

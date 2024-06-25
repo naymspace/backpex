@@ -218,7 +218,7 @@ defmodule DemoWeb.UserLive do
   defp list_existing_files(%{avatar: avatar} = _item) when avatar != "" and not is_nil(avatar), do: [avatar]
   defp list_existing_files(_item), do: []
 
-  def put_upload_change(_socket, change, item, uploaded_entries, removed_entries, action) do
+  def put_upload_change(_socket, params, item, uploaded_entries, removed_entries, action) do
     existing_files = list_existing_files(item) -- removed_entries
 
     new_entries =
@@ -234,18 +234,18 @@ defmodule DemoWeb.UserLive do
 
     case files do
       [file] ->
-        Map.put(change, "avatar", file)
+        Map.put(params, "avatar", file)
 
       [_file | _other_files] ->
-        Map.put(change, "avatar", "too_many_files")
+        Map.put(params, "avatar", "too_many_files")
 
       [] ->
-        Map.put(change, "avatar", nil)
+        Map.put(params, "avatar", nil)
     end
   end
 
   # sobelow_skip ["Traversal"]
-  defp consume_upload(_socket, _item, _change, %{path: path} = _meta, entry) do
+  defp consume_upload(_socket, _params, _item, %{path: path} = _meta, entry) do
     file_name = file_name(entry)
     dest = Path.join([:code.priv_dir(:demo), "static", upload_dir(), file_name])
 

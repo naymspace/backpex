@@ -84,7 +84,7 @@ defmodule DemoWeb.ResourceActions.Upload do
     end
   end
 
-  defp consume_upload(_socket, _item, _change, _meta, entry) do
+  defp consume_upload(_socket, _params, _item, _meta, entry) do
     file_name = file_name(entry)
 
     # Copy file to destination
