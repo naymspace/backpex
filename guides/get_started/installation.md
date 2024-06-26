@@ -277,3 +277,30 @@ So if you have this in your `root.html.heex`.
 You should remove the `bg-white` class.
 
 If you need this color on your body tag to style your application, consider using another root layout for Backpex (see [`put_root_layout/2`](https://hexdocs.pm/phoenix/Phoenix.Controller.html#put_root_layout/2)).
+
+## Set daisyUI theme
+
+As mentioned in the [prerequisites](prerequisites.md), Backpex currently only supports daisyUI light mode. You have two options:
+
+1. Only add the daisyUI light theme to your application.
+
+```js
+// tailwind.config.js
+module.exports = {
+  daisyui: {
+    themes: ['light'],
+  },
+  ...
+}
+```
+
+2. Explicitly set the daisyUI light theme in your layout.
+
+```elixir
+# root.html.heex
+<html data-theme="light">
+  ...
+</html>
+```
+
+If you use another daisyUI theme to style your application, consider using another root layout for Backpex with light theme applied (see [`put_root_layout/2`](https://hexdocs.pm/phoenix/Phoenix.Controller.html#put_root_layout/2)).
