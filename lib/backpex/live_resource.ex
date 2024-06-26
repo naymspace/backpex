@@ -122,6 +122,11 @@ defmodule Backpex.LiveResource do
               binary()
 
   @doc """
+  Customizes the label of the button for creating a new item. Defaults to "New %{resource}".
+  """
+  @callback create_button_label() :: binary()
+
+  @doc """
   Uses LiveResource in the current module to make it a LiveResource.
 
       use Backpex.LiveResource,
@@ -211,6 +216,7 @@ defmodule Backpex.LiveResource do
           |> assign(:pubsub, pubsub)
           |> assign(:singular_name, singular_name())
           |> assign(:plural_name, plural_name())
+          |> assign(:create_button_label, create_button_label())
           |> assign(:search_placeholder, search_placeholder())
           |> assign(:panels, panels())
           |> assign(:live_resource, __MODULE__)
@@ -346,7 +352,9 @@ defmodule Backpex.LiveResource do
       end
 
       def apply_action(socket, :new) do
-        %{assigns: %{schema: schema, singular_name: singular_name} = assigns} = socket
+        %{
+          assigns: %{schema: schema, singular_name: singular_name, create_button_label: create_button_label} = assigns
+        } = socket
 
         unless can?(assigns, :new, nil, __MODULE__),
           do: raise(Backpex.ForbiddenError)
@@ -356,10 +364,7 @@ defmodule Backpex.LiveResource do
 
         socket
         |> assign(:changeset_function, unquote(create_changeset))
-        |> assign(
-          :page_title,
-          Backpex.translate({"New %{resource}", %{resource: singular_name}})
-        )
+        |> assign(:page_title, create_button_label)
         |> assign(:fields, fields)
         |> assign(:item, empty_item)
         |> assign_changeset(fields)
@@ -991,13 +996,17 @@ defmodule Backpex.LiveResource do
       @impl Backpex.LiveResource
       def item_actions(default_actions), do: default_actions
 
+      @impl Backpex.LiveResource
+      def create_button_label, do: Backpex.translate({"New %{resource}", %{resource: singular_name()}})
+
       defoverridable can?: 3,
                      fields: 0,
                      filters: 0,
                      filters: 1,
                      resource_actions: 0,
                      item_actions: 1,
-                     index_row_class: 4
+                     index_row_class: 4,
+                     create_button_label: 0
     end
   end
 
@@ -1113,7 +1122,7 @@ defmodule Backpex.LiveResource do
       def render_resource_slot(var!(assigns), :new, :page_title) do
         ~H"""
         <.main_title class="mb-4">
-          <%= Backpex.translate({"New %{resource}", %{resource: @singular_name}}) %>
+          <%= @create_button_label %>
         </.main_title>
         """
       end

@@ -106,6 +106,7 @@ defmodule Backpex.MixProject do
       "guides/live_resource/panels.md",
       "guides/live_resource/fluid-layout.md",
       "guides/live_resource/listen-to-pubsub-events.md",
+      "guides/live_resource/custom_button_labels.md",
       "guides/live_resource/additional-classes-for-index-table-rows.md",
 
       # Fields
@@ -142,7 +143,7 @@ defmodule Backpex.MixProject do
       "guides/searching/full-text-search.md",
 
       # Translations
-      "guides/translations/translations.md",
+      "guides/custom_labels_and_translations/custom-labels-and-translations.md",
 
       # Upgrade Guides
       "guides/upgrading/v0.3.md",
@@ -161,7 +162,7 @@ defmodule Backpex.MixProject do
       Actions: ~r/guides\/actions\/.?/,
       Authorization: ~r/guides\/authorization\/.?/,
       Searching: ~r/guides\/searching\/.?/,
-      Translations: ~r/guides\/translations\/.?/,
+      "Custom Labels and Translations": ~r/guides\/custom_labels_and_translations\/.?/,
       "Upgrade Guides": ~r{guides/upgrading/.*}
     ]
   end
