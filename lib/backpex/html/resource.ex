@@ -797,15 +797,7 @@ defmodule Backpex.HTML.Resource do
             title={@title}
             subtitle={Backpex.translate("Try a different filter setting or clear all filters.")}
           />
-          <.empty_state_content
-            :if={not @search_active? and not @filter_active?}
-            title={@title}
-            subtitle={
-              if @create_allowed,
-                do: Backpex.translate({"Get started by creating new %{resources}.", %{resources: assigns.plural_name}}),
-                else: ""
-            }
-          >
+          <.empty_state_content :if={not @search_active? and not @filter_active?} title={@title}>
             <.link :if={@create_allowed} patch={Router.get_path(@socket, @live_resource, @params, :new)}>
               <button class="btn btn-sm btn-outline btn-primary mt-6">
                 <%= @create_button_label %>
@@ -819,7 +811,7 @@ defmodule Backpex.HTML.Resource do
   end
 
   attr(:title, :string, required: true, doc: "main title of the empty state info block")
-  attr(:subtitle, :string, required: true, doc: "subtitle of the empty state info block")
+  attr(:subtitle, :string, default: nil, doc: "subtitle of the empty state info block")
 
   slot(:inner_block)
 
@@ -827,7 +819,7 @@ defmodule Backpex.HTML.Resource do
     ~H"""
     <Heroicons.folder_plus class="mb-1 inline-block h-12 w-12 text-gray-300" />
     <p class="text-lg font-bold text-gray-900"><%= @title %></p>
-    <p class="text-gray-400"><%= @subtitle %></p>
+    <p :if={@subtitle} class="text-gray-400"><%= @subtitle %></p>
     <%= render_slot(@inner_block) %>
     """
   end
