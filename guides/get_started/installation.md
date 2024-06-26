@@ -304,3 +304,21 @@ module.exports = {
 ```
 
 If you use another daisyUI theme to style your application, consider using another root layout for Backpex with light theme applied (see [`put_root_layout/2`](https://hexdocs.pm/phoenix/Phoenix.Controller.html#put_root_layout/2)).
+
+## Remove `@tailwindcss/forms` plugin
+
+There is a conflict between the `@tailwindcss/forms` plugin and daisyUI. You should remove the `@tailwindcss/forms` plugin from your `tailwind.config.js` to prevent styling issues.
+
+```js
+// tailwind.config.js
+module.exports = {
+  ...
+  plugins: [
+    ...
+    // remove this line
+    // require('@tailwindcss/forms'),
+  ],
+}
+```
+
+If your application depends on the `@tailwindcss/forms` plugin, you can keep the plugin and [change the strategy to `'class'`](https://github.com/tailwindlabs/tailwindcss-forms?tab=readme-ov-file#using-only-global-styles-or-only-classes). This will prevent the plugin from conflicting with daisyUI. Note that you then have to add the form classes provided by the `@tailwindcss/forms` plugin to your inputs manually.
