@@ -208,14 +208,7 @@ defmodule Backpex.FormComponent do
 
   defp handle_save(socket, :new, params) do
     %{
-      assigns:
-        %{
-          repo: repo,
-          live_resource: live_resource,
-          singular_name: singular_name,
-          changeset_function: changeset_function,
-          item: item
-        } = assigns
+      assigns: %{repo: repo, live_resource: live_resource, changeset_function: changeset_function, item: item} = assigns
     } = socket
 
     opts = [
@@ -233,13 +226,12 @@ defmodule Backpex.FormComponent do
     case Resource.insert(item, params, repo, changeset_function, opts) do
       {:ok, item} ->
         return_to = live_resource.return_to(socket, assigns, :new, item)
-        info_msg = Backpex.translate({"New %{resource} has been created successfully.", %{resource: singular_name}})
 
         socket =
           socket
           |> assign(:show_form_errors, false)
           |> clear_flash()
-          |> put_flash(:info, info_msg)
+          |> put_flash(:info, assigns.resource_created_message)
           |> push_navigate(to: return_to)
 
         {:noreply, socket}
