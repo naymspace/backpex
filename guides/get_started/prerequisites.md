@@ -6,6 +6,10 @@ Backpex integrates seamlessly with your existing Phoenix LiveView application, b
 
 Backpex is built on top of Phoenix LiveView, so you need to have Phoenix LiveView installed in your application. If you generate a new Phoenix application using the latest version of the `mix phx.new` generator, Phoenix LiveView is included by default.
 
+## Alpine.js
+
+Backpex uses [Alpine.js](https://alpinejs.dev/) for some interactivity. Make sure you have Alpine.js installed in your application.
+
 ## Tailwind CSS
 
 Backpex uses Tailwind CSS for styling. Make sure you have Tailwind CSS installed in your application. You can install Tailwind CSS by following the [official installation guide](https://tailwindcss.com/docs/installation). If you generate a new Phoenix application using the latest version of the `mix phx.new` generator, Tailwind CSS is included by default.
