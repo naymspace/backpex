@@ -643,7 +643,7 @@ defmodule Backpex.LiveResource do
 
       @impl Phoenix.LiveView
       def handle_event("item-action", %{"action-key" => key, "item-id" => item_id}, socket) do
-        item = Enum.find(socket.assigns.items, fn item -> item.id == item_id end)
+        item = Enum.find(socket.assigns.items, fn item -> to_string(item.id) == to_string(item_id) end)
 
         socket
         |> assign(selected_items: [item])
@@ -813,7 +813,8 @@ defmodule Backpex.LiveResource do
       @impl Phoenix.LiveView
       def handle_event("update-selected-items", %{"id" => id}, socket) do
         selected_items = socket.assigns.selected_items
-        item = Enum.find(socket.assigns.items, fn item -> item.id == id end)
+
+        item = Enum.find(socket.assigns.items, fn item -> to_string(item.id) == to_string(id) end)
 
         updated_selected_items =
           if Enum.member?(selected_items, item) do
@@ -860,7 +861,7 @@ defmodule Backpex.LiveResource do
       @impl Phoenix.LiveView
       def handle_info({"backpex:" <> unquote(event_prefix) <> "deleted", item}, socket)
           when socket.assigns.live_action in [:index, :resource_action] do
-        if Enum.filter(socket.assigns.items, &(&1.id == item.id)) != [] do
+        if Enum.filter(socket.assigns.items, &(to_string(&1.id) == to_string(item.id))) != [] do
           {:noreply, refresh_items(socket)}
         else
           {:noreply, socket}
