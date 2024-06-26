@@ -30,7 +30,7 @@ In your `tailwind.config.js`:
 content: [
   ...,
   // add this line
-  'deps/backpex/**/*.*ex'
+  '../deps/backpex/**/*.*ex'
 ]
 ```
 
