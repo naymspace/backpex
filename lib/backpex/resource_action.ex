@@ -25,10 +25,10 @@ defmodule Backpex.ResourceAction do
   @callback fields() :: list()
 
   @doc """
-  Initial change. The result will be passed to `Backpex.ResourceAction.changeset/3` in order to generate a changeset.
+  Initial change. The result will be passed to [`Backpex.ResourceAction.changeset/3`](Backpex.ResourceAction.html#c:changeset/3) in order to generate a changeset.
 
   This function is optional and can be used to use changesets with schemas in resource actions. If this function
-  is not provided a changeset will be generated automatically based on the provided types in `Backpex.ResourceAction.fields/0`.
+  is not provided a changeset will be generated automatically based on the provided types in [`Backpex.ResourceAction.fields/0`](Backpex.ResourceAction.html#c:fields/0).
   """
   @callback init_change(assigns :: map()) ::
               Ecto.Schema.t()
