@@ -2,6 +2,8 @@
 
 The following guide will help you to install Backpex in your Phoenix application. We will guide you through the installation process and show you how to create a simple resource.
 
+Make sure you meet the [prerequisites](prerequisites.md) before you start the installation.
+
 ## Add to list of dependencies
 
 In your `mix.exs`:
