@@ -75,7 +75,7 @@ defmodule Backpex.MixProject do
       extra_section: "GUIDES",
       groups_for_extras: groups_for_extras(),
       groups_for_modules: groups_for_modules(),
-      groups_for_functions: [
+      groups_for_docs: [
         Components: &(&1[:type] == :component)
       ],
       source_ref: @version,
