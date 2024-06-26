@@ -262,3 +262,18 @@ end
 ```
 
 This macro will add the required routes for the `PostLive` module. You can now access the `PostLive` LiveResource at `/admin/posts`.
+
+## Remove default background color
+
+If you start with a new Phoenix project, you may have a default background color set for your body tag. This conflicts with the background color of the Backpex `app_shell`.
+
+So if you have this in your `root.html.heex`.
+
+```html
+<body class="bg-white">
+</body> 
+```
+
+You should remove the `bg-white` class.
+
+If you need this color on your body tag to style your application, consider using another root layout for Backpex (see [`put_root_layout/2`](https://hexdocs.pm/phoenix/Phoenix.Controller.html#put_root_layout/2)).
