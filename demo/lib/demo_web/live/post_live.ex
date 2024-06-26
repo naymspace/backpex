@@ -165,7 +165,7 @@ defmodule DemoWeb.PostLive do
         custom_alias: :custom_category
       },
       tags: %{
-        module: Backpex.Fields.ManyToMany,
+        module: Backpex.Fields.HasMany,
         label: "Tags",
         orderable: false,
         display_field: :name,
