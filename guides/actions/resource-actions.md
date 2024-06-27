@@ -81,7 +81,7 @@ See `Backpex.ResourceAction` for a documentation of the callbacks.
 
 The [`handle/2`](Backpex.ResourceAction.html#c:handle/2) callback is called when the user submits the form to perform the action. In this example, we suppose there was no error sending the invitation email and return a success message.
 
-You can access the email entered by the user in the `data` argument. The `data` argument is a map that contains the casted and validated data from the form (received from [`Ecto.Changeset.apply_changes/2`](https://hexdocs.pm/ecto/Ecto.Changeset.html#apply_action/2)).
+You can access the email entered by the user in the `data` argument. The `data` argument is a map that contains the casted and validated data from the form (received from [`Ecto.Changeset.apply_action/2`](https://hexdocs.pm/ecto/Ecto.Changeset.html#apply_action/2)).
 
 We validate the email address using the `validate_email/2` function provided by the `Ecto.Changeset` module.
 
