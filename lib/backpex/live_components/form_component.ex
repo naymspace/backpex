@@ -329,9 +329,9 @@ defmodule Backpex.FormComponent do
 
     case result do
       {:ok, data} ->
-        result = resource_action.module.handle(socket, data)
+        resource_action_result = resource_action.module.handle(socket, data)
 
-        if match?({:ok, _msg}, result), do: handle_uploads(socket, data)
+        if match?({:ok, _msg}, resource_action_result), do: handle_uploads(socket, data)
 
         socket =
           socket
