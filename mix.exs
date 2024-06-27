@@ -41,7 +41,6 @@ defmodule Backpex.MixProject do
       {:phoenix_live_view, "~> 0.20.0"},
       {:gettext, "~> 0.18"},
       {:jason, "~> 1.2"},
-      {:heroicons, "~> 0.5.0"},
       {:number, "~> 1.0.3"},
       {:credo, "~> 1.7.5", only: [:dev, :test], runtime: false},
       {:mix_audit, "~> 2.0", only: [:dev, :test], runtime: false},

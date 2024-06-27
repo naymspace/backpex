@@ -41,7 +41,7 @@ defmodule Backpex.HTML.Layout do
                 class="ml-1 flex h-10 w-10 items-center justify-center rounded-full focus:outline-none focus:ring-2 focus:ring-inset focus:ring-white"
                 @click="mobile_menu_open = false"
               >
-                <Heroicons.x_mark solid class="h-5 w-5 text-white" />
+                <Backpex.HTML.CoreComponents.icon name="hero-x-mark-solid" class="h-5 w-5 text-white" />
               </button>
             </div>
 
@@ -85,7 +85,7 @@ defmodule Backpex.HTML.Layout do
                 class="-mt-0.5 -ml-0.5 inline-flex h-12 w-12 items-center justify-center rounded-md text-gray-800 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-gray-800"
                 @click="mobile_menu_open = !mobile_menu_open"
               >
-                <Heroicons.bars_3 solid class="h-8 w-8" />
+                <Backpex.HTML.CoreComponents.icon name="hero-bars-3-solid" class="h-8 w-8" />
               </button>
             <% end %>
           </.topbar>
@@ -137,7 +137,7 @@ defmodule Backpex.HTML.Layout do
       class="alert my-4 bg-blue-100 text-sm text-blue-800"
       phx-value-key="info"
     >
-      <Heroicons.information_circle class="h-5 w-5" />
+      <Backpex.HTML.CoreComponents.icon name="hero-information-circle" class="h-5 w-5" />
       <span>
         <%= Phoenix.Flash.get(@flash, :info) %>
       </span>
@@ -147,7 +147,7 @@ defmodule Backpex.HTML.Layout do
           phx-click="lv:clear-flash"
           aria-label={Backpex.translate("Close alert")}
         >
-          <Heroicons.x_mark class="h-5 w-5" />
+          <Backpex.HTML.CoreComponents.icon name="hero-x-mark" class="h-5 w-5" />
         </button>
       </div>
     </div>
@@ -157,7 +157,7 @@ defmodule Backpex.HTML.Layout do
       class="alert my-4 bg-red-100 text-sm text-red-800"
       phx-value-key="error"
     >
-      <Heroicons.x_circle class="h-5 w-5" />
+      <Backpex.HTML.CoreComponents.icon name="hero-x-circle" class="h-5 w-5" />
       <span>
         <%= Phoenix.Flash.get(@flash, :error) %>
       </span>
@@ -167,7 +167,7 @@ defmodule Backpex.HTML.Layout do
           phx-click="lv:clear-flash"
           aria-label={Backpex.translate("Close alert")}
         >
-          <Heroicons.x_mark class="h-5 w-5" />
+          <Backpex.HTML.CoreComponents.icon name="hero-x-mark" class="h-5 w-5" />
         </button>
       </div>
     </div>
@@ -363,7 +363,11 @@ defmodule Backpex.HTML.Layout do
     >
       <div @click="open = !open" class={"#{@class} group mt-2 flex cursor-pointer items-center space-x-1 p-2"}>
         <div class="pr-1">
-          <Heroicons.chevron_down class="h-5 w-5 transition duration-75" solid x-bind:class="open ? '' : '-rotate-90'" />
+          <Backpex.HTML.CoreComponents.icon
+            name="hero-chevron-down-solid"
+            class="h-5 w-5 transition duration-75"
+            x-bind:class="open ? '' : '-rotate-90'"
+          />
         </div>
         <div class="flex gap-2 text-sm font-semibold uppercase text-gray-600">
           <%= render_slot(@label) %>
@@ -502,7 +506,7 @@ defmodule Backpex.HTML.Layout do
                 class="text-gray-400 hover:text-gray-500"
                 aria-label={Backpex.translate("Close modal")}
               >
-                <Heroicons.x_mark class="h-5 w-5" />
+                <Backpex.HTML.CoreComponents.icon name="hero-x-mark" class="h-5 w-5" />
               </button>
             </div>
           </div>

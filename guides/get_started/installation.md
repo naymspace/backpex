@@ -322,3 +322,92 @@ module.exports = {
 ```
 
 If your application depends on the `@tailwindcss/forms` plugin, you can keep the plugin and [change the strategy to `'class'`](https://github.com/tailwindlabs/tailwindcss-forms?tab=readme-ov-file#using-only-global-styles-or-only-classes). This will prevent the plugin from conflicting with daisyUI. Note that you then have to add the form classes provided by the `@tailwindcss/forms` plugin to your inputs manually.
+
+## Provide Tailwind Plugin for heroicons
+
+Backpex uses the [heroicons](https://heroicons.com/) icon set. Backpex provides a `Backpex.HTML.CoreComponents.icon/1` component, but you need to provide the icons and a Tailwind CSS plugin to generate the necessary styles to display them. If you generated your Phoenix project with the latest version of the `mix phx.new` generator, you already have the dependency and plugin installed. If not, follow the steps below.
+
+### Track the heroicons GitHub repository
+
+Track the heroicons GitHub repository with Mix:
+
+```elixir
+def deps do
+  [
+    ...
+    {:heroicons,
+      github: "tailwindlabs/heroicons",
+      tag: "v2.1.1",
+      sparse: "optimized",
+      app: false,
+      compile: false,
+      depth: 1}
+  ]
+end
+```
+
+This will add the heroicons repository as a dependency to your project. You can find the optimized SVG icons in the `deps/heroicons` directory.
+
+### Add the Tailwind CSS plugin
+
+Add the following plugin to your `tailwind.config.js` to generate the necessary styles to display the icons.
+
+```js
+// add fs and path to the top of the file
+const fs = require('fs')
+const path = require('path')
+
+module.exports = {
+  ...
+  plugins: [
+    ...
+    // add this plugin
+    plugin(function ({ matchComponents, theme }) {
+      let iconsDir = path.join(__dirname, "../deps/heroicons/optimized")
+      let values = {}
+      let icons = [
+        ["", "/24/outline"],
+        ["-solid", "/24/solid"],
+        ["-mini", "/20/solid"],
+        ["-micro", "/16/solid"]
+      ]
+      icons.forEach(([suffix, dir]) => {
+        fs.readdirSync(path.join(iconsDir, dir)).forEach(file => {
+          let name = path.basename(file, ".svg") + suffix
+          values[name] = { name, fullPath: path.join(iconsDir, dir, file) }
+        })
+      })
+      matchComponents({
+        "hero": ({ name, fullPath }) => {
+          let content = fs.readFileSync(fullPath).toString().replace(/\r?\n|\r/g, "")
+          let size = theme("spacing.6")
+          if (name.endsWith("-mini")) {
+            size = theme("spacing.5")
+          } else if (name.endsWith("-micro")) {
+            size = theme("spacing.4")
+          }
+          return {
+            [`--hero-${name}`]: `url('data:image/svg+xml;utf8,${content}')`,
+            "-webkit-mask": `var(--hero-${name})`,
+            "mask": `var(--hero-${name})`,
+            "mask-repeat": "no-repeat",
+            "background-color": "currentColor",
+            "vertical-align": "middle",
+            "display": "inline-block",
+            "width": size,
+            "height": size
+          }
+        }
+      }, { values })
+    })
+  ],
+}
+```
+
+This plugin will generate the necessary styles to display the heroicons in your application. You can now use the `Backpex.HTML.CoreComponents.icon/1` component to render the icons in your application.
+
+For example, to render the `user` icon, you can use the following code:
+
+```elixir
+<Backpex.HTML.CoreComponents.icon name="hero-user" class="h-5 w-5" />
+```
