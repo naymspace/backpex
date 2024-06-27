@@ -322,13 +322,16 @@ defmodule Backpex.FormComponent do
     } = socket
 
     assocs = Map.get(assigns, :assocs, [])
-    changeset = Backpex.Resource.change(item, params, changeset_function, assigns, assocs)
 
-    case changeset do
-      %{valid?: true} ->
-        result = resource_action.module.handle(socket, params)
+    result =
+      Backpex.Resource.change(item, params, changeset_function, assigns, assocs)
+      |> Ecto.Changeset.apply_action(:insert)
 
-        if match?({:ok, _msg}, result), do: handle_uploads(socket, params)
+    case result do
+      {:ok, data} ->
+        result = resource_action.module.handle(socket, data)
+
+        if match?({:ok, _msg}, result), do: handle_uploads(socket, data)
 
         socket =
           socket
@@ -338,7 +341,7 @@ defmodule Backpex.FormComponent do
 
         {:noreply, socket}
 
-      _not_valid ->
+      {:error, changeset} ->
         form = Phoenix.Component.to_form(changeset, as: :change)
 
         socket =
