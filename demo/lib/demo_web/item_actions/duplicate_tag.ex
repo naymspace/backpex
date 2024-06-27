@@ -49,7 +49,9 @@ defmodule DemoWeb.ItemActions.DuplicateTag do
   end
 
   @impl Backpex.ItemAction
-  def handle(socket, _items, params) do
+  def handle(socket, _items, data) do
+    params = Map.from_struct(data)
+
     result =
       %Demo.Tag{}
       |> Demo.Tag.create_changeset(params, target: nil, assigns: socket.assigns)

@@ -367,10 +367,12 @@ defmodule Backpex.FormComponent do
         } = assigns
     } = socket
 
-    changeset = Backpex.Resource.change(item_action_types, params, changeset_function, assigns)
+    result =
+      Backpex.Resource.change(item_action_types, params, changeset_function, assigns)
+      |> Ecto.Changeset.apply_action(:insert)
 
-    case changeset do
-      %{valid?: true} ->
+    case result do
+      {:ok, data} ->
         selected_items =
           Enum.filter(selected_items, fn item ->
             LiveResource.can?(socket.assigns, action_key, item, socket.assigns.live_resource)
@@ -381,11 +383,11 @@ defmodule Backpex.FormComponent do
           |> assign(:show_form_errors, false)
           |> assign(selected_items: [])
           |> assign(select_all: false)
-          |> action_to_confirm.module.handle(selected_items, params)
+          |> action_to_confirm.module.handle(selected_items, data)
 
         {message, push_patch(socket, to: return_to)}
 
-      _not_valid ->
+      {:error, changeset} ->
         form = Phoenix.Component.to_form(changeset, as: :change)
 
         socket =

@@ -16,7 +16,7 @@ defmodule Backpex.ItemActions.Edit do
   def label(_assigns), do: Backpex.translate("Edit")
 
   @impl Backpex.ItemAction
-  def handle(socket, [item | _items], _change) do
+  def handle(socket, [item | _items], _data) do
     path = Router.get_path(socket, socket.assigns.live_resource, socket.assigns.params, :edit, item)
 
     {:noreply, Phoenix.LiveView.push_patch(socket, to: path)}

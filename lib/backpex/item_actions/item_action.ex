@@ -73,9 +73,9 @@ defmodule Backpex.ItemAction do
   @callback confirm(assigns :: map()) :: binary()
 
   @doc """
-  Performs the action.
+  Performs the action. It takes the socket and the casted and validated data (received from [`Ecto.Changeset.apply_changes/2`](https://hexdocs.pm/ecto/Ecto.Changeset.html#apply_action/2)).
   """
-  @callback handle(socket :: Phoenix.LiveView.Socket.t(), items :: list(map()), params :: map()) ::
+  @callback handle(socket :: Phoenix.LiveView.Socket.t(), items :: list(map()), params :: map() | struct()) ::
               {:noreply, Phoenix.LiveView.Socket.t()} | {:reply, map(), Phoenix.LiveView.Socket.t()}
 
   @optional_callbacks confirm: 1, confirm_label: 1, cancel_label: 1, changeset: 3, fields: 0
