@@ -117,7 +117,7 @@ defmodule DemoWeb.ProductLive do
   defp list_existing_files(%{images: images} = _item) when is_list(images), do: images
   defp list_existing_files(_item), do: []
 
-  defp put_upload_change(_socket, change, item, uploaded_entries, removed_entries, action) do
+  defp put_upload_change(_socket, params, item, uploaded_entries, removed_entries, action) do
     existing_files = list_existing_files(item) -- removed_entries
 
     new_entries =
@@ -131,7 +131,7 @@ defmodule DemoWeb.ProductLive do
 
     files = existing_files ++ Enum.map(new_entries, fn entry -> file_name(entry) end)
 
-    Map.put(change, "images", files)
+    Map.put(params, "images", files)
   end
 
   # sobelow_skip ["Traversal"]

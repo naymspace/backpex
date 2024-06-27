@@ -15,7 +15,7 @@ defmodule Backpex.Fields.Upload do
     * `:list_existing_files` (function) - Required function that returns a list of all uploaded files based on an item.
     * `:file_label` (function) - Optional function to get the label of a single file.
     * `:consume_upload` (function) - Required function to consume file uploads.
-    * `:put_upload_change` (function) - Required function to add file paths to the change.
+    * `:put_upload_change` (function) - Required function to add file paths to the params.
     * `:remove_uploads` (function) - Required function that is being called after saving an item to be able to delete removed files
 
 
@@ -54,7 +54,7 @@ defmodule Backpex.Fields.Upload do
 
   **Parameters**
   * `:socket` - The socket.
-  * `:item` (struct) - The item without its changes.
+  * `:item` (struct) - The saved item (with its changes).
   * `:meta` - The upload meta.
   * `:entry` - The upload entry.
 
@@ -77,17 +77,17 @@ defmodule Backpex.Fields.Upload do
 
   **Parameters**
     * `:socket` - The socket.
-    * `:change` (map) - The current change / attrs that will be passed to the changeset function.
+    * `:params` (map) - The current params that will be passed to the changeset function.
     * `:item` (struct) - The item without its changes. On create will this will be an empty map.
     * `uploaded_entries` (tuple) - The completed and in progress entries for the upload.
     * `removed_entries` (list) - A list of removed uploads during edit.
     * `action` (atom) - The action (`:validate` or `:insert`)
 
-  This function is used to modify the change based on certain parameters. It is important because it ensures that file paths are added to the item change and therefore persisted in the database. This option is required.
+  This function is used to modify the params based on certain parameters. It is important because it ensures that file paths are added to the item change and therefore persisted in the database. This option is required.
 
   **Example**
 
-      def put_upload_change(_socket, change, item, uploaded_entries, removed_entries, action) do
+      def put_upload_change(_socket, params, item, uploaded_entries, removed_entries, action) do
         existing_files = item.files -- removed_entries
 
         new_entries =
@@ -101,7 +101,7 @@ defmodule Backpex.Fields.Upload do
 
         files = existing_files ++ Enum.map(new_entries, fn entry -> file_name(entry) end)
 
-        Map.put(change, "images", files)
+        Map.put(params, "images", files)
       end
 
   ### `remove_uploads`
@@ -192,7 +192,7 @@ defmodule Backpex.Fields.Upload do
         defp list_existing_files(%{avatar: avatar} = _item) when avatar != "" and not is_nil(avatar), do: [avatar]
         defp list_existing_files(_item), do: []
 
-        def put_upload_change(_socket, change, item, uploaded_entries, removed_entries, action) do
+        def put_upload_change(_socket, params, item, uploaded_entries, removed_entries, action) do
           existing_files = list_existing_files(item) -- removed_entries
 
           new_entries =
@@ -208,13 +208,13 @@ defmodule Backpex.Fields.Upload do
 
           case files do
             [file] ->
-              Map.put(change, "avatar", file)
+              Map.put(params, "avatar", file)
 
             [_file | _other_files] ->
-              Map.put(change, "avatar", "too_many_files")
+              Map.put(params, "avatar", "too_many_files")
 
             [] ->
-              Map.put(change, "avatar", "")
+              Map.put(params, "avatar", "")
           end
         end
 
@@ -315,7 +315,7 @@ defmodule Backpex.Fields.Upload do
         defp list_existing_files(%{images: images} = _item) when is_list(images), do: images
         defp list_existing_files(_item), do: []
 
-        defp put_upload_change(_socket, change, item, uploaded_entries, removed_entries, action) do
+        defp put_upload_change(_socket, params, item, uploaded_entries, removed_entries, action) do
           existing_files = list_existing_files(item) -- removed_entries
 
           new_entries =
@@ -329,7 +329,7 @@ defmodule Backpex.Fields.Upload do
 
           files = existing_files ++ Enum.map(new_entries, fn entry -> file_name(entry) end)
 
-          Map.put(change, "images", files)
+          Map.put(params, "images", files)
         end
 
         defp consume_upload(_socket, _item, %{path: path} = _meta, entry) do

@@ -216,7 +216,7 @@ defmodule Backpex.FormComponent do
       pubsub: assigns[:pubsub],
       assocs: Map.get(assigns, :assocs, []),
       after_save: fn item ->
-        handle_uploads(socket)
+        handle_uploads(socket, item)
         live_resource.on_item_created(socket, item)
 
         {:ok, item}
@@ -267,7 +267,7 @@ defmodule Backpex.FormComponent do
       pubsub: assigns[:pubsub],
       assocs: Map.get(assigns, :assocs, []),
       after_save: fn item ->
-        handle_uploads(socket)
+        handle_uploads(socket, item)
         live_resource.on_item_updated(socket, item)
 
         {:ok, item}
@@ -314,23 +314,26 @@ defmodule Backpex.FormComponent do
     } = socket
 
     assocs = Map.get(assigns, :assocs, [])
-    changeset = Backpex.Resource.change(item, params, changeset_function, assigns, assocs)
 
-    case changeset do
-      %{valid?: true} ->
-        result = resource_action.module.handle(socket, params)
+    result =
+      Backpex.Resource.change(item, params, changeset_function, assigns, assocs)
+      |> Ecto.Changeset.apply_action(:insert)
 
-        if match?({:ok, _msg}, result), do: handle_uploads(socket)
+    case result do
+      {:ok, data} ->
+        resource_action_result = resource_action.module.handle(socket, data)
+
+        if match?({:ok, _msg}, resource_action_result), do: handle_uploads(socket, data)
 
         socket =
           socket
           |> assign(:show_form_errors, false)
-          |> put_flash_message(result)
+          |> put_flash_message(resource_action_result)
           |> push_navigate(to: return_to)
 
         {:noreply, socket}
 
-      _not_valid ->
+      {:error, changeset} ->
         form = Phoenix.Component.to_form(changeset, as: :change)
 
         socket =
@@ -356,10 +359,12 @@ defmodule Backpex.FormComponent do
         } = assigns
     } = socket
 
-    changeset = Backpex.Resource.change(item_action_types, params, changeset_function, assigns)
+    result =
+      Backpex.Resource.change(item_action_types, params, changeset_function, assigns)
+      |> Ecto.Changeset.apply_action(:insert)
 
-    case changeset do
-      %{valid?: true} ->
+    case result do
+      {:ok, data} ->
         selected_items =
           Enum.filter(selected_items, fn item ->
             LiveResource.can?(socket.assigns, action_key, item, socket.assigns.live_resource)
@@ -370,11 +375,11 @@ defmodule Backpex.FormComponent do
           |> assign(:show_form_errors, false)
           |> assign(selected_items: [])
           |> assign(select_all: false)
-          |> action_to_confirm.module.handle(selected_items, params)
+          |> action_to_confirm.module.handle(selected_items, data)
 
         {message, push_patch(socket, to: return_to)}
 
-      _not_valid ->
+      {:error, changeset} ->
         form = Phoenix.Component.to_form(changeset, as: :change)
 
         socket =
@@ -419,12 +424,10 @@ defmodule Backpex.FormComponent do
     end)
   end
 
-  defp handle_uploads(%{assigns: %{uploads: _uploads}} = socket) do
+  defp handle_uploads(%{assigns: %{uploads: _uploads}} = socket, item) do
     for {_name, %{upload_key: upload_key} = field_options} = _field <- socket.assigns.fields do
       if Map.has_key?(socket.assigns.uploads, upload_key) do
         %{consume_upload: consume_upload, remove_uploads: remove_uploads} = field_options
-
-        item = socket.assigns.item
 
         consume_uploaded_entries(socket, upload_key, fn meta, entry ->
           consume_upload.(socket, item, meta, entry)
@@ -436,7 +439,7 @@ defmodule Backpex.FormComponent do
     end
   end
 
-  defp handle_uploads(_socket), do: :ok
+  defp handle_uploads(_socket, _item), do: :ok
 
   def render(assigns) do
     form_component(assigns)

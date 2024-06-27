@@ -36,7 +36,7 @@ defmodule Backpex.ItemActions.Delete do
   def cancel_label(_assigns), do: Backpex.translate("Cancel")
 
   @impl Backpex.ItemAction
-  def handle(socket, items, _params) do
+  def handle(socket, items, _data) do
     socket =
       try do
         %{assigns: %{repo: repo, schema: schema, pubsub: pubsub}} = socket
