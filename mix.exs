@@ -39,7 +39,6 @@ defmodule Backpex.MixProject do
       {:phoenix_html, "~> 4.1.1"},
       {:phoenix_html_helpers, "~> 1.0"},
       {:phoenix_live_view, "~> 0.20.0"},
-      {:floki, ">= 0.30.0"},
       {:gettext, "~> 0.18"},
       {:jason, "~> 1.2"},
       {:heroicons, "~> 0.5.0"},
