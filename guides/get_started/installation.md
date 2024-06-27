@@ -280,7 +280,7 @@ If you need this color on your body tag to style your application, consider usin
 
 ## Set daisyUI theme
 
-Backpex supports daisyUI themes, to use it you need to do two things:
+Backpex supports daisyUI themes, to use them you need to do two things:
 
 1. Add the themes to your application.
 
@@ -302,8 +302,6 @@ module.exports = {
   ...
 </html>
 ```
-
-If you use another daisyUI theme to style your application, consider using another root layout for Backpex with light theme applied (see [`put_root_layout/2`](https://hexdocs.pm/phoenix/Phoenix.Controller.html#put_root_layout/2)).
 
 ## Remove `@tailwindcss/forms` plugin
 
