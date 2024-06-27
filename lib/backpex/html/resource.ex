@@ -79,13 +79,13 @@ defmodule Backpex.HTML.Resource do
 
   defp order_icon(assigns, :asc) do
     ~H"""
-    <Heroicons.arrow_up solid class="h-4 w-4" />
+    <Backpex.HTML.CoreComponents.icon name="hero-arrow-up-solid" class="h-4 w-4" />
     """
   end
 
   defp order_icon(assigns, :desc) do
     ~H"""
-    <Heroicons.arrow_down solid class="h-4 w-4" />
+    <Backpex.HTML.CoreComponents.icon name="hero-arrow-down-solid" class="h-4 w-4" />
     """
   end
 
@@ -230,7 +230,7 @@ defmodule Backpex.HTML.Resource do
           <%= @filter_count %>
         </span>
         <label tabindex="0" class="btn btn-sm btn-outline">
-          <Heroicons.funnel solid class={["h-5 w-5 mr-2", @filter_icon_class]} />
+          <Backpex.HTML.CoreComponents.icon name="hero-funnel" class={["h-5 w-5 mr-2", @filter_icon_class]} />
           <%= Backpex.translate("Filters") %>
         </label>
       </div>
@@ -267,7 +267,7 @@ defmodule Backpex.HTML.Resource do
         class="top-[-5px] right-[-5px] p-[3px] absolute rounded-full bg-gray-300 shadow transition duration-75 hover:text-secondary hover:scale-110"
         aria-label={Backpex.translate({"Clear %{name} filter", %{name: @filter.module.label()}})}
       >
-        <Heroicons.x_mark class="h-3 w-3" />
+        <Backpex.HTML.CoreComponents.icon name="hero-x-mark" class="h-3 w-3" />
       </button>
     </div>
     """
@@ -354,7 +354,7 @@ defmodule Backpex.HTML.Resource do
         <span class="sr-only">
           <%= Backpex.translate("Toggle columns") %>
         </span>
-        <Heroicons.view_columns aria-hidden="true" solid class="h-5 w-5 text-gray-400" />
+        <Backpex.HTML.CoreComponents.icon name="hero-view-columns-solid" aria-hidden="true" class="h-5 w-5 text-gray-400" />
       </label>
       <div tabindex="0" class="dropdown-content z-[1] menu bg-base-100 rounded-box w-52 p-4 shadow">
         <.form method="POST" for={@form} action={cookie_path(@socket)}>
@@ -484,7 +484,7 @@ defmodule Backpex.HTML.Resource do
     ~H"""
     <.link href={@href}>
       <button class={["btn bg-white", @class]} aria-label={Backpex.translate("Previous page")}>
-        <Heroicons.chevron_left class="h-4 w-4" />
+        <Backpex.HTML.CoreComponents.icon name="hero-chevron-left" class="h-4 w-4" />
       </button>
     </.link>
     """
@@ -498,7 +498,7 @@ defmodule Backpex.HTML.Resource do
     ~H"""
     <.link href={@href}>
       <button class={["btn bg-white", @class]} aria-label={Backpex.translate("Next page")}>
-        <Heroicons.chevron_right class="h-4 w-4" />
+        <Backpex.HTML.CoreComponents.icon name="hero-chevron-right" class="h-4 w-4" />
       </button>
     </.link>
     """
@@ -655,7 +655,7 @@ defmodule Backpex.HTML.Resource do
         patch={Router.get_path(@socket, @live_resource, @params, :new)}
       >
         <button class="btn btn-sm btn-outline btn-primary">
-          <%= Backpex.translate({"New %{resource}", %{resource: @singular_name}}) %>
+          <%= @create_button_label %>
         </button>
       </.link>
 
@@ -797,18 +797,10 @@ defmodule Backpex.HTML.Resource do
             title={@title}
             subtitle={Backpex.translate("Try a different filter setting or clear all filters.")}
           />
-          <.empty_state_content
-            :if={not @search_active? and not @filter_active?}
-            title={@title}
-            subtitle={
-              if @create_allowed,
-                do: Backpex.translate({"Get started by creating new %{resources}.", %{resources: assigns.plural_name}}),
-                else: ""
-            }
-          >
+          <.empty_state_content :if={not @search_active? and not @filter_active?} title={@title}>
             <.link :if={@create_allowed} patch={Router.get_path(@socket, @live_resource, @params, :new)}>
               <button class="btn btn-sm btn-outline btn-primary mt-6">
-                <%= Backpex.translate({"New %{resource}", %{resource: @singular_name}}) %>
+                <%= @create_button_label %>
               </button>
             </.link>
           </.empty_state_content>
@@ -819,15 +811,15 @@ defmodule Backpex.HTML.Resource do
   end
 
   attr(:title, :string, required: true, doc: "main title of the empty state info block")
-  attr(:subtitle, :string, required: true, doc: "subtitle of the empty state info block")
+  attr(:subtitle, :string, default: nil, doc: "subtitle of the empty state info block")
 
   slot(:inner_block)
 
   defp empty_state_content(assigns) do
     ~H"""
-    <Heroicons.folder_plus class="mb-1 inline-block h-12 w-12 text-gray-300" />
+    <Backpex.HTML.CoreComponents.icon name="hero-folder-plus" class="mb-1 inline-block h-12 w-12 text-gray-300" />
     <p class="text-lg font-bold text-gray-900"><%= @title %></p>
-    <p class="text-gray-400"><%= @subtitle %></p>
+    <p :if={@subtitle} class="text-gray-400"><%= @subtitle %></p>
     <%= render_slot(@inner_block) %>
     """
   end
@@ -982,7 +974,7 @@ defmodule Backpex.HTML.Resource do
             class={["btn btn-sm", @visible && "btn-primary", !@visible && "btn-neutral"]}
             aria-label={Backpex.translate("Toggle metrics")}
           >
-            <Heroicons.chart_bar_square class="h-5 w-5" />
+            <Backpex.HTML.CoreComponents.icon name="hero-chart-bar-square" class="h-5 w-5" />
           </button>
         </div>
       </.form>

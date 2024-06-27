@@ -122,6 +122,16 @@ defmodule Backpex.LiveResource do
               binary()
 
   @doc """
+  Customizes the label of the button for creating a new item. Defaults to "New %{resource}".
+  """
+  @callback create_button_label() :: binary()
+
+  @doc """
+  Customizes the message in the flash message when a resource has been created successfully. "Defaults to %{resource} has been created successfully".
+  """
+  @callback resource_created_message() :: binary()
+
+  @doc """
   Uses LiveResource in the current module to make it a LiveResource.
 
       use Backpex.LiveResource,
@@ -211,6 +221,8 @@ defmodule Backpex.LiveResource do
           |> assign(:pubsub, pubsub)
           |> assign(:singular_name, singular_name())
           |> assign(:plural_name, plural_name())
+          |> assign(:create_button_label, create_button_label())
+          |> assign(:resource_created_message, resource_created_message())
           |> assign(:search_placeholder, search_placeholder())
           |> assign(:panels, panels())
           |> assign(:live_resource, __MODULE__)
@@ -346,7 +358,9 @@ defmodule Backpex.LiveResource do
       end
 
       def apply_action(socket, :new) do
-        %{assigns: %{schema: schema, singular_name: singular_name} = assigns} = socket
+        %{
+          assigns: %{schema: schema, singular_name: singular_name, create_button_label: create_button_label} = assigns
+        } = socket
 
         unless can?(assigns, :new, nil, __MODULE__),
           do: raise(Backpex.ForbiddenError)
@@ -356,10 +370,7 @@ defmodule Backpex.LiveResource do
 
         socket
         |> assign(:changeset_function, unquote(create_changeset))
-        |> assign(
-          :page_title,
-          Backpex.translate({"New %{resource}", %{resource: singular_name}})
-        )
+        |> assign(:page_title, create_button_label)
         |> assign(:fields, fields)
         |> assign(:item, empty_item)
         |> assign_changeset(fields)
@@ -632,7 +643,7 @@ defmodule Backpex.LiveResource do
 
       @impl Phoenix.LiveView
       def handle_event("item-action", %{"action-key" => key, "item-id" => item_id}, socket) do
-        item = Enum.find(socket.assigns.items, fn item -> item.id == item_id end)
+        item = Enum.find(socket.assigns.items, fn item -> to_string(item.id) == to_string(item_id) end)
 
         socket
         |> assign(selected_items: [item])
@@ -802,7 +813,8 @@ defmodule Backpex.LiveResource do
       @impl Phoenix.LiveView
       def handle_event("update-selected-items", %{"id" => id}, socket) do
         selected_items = socket.assigns.selected_items
-        item = Enum.find(socket.assigns.items, fn item -> item.id == id end)
+
+        item = Enum.find(socket.assigns.items, fn item -> to_string(item.id) == to_string(id) end)
 
         updated_selected_items =
           if Enum.member?(selected_items, item) do
@@ -849,7 +861,7 @@ defmodule Backpex.LiveResource do
       @impl Phoenix.LiveView
       def handle_info({"backpex:" <> unquote(event_prefix) <> "deleted", item}, socket)
           when socket.assigns.live_action in [:index, :resource_action] do
-        if Enum.filter(socket.assigns.items, &(&1.id == item.id)) != [] do
+        if Enum.filter(socket.assigns.items, &(to_string(&1.id) == to_string(item.id))) != [] do
           {:noreply, refresh_items(socket)}
         else
           {:noreply, socket}
@@ -991,13 +1003,22 @@ defmodule Backpex.LiveResource do
       @impl Backpex.LiveResource
       def item_actions(default_actions), do: default_actions
 
+      @impl Backpex.LiveResource
+      def create_button_label, do: Backpex.translate({"New %{resource}", %{resource: singular_name()}})
+
+      @impl Backpex.LiveResource
+      def resource_created_message,
+        do: Backpex.translate({"%{resource} has been created successfully.", %{resource: singular_name()}})
+
       defoverridable can?: 3,
                      fields: 0,
                      filters: 0,
                      filters: 1,
                      resource_actions: 0,
                      item_actions: 1,
-                     index_row_class: 4
+                     index_row_class: 4,
+                     create_button_label: 0,
+                     resource_created_message: 0
     end
   end
 
@@ -1087,7 +1108,10 @@ defmodule Backpex.LiveResource do
             aria-label={Backpex.translate("Edit")}
             patch={Router.get_path(@socket, @live_resource, @params, :edit, @item)}
           >
-            <Heroicons.pencil_square class="h-6 w-6 cursor-pointer transition duration-75 hover:scale-110 hover:text-blue-600" />
+            <Backpex.HTML.CoreComponents.icon
+              name="hero-pencil-square"
+              class="h-6 w-6 cursor-pointer transition duration-75 hover:scale-110 hover:text-blue-600"
+            />
           </.link>
         </.main_title>
         """
@@ -1113,7 +1137,7 @@ defmodule Backpex.LiveResource do
       def render_resource_slot(var!(assigns), :new, :page_title) do
         ~H"""
         <.main_title class="mb-4">
-          <%= Backpex.translate({"New %{resource}", %{resource: @singular_name}}) %>
+          <%= @create_button_label %>
         </.main_title>
         """
       end

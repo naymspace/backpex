@@ -13,9 +13,13 @@ defmodule Backpex.Fields.Textarea do
   @impl Backpex.Field
   def render_value(assigns) do
     ~H"""
-    <p class={@live_action in [:index, :resource_action] && "truncate"}>
-      <%= HTML.pretty_value(@value) %>
-    </p>
+    <p
+      class={[
+        @live_action in [:index, :resource_action] && "truncate",
+        @live_action == :show && "overflow-x-auto whitespace-pre-wrap"
+      ]}
+      phx-no-format
+    ><%= HTML.pretty_value(@value) %></p>
     """
   end
 

@@ -1,7 +1,7 @@
 defmodule Backpex.MixProject do
   use Mix.Project
 
-  @version "0.4.0"
+  @version "0.5.0"
   @source_url "https://github.com/naymspace/backpex"
 
   def project do
@@ -39,10 +39,8 @@ defmodule Backpex.MixProject do
       {:phoenix_html, "~> 4.1.1"},
       {:phoenix_html_helpers, "~> 1.0"},
       {:phoenix_live_view, "~> 0.20.0"},
-      {:floki, ">= 0.30.0"},
       {:gettext, "~> 0.18"},
       {:jason, "~> 1.2"},
-      {:heroicons, "~> 0.5.0"},
       {:number, "~> 1.0.3"},
       {:credo, "~> 1.7.5", only: [:dev, :test], runtime: false},
       {:mix_audit, "~> 2.0", only: [:dev, :test], runtime: false},
@@ -75,7 +73,7 @@ defmodule Backpex.MixProject do
       extra_section: "GUIDES",
       groups_for_extras: groups_for_extras(),
       groups_for_modules: groups_for_modules(),
-      groups_for_functions: [
+      groups_for_docs: [
         Components: &(&1[:type] == :component)
       ],
       source_ref: @version,
@@ -142,9 +140,10 @@ defmodule Backpex.MixProject do
       "guides/searching/full-text-search.md",
 
       # Translations
-      "guides/translations/translations.md",
+      "guides/custom_labels_and_translations/custom-labels-and-translations.md",
 
       # Upgrade Guides
+      "guides/upgrading/v0.5.md",
       "guides/upgrading/v0.3.md",
       "guides/upgrading/v0.2.md"
     ]
@@ -161,7 +160,7 @@ defmodule Backpex.MixProject do
       Actions: ~r/guides\/actions\/.?/,
       Authorization: ~r/guides\/authorization\/.?/,
       Searching: ~r/guides\/searching\/.?/,
-      Translations: ~r/guides\/translations\/.?/,
+      "Custom Labels and Translations": ~r/guides\/custom_labels_and_translations\/.?/,
       "Upgrade Guides": ~r{guides/upgrading/.*}
     ]
   end

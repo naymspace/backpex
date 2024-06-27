@@ -265,7 +265,7 @@ defmodule Backpex.Fields.HasManyThrough do
                       phx-value-index={listable.index}
                       aria-label={Backpex.translate({"Edit relation with index %{index}", %{index: listable.index}})}
                     >
-                      <Heroicons.pencil_square class="h-5 w-5" outline />
+                      <Backpex.HTML.CoreComponents.icon name="hero-pencil-square" class="h-5 w-5" />
                     </button>
                     <button
                       type="button"
@@ -274,13 +274,13 @@ defmodule Backpex.Fields.HasManyThrough do
                       phx-value-index={listable.index}
                       aria-label={Backpex.translate({"Detach relation with index %{index}", %{index: listable.index}})}
                     >
-                      <Heroicons.trash class="h-5 w-5" outline />
+                      <Backpex.HTML.CoreComponents.icon name="hero-trash" class="h-5 w-5" />
                     </button>
                     <div
                       :if={has_error?(@editables, index)}
                       aria-label={Backpex.translate({"Error in relation with index %{index}", %{index: listable.index}})}
                     >
-                      <Heroicons.exclamation_triangle outline class="h-5 w-5 text-red-500" />
+                      <Backpex.HTML.CoreComponents.icon name="hero-exclamation-triangle" class="h-5 w-5 text-red-500" />
                     </div>
                   </div>
                 </td>
