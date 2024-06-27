@@ -25,7 +25,7 @@ defmodule Demo.Product do
   end
 
   @required_fields ~w[name quantity manufacturer price]a
-  @optional_fields ~w[images id]a
+  @optional_fields ~w[images]a
 
   def changeset(product, attrs, _metadata \\ []) do
     product
