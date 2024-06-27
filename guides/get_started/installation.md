@@ -323,7 +323,7 @@ module.exports = {
 
 If your application depends on the `@tailwindcss/forms` plugin, you can keep the plugin and [change the strategy to `'class'`](https://github.com/tailwindlabs/tailwindcss-forms?tab=readme-ov-file#using-only-global-styles-or-only-classes). This will prevent the plugin from conflicting with daisyUI. Note that you then have to add the form classes provided by the `@tailwindcss/forms` plugin to your inputs manually.
 
-## Provide Tailwind Plugin for icons
+## Provide Tailwind Plugin for heroicons
 
 Backpex uses the [heroicons](https://heroicons.com/) icon set. Backpex provides a `Backpex.HTML.CoreComponents.icon/1` component, but you need to provide the icons and a Tailwind CSS plugin to generate the necessary styles to display them. If you generated your Phoenix project with the latest version of the `mix phx.new` generator, you already have the dependency and plugin installed. If not, follow the steps below.
 
