@@ -2,6 +2,8 @@
 
 The following guide will help you to install Backpex in your Phoenix application. We will guide you through the installation process and show you how to create a simple resource.
 
+Make sure you meet the [prerequisites](prerequisites.md) before you start the installation.
+
 ## Add to list of dependencies
 
 In your `mix.exs`:
@@ -28,7 +30,7 @@ In your `tailwind.config.js`:
 content: [
   ...,
   // add this line
-  'deps/backpex/**/*.*ex'
+  '../deps/backpex/**/*.*ex'
 ]
 ```
 
@@ -260,3 +262,63 @@ end
 ```
 
 This macro will add the required routes for the `PostLive` module. You can now access the `PostLive` LiveResource at `/admin/posts`.
+
+## Remove default background color
+
+If you start with a new Phoenix project, you may have a default background color set for your body tag. This conflicts with the background color of the Backpex `app_shell`.
+
+So if you have this in your `root.html.heex`.
+
+```html
+<body class="bg-white">
+</body> 
+```
+
+You should remove the `bg-white` class.
+
+If you need this color on your body tag to style your application, consider using another root layout for Backpex (see [`put_root_layout/2`](https://hexdocs.pm/phoenix/Phoenix.Controller.html#put_root_layout/2)).
+
+## Set daisyUI theme
+
+As mentioned in the [prerequisites](prerequisites.md), Backpex currently only supports daisyUI light mode. You have two options:
+
+1. Only add the daisyUI light theme to your application.
+
+```js
+// tailwind.config.js
+module.exports = {
+  daisyui: {
+    themes: ['light'],
+  },
+  ...
+}
+```
+
+2. Explicitly set the daisyUI light theme in your layout.
+
+```elixir
+# root.html.heex
+<html data-theme="light">
+  ...
+</html>
+```
+
+If you use another daisyUI theme to style your application, consider using another root layout for Backpex with light theme applied (see [`put_root_layout/2`](https://hexdocs.pm/phoenix/Phoenix.Controller.html#put_root_layout/2)).
+
+## Remove `@tailwindcss/forms` plugin
+
+There is a conflict between the `@tailwindcss/forms` plugin and daisyUI. You should remove the `@tailwindcss/forms` plugin from your `tailwind.config.js` to prevent styling issues.
+
+```js
+// tailwind.config.js
+module.exports = {
+  ...
+  plugins: [
+    ...
+    // remove this line
+    // require('@tailwindcss/forms'),
+  ],
+}
+```
+
+If your application depends on the `@tailwindcss/forms` plugin, you can keep the plugin and [change the strategy to `'class'`](https://github.com/tailwindlabs/tailwindcss-forms?tab=readme-ov-file#using-only-global-styles-or-only-classes). This will prevent the plugin from conflicting with daisyUI. Note that you then have to add the form classes provided by the `@tailwindcss/forms` plugin to your inputs manually.
