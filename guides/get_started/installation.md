@@ -12,7 +12,7 @@ In your `mix.exs`:
 defp deps do
   [
     ...
-    {:backpex, "~> 0.3.1"}
+    {:backpex, "~> 0.5.1"}
   ]
 end
 ```
