@@ -19,6 +19,12 @@ module.exports = {
           'error-content': '#e11d48',
           'base-200': '#f3f4f6',
           'base-300': '#e5e7eb'
+        },
+        dark: {
+          ...require('daisyui/src/theming/themes').dark
+        },
+        cyberpunk: {
+          ...require('daisyui/src/theming/themes').cyberpunk
         }
       }
     ]
