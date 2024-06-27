@@ -20,7 +20,7 @@ defmodule DemoWeb.FilmReviewLive do
   def render_resource_slot(assigns, :index, :before_page_title) do
     ~H"""
     <div class="alert my-4 bg-blue-100 text-sm text-blue-800">
-      <Heroicons.information_circle class="h-5 w-5" />
+      <Backpex.HTML.CoreComponents.icon name="hero-information-circle" class="h-5 w-5" />
       <span>
         This resource uses the full-text search functionality. The search accepts web search query operators. For example, a dash (-) excludes words.
       </span>

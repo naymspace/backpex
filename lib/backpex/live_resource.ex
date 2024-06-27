@@ -1108,7 +1108,10 @@ defmodule Backpex.LiveResource do
             aria-label={Backpex.translate("Edit")}
             patch={Router.get_path(@socket, @live_resource, @params, :edit, @item)}
           >
-            <Heroicons.pencil_square class="h-6 w-6 cursor-pointer transition duration-75 hover:scale-110 hover:text-blue-600" />
+            <Backpex.HTML.CoreComponents.icon
+              name="hero-pencil-square"
+              class="h-6 w-6 cursor-pointer transition duration-75 hover:scale-110 hover:text-blue-600"
+            />
           </.link>
         </.main_title>
         """
