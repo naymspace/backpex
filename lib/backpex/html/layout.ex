@@ -27,21 +27,21 @@ defmodule Backpex.HTML.Layout do
 
   def app_shell(assigns) do
     ~H"""
-    <div class="fixed inset-0 -z-10 h-full w-full bg-gray-100"></div>
+    <div class="fixed inset-0 -z-10 h-full w-full bg-base-200"></div>
 
     <div x-data="{ mobile_menu_open: false }">
       <div class="relative z-40 md:hidden" role="dialog" aria-modal="true" x-show="mobile_menu_open">
-        <div class="fixed inset-0 bg-gray-600 bg-opacity-75"></div>
+        <div class="fixed inset-0 bg-neutral bg-opacity-75"></div>
 
         <div class="fixed inset-0 z-40 flex">
-          <div class="relative flex w-full max-w-xs flex-1 flex-col bg-white">
+          <div class="relative flex w-full max-w-xs flex-1 flex-col bg-base-100">
             <div class="absolute top-0 right-0 -mr-12 pt-2">
               <button
                 type="button"
-                class="ml-1 flex h-10 w-10 items-center justify-center rounded-full focus:outline-none focus:ring-2 focus:ring-inset focus:ring-white"
+                class="ml-1 flex h-10 w-10 items-center justify-center rounded-full focus:outline-none focus:ring-2 focus:ring-inset focus:ring-primary-content"
                 @click="mobile_menu_open = false"
               >
-                <Backpex.HTML.CoreComponents.icon name="hero-x-mark-solid" class="h-5 w-5 text-white" />
+                <Backpex.HTML.CoreComponents.icon name="hero-x-mark-solid" class="h-5 w-5 text-primary-content" />
               </button>
             </div>
 
@@ -82,7 +82,7 @@ defmodule Backpex.HTML.Layout do
             <%= for _ <- @sidebar do %>
               <button
                 type="button"
-                class="-mt-0.5 -ml-0.5 inline-flex h-12 w-12 items-center justify-center rounded-md text-gray-800 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-gray-800"
+                class="-mt-0.5 -ml-0.5 inline-flex h-12 w-12 items-center justify-center rounded-md text-base-content focus:outline-none focus:ring-2 focus:ring-inset focus:ring-base-content"
                 @click="mobile_menu_open = !mobile_menu_open"
               >
                 <Backpex.HTML.CoreComponents.icon name="hero-bars-3-solid" class="h-8 w-8" />
@@ -115,7 +115,7 @@ defmodule Backpex.HTML.Layout do
 
   def topbar(assigns) do
     ~H"""
-    <header class={"#{@class} flex h-16 w-full items-center justify-between border-b border-gray-200 bg-white px-4 text-gray-800"}>
+    <header class={"#{@class} flex h-16 w-full items-center justify-between border-b border-base-100 bg-base-100 px-4 text-base-content"}>
       <%= render_slot(@inner_block) %>
     </header>
     """
@@ -134,7 +134,7 @@ defmodule Backpex.HTML.Layout do
     ~H"""
     <div
       :if={Phoenix.Flash.get(@flash, :info) && Phoenix.Flash.get(@flash, :info) != ""}
-      class="alert my-4 bg-blue-100 text-sm text-blue-800"
+      class="alert my-4 bg-info text-sm text-info-content"
       phx-value-key="info"
     >
       <Backpex.HTML.CoreComponents.icon name="hero-information-circle" class="h-5 w-5" />
@@ -154,7 +154,7 @@ defmodule Backpex.HTML.Layout do
 
     <div
       :if={Phoenix.Flash.get(@flash, :error) && Phoenix.Flash.get(@flash, :error) != ""}
-      class="alert my-4 bg-red-100 text-sm text-red-800"
+      class="alert my-4 bg-error text-sm text-error-content"
       phx-value-key="error"
     >
       <Backpex.HTML.CoreComponents.icon name="hero-x-circle" class="h-5 w-5" />
@@ -186,7 +186,7 @@ defmodule Backpex.HTML.Layout do
     ~H"""
     <footer class={"#{@class} flex justify-center py-8 text-sm"}>
       <%= render_slot(@inner_block) %>
-      <div :if={@inner_block == []} class="flex flex-col items-center text-gray-500">
+      <div :if={@inner_block == []} class="flex flex-col items-center text-base-content">
         <p>
           powered by
           <.link href="https://backpex.live" class="font-semibold hover:underline">Backpex <%= version() %></.link>
@@ -213,7 +213,7 @@ defmodule Backpex.HTML.Layout do
 
   def topbar_branding(assigns) do
     ~H"""
-    <div class={"#{@class} flex flex-shrink-0 items-center space-x-2 text-gray-800"}>
+    <div class={"#{@class} flex flex-shrink-0 items-center space-x-2 text-base-content"}>
       <%= if @logo === [] do %>
         <.backpex_logo class="w-8" />
       <% else %>
@@ -334,7 +334,7 @@ defmodule Backpex.HTML.Layout do
 
   def main_title(assigns) do
     ~H"""
-    <h1 class={"#{@class} mb-2 text-3xl font-semibold leading-relaxed text-gray-800"}>
+    <h1 class={"#{@class} mb-2 text-3xl font-semibold leading-relaxed text-base-content"}>
       <%= render_slot(@inner_block) %>
     </h1>
     """
@@ -369,7 +369,7 @@ defmodule Backpex.HTML.Layout do
             x-bind:class="open ? '' : '-rotate-90'"
           />
         </div>
-        <div class="flex gap-2 text-sm font-semibold uppercase text-gray-600">
+        <div class="flex gap-2 text-sm font-semibold uppercase text-base-content">
           <%= render_slot(@label) %>
         </div>
       </div>
@@ -402,9 +402,9 @@ defmodule Backpex.HTML.Layout do
 
     highlight =
       if Router.active?(assigns.current_url, path) do
-        "bg-gray-200 text-gray-900"
+        "bg-base-300 text-base-content"
       else
-        "text-gray-700 hover:bg-gray-50 hover:text-gray-900"
+        "text-base-content/95 hover:bg-base-100"
       end
 
     base_class = "group flex items-center gap-2 rounded-md px-2 py-2 space-x-2 hover:cursor-pointer"
@@ -473,7 +473,7 @@ defmodule Backpex.HTML.Layout do
       <div
         id="modal-overlay"
         class={[
-          "animate-fade-in fixed inset-0 z-50 bg-gray-900 bg-opacity-30 transition-opacity",
+          "animate-fade-in fixed inset-0 z-50 bg-neutral bg-opacity-40 transition-opacity",
           unless(@open, do: "hidden")
         ]}
         aria-hidden="true"
@@ -495,15 +495,15 @@ defmodule Backpex.HTML.Layout do
           phx-key={@open && "escape"}
         >
           <!-- Header -->
-          <div class="border-b border-gray-100 px-5 py-3">
+          <div class="border-b border-base-200 px-5 py-3">
             <div class="flex items-center justify-between">
-              <div if={@title} class="0 text-2xl font-semibold text-gray-800">
+              <div if={@title} class="0 text-2xl font-semibold text-base-content">
                 <%= @title %>
               </div>
               <button
                 type="button"
                 phx-click={hide_modal(@target, @close_event_name)}
-                class="text-gray-400 hover:text-gray-500"
+                class="text-base-content/50 hover:text-base-content"
                 aria-label={Backpex.translate("Close modal")}
               >
                 <Backpex.HTML.CoreComponents.icon name="hero-x-mark" class="h-5 w-5" />
@@ -539,7 +539,7 @@ defmodule Backpex.HTML.Layout do
   end
 
   defp get_modal_classes(assigns) do
-    base_classes = "animate-fade-in-scale w-full max-h-full overflow-auto bg-white rounded-xl shadow-lg"
+    base_classes = "animate-fade-in-scale w-full max-h-full overflow-auto bg-base-100 rounded-xl shadow-lg"
 
     max_width_class =
       case Map.get(assigns, :max_width, "md") do

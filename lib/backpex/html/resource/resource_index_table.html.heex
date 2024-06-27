@@ -19,7 +19,7 @@
   x-init="setActionsWidth()"
   x-on:resize.window="setActionsWidth()"
 >
-  <thead class="bg-gray-50 uppercase text-gray-700">
+  <thead class="bg-base-300 uppercase text-base-content">
     <tr>
       <th :if={Enum.any?(index_item_actions(@item_actions))}>
         <input
@@ -49,9 +49,9 @@
       </th>
       <th class="action-header-spacer" />
       <th
-        x-bind:class="hasOverflow ? 'border-gray-200 border-l' : ''"
+        x-bind:class="hasOverflow ? 'border-base-100 border-l' : ''"
         x-bind:style={"hasOverflow ? '#{shadow_sm_left()}' : ''"}
-        class="absolute right-0 rounded-tr-xl bg-gray-50 px-0"
+        class="absolute right-0 rounded-tr-xl bg-base-300 px-0"
       >
         <.toggle_columns
           socket={@socket}
@@ -74,7 +74,7 @@
       class={index_row_class(assigns, item, selected?(@selected_items, item), index)}
     >
       <td :if={Enum.any?(index_item_actions(@item_actions))} class="relative">
-        <div :if={selected?(@selected_items, item)} class="absolute inset-y-0 left-0 w-0.5 bg-gray-500" />
+        <div :if={selected?(@selected_items, item)} class="absolute inset-y-0 left-0 w-0.5 bg-base-content" />
         <input
           id={"select-input-#{id}"}
           phx-click="update-selected-items"
@@ -85,7 +85,7 @@
           aria-label={Backpex.translate({"Select item with id: %{id}", %{id: id}})}
         />
       </td>
-      <td :for={{name, field_options} <- @fields} :if={active?(@active_fields, name)} class="text-gray-500">
+      <td :for={{name, field_options} <- @fields} :if={active?(@active_fields, name)} class="text-base-content">
         <div class={[align(field_options), index_column_class(assigns, field_options)]}>
           <.resource_field name={name} item={item} {assigns} />
         </div>
@@ -94,10 +94,10 @@
         <div x-bind:style="'width: ' + actionsWidth + 'px !important'"></div>
       </td>
       <td
-        x-bind:class="hasOverflow ? 'border-gray-100 border-l' : ''"
+        x-bind:class="hasOverflow ? 'border-base-100 border-l' : ''"
         x-bind:style={"hasOverflow ? '#{shadow_sm_left()}' : ''"}
         class={[
-          "item-action-column absolute right-0 px-4 py-0 text-gray-500 last:rounded-br-xl",
+          "item-action-column absolute right-0 px-4 py-0 text-base-content last:rounded-br-xl",
           index_row_class(assigns, item, selected?(@selected_items, item), index)
         ]}
       >
