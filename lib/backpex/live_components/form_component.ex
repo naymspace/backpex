@@ -336,7 +336,7 @@ defmodule Backpex.FormComponent do
         socket =
           socket
           |> assign(:show_form_errors, false)
-          |> put_flash_message(result)
+          |> put_flash_message(resource_action_result)
           |> push_navigate(to: return_to)
 
         {:noreply, socket}
