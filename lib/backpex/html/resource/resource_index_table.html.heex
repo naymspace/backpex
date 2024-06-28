@@ -19,7 +19,7 @@
   x-init="setActionsWidth()"
   x-on:resize.window="setActionsWidth()"
 >
-  <thead class="bg-base-300 uppercase text-base-content">
+  <thead class="bg-base-200/50 text-base-content uppercase">
     <tr>
       <th :if={Enum.any?(index_item_actions(@item_actions))}>
         <input
@@ -51,16 +51,18 @@
       <th
         x-bind:class="hasOverflow ? 'border-base-100 border-l' : ''"
         x-bind:style={"hasOverflow ? '#{shadow_sm_left()}' : ''"}
-        class="absolute right-0 rounded-tr-xl bg-base-300 px-0"
+        class="absolute right-0 rounded-tr-xl px-0"
       >
-        <.toggle_columns
-          socket={@socket}
-          active_fields={@active_fields}
-          live_resource={@live_resource}
-          current_url={@current_url}
-          class="flex justify-end pt-1 pr-4 font-medium"
-          x_style="'width: ' + actionsWidth + 'px !important'"
-        />
+        <div class="bg-base-100">
+          <.toggle_columns
+            socket={@socket}
+            active_fields={@active_fields}
+            live_resource={@live_resource}
+            current_url={@current_url}
+            class="flex justify-end pt-1 pr-4 font-medium bg-base-200/50"
+            x_style="'width: ' + actionsWidth + 'px !important'"
+          />
+        </div>
       </th>
     </tr>
   </thead>
@@ -85,7 +87,7 @@
           aria-label={Backpex.translate({"Select item with id: %{id}", %{id: id}})}
         />
       </td>
-      <td :for={{name, field_options} <- @fields} :if={active?(@active_fields, name)} class="text-base-content">
+      <td :for={{name, field_options} <- @fields} :if={active?(@active_fields, name)} class="text-base-content/75">
         <div class={[align(field_options), index_column_class(assigns, field_options)]}>
           <.resource_field name={name} item={item} {assigns} />
         </div>
@@ -97,12 +99,12 @@
         x-bind:class="hasOverflow ? 'border-base-100 border-l' : ''"
         x-bind:style={"hasOverflow ? '#{shadow_sm_left()}' : ''"}
         class={[
-          "item-action-column absolute right-0 px-4 py-0 text-base-content last:rounded-br-xl",
+          "item-action-column text-base-content absolute right-0 px-4 py-0 last:rounded-br-xl",
           index_row_class(assigns, item, selected?(@selected_items, item), index)
         ]}
       >
         <div
-          class="flex items-center justify-end space-x-2"
+          class="flex items-center justify-end space-x-2 text-base-content/75"
           x-bind:style="`height: ${rowHeight - 1}px !important; width: ${actionsWidth - 32}px !important`"
         >
           <div

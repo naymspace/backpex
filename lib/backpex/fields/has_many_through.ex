@@ -119,9 +119,9 @@ defmodule Backpex.Fields.HasManyThrough do
       |> assign_fallback_child_fields()
 
     ~H"""
-    <div class="overflow-x-auto rounded-xl ring-1 ring-base-content/25">
+    <div class="overflow-x-auto rounded-xl ring-1 ring-base-content/10">
       <table class="table">
-        <thead class="bg-base-200 uppercase text-base-content">
+        <thead class="bg-base-200/50 uppercase text-base-content">
           <tr>
             <th
               :for={{_name, %{label: label}} <- action_fields(@field_options.child_fields, assigns, :index)}
@@ -138,7 +138,7 @@ defmodule Backpex.Fields.HasManyThrough do
             <th></th>
           </tr>
         </thead>
-        <tbody class="text-base-content/90">
+        <tbody class="text-base-content/75">
           <tr :for={{listable, index} <- Enum.with_index(@listables)}>
             <td :for={{name, field_options} = field <- action_fields(@field_options.child_fields, assigns, :index)}>
               <.live_component
@@ -215,9 +215,9 @@ defmodule Backpex.Fields.HasManyThrough do
           <Layout.input_label text={@field_options[:label]} />
         </:label>
 
-        <div :if={@listables != []} class="mb-4 overflow-x-auto rounded-xl ring-1 ring-base-content/25">
+        <div :if={@listables != []} class="mb-4 overflow-x-auto rounded-xl ring-1 ring-base-content/10">
           <table class="table">
-            <thead class="bg-base-200 uppercase text-base-content">
+            <thead class="bg-base-200/50 uppercase text-base-content">
               <tr>
                 <th
                   :for={{_name, %{label: label}} <- action_fields(@field_options.child_fields, assigns, :index)}

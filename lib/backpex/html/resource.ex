@@ -229,7 +229,7 @@ defmodule Backpex.HTML.Resource do
         <span :if={@filter_count > 0} class="indicator-item badge badge-secondary">
           <%= @filter_count %>
         </span>
-        <label tabindex="0" class="btn btn-sm btn-outline border-0 ring-1 ring-base-content/25">
+        <label tabindex="0" class="btn btn-sm btn-outline border-0 ring-1 ring-base-content/10">
           <Backpex.HTML.CoreComponents.icon name="hero-funnel" class={["h-5 w-5 mr-2", @filter_icon_class]} />
           <%= Backpex.translate("Filters") %>
         </label>
@@ -249,8 +249,8 @@ defmodule Backpex.HTML.Resource do
 
   defp filter_badge(assigns) do
     ~H"""
-    <div class="join ring-base-content/25 relative ring-1">
-      <div class="badge badge-outline join-item bg-base-200 h-auto border-0 px-4 py-1.5 font-semibold">
+    <div class="join relative ring-1 ring-base-content/10">
+      <div class="badge badge-outline bg-base-300 join-item bg-base-200 h-auto border-0 px-4 py-1.5 font-semibold">
         <%= Map.get(@filter, :label, @filter.module.label()) %>
       </div>
       <div class="badge badge-outline join-item h-auto border-0 px-4 py-1.5">
@@ -264,7 +264,7 @@ defmodule Backpex.HTML.Resource do
         type="button"
         phx-click="clear-filter"
         phx-value-field={@key}
-        class="top-[-5px] right-[-5px] p-[3px] badge bg-base-300 absolute rounded-full shadow transition duration-75 hover:text-error hover:scale-110 ring-1 ring-base-content/25"
+        class="top-[-5px] right-[-5px] p-[3px] badge bg-base-300 absolute rounded-full shadow transition duration-75 hover:text-error hover:scale-110 ring-1 ring-base-content/10"
         aria-label={Backpex.translate({"Clear %{name} filter", %{name: @filter.module.label()}})}
       >
         <Backpex.HTML.CoreComponents.icon name="hero-x-mark" class="h-3 w-3" />
@@ -1008,7 +1008,7 @@ defmodule Backpex.HTML.Resource do
   end
 
   defp index_row_class(assigns, item, selected, index) do
-    base_class = if selected, do: "bg-base-300", else: "bg-base-100"
+    base_class = if selected, do: "bg-base-200/50", else: "bg-base-100"
     extra_class = assigns.live_resource.index_row_class(assigns, item, selected, index)
 
     [base_class, extra_class]
