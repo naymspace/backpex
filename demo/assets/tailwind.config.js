@@ -15,7 +15,6 @@ module.exports = {
           'secondary-content': 'white',
           info: '#dbeafe',
           'info-content': '#2563eb',
-          error: '#ffe4e6',
           'error-content': '#e11d48',
           'base-200': '#f3f4f6',
           'base-300': '#e5e7eb'
