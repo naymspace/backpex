@@ -1103,7 +1103,7 @@ defmodule Backpex.LiveResource do
           <%= @singular_name %>
           <.link
             :if={Backpex.LiveResource.can?(assigns, :edit, @item, @live_resource)}
-            class="tooltip"
+            class="tooltip z-50"
             data-tip={Backpex.translate("Edit")}
             aria-label={Backpex.translate("Edit")}
             patch={Router.get_path(@socket, @live_resource, @params, :edit, @item)}
