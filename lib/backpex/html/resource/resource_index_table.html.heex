@@ -108,7 +108,7 @@
           <div
             :for={{key, action} <- row_item_actions(@item_actions)}
             :if={LiveResource.can?(assigns, key, item, @live_resource)}
-            class="tooltip z-50"
+            class="tooltip hover:z-30"
             data-tip={action.module.label(assigns)}
           >
             <button
