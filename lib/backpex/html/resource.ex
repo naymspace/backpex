@@ -264,7 +264,7 @@ defmodule Backpex.HTML.Resource do
         type="button"
         phx-click="clear-filter"
         phx-value-field={@key}
-        class="indicator-item grid place-items-center rounded-full bg-gray-300 p-1 transition duration-75 hover:text-secondary hover:scale-110 "
+        class="indicator-item grid place-items-center rounded-full bg-gray-300 p-1 shadow transition duration-75 hover:text-secondary hover:scale-110 "
         aria-label={Backpex.translate({"Clear %{name} filter", %{name: @filter.module.label()}})}
       >
         <Backpex.HTML.CoreComponents.icon name="hero-x-mark" class="h-3 w-3" />
