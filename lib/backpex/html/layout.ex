@@ -115,7 +115,7 @@ defmodule Backpex.HTML.Layout do
 
   def topbar(assigns) do
     ~H"""
-    <header class={"#{@class} flex h-16 w-full items-center justify-between border-b border-base-100 bg-base-100 px-4 text-base-content"}>
+    <header class={"#{@class} flex h-16 w-full items-center border-b border-base-100 bg-base-100 px-4 text-base-content"}>
       <%= render_slot(@inner_block) %>
     </header>
     """
@@ -213,7 +213,7 @@ defmodule Backpex.HTML.Layout do
 
   def topbar_branding(assigns) do
     ~H"""
-    <div class={"#{@class} flex flex-shrink-0 items-center space-x-2 text-base-content"}>
+    <div class={"#{@class} flex flex-shrink-0 flex-grow items-center space-x-2 text-base-content"}>
       <%= if @logo === [] do %>
         <.backpex_logo class="w-8" />
       <% else %>
