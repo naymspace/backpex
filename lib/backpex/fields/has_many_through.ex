@@ -119,9 +119,9 @@ defmodule Backpex.Fields.HasManyThrough do
       |> assign_fallback_child_fields()
 
     ~H"""
-    <div class="overflow-x-auto rounded-xl ring-1 ring-base-content/10">
+    <div class="ring-base-content/10 overflow-x-auto rounded-xl ring-1">
       <table class="table">
-        <thead class="bg-base-200/50 uppercase text-base-content">
+        <thead class="bg-base-200/50 text-base-content uppercase">
           <tr>
             <th
               :for={{_name, %{label: label}} <- action_fields(@field_options.child_fields, assigns, :index)}
@@ -215,9 +215,9 @@ defmodule Backpex.Fields.HasManyThrough do
           <Layout.input_label text={@field_options[:label]} />
         </:label>
 
-        <div :if={@listables != []} class="mb-4 overflow-x-auto rounded-xl ring-1 ring-base-content/10">
+        <div :if={@listables != []} class="ring-base-content/10 mb-4 overflow-x-auto rounded-xl ring-1">
           <table class="table">
-            <thead class="bg-base-200/50 uppercase text-base-content">
+            <thead class="bg-base-200/50 text-base-content uppercase">
               <tr>
                 <th
                   :for={{_name, %{label: label}} <- action_fields(@field_options.child_fields, assigns, :index)}
@@ -235,7 +235,10 @@ defmodule Backpex.Fields.HasManyThrough do
               </tr>
             </thead>
             <tbody class="text-base-content/90">
-              <tr class="border-b-[1px] last:border-b-0 border-base-content/10" :for={{listable, index} <- Enum.with_index(@listables)}>
+              <tr
+                :for={{listable, index} <- Enum.with_index(@listables)}
+                class="border-b-[1px] border-base-content/10 last:border-b-0"
+              >
                 <td :for={{name, field_options} <- action_fields(@field_options.child_fields, assigns, :index)}>
                   <.live_component
                     id={"child_table_#{name}_#{index}"}
@@ -309,7 +312,7 @@ defmodule Backpex.Fields.HasManyThrough do
               <.pivot_field :for={{name, _field_options} <- @field_options.pivot_fields} name={name} form={e} {assigns} />
             </div>
           </div>
-          <div class="flex justify-end space-x-4 bg-base-200 px-6 py-3">
+          <div class="bg-base-200 flex justify-end space-x-4 px-6 py-3">
             <button type="button" class="btn" phx-click="cancel-relational" phx-target={@myself}>
               <%= Backpex.translate("Cancel") %>
             </button>

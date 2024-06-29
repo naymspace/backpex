@@ -229,7 +229,7 @@ defmodule Backpex.HTML.Resource do
         <span :if={@filter_count > 0} class="indicator-item badge badge-secondary">
           <%= @filter_count %>
         </span>
-        <label tabindex="0" class="btn btn-sm btn-outline border-0 ring-1 ring-base-content/10">
+        <label tabindex="0" class="btn btn-sm btn-outline ring-base-content/10 border-0 ring-1">
           <Backpex.HTML.CoreComponents.icon name="hero-funnel" class={["h-5 w-5 mr-2", @filter_icon_class]} />
           <%= Backpex.translate("Filters") %>
         </label>
@@ -249,7 +249,7 @@ defmodule Backpex.HTML.Resource do
 
   defp filter_badge(assigns) do
     ~H"""
-    <div class="join relative ring-1 ring-base-content/10">
+    <div class="join ring-base-content/10 relative ring-1">
       <div class="badge badge-outline bg-base-300 join-item bg-base-200 h-auto border-0 px-4 py-1.5 font-semibold">
         <%= Map.get(@filter, :label, @filter.module.label()) %>
       </div>
@@ -264,7 +264,7 @@ defmodule Backpex.HTML.Resource do
         type="button"
         phx-click="clear-filter"
         phx-value-field={@key}
-        class="top-[-5px] right-[-5px] p-[3px] badge bg-base-300 absolute rounded-full shadow transition duration-75 hover:text-error hover:scale-110 ring-1 ring-base-content/10"
+        class="top-[-5px] right-[-5px] p-[3px] badge bg-base-300 ring-base-content/10 absolute rounded-full shadow ring-1 transition duration-75 hover:text-error hover:scale-110"
         aria-label={Backpex.translate({"Clear %{name} filter", %{name: @filter.module.label()}})}
       >
         <Backpex.HTML.CoreComponents.icon name="hero-x-mark" class="h-3 w-3" />
@@ -822,7 +822,7 @@ defmodule Backpex.HTML.Resource do
   defp empty_state_content(assigns) do
     ~H"""
     <Backpex.HTML.CoreComponents.icon name="hero-folder-plus" class="mb-1 inline-block h-12 w-12 text-base-content/30" />
-    <p class="text-lg font-bold text-base-content"><%= @title %></p>
+    <p class="text-base-content text-lg font-bold"><%= @title %></p>
     <p :if={@subtitle} class="text-base-content/75"><%= @subtitle %></p>
     <%= render_slot(@inner_block) %>
     """
@@ -885,7 +885,7 @@ defmodule Backpex.HTML.Resource do
 
       <div class="card bg-base-100 mt-4">
         <div class="card-body p-0">
-          <div class="flex flex-col sm:divide-y sm:divide-base-200">
+          <div class="flex flex-col sm:divide-base-200 sm:divide-y">
             <div :for={{name, %{label: label}} <- @panel_fields}>
               <.field_container>
                 <:label>
@@ -913,7 +913,7 @@ defmodule Backpex.HTML.Resource do
     ~H"""
     <fieldset class={["contents", @class]}>
       <div :if={@label != nil}>
-        <hr class="mb-8 border-1 border-base-200" />
+        <hr class="border-1 border-base-200 mb-8" />
 
         <legend class="mb-4 px-6 text-lg font-semibold">
           <%= @label %>

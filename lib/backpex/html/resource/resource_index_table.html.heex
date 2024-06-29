@@ -76,7 +76,7 @@
       class={index_row_class(assigns, item, selected?(@selected_items, item), index)}
     >
       <td :if={Enum.any?(index_item_actions(@item_actions))} class="relative">
-        <div :if={selected?(@selected_items, item)} class="absolute inset-y-0 left-0 w-0.5 bg-base-content" />
+        <div :if={selected?(@selected_items, item)} class="bg-base-content absolute inset-y-0 left-0 w-0.5" />
         <input
           id={"select-input-#{id}"}
           phx-click="update-selected-items"
@@ -104,7 +104,7 @@
         ]}
       >
         <div
-          class="flex items-center justify-end space-x-2 text-base-content/75"
+          class="text-base-content/75 flex items-center justify-end space-x-2"
           x-bind:style="`height: ${rowHeight - 1}px !important; width: ${actionsWidth - 32}px !important`"
         >
           <div

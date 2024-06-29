@@ -49,10 +49,10 @@ defmodule Backpex.Metrics.Value do
     ~H"""
     <div class={["card bg-base-100 mb-4 shadow-sm", @class]}>
       <div class="card-body p-4">
-        <p class="card-title text-sm font-normal text-base-content/60">
+        <p class="card-title text-base-content/60 text-sm font-normal">
           <%= @label %>
         </p>
-        <p class="text-2xl font-semibold text-base-content">
+        <p class="text-base-content text-2xl font-semibold">
           <%= @value %>
         </p>
       </div>
