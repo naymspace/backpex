@@ -115,7 +115,7 @@ defmodule Backpex.HTML.Layout do
 
   def topbar(assigns) do
     ~H"""
-    <header class={"#{@class} border-base-100 bg-base-100 text-base-content flex h-16 w-full items-center border-b px-4"}>
+    <header class={"#{@class} border-base-300 bg-base-100 text-base-content flex h-16 w-full items-center border-b px-4"}>
       <%= render_slot(@inner_block) %>
     </header>
     """
