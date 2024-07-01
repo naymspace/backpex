@@ -7,11 +7,23 @@ module.exports = {
     themes: [
       {
         light: {
-          ...require('daisyui/src/theming/themes').light,
+          ...require('daisyui/src/theming/themes').light
+          ,
           primary: '#1d4ed8',
           'primary-content': 'white',
           secondary: '#f39325',
-          'secondary-content': 'white'
+          'secondary-content': 'white',
+          info: '#dbeafe',
+          'info-content': '#2563eb',
+          'error-content': '#e11d48',
+          'base-200': '#f3f4f6',
+          'base-300': '#e5e7eb'
+        },
+        dark: {
+          ...require('daisyui/src/theming/themes').dark
+        },
+        cyberpunk: {
+          ...require('daisyui/src/theming/themes').cyberpunk
         }
       }
     ]

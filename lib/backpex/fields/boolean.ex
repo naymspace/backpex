@@ -13,8 +13,8 @@ defmodule Backpex.Fields.Boolean do
   def render_value(assigns) do
     ~H"""
     <div>
-      <Backpex.HTML.CoreComponents.icon :if={@value} name="hero-check-solid" class="h-5 w-5 text-green-500" />
-      <Backpex.HTML.CoreComponents.icon :if={!@value} name="hero-x-mark-solid" class="h-5 w-5 text-red-500" />
+      <Backpex.HTML.CoreComponents.icon :if={@value} name="hero-check-solid" class="h-5 w-5 text-success" />
+      <Backpex.HTML.CoreComponents.icon :if={!@value} name="hero-x-mark-solid" class="h-5 w-5 text-error" />
     </div>
     """
   end

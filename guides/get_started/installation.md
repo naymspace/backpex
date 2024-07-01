@@ -280,30 +280,28 @@ If you need this color on your body tag to style your application, consider usin
 
 ## Set daisyUI theme
 
-As mentioned in the [prerequisites](prerequisites.md), Backpex currently only supports daisyUI light mode. You have two options:
+Backpex supports daisyUI themes, to use them you need to do two things:
 
-1. Only add the daisyUI light theme to your application.
+1. Add the themes to your application.
 
 ```js
 // tailwind.config.js
 module.exports = {
   daisyui: {
-    themes: ['light'],
+    themes: ["light", "dark", "cyberpunk"]
   },
   ...
 }
 ```
 
-2. Explicitly set the daisyUI light theme in your layout.
+2. Explicitly set the daisyUI theme in your layout.
 
 ```elixir
 # root.html.heex
-<html data-theme="light">
+<html data-theme="cyberpunk">
   ...
 </html>
 ```
-
-If you use another daisyUI theme to style your application, consider using another root layout for Backpex with light theme applied (see [`put_root_layout/2`](https://hexdocs.pm/phoenix/Phoenix.Controller.html#put_root_layout/2)).
 
 ## Remove `@tailwindcss/forms` plugin
 

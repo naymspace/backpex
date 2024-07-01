@@ -10,7 +10,7 @@ defmodule Backpex.ItemActions.Show do
     ~H"""
     <Backpex.HTML.CoreComponents.icon
       name="hero-eye"
-      class="h-5 w-5 cursor-pointer transition duration-75 hover:scale-110 hover:text-green-600"
+      class="h-5 w-5 cursor-pointer transition duration-75 hover:scale-110 hover:text-success"
     />
     """
   end
