@@ -1008,7 +1008,7 @@ defmodule Backpex.LiveResource do
 
       @impl Backpex.LiveResource
       def resource_created_message,
-        do: Backpex.translate({"%{resource} has been created successfully.", %{resource: singular_name()}})
+        do: Backpex.translate({"New %{resource} has been created successfully.", %{resource: singular_name()}})
 
       defoverridable can?: 3,
                      fields: 0,
