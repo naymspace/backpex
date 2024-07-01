@@ -249,8 +249,8 @@ defmodule Backpex.HTML.Resource do
 
   defp filter_badge(assigns) do
     ~H"""
-    <div class="join indicator relative ring-1 ring-base-content/10">
-      <div class="badge badge-outline join-item h-auto border-0 bg-base-300 px-4 py-1.5 font-semibold">
+    <div class="join indicator ring-base-content/10 relative ring-1">
+      <div class="badge badge-outline join-item bg-base-300 h-auto border-0 px-4 py-1.5 font-semibold">
         <%= Map.get(@filter, :label, @filter.module.label()) %>
       </div>
       <div class="badge badge-outline join-item h-auto border-0 px-4 py-1.5">
@@ -264,7 +264,7 @@ defmodule Backpex.HTML.Resource do
         type="button"
         phx-click="clear-filter"
         phx-value-field={@key}
-        class="indicator-item grid place-items-center rounded-full bg-base-300 p-1 shadow transition duration-75 hover:text-secondary hover:scale-110 "
+        class="indicator-item bg-base-300 grid place-items-center rounded-full p-1 shadow transition duration-75 hover:text-secondary hover:scale-110 "
         aria-label={Backpex.translate({"Clear %{name} filter", %{name: @filter.module.label()}})}
       >
         <Backpex.HTML.CoreComponents.icon name="hero-x-mark" class="h-3 w-3" />
