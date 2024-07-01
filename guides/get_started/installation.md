@@ -128,7 +128,7 @@ defmodule MyAppWeb.Live.PostLive do
     create_changeset: &MyApp.Blog.Post.create_changeset/3,
     pubsub: MyApp.PubSub,
     topic: "posts",
-    event_prefix: "post_",
+    event_prefix: "post_"
 end
 ```
 
@@ -162,7 +162,7 @@ defmodule MyAppWeb.Live.PostLive do
     create_changeset: &MyApp.Blog.Post.create_changeset/3,
     pubsub: MyApp.PubSub,
     topic: "posts",
-    event_prefix: "post_",
+    event_prefix: "post_"
 
   @impl Backpex.LiveResource
   def singular_name, do: "Post"
