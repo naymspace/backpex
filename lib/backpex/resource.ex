@@ -269,7 +269,12 @@ defmodule Backpex.Resource do
     id_type = schema.__schema__(:type, :id)
     associations = associations(fields, schema)
 
-    from(item in schema, as: ^schema_name, distinct: item.id)
+    base_query = case to_string(repo.__adapter__()) do
+      "Elixir.Ecto.Adapters.SQLite3" -> from(schema, as: ^schema_name)
+      _ -> from(item in schema, as: ^schema_name, distinct: item.id)
+    end
+
+    base_query
     |> item_query.()
     |> maybe_join(associations)
     |> maybe_preload(associations, fields)
