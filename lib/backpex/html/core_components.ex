@@ -17,7 +17,7 @@ defmodule Backpex.HTML.CoreComponents do
   @doc """
   Renders a filter_badge component.
   """
-  attr :clear_event, :string, doc: "event name for removing the badge"
+  attr :clear_event, :string, default: "clear-filter", doc: "event name for removing the badge"
   attr :filter_name, :string, required: true
   attr :label, :string, required: true
 
