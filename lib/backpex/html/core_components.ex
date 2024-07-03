@@ -30,7 +30,7 @@ defmodule Backpex.HTML.CoreComponents do
         <%= @label %>
       </div>
       <div class="badge badge-outline join-item h-auto border-0 px-4 py-1.5">
-      <%= render_slot(@inner_block) %>
+        <%= render_slot(@inner_block) %>
       </div>
       <button
         type="button"

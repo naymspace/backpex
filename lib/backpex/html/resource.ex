@@ -244,12 +244,12 @@ defmodule Backpex.HTML.Resource do
       clear_event="clear-filter"
       label={Keyword.get(@filters, String.to_existing_atom(key)).module.label()}
     >
-    <%= component(
-          &Keyword.get(@filters, String.to_existing_atom(key)).module.render/1,
-          [value: value],
-          {__ENV__.module, __ENV__.function, __ENV__.file, __ENV__.line}
-        ) %>
-        </Backpex.HTML.CoreComponents.filter_badge>
+      <%= component(
+        &Keyword.get(@filters, String.to_existing_atom(key)).module.render/1,
+        [value: value],
+        {__ENV__.module, __ENV__.function, __ENV__.file, __ENV__.line}
+      ) %>
+    </Backpex.HTML.CoreComponents.filter_badge>
     """
   end
 
