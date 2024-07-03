@@ -25,7 +25,7 @@ defmodule Backpex.HTML.CoreComponents do
 
   def filter_badge(assigns) do
     ~H"""
-    <div class="join relative ring-1 ring-gray-400">
+    <div class="join indicator relative ring-1 ring-gray-400">
       <div class="badge badge-outline join-item h-auto border-0 bg-gray-200 px-4 py-1.5 font-semibold">
         <%= @label %>
       </div>
@@ -36,7 +36,7 @@ defmodule Backpex.HTML.CoreComponents do
         type="button"
         phx-click={@clear_event}
         phx-value-field={@filter_name}
-        class="top-[-5px] right-[-5px] p-[3px] absolute rounded-full bg-gray-300 shadow transition duration-75 hover:text-secondary hover:scale-110"
+        class="indicator-item grid place-items-center rounded-full bg-gray-300 p-1 shadow transition duration-75 hover:text-secondary hover:scale-110"
         aria-label={Backpex.translate({"Clear %{name} filter", %{name: @label}})}
       >
         <.icon name="hero-x-mark" class="h-3 w-3" />

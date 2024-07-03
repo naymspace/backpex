@@ -127,7 +127,7 @@ defmodule Backpex.LiveResource do
   @callback create_button_label() :: binary()
 
   @doc """
-  Customizes the message in the flash message when a resource has been created successfully. "Defaults to %{resource} has been created successfully".
+  Customizes the message in the flash message when a resource has been created successfully. Defaults to "New %{resource} has been created successfully".
   """
   @callback resource_created_message() :: binary()
 
@@ -1008,7 +1008,7 @@ defmodule Backpex.LiveResource do
 
       @impl Backpex.LiveResource
       def resource_created_message,
-        do: Backpex.translate({"%{resource} has been created successfully.", %{resource: singular_name()}})
+        do: Backpex.translate({"New %{resource} has been created successfully.", %{resource: singular_name()}})
 
       defoverridable can?: 3,
                      fields: 0,

@@ -230,7 +230,7 @@ defmodule Backpex.HTML.Resource do
           <%= @filter_count %>
         </span>
         <label tabindex="0" class="btn btn-sm btn-outline">
-          <Backpex.HTML.CoreComponents.icon name="hero-funnel" class={["h-5 w-5 mr-2", @filter_icon_class]} />
+          <Backpex.HTML.CoreComponents.icon name="hero-funnel-solid " class={["h-5 w-5 mr-2", @filter_icon_class]} />
           <%= Backpex.translate("Filters") %>
         </label>
       </div>
