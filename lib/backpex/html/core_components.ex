@@ -13,4 +13,35 @@ defmodule Backpex.HTML.CoreComponents do
     <span class={[@name, @class]} {@rest} />
     """
   end
+
+  @doc """
+  Renders a filter_badge component.
+  """
+  attr :clear_event, :string, default: "clear-filter", doc: "event name for removing the badge"
+  attr :filter_name, :string, required: true
+  attr :label, :string, required: true
+
+  slot :inner_block
+
+  def filter_badge(assigns) do
+    ~H"""
+    <div class="join indicator relative ring-1 ring-gray-400">
+      <div class="badge badge-outline join-item h-auto border-0 bg-gray-200 px-4 py-1.5 font-semibold">
+        <%= @label %>
+      </div>
+      <div class="badge badge-outline join-item h-auto border-0 px-4 py-1.5">
+        <%= render_slot(@inner_block) %>
+      </div>
+      <button
+        type="button"
+        phx-click={@clear_event}
+        phx-value-field={@filter_name}
+        class="indicator-item grid place-items-center rounded-full bg-gray-300 p-1 shadow transition duration-75 hover:text-secondary hover:scale-110"
+        aria-label={Backpex.translate({"Clear %{name} filter", %{name: @label}})}
+      >
+        <.icon name="hero-x-mark" class="h-3 w-3" />
+      </button>
+    </div>
+    """
+  end
 end

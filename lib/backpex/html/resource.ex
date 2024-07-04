@@ -238,38 +238,18 @@ defmodule Backpex.HTML.Resource do
         <.index_filter_forms filters={@filters} filter_options={@filter_options} />
       </div>
     </div>
-    <.filter_badge
+    <Backpex.HTML.CoreComponents.filter_badge
       :for={{key, value} <- @filter_options}
-      key={key}
-      value={value}
-      filter={Keyword.get(@filters, String.to_existing_atom(key))}
-    />
-    """
-  end
-
-  defp filter_badge(assigns) do
-    ~H"""
-    <div class="join indicator relative ring-1 ring-gray-400">
-      <div class="badge badge-outline join-item h-auto border-0 bg-gray-200 px-4 py-1.5 font-semibold">
-        <%= Map.get(@filter, :label, @filter.module.label()) %>
-      </div>
-      <div class="badge badge-outline join-item h-auto border-0 px-4 py-1.5">
-        <%= component(
-          &@filter.module.render/1,
-          [value: @value],
-          {__ENV__.module, __ENV__.function, __ENV__.file, __ENV__.line}
-        ) %>
-      </div>
-      <button
-        type="button"
-        phx-click="clear-filter"
-        phx-value-field={@key}
-        class="indicator-item grid place-items-center rounded-full bg-gray-300 p-1 shadow transition duration-75 hover:text-secondary hover:scale-110 "
-        aria-label={Backpex.translate({"Clear %{name} filter", %{name: @filter.module.label()}})}
-      >
-        <Backpex.HTML.CoreComponents.icon name="hero-x-mark" class="h-3 w-3" />
-      </button>
-    </div>
+      filter_name={key}
+      clear_event="clear-filter"
+      label={Keyword.get(@filters, String.to_existing_atom(key)).module.label()}
+    >
+      <%= component(
+        &Keyword.get(@filters, String.to_existing_atom(key)).module.render/1,
+        [value: value],
+        {__ENV__.module, __ENV__.function, __ENV__.file, __ENV__.line}
+      ) %>
+    </Backpex.HTML.CoreComponents.filter_badge>
     """
   end
 
