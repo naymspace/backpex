@@ -119,7 +119,7 @@ defmodule Backpex.Fields.HasManyThrough do
       |> assign_fallback_child_fields()
 
     ~H"""
-    <div class="ring-base-content/10 overflow-x-auto rounded-xl ring-1">
+    <div class="ring-base-content/10 overflow-x-auto rounded-box ring-1">
       <table class="table">
         <thead class="bg-base-200/50 text-base-content uppercase">
           <tr>
@@ -215,7 +215,7 @@ defmodule Backpex.Fields.HasManyThrough do
           <Layout.input_label text={@field_options[:label]} />
         </:label>
 
-        <div :if={@listables != []} class="ring-base-content/10 mb-4 overflow-x-auto rounded-xl ring-1">
+        <div :if={@listables != []} class="ring-base-content/10 mb-4 overflow-x-auto rounded-box ring-1">
           <table class="table">
             <thead class="bg-base-200/50 text-base-content uppercase">
               <tr>

@@ -407,7 +407,7 @@ defmodule Backpex.HTML.Layout do
         "text-base-content/95 hover:bg-base-100"
       end
 
-    base_class = "group flex items-center gap-2 rounded-md px-2 py-2 space-x-2 hover:cursor-pointer"
+    base_class = "group flex items-center gap-2 rounded-btn px-2 py-2 space-x-2 hover:cursor-pointer"
 
     extra = assigns_to_attributes(assigns)
 
@@ -539,7 +539,7 @@ defmodule Backpex.HTML.Layout do
   end
 
   defp get_modal_classes(assigns) do
-    base_classes = "animate-fade-in-scale w-full max-h-full overflow-auto bg-base-100 rounded-xl shadow-lg"
+    base_classes = "animate-fade-in-scale w-full max-h-full overflow-auto bg-base-100 rounded-box shadow-lg"
 
     max_width_class =
       case Map.get(assigns, :max_width, "md") do
