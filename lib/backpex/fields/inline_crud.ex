@@ -93,7 +93,7 @@ defmodule Backpex.Fields.InlineCRUD do
           </tr>
         </thead>
         <tbody class="text-base-content/75">
-          <tr :for={row <- @value} class="border-b-[1px] border-base-content/10 last:border-b-0">
+          <tr :for={row <- @value} class="border-base-content/10 border-b last:border-b-0">
             <td :for={{name, _field_options} <- @field_options.child_fields}>
               <%= HTML.pretty_value(Map.get(row, name)) %>
             </td>
