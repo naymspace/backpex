@@ -83,7 +83,7 @@ defmodule Backpex.Fields.InlineCRUD do
   @impl Backpex.Field
   def render_value(assigns) do
     ~H"""
-    <div class="ring-base-content/10 overflow-x-auto rounded-box ring-1">
+    <div class="ring-base-content/10 rounded-box overflow-x-auto ring-1">
       <table class="table">
         <thead class="bg-base-200/50 text-base-content uppercase">
           <tr>
