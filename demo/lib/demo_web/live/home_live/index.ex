@@ -56,7 +56,7 @@ defmodule DemoWeb.HomeLive.Index do
   def bg_pattern(assigns) do
     ~H"""
     <svg
-      class="absolute inset-0 -z-10 h-full w-full stroke-base-300/80 [mask-image:radial-gradient(100%_100%_at_top_right,white,transparent)]"
+      class="stroke-base-300/80 absolute inset-0 -z-10 h-full w-full [mask-image:radial-gradient(100%_100%_at_top_right,white,transparent)]"
       aria-hidden="true"
     >
       <defs>
@@ -75,11 +75,11 @@ defmodule DemoWeb.HomeLive.Index do
       <div :for={feature <- @feature} class="relative">
         <dt>
           <Backpex.HTML.CoreComponents.icon name="hero-check" class="text-primary absolute mt-1 h-6 w-6" />
-          <p class="ml-10 text-lg font-semibold leading-8 text-base-content">
+          <p class="text-base-content ml-10 text-lg font-semibold leading-8">
             <%= feature.title %>
           </p>
         </dt>
-        <dd class="mt-2 ml-10 text-base leading-7 text-base-content/80">
+        <dd class="text-base-content/80 mt-2 ml-10 text-base leading-7">
           <%= render_slot(feature) %>
         </dd>
       </div>

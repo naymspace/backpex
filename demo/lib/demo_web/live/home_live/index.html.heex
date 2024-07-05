@@ -8,7 +8,7 @@
           Beta version available!
         </.link>
       </div>
-      <h1 class="mt-10 text-4xl font-bold tracking-tight text-base-content sm:text-6xl">
+      <h1 class="text-base-content mt-10 text-4xl font-bold tracking-tight sm:text-6xl">
         Phoenix Admin Panel built with
         <em class="text-primary-800 cursor-help whitespace-nowrap leading-none tracking-wide">
           <abbr
@@ -19,7 +19,7 @@
           ><%= String.at(tech, 0) %></abbr>
         </em>
       </h1>
-      <p class="mt-6 text-lg leading-8 text-base-content/90">
+      <p class="text-base-content/90 mt-6 text-lg leading-8">
         Backpex is a <strong class="font-semibold">highly customizable</strong>
         administration panel for Phoenix LiveView applications.
         Quickly create beautiful CRUD views and more for your existing data via configurable LiveResources.
@@ -38,7 +38,7 @@
         <Backpex.HTML.CoreComponents.icon name="hero-arrow-right" class="ml-2 h-4 w-4" />
       </div>
       <div :if={not @form_hidden?} class="bg-white py-8 sm:py-12 lg:py-16">
-        <h2 class="text-xl font-bold tracking-tight text-base-content sm:text-lg">
+        <h2 class="text-base-content text-xl font-bold tracking-tight sm:text-lg">
           Get notified when we're launching.
         </h2>
         <.form :if={not @subscribed?} class="mt-4 flex gap-x-4" for={@form} phx-change="validate" phx-submit="subscribe">
@@ -73,10 +73,10 @@
 
 <.section>
   <div class="mx-auto max-w-2xl text-center">
-    <h2 class="text-3xl font-bold tracking-tight text-base-content sm:text-4xl">
+    <h2 class="text-base-content text-3xl font-bold tracking-tight sm:text-4xl">
       Batteries included
     </h2>
-    <p class="mx-auto mt-4 max-w-2xl text-lg leading-8 text-base-content">
+    <p class="text-base-content mx-auto mt-4 max-w-2xl text-lg leading-8">
       Backpex comes with a rich set of features to quickly build a beautiful backoffice application. Visit
       the docs (coming soon) to learn about all the different possibilities.
     </p>
@@ -110,14 +110,14 @@
 </.section>
 <footer class="max-w-container mx-auto mt-16 w-full px-4 sm:px-6 lg:px-8">
   <div class="border-base-200 border-t py-16 text-center">
-    <div class="mx-auto mb-4 inline-block w-auto text-base-content">
+    <div class="text-base-content mx-auto mb-4 inline-block w-auto">
       <Backpex.HTML.Layout.backpex_logo class="mr-1 inline h-5" />
       <span class="font-semibold">Backpex</span>
     </div>
-    <p class="mb-4 text-sm leading-6 text-base-content/70">
+    <p class="text-base-content/70 mb-4 text-sm leading-6">
       made by <.link href="https://naymspace.de/" class="underline hover:no-underline">Naymspace</.link>
     </p>
-    <div class="flex items-center justify-center space-x-4 text-sm font-semibold leading-6 text-base-content">
+    <div class="text-base-content flex items-center justify-center space-x-4 text-sm font-semibold leading-6">
       <.intersperse
         :let={{text, url}}
         enum={[{"Imprint", "https://naymspace.de/en/imprint"}, {"Privacy", "https://naymspace.de/en/privacy"}]}
