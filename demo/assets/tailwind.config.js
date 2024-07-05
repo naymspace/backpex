@@ -7,8 +7,7 @@ module.exports = {
     themes: [
       {
         light: {
-          ...require('daisyui/src/theming/themes').light
-          ,
+          ...require('daisyui/src/theming/themes').light,
           primary: '#1d4ed8',
           'primary-content': 'white',
           secondary: '#f39325',

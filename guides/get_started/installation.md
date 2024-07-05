@@ -288,17 +288,40 @@ Backpex supports daisyUI themes, to use them you need to do two things:
 // tailwind.config.js
 module.exports = {
   daisyui: {
-    themes: ["light", "dark", "cyberpunk"]
+    themes: [
+      {
+        light: {
+          ...require('daisyui/src/theming/themes').light
+          ,
+          primary: '#1d4ed8',
+          'primary-content': 'white',
+          secondary: '#f39325',
+          info: '#dbeafe',
+          'info-content': '#2563eb',
+          'error-content': '#e11d48',
+          'base-200': '#f3f4f6',
+          'base-300': '#e5e7eb'
+        },
+        dark: {
+          ...require('daisyui/src/theming/themes').dark
+        },
+        cyberpunk: {
+          ...require('daisyui/src/theming/themes').cyberpunk
+        }
+      }
+    ]
   },
   ...
 }
 ```
 
+The full list of themes can be found at the [daisyUI](https://daisyui.com/docs/themes/) website.
+
 2. Explicitly set the daisyUI theme in your layout.
 
 ```elixir
 # root.html.heex
-<html data-theme="cyberpunk">
+<html data-theme="light">
   ...
 </html>
 ```
