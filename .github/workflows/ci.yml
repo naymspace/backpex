@@ -136,6 +136,8 @@ jobs:
           --health-interval 10s
           --health-timeout 5s
           --health-retries 5
+        ports:
+          - "5432:5432"
 
     steps:
       - name: Checkout code
@@ -203,8 +205,10 @@ jobs:
       - name: Run test
         working-directory: demo
         env:
-          POSTGRES_DB: test
-          POSTGRES_PASSWORD: postgres
+          DB_HOSTNAME: localhost
+          DB_USERNAME: postgres
+          DB_PASSWORD: postgres
+          DB_DATABASE: test
         run: |
           yarn test
 
