@@ -180,7 +180,7 @@ jobs:
           version-file: .tool-versions
           version-type: strict
 
-      - name: Installd npm dependencies
+      - name: Install node dependencies
         working-directory: demo
         run: |
           yarn install --pure-lockfile
