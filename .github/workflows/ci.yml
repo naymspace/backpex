@@ -152,11 +152,6 @@ jobs:
           version-file: .tool-versions
           version-type: strict
 
-      - name: Install node dependencies
-        working-directory: demo
-        run: |
-          yarn install --pure-lockfile
-
       - name: Setup node
         uses: actions/setup-node@v4
         with:
