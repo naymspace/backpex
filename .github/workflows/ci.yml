@@ -227,7 +227,7 @@ jobs:
           mix deps.audit
 
   build-runtime:
-    name: "Build runtime"
+    name: "Build and push image (Demo)"
     runs-on: ubuntu-latest
     needs: [test-demo]
     if: github.event_name == 'push'
