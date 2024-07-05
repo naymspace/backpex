@@ -159,21 +159,43 @@ jobs:
           cache: 'yarn'
           cache-dependency-path: demo/yarn.lock
 
-      - name: Install node dependencies
-        working-directory: demo
-        run: yarn install --pure-lockfile
-
+      - name: Restore the deps cache
+        uses: actions/cache@v4
+        id: deps-cache
+        with:
+          path: demo/deps
+          key: ${{ runner.os }}-${{ steps.beam.outputs.elixir-version }}-${{ steps.beam.outputs.otp-version }}-deps-demo-mixlockhash-${{ hashFiles(format('{0}{1}', github.workspace, 'demo/mix.lock')) }}
+          restore-keys: |
+            ${{ runner.os }}-${{ steps.beam.outputs.elixir-version }}-${{ steps.beam.outputs.otp-version }}-deps-demo-
+  
+      - name: Restore the _build cache
+        uses: actions/cache@v4
+        id: build-cache
+        with:
+          path: demo/_build
+          key: ${{ runner.os }}-${{ steps.beam.outputs.elixir-version }}-${{ steps.beam.outputs.otp-version }}-build-demo-mixlockhash-${{ hashFiles(format('{0}{1}', github.workspace, 'demo/mix.lock')) }}
+          restore-keys: |
+            ${{ runner.os }}-${{ steps.beam.outputs.elixir-version }}-${{ steps.beam.outputs.otp-version }}-build-demo-
+  
       - name: Install dependencies
-        working-directory: demo
+        if: steps.deps-cache.outputs.cache-hit != 'true'
         run: |
           mix local.hex --force --if-missing
           mix local.rebar --force --if-missing
           mix deps.get
+  
+      - name: Compile dependencies
+        if: steps.deps-cache.outputs.cache-hit != 'true'
+        run: mix deps.compile
 
       - name: Compile with warnings as errors
         working-directory: demo
         run: |
           mix compile --warnings-as-errors --force
+
+      - name: Install node dependencies
+        working-directory: demo
+        run: yarn install --pure-lockfile
 
       - name: lint:mix
         working-directory: demo
