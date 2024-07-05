@@ -166,51 +166,111 @@ jobs:
       image: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME_TESTING }}@${{ steps.docker.outputs.digest }}
 
   lint-demo:
-    needs: build-testing
     name: "Lint (Demo)"
     runs-on: ubuntu-latest
-    container:
-      image: ${{ needs.build-testing.outputs.image }}
 
     steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup beam
+        uses: erlef/setup-beam@v1
+        id: beam
+        with:
+          version-file: .tool-versions
+          version-type: strict
+
+      - name: Install dependencies
+        run: |
+          mix local.hex --force --if-missing
+          mix local.rebar --force --if-missing
+          mix deps.get
+
+      - name: Compile with warnings as errors
+        run: |
+          mix compile --warnings-as-errors --force
+
       - name: lint:mix
-        working-directory: /opt/app/demo
+        working-directory: /demo
         run: |
           yarn lint:mix
 
-      - name: Add tar that supports --posix option to be used by cache action
-        run: |
-          apk add --no-cache tar
-
       - name: lint:credo
-        working-directory: /opt/app/demo
+        working-directory: /demo
         run: |
           yarn lint:credo
 
       - name: lint:sobelow
-        working-directory: /opt/app/demo
+        working-directory: /demo
         run: |
           yarn lint:sobelow
 
       - name: lint:style
-        working-directory: /opt/app/demo
+        working-directory: /demo
         run: |
           yarn lint:style
 
       - name: lint:standard
-        working-directory: /opt/app/demo
+        working-directory: /demo
         run: |
           yarn lint:standard
 
       - name: lint:deps-unused
-        working-directory: /opt/app/demo
+        working-directory: /demo
         run: |
           yarn lint:deps-unused
 
       - name: lint:gettext
-        working-directory: /opt/app/demo
+        working-directory: /demo
         run: |
           yarn lint:gettext
+
+  # lint-demo:
+  #   needs: build-testing
+  #   name: "Lint (Demo)"
+  #   runs-on: ubuntu-latest
+  #   container:
+  #     image: ${{ needs.build-testing.outputs.image }}
+
+  #   steps:
+  #     - name: lint:mix
+  #       working-directory: /opt/app/demo
+  #       run: |
+  #         yarn lint:mix
+
+  #     - name: Add tar that supports --posix option to be used by cache action
+  #       run: |
+  #         apk add --no-cache tar
+
+  #     - name: lint:credo
+  #       working-directory: /opt/app/demo
+  #       run: |
+  #         yarn lint:credo
+
+  #     - name: lint:sobelow
+  #       working-directory: /opt/app/demo
+  #       run: |
+  #         yarn lint:sobelow
+
+  #     - name: lint:style
+  #       working-directory: /opt/app/demo
+  #       run: |
+  #         yarn lint:style
+
+  #     - name: lint:standard
+  #       working-directory: /opt/app/demo
+  #       run: |
+  #         yarn lint:standard
+
+  #     - name: lint:deps-unused
+  #       working-directory: /opt/app/demo
+  #       run: |
+  #         yarn lint:deps-unused
+
+  #     - name: lint:gettext
+  #       working-directory: /opt/app/demo
+  #       run: |
+  #         yarn lint:gettext
 
   test-compile:
     needs: build-testing
