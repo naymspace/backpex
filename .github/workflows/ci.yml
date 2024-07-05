@@ -122,52 +122,20 @@ jobs:
           HEX_API_KEY: ${{ secrets.HEX_API_KEY }}
         run: mix hex.publish --yes
 
-  build-testing:
-    name: "Build testing"
+  test-demo:
+    name: "Test (Demo)"
     runs-on: ubuntu-latest
 
-    permissions:
-      contents: read
-      packages: write
-
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
-      - name: Log in to the container registry
-        uses: docker/login-action@v3
-        with:
-          registry: ${{ env.REGISTRY }}
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Extract metadata (tags, labels) for Docker
-        id: meta
-        uses: docker/metadata-action@v5
-        with:
-          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME_TESTING }}
-
-      - name: Build and push container
-        id: docker
-        uses: docker/build-push-action@v5
-        with:
-          push: true
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
-          cache-from: type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME_TESTING }}:buildcache
-          cache-to: type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME_TESTING }}:buildcache,mode=max
-          target: builder
-          build-args: |
-            MIX_ENV=test
-    outputs:
-      image: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME_TESTING }}@${{ steps.docker.outputs.digest }}
-
-  lint-demo:
-    name: "Lint (Demo)"
-    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_PASSWORD: postgres
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
 
     steps:
       - name: Checkout code
@@ -232,102 +200,16 @@ jobs:
         run: |
           yarn lint:gettext
 
-  # lint-demo:
-  #   needs: build-testing
-  #   name: "Lint (Demo)"
-  #   runs-on: ubuntu-latest
-  #   container:
-  #     image: ${{ needs.build-testing.outputs.image }}
-
-  #   steps:
-  #     - name: lint:mix
-  #       working-directory: /opt/app/demo
-  #       run: |
-  #         yarn lint:mix
-
-  #     - name: Add tar that supports --posix option to be used by cache action
-  #       run: |
-  #         apk add --no-cache tar
-
-  #     - name: lint:credo
-  #       working-directory: /opt/app/demo
-  #       run: |
-  #         yarn lint:credo
-
-  #     - name: lint:sobelow
-  #       working-directory: /opt/app/demo
-  #       run: |
-  #         yarn lint:sobelow
-
-  #     - name: lint:style
-  #       working-directory: /opt/app/demo
-  #       run: |
-  #         yarn lint:style
-
-  #     - name: lint:standard
-  #       working-directory: /opt/app/demo
-  #       run: |
-  #         yarn lint:standard
-
-  #     - name: lint:deps-unused
-  #       working-directory: /opt/app/demo
-  #       run: |
-  #         yarn lint:deps-unused
-
-  #     - name: lint:gettext
-  #       working-directory: /opt/app/demo
-  #       run: |
-  #         yarn lint:gettext
-
-  test-compile:
-    needs: build-testing
-    name: "Compile (Demo)"
-    runs-on: ubuntu-latest
-    container:
-      image: ${{ needs.build-testing.outputs.image }}
-
-    steps:
-      - name: Compile with warnings as errors
-        working-directory: /opt/app/demo
-        run: |
-          mix compile --warnings-as-errors --force
-
-  test-demo:
-    needs: build-testing
-    name: "Test (Demo)"
-    runs-on: ubuntu-latest
-    container:
-      image: ${{ needs.build-testing.outputs.image }}
-      env:
-        POSTGRES_DB: test
-        POSTGRES_PASSWORD: postgres
-    services:
-      postgres:
-        image: postgres:16-alpine
-        env:
-          POSTGRES_PASSWORD: postgres
-        options: >-
-          --health-cmd pg_isready
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-
-    steps:
       - name: Run test
-        working-directory: /opt/app/demo
+        working-directory: demo
+        env:
+          POSTGRES_DB: test
+          POSTGRES_PASSWORD: postgres
         run: |
           yarn test
 
-  deps-audit:
-    needs: build-testing
-    name: "Deps Audit (Demo)"
-    runs-on: ubuntu-latest
-    container:
-      image: ${{ needs.build-testing.outputs.image }}
-
-    steps:
       - name: Deps audit
-        working-directory: /opt/app/demo
+        working-directory: demo
         continue-on-error: true
         run: |
           mix deps.audit
@@ -335,7 +217,7 @@ jobs:
   build-runtime:
     name: "Build runtime"
     runs-on: ubuntu-latest
-    needs: [lint-demo, test-compile, test-demo, deps-audit]
+    needs: [test-demo]
 
     permissions:
       contents: read
