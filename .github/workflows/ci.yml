@@ -155,6 +155,17 @@ jobs:
         run: |
           yarn install --pure-lockfile
 
+      - name: Setup node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'yarn'
+          cache-dependency-path: demo/yarn.lock
+
+      - name: Install node dependencies
+        working-directory: demo
+        run: yarn install --pure-lockfile
+
       - name: Install dependencies
         working-directory: demo
         run: |
