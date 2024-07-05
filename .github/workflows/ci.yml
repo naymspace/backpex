@@ -164,7 +164,7 @@ jobs:
         id: deps-cache
         with:
           path: demo/deps
-          key: ${{ runner.os }}-${{ steps.beam.outputs.elixir-version }}-${{ steps.beam.outputs.otp-version }}-deps-demo-mixlockhash-${{ hashFiles(format('{0}{1}', github.workspace, 'demo/mix.lock')) }}
+          key: ${{ runner.os }}-${{ steps.beam.outputs.elixir-version }}-${{ steps.beam.outputs.otp-version }}-deps-demo-mixlockhash-${{ hashFiles(format('{0}{1}', github.workspace, '/demo/mix.lock')) }}
           restore-keys: |
             ${{ runner.os }}-${{ steps.beam.outputs.elixir-version }}-${{ steps.beam.outputs.otp-version }}-deps-demo-
   
@@ -173,7 +173,7 @@ jobs:
         id: build-cache
         with:
           path: demo/_build
-          key: ${{ runner.os }}-${{ steps.beam.outputs.elixir-version }}-${{ steps.beam.outputs.otp-version }}-build-demo-mixlockhash-${{ hashFiles(format('{0}{1}', github.workspace, 'demo/mix.lock')) }}
+          key: ${{ runner.os }}-${{ steps.beam.outputs.elixir-version }}-${{ steps.beam.outputs.otp-version }}-build-demo-mixlockhash-${{ hashFiles(format('{0}{1}', github.workspace, '/demo/mix.lock')) }}
           restore-keys: |
             ${{ runner.os }}-${{ steps.beam.outputs.elixir-version }}-${{ steps.beam.outputs.otp-version }}-build-demo-
   
