@@ -180,6 +180,10 @@ jobs:
           version-file: .tool-versions
           version-type: strict
 
+      - name: Print directories
+        run: |
+          ls -la
+
       - name: Install dependencies
         working-directory: /demo
         run: |
