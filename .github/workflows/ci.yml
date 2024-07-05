@@ -15,7 +15,6 @@ on:
 
 env:
   REGISTRY: ghcr.io
-  IMAGE_NAME_TESTING: ${{ github.repository }}/testing
   IMAGE_NAME_RUNTIME: ${{ github.repository }}/runtime
 
 jobs:
@@ -236,6 +235,7 @@ jobs:
     name: "Build runtime"
     runs-on: ubuntu-latest
     needs: [test-demo]
+    if: github.event_name == 'push'
 
     permissions:
       contents: read
