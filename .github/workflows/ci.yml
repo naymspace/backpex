@@ -181,12 +181,14 @@ jobs:
           version-type: strict
 
       - name: Install dependencies
+        working-directory: /demo
         run: |
           mix local.hex --force --if-missing
           mix local.rebar --force --if-missing
           mix deps.get
 
       - name: Compile with warnings as errors
+        working-directory: /demo
         run: |
           mix compile --warnings-as-errors --force
 
