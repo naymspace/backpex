@@ -51,7 +51,7 @@
       <th
         x-bind:class="hasOverflow ? 'border-base-100 border-l' : ''"
         x-bind:style={"hasOverflow ? '#{shadow_sm_left()}' : ''"}
-        class="absolute right-0 rounded-tr-xl px-0"
+        class="rounded-box absolute right-0 rounded-l-none px-0"
       >
         <div class="bg-base-100">
           <.toggle_columns
@@ -99,7 +99,7 @@
         x-bind:class="hasOverflow ? 'border-base-100 border-l' : ''"
         x-bind:style={"hasOverflow ? '#{shadow_sm_left()}' : ''"}
         class={[
-          "item-action-column text-base-content absolute right-0 px-4 py-0 last:rounded-br-xl",
+          "item-action-column text-base-content absolute right-0 px-4 py-0 last:rounded-box last:rounded-t-none last:rounded-l-none",
           index_row_class(assigns, item, selected?(@selected_items, item), index)
         ]}
       >

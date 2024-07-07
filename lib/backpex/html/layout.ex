@@ -38,7 +38,7 @@ defmodule Backpex.HTML.Layout do
             <div class="absolute top-0 right-0 -mr-12 pt-2">
               <button
                 type="button"
-                class="ml-1 flex h-10 w-10 items-center justify-center rounded-full focus:ring-primary-content focus:outline-none focus:ring-2 focus:ring-inset"
+                class="rounded-badge ml-1 flex h-10 w-10 items-center justify-center focus:ring-primary-content focus:outline-none focus:ring-2 focus:ring-inset"
                 @click="mobile_menu_open = false"
               >
                 <Backpex.HTML.CoreComponents.icon name="hero-x-mark-solid" class="h-5 w-5 text-primary-content" />
@@ -82,7 +82,7 @@ defmodule Backpex.HTML.Layout do
             <%= for _ <- @sidebar do %>
               <button
                 type="button"
-                class="text-base-content -mt-0.5 -ml-0.5 inline-flex h-12 w-12 items-center justify-center rounded-md focus:ring-base-content focus:outline-none focus:ring-2 focus:ring-inset"
+                class="text-base-content rounded-btn -mt-0.5 -ml-0.5 inline-flex h-12 w-12 items-center justify-center focus:ring-base-content focus:outline-none focus:ring-2 focus:ring-inset"
                 @click="mobile_menu_open = !mobile_menu_open"
               >
                 <Backpex.HTML.CoreComponents.icon name="hero-bars-3-solid" class="h-8 w-8" />

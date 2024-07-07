@@ -419,7 +419,7 @@ defmodule Backpex.Fields.Upload do
           phx-drop-target={if @uploads_allowed, do: @field_uploads.ref}
         >
           <div
-            class="flex justify-center rounded-md border-2 border-dashed px-6 pt-5 pb-6"
+            class="rounded-btn flex justify-center border-2 border-dashed px-6 pt-5 pb-6"
             x-bind:class="dragging > 0 ? 'border-primary' : 'border-base-content/25'"
           >
             <div class="flex flex-col items-center space-y-1 text-center">
