@@ -185,7 +185,7 @@ defmodule MyAppWeb.Live.PostLive do
 end
 ```
 
-The `fields/0` function returns a list of fields to display in the LiveResource. See [What is a Field?](fields/what-is-a-field.md) for more information.
+The `fields/0` function returns a list of fields to display in the LiveResource. See [What is a Field?](../fields/what-is-a-field.md) for more information.
 
 > #### Information {: .info}
 >
