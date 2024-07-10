@@ -2,45 +2,6 @@ defmodule DemoWeb.HomeLive.Index do
   @moduledoc false
 
   use DemoWeb, :live_view
-  alias Demo.Newsletter
-  alias Demo.Newsletter.Contact
-
-  @impl Phoenix.LiveView
-  def mount(_params, _session, socket) do
-    changeset = Newsletter.change_contact(%Contact{})
-
-    socket =
-      socket
-      |> assign(:form_hidden?, form_hidden?())
-      |> assign(:subscribed?, false)
-      |> assign(:form, to_form(changeset))
-
-    {:ok, socket}
-  end
-
-  defp form_hidden? do
-    Application.fetch_env!(:demo, Demo.Newsletter.Brevo)[:api_key]
-    |> Kernel.is_nil()
-  end
-
-  @impl Phoenix.LiveView
-  def handle_event("validate", %{"contact" => params}, socket) do
-    form =
-      %Contact{}
-      |> Newsletter.change_contact(params)
-      |> Map.put(:action, :insert)
-      |> to_form()
-
-    {:noreply, assign(socket, form: to_form(form))}
-  end
-
-  @impl Phoenix.LiveView
-  def handle_event("subscribe", %{"contact" => params}, socket) do
-    case Newsletter.subscribe(params) do
-      {:ok, _contact} -> {:noreply, assign(socket, :subscribed?, true)}
-      {:error, %Ecto.Changeset{} = changeset} -> {:noreply, assign(socket, form: to_form(changeset))}
-    end
-  end
 
   attr :class, :string, default: ""
   slot(:inner_block, required: true)
