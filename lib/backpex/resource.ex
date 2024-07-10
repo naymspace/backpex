@@ -265,7 +265,8 @@ defmodule Backpex.Resource do
   * `fields` (list): A list of atoms representing the fields to be selected and potentially preloaded.
   """
   def get!(id, repo, schema, item_query, fields) do
-    query_record(id, repo, schema, item_query, fields, :one!)
+    record_query(id, repo, schema, item_query, fields)
+    |> Repo.one!()
   end
 
   @doc """
@@ -280,7 +281,8 @@ defmodule Backpex.Resource do
   * `fields` (list): A list of atoms representing the fields to be selected and potentially preloaded.
   """
   def get(id, repo, schema, item_query, fields) do
-    query_record(id, repo, schema, item_query, fields, :one)
+    record_query(id, repo, schema, item_query, fields)
+    |> Repo.one()
   end
 
   defp query_record(id, repo, schema, item_query, fields, fetch_function) do
