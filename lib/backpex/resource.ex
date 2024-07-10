@@ -266,7 +266,7 @@ defmodule Backpex.Resource do
   """
   def get!(id, repo, schema, item_query, fields) do
     record_query(id, repo, schema, item_query, fields)
-    |> Repo.one!()
+    |> repo.one!()
   end
 
   @doc """
@@ -282,10 +282,10 @@ defmodule Backpex.Resource do
   """
   def get(id, repo, schema, item_query, fields) do
     record_query(id, repo, schema, item_query, fields)
-    |> Repo.one()
+    |> repo.one()
   end
 
-  defp query_record(id, repo, schema, item_query, fields, fetch_function) do
+  defp record_query(id, repo, schema, item_query, fields) do
     schema_name = name_by_schema(schema)
     id_type = schema.__schema__(:type, :id)
     associations = associations(fields, schema)
@@ -296,7 +296,6 @@ defmodule Backpex.Resource do
     |> maybe_preload(associations, fields)
     |> maybe_merge_dynamic_fields(fields)
     |> where_id(schema_name, id_type, id)
-    |> then(fn query -> apply(repo, fetch_function, [query]) end)
   end
 
   defp where_id(query, schema_name, :id, id) do
