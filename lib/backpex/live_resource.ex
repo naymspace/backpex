@@ -911,16 +911,16 @@ defmodule Backpex.LiveResource do
         %{assigns: %{live_action: live_action, repo: repo, schema: schema} = assigns} = socket
 
         fields = filtered_fields_by_action(fields(), assigns, :show)
-        item = Resource.get!(id, repo, schema, &item_query(&1, live_action, assigns), fields)
+        item = Resource.get(id, repo, schema, &item_query(&1, live_action, assigns), fields)
 
         socket =
           cond do
-            live_action in [:index, :resource_action] ->
+            live_action in [:index, :resource_action] and item ->
               items = Enum.map(socket.assigns.items, &if(&1.id == id, do: item, else: &1))
 
               assign(socket, :items, items)
 
-            live_action == :show ->
+            live_action == :show and item ->
               assign(socket, :item, item)
 
             true ->
