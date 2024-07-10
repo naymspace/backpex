@@ -254,7 +254,7 @@ defmodule Backpex.Resource do
   end
 
   @doc """
-  Gets a database record with the given fields by the given id. Raises Ecto.NoResultsError if no record was found.
+  Gets a database record with the given fields by the given id. Raises `Ecto.NoResultsError` if no record was found.
 
   ## Parameters
 
