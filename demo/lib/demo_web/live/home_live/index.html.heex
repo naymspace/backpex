@@ -37,25 +37,6 @@
         </.link>
         <Backpex.HTML.CoreComponents.icon name="hero-arrow-right" class="ml-2 h-4 w-4" />
       </div>
-      <div :if={not @form_hidden?} class="bg-white py-8 sm:py-12 lg:py-16">
-        <h2 class="text-xl font-bold tracking-tight text-gray-900 sm:text-lg">
-          Get notified when we're launching.
-        </h2>
-        <.form :if={not @subscribed?} class="mt-4 flex gap-x-4" for={@form} phx-change="validate" phx-submit="subscribe">
-          <input type="text" name={@form[:email].name} class="input input-bordered h-12 w-64" />
-          <button class="btn" type="submit" class="mr-6" color="white">Subscribe</button>
-        </.form>
-
-        <div :if={not @subscribed?} class="alert my-4 bg-blue-100 text-sm text-blue-800">
-          <Backpex.HTML.CoreComponents.icon name="hero-information-circle" class="h-5 w-5" />
-          <p>
-            You successfully subscribed to the Backpex newsletter. Please check your inbox to confirm your email address!
-          </p>
-        </div>
-        <p class="text-sm leading-6 text-gray-800">
-          No spam. Just infos about Backpex related stuff about once a month.
-        </p>
-      </div>
     </div>
     <div class="mx-auto mt-16 flex max-w-2xl sm:mt-24 lg:mt-0 lg:mr-0 lg:ml-10 lg:max-w-none lg:flex-none xl:ml-32">
       <div class="max-w-3xl flex-none sm:max-w-5xl lg:max-w-none">
