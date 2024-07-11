@@ -28,7 +28,6 @@ defmodule Backpex.FormComponent do
   defp update_assigns(%{assigns: %{action_type: :item}} = socket) do
     socket
     |> assign_fields()
-    |> assign_changeset()
   end
 
   defp update_assigns(%{assigns: assigns} = socket) do
@@ -50,20 +49,6 @@ defmodule Backpex.FormComponent do
     socket
     |> assign_new(:fields, fn -> action_to_confirm.module.fields() end)
     |> assign(:save_label, action_to_confirm.module.confirm_label(socket.assigns))
-  end
-
-  defp assign_changeset(%{assigns: %{action_to_confirm: action_to_confirm}} = socket) do
-    init_change = action_to_confirm.module.init_change(socket.assigns)
-    changeset_function = &action_to_confirm.module.changeset/3
-
-    socket
-    |> assign(item_action_types: init_change)
-    |> assign(:changeset_function, changeset_function)
-    |> assign_new(:changeset, fn ->
-      init_change
-      |> Ecto.Changeset.change()
-      |> LiveResource.call_changeset_function(changeset_function, %{}, socket.assigns)
-    end)
   end
 
   defp apply_action(socket, action) when action in [:edit, :new] do
