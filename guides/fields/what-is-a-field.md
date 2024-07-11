@@ -38,15 +38,15 @@ def fields do
       module: Backpex.Fields.Text,
       label: "Username"
     },
-    email: %{
-      module: Backpex.Fields.Email,
-      label: "Email"
+    age: %{
+      module: Backpex.Fields.Number,
+      label: "Age"
     }
   ]
 end
 ```
 
-The example above will define two fields: `username` and `email`. Both fields use the built-in field types `Backpex.Fields.Text` and `Backpex.Fields.Email`, respectively.
+The example above will define two fields: `username` and `age`. Both fields use the built-in field types `Backpex.Fields.Text` and `Backpex.Fields.Number`, respectively.
 
 ## Field Configuration
 

@@ -65,7 +65,9 @@ defmodule Demo.MixProject do
       {:csv, "~> 3.2.0"},
       {:tesla, "~> 1.4"},
       {:jason, ">= 1.0.0"},
-      {:bandit, "~> 1.0"}
+      {:bandit, "~> 1.0"},
+      {:heroicons,
+       github: "tailwindlabs/heroicons", tag: "v2.1.1", sparse: "optimized", app: false, compile: false, depth: 1}
     ]
   end
 

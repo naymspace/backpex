@@ -147,7 +147,7 @@ defmodule Backpex.Fields.InlineCRUD do
                   />
 
                   <div class="btn btn-outline btn-error" aria-label={Backpex.translate("Delete")}>
-                    <Heroicons.trash class="h-5 w-5" />
+                    <Backpex.HTML.CoreComponents.icon name="hero-trash" class="h-5 w-5" />
                   </div>
                 </label>
               </div>

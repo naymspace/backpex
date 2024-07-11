@@ -22,10 +22,10 @@ defmodule Backpex.ItemAction do
   @callback fields() :: list()
 
   @doc """
-  Initial change. The result will be passed to `Backpex.ItemAction.changeset/3` in order to generate a changeset.
+  Initial change. The result will be passed to `c:changeset/3` in order to generate a changeset.
 
   This function is optional and can be used to use changesets with schemas in item actions. If this function
-  is not provided a changeset will be generated automatically based on the provided types in `Backpex.ItemAction.fields/0`.
+  is not provided a changeset will be generated automatically based on the provided types in `c:fields/0`.
   """
   @callback init_change(assigns :: map()) ::
               Ecto.Schema.t()
@@ -73,9 +73,9 @@ defmodule Backpex.ItemAction do
   @callback confirm(assigns :: map()) :: binary()
 
   @doc """
-  Performs the action.
+  Performs the action. It takes the socket and the casted and validated data (received from [`Ecto.Changeset.apply_action/2`](https://hexdocs.pm/ecto/Ecto.Changeset.html#apply_action/2)).
   """
-  @callback handle(socket :: Phoenix.LiveView.Socket.t(), items :: list(map()), params :: map()) ::
+  @callback handle(socket :: Phoenix.LiveView.Socket.t(), items :: list(map()), params :: map() | struct()) ::
               {:noreply, Phoenix.LiveView.Socket.t()} | {:reply, map(), Phoenix.LiveView.Socket.t()}
 
   @optional_callbacks confirm: 1, confirm_label: 1, cancel_label: 1, changeset: 3, fields: 0

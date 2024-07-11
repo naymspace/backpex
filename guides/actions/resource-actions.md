@@ -64,14 +64,14 @@ defmodule MyAppWeb.Admin.Actions.Invite do
     end
 
     @impl Backpex.ResourceAction
-    def handle(_socket, params) do
+    def handle(_socket, data) do
         # Send mail
 
         # We suppose there was no error.
         if true do
-            {:ok, "An invitation email to #{params[:email]} was sent successfully."}
+            {:ok, "An invitation email to #{data.email} was sent successfully."}
         else
-            {:error, "An error occurred while sending an invitation email to  #{params[:email]}!"}
+            {:error, "An error occurred while sending an invitation email to  #{data.email}!"}
         end
     end
 end
@@ -81,7 +81,7 @@ See `Backpex.ResourceAction` for a documentation of the callbacks.
 
 The [`handle/2`](Backpex.ResourceAction.html#c:handle/2) callback is called when the user submits the form to perform the action. In this example, we suppose there was no error sending the invitation email and return a success message.
 
-You can access the email entered by the user in the `params` argument.
+You can access the email entered by the user in the `data` argument. The `data` argument is a map that contains the casted and validated data from the form (received from [`Ecto.Changeset.apply_action/2`](https://hexdocs.pm/ecto/Ecto.Changeset.html#apply_action/2)).
 
 We validate the email address using the `validate_email/2` function provided by the `Ecto.Changeset` module.
 

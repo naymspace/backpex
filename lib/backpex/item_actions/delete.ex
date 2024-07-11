@@ -11,7 +11,10 @@ defmodule Backpex.ItemActions.Delete do
   @impl Backpex.ItemAction
   def icon(assigns) do
     ~H"""
-    <Heroicons.trash class="h-5 w-5 cursor-pointer transition duration-75 hover:scale-110 hover:text-red-600" />
+    <Backpex.HTML.CoreComponents.icon
+      name="hero-trash"
+      class="h-5 w-5 cursor-pointer transition duration-75 hover:scale-110 hover:text-red-600"
+    />
     """
   end
 
@@ -36,7 +39,7 @@ defmodule Backpex.ItemActions.Delete do
   def cancel_label(_assigns), do: Backpex.translate("Cancel")
 
   @impl Backpex.ItemAction
-  def handle(socket, items, _params) do
+  def handle(socket, items, _data) do
     socket =
       try do
         %{assigns: %{repo: repo, schema: schema, pubsub: pubsub}} = socket

@@ -279,7 +279,7 @@ defmodule Backpex.HTML.Form do
               phx-target={@event_target}
               aria-label={Backpex.translate({"Unselect %{label}", %{label: label}})}
             >
-              <Heroicons.x_mark class="ml-1 h-4 w-4 text-white" />
+              <Backpex.HTML.CoreComponents.icon name="hero-x-mark" class="ml-1 h-4 w-4 text-white" />
             </div>
           </div>
         </div>
