@@ -667,7 +667,22 @@ defmodule Backpex.LiveResource do
       end
 
       defp open_action_confirm_modal(socket, action, key) do
-        {:noreply, assign(socket, action_to_confirm: Map.put(action, :key, key))}
+        init_change = action.module.init_change(socket.assigns)
+        changeset_function = &action.module.changeset/3
+
+        changeset =
+          init_change
+          |> Ecto.Changeset.change()
+          |> call_changeset_function(changeset_function, %{}, socket.assigns)
+
+        socket =
+          socket
+          |> assign(:item_action_types, init_change)
+          |> assign(:changeset_function, changeset_function)
+          |> assign(:changeset, changeset)
+          |> assign(:action_to_confirm, Map.put(action, :key, key))
+
+        {:noreply, socket}
       end
 
       defp handle_item_action(socket, action, key, items) do
