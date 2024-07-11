@@ -16,7 +16,6 @@ Backpex provides the following built-in field types:
 - `Backpex.Fields.HasManyThrough`
 - `Backpex.Fields.HasMany`
 - `Backpex.Fields.InlineCRUD`
-- `Backpex.Fields.ManyToMany`
 - `Backpex.Fields.MultiSelect`
 - `Backpex.Fields.Number`
 - `Backpex.Fields.Select`
