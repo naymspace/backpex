@@ -37,7 +37,7 @@ defmodule DemoWeb.Router do
 
     backpex_routes()
 
-    live_session :default, on_mount: Backpex.InitAssigns do
+    live_session :default, on_mount: [Sentry.LiveViewHook, Backpex.InitAssigns] do
       live_resources "/users", UserLive
       live_resources "/products", ProductLive
       live_resources "/invoices", InvoiceLive, only: [:index]

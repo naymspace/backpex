@@ -37,7 +37,7 @@ defmodule DemoWeb.ResourceActions.Email do
   end
 
   @impl Backpex.ResourceAction
-  def handle(_socket, _params) do
+  def handle(_socket, _data) do
     # Send mail
 
     # We suppose there was no error.

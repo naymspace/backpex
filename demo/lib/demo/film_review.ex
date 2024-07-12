@@ -7,8 +7,8 @@ defmodule Demo.FilmReview do
   @primary_key {:id, :binary_id, autogenerate: true}
 
   schema "film_reviews" do
-    field(:title, :string)
-    field(:overview, :string)
+    field :title, :string
+    field :overview, :string
   end
 
   @required_fields ~w[title overview]a

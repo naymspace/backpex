@@ -1,7 +1,7 @@
 # credo:disable-for-this-file Credo.Check.Design.DuplicatedCode
 defmodule Backpex.Fields.HasMany do
   @moduledoc """
-  A field for handling a `has_many` relation.
+  A field for handling a `has_many` or `many_to_many` relation.
 
   This field can not be orderable or searchable.
 

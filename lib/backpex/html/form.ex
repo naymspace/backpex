@@ -158,9 +158,9 @@ defmodule Backpex.HTML.Form do
         </label>
         <div class={[
           @input_wrapper_class,
-          "phx-no-feedback:[&>*]:select phx-no-feedback:[&>*]:select-bordered phx-no-feedback:[&>*]:text-gray-900",
-          @errors == [] && "[&>*]:select [&>*]:select-bordered [&>*]:text-gray-900",
-          @errors != [] && "[&>*]:select [&>*]:select-error [&>*]:bg-red-50 [&>*]:text-red-800"
+          "phx-no-feedback:[&>*]:select phx-no-feedback:[&>*]:select-bordered phx-no-feedback:[&>*]:text-base-content",
+          @errors == [] && "[&>*]:select [&>*]:select-bordered [&>*]:text-base-content",
+          @errors != [] && "[&>*]:select [&>*]:select-error [&>*]:bg-error/10 [&>*]:text-error-content"
         ]}>
           <select class={["w-full", @input_class]} name={@name} {@rest}>
             <option :if={@prompt} value=""><%= @prompt %></option>
@@ -187,7 +187,7 @@ defmodule Backpex.HTML.Form do
             "textarea phx-no-feedback:textarea phx-no-feedback:textarea-bordered",
             @input_class,
             @errors == [] && "textarea-bordered",
-            @errors != [] && "textarea-error bg-red-50"
+            @errors != [] && "textarea-error bg-error/10"
           ]}
           {@rest}
         ><%= Phoenix.HTML.Form.normalize_value("textarea", @value) %></textarea>
@@ -213,7 +213,7 @@ defmodule Backpex.HTML.Form do
             "input phx-no-feedback:input phx-no-feedback:input-bordered",
             @input_class,
             @errors == [] && "input-bordered",
-            @errors != [] && "input-error bg-red-50"
+            @errors != [] && "input-error bg-error/10"
           ]}
           placeholder={Backpex.Field.placeholder(@field_options, assigns)}
           phx-debounce={Backpex.Field.debounce(@field_options, assigns)}
@@ -233,7 +233,7 @@ defmodule Backpex.HTML.Form do
 
   def error(assigns) do
     ~H"""
-    <p class="mt-1 text-xs italic text-red-500 phx-no-feedback:hidden">
+    <p class="text-error mt-1 text-xs italic phx-no-feedback:hidden">
       <%= render_slot(@inner_block) %>
     </p>
     """
@@ -263,7 +263,7 @@ defmodule Backpex.HTML.Form do
     <div class="dropdown w-full">
       <label tabindex="0" class="input input-bordered block h-fit w-full p-2">
         <div class="flex h-full w-full flex-wrap items-center gap-1 px-2">
-          <p :if={@selected == []} class="p-0.5 text-sm text-gray-900">
+          <p :if={@selected == []} class="text-base-content p-0.5 text-sm">
             <%= @prompt %>
           </p>
 
@@ -279,7 +279,7 @@ defmodule Backpex.HTML.Form do
               phx-target={@event_target}
               aria-label={Backpex.translate({"Unselect %{label}", %{label: label}})}
             >
-              <Heroicons.x_mark class="ml-1 h-4 w-4 text-white" />
+              <Backpex.HTML.CoreComponents.icon name="hero-x-mark" class="ml-1 h-4 w-4 text-base-100" />
             </div>
           </div>
         </div>

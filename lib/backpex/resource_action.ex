@@ -25,10 +25,10 @@ defmodule Backpex.ResourceAction do
   @callback fields() :: list()
 
   @doc """
-  Initial change. The result will be passed to `Backpex.ResourceAction.changeset/3` in order to generate a changeset.
+  Initial change. The result will be passed to `c:changeset/3` in order to generate a changeset.
 
   This function is optional and can be used to use changesets with schemas in resource actions. If this function
-  is not provided a changeset will be generated automatically based on the provided types in `Backpex.ResourceAction.fields/0`.
+  is not provided a changeset will be generated automatically based on the provided types in `c:fields/0`.
   """
   @callback init_change(assigns :: map()) ::
               Ecto.Schema.t()
@@ -54,11 +54,11 @@ defmodule Backpex.ResourceAction do
             ) :: Ecto.Changeset.t()
 
   @doc """
-  The handle function for the corresponding action. It receives the params and will be called when the form is valid and submitted.
+  The handle function for the corresponding action. It receives the socket and casted and validated data (received from [`Ecto.Changeset.apply_action/2`](https://hexdocs.pm/ecto/Ecto.Changeset.html#apply_action/2)) and will be called when the form is valid and submitted.
 
   It must return either `{:ok, binary()}` or `{:error, binary()}`
   """
-  @callback handle(socket :: Phoenix.LiveView.Socket.t(), params :: map()) ::
+  @callback handle(socket :: Phoenix.LiveView.Socket.t(), data :: map()) ::
               {:ok, binary()} | {:error, binary()}
 
   @doc """

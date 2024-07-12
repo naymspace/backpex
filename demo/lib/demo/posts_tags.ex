@@ -11,8 +11,8 @@ defmodule Demo.PostsTags do
   @primary_key {:id, :binary_id, autogenerate: true}
 
   schema "posts_tags" do
-    belongs_to(:post, Post, type: :binary_id)
-    belongs_to(:tag, Tag, type: :binary_id)
+    belongs_to :post, Post, type: :binary_id
+    belongs_to :tag, Tag, type: :binary_id
 
     timestamps()
   end
