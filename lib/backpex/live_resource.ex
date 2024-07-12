@@ -1118,14 +1118,14 @@ defmodule Backpex.LiveResource do
           <%= @singular_name %>
           <.link
             :if={Backpex.LiveResource.can?(assigns, :edit, @item, @live_resource)}
-            class="tooltip"
+            class="tooltip hover:z-30"
             data-tip={Backpex.translate("Edit")}
             aria-label={Backpex.translate("Edit")}
             patch={Router.get_path(@socket, @live_resource, @params, :edit, @item)}
           >
             <Backpex.HTML.CoreComponents.icon
               name="hero-pencil-square"
-              class="h-6 w-6 cursor-pointer transition duration-75 hover:scale-110 hover:text-blue-600"
+              class="h-6 w-6 cursor-pointer transition duration-75 hover:scale-110 hover:text-primary"
             />
           </.link>
         </.main_title>

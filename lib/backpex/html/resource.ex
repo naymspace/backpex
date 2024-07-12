@@ -216,8 +216,8 @@ defmodule Backpex.HTML.Resource do
       filter_count: Enum.count(assigns.filter_options),
       filter_icon_class:
         if(assigns.filter_options != %{},
-          do: "text-primary group-hover:text-white",
-          else: "text-gray-400 group-hover:text-white"
+          do: "text-primary group-hover:text-primary-content",
+          else: "text-primary/75 group-hover:text-primary-content"
         )
     ]
 
@@ -229,8 +229,8 @@ defmodule Backpex.HTML.Resource do
         <span :if={@filter_count > 0} class="indicator-item badge badge-secondary">
           <%= @filter_count %>
         </span>
-        <label tabindex="0" class="btn btn-sm btn-outline">
-          <Backpex.HTML.CoreComponents.icon name="hero-funnel-solid " class={["h-5 w-5 mr-2", @filter_icon_class]} />
+        <label tabindex="0" class="btn btn-sm btn-outline ring-base-content/10 border-0 ring-1">
+          <Backpex.HTML.CoreComponents.icon name="hero-funnel-solid" class={["h-5 w-5 mr-2", @filter_icon_class]} />
           <%= Backpex.translate("Filters") %>
         </label>
       </div>
@@ -261,7 +261,7 @@ defmodule Backpex.HTML.Resource do
         <.form :let={f} for={to_form(%{}, as: :filters)} phx-change="change-filter" phx-submit="change-filter">
           <div>
             <div class="relative flex w-full flex-wrap justify-start gap-2">
-              <div class="text-sm font-medium text-gray-900"><%= Map.get(filter, :label, filter.module.label()) %></div>
+              <div class="text-base-content text-sm font-medium"><%= Map.get(filter, :label, filter.module.label()) %></div>
               <.maybe_clear_button field={field} value={value} />
             </div>
             <div class="flex gap-4">
@@ -308,7 +308,7 @@ defmodule Backpex.HTML.Resource do
       type="button"
       phx-click="clear-filter"
       phx-value-field={@field}
-      class="text-primary flex cursor-pointer items-center text-xs transition duration-75 hover:scale-105 hover:text-red-600"
+      class="text-primary flex cursor-pointer items-center text-xs transition duration-75 hover:text-error hover:scale-105"
     />
     """
   end
@@ -334,7 +334,11 @@ defmodule Backpex.HTML.Resource do
         <span class="sr-only">
           <%= Backpex.translate("Toggle columns") %>
         </span>
-        <Backpex.HTML.CoreComponents.icon name="hero-view-columns-solid" aria-hidden="true" class="h-5 w-5 text-gray-400" />
+        <Backpex.HTML.CoreComponents.icon
+          name="hero-view-columns-solid"
+          aria-hidden="true"
+          class="h-5 w-5 text-base-content/50 hover:text-base-content"
+        />
       </label>
       <div tabindex="0" class="dropdown-content z-[1] menu bg-base-100 rounded-box w-52 p-4 shadow">
         <.form method="POST" for={@form} action={cookie_path(@socket)}>
@@ -394,7 +398,7 @@ defmodule Backpex.HTML.Resource do
       |> assign(:to, min(page * per_page, assigns.total))
 
     ~H"""
-    <div :if={@total > 0} class="pr-2 text-sm text-gray-600">
+    <div :if={@total > 0} class="text-base-content pr-2 text-sm">
       <%= Backpex.translate({"Items %{from} to %{to}", %{from: @from, to: @to}}) %>
       <%= "(#{@total} #{Backpex.translate("total")})" %>
     </div>
@@ -448,7 +452,7 @@ defmodule Backpex.HTML.Resource do
       </button>
     <% else %>
       <.link href={@href}>
-        <button class={["btn bg-white", @class]}>
+        <button class={["btn bg-base-100", @class]}>
           <%= Integer.to_string(@number) %>
         </button>
       </.link>
@@ -463,7 +467,7 @@ defmodule Backpex.HTML.Resource do
 
     ~H"""
     <.link href={@href}>
-      <button class={["btn bg-white", @class]} aria-label={Backpex.translate("Previous page")}>
+      <button class={["btn bg-base-100", @class]} aria-label={Backpex.translate("Previous page")}>
         <Backpex.HTML.CoreComponents.icon name="hero-chevron-left" class="h-4 w-4" />
       </button>
     </.link>
@@ -477,7 +481,7 @@ defmodule Backpex.HTML.Resource do
 
     ~H"""
     <.link href={@href}>
-      <button class={["btn bg-white", @class]} aria-label={Backpex.translate("Next page")}>
+      <button class={["btn bg-base-100", @class]} aria-label={Backpex.translate("Next page")}>
         <Backpex.HTML.CoreComponents.icon name="hero-chevron-right" class="h-4 w-4" />
       </button>
     </.link>
@@ -486,7 +490,7 @@ defmodule Backpex.HTML.Resource do
 
   defp pagination_item(%{type: :placeholder} = assigns) do
     ~H"""
-    <button class={["btn bg-white", @class]} aria-disable="true">
+    <button class={["btn bg-base-100", @class]} aria-disable="true">
       ...
     </button>
     """
@@ -648,7 +652,7 @@ defmodule Backpex.HTML.Resource do
         </button>
       </.link>
 
-      <div :if={display_divider?(assigns)} class="my-0.5 border-r-2 border-solid border-gray-300" />
+      <div :if={display_divider?(assigns)} class="border-base-300 my-0.5 border-r-2 border-solid" />
 
       <button
         :for={{key, action} <- index_item_actions(@item_actions)}
@@ -797,9 +801,9 @@ defmodule Backpex.HTML.Resource do
 
   defp empty_state_content(assigns) do
     ~H"""
-    <Backpex.HTML.CoreComponents.icon name="hero-folder-plus" class="mb-1 inline-block h-12 w-12 text-gray-300" />
-    <p class="text-lg font-bold text-gray-900"><%= @title %></p>
-    <p :if={@subtitle} class="text-gray-400"><%= @subtitle %></p>
+    <Backpex.HTML.CoreComponents.icon name="hero-folder-plus" class="mb-1 inline-block h-12 w-12 text-base-content/30" />
+    <p class="text-base-content text-lg font-bold"><%= @title %></p>
+    <p :if={@subtitle} class="text-base-content/75"><%= @subtitle %></p>
     <%= render_slot(@inner_block) %>
     """
   end
@@ -861,7 +865,7 @@ defmodule Backpex.HTML.Resource do
 
       <div class="card bg-base-100 mt-4">
         <div class="card-body p-0">
-          <div class="flex flex-col sm:divide-y sm:divide-gray-200">
+          <div class="flex flex-col sm:divide-base-200 sm:divide-y">
             <div :for={{name, %{label: label}} <- @panel_fields}>
               <.field_container>
                 <:label>
@@ -889,7 +893,7 @@ defmodule Backpex.HTML.Resource do
     ~H"""
     <fieldset class={["contents", @class]}>
       <div :if={@label != nil}>
-        <hr class="mb-8" />
+        <hr class="border-1 border-base-200 mb-8" />
 
         <legend class="mb-4 px-6 text-lg font-semibold">
           <%= @label %>
@@ -948,7 +952,7 @@ defmodule Backpex.HTML.Resource do
       <.form method="POST" for={@form} action={cookie_path(@socket)}>
         <input type="hidden" name={@form[:_resource].name} value={@form[:_resource].value} />
         <input type="hidden" name={@form[:_cookie_redirect_url].name} value={@form[:_cookie_redirect_url].value} />
-        <div class="tooltip" data-tip={Backpex.translate("Toggle metrics")}>
+        <div class="tooltip hover:z-30" data-tip={Backpex.translate("Toggle metrics")}>
           <button
             type="submit"
             class={["btn btn-sm", @visible && "btn-primary", !@visible && "btn-neutral"]}
@@ -984,7 +988,7 @@ defmodule Backpex.HTML.Resource do
   end
 
   defp index_row_class(assigns, item, selected, index) do
-    base_class = if selected, do: "bg-gray-50", else: "bg-white"
+    base_class = if selected, do: "bg-base-200/50", else: "bg-base-100"
     extra_class = assigns.live_resource.index_row_class(assigns, item, selected, index)
 
     [base_class, extra_class]
