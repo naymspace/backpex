@@ -361,7 +361,7 @@ defmodule Backpex.HTML.Resource do
     ~H"""
     <div class="flex flex-col space-y-1">
       <div :for={{name, %{active: active, label: label}} <- @active_fields}>
-        <label for={name} class="flex cursor-pointer items-center">
+        <label class="flex cursor-pointer items-center">
           <input type="hidden" name={@form[name].name} value="false" />
           <input type="checkbox" name={@form[name].name} class="checkbox checkbox-sm checkbox-primary" checked={active} />
           <span class="label-text pl-2">
