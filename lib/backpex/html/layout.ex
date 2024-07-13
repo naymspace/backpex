@@ -245,10 +245,12 @@ defmodule Backpex.HTML.Layout do
       id="backpex-theme-selector"
       phx-hook="BackpexThemeSelector"
       data-cookie-path={cookie_path(@socket)}
-      class="dropdown dropdown-bottom dropdown-end"
+      class="dropdown dropdown-bottom dropdown-end no-animation"
     >
       <div tabindex="0" role="button" class="btn m-1">
-        <span class="hidden md:block">Theme</span>
+        <span class="hidden md:block">
+          <%= Backpex.translate("Theme") %>
+        </span>
         <Backpex.HTML.CoreComponents.icon name="hero-swatch-solid" class="h-5 w-5 md:hidden" />
         <svg
           width="12px"
