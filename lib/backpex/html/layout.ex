@@ -59,12 +59,6 @@ defmodule Backpex.HTML.Layout do
         </div>
       </div>
 
-      <div class="fixed top-0 z-10 hidden w-full md:block">
-        <.topbar class={for topbar <- @topbar, do: topbar[:class] || ""}>
-          <%= render_slot(@topbar) %>
-        </.topbar>
-      </div>
-
       <%= for sidebar <- @sidebar do %>
         <div class="hidden md:fixed md:inset-y-0 md:mt-16 md:flex md:w-64 md:flex-col">
           <div class="flex min-h-0 flex-1 flex-col">
@@ -76,13 +70,13 @@ defmodule Backpex.HTML.Layout do
       <% end %>
 
       <div class={"#{if length(@sidebar) > 0, do: "md:pl-64", else: ""} flex flex-1 flex-col"}>
-        <div class="fixed top-0 z-30 w-full md:hidden">
+        <div class="fixed top-0 z-30 block w-full md:-ml-64">
           <.topbar class={for topbar <- @topbar, do: topbar[:class] || ""}>
             <%= render_slot(@topbar) %>
             <%= for _ <- @sidebar do %>
               <button
                 type="button"
-                class="text-base-content rounded-btn -mt-0.5 -ml-0.5 inline-flex h-12 w-12 items-center justify-center focus:ring-base-content focus:outline-none focus:ring-2 focus:ring-inset"
+                class="text-base-content rounded-btn -mt-0.5 -ml-0.5 inline-flex h-12 w-12 items-center justify-center focus:ring-base-content focus:outline-none focus:ring-2 focus:ring-inset md:hidden"
                 @click="mobile_menu_open = !mobile_menu_open"
               >
                 <Backpex.HTML.CoreComponents.icon name="hero-bars-3-solid" class="h-8 w-8" />
