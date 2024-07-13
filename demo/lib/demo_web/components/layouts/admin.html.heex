@@ -2,6 +2,10 @@
   <:topbar>
     <Backpex.HTML.Layout.topbar_branding />
 
+    <Backpex.HTML.Layout.theme_selector
+      socket={@socket}
+      themes={[{"Light", "light"}, {"Dark", "dark"}, {"Cyberpunk", "cyberpunk"}, {"Retro", "retro"}]}
+    />
     <Backpex.HTML.Layout.topbar_dropdown>
       <:label>
         <label tabindex="0" class="btn btn-square btn-ghost">

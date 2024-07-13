@@ -32,6 +32,31 @@ window.addEventListener('phx:page-loading-stop', function (info) {
   topbar.hide()
 })
 
+let Hooks = {}
+
+Hooks.BackpexThemeSelector = {
+  mounted() {
+    let form = this.el.querySelector("#backpex-theme-selector-form")
+    let cookiePath = this.el.dataset.cookiePath
+
+    window.addEventListener("backpex:theme-change", (event) => {
+      let selectedTheme = form.querySelector('input[name="theme-selector"]:checked');
+      let htmlElement = document.documentElement
+
+      if (selectedTheme) {
+        let xhr = new XMLHttpRequest()
+
+        htmlElement.setAttribute("data-theme", selectedTheme.value)
+        xhr.open('POST', cookiePath, true)
+        xhr.setRequestHeader('Content-type', 'application/x-www-form-urlencoded');
+        xhr.setRequestHeader('x-csrf-token', csrfToken)
+        xhr.send(`select_theme=${selectedTheme.value}`)
+      }
+    });
+
+  }
+}
+
 /**
  * phoenix_live_view
  */
@@ -59,7 +84,7 @@ const liveSocket = new LiveSocket('/live', Socket, {
   params: {
     _csrf_token: csrfToken
   },
-  hooks: {}
+  hooks: Hooks
 })
 
 liveSocket.connect()

@@ -221,6 +221,72 @@ defmodule Backpex.HTML.Layout do
   end
 
   @doc """
+  Renders a theme selector.
+  """
+  @doc type: :component
+  attr(:socket, :any, required: true)
+
+  attr(:themes, :list,
+    doc: "A list of tuples with {theme_label, theme_name} format",
+    examples: [[{"Light", "light"}, {"Dark", "dark"}]]
+  )
+
+  def theme_selector(assigns) do
+    form =
+      %{
+        "theme" => ""
+      }
+      |> Phoenix.Component.to_form()
+
+    assigns = assign(assigns, :form, form)
+
+    ~H"""
+    <div
+      id="backpex-theme-selector"
+      phx-hook="BackpexThemeSelector"
+      data-cookie-path={cookie_path(@socket)}
+      class="dropdown dropdown-bottom dropdown-end"
+    >
+      <div tabindex="0" role="button" class="btn m-1">
+        <span class="hidden md:block">Theme</span>
+        <Backpex.HTML.CoreComponents.icon name="hero-swatch-solid" class="h-5 w-5 md:hidden" />
+        <svg
+          width="12px"
+          height="12px"
+          class="inline-block h-2 w-2 fill-current opacity-60"
+          xmlns="http://www.w3.org/2000/svg"
+          viewBox="0 0 2048 2048"
+        >
+          <path d="M1799 349l242 241-1017 1017L7 590l242-241 775 775 775-775z"></path>
+        </svg>
+      </div>
+      <.form id="backpex-theme-selector-form" for={@form} phx-change={JS.dispatch("backpex:theme-change")}>
+        <ul tabindex="0" class="dropdown-content bg-base-300 rounded-box z-[1] w-52 p-2 shadow-2xl">
+          <li :for={{label, theme_name} <- @themes}>
+            <input
+              type="radio"
+              name="theme-selector"
+              class="theme-controller btn btn-sm btn-block btn-ghost justify-start"
+              aria-label={label}
+              value={theme_name}
+            />
+          </li>
+        </ul>
+      </.form>
+    </div>
+    """
+  end
+
+  defp cookie_path(socket) do
+    %{path: path} =
+      Enum.find(Map.get(socket, :router).__routes__, fn element ->
+        element[:plug] == Backpex.CookieController and element[:plug_opts] == :update
+      end)
+
+    path
+  end
+
+  @doc """
   Get the Backpex logo SVG.
   """
   @doc type: :component
