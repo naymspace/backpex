@@ -255,7 +255,10 @@ defmodule Backpex.HTML.Layout do
         </svg>
       </div>
       <form id="backpex-theme-selector-form" phx-change={JS.dispatch("backpex:theme-change")}>
-        <ul tabindex="0" class="dropdown-content bg-base-300 rounded-box z-[1] w-52 p-2 shadow-2xl">
+        <ul
+          tabindex="0"
+          class="dropdown-content bg-base-300 rounded-box z-[1] max-h-96 w-52 overflow-y-scroll p-2 shadow-2xl"
+        >
           <li :for={{label, theme_name} <- @themes}>
             <input
               type="radio"
