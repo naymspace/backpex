@@ -232,14 +232,6 @@ defmodule Backpex.HTML.Layout do
   )
 
   def theme_selector(assigns) do
-    form =
-      %{
-        "theme" => ""
-      }
-      |> Phoenix.Component.to_form()
-
-    assigns = assign(assigns, :form, form)
-
     ~H"""
     <div
       id="backpex-theme-selector"
@@ -262,7 +254,7 @@ defmodule Backpex.HTML.Layout do
           <path d="M1799 349l242 241-1017 1017L7 590l242-241 775 775 775-775z"></path>
         </svg>
       </div>
-      <.form id="backpex-theme-selector-form" for={@form} phx-change={JS.dispatch("backpex:theme-change")}>
+      <form id="backpex-theme-selector-form" phx-change={JS.dispatch("backpex:theme-change")}>
         <ul tabindex="0" class="dropdown-content bg-base-300 rounded-box z-[1] w-52 p-2 shadow-2xl">
           <li :for={{label, theme_name} <- @themes}>
             <input
@@ -274,7 +266,7 @@ defmodule Backpex.HTML.Layout do
             />
           </li>
         </ul>
-      </.form>
+      </form>
     </div>
     """
   end
