@@ -233,12 +233,7 @@ defmodule Backpex.HTML.Layout do
 
   def theme_selector(assigns) do
     ~H"""
-    <div
-      id="backpex-theme-selector"
-      phx-hook="BackpexThemeSelector"
-      data-cookie-path={cookie_path(@socket)}
-      class="dropdown dropdown-bottom dropdown-end no-animation"
-    >
+    <div id="backpex-theme-selector" class="dropdown dropdown-bottom dropdown-end no-animation">
       <div tabindex="0" role="button" class="btn m-1">
         <span class="hidden md:block">
           <%= Backpex.translate("Theme") %>
@@ -254,7 +249,11 @@ defmodule Backpex.HTML.Layout do
           <path d="M1799 349l242 241-1017 1017L7 590l242-241 775 775 775-775z"></path>
         </svg>
       </div>
-      <form id="backpex-theme-selector-form" phx-change={JS.dispatch("backpex:theme-change")}>
+      <form
+        id="backpex-theme-selector-form"
+        data-cookie-path={cookie_path(@socket)}
+        phx-change={JS.dispatch("backpex:theme-change")}
+      >
         <ul
           tabindex="0"
           class="dropdown-content bg-base-300 rounded-box z-[1] max-h-96 w-52 overflow-y-scroll p-2 shadow-2xl"
