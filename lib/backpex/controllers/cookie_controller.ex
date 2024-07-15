@@ -9,7 +9,7 @@ defmodule Backpex.CookieController do
   @backpex_key "backpex"
   @toggle_columns_key "column_toggle"
   @toggle_metrics_key "metric_visibility"
-  @select_theme_key "select_theme"
+  @select_theme_key "theme"
 
   def update(conn, %{"toggle_columns" => form_data}) do
     resource = Map.get(form_data, @form_resource_key)
@@ -49,11 +49,12 @@ defmodule Backpex.CookieController do
   end
 
   def update(conn, %{"select_theme" => theme_name}) do
-    theme = %{"theme" => theme_name}
+    backpex_session = get_session(conn, @backpex_key) || %{}
+    value = Map.put(backpex_session, @select_theme_key, theme_name)
 
     conn
-    |> put_backpex_session(@select_theme_key, theme)
-    |> json(theme)
+    |> put_session(@backpex_key, value)
+    |> json(%{})
   end
 
   defp redirect_path(%URI{path: path, query: nil}) do
