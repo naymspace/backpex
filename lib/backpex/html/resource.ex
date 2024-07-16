@@ -340,8 +340,8 @@ defmodule Backpex.HTML.Resource do
           class="h-5 w-5 text-base-content/50 hover:text-base-content"
         />
       </label>
-      <div tabindex="0" class="dropdown-content z-[1] menu bg-base-100 rounded-box w-52 p-4 shadow">
-        <.form method="POST" for={@form} action={cookie_path(@socket)}>
+      <div tabindex="0" class="dropdown-content z-[1] menu bg-base-100 rounded-box min-w-52 max-w-72 p-4 shadow">
+        <.form class="w-full" method="POST" for={@form} action={cookie_path(@socket)}>
           <input type="hidden" name={@form[:_resource].name} value={@form[:_resource].value} />
           <input type="hidden" name={@form[:_cookie_redirect_url].name} value={@form[:_cookie_redirect_url].value} />
           <.toggle_columns_inputs active_fields={@active_fields} form={@form} />
@@ -364,7 +364,7 @@ defmodule Backpex.HTML.Resource do
         <label class="flex cursor-pointer items-center">
           <input type="hidden" name={@form[name].name} value="false" />
           <input type="checkbox" name={@form[name].name} class="checkbox checkbox-sm checkbox-primary" checked={active} />
-          <span class="label-text pl-2">
+          <span class="label-text truncate pl-2">
             <%= label %>
           </span>
         </label>
