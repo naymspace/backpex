@@ -375,7 +375,7 @@ defmodule Backpex.Fields.Upload do
 
     ~H"""
     <div class="flex flex-col">
-      <p :for={{_file_key, label} <- @uploaded_files}>
+      <p :for={{_file_key, label} <- @uploaded_files} class="break-all">
         <%= label %>
       </p>
     </div>
@@ -445,7 +445,7 @@ defmodule Backpex.Fields.Upload do
         <section class="mt-2">
           <article>
             <%= if @uploads_allowed do %>
-              <div :for={entry <- @field_uploads.entries}>
+              <div :for={entry <- @field_uploads.entries} class="break-all">
                 <p class="inline"><%= Map.get(entry, :client_name) %></p>
 
                 <button
@@ -466,7 +466,7 @@ defmodule Backpex.Fields.Upload do
             <% end %>
 
             <%= if @type == :form do %>
-              <div :for={{file_key, label} <- @uploaded_files}>
+              <div :for={{file_key, label} <- @uploaded_files} class="break-all">
                 <p class="inline"><%= label %></p>
                 <button
                   type="button"
