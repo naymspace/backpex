@@ -35,22 +35,28 @@ window.addEventListener('phx:page-loading-stop', function (info) {
 /**
  * theme selector
  */
-window.addEventListener("backpex:theme-change", (event) => {
-  let form = document.querySelector("#backpex-theme-selector-form")
-  let cookiePath = form.dataset.cookiePath
-  let selectedTheme = form.querySelector('input[name="theme-selector"]:checked');
-  let htmlElement = document.documentElement
-
+const htmlElement = document.documentElement
+const storedTheme = window.localStorage.getItem('backpexTheme')
+if (storedTheme != null) {
+  htmlElement.setAttribute('data-theme', storedTheme)
+}
+window.addEventListener('backpex:theme-change', async (event) => {
+  const form = document.querySelector('#backpex-theme-selector-form')
+  const cookiePath = form.dataset.cookiePath
+  const selectedTheme = form.querySelector('input[name="theme-selector"]:checked')
   if (selectedTheme) {
-    let xhr = new XMLHttpRequest()
-
-    htmlElement.setAttribute("data-theme", selectedTheme.value)
-    xhr.open('POST', cookiePath, true)
-    xhr.setRequestHeader('Content-type', 'application/x-www-form-urlencoded');
-    xhr.setRequestHeader('x-csrf-token', csrfToken)
-    xhr.send(`select_theme=${selectedTheme.value}`)
+    window.localStorage.setItem('backpexTheme', selectedTheme.value)
+    htmlElement.setAttribute('data-theme', selectedTheme.value)
+    await fetch(cookiePath, {
+      body: `select_theme=${selectedTheme.value}`,
+      method: 'POST',
+      headers: {
+        'Content-type': 'application/x-www-form-urlencoded',
+        'x-csrf-token': csrfToken
+      }
+    })
   }
-});
+})
 
 /**
  * phoenix_live_view

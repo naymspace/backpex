@@ -1,4 +1,7 @@
 defmodule Backpex.Plug.ThemeSelector do
+  @moduledoc """
+  Contains a plug that inserts the theme into the assigns
+  """
   import Plug.Conn
 
   @backpex_key "backpex"
