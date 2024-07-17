@@ -301,14 +301,14 @@ defmodule Backpex.Resource do
   defp where_id(query, schema_name, :id, id) do
     case Ecto.Type.cast(:id, id) do
       {:ok, valid_id} -> where(query, [{^schema_name, schema_name}], schema_name.id == ^valid_id)
-      :error -> where(query, [{^schema_name, schema_name}], true == false)
+      :error -> raise Ecto.NoResultsError, queryable: query
     end
   end
 
   defp where_id(query, schema_name, :binary_id, id) do
     case Ecto.UUID.cast(id) do
       {:ok, valid_id} -> where(query, [{^schema_name, schema_name}], schema_name.id == ^valid_id)
-      :error -> where(query, [{^schema_name, schema_name}], true == false)
+      :error -> raise Ecto.NoResultsError, queryable: query
     end
   end
 
