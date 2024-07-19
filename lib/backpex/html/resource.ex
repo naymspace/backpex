@@ -341,7 +341,7 @@ defmodule Backpex.HTML.Resource do
         />
       </label>
       <div tabindex="0" class="dropdown-content z-[1] menu bg-base-100 rounded-box min-w-52 max-w-72 p-4 shadow">
-        <.form class="w-full" method="POST" for={@form} action={cookie_path(@socket)}>
+        <.form class="w-full" method="POST" for={@form} action={Router.cookie_path(@socket)}>
           <input type="hidden" name={@form[:_resource].name} value={@form[:_resource].value} />
           <input type="hidden" name={@form[:_cookie_redirect_url].name} value={@form[:_cookie_redirect_url].value} />
           <.toggle_columns_inputs active_fields={@active_fields} form={@form} />
@@ -371,15 +371,6 @@ defmodule Backpex.HTML.Resource do
       </div>
     </div>
     """
-  end
-
-  defp cookie_path(socket) do
-    %{path: path} =
-      Enum.find(Map.get(socket, :router).__routes__, fn element ->
-        element[:plug] == Backpex.CookieController and element[:plug_opts] == :update
-      end)
-
-    path
   end
 
   @doc """
@@ -949,7 +940,7 @@ defmodule Backpex.HTML.Resource do
 
     ~H"""
     <div :if={length(@metrics) > 0}>
-      <.form method="POST" for={@form} action={cookie_path(@socket)}>
+      <.form method="POST" for={@form} action={Router.cookie_path(@socket)}>
         <input type="hidden" name={@form[:_resource].name} value={@form[:_resource].value} />
         <input type="hidden" name={@form[:_cookie_redirect_url].name} value={@form[:_cookie_redirect_url].value} />
         <div class="tooltip hover:z-30" data-tip={Backpex.translate("Toggle metrics")}>

@@ -1,4 +1,4 @@
-defmodule Backpex.Plug.ThemeSelector do
+defmodule Backpex.ThemeSelectorPlug do
   @moduledoc """
   Contains a plug that inserts the theme into the assigns
   """

@@ -233,25 +233,21 @@ defmodule Backpex.HTML.Layout do
 
   def theme_selector(assigns) do
     ~H"""
-    <div id="backpex-theme-selector" class="dropdown dropdown-bottom dropdown-end no-animation">
-      <div tabindex="0" role="button" class="btn m-1">
+    <div
+      id="backpex-theme-selector"
+      phx-hook="BackpexThemeSelector"
+      class="dropdown dropdown-bottom dropdown-end no-animation"
+    >
+      <div tabindex="0" role="button" class="btn btn-ghost m-1">
         <span class="hidden md:block">
           <%= Backpex.translate("Theme") %>
         </span>
-        <Backpex.HTML.CoreComponents.icon name="hero-swatch-solid" class="h-5 w-5 md:hidden" />
-        <svg
-          width="12px"
-          height="12px"
-          class="inline-block h-2 w-2 fill-current opacity-60"
-          xmlns="http://www.w3.org/2000/svg"
-          viewBox="0 0 2048 2048"
-        >
-          <path d="M1799 349l242 241-1017 1017L7 590l242-241 775 775 775-775z"></path>
-        </svg>
+        <Backpex.HTML.CoreComponents.icon name="hero-swatch" class="h-5 w-5 md:hidden" />
+        <Backpex.HTML.CoreComponents.icon name="hero-chevron-down" class="h-5 w-5" />
       </div>
       <form
         id="backpex-theme-selector-form"
-        data-cookie-path={cookie_path(@socket)}
+        data-cookie-path={Router.cookie_path(@socket)}
         phx-change={JS.dispatch("backpex:theme-change")}
       >
         <ul
@@ -271,15 +267,6 @@ defmodule Backpex.HTML.Layout do
       </form>
     </div>
     """
-  end
-
-  defp cookie_path(socket) do
-    %{path: path} =
-      Enum.find(Map.get(socket, :router).__routes__, fn element ->
-        element[:plug] == Backpex.CookieController and element[:plug_opts] == :update
-      end)
-
-    path
   end
 
   @doc """
