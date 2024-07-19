@@ -45,10 +45,6 @@ Backpex uses Tailwind CSS for styling. Make sure you have Tailwind CSS installed
 
 Backpex is styled using daisyUI. Make sure you have daisyUI installed in your application. You can install daisyUI by following the [official installation guide](https://daisyui.com/docs/install/).
 
-> #### Warning {: .warning}
->
-> Backpex currently only supports daisyUI light mode. Help us to support dark mode by contributing to the project.
-
 ## Ecto
 
 Backpex currently depends on Ecto as the database layer. Make sure you have a running Ecto repository in your application.
