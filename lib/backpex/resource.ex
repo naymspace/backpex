@@ -503,9 +503,7 @@ defmodule Backpex.Resource do
     {:ok, item}
   end
 
-  defp broadcast({:ok, item} = event, _event, nil) do: event
-
-  defp broadcast({:error, _reason} = event, _event, _pubsub), do: event
+  defp broadcast(result, _event, _pubsub), do: result
 
   defp event_name(event_prefix, event), do: event_prefix <> event
 
