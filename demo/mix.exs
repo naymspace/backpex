@@ -40,7 +40,6 @@ defmodule Demo.MixProject do
       {:phoenix_ecto, "~> 4.0"},
       {:ecto_sql, "~> 3.1"},
       {:postgrex, ">= 0.0.0"},
-      {:phoenix_html, "~> 3.2"},
       {:phoenix_live_view, "~> 0.20.0"},
       {:phoenix_live_dashboard, "~> 0.8"},
       {:phoenix_live_reload, "~> 1.2", only: :dev},
@@ -66,7 +65,9 @@ defmodule Demo.MixProject do
       {:csv, "~> 3.2.0"},
       {:tesla, "~> 1.4"},
       {:jason, ">= 1.0.0"},
-      {:bandit, "~> 1.0"}
+      {:bandit, "~> 1.0"},
+      {:heroicons,
+       github: "tailwindlabs/heroicons", tag: "v2.1.1", sparse: "optimized", app: false, compile: false, depth: 1}
     ]
   end
 

@@ -8,23 +8,20 @@ defmodule Demo.User do
   alias Demo.Post
   alias Demo.UsersAddresses
 
-  @primary_key {:id, :binary_id, autogenerate: true}
-
   schema "users" do
-    field(:username, :string)
-    field(:first_name, :string)
-    field(:last_name, :string)
-    field(:full_name, :string, virtual: true)
-    field(:age, :integer)
-    field(:role, Ecto.Enum, values: [:user, :admin])
-    field(:permissions, {:array, :string})
-    field(:avatar, :string, default: "")
-    field(:deleted_at, :utc_datetime)
+    field :username, :string
+    field :first_name, :string
+    field :last_name, :string
+    field :full_name, :string, virtual: true
+    field :age, :integer
+    field :role, Ecto.Enum, values: [:user, :admin]
+    field :permissions, {:array, :string}
+    field :avatar, :string
+    field :deleted_at, :utc_datetime
 
-    has_many(:posts, Post, on_replace: :nilify)
-
-    has_many(:users_addresses, UsersAddresses, on_replace: :delete, on_delete: :delete_all)
-    has_many(:addresses, through: [:users_addresses, :address])
+    has_many :posts, Post, on_replace: :nilify
+    has_many :users_addresses, UsersAddresses, on_replace: :delete, on_delete: :delete_all
+    has_many :addresses, through: [:users_addresses, :address]
 
     embeds_many :social_links, SocialLink, on_replace: :delete do
       field :label, :string
@@ -59,6 +56,13 @@ defmodule Demo.User do
       drop_param: :web_links_delete
     )
     |> validate_required(@required_fields)
+    |> validate_change(:avatar, fn
+      :avatar, "too_many_files" ->
+        [avatar: "has to be exactly one"]
+
+      :avatar, _avatar ->
+        []
+    end)
   end
 
   @required_fields ~w[label url]a

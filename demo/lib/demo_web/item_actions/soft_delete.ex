@@ -10,7 +10,10 @@ defmodule DemoWeb.ItemActions.SoftDelete do
   @impl Backpex.ItemAction
   def icon(assigns) do
     ~H"""
-    <Heroicons.trash class="h-5 w-5 cursor-pointer transition duration-75 hover:scale-110 hover:text-red-600" />
+    <Backpex.HTML.CoreComponents.icon
+      name="hero-trash"
+      class="h-5 w-5 cursor-pointer transition duration-75 hover:scale-110 hover:text-red-600"
+    />
     """
   end
 
@@ -55,12 +58,15 @@ defmodule DemoWeb.ItemActions.SoftDelete do
   end
 
   @impl Backpex.ItemAction
-  def handle(socket, items, _params) do
+  def handle(socket, items, _data) do
     datetime = DateTime.truncate(DateTime.utc_now(), :second)
 
     socket =
       try do
-        {:ok, _items} = Backpex.Resource.update_all(socket.assigns, items, [set: [deleted_at: datetime]], "deleted")
+        %{assigns: %{repo: repo, schema: schema, pubsub: pubsub}} = socket
+
+        {:ok, _items} =
+          Backpex.Resource.update_all(items, repo, schema, [set: [deleted_at: datetime]], "deleted", pubsub)
 
         socket
         |> clear_flash()

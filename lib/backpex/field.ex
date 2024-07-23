@@ -3,45 +3,7 @@ defmodule Backpex.Field do
   @moduledoc ~S'''
   Behaviour implemented by all fields.
 
-  A field defines how a column is rendered on index, show and edit views. In the resource configuration file you can configure
-  a list of fields. You may create your own field by implementing this behaviour. A field has to be a [LiveComponent](https://hexdocs.pm/phoenix_live_view/Phoenix.LiveComponent.html).
-
-  When creating your own field, you can use the `field` macro from the `BackpexWeb` module. It automatically implements the `Backpex.Field` behaviour
-  and defines some aliases and imports.
-
-  The simplest version of a custom field would look like this:
-
-      use BackpexWeb, :field
-
-      @impl Backpex.Field
-      def render_value(assigns) do
-        ~H"""
-        <p>
-          <%= HTML.pretty_value(@value) %>
-        </p>
-        """
-      end
-
-      @impl Backpex.Field
-      def render_form(assigns) do
-        ~H"""
-        <div>
-          <Layout.field_container>
-            <:label>
-              <Layout.input_label text={@field_options[:label]} />
-            </:label>
-            <BackpexForm.field_input type="text" form={@form} field_name={@name} field_options={@field_options} />
-          </Layout.field_container>
-        </div>
-        """
-      end
-
-  The `render_value/1` function returns markup that is used to display a value on `index` and `show` views.
-  The `render_form/1` function returns markup that is used to render a form on `edit` and `new` views.
-
-  The list of fields in the resource configuration has to be a keyword list. The key has to be the name of the column.
-  The value has to be a list of options represented as a map. At least you are required to provide the module of the field and a label as options.
-  For extra information and options you may have to look into the corresponding field documentation.
+  A field defines how a column is rendered on index, show and edit views. In the resource configuration file you can configure a list of fields. You may create your own field by implementing this behaviour. A field has to be a [LiveComponent](https://hexdocs.pm/phoenix_live_view/Phoenix.LiveComponent.html).
 
   ### Example
 
@@ -53,143 +15,6 @@ defmodule Backpex.Field do
           }
         ]
       end
-
-  ## Read-only fields
-
-  Fields can be configured to be read-only. In edit view, these fields are rendered with the additional HTML attributes `readonly` and `disabled`,
-  ensuring that the user cannot interact with the field or change its value.
-
-  In index view, if read-only and index editable are set to `true`, forms will be rendered with the `readonly` HTML attribute.
-
-  Currently read-only configuration is possible for `Backpex.Fields.Text` and `Backpex.Fields.Textarea` on edit view.
-
-  On the index view, read-only is supported for all fields with the index editable option.
-
-  You can also add read-only functionality to a custom field. To do this, you need to define a `render_form_readonly/1` function.
-  This function must return markup to be used when read-only is enabled.
-
-      @impl Backpex.Field
-      def render_form_readonly(assigns) do
-        ~H"""
-        <div>
-          <Layout.field_container>
-            <:label>
-              <Layout.input_label text={@field[:label]} />
-            </:label>
-            <BackpexForm.field_input
-              type="text"
-              form={@form}
-              field_name={@name}
-              field_options={@field_options}
-              readonly
-              disabled
-            />
-          </Layout.field_container>
-        </div>
-        """
-      end
-
-  When defining a custom field with index editable support, you need to handle the read-only state in the index editable markup.
-  We pass a `readonly` value to index fields, which will be `true` or `false` depending on the read-only option of the field and the `can?/3` function.
-
-  Fields can be set to read-only in the configuration map of the field by adding the `readonly` option. This key must
-  contain either a boolean value or a function that returns a boolean value.
-
-  The function takes `assigns` as a parameter. This allows the field to be set as read-only programmatically, as the
-  following example illustrates:
-
-      rating: %{
-        module: Backpex.Fields.Text,
-        label: "Rating",
-        readonly: fn assigns ->
-          assigns.current_user.role in [:employee]
-        end
-      }
-
-  ## Custom Alias Configuration
-
-  Backpex automatically generates aliases for queries in your fields. However, if you try to add two `BelongsTo` fields of the same association, you will encounter an error indicating that the alias is already in use by another field. To resolve this issue, Backpex allows the assignment of custom aliases to fields, eliminating naming conflicts in queries.
-
-  To use a custom alias, especially with a `:select` query, define it within your field configuration. This allows you to reference associated data via the custom alias.
-
-  Example usage of a custom alias together with a `:select`:
-
-      second_category: %{
-        module: Backpex.Fields.BelongsTo,
-        label: "Second Category",
-        display_field: :name,
-        searchable: true,
-        custom_alias: :second_category,
-        select: dynamic([second_category: sc], sc.name)
-      },
-
-  ## Computed Fields
-
-  Sometimes you want to compute new fields based on existing fields.
-
-  Imagine there is a user table with `first_name` and `last_name`. Now, on your index view you want to add a column to display
-  the `full_name`. You could create a generated column in you database, but there are several reasons for not adding generated
-  columns for all computed fields you want to display in your application.
-
-  Backpex adds a way to support this.
-
-  There is a `select` option you may add to a field. This option has to return a `dynamic`. This query will then be executed to
-  select fields when listing your resources. In addition this query will also be used to order / search this field.
-
-  Therefore you can display the `full_name` of your users by adding the following field to the resource configuration file.
-
-      full_name: %{
-        module: Backpex.Fields.Text,
-        label: "Full Name",
-        searchable: true,
-        except: [:edit],
-        select: dynamic([user: u], fragment("concat(?, ' ', ?)", u.first_name, u.last_name))
-      }
-
-  We are using a database fragment to build the `full_name` based on the `first_name` and `last_name` of an user. Backpex will select this field when listing resources automatically.
-  Ordering and searching works the same like on all other fields, because Backpex uses the query you provided in the `dynamic` in order / search queries, too.
-
-  We recommend to display this field on `index` and `show` view only.
-
-  > Note: You are required to add a virtual field `full_name` to your user schema. Otherwise, Backpex is not able to select this field.
-
-  Computed fields also work in associations.
-
-  For example, you are able to add a `select` query to a `BelongsTo` field.
-
-  Imagine you want to display a list of posts with the corresponding authors (users). The user column should be a `full_name` computed by the `first_name` and `last_name`:
-
-      user: %{
-        module: Backpex.Fields.BelongsTo,
-        label: "Full Name",
-        display_field: :full_name,
-        select: dynamic([user: u], fragment("concat(?, ' ', ?)", u.first_name, u.last_name)),
-        options_query: fn query, _assigns ->
-          query |> select_merge([user], %{full_name: fragment("concat(?, ' ', ?)", user.first_name, user.last_name)})
-        end
-      }
-
-  We recommend to add a `select_merge` to the `options_query` where you select the same field. Otherwise, displaying the same values in the select form on edit page will not work.
-
-  Do not forget to add the virtual field `full_name` to your user schema in this example, too.
-
-  ## Error Customisation
-
-  Each field can define a `translate_error/1` function to use custom error messages. The function is called for each error and must return a tuple with a message and metadata.
-
-  For example, if you want to indicate that an integer input must be a number:
-
-      number: %{
-        module: Backpex.Fields.Number,
-        label: "Number",
-        translate_error: fn
-          {_msg, [type: :integer, validation: :cast] = metadata} = _error ->
-            {"has to be a number", metadata}
-
-          error ->
-            error
-        end
-      }
   '''
   import Phoenix.Component, only: [assign: 3]
 
@@ -418,19 +243,33 @@ defmodule Backpex.Field do
       raise Backpex.ForbiddenError
     end
 
-    %{assigns: %{item: item, live_resource: live_resource} = assigns} = socket
+    %{
+      assigns:
+        %{
+          repo: repo,
+          item: item,
+          pubsub: pubsub,
+          changeset_function: changeset_function,
+          live_resource: live_resource
+        } = assigns
+    } = socket
 
-    result =
-      assigns
-      |> assign(:changeset, item)
-      |> Backpex.Resource.update(change)
+    opts = [
+      pubsub: pubsub,
+      assigns: assigns,
+      after_save: fn item ->
+        live_resource.on_item_updated(socket, item)
+
+        {:ok, item}
+      end
+    ]
+
+    result = Backpex.Resource.update(item, change, repo, changeset_function, opts)
 
     socket =
       case result do
-        {:ok, item} ->
-          socket
-          |> assign(:valid, true)
-          |> live_resource.on_item_updated(item)
+        {:ok, _item} ->
+          assign(socket, :valid, true)
 
         _error ->
           assign(socket, :valid, false)

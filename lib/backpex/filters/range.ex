@@ -1,8 +1,8 @@
 defmodule Backpex.Filters.Range do
   @moduledoc """
-  Range filters render two input fields of the same type. Backpex offers the `:date`, `:datetime` and the `number` type.
+  The range filter renders two input fields of the same type. Backpex offers the `:date`, `:datetime` and the `number` type.
 
-  A basic implementation of a date range filter would look like this:
+  See the following example for an implementation of a date range filter.
 
       defmodule MyAppWeb.Filters.DateRange do
         use Backpex.Filters.Range
@@ -14,6 +14,8 @@ defmodule Backpex.Filters.Range do
         def label, do: "Date Range (begins at)"
       end
 
+  > #### Information {: .info}
+  >
   > Note that the query function is already implemented via `Backpex.Filters.Range`.
 
   > #### `use Backpex.Filters.Range` {: .info}
@@ -94,13 +96,15 @@ defmodule Backpex.Filters.Range do
   def range_input_set(%{type: :date} = assigns) do
     ~H"""
     <div class="mt-2">
-      <input
-        type="date"
-        name={@form[:start].name}
-        class="input input-sm input-bordered mb-2 w-full"
-        value={@value["start"]}
-      />
-      <input type="date" name={@form[:end].name} class="input input-sm input-bordered w-full" value={@value["end"]} />
+      <label class="input input-sm input-bordered mb-2 flex w-full items-center">
+        <span class="text-base-content/50 w-10 "><%= Backpex.translate("From") %></span>
+        <input type="date" name={@form[:start].name} class="grow" value={@value["start"]} />
+      </label>
+
+      <label class="input input-sm input-bordered flex w-full items-center">
+        <span class="text-base-content/50 w-10 "><%= Backpex.translate("To") %></span>
+        <input type="date" name={@form[:end].name} class="grow" value={@value["end"]} />
+      </label>
     </div>
     """
   end
@@ -108,13 +112,15 @@ defmodule Backpex.Filters.Range do
   def range_input_set(%{type: :number} = assigns) do
     ~H"""
     <div class="mt-2">
-      <input
-        type="number"
-        name={@form[:start].name}
-        class="input input-sm input-bordered mb-2 w-full"
-        value={@value["start"]}
-      />
-      <input type="number" name={@form[:end].name} class="input input-sm input-bordered w-full" value={@value["end"]} />
+      <label class="input input-sm input-bordered mb-2 flex w-full items-center">
+        <span class="text-base-content/50 w-10"><%= Backpex.translate("From") %></span>
+        <input type="number" name={@form[:start].name} class="grow" value={@value["start"]} />
+      </label>
+
+      <label class="input input-sm input-bordered flex w-full items-center">
+        <span class="text-base-content/50 w-10 "><%= Backpex.translate("To") %></span>
+        <input type="number" name={@form[:end].name} class="grow" value={@value["end"]} />
+      </label>
     </div>
     """
   end

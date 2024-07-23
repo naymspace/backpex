@@ -8,7 +8,10 @@ defmodule DemoWeb.ItemActions.DuplicateTag do
   @impl Backpex.ItemAction
   def icon(assigns) do
     ~H"""
-    <Heroicons.document_duplicate class="h-5 w-5 cursor-pointer transition duration-75 hover:scale-110 hover:text-green-600" />
+    <Backpex.HTML.CoreComponents.icon
+      name="hero-document-duplicate"
+      class="h-5 w-5 cursor-pointer transition duration-75 hover:scale-110 hover:text-green-600"
+    />
     """
   end
 
@@ -49,7 +52,9 @@ defmodule DemoWeb.ItemActions.DuplicateTag do
   end
 
   @impl Backpex.ItemAction
-  def handle(socket, _items, params) do
+  def handle(socket, _items, data) do
+    params = Map.from_struct(data)
+
     result =
       %Demo.Tag{}
       |> Demo.Tag.create_changeset(params, target: nil, assigns: socket.assigns)

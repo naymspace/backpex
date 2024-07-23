@@ -47,7 +47,7 @@ defmodule Backpex.Fields.HasManyThrough do
 
   import Ecto.Query
   import Backpex.HTML.Layout, only: [modal: 1]
-  import Phoenix.HTML.Form, only: [inputs_for: 2, hidden_inputs_for: 1]
+  import PhoenixHTMLHelpers.Form, only: [hidden_inputs_for: 1]
 
   alias Backpex.LiveResource
   alias Ecto.Changeset
@@ -119,9 +119,9 @@ defmodule Backpex.Fields.HasManyThrough do
       |> assign_fallback_child_fields()
 
     ~H"""
-    <div class="overflow-x-auto rounded-xl ring-1 ring-gray-200">
+    <div class="ring-base-content/10 rounded-box overflow-x-auto ring-1">
       <table class="table">
-        <thead class="bg-gray-50 uppercase text-gray-700">
+        <thead class="bg-base-200/50 text-base-content uppercase">
           <tr>
             <th
               :for={{_name, %{label: label}} <- action_fields(@field_options.child_fields, assigns, :index)}
@@ -138,7 +138,7 @@ defmodule Backpex.Fields.HasManyThrough do
             <th></th>
           </tr>
         </thead>
-        <tbody class="text-gray-500">
+        <tbody class="text-base-content/75">
           <tr :for={{listable, index} <- Enum.with_index(@listables)}>
             <td :for={{name, field_options} = field <- action_fields(@field_options.child_fields, assigns, :index)}>
               <.live_component
@@ -215,9 +215,9 @@ defmodule Backpex.Fields.HasManyThrough do
           <Layout.input_label text={@field_options[:label]} />
         </:label>
 
-        <div :if={@listables != []} class="mb-4 overflow-x-auto rounded-xl ring-1 ring-gray-200">
+        <div :if={@listables != []} class="ring-base-content/10 rounded-box mb-4 overflow-x-auto ring-1">
           <table class="table">
-            <thead class="bg-gray-50 uppercase text-gray-700">
+            <thead class="bg-base-200/50 text-base-content uppercase">
               <tr>
                 <th
                   :for={{_name, %{label: label}} <- action_fields(@field_options.child_fields, assigns, :index)}
@@ -234,8 +234,11 @@ defmodule Backpex.Fields.HasManyThrough do
                 <th></th>
               </tr>
             </thead>
-            <tbody class="text-gray-500">
-              <tr :for={{listable, index} <- Enum.with_index(@listables)}>
+            <tbody class="text-base-content/90">
+              <tr
+                :for={{listable, index} <- Enum.with_index(@listables)}
+                class="border-b-[1px] border-base-content/10 last:border-b-0"
+              >
                 <td :for={{name, field_options} <- action_fields(@field_options.child_fields, assigns, :index)}>
                   <.live_component
                     id={"child_table_#{name}_#{index}"}
@@ -265,7 +268,7 @@ defmodule Backpex.Fields.HasManyThrough do
                       phx-value-index={listable.index}
                       aria-label={Backpex.translate({"Edit relation with index %{index}", %{index: listable.index}})}
                     >
-                      <Heroicons.pencil_square class="h-5 w-5" outline />
+                      <Backpex.HTML.CoreComponents.icon name="hero-pencil-square" class="h-5 w-5" />
                     </button>
                     <button
                       type="button"
@@ -274,13 +277,13 @@ defmodule Backpex.Fields.HasManyThrough do
                       phx-value-index={listable.index}
                       aria-label={Backpex.translate({"Detach relation with index %{index}", %{index: listable.index}})}
                     >
-                      <Heroicons.trash class="h-5 w-5" outline />
+                      <Backpex.HTML.CoreComponents.icon name="hero-trash" class="h-5 w-5" />
                     </button>
                     <div
                       :if={has_error?(@editables, index)}
                       aria-label={Backpex.translate({"Error in relation with index %{index}", %{index: listable.index}})}
                     >
-                      <Heroicons.exclamation_triangle outline class="h-5 w-5 text-red-500" />
+                      <Backpex.HTML.CoreComponents.icon name="hero-exclamation-triangle" class="h-5 w-5 text-error" />
                     </div>
                   </div>
                 </td>
@@ -309,7 +312,7 @@ defmodule Backpex.Fields.HasManyThrough do
               <.pivot_field :for={{name, _field_options} <- @field_options.pivot_fields} name={name} form={e} {assigns} />
             </div>
           </div>
-          <div class="flex justify-end space-x-4 bg-gray-50 px-6 py-3">
+          <div class="bg-base-200 flex justify-end space-x-4 px-6 py-3">
             <button type="button" class="btn" phx-click="cancel-relational" phx-target={@myself}>
               <%= Backpex.translate("Cancel") %>
             </button>
@@ -504,7 +507,7 @@ defmodule Backpex.Fields.HasManyThrough do
           |> Enum.map(& &1.data.id)
       end
 
-    inputs_for(form, association.pivot.field)
+    form.impl.to_form(form.source, form, association.pivot.field, [])
     |> Enum.filter(fn item ->
       !Enum.member?(deleted_ids, item.data.id)
     end)

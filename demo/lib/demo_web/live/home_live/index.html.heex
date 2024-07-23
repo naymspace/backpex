@@ -8,9 +8,9 @@
           Beta version available!
         </.link>
       </div>
-      <h1 class="mt-10 text-4xl font-bold tracking-tight text-gray-900 sm:text-6xl">
+      <h1 class="text-balance text-base-content mt-10 text-4xl font-bold tracking-tight sm:text-6xl">
         Phoenix Admin Panel built with
-        <em class="text-primary-800 cursor-help leading-none tracking-wide">
+        <em class="text-primary-800 cursor-help whitespace-nowrap leading-none tracking-wide">
           <abbr
             :for={tech <- ["Phoenix Framework", "Elixir", "Tailwind CSS", "Alpine.js", "LiveView"]}
             title={tech}
@@ -19,7 +19,7 @@
           ><%= String.at(tech, 0) %></abbr>
         </em>
       </h1>
-      <p class="mt-6 text-lg leading-8 text-gray-600">
+      <p class="text-balance text-base-content/90 mt-6 text-lg leading-8">
         Backpex is a <strong class="font-semibold">highly customizable</strong>
         administration panel for Phoenix LiveView applications.
         Quickly create beautiful CRUD views and more for your existing data via configurable LiveResources.
@@ -31,37 +31,18 @@
         </.link>
         <.link
           href="https://github.com/naymspace/backpex"
-          class="text-sm font-semibold leading-6 text-gray-900 hover:underline"
+          class="text-sm font-semibold leading-6 text-base-content hover:underline"
         >
           GitHub
         </.link>
-        <Heroicons.arrow_right class="ml-2 h-4 w-4" />
-      </div>
-      <div :if={not @form_hidden?} class="bg-white py-8 sm:py-12 lg:py-16">
-        <h2 class="text-xl font-bold tracking-tight text-gray-900 sm:text-lg">
-          Get notified when we're launching.
-        </h2>
-        <.form :if={not @subscribed?} class="mt-4 flex gap-x-4" for={@form} phx-change="validate" phx-submit="subscribe">
-          <input type="text" name={@form[:email].name} class="input input-bordered h-12 w-64" />
-          <button class="btn" type="submit" class="mr-6" color="white">Subscribe</button>
-        </.form>
-
-        <div :if={not @subscribed?} class="alert my-4 bg-blue-100 text-sm text-blue-800">
-          <Heroicons.information_circle class="h-5 w-5" />
-          <p>
-            You successfully subscribed to the Backpex newsletter. Please check your inbox to confirm your email address!
-          </p>
-        </div>
-        <p class="text-sm leading-6 text-gray-800">
-          No spam. Just infos about Backpex related stuff about once a month.
-        </p>
+        <Backpex.HTML.CoreComponents.icon name="hero-arrow-right" class="ml-2 h-4 w-4" />
       </div>
     </div>
     <div class="mx-auto mt-16 flex max-w-2xl sm:mt-24 lg:mt-0 lg:mr-0 lg:ml-10 lg:max-w-none lg:flex-none xl:ml-32">
       <div class="max-w-3xl flex-none sm:max-w-5xl lg:max-w-none">
         <.link
           navigate="/admin/users"
-          class="ring-gray-900/10 bg-gray-900/5 relative block overflow-hidden rounded-xl ring-1 transition hover:ring-4 lg:-m-4 lg:rounded-2xl"
+          class="ring-base-content/10 bg-base-content/5 relative block overflow-hidden rounded-box ring-1 transition hover:ring-4 lg:-m-4"
         >
           <div class="absolute inset-0"></div>
           <iframe src="/admin/posts" width="1400" height="800" tabindex="-1" />
@@ -73,10 +54,10 @@
 
 <.section>
   <div class="mx-auto max-w-2xl text-center">
-    <h2 class="text-3xl font-bold tracking-tight text-gray-900 sm:text-4xl">
+    <h2 class="text-base-content text-3xl font-bold tracking-tight sm:text-4xl">
       Batteries included
     </h2>
-    <p class="mx-auto mt-4 max-w-2xl text-lg leading-8 text-gray-600">
+    <p class="text-base-content mx-auto mt-4 max-w-2xl text-lg leading-8">
       Backpex comes with a rich set of features to quickly build a beautiful backoffice application. Visit
       the docs (coming soon) to learn about all the different possibilities.
     </p>
@@ -109,21 +90,21 @@
   </.feature_list>
 </.section>
 <footer class="max-w-container mx-auto mt-16 w-full px-4 sm:px-6 lg:px-8">
-  <div class="border-slate-900/5 border-t py-16 text-center">
-    <div class="mx-auto mb-4 inline-block w-auto text-slate-900">
+  <div class="border-base-200 border-t py-16 text-center">
+    <div class="text-base-content mx-auto mb-4 inline-block w-auto">
       <Backpex.HTML.Layout.backpex_logo class="mr-1 inline h-5" />
       <span class="font-semibold">Backpex</span>
     </div>
-    <p class="mb-4 text-sm leading-6 text-slate-500">
+    <p class="text-base-content/70 mb-4 text-sm leading-6">
       made by <.link href="https://naymspace.de/" class="underline hover:no-underline">Naymspace</.link>
     </p>
-    <div class="flex items-center justify-center space-x-4 text-sm font-semibold leading-6 text-slate-700">
+    <div class="text-base-content flex items-center justify-center space-x-4 text-sm font-semibold leading-6">
       <.intersperse
         :let={{text, url}}
         enum={[{"Imprint", "https://naymspace.de/en/imprint"}, {"Privacy", "https://naymspace.de/en/privacy"}]}
       >
         <:separator>
-          <div class="bg-slate-500/20 h-4 w-px"></div>
+          <div class="bg-base-content/20 h-4 w-px"></div>
         </:separator>
         <.link href={url} class="hover:underline"><%= text %></.link>
       </.intersperse>

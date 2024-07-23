@@ -3,556 +3,11 @@
 
 defmodule Backpex.LiveResource do
   @moduledoc ~S'''
-  LiveResource makes it easy to manage existing resources in your application.
-  It provides extensive configuration options in order to meet everyone's needs.
-  In connection with `Backpex.Components` you can build an individual admin dashboard
-  on top of your application in minutes.
-
-
-  ## Example
-
-  Before you start make sure Backpex is properly configured.
-
-  `Backpex.LiveResource` is the module that will generate the corresponding LiveViews for the resource you configured.
-  You are required to set some general options to tell Backpex where to find the resource and what
-  changesets should be used. In addition you have to provide names and a list of fields.
-
-  A minimal configuration looks something like this:
-
-      defmodule MyAppWeb.UserLive do
-        use Backpex.LiveResource,
-          layout: {MyAppWeb.LayoutView, :admin},
-          schema: MyApp.User,
-          repo: MyApp.Repo,
-          update_changeset: &MyApp.User.update_changeset/3,
-          create_changeset: &MyApp.User.create_changeset/3
-
-        @impl Backpex.LiveResource
-        def singular_name(), do: "User"
-
-        @impl Backpex.LiveResource
-        def plural_name(), do: "Users"
-
-        @impl Backpex.LiveResource
-        def fields do
-        [
-          username: %{
-            module: Backpex.Fields.Text,
-            label: "Username"
-          },
-          first_name: %{
-            module: Backpex.Fields.Text,
-            label: "First Name"
-          },
-          last_name: %{
-            module: Backpex.Fields.Text,
-            label: "Last Name"
-          },
-        ]
-      end
-
-  You are also required to configure your router in order to serve the generated LiveViews:
-
-      defmodule MyAppWeb.Router
-        import Backpex.Router
-
-        scope "/admin", MyAppWeb do
-          pipe_through :browser
-
-          live_session :default, on_mount: Backpex.InitAssigns do
-            live_resources("/users", UserLive)
-          end
-        end
-      end
+  A LiveResource makes it easy to manage existing resources in your application. It provides extensive configuration options in order to meet everyone's needs. In connection with `Backpex.Components` you can build an individual admin dashboard on top of your application in minutes.
 
   > #### `use Backpex.LiveResource` {: .info}
   >
   > When you `use Backpex.LiveResource`, the `Backpex.LiveResource` module will set `@behavior Backpex.LiveResource`. Additionally it will create a LiveView based on the given configuration in order to create fully functional index, show, new and edit views for a resource. It will also insert fallback functions that can be overridden.
-
-  ## Define a resource
-
-  To explain configuration settings we created an event schema with a corresponding `EventLive` configuration file.
-
-      defmodule MyAppWeb.EventLive do
-        alias MyApp.Event
-
-        use Backpex.LiveResource,
-          layout: {MyAppWeb.LayoutView, :admin}, # Specify the layout you created in the step before
-          schema: Event, # Schema of the resource
-          repo: MyApp.Repo, # Ecto repository
-          update_changeset: &Event.update_changeset/3, # Changeset to be used for update queries
-          create_changeset: &Event.create_changeset/3,  # Changeset to be used for create queries
-          pubsub: Demo.PubSub, # PubSub name of the project.
-          topic: "events", # The topic for PubSub
-          event_prefix: "event_", # The event prefix for Pubsub, to differentiate between events of different resources when subscribed to multiple resources
-          fluid?: true # Optional to define if your resource should be rendered full width. Depends on the your [layout configuration](installation.md)
-
-        # Singular name to displayed on the resource page
-        @impl Backpex.LiveResource
-        def singular_name(), do: "Event"
-
-        # Plural name to displayed on the resource page
-        @impl Backpex.LiveResource
-        def plural_name(), do: "Events"
-
-        # Field configurations
-        # Here can configure which fields of the schema should be displayed on your dashboard.
-        # Backpex provides certain field modules that may be used for displaying the field on index and form views.
-        # You may define you own module or overwrite the render functions in this configuration (`render` for index views
-        # and `render_form` for form views).
-        @impl Backpex.LiveResource
-        def fields do
-          [
-            # The title field of our event schema
-            title: %{
-              module: Backpex.Fields.Text,
-              label: "Title"
-            },
-            # The location field of our event schema. It should not be displayed on `:edit` view.
-            location: %{
-              module: Backpex.Fields.Text,
-              label: "Location",
-              except: [:edit]
-            },
-            # The location field of our event schema. We use the Backpex URL module in order to make the url clickable.
-            # This field is only displayed on `:index` view.
-            url: %{
-              module: Backpex.Fields.URL,
-              label: "Url",
-              only: [:index]
-            },
-            # The begins_at field of our event schema. We provide or own render function to display this field on index views.
-            # The value can be extracted from the assigns.
-            begins_at: %{
-              module: Backpex.Fields.Date,
-              label: "Begins At",
-              render: fn assigns ->
-                ~H"""
-                <div class="text-red-500">
-                  <%= @value %>
-                </div>
-                """
-              end
-            },
-            # The ends_at field of our event schema. This field should not be sortable.
-            ends_at: %{
-              module: Backpex.Fields.Date,
-              label: "Ends at"
-            },
-            # The published field of our url schema. We use the boolean field to display a switch button on edit views.
-            published: %{
-              module: Backpex.Fields.Boolean,
-              label: "Published",
-              sortable: false
-            }
-          ]
-        end
-      end
-
-  ## Templates
-
-  You are able to customize certain parts of Backpex. While you may use our app shell layout only you may also define functions to provide additional templates to be rendered on the resource LiveView or completely overwrite certain parts like the header or main content.
-
-  See [render_resource_slot/3](Backpex.LiveResource.html#c:render_resource_slot/3) for supported positions.
-
-  **Example:**
-      # in your resource configuration file
-
-      # to add content above main on index view
-      def render_resource_slot(assigns, :index, :before_main), do: ~H"Hello World!"
-
-  ## Item Query
-
-  It is possible to manipulate the query when fetching resources for `index`, `show` and `edit` view by defining an `item_query` function.
-
-  In all queries we define a `from` query with a named binding to fetch all existing resources on `index` view or a specific resource on `show` / `edit` view.
-  After that, we call the `item_query` function. By default this returns the incoming query.
-
-  The `item_query` function makes it easy to add custom query expressions.
-
-  For example, you could filter posts by a published boolean on `index` view.
-
-      # in your resource configuration file
-
-      @impl Backpex.LiveResource
-      def item_query(query, :index, _assigns) do
-      query
-      |> where([post], post.published)
-      end
-
-  In this example we also made use of the named binding. It's always the name of the provided schema in `snake_case`.
-  It is recommended to build your `item_query` on top of the incoming query. Otherwise you will likely get binding errors.
-
-  ## Authorize Actions
-
-  Use `can?(_assigns, _action, _item)` function in you resource configuration to limit access to item actions
-  (Actions: `:index`, `:new`, `:show`, `:edit`, `:delete`, `:your_item_action_key`, `:your_resource_action_key`).
-  The function is not required and returns `true` by default.
-  The item is `nil` for any action that does not require an item to be performed (`:index`, `:new`, `:your_resource_action_key`).
-
-  **Examples:**
-      # _item is nil for any action that does not require an item to be performed
-      def can?(_assigns, :new, _item), do: false
-
-      def can?(_assigns, :my_item_action, item), do: item.role == :admin
-
-      def can?(assigns, :my_resource_action, nil), do: assigns.current_user == :admin
-
-  > Note that item actions are always displayed if they are defined. If you want to remove item actions completely, you must restrict access to them with `can?/3` and remove the action with the `item_actions/1` function.
-
-  ## Resource Actions
-
-  You may define actions for certain resources in order to integrate complex processes into Backpex.
-
-  Action routes are automatically generated when using the `live_resources` macro.
-
-  For example you could add an invite process to your user resource as shown in the following.
-
-  ```elixir
-  defmodule MyAppWeb.Admin.Actions.Invite do
-    use Backpex.ResourceAction
-
-    import Ecto.Changeset
-
-    @impl Backpex.ResourceAction
-    def label, do: "Invite"
-
-    @impl Backpex.ResourceAction
-    def title, do: "Invite user"
-
-    # you can reuse Backpex fields in the field definition
-    @impl Backpex.ResourceAction
-    def fields do
-      [
-        email: %{
-          module: Backpex.Fields.Text,
-          label: "Email",
-          type: :string
-        }
-      ]
-    end
-
-    @required_fields ~w[email]a
-
-    @impl Backpex.ResourceAction
-    def changeset(change, attrs) do
-      change
-      |> cast(attrs, @required_fields)
-      |> validate_required(@required_fields)
-      |> validate_email(:email)
-    end
-
-    # your action to be performed
-    @impl Backpex.ResourceAction
-    def handle(_socket, params) do
-      # Send mail
-
-      # We suppose there was no error.
-      if true do
-        {:ok, "An email to #{params[:email]} was sent successfully."}
-      else
-        {:error, "An error occurred while sending an email to  #{params[:email]}!"}
-      end
-    end
-  end
-  ```
-
-  ```elixir
-  # in your resource configuration file
-
-  # each action consists out of an unique id and the corresponding action module
-  @impl Backpex.LiveResource
-  def resource_actions() do
-  [
-    %{
-      module: MyWebApp.Admin.ResourceActions.Invite,
-      id: :invite
-    }
-  ]
-  end
-  ```
-
-  ## Ordering
-
-  You may provide an `init_order` option to specify how the initial index page is being ordered.
-
-      # in your resource configuration file
-
-      use Backpex.LiveResource,
-        ...,
-        init_order: %{by: :inserted_at, direction: :desc}
-
-        # Routing
-
-  ## Routing
-
-  You are required to configure your router in order to point to the resources created in before steps.
-  Make sure to use the `Backpex.InitAssigns` hook to ensure all Backpex assigns are applied to the LiveViews.
-
-  You have to use the `Backpex.Router.live_resources/3` macro to generate routes for your resources.
-
-      # MyAppWeb.Router
-
-      import Backpex.Router
-
-      scope "/admin", MyAppWeb do
-      pipe_through :browser
-
-      live_session :default, on_mount: Backpex.InitAssigns do
-        live_resources("/events", EventLive)
-      end
-
-  In addition you have to use the `Backpex.Router.backpex_routes` macro. It will add some more routes at base scope. You can place this anywhere in your router.
-  We will mainly use this routes to insert a `Backpex.CookieController`. We need it in order to save some user related settings (e.g. which columns on index view you selected to be active).
-
-      # MyAppWeb.Router
-
-      import Backpex.Router
-
-      scope "/" do
-        pipe_through :browser
-
-        backpex_routes()
-      end
-
-  ## Searching
-
-  You may flag fields as searchable. A search input will appear automatically on the resource index view.
-
-      # in your resource configuration file
-      @impl Backpex.LiveResource
-      def fields do
-        [
-          %{
-            ...,
-            searchable: true
-          }
-        ]
-      end
-
-  For a custom placeholder, you can use the `elixir search_placeholder/0` callback.
-
-      # in your resource configuration file
-      @impl Backpex.LiveResource
-      def search_placeholder, do: "This will be shown in the search input."
-
-  In addition to basic searching, Backpex allows you to perform full-text searches on resources (see [Full-Text Search Guide](full_text_search.md)).
-
-  ## Hooks
-
-  You may define hooks that are called after their respective action. Those hooks are `on_item_created`, `on_item_updated` and `on_item_deleted`.
-  These methods receive the socket and the corresponding item and are expected to return a socket.
-
-      # in your resource configuration file
-      @impl Backpex.LiveResource
-      def on_item_created(socket, item) do
-        # send an email on user creation
-        socket
-      end
-
-  ## PubSub
-
-  PubSub settings are required in order to support live updates.
-
-      # in your resource configuration file
-      use Backpex.LiveResource,
-          ...,
-          pubsub: Demo.PubSub, # PubSub name of the project.
-          topic: "events", # The topic for PubSub
-          event_prefix: "event_" # The event prefix for Pubsub, to differentiate between events of different resources when subscribed to multiple resources
-
-  In addition you may react to `...deleted`, `...updated` and `...created` events via `handle_info`
-
-      # in your resource configuration file
-      @impl Phoenix.LiveView
-      def handle_info({"event_created", item}, socket) do
-        # make something in response to the event, for example show a toast to all users currently on the resource that an event has been created.
-        {:noreply, socket}
-      end
-
-  ## Navigation
-
-  You may define a custom navigation path that is called after the item is saved.
-  The method receives the socket, the live action and the corresponding item and is expected to return a route path.
-
-      # in your resource configuration file
-      @impl Backpex.LiveResource
-      def return_to(socket, assigns, _action, _item) do
-        # return to user index after saving
-        Routes.user_path(socket, :index)
-      end
-
-  ## Panels
-
-  You are able to define panels to group certain fields together. Panels are displayed in the provided order.
-  The `Backpex.LiveResource.panels/0` function has to return a keyword list with an identifier and label for each panel.
-  You can move fields into panels with the `panel` field configuration that has to return the identifier of the corresponding panel. Fields without a panel are displayed in the `:default` panel. The `:default` panel has no label.
-
-  > Note that a panel is not displayed when there are no fields in it.
-
-      # in your resource configuration file
-      @impl Backpex.LiveResource
-      def panels do
-        [
-          contact: "Contact"
-        ]
-      end
-
-      # in your fields list
-      @impl Backpex.LiveResource
-      def fields do
-        [
-          %{
-            ...,
-            panel: :contact
-          }
-        ]
-      end
-
-  ## Default values
-
-  It is possible to assign default values to fields.
-
-      # in your resource configuration file
-      @impl Backpex.LiveResource
-      def fields do
-        [
-          username: %{
-            default: fn _assigns -> "Default Username" end
-          }
-        ]
-      end
-
-  > Note that default values are set when creating new resources only.
-
-  ## Alignment
-
-  You may align fields on index view. By default fields are aligned to the left.
-
-  We currently support the following alignments: `:left`, `:center` and `:right`.
-
-      # in your resource configuration file
-      @impl Backpex.LiveResource
-      def fields do
-        [
-          %{
-            ...,
-            align: :center
-          }
-        ]
-      end
-
-  In addition to field alignment, you can align the labels on form views (`index`, `edit`, `resource_action`) using the `align_label` field option.
-
-  We currently support the following label orientations: `:top`, `:center` and `:bottom`.
-
-      # in your resource configuration file
-      @impl Backpex.LiveResource
-      def fields do
-        [
-          %{
-            ...,
-            align_label: :top
-          }
-        ]
-      end
-
-  ## Fields Visibility
-
-  You are able to change visibility of fields based on certain conditions (`assigns`).
-
-  Imagine you want to implement a checkbox in order to toggle an input field (post likes). Initially, the input field should be visible when it has a certain value (post likes > 0).
-
-      # in your resource configuration file
-      @impl Backpex.LiveResource
-      def fields do
-        [
-          # show_likes is a virtual field in the post schema
-          show_likes: %{
-            module: Backpex.Fields.Boolean,
-            label: "Show likes",
-            # initialize the button based on the likes value
-            select: dynamic([post: p], fragment("? > 0", p.likes)),
-          },
-          likes: %{
-            module: Backpex.Fields.Number,
-            label: "Likes",
-            # display the field based on the `show_likes` value
-            # the value can be part of the changeset or item (when edit view is opened initially).
-            visible: fn
-              %{live_action: :new} = assigns ->
-                Map.get(assigns.changeset.changes, :show_likes)
-
-              %{live_action: :edit} = assigns ->
-                Map.get(assigns.changeset.changes, :show_likes, Map.get(assigns.item, :show_likes, false))
-
-              _assigns ->
-                true
-            end
-          }
-        ]
-      end
-
-  > Note that hidden fields are not exempt from validation by Backpex itself and the visible function is not executed on `:index`.
-
-  In addition to `visible/1`, we provide a `can?1` function that you can use to determine the visibility of a field.
-  It can also be used on `:index` and takes the `assigns` as a parameter.
-
-      # in your resource configuration file
-      inserted_at: %{
-        module: Backpex.Fields.DateTime,
-        label: "Created At",
-        can?: fn
-          %{live_action: :show} = _assigns ->
-            true
-
-          _assigns ->
-            false
-        end
-      }
-
-  ## Tooltips
-
-  We support tooltips via [daisyUI](https://daisyui.com/components/tooltip/).
-
-  ## Index Editable
-
-  A small number of fields support index editable. These fields can be edited inline on the index view.
-
-  You must enable index editable for a field.
-
-      # in your resource configuration file
-      def fields do
-        [
-          name: %{
-            module: Backpex.Fields.Text,
-            label: "Name",
-            index_editable: true
-          }
-        ]
-      end
-
-  Currently supported by the following fields:
-  - `Backpex.Fields.BelongsTo`
-  - `Backpex.Fields.Date`
-  - `Backpex.Fields.DateTime`
-  - `Backpex.Fields.Number`
-  - `Backpex.Fields.Select`
-  - `Backpex.Fields.Text`
-
-  > Note you can add index editable support to your custom fields by defining the `render_index_form/1` function and enabling index editable for your field.
-
-  ## Additional classes for index table rows
-
-  We provide the `Backpex.LiveResource.index_row_class` option to add additional classes to table rows
-  on the index view. This allows you, for example, to color the rows.
-
-      # in your resource configuration file
-      @impl Backpex.LiveResource
-      def index_row_class(assigns, item, selected, index), do: "bg-yellow-100"
-
-  > Note that we call the function twice. Once for the row on the `tr` element and a second time for the item action overlay, because in most cases the overlay should have the same style applied.
-  For this reason, Tailwind CSS modifiers such as `even` and `odd` will not always work as intended. Use the provided index instead. The index starts with 0 for the first item.
   '''
 
   alias Backpex.Resource
@@ -667,6 +122,16 @@ defmodule Backpex.LiveResource do
               binary()
 
   @doc """
+  Customizes the label of the button for creating a new item. Defaults to "New %{resource}".
+  """
+  @callback create_button_label() :: binary()
+
+  @doc """
+  Customizes the message in the flash message when a resource has been created successfully. Defaults to "New %{resource} has been created successfully".
+  """
+  @callback resource_created_message() :: binary()
+
+  @doc """
   Uses LiveResource in the current module to make it a LiveResource.
 
       use Backpex.LiveResource,
@@ -756,6 +221,8 @@ defmodule Backpex.LiveResource do
           |> assign(:pubsub, pubsub)
           |> assign(:singular_name, singular_name())
           |> assign(:plural_name, plural_name())
+          |> assign(:create_button_label, create_button_label())
+          |> assign(:resource_created_message, resource_created_message())
           |> assign(:search_placeholder, search_placeholder())
           |> assign(:panels, panels())
           |> assign(:live_resource, __MODULE__)
@@ -835,18 +302,18 @@ defmodule Backpex.LiveResource do
 
       def apply_action(socket, :edit) do
         %{
-          assigns: %{live_action: live_action, singular_name: singular_name, params: params} = assigns
+          assigns:
+            %{
+              live_action: live_action,
+              singular_name: singular_name,
+              params: params,
+              repo: repo,
+              schema: schema
+            } = assigns
         } = socket
 
         fields = filtered_fields_by_action(fields(), assigns, :edit)
-
-        item =
-          Resource.get(
-            assigns,
-            &item_query(&1, live_action, assigns),
-            fields,
-            params["backpex_id"]
-          )
+        item = Resource.get!(params["backpex_id"], repo, schema, &item_query(&1, live_action, assigns), fields)
 
         unless can?(socket.assigns, :edit, item, __MODULE__),
           do: raise(Backpex.ForbiddenError)
@@ -864,18 +331,18 @@ defmodule Backpex.LiveResource do
 
       def apply_action(socket, :show) do
         %{
-          assigns: %{live_action: live_action, singular_name: singular_name, params: params} = assigns
+          assigns:
+            %{
+              live_action: live_action,
+              singular_name: singular_name,
+              params: params,
+              repo: repo,
+              schema: schema
+            } = assigns
         } = socket
 
         fields = filtered_fields_by_action(fields(), assigns, :show)
-
-        item =
-          Resource.get(
-            assigns,
-            &item_query(&1, live_action, assigns),
-            fields,
-            params["backpex_id"]
-          )
+        item = Resource.get!(params["backpex_id"], repo, schema, &item_query(&1, live_action, assigns), fields)
 
         unless can?(assigns, :show, item, __MODULE__),
           do: raise(Backpex.ForbiddenError)
@@ -891,7 +358,9 @@ defmodule Backpex.LiveResource do
       end
 
       def apply_action(socket, :new) do
-        %{assigns: %{schema: schema, singular_name: singular_name} = assigns} = socket
+        %{
+          assigns: %{schema: schema, singular_name: singular_name, create_button_label: create_button_label} = assigns
+        } = socket
 
         unless can?(assigns, :new, nil, __MODULE__),
           do: raise(Backpex.ForbiddenError)
@@ -901,10 +370,7 @@ defmodule Backpex.LiveResource do
 
         socket
         |> assign(:changeset_function, unquote(create_changeset))
-        |> assign(
-          :page_title,
-          Backpex.translate({"New %{resource}", %{resource: singular_name}})
-        )
+        |> assign(:page_title, create_button_label)
         |> assign(:fields, fields)
         |> assign(:item, empty_item)
         |> assign_changeset(fields)
@@ -1104,7 +570,7 @@ defmodule Backpex.LiveResource do
           # redirect with updated query options
           options = Map.put(query_options, :filters, default_filter_options)
           to = Router.get_path(socket, __MODULE__, params, :index, options)
-          push_redirect(socket, to: to)
+          push_navigate(socket, to: to)
         else
           socket
         end
@@ -1177,7 +643,7 @@ defmodule Backpex.LiveResource do
 
       @impl Phoenix.LiveView
       def handle_event("item-action", %{"action-key" => key, "item-id" => item_id}, socket) do
-        item = Enum.find(socket.assigns.items, fn item -> item.id == item_id end)
+        item = Enum.find(socket.assigns.items, fn item -> to_string(item.id) == to_string(item_id) end)
 
         socket
         |> assign(selected_items: [item])
@@ -1201,7 +667,22 @@ defmodule Backpex.LiveResource do
       end
 
       defp open_action_confirm_modal(socket, action, key) do
-        {:noreply, assign(socket, action_to_confirm: Map.put(action, :key, key))}
+        init_change = action.module.init_change(socket.assigns)
+        changeset_function = &action.module.changeset/3
+
+        changeset =
+          init_change
+          |> Ecto.Changeset.change()
+          |> call_changeset_function(changeset_function, %{}, socket.assigns)
+
+        socket =
+          socket
+          |> assign(:item_action_types, init_change)
+          |> assign(:changeset_function, changeset_function)
+          |> assign(:changeset, changeset)
+          |> assign(:action_to_confirm, Map.put(action, :key, key))
+
+        {:noreply, socket}
       end
 
       defp handle_item_action(socket, action, key, items) do
@@ -1347,7 +828,8 @@ defmodule Backpex.LiveResource do
       @impl Phoenix.LiveView
       def handle_event("update-selected-items", %{"id" => id}, socket) do
         selected_items = socket.assigns.selected_items
-        item = Enum.find(socket.assigns.items, fn item -> item.id == id end)
+
+        item = Enum.find(socket.assigns.items, fn item -> to_string(item.id) == to_string(id) end)
 
         updated_selected_items =
           if Enum.member?(selected_items, item) do
@@ -1394,7 +876,7 @@ defmodule Backpex.LiveResource do
       @impl Phoenix.LiveView
       def handle_info({"backpex:" <> unquote(event_prefix) <> "deleted", item}, socket)
           when socket.assigns.live_action in [:index, :resource_action] do
-        if Enum.filter(socket.assigns.items, &(&1.id == item.id)) != [] do
+        if Enum.filter(socket.assigns.items, &(to_string(&1.id) == to_string(item.id))) != [] do
           {:noreply, refresh_items(socket)}
         else
           {:noreply, socket}
@@ -1441,19 +923,19 @@ defmodule Backpex.LiveResource do
       def get_empty_filter_key, do: @empty_filter_key
 
       defp update_item(socket, %{id: id} = _item) do
-        %{assigns: %{live_action: live_action} = assigns} = socket
+        %{assigns: %{live_action: live_action, repo: repo, schema: schema} = assigns} = socket
 
         fields = filtered_fields_by_action(fields(), assigns, :show)
-        item = Resource.get(assigns, &item_query(&1, live_action, assigns), fields, id)
+        item = Resource.get(id, repo, schema, &item_query(&1, live_action, assigns), fields)
 
         socket =
           cond do
-            live_action in [:index, :resource_action] ->
+            live_action in [:index, :resource_action] and item ->
               items = Enum.map(socket.assigns.items, &if(&1.id == id, do: item, else: &1))
 
               assign(socket, :items, items)
 
-            live_action == :show ->
+            live_action == :show and item ->
               assign(socket, :item, item)
 
             true ->
@@ -1536,13 +1018,22 @@ defmodule Backpex.LiveResource do
       @impl Backpex.LiveResource
       def item_actions(default_actions), do: default_actions
 
+      @impl Backpex.LiveResource
+      def create_button_label, do: Backpex.translate({"New %{resource}", %{resource: singular_name()}})
+
+      @impl Backpex.LiveResource
+      def resource_created_message,
+        do: Backpex.translate({"New %{resource} has been created successfully.", %{resource: singular_name()}})
+
       defoverridable can?: 3,
                      fields: 0,
                      filters: 0,
                      filters: 1,
                      resource_actions: 0,
                      item_actions: 1,
-                     index_row_class: 4
+                     index_row_class: 4,
+                     create_button_label: 0,
+                     resource_created_message: 0
     end
   end
 
@@ -1627,12 +1118,15 @@ defmodule Backpex.LiveResource do
           <%= @singular_name %>
           <.link
             :if={Backpex.LiveResource.can?(assigns, :edit, @item, @live_resource)}
-            class="tooltip"
+            class="tooltip hover:z-30"
             data-tip={Backpex.translate("Edit")}
             aria-label={Backpex.translate("Edit")}
             patch={Router.get_path(@socket, @live_resource, @params, :edit, @item)}
           >
-            <Heroicons.pencil_square class="h-6 w-6 cursor-pointer transition duration-75 hover:scale-110 hover:text-blue-600" />
+            <Backpex.HTML.CoreComponents.icon
+              name="hero-pencil-square"
+              class="h-6 w-6 cursor-pointer transition duration-75 hover:scale-110 hover:text-primary"
+            />
           </.link>
         </.main_title>
         """
@@ -1658,7 +1152,7 @@ defmodule Backpex.LiveResource do
       def render_resource_slot(var!(assigns), :new, :page_title) do
         ~H"""
         <.main_title class="mb-4">
-          <%= Backpex.translate({"New %{resource}", %{resource: @singular_name}}) %>
+          <%= @create_button_label %>
         </.main_title>
         """
       end
