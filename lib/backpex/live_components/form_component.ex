@@ -179,7 +179,9 @@ defmodule Backpex.FormComponent do
   end
 
   def handle_event("save", _params, socket) do
-    handle_item_action(socket, nil, %{})
+    change = put_upload_change(%{}, socket, :insert)
+
+    handle_save(socket, socket.assigns.live_action, change)
   end
 
   def handle_event(msg, params, socket) do
