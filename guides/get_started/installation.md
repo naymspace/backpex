@@ -172,16 +172,17 @@ defmodule MyAppWeb.Live.PostLive do
 
   @impl Backpex.LiveResource
   def fields do
-  [
-    title: %{
-      module: Backpex.Fields.Text,
-      label: "Title"
-    },
-    views: %{
-      module: Backpex.Fields.Number,
-      label: "Views"
-    }
-  ]
+    [
+      title: %{
+        module: Backpex.Fields.Text,
+        label: "Title"
+      },
+      views: %{
+        module: Backpex.Fields.Number,
+        label: "Views"
+      }
+    ]
+  end
 end
 ```
 
