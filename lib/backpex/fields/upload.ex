@@ -375,7 +375,7 @@ defmodule Backpex.Fields.Upload do
 
     ~H"""
     <div class="flex flex-col">
-      <p :for={{_file_key, label} <- @uploaded_files}>
+      <p :for={{_file_key, label} <- @uploaded_files} class="break-all">
         <%= label %>
       </p>
     </div>
@@ -419,11 +419,11 @@ defmodule Backpex.Fields.Upload do
           phx-drop-target={if @uploads_allowed, do: @field_uploads.ref}
         >
           <div
-            class="flex justify-center rounded-md border-2 border-dashed px-6 pt-5 pb-6"
-            x-bind:class="dragging > 0 ? 'border-primary' : 'border-content'"
+            class="rounded-btn flex justify-center border-2 border-dashed px-6 pt-5 pb-6"
+            x-bind:class="dragging > 0 ? 'border-primary' : 'border-base-content/25'"
           >
             <div class="flex flex-col items-center space-y-1 text-center">
-              <Backpex.HTML.CoreComponents.icon name="hero-document-arrow-up" class="h-8 w-8 text-gray-400" />
+              <Backpex.HTML.CoreComponents.icon name="hero-document-arrow-up" class="h-8 w-8 text-base-content/50" />
               <div class="flex text-sm">
                 <label>
                   <a class="link link-hover link-primary font-medium">
@@ -445,7 +445,7 @@ defmodule Backpex.Fields.Upload do
         <section class="mt-2">
           <article>
             <%= if @uploads_allowed do %>
-              <div :for={entry <- @field_uploads.entries}>
+              <div :for={entry <- @field_uploads.entries} class="break-all">
                 <p class="inline"><%= Map.get(entry, :client_name) %></p>
 
                 <button
@@ -466,7 +466,7 @@ defmodule Backpex.Fields.Upload do
             <% end %>
 
             <%= if @type == :form do %>
-              <div :for={{file_key, label} <- @uploaded_files}>
+              <div :for={{file_key, label} <- @uploaded_files} class="break-all">
                 <p class="inline"><%= label %></p>
                 <button
                   type="button"

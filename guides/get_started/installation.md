@@ -128,7 +128,7 @@ defmodule MyAppWeb.Live.PostLive do
     create_changeset: &MyApp.Blog.Post.create_changeset/3,
     pubsub: MyApp.PubSub,
     topic: "posts",
-    event_prefix: "post_",
+    event_prefix: "post_"
 end
 ```
 
@@ -162,7 +162,7 @@ defmodule MyAppWeb.Live.PostLive do
     create_changeset: &MyApp.Blog.Post.create_changeset/3,
     pubsub: MyApp.PubSub,
     topic: "posts",
-    event_prefix: "post_",
+    event_prefix: "post_"
 
   @impl Backpex.LiveResource
   def singular_name, do: "Post"
@@ -172,20 +172,21 @@ defmodule MyAppWeb.Live.PostLive do
 
   @impl Backpex.LiveResource
   def fields do
-  [
-    title: %{
-      module: Backpex.Fields.Text,
-      label: "Title"
-    },
-    views: %{
-      module: Backpex.Fields.Number,
-      label: "Views"
-    }
-  ]
+    [
+      title: %{
+        module: Backpex.Fields.Text,
+        label: "Title"
+      },
+      views: %{
+        module: Backpex.Fields.Number,
+        label: "Views"
+      }
+    ]
+  end
 end
 ```
 
-The `fields/0` function returns a list of fields to display in the LiveResource. See [What is a Field?](fields/what-is-a-field.md) for more information.
+The `fields/0` function returns a list of fields to display in the LiveResource. See [What is a Field?](../fields/what-is-a-field.md) for more information.
 
 > #### Information {: .info}
 >
@@ -280,21 +281,39 @@ If you need this color on your body tag to style your application, consider usin
 
 ## Set daisyUI theme
 
-As mentioned in the [prerequisites](prerequisites.md), Backpex currently only supports daisyUI light mode. You have two options:
+Backpex supports daisyUI themes, to use them you need to do two things:
 
-1. Only add the daisyUI light theme to your application.
+1. Add the themes to your application.
 
 ```js
 // tailwind.config.js
 module.exports = {
   daisyui: {
-    themes: ['light'],
+    themes: [
+      {
+        light: {
+          ...require('daisyui/src/theming/themes').light,
+          primary: '#1d4ed8',
+          'primary-content': 'white',
+          secondary: '#f39325',
+          'secondary-content': 'white'
+        },
+        dark: {
+          ...require('daisyui/src/theming/themes').dark
+        },
+        cyberpunk: {
+          ...require('daisyui/src/theming/themes').cyberpunk
+        }
+      }
+    ]
   },
   ...
 }
 ```
 
-2. Explicitly set the daisyUI light theme in your layout.
+The full list of themes can be found at the [daisyUI](https://daisyui.com/docs/themes/) website.
+
+2. Explicitly set the daisyUI theme in your layout.
 
 ```elixir
 # root.html.heex
@@ -302,8 +321,6 @@ module.exports = {
   ...
 </html>
 ```
-
-If you use another daisyUI theme to style your application, consider using another root layout for Backpex with light theme applied (see [`put_root_layout/2`](https://hexdocs.pm/phoenix/Phoenix.Controller.html#put_root_layout/2)).
 
 ## Remove `@tailwindcss/forms` plugin
 

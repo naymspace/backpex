@@ -83,17 +83,17 @@ defmodule Backpex.Fields.InlineCRUD do
   @impl Backpex.Field
   def render_value(assigns) do
     ~H"""
-    <div class="overflow-x-auto rounded-xl ring-1 ring-gray-200">
+    <div class="ring-base-content/10 rounded-box overflow-x-auto ring-1">
       <table class="table">
-        <thead class="bg-gray-50 uppercase text-gray-700">
+        <thead class="bg-base-200/50 text-base-content uppercase">
           <tr>
             <th :for={{_name, %{label: label}} <- @field_options.child_fields} class="font-medium">
               <%= label %>
             </th>
           </tr>
         </thead>
-        <tbody class="text-gray-500">
-          <tr :for={row <- @value}>
+        <tbody class="text-base-content/75">
+          <tr :for={row <- @value} class="border-base-content/10 border-b last:border-b-0">
             <td :for={{name, _field_options} <- @field_options.child_fields}>
               <%= HTML.pretty_value(Map.get(row, name)) %>
             </td>

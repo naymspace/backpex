@@ -26,11 +26,6 @@ config :demo, DemoWeb.Endpoint,
     signing_salt: fetch_env!("LIVE_VIEW_SIGNING_SALT")
   ]
 
-config :demo, Demo.Newsletter.Brevo,
-  api_key: get_env("BREVO_API_KEY"),
-  include_list_ids: get_env("BREVO_INCLUDE_LIST_IDS", "0,42,1337") |> split(",") |> Enum.map(&to_integer/1),
-  template_id: get_env("BREVO_TEMPLATE_ID", "0") |> to_integer()
-
 config :demo, DemoWeb.DashboardAuthPlug,
   enabled: get_env("DASHBOARD_AUTH_ENABLED", "false") |> to_existing_atom(),
   username: get_env("DASHBOARD_AUTH_USERNAME", "backpex"),

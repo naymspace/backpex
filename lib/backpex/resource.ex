@@ -254,7 +254,7 @@ defmodule Backpex.Resource do
   end
 
   @doc """
-  Gets a database record with the given fields by the given id.
+  Gets a database record with the given fields by the given id. Raises `Ecto.NoResultsError` if no record was found.
 
   ## Parameters
 
@@ -265,6 +265,27 @@ defmodule Backpex.Resource do
   * `fields` (list): A list of atoms representing the fields to be selected and potentially preloaded.
   """
   def get!(id, repo, schema, item_query, fields) do
+    record_query(id, schema, item_query, fields)
+    |> repo.one!()
+  end
+
+  @doc """
+  Gets a database record with the given fields by the given id. Returns nil if no result was found.
+
+  ## Parameters
+
+  * `id`: The identifier for the specific item to be fetched.
+  * `repo` (module): The repository module.
+  * `schema`: The Ecto schema module corresponding to the item
+  * `item_query` (function): A function that modifies the base query. This function should accept an Ecto.Queryable and return an Ecto.Queryable. It's used to apply additional query logic.
+  * `fields` (list): A list of atoms representing the fields to be selected and potentially preloaded.
+  """
+  def get(id, repo, schema, item_query, fields) do
+    record_query(id, schema, item_query, fields)
+    |> repo.one()
+  end
+
+  defp record_query(id, schema, item_query, fields) do
     schema_name = name_by_schema(schema)
     id_type = schema.__schema__(:type, :id)
     associations = associations(fields, schema)
@@ -275,20 +296,19 @@ defmodule Backpex.Resource do
     |> maybe_preload(associations, fields)
     |> maybe_merge_dynamic_fields(fields)
     |> where_id(schema_name, id_type, id)
-    |> repo.one!()
   end
 
   defp where_id(query, schema_name, :id, id) do
     case Ecto.Type.cast(:id, id) do
       {:ok, valid_id} -> where(query, [{^schema_name, schema_name}], schema_name.id == ^valid_id)
-      :error -> where(query, [{^schema_name, schema_name}], true == false)
+      :error -> raise Ecto.NoResultsError, queryable: query
     end
   end
 
   defp where_id(query, schema_name, :binary_id, id) do
     case Ecto.UUID.cast(id) do
       {:ok, valid_id} -> where(query, [{^schema_name, schema_name}], schema_name.id == ^valid_id)
-      :error -> where(query, [{^schema_name, schema_name}], true == false)
+      :error -> raise Ecto.NoResultsError, queryable: query
     end
   end
 
@@ -483,7 +503,7 @@ defmodule Backpex.Resource do
     {:ok, item}
   end
 
-  defp broadcast({:error, _reason} = event, _event, _pubsub), do: event
+  defp broadcast(result, _event, _pubsub), do: result
 
   defp event_name(event_prefix, event), do: event_prefix <> event
 

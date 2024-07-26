@@ -1,14 +1,14 @@
 defmodule Backpex.MixProject do
   use Mix.Project
 
-  @version "0.5.1"
+  @version "0.6.0"
   @source_url "https://github.com/naymspace/backpex"
 
   def project do
     [
       app: :backpex,
       version: @version,
-      elixir: "~> 1.12",
+      elixir: "~> 1.16",
       elixirc_paths: elixirc_paths(Mix.env()),
       start_permanent: Mix.env() == :prod,
       deps: deps(),
@@ -45,7 +45,7 @@ defmodule Backpex.MixProject do
       {:credo, "~> 1.7.5", only: [:dev, :test], runtime: false},
       {:mix_audit, "~> 2.0", only: [:dev, :test], runtime: false},
       {:sobelow, "~> 0.8", only: [:dev, :test]},
-      {:money, "~> 1.12.1"},
+      {:money, "~> 1.13.1"},
       {:tailwind_formatter, "~> 0.4.0", only: [:dev, :test], runtime: false}
     ]
   end
@@ -143,6 +143,7 @@ defmodule Backpex.MixProject do
       "guides/custom_labels_and_translations/custom-labels-and-translations.md",
 
       # Upgrade Guides
+      "guides/upgrading/v0.6.md",
       "guides/upgrading/v0.5.md",
       "guides/upgrading/v0.3.md",
       "guides/upgrading/v0.2.md"

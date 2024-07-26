@@ -127,7 +127,7 @@ defmodule Backpex.LiveResource do
   @callback create_button_label() :: binary()
 
   @doc """
-  Customizes the message in the flash message when a resource has been created successfully. "Defaults to %{resource} has been created successfully".
+  Customizes the message in the flash message when a resource has been created successfully. Defaults to "New %{resource} has been created successfully".
   """
   @callback resource_created_message() :: binary()
 
@@ -667,7 +667,22 @@ defmodule Backpex.LiveResource do
       end
 
       defp open_action_confirm_modal(socket, action, key) do
-        {:noreply, assign(socket, action_to_confirm: Map.put(action, :key, key))}
+        init_change = action.module.init_change(socket.assigns)
+        changeset_function = &action.module.changeset/3
+
+        changeset =
+          init_change
+          |> Ecto.Changeset.change()
+          |> call_changeset_function(changeset_function, %{}, socket.assigns)
+
+        socket =
+          socket
+          |> assign(:item_action_types, init_change)
+          |> assign(:changeset_function, changeset_function)
+          |> assign(:changeset, changeset)
+          |> assign(:action_to_confirm, Map.put(action, :key, key))
+
+        {:noreply, socket}
       end
 
       defp handle_item_action(socket, action, key, items) do
@@ -911,16 +926,16 @@ defmodule Backpex.LiveResource do
         %{assigns: %{live_action: live_action, repo: repo, schema: schema} = assigns} = socket
 
         fields = filtered_fields_by_action(fields(), assigns, :show)
-        item = Resource.get!(id, repo, schema, &item_query(&1, live_action, assigns), fields)
+        item = Resource.get(id, repo, schema, &item_query(&1, live_action, assigns), fields)
 
         socket =
           cond do
-            live_action in [:index, :resource_action] ->
+            live_action in [:index, :resource_action] and item ->
               items = Enum.map(socket.assigns.items, &if(&1.id == id, do: item, else: &1))
 
               assign(socket, :items, items)
 
-            live_action == :show ->
+            live_action == :show and item ->
               assign(socket, :item, item)
 
             true ->
@@ -1008,7 +1023,7 @@ defmodule Backpex.LiveResource do
 
       @impl Backpex.LiveResource
       def resource_created_message,
-        do: Backpex.translate({"%{resource} has been created successfully.", %{resource: singular_name()}})
+        do: Backpex.translate({"New %{resource} has been created successfully.", %{resource: singular_name()}})
 
       defoverridable can?: 3,
                      fields: 0,
@@ -1103,14 +1118,14 @@ defmodule Backpex.LiveResource do
           <%= @singular_name %>
           <.link
             :if={Backpex.LiveResource.can?(assigns, :edit, @item, @live_resource)}
-            class="tooltip"
+            class="tooltip hover:z-30"
             data-tip={Backpex.translate("Edit")}
             aria-label={Backpex.translate("Edit")}
             patch={Router.get_path(@socket, @live_resource, @params, :edit, @item)}
           >
             <Backpex.HTML.CoreComponents.icon
               name="hero-pencil-square"
-              class="h-6 w-6 cursor-pointer transition duration-75 hover:scale-110 hover:text-blue-600"
+              class="h-6 w-6 cursor-pointer transition duration-75 hover:scale-110 hover:text-primary"
             />
           </.link>
         </.main_title>

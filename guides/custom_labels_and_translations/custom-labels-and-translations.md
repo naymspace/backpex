@@ -230,4 +230,10 @@ msgstr ""
 
 msgid "selected"
 msgstr ""
+
+msgid "From"
+msgstr ""
+
+msgid "To"
+msgstr ""
 ```

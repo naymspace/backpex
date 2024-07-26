@@ -3,6 +3,9 @@ name: CI
 on:
   workflow_dispatch:
   push:
+    branches:
+      - main
+      - develop
   pull_request:
     branches:
       - main
@@ -12,7 +15,6 @@ on:
 
 env:
   REGISTRY: ghcr.io
-  IMAGE_NAME_TESTING: ${{ github.repository }}/testing
   IMAGE_NAME_RUNTIME: ${{ github.repository }}/runtime
 
 jobs:
@@ -21,8 +23,11 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        elixir: ["1.16.2", "1.15.7"]
-        erlang: ["26.2.2", "25.3.2"]
+        elixir: ["1.17", "1.16"]
+        erlang: ["27.0", "26.2"]
+        exclude:
+          - elixir: "1.16"
+            erlang: "27.0"
 
     steps:
       - name: Checkout code
@@ -105,21 +110,11 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Determine the elixir version
-        id: elixir_version
-        run: echo "version=$(grep -h elixir .tool-versions | awk '{ print $2 }' | awk -F - '{print $1}')" >> $GITHUB_OUTPUT
-
-      - name: Determine the otp version
-        id: otp_version
-        run: echo "version=$(grep -h erlang .tool-versions | awk '{ print $2 }')" >> $GITHUB_OUTPUT
-
-      - name: Use versions
-        run: echo "Using Elixir version ${{ steps.elixir_version.outputs.version }} and OTP version ${{ steps.otp_version.outputs.version }}"
-
       - uses: erlef/setup-beam@v1
+        id: beam
         with:
-          otp-version: ${{ steps.otp_version.outputs.version }}
-          elixir-version: ${{ steps.elixir_version.outputs.version }}
+          version-file: .tool-versions
+          version-type: strict
 
       - name: Install dependencies
         run: |
@@ -132,118 +127,10 @@ jobs:
           HEX_API_KEY: ${{ secrets.HEX_API_KEY }}
         run: mix hex.publish --yes
 
-  build-testing:
-    name: "Build testing"
-    runs-on: ubuntu-latest
-
-    permissions:
-      contents: read
-      packages: write
-
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
-      - name: Log in to the container registry
-        uses: docker/login-action@v3
-        with:
-          registry: ${{ env.REGISTRY }}
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Extract metadata (tags, labels) for Docker
-        id: meta
-        uses: docker/metadata-action@v5
-        with:
-          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME_TESTING }}
-
-      - name: Build and push container
-        id: docker
-        uses: docker/build-push-action@v5
-        with:
-          push: true
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
-          cache-from: type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME_TESTING }}:buildcache
-          cache-to: type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME_TESTING }}:buildcache,mode=max
-          target: builder
-          build-args: |
-            MIX_ENV=test
-    outputs:
-      image: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME_TESTING }}@${{ steps.docker.outputs.digest }}
-
-  lint-demo:
-    needs: build-testing
-    name: "Lint (Demo)"
-    runs-on: ubuntu-latest
-    container:
-      image: ${{ needs.build-testing.outputs.image }}
-
-    steps:
-      - name: lint:mix
-        working-directory: /opt/app/demo
-        run: |
-          yarn lint:mix
-
-      - name: Add tar that supports --posix option to be used by cache action
-        run: |
-          apk add --no-cache tar
-
-      - name: lint:credo
-        working-directory: /opt/app/demo
-        run: |
-          yarn lint:credo
-
-      - name: lint:sobelow
-        working-directory: /opt/app/demo
-        run: |
-          yarn lint:sobelow
-
-      - name: lint:style
-        working-directory: /opt/app/demo
-        run: |
-          yarn lint:style
-
-      - name: lint:standard
-        working-directory: /opt/app/demo
-        run: |
-          yarn lint:standard
-
-      - name: lint:deps-unused
-        working-directory: /opt/app/demo
-        run: |
-          yarn lint:deps-unused
-
-      - name: lint:gettext
-        working-directory: /opt/app/demo
-        run: |
-          yarn lint:gettext
-
-  test-compile:
-    needs: build-testing
-    name: "Compile (Demo)"
-    runs-on: ubuntu-latest
-    container:
-      image: ${{ needs.build-testing.outputs.image }}
-
-    steps:
-      - name: Compile with warnings as errors
-        working-directory: /opt/app/demo
-        run: |
-          mix compile --warnings-as-errors --force
-
   test-demo:
-    needs: build-testing
     name: "Test (Demo)"
     runs-on: ubuntu-latest
-    container:
-      image: ${{ needs.build-testing.outputs.image }}
-      env:
-        POSTGRES_DB: test
-        POSTGRES_PASSWORD: postgres
+
     services:
       postgres:
         image: postgres:16-alpine
@@ -254,31 +141,123 @@ jobs:
           --health-interval 10s
           --health-timeout 5s
           --health-retries 5
+        ports:
+          - "5432:5432"
 
     steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup beam
+        uses: erlef/setup-beam@v1
+        id: beam
+        with:
+          version-file: .tool-versions
+          version-type: strict
+
+      - name: Setup node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'yarn'
+          cache-dependency-path: demo/yarn.lock
+
+      - name: Restore the deps cache
+        uses: actions/cache@v4
+        id: deps-cache
+        with:
+          path: demo/deps
+          key: ${{ runner.os }}-${{ steps.beam.outputs.elixir-version }}-${{ steps.beam.outputs.otp-version }}-deps-demo-mixlockhash-${{ hashFiles(format('{0}{1}', github.workspace, '/demo/mix.lock')) }}
+          restore-keys: |
+            ${{ runner.os }}-${{ steps.beam.outputs.elixir-version }}-${{ steps.beam.outputs.otp-version }}-deps-demo-
+  
+      - name: Restore the _build cache
+        uses: actions/cache@v4
+        id: build-cache
+        with:
+          path: demo/_build
+          key: ${{ runner.os }}-${{ steps.beam.outputs.elixir-version }}-${{ steps.beam.outputs.otp-version }}-build-demo-mixlockhash-${{ hashFiles(format('{0}{1}', github.workspace, '/demo/mix.lock')) }}
+          restore-keys: |
+            ${{ runner.os }}-${{ steps.beam.outputs.elixir-version }}-${{ steps.beam.outputs.otp-version }}-build-demo-
+  
+      - name: Install dependencies
+        if: steps.deps-cache.outputs.cache-hit != 'true'
+        working-directory: demo
+        run: |
+          mix local.hex --force --if-missing
+          mix local.rebar --force --if-missing
+          mix deps.get
+  
+      - name: Compile dependencies
+        if: steps.deps-cache.outputs.cache-hit != 'true'
+        working-directory: demo
+        run: mix deps.compile
+
+      - name: Compile with warnings as errors
+        working-directory: demo
+        run: |
+          mix compile --warnings-as-errors --force
+
+      - name: Install node dependencies
+        working-directory: demo
+        run: yarn install --pure-lockfile
+
+      - name: lint:mix
+        working-directory: demo
+        run: |
+          yarn lint:mix
+
+      - name: lint:credo
+        working-directory: demo
+        run: |
+          yarn lint:credo
+
+      - name: lint:sobelow
+        working-directory: demo
+        run: |
+          yarn lint:sobelow
+
+      - name: lint:style
+        working-directory: demo
+        run: |
+          yarn lint:style
+
+      - name: lint:standard
+        working-directory: demo
+        run: |
+          yarn lint:standard
+
+      - name: lint:deps-unused
+        working-directory: demo
+        run: |
+          yarn lint:deps-unused
+
+      - name: lint:gettext
+        working-directory: demo
+        run: |
+          yarn lint:gettext
+
       - name: Run test
-        working-directory: /opt/app/demo
+        working-directory: demo
+        env:
+          DB_HOSTNAME: localhost
+          DB_USERNAME: postgres
+          DB_PASSWORD: postgres
+          DB_DATABASE: test
         run: |
           yarn test
 
-  deps-audit:
-    needs: build-testing
-    name: "Deps Audit (Demo)"
-    runs-on: ubuntu-latest
-    container:
-      image: ${{ needs.build-testing.outputs.image }}
-
-    steps:
       - name: Deps audit
-        working-directory: /opt/app/demo
+        working-directory: demo
         continue-on-error: true
         run: |
           mix deps.audit
 
   build-runtime:
-    name: "Build runtime"
+    name: "Build and push image (Demo)"
     runs-on: ubuntu-latest
-    needs: [lint-demo, test-compile, test-demo, deps-audit]
+    needs: [test-demo]
+    if: github.event_name == 'push'
 
     permissions:
       contents: read
@@ -305,7 +284,7 @@ jobs:
           images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME_RUNTIME }}
 
       - name: Build container
-        uses: docker/build-push-action@v5
+        uses: docker/build-push-action@v6
         with:
           push: true
           tags: ${{ steps.meta.outputs.tags }}
