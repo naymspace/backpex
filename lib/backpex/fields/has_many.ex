@@ -244,15 +244,15 @@ defmodule Backpex.Fields.HasMany do
       }
     } = socket
 
-    selected_item = Enum.find(selected, fn option -> option.id == id end)
+    selected_item = Enum.find(selected, fn option -> match_option_to_id(option, id) end)
 
     new_selected =
       if selected_item do
-        Enum.reject(selected, fn option -> option.id == id end)
+        Enum.reject(selected, fn option -> match_option_to_id(option, id) end)
       else
         selected
         |> Enum.reverse()
-        |> Kernel.then(&[Enum.find(options, fn option -> option.id == id end) | &1])
+        |> Kernel.then(&[Enum.find(options, fn option -> match_option_to_id(option, id) end) | &1])
         |> Enum.reverse()
       end
 
@@ -401,4 +401,9 @@ defmodule Backpex.Fields.HasMany do
 
   defp not_found_text(%{not_found_text: not_found_text} = _field), do: not_found_text
   defp not_found_text(_field_options), do: Backpex.translate("No options found")
+
+  defp match_option_to_id(%{id: option_id} = _option, id) when is_integer(option_id),
+    do: option_id == String.to_integer(id)
+
+  defp match_option_to_id(%{id: option_id} = _option, id), do: option_id == id
 end
