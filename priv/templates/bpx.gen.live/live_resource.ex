@@ -17,6 +17,6 @@ defmodule <%= inspect live_resource.module %> do
 
   @impl Backpex.LiveResource
   def fields do
-    <%= live_resource.fields %>
+    <%= inspect live_resource.fields %>
   end
 end

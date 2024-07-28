@@ -11,6 +11,7 @@ defmodule Mix.Tasks.Bpx.Gen.Live do
       Mix.raise("mix bpx.gen.live must be invoked from within your *_web application root directory")
     end
 
+    Mix.Task.run("compile")
     live_resource = build(args)
 
     paths = [".", :backpex]
@@ -28,9 +29,7 @@ defmodule Mix.Tasks.Bpx.Gen.Live do
   @doc false
   defp files_to_be_generated(file) do
     web_prefix = Mix.Phoenix.web_path(Mix.Phoenix.otp_app())
-    IO.inspect(web_prefix)
     web_live = Path.join([web_prefix, "live", file])
-    IO.inspect(web_live)
     [{:eex, "live_resource.ex", web_live}]
   end
 

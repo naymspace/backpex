@@ -15,6 +15,13 @@ defmodule Mix.Backpex.LiveResource do
             plural_name: nil,
             fields: []
 
+  @switches [
+    integer: Backpex.Fields.Number,
+    boolean: Backpex.Fields.Boolean,
+    utc_datetime: Backpex.Fields.DateTime,
+    naive_datetime: Backpex.Fields.DateTime,
+    string: Backpex.Fields.Text
+  ]
   def new(schema_name, opts) do
     otp_app = Mix.Phoenix.otp_app()
     project_module = otp_app |> Atom.to_string() |> Phoenix.Naming.camelize()
@@ -29,7 +36,7 @@ defmodule Mix.Backpex.LiveResource do
     plural = singular <> "s"
     event_prefix = Phoenix.Naming.underscore(singular) <> "_"
     topic = Phoenix.Naming.underscore(plural)
-    fields = []
+    fields = fields(schema)
 
     %LiveResource{
       module: module,
@@ -44,6 +51,21 @@ defmodule Mix.Backpex.LiveResource do
       plural_name: plural,
       fields: fields
     }
-    |> IO.inspect()
+  end
+
+  def fields(schema) do
+    fields = schema.__schema__(:fields) |> Enum.filter(fn field -> field != :id end)
+
+    Enum.map(fields, fn field ->
+      {field, field(field, schema.__schema__(:type, field))}
+    end)
+  end
+
+  defp field(field, type) when is_atom(type) do
+    %{module: @switches[type], label: Atom.to_string(field) |> Phoenix.Naming.camelize()}
+  end
+
+  defp field(field, _type) do
+    %{module: Backpex.Fields.Text, label: Atom.to_string(field) |> Phoenix.Naming.camelize()}
   end
 end
