@@ -248,7 +248,6 @@ defmodule Backpex.HTML.Layout do
       <form
         id="backpex-theme-selector-form"
         data-cookie-path={Router.cookie_path(@socket)}
-        phx-change={JS.dispatch("backpex:theme-change")}
       >
         <ul
           tabindex="0"
@@ -260,6 +259,7 @@ defmodule Backpex.HTML.Layout do
               name="theme-selector"
               class="theme-controller btn btn-sm btn-block btn-ghost justify-start"
               aria-label={label}
+              phx-click={JS.dispatch("backpex:theme-change")}
               value={theme_name}
             />
           </li>
