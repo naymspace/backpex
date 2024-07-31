@@ -119,6 +119,8 @@ Next, we need to implement the item action module.
 defmodule DemoWeb.ItemAction.SoftDelete do
     use BackpexWeb, :item_action
 
+    import Ecto.Changeset
+
     alias Backpex.Resource
 
     @impl Backpex.ItemAction
@@ -152,10 +154,10 @@ defmodule DemoWeb.ItemAction.SoftDelete do
     def label(_assigns), do: Backpex.translate("Delete")
 
     @impl Backpex.ItemAction
-    def confirm_label(_assigns), do: Backpex.translate("Delete")
+    def confirm(_assigns), do: Backpex.translate("Delete")
 
     @impl Backpex.ItemAction
-    def cancel_label(_assigns), do: Backpex.translate("Cancel")
+    def cancel(_assigns), do: Backpex.translate("Cancel")
 
     @impl Backpex.ItemAction
     def handle(socket, items, data) do
@@ -189,4 +191,4 @@ In the above example, we define an item action to soft delete users. The item ac
 
 The `handle/3` function is called when the item action is triggered. The handle function receives the socket, the items that should be affected by the action, and the parameters that were submitted by the user.
 
-By default an item action is triggered immediately when the user clicks on the corresponding icon in the resource table or in the show view, but an item actions also supports a confirmation dialog. To enable the confirmation dialog you need to implement the `confirm_label/1` function and return a string that will be displayed in the confirmation dialog. The confirmation dialog will be displayed when the user clicks on the icon in the resource table.
+By default an item action is triggered immediately when the user clicks on the corresponding icon in the resource table or in the show view, but an item actions also supports a confirmation dialog. To enable the confirmation dialog you need to implement the `confirm/1` function and return a string that will be displayed in the confirmation dialog. The confirmation dialog will be displayed when the user clicks on the icon in the resource table.
