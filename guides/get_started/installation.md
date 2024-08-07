@@ -12,7 +12,7 @@ In your `mix.exs`:
 defp deps do
   [
     ...
-    {:backpex, "~> 0.5.1"}
+    {:backpex, "~> 0.6.0"}
   ]
 end
 ```
@@ -209,7 +209,7 @@ You have to do this step only once in your router file, so if you already added 
 
 import Backpex.Router
 
-scope "/admin", DemoWeb do
+scope "/admin", MyAppWeb do
   pipe_through :browser
 
   # add this line
@@ -230,7 +230,7 @@ We use a live session to add the init assigns to all LiveViews in the `/admin` s
 
 import Backpex.Router
 
-scope "/admin", DemoWeb do
+scope "/admin", MyAppWeb do
   pipe_through :browser
 
   backpex_routes()
@@ -250,7 +250,7 @@ To make the LiveResource accessible in your application, you need to add routes 
 
 import Backpex.Router
 
-scope "/admin", DemoWeb do
+scope "/admin", MyAppWeb do
   pipe_through :browser
 
   backpex_routes()

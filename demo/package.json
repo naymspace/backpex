@@ -19,7 +19,7 @@
     "gettext": "mix gettext.extract --merge"
   },
   "devDependencies": {
-    "@sentry/browser": "^8.19.0",
+    "@sentry/browser": "^8.20.0",
     "@tailwindcss/forms": "^0.5.7",
     "@tailwindcss/typography": "^0.5.13",
     "alpinejs": "^3.14.1",
@@ -29,7 +29,7 @@
     "standard": "^17.1.0",
     "stylelint": "^15.11.0",
     "stylelint-config-standard": "^34.0.0",
-    "tailwindcss": "^3.4.6",
+    "tailwindcss": "^3.4.7",
     "topbar": "^3.0.0"
   },
   "dependencies": {
