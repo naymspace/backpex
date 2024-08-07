@@ -144,7 +144,7 @@ defmodule DemoWeb.ItemAction.SoftDelete do
     @required_fields ~w[reason]a
 
     @impl Backpex.ItemAction
-    def changeset(change, attrs) do
+    def changeset(change, attrs, _meta) do
         change
         |> cast(attrs, @required_fields)
         |> validate_required(@required_fields)
@@ -190,7 +190,7 @@ defmodule DemoWeb.ItemAction.SoftDelete do
 end
 ```
 
-In the above example, we define an item action to soft delete users. The item action will also ask the user for a reason before the user can be deleted. The user needs to fill out the reason field before the item action can be performed. The reason field is defined in the `fields/0` function. The `changeset/2` function is used to validate the user input.
+In the above example, we define an item action to soft delete users. The item action will also ask the user for a reason before the user can be deleted. The user needs to fill out the reason field before the item action can be performed. The reason field is defined in the `fields/0` function. The `changeset/3` function is used to validate the user input.
 
 The `handle/3` function is called when the item action is triggered. The handle function receives the socket, the items that should be affected by the action, and the parameters that were submitted by the user.
 
