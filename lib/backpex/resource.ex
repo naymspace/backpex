@@ -250,7 +250,7 @@ defmodule Backpex.Resource do
     |> apply_filters(filter_options, live_resource.get_empty_filter_key())
     |> exclude(:preload)
     |> subquery()
-    |> repo.aggregate(:count, :id)
+    |> repo.aggregate(:count)
   end
 
   @doc """
