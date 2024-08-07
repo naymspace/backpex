@@ -27,6 +27,7 @@ defmodule Backpex.HTML.Resource do
   attr(:orderable_fields, :list, default: [], doc: "list of orderable fields")
   attr(:searchable_fields, :list, default: [], doc: "list of searchable fields")
   attr(:items, :list, default: [], doc: "items that will be displayed in the table")
+  attr(:primary_key_field, :atom, default: :id, doc: "primary key field of the resource")
   attr(:active_fields, :list, required: true, doc: "list of active fields")
   attr(:selected_items, :list, required: true, doc: "list of selected items")
 
@@ -99,6 +100,10 @@ defmodule Backpex.HTML.Resource do
     required: true,
     doc: "the item which provides the value to be rendered"
   )
+  attr(:primary_key_field, :atom,
+    doc: "the name of the primary key field of the resource. Defaults to `:id`",
+    default: :id
+  )
 
   attr(:fields, :list,
     required: true,
@@ -106,7 +111,7 @@ defmodule Backpex.HTML.Resource do
   )
 
   def resource_field(assigns) do
-    %{name: name, item: item, fields: fields, live_resource: live_resource} = assigns
+    %{name: name, item: item, fields: fields, live_resource: live_resource, primary_key_field: primary_key_field } = assigns
 
     {_name, field_options} = field = Enum.find(fields, fn {field_name, _field_options} -> field_name == name end)
 
@@ -114,6 +119,7 @@ defmodule Backpex.HTML.Resource do
       not LiveResource.can?(assigns, :edit, item, live_resource) or
         Backpex.Field.readonly?(field_options, assigns)
 
+    primary_key = Map.get(item, primary_key_field)
     assigns =
       assigns
       |> assign(:field, field)
@@ -121,10 +127,11 @@ defmodule Backpex.HTML.Resource do
       |> assign(:value, Map.get(item, name))
       |> assign(:type, :index)
       |> assign(:readonly, readonly)
+      |> assign(:primary_key, primary_key)
 
     ~H"""
     <.live_component
-      id={"resource_#{@name}_#{@item.id}"}
+      id={"resource_#{@name}_#{@primary_key}"}
       module={@field_options.module}
       type={@type}
       {Map.drop(assigns, [:socket, :flash, :myself, :uploads])}
@@ -827,6 +834,7 @@ defmodule Backpex.HTML.Resource do
 
   attr(:orderable_fields, :list, default: [], doc: "list of orderable fields.")
   attr(:items, :list, default: [], doc: "items that will be displayed in the table")
+  attr(:primary_key_field, :atom, default: :id, doc: "primary key field of the resource, defaults to `:id`")
 
   attr(:fields, :list,
     default: [],
@@ -845,6 +853,7 @@ defmodule Backpex.HTML.Resource do
   attr(:live_resource, :any, required: true, doc: "module of the live resource")
   attr(:params, :string, required: true, doc: "query parameters")
   attr(:item, :map, required: true, doc: "item that will be rendered on the card")
+  attr(:primary_key_field, :atom, default: :id, doc: "primary key field of the resource, defaults to `:id`")
   attr(:fields, :list, required: true, doc: "list of fields to be displayed on the card")
 
   def resource_show_main(assigns)
@@ -855,6 +864,7 @@ defmodule Backpex.HTML.Resource do
   attr(:panel_fields, :list, required: true, doc: "list of fields to be rendered in the panel")
   attr(:class, :string, default: "", doc: "extra class to be added")
   attr(:label, :any, default: nil, doc: "optional label for the panel")
+  attr(:primary_key_field, :atom, default: :id, doc: "primary key field of the resource, defaults to `:id`")
 
   def show_panel(assigns) do
     ~H"""

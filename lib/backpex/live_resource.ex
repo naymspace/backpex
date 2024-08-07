@@ -217,6 +217,7 @@ defmodule Backpex.LiveResource do
         socket =
           socket
           |> assign(:schema, unquote(schema))
+          |> assign(:primary_key_field, primary_key_field(unquote(schema)))
           |> assign(:repo, unquote(repo))
           |> assign(:pubsub, pubsub)
           |> assign(:singular_name, singular_name())
@@ -591,6 +592,10 @@ defmodule Backpex.LiveResource do
 
       def assign_items(socket, init_order) do
         assign(socket, :items, list_items(socket, init_order, &item_query/3))
+      end
+
+      defp primary_key_field(schema) do
+        List.first (schema.__schema__(:primary_key))
       end
 
       defp maybe_assign_metrics(socket) do
