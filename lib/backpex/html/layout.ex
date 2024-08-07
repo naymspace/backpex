@@ -245,10 +245,7 @@ defmodule Backpex.HTML.Layout do
         <Backpex.HTML.CoreComponents.icon name="hero-swatch" class="h-5 w-5 md:hidden" />
         <Backpex.HTML.CoreComponents.icon name="hero-chevron-down" class="h-5 w-5" />
       </div>
-      <form
-        id="backpex-theme-selector-form"
-        data-cookie-path={Router.cookie_path(@socket)}
-      >
+      <form id="backpex-theme-selector-form" data-cookie-path={Router.cookie_path(@socket)}>
         <ul
           tabindex="0"
           class="dropdown-content bg-base-300 rounded-box z-[1] max-h-96 w-52 overflow-y-scroll p-2 shadow-2xl"

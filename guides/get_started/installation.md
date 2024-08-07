@@ -298,12 +298,8 @@ module.exports = {
           secondary: '#f39325',
           'secondary-content': 'white'
         },
-        dark: {
-          ...require('daisyui/src/theming/themes').dark
-        },
-        cyberpunk: {
-          ...require('daisyui/src/theming/themes').cyberpunk
-        }
+        "dark",
+        "cyberpunk"
       }
     ]
   },
@@ -313,14 +309,138 @@ module.exports = {
 
 The full list of themes can be found at the [daisyUI](https://daisyui.com/docs/themes/) website.
 
-2. Explicitly set the daisyUI theme in your layout.
+> #### Info {: .info}
+>
+> If you want to pick just a single theme you can set the next step as.
+> `<html data-theme="light">` and ignore the rest. 
 
+2. Set the assign and the default daisyUI theme in your layout.
 ```elixir
 # root.html.heex
-<html data-theme="light">
+<html data-theme={assigns[:theme] || "light"}>
   ...
 </html>
 ```
+
+3. Add `Backpex.ThemeSelectorPlug` to the pipeline in the router
+```elixir
+# router.ex
+  pipeline :browser do
+    ...
+    # Add this plug
+    plug Backpex.ThemeSelectorPlug
+  end
+```
+
+> #### Info {: .info}
+>
+> The demo app has examples with all available themes:
+>
+> [admin.html.heex](github.com/naymspace/backpex/blob/develop/demo/lib/demo_web/components/layouts/admin.html.heex) and [tailwind.config.js](https://github.com/naymspace/backpex/blob/develop/demo/assets/tailwind.config.js)
+>
+4. Add the theme selector component to the app shell
+```elixir
+# admin.html.heex
+<Backpex.HTML.Layout.app_shell fluid={@fluid?}>
+  <:topbar>
+    <Backpex.HTML.Layout.topbar_branding />
+    # Add this
+    <Backpex.HTML.Layout.theme_selector
+      socket={@socket}
+      themes={[
+        {"Light", "light"},
+        {"Dark", "dark"},
+        {"Cyberpunk", "cyberpunk"}
+      ]}
+    />
+    <Backpex.HTML.Layout.topbar_dropdown>
+      <:label>
+        <label tabindex="0" class="btn btn-square btn-ghost">
+          <.icon name="hero-user" class="h-8 w-8" />
+        </label>
+      </:label>
+      <li>
+        <.link navigate={~p"/"} class="flex justify-between text-red-600 hover:bg-gray-100">
+          <p>Logout</p>
+          <.icon name="hero-arrow-right-on-rectangle" class="h-5 w-5" />
+        </.link>
+      </li>
+    </Backpex.HTML.Layout.topbar_dropdown>
+  </:topbar>
+  <:sidebar>
+    <Backpex.HTML.Layout.sidebar_item current_url={@current_url} navigate={~p"/admin/posts"}>
+      <.icon name="hero-book-open" class="h-5 w-5" /> Posts
+    </Backpex.HTML.Layout.sidebar_item>
+  </:sidebar>
+  <Backpex.HTML.Layout.flash_messages flash={@flash} />
+  <%= @inner_content %>
+</Backpex.HTML.Layout.app_shell>
+```
+
+5. Add a hook to persist the selected theme
+```js
+// app.js
+// We want this to run as soon as possible to minimize
+// flashes with the old theme in some situations
+const storedTheme = window.localStorage.getItem('backpexTheme')
+if (storedTheme != null) {
+  document.documentElement.setAttribute('data-theme', storedTheme)
+}
+
+const Hooks = {}
+
+Hooks.BackpexThemeSelector = {
+  mounted () {
+    const form = document.querySelector('#backpex-theme-selector-form')
+    const storedTheme = window.localStorage.getItem('backpexTheme')
+
+    // Marking current theme as active
+    if (storedTheme != null) {
+      const activeThemeRadio = form.querySelector(
+        `input[name='theme-selector'][value='${storedTheme}']`
+      )
+      activeThemeRadio.checked = true
+    }
+
+    // Event listener that handles the theme changes and store
+    // the selected theme in the session and also in localStorage
+    window.addEventListener('backpex:theme-change', async (event) => {
+      const cookiePath = form.dataset.cookiePath
+      const selectedTheme = form.querySelector(
+        'input[name="theme-selector"]:checked'
+      )
+      if (selectedTheme) {
+        window.localStorage.setItem('backpexTheme', selectedTheme.value)
+        document.documentElement.setAttribute(
+          'data-theme',
+          selectedTheme.value
+        )
+        await fetch(cookiePath, {
+          body: `select_theme=${selectedTheme.value}`,
+          method: 'POST',
+          headers: {
+            'Content-type': 'application/x-www-form-urlencoded',
+            'x-csrf-token': csrfToken
+          }
+        })
+      }
+    })
+  }
+}
+
+let liveSocket = new LiveSocket("/live", Socket, {
+  hooks: Hooks,
+  dom: {
+    onBeforeElUpdated (from, to) {
+      if (from._x_dataStack) {
+        window.Alpine.clone(from, to);
+      }
+    },
+  },
+  params: { _csrf_token: csrfToken },
+});
+```
+
 
 ## Remove `@tailwindcss/forms` plugin
 
