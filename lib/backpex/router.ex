@@ -131,8 +131,10 @@ defmodule Backpex.Router do
   def get_path(socket, module, params, action, params_or_item \\ %{}) do
     route_path = get_route_path(socket, module, action)
 
-    if Map.has_key?(params_or_item, :id) do
-      id = params_or_item |> Map.get(:id) |> to_string() |> URI.encode()
+    id_field = Map.get(socket.assigns, :primary_key_field, :id)
+
+    if Map.has_key?(params_or_item, id_field) do
+      id = params_or_item |> Map.get(id_field) |> to_string() |> URI.encode()
 
       put_route_params(route_path, Map.put(params, "backpex_id", maybe_to_string(id)))
     else
