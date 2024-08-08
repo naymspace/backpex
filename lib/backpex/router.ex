@@ -194,7 +194,7 @@ defmodule Backpex.Router do
   """
   def cookie_path(socket) do
     %{path: path} =
-      Enum.find(Map.get(socket, :router).__routes__, fn element ->
+      Enum.find(Map.get(socket, :router).__routes__(), fn element ->
         element[:plug] == Backpex.CookieController and element[:plug_opts] == :update
       end)
 
