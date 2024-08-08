@@ -158,7 +158,7 @@ defmodule Backpex.Router do
 
   defp get_route_path(socket, module, action) do
     %{path: path} =
-      Enum.find(Map.get(socket, :router).__routes__, fn element ->
+      Enum.find(Map.get(socket, :router).__routes__(), fn element ->
         element[:metadata][:log_module] == module and element[:plug_opts] == action
       end)
 
