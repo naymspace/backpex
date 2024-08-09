@@ -59,12 +59,6 @@ defmodule Backpex.HTML.Layout do
         </div>
       </div>
 
-      <div class="fixed top-0 z-10 hidden w-full md:block">
-        <.topbar class={for topbar <- @topbar, do: topbar[:class] || ""}>
-          <%= render_slot(@topbar) %>
-        </.topbar>
-      </div>
-
       <%= for sidebar <- @sidebar do %>
         <div class="hidden md:fixed md:inset-y-0 md:mt-16 md:flex md:w-64 md:flex-col">
           <div class="flex min-h-0 flex-1 flex-col">
@@ -76,13 +70,13 @@ defmodule Backpex.HTML.Layout do
       <% end %>
 
       <div class={"#{if length(@sidebar) > 0, do: "md:pl-64", else: ""} flex flex-1 flex-col"}>
-        <div class="fixed top-0 z-30 w-full md:hidden">
+        <div class="fixed top-0 z-30 block w-full md:-ml-64">
           <.topbar class={for topbar <- @topbar, do: topbar[:class] || ""}>
             <%= render_slot(@topbar) %>
             <%= for _ <- @sidebar do %>
               <button
                 type="button"
-                class="text-base-content rounded-btn -mt-0.5 -ml-0.5 inline-flex h-12 w-12 items-center justify-center focus:ring-base-content focus:outline-none focus:ring-2 focus:ring-inset"
+                class="text-base-content rounded-btn -mt-0.5 -ml-0.5 inline-flex h-12 w-12 items-center justify-center focus:ring-base-content focus:outline-none focus:ring-2 focus:ring-inset md:hidden"
                 @click="mobile_menu_open = !mobile_menu_open"
               >
                 <Backpex.HTML.CoreComponents.icon name="hero-bars-3-solid" class="h-8 w-8" />
@@ -222,6 +216,52 @@ defmodule Backpex.HTML.Layout do
       <%= unless @hide_title do %>
         <p class="font-semibold"><%= @title %></p>
       <% end %>
+    </div>
+    """
+  end
+
+  @doc """
+  Renders a theme selector.
+  """
+  @doc type: :component
+  attr(:socket, :any, required: true)
+
+  attr(:themes, :list,
+    doc: "A list of tuples with {theme_label, theme_name} format",
+    examples: [[{"Light", "light"}, {"Dark", "dark"}]]
+  )
+
+  def theme_selector(assigns) do
+    ~H"""
+    <div
+      id="backpex-theme-selector"
+      phx-hook="BackpexThemeSelector"
+      class="dropdown dropdown-bottom dropdown-end no-animation"
+    >
+      <div tabindex="0" role="button" class="btn btn-ghost m-1">
+        <span class="hidden md:block">
+          <%= Backpex.translate("Theme") %>
+        </span>
+        <Backpex.HTML.CoreComponents.icon name="hero-swatch" class="h-5 w-5 md:hidden" />
+        <Backpex.HTML.CoreComponents.icon name="hero-chevron-down" class="h-5 w-5" />
+      </div>
+      <form id="backpex-theme-selector-form" data-cookie-path={Router.cookie_path(@socket)}>
+        <ul
+          tabindex="0"
+          class="dropdown-content bg-base-300 rounded-box z-[1] max-h-96 w-52 overflow-y-scroll p-2 shadow-2xl"
+        >
+          <li :for={{label, theme_name} <- @themes}>
+            <input
+              type="radio"
+              name="theme-selector"
+              class="theme-controller btn btn-sm btn-block btn-ghost justify-start"
+              aria-label={label}
+              phx-click={JS.dispatch("backpex:theme-change")}
+              value={theme_name}
+            />
+          </li>
+        </ul>
+      </form>
     </div>
     """
   end
