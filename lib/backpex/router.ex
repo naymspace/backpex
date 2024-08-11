@@ -3,6 +3,7 @@ defmodule Backpex.Router do
   Provides LiveView routing for Backpex resources.
   """
 
+  alias Backpex.Resource
   alias Plug.Conn.Query
 
   @doc """
@@ -131,27 +132,29 @@ defmodule Backpex.Router do
   def get_path(socket, module, params, action, params_or_item \\ %{}) do
     route_path = get_route_path(socket, module, action)
 
-    id_field = Map.get(socket.assigns, :primary_key_field, :id)
+    id_field = module.get_primary_key_field()
 
     if Map.has_key?(params_or_item, id_field) do
       id = params_or_item |> Map.get(id_field) |> to_string() |> URI.encode()
 
       put_route_params(route_path, Map.put(params, "backpex_id", maybe_to_string(id)))
     else
+      if Map.has_key?(params_or_item,:public_id), do: dbg(params_or_item)
+
       query_params = Query.encode(params_or_item)
       put_route_params(route_path, params) |> maybe_put_query_params(query_params)
     end
   end
 
-  def get_path(socket, module, params, action, %{id: id}, query_params) do
-    get_path(socket, module, params, action, id, query_params)
-  end
+  def get_path(socket, module, params, action, id_or_instance, query_params) do
+    id_field = module.get_primary_key_field()
 
-  def get_path(socket, module, params, action, id, query_params) do
+    id_serializable = if Map.has_key?(id_or_instance, id_field), do: Map.get(id_or_instance, id_field), else: id_or_instance
+
     route_path = get_route_path(socket, module, action)
     query_params = Query.encode(query_params)
 
-    put_route_params(route_path, Map.put(params, "backpex_id", maybe_to_string(id)))
+    put_route_params(route_path, Map.put(params, "backpex_id", maybe_to_string(id_serializable)))
     |> maybe_put_query_params(query_params)
   end
 

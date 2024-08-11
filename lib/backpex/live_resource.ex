@@ -207,6 +207,7 @@ defmodule Backpex.LiveResource do
 
       @permitted_order_directions ~w(asc desc)a
       @empty_filter_key :empty_filter
+      @primary_key_field Backpex.Ecto.EctoUtils.get_primary_key_field(unquote(schema))
 
       @impl Phoenix.LiveView
       def mount(params, session, socket) do
@@ -217,7 +218,6 @@ defmodule Backpex.LiveResource do
         socket =
           socket
           |> assign(:schema, unquote(schema))
-          |> assign(:primary_key_field, primary_key_field(unquote(schema)))
           |> assign(:repo, unquote(repo))
           |> assign(:pubsub, pubsub)
           |> assign(:singular_name, singular_name())
@@ -594,9 +594,6 @@ defmodule Backpex.LiveResource do
         assign(socket, :items, list_items(socket, init_order, &item_query/3))
       end
 
-      defp primary_key_field(schema) do
-        List.first (schema.__schema__(:primary_key))
-      end
 
       defp primary_key(assigns, item), do: Map.get(item, assigns.primary_key_field)
 
@@ -650,7 +647,7 @@ defmodule Backpex.LiveResource do
 
       @impl Phoenix.LiveView
       def handle_event("item-action", %{"action-key" => key, "item-id" => item_id}, socket) do
-        item = Enum.find(socket.assigns.items, fn item -> to_string(primary_key(socket.assigns, item)) == to_string(item_id) end)
+        item = Enum.find(socket.assigns.items, fn item -> to_string(primary_key(item)) == to_string(item_id) end)
 
         socket
         |> assign(selected_items: [item])
@@ -836,7 +833,7 @@ defmodule Backpex.LiveResource do
       def handle_event("update-selected-items", %{"id" => id}, socket) do
         selected_items = socket.assigns.selected_items
 
-        item = Enum.find(socket.assigns.items, fn item -> to_string(primary_key(socket.assigns, item)) == to_string(id) end)
+        item = Enum.find(socket.assigns.items, fn item -> to_string(primary_key(item)) == to_string(id) end)
 
         updated_selected_items =
           if Enum.member?(selected_items, item) do
@@ -883,7 +880,7 @@ defmodule Backpex.LiveResource do
       @impl Phoenix.LiveView
       def handle_info({"backpex:" <> unquote(event_prefix) <> "deleted", item}, socket)
           when socket.assigns.live_action in [:index, :resource_action] do
-        if Enum.filter(socket.assigns.items, &(to_string(primary_key(socket.assigns, &1.id)) == to_string(primary_key(socket.assigns, item)))) != [] do
+        if Enum.filter(socket.assigns.items, &(to_string(primary_key(&1)) == to_string(primary_key(item)))) != [] do
           {:noreply, refresh_items(socket)}
         else
           {:noreply, socket}
@@ -929,6 +926,10 @@ defmodule Backpex.LiveResource do
 
       def get_empty_filter_key, do: @empty_filter_key
 
+      def get_primary_key_field, do: @primary_key_field
+
+      defp primary_key(item), do: Map.get(item, @primary_key_field)
+
       defp update_item(socket, %{id: id} = _item) do
         %{assigns: %{live_action: live_action, repo: repo, schema: schema} = assigns} = socket
 
@@ -938,7 +939,7 @@ defmodule Backpex.LiveResource do
         socket =
           cond do
             live_action in [:index, :resource_action] and item ->
-              items = Enum.map(socket.assigns.items, &if(primary_key(socket.assigns, &1.id) == id, do: item, else: &1))
+              items = Enum.map(socket.assigns.items, &if(primary_key(&1) == id, do: item, else: &1))
 
               assign(socket, :items, items)
 

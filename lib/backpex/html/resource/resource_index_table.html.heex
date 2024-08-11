@@ -72,19 +72,19 @@
       x-on:resize.window="setRowHeight()"
       x-init="setRowHeight()"
       x-data="{ rowHeight: null, setRowHeight() { $nextTick( () => {this.rowHeight = $el.getBoundingClientRect().height }) } }"
-      id={"row-item-#{Map.get(item, @primary_key_field)}"}
+      id={"row-item-#{Map.get(item, @live_resource.get_primary_key_field())}"}
       class={index_row_class(assigns, item, selected?(@selected_items, item), index)}
     >
       <td :if={Enum.any?(index_item_actions(@item_actions))} class="relative">
         <div :if={selected?(@selected_items, item)} class="bg-base-content absolute inset-y-0 left-0 w-0.5" />
         <input
-          id={"select-input-#{Map.get(item, @primary_key_field)}"}
+          id={"select-input-#{Map.get(item, @live_resource.get_primary_key_field())}"}
           phx-click="update-selected-items"
-          phx-value-id={Map.get(item, @primary_key_field)}
+          phx-value-id={Map.get(item, @live_resource.get_primary_key_field())}
           type="checkbox"
           class="checkbox checkbox-sm"
           checked={selected?(@selected_items, item)}
-          aria-label={Backpex.translate({"Select item with id: %{id}", %{id: Map.get(item, @primary_key_field)}})}
+          aria-label={Backpex.translate({"Select item with id: %{id}", %{id: Map.get(item, @live_resource.get_primary_key_field())}})}
         />
       </td>
       <td :for={{name, field_options} <- @fields} :if={active?(@active_fields, name)} class="text-base-content/75">
@@ -117,7 +117,7 @@
               type="button"
               phx-click="item-action"
               phx-value-action-key={key}
-              phx-value-item-id={Map.get(item, @primary_key_field)}
+              phx-value-item-id={Map.get(item, @live_resource.get_primary_key_field())}
               aria-label={action.module.label(assigns)}
             >
               <%= action.module.icon(assigns) %>
