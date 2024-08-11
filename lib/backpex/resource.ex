@@ -109,7 +109,7 @@ defmodule Backpex.Resource do
         from(item in query,
           left_join: b in ^queryable,
           as: ^custom_alias,
-          on: field(item, ^owner_key) == b.id
+          on: field(item, ^owner_key) == field(b, ^primary_key(queryable))
         )
 
       _relation, query ->
