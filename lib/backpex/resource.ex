@@ -511,11 +511,30 @@ defmodule Backpex.Resource do
     fields
     |> Enum.filter(fn {_name, field_options} = field -> field_options.module.association?(field) end)
     |> Enum.map(fn
-      {name, %{custom_alias: custom_alias}} ->
-        schema.__schema__(:association, name) |> Map.from_struct() |> Map.put(:custom_alias, custom_alias)
+      {name, field_options} ->
+        association = schema.__schema__(:association, name)
+        if association == nil do
+            name_str = name |>Atom.to_string()
+            without_id = String.replace(name_str, ~r/_id$/, "")
+            raise """
+            The field "#{name}"" is not an association but used as if it were one with the field module #{inspect(field_options.module)}.
+            #{
+              if without_id != name_str, do:
+                """
+                You are using a field ending with _id. Please make sure to use the correct field name for the association. Try using the name of the association, maybe "#{without_id}"?
+                """,
+              else: ""
+            }.
+            """
+        end
 
-      {name, _field_options} ->
-        schema.__schema__(:association, name) |> Map.from_struct()
+        case field_options do
+         %{custom_alias: custom_alias} ->
+          association |> Map.from_struct() |> Map.put(:custom_alias, custom_alias)
+
+        _ ->
+          association |> Map.from_struct()
+        end
     end)
   end
 end
