@@ -242,9 +242,7 @@ defmodule Backpex.Resource do
       live_resource: live_resource
     } = assigns
 
-
     associations = associations(fields, schema)
-
 
     from(schema, as: ^name_by_schema(schema))
     |> item_query.()
@@ -311,7 +309,6 @@ defmodule Backpex.Resource do
   end
 
   defp where_id(query, schema_name, id_field, :binary_id, id) do
-
     case Ecto.UUID.cast(id) do
       {:ok, valid_id} -> where(query, [{^schema_name, schema_name}], field(schema_name, ^id_field) == ^valid_id)
       :error -> raise Ecto.NoResultsError, queryable: query
@@ -319,7 +316,6 @@ defmodule Backpex.Resource do
   end
 
   defp where_id(query, schema_name, id_field, _id_type, id) do
-
     where(query, [{^schema_name, schema_name}], field(schema_name, ^id_field) == ^id)
   end
 
@@ -354,7 +350,7 @@ defmodule Backpex.Resource do
     id_field = EctoUtils.get_primary_key_field(schema)
 
     case schema
-         |> where([i], field(i, ^id_field) in ^Enum.map(items, & Map.get(&1, id_field)))
+         |> where([i], field(i, ^id_field) in ^Enum.map(items, &Map.get(&1, id_field)))
          |> repo.delete_all() do
       {_count_, nil} ->
         Enum.each(items, fn item -> broadcast({:ok, item}, "deleted", pubsub) end)
@@ -410,7 +406,7 @@ defmodule Backpex.Resource do
     id_field = EctoUtils.get_primary_key_field(schema)
 
     case schema
-         |> where([i], field(i, ^id_field) in ^Enum.map(items, & Map.get(&1, id_field)))
+         |> where([i], field(i, ^id_field) in ^Enum.map(items, &Map.get(&1, id_field)))
          |> repo.update_all(updates) do
       {_count_, nil} ->
         Enum.each(items, fn item -> broadcast({:ok, item}, event_name, pubsub) end)
@@ -524,29 +520,28 @@ defmodule Backpex.Resource do
     |> Enum.map(fn
       {name, field_options} ->
         association = schema.__schema__(:association, name)
+
         if association == nil do
-            name_str = name |>Atom.to_string()
-            without_id = String.replace(name_str, ~r/_id$/, "")
-            raise """
-            The field "#{name}"" is not an association but used as if it were one with the field module #{inspect(field_options.module)}.
-            #{
-              if without_id != name_str, do:
-                """
-                You are using a field ending with _id. Please make sure to use the correct field name for the association. Try using the name of the association, maybe "#{without_id}"?
-                """,
-              else: ""
-            }.
-            """
+          name_str = name |> Atom.to_string()
+          without_id = String.replace(name_str, ~r/_id$/, "")
+
+          raise """
+          The field "#{name}"" is not an association but used as if it were one with the field module #{inspect(field_options.module)}.
+          #{if without_id != name_str,
+            do: """
+            You are using a field ending with _id. Please make sure to use the correct field name for the association. Try using the name of the association, maybe "#{without_id}"?
+            """,
+            else: ""}.
+          """
         end
 
         case field_options do
-         %{custom_alias: custom_alias} ->
-          association |> Map.from_struct() |> Map.put(:custom_alias, custom_alias)
+          %{custom_alias: custom_alias} ->
+            association |> Map.from_struct() |> Map.put(:custom_alias, custom_alias)
 
-        _ ->
-          association |> Map.from_struct()
+          _ ->
+            association |> Map.from_struct()
         end
     end)
   end
-
 end

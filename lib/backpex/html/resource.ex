@@ -106,7 +106,7 @@ defmodule Backpex.HTML.Resource do
   )
 
   def resource_field(assigns) do
-    %{name: name, item: item, fields: fields, live_resource: live_resource } = assigns
+    %{name: name, item: item, fields: fields, live_resource: live_resource} = assigns
 
     {_name, field_options} = field = Enum.find(fields, fn {field_name, _field_options} -> field_name == name end)
 
@@ -115,6 +115,7 @@ defmodule Backpex.HTML.Resource do
         Backpex.Field.readonly?(field_options, assigns)
 
     primary_key = Map.get(item, live_resource.get_primary_key_field())
+
     assigns =
       assigns
       |> assign(:field, field)
@@ -830,7 +831,6 @@ defmodule Backpex.HTML.Resource do
   attr(:orderable_fields, :list, default: [], doc: "list of orderable fields.")
   attr(:items, :list, default: [], doc: "items that will be displayed in the table")
 
-
   attr(:fields, :list,
     default: [],
     doc: "list of fields to be displayed in the table on index view"
@@ -1006,5 +1006,4 @@ defmodule Backpex.HTML.Resource do
   defp toggle_order_direction(:desc), do: :asc
 
   defp shadow_sm_left, do: "box-shadow: -1px 0 2px 0 rgba(0,0,0,0.05)"
-
 end

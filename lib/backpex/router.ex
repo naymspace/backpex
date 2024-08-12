@@ -139,8 +139,6 @@ defmodule Backpex.Router do
 
       put_route_params(route_path, Map.put(params, "backpex_id", maybe_to_string(id)))
     else
-      if Map.has_key?(params_or_item,:public_id), do: dbg(params_or_item)
-
       query_params = Query.encode(params_or_item)
       put_route_params(route_path, params) |> maybe_put_query_params(query_params)
     end
@@ -149,7 +147,8 @@ defmodule Backpex.Router do
   def get_path(socket, module, params, action, id_or_instance, query_params) do
     id_field = module.get_primary_key_field()
 
-    id_serializable = if Map.has_key?(id_or_instance, id_field), do: Map.get(id_or_instance, id_field), else: id_or_instance
+    id_serializable =
+      if Map.has_key?(id_or_instance, id_field), do: Map.get(id_or_instance, id_field), else: id_or_instance
 
     route_path = get_route_path(socket, module, action)
     query_params = Query.encode(query_params)

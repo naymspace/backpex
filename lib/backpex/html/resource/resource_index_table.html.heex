@@ -68,7 +68,7 @@
   </thead>
   <tbody>
     <tr
-      :for={{item, index} <- Enum.with_index(@items)}}
+      :for={{item, index} <- Enum.with_index(@items)}
       x-on:resize.window="setRowHeight()"
       x-init="setRowHeight()"
       x-data="{ rowHeight: null, setRowHeight() { $nextTick( () => {this.rowHeight = $el.getBoundingClientRect().height }) } }"
@@ -84,7 +84,11 @@
           type="checkbox"
           class="checkbox checkbox-sm"
           checked={selected?(@selected_items, item)}
-          aria-label={Backpex.translate({"Select item with id: %{id}", %{id: Map.get(item, @live_resource.get_primary_key_field())}})}
+          aria-label={
+            Backpex.translate(
+              {"Select item with id: %{id}", %{id: Map.get(item, @live_resource.get_primary_key_field())}}
+            )
+          }
         />
       </td>
       <td :for={{name, field_options} <- @fields} :if={active?(@active_fields, name)} class="text-base-content/75">
