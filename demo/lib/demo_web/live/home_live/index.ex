@@ -4,7 +4,7 @@ defmodule DemoWeb.HomeLive.Index do
   use DemoWeb, :live_view
 
   attr :class, :string, default: ""
-  slot(:inner_block, required: true)
+  slot :inner_block, required: true
 
   def section(assigns) do
     ~H"""
