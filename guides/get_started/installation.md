@@ -281,9 +281,11 @@ If you need this color on your body tag to style your application, consider usin
 
 ## Set daisyUI theme
 
-Backpex supports daisyUI themes, to use them you need to do two things:
+Backpex supports daisyUI themes. The following steps will guide you through setting up daisyUI themes in your application and optionally adding a theme selector to your layout.
 
-1. Add the themes to your application.
+**1. Add the themes to your application.**
+
+First, you need to add the themes to your `tailwind.config.js` file. You can add the themes to the `daisyui` key in the configuration file. The following example shows how to add the `light`, `dark`, and `cyberpunk` themes to your application.
 
 ```js
 // tailwind.config.js
@@ -307,14 +309,12 @@ module.exports = {
 }
 ```
 
-The full list of themes can be found at the [daisyUI](https://daisyui.com/docs/themes/) website.
+The full list of themes can be found at the [daisyUI website](https://daisyui.com/docs/themes/).
 
-> #### Info {: .info}
->
-> If you want to pick just a single theme you can set the next step as.
-> `<html data-theme="light">` and ignore the rest. 
+**2. Set the assign and the default daisyUI theme in your layout.**
 
-2. Set the assign and the default daisyUI theme in your layout.
+We fetch the theme from the assigns and set the `data-theme` attribute on the `html` tag. If no theme is set, we default to the `light` theme.
+
 ```elixir
 # root.html.heex
 <html data-theme={assigns[:theme] || "light"}>
@@ -322,7 +322,19 @@ The full list of themes can be found at the [daisyUI](https://daisyui.com/docs/t
 </html>
 ```
 
-3. Add `Backpex.ThemeSelectorPlug` to the pipeline in the router
+If you just want to use a single theme, you can set the `data-theme` attribute to the theme name. You can skip the next steps and are done with the theme setup.
+
+```elixir
+# root.html.heex
+<html data-theme="light">
+  ...
+</html>
+```
+
+**3. Add `Backpex.ThemeSelectorPlug` to the pipeline in the router**
+
+To add the saved theme to the assigns, you can add the `Backpex.ThemeSelectorPlug` to the pipeline in your router. This plug will fetch the selected theme from the session and put it in the assigns.
+
 ```elixir
 # router.ex
   pipeline :browser do
@@ -332,13 +344,10 @@ The full list of themes can be found at the [daisyUI](https://daisyui.com/docs/t
   end
 ```
 
-> #### Info {: .info}
->
-> The demo app has examples with all available themes:
->
-> [admin.html.heex](github.com/naymspace/backpex/blob/develop/demo/lib/demo_web/components/layouts/admin.html.heex) and [tailwind.config.js](https://github.com/naymspace/backpex/blob/develop/demo/assets/tailwind.config.js)
->
-4. Add the theme selector component to the app shell
+**4. Add the theme selector component to the app shell**
+
+You can add a theme selector to your layout to allow users to change the theme. The following example shows how to add a theme selector to the `admin.html.heex` layout. The list of themes should match the themes you added to your `tailwind.config.js` file.
+
 ```elixir
 # admin.html.heex
 <Backpex.HTML.Layout.app_shell fluid={@fluid?}>
@@ -377,7 +386,10 @@ The full list of themes can be found at the [daisyUI](https://daisyui.com/docs/t
 </Backpex.HTML.Layout.app_shell>
 ```
 
-5. Add a hook to persist the selected theme
+**5. Add a hook to persist the selected theme**
+
+To persist the selected theme, you can add a hook to your `app.js` file. This hook will listen for the `backpex:theme-change` event and store the selected theme in the session and in the local storage. The hook will also send a request to the server to store the selected theme in the session.
+
 ```js
 // app.js
 // We want this to run as soon as possible to minimize
@@ -440,7 +452,6 @@ let liveSocket = new LiveSocket("/live", Socket, {
   params: { _csrf_token: csrfToken },
 });
 ```
-
 
 ## Remove `@tailwindcss/forms` plugin
 
