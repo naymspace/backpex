@@ -19,13 +19,14 @@ def filters, do: [
         module: MyAppWeb.Filters.DateRange,
         label: "Begins At",
         presets: [
-        %{
-            label: "Last 7 Days",
-            values: fn -> %{
-                "start" => Date.add(Date.utc_today(), -7),
-                "end" => Date.utc_today()
-            } end
-        }
+            %{
+                label: "Last 7 Days",
+                values: fn -> %{
+                    "start" => Date.add(Date.utc_today(), -7),
+                    "end" => Date.utc_today()
+                } end
+            }
+        ]
     },
     published: %{
         module: MyAppWeb.Filters.EventPublished,
