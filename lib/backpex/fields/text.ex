@@ -53,7 +53,7 @@ defmodule Backpex.Fields.Text do
 
     assigns =
       assigns
-      |> assign(:form, form)
+      |> assign_new(:form, fn -> form end)
       |> assign_new(:valid, fn -> true end)
 
     ~H"""
@@ -74,6 +74,6 @@ defmodule Backpex.Fields.Text do
 
   @impl Phoenix.LiveComponent
   def handle_event("update-field", %{"index_form" => %{"value" => value}}, socket) do
-    Backpex.Field.handle_index_editable(socket, %{} |> Map.put(socket.assigns.name, value))
+    Backpex.Field.handle_index_editable(socket, socket.assigns.name, value)
   end
 end
