@@ -155,7 +155,7 @@ defmodule Backpex.Fields.BelongsTo do
 
   @impl Phoenix.LiveComponent
   def handle_event("update-field", %{"index_form" => %{"value" => value}}, socket) do
-    Backpex.Field.handle_index_editable(socket, socket.assigns.owner_key, value)
+    Backpex.Field.handle_index_editable(socket, value, Map.put(%{}, socket.assigns.owner_key, value))
   end
 
   @impl Backpex.Field
