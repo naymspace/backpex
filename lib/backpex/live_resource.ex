@@ -13,12 +13,12 @@ defmodule Backpex.LiveResource do
   alias Backpex.Resource
 
   @doc """
-  A list of [resource_actions](resource_actions.html) that may be performed on the given resource.
+  A list of [resource_actions](Backpex.ResourceAction.html) that may be performed on the given resource.
   """
   @callback resource_actions() :: list()
 
   @doc """
-  A list of [item_actions](item_actions.html) that may be performed on (selected) items.
+  A list of [item_actions](Backpex.ItemAction.html) that may be performed on (selected) items.
   """
   @callback item_actions(default_actions :: list(map())) :: list()
 
@@ -83,12 +83,12 @@ defmodule Backpex.LiveResource do
               %Phoenix.LiveView.Rendered{}
 
   @doc """
-  A optional keyword list of [filters](filters.html) to be used on the index view.
+  A optional keyword list of [filters](Backpex.Filter.html) to be used on the index view.
   """
   @callback filters() :: keyword()
 
   @doc """
-  A optional keyword list of [filters](filters.html) to be used on the index view.
+  A optional keyword list of [filters](Backpex.Filter.html) to be used on the index view.
   """
   @callback filters(assigns :: map()) :: keyword()
 
