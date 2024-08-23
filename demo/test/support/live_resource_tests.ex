@@ -15,11 +15,11 @@ defmodule DemoWeb.LiveResourceTests do
       {:ok, view, _html} = live(conn, base_path)
 
       assert view
-      |> element("table tbody")
-      |> render()
-      |> Floki.parse_fragment!()
-      |> Floki.find("tr")
-      |> Enum.count() == expected_rows_count
+             |> element("table tbody")
+             |> render()
+             |> Floki.parse_fragment!()
+             |> Floki.find("tr")
+             |> Enum.count() == expected_rows_count
     end
   end
 
@@ -71,7 +71,7 @@ defmodule DemoWeb.LiveResourceTests do
       |> element("button[aria-label='Show'][phx-value-item-id='#{first_item_id}']")
       |> render_click()
 
-      path = assert_patch view
+      path = assert_patch(view)
 
       assert path == "#{base_path}/#{first_item_id}/show"
     end
@@ -98,7 +98,7 @@ defmodule DemoWeb.LiveResourceTests do
       |> element("button[aria-label='Edit'][phx-value-item-id='#{first_item_id}']")
       |> render_click()
 
-      path = assert_patch view
+      path = assert_patch(view)
 
       assert path == "#{base_path}/#{first_item_id}/edit"
     end

@@ -7,7 +7,6 @@ defmodule DemoWeb.TagLiveTest do
   alias Demo.Tag
   alias Demo.Repo
 
-
   setup do
     tags =
       for entry <- data() do
