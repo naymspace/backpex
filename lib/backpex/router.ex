@@ -148,7 +148,9 @@ defmodule Backpex.Router do
     id_field = module.get_primary_key_field()
 
     id_serializable =
-      if Map.has_key?(id_or_instance, id_field), do: Map.get(id_or_instance, id_field), else: id_or_instance
+      if is_map(id_or_instance) and Map.has_key?(id_or_instance, id_field),
+        do: Map.get(id_or_instance, id_field),
+        else: id_or_instance
 
     route_path = get_route_path(socket, module, action)
     query_params = Query.encode(query_params)
