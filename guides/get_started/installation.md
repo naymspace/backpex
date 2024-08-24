@@ -272,7 +272,7 @@ So if you have this in your `root.html.heex`.
 
 ```html
 <body class="bg-white">
-</body> 
+</body>
 ```
 
 You should remove the `bg-white` class.
@@ -299,10 +299,10 @@ module.exports = {
           'primary-content': 'white',
           secondary: '#f39325',
           'secondary-content': 'white'
-        },
+        }
+      },
         "dark",
         "cyberpunk"
-      }
     ]
   },
   ...
