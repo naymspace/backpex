@@ -95,6 +95,22 @@ defmodule DemoWeb.ProductLive do
             label: "URL"
           }
         ]
+      },
+      short_links: %{
+        module: Backpex.Fields.InlineCRUD,
+        label: "Short Links",
+        type: :assoc,
+        except: [:index],
+        child_fields: [
+          short_key: %{
+            module: Backpex.Fields.Text,
+            label: "URL Suffix"
+          },
+          url: %{
+            module: Backpex.Fields.Text,
+            label: "Target URL"
+          }
+        ]
       }
     ]
   end
