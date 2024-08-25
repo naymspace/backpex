@@ -6,10 +6,13 @@ defmodule Backpex.Ecto.EctoUtils do
   @doc """
   Get the primary key field of an Ecto schema.
   """
-  # name of the schema module#
+  def get_primary_key_field(%Ecto.Changeset{data: data}) do
+    get_primary_key_field(data)
+  end
+
   def get_primary_key_field(%{__struct__: struct}) when is_atom(struct) do
     # the typechecker will shout that an atom does not have a __schema__ attribute
-    resolve_primary_key!(struct)
+    get_primary_key_field(struct)
   end
 
   # name of the schema module#
