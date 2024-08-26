@@ -27,7 +27,7 @@ defmodule DemoWeb.LiveResourceTests do
       base_path = unquote(base_path)
       items = unquote(items)
 
-      if Enum.count(items) == 0 do
+      if Enum.empty?(items) do
         raise "Cannot test show redirect with 0 items"
       end
 
@@ -55,7 +55,7 @@ defmodule DemoWeb.LiveResourceTests do
       base_path = unquote(base_path)
       items = unquote(items)
 
-      if Enum.count(items) == 0 do
+      if Enum.empty?(items) do
         raise "Cannot test show redirect with 0 items"
       end
 
@@ -81,7 +81,7 @@ defmodule DemoWeb.LiveResourceTests do
       base_path = unquote(base_path)
       items = unquote(items)
 
-      if Enum.count(items) == 0 do
+      if Enum.empty?(items) do
         raise "Cannot test edit redirect with 0 items"
       end
 
