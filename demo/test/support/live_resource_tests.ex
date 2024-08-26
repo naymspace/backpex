@@ -28,7 +28,7 @@ defmodule DemoWeb.LiveResourceTests do
       items = unquote(items)
 
       if Enum.empty?(items) do
-        raise "Cannot test show redirect with 0 items"
+        raise "Cannot test delete button with 0 items"
       end
 
       [%{id: first_item_id} | _items] = items
