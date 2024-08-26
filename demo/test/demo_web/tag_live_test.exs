@@ -24,9 +24,9 @@ defmodule DemoWeb.TagLiveTest do
       conn
       |> visit("/admin/tags")
       |> unwrap(fn view ->
-          view
-          |> form("form[phx-change='index-search']", %{"index_search[value]" => "Elixir"})
-          |> render_change()
+        view
+        |> form("form[phx-change='index-search']", %{"index_search[value]" => "Elixir"})
+        |> render_change()
       end)
       |> refute_has("tr", text: "Phoenix")
       |> assert_has("tr", text: "Elixir")
