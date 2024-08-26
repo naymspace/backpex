@@ -1,55 +1,44 @@
 defmodule DemoWeb.TagLiveTest do
   use DemoWeb.ConnCase
 
+  import Demo.Factory
   import Phoenix.LiveViewTest
   import DemoWeb.LiveResourceTests
 
-  alias Demo.Tag
-  alias Demo.Repo
-
-  setup do
-    tags =
-      for entry <- data() do
-        Tag.create_changeset(%Tag{}, entry)
-        |> Repo.insert!()
-      end
-
-    %{tags: tags}
-  end
-
   describe "tags live resource index" do
     test "is rendered", %{conn: conn} do
-      {:ok, view, html} = live(conn, "/admin/tags")
+      insert_list(3, :tag)
 
-      assert has_element?(view, "h1", "Tags")
-      assert has_element?(view, "button", "New Tag")
-      assert has_element?(view, "button[disabled]", "Delete")
-
-      assert html =~ "Items 1 to 3 (3 total)"
+      conn
+      |> visit("/admin/tags")
+      |> assert_has("h1", text: "Tags", exact: true)
+      |> assert_has("button", text: "New Tag", exact: true)
+      |> assert_has("button[disabled]", text: "Delete", exact: true)
+      |> assert_has("div", text: "Items 1 to 3 (3 total)", exact: true)
     end
 
-    test "delete button becomes enabled when clicking checkbox", %{conn: conn, tags: tags} do
-      delete_button_disabled_enabled_test(conn, "/admin/tags", tags)
+    test "search for items", %{conn: conn} do
+      insert(:tag, %{name: "Elixir"})
+      insert(:tag, %{name: "Phoenix"})
+
+      conn
+      |> visit("/admin/tags")
+      |> unwrap(fn view ->
+          view
+          |> form("form[phx-change='index-search']", %{"index_search[value]" => "Elixir"})
+          |> render_change()
+      end)
+      |> refute_has("tr", text: "Phoenix")
+      |> assert_has("tr", text: "Elixir")
     end
 
-    test "table body contains exact amount of rows", %{conn: conn, tags: tags} do
-      table_rows_count_test(conn, "/admin/tags", Enum.count(tags))
-    end
+    test "basic functionality", %{conn: conn} do
+      tags = insert_list(3, :tag)
 
-    test "show item action redirects to show view", %{conn: conn, tags: tags} do
-      show_action_redirect_test(conn, "/admin/tags", tags)
+      test_table_rows_count(conn, "/admin/tags", Enum.count(tags))
+      test_delete_button_disabled_enabled(conn, "/admin/tags", tags)
+      test_show_action_redirect(conn, "/admin/tags", tags)
+      test_edit_action_redirect(conn, "/admin/tags", tags)
     end
-
-    test "edit item action redirects to edit view", %{conn: conn, tags: tags} do
-      edit_action_redirect_test(conn, "/admin/tags", tags)
-    end
-  end
-
-  defp data do
-    [
-      %{name: "Expert"},
-      %{name: "Beginner"},
-      %{name: "DIY"}
-    ]
   end
 end

@@ -67,7 +67,8 @@ defmodule Demo.MixProject do
       {:jason, ">= 1.0.0"},
       {:bandit, "~> 1.0"},
       {:heroicons, github: "tailwindlabs/heroicons", tag: "v2.1.5", sparse: "optimized", app: false, compile: false},
-      {:floki, ">= 0.30.0", only: :test}
+      {:floki, ">= 0.30.0", only: :test},
+      {:phoenix_test, "~> 0.3.1", only: :test, runtime: false}
     ]
   end
 

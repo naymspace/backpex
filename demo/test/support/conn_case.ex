@@ -24,6 +24,8 @@ defmodule DemoWeb.ConnCase do
 
       use DemoWeb, :verified_routes
 
+      import PhoenixTest
+
       # Import conveniences for testing with connections
       import Plug.Conn
       import Phoenix.ConnTest
