@@ -138,7 +138,12 @@ defmodule DemoWeb.PostLive do
           _assigns ->
             true
         end,
-        searchable: true
+        searchable: true,
+        render: fn assigns ->
+          ~H"""
+          <p><%= Number.Delimit.number_to_delimited(@value, precision: 0, delimiter: ".") %></p>
+          """
+        end
       },
       user: %{
         module: Backpex.Fields.BelongsTo,

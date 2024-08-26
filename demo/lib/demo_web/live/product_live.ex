@@ -73,6 +73,11 @@ defmodule DemoWeb.ProductLive do
 
           error ->
             error
+        end,
+        render: fn assigns ->
+          ~H"""
+          <p><%= Number.Delimit.number_to_delimited(@value, precision: 0, delimiter: ".") %></p>
+          """
         end
       },
       price: %{
