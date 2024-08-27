@@ -4,8 +4,8 @@ defmodule Backpex.Resource do
   """
   import Ecto.Query
 
-  alias Backpex.LiveResource
   alias Backpex.Ecto.EctoUtils
+  alias Backpex.LiveResource
 
   @doc """
   Returns a list of items by given criteria.
@@ -525,6 +525,7 @@ defmodule Backpex.Resource do
           name_str = name |> Atom.to_string()
           without_id = String.replace(name_str, ~r/_id$/, "")
 
+          # credo:disable-for-lines:3 Credo.Check.Refactor.Nesting
           raise """
           The field "#{name}"" is not an association but used as if it were one with the field module #{inspect(field_options.module)}.
           #{if without_id != name_str,

@@ -3,7 +3,6 @@ defmodule Backpex.Router do
   Provides LiveView routing for Backpex resources.
   """
 
-  alias Backpex.Resource
   alias Plug.Conn.Query
 
   @doc """
