@@ -5,7 +5,7 @@ defmodule DemoWeb.RedirectController do
 
   def redirect_to_users(conn, _params) do
     conn
-    |> Phoenix.Controller.redirect(to: "/admin/users")
+    |> Phoenix.Controller.redirect(to: ~p"/admin/users")
     |> Plug.Conn.halt()
   end
 end
