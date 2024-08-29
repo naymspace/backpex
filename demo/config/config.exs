@@ -48,7 +48,7 @@ config :sentry,
 
 config :phoenix, :json_library, Jason
 
-config :demo, DemoWeb.Gettext, default_locale: "de"
+config :demo, DemoWeb.Gettext, default_locale: "en"
 
 config :backpex, :translator_function, {DemoWeb.CoreComponents, :translate_backpex}
 
