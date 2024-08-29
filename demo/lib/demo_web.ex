@@ -41,9 +41,9 @@ defmodule DemoWeb do
       use Phoenix.Controller,
         formats: [:html, :json],
         layouts: [html: DemoWeb.Layouts]
+      use Gettext, backend: DemoWeb.Gettext
 
       import Plug.Conn
-      import DemoWeb.Gettext
 
       unquote(verified_routes())
     end
@@ -87,11 +87,11 @@ defmodule DemoWeb do
 
   defp html_helpers do
     quote do
+      use Gettext, backend: DemoWeb.Gettext
       # HTML escaping functionality
       import Phoenix.HTML
       # Core UI components and translation
       import DemoWeb.CoreComponents
-      import DemoWeb.Gettext
 
       # Shortcut for generating JS commands
       alias Phoenix.LiveView.JS
