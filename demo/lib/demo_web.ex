@@ -41,6 +41,7 @@ defmodule DemoWeb do
       use Phoenix.Controller,
         formats: [:html, :json],
         layouts: [html: DemoWeb.Layouts]
+
       use Gettext, backend: DemoWeb.Gettext
 
       import Plug.Conn
