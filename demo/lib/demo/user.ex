@@ -40,6 +40,28 @@ defmodule Demo.User do
   @required_fields ~w[username first_name last_name role]a
   @optional_fields ~w[avatar deleted_at permissions age]a
 
+  alias Demo.Repo
+  import Ecto.Query
+
+  def put_assoc_custom(changeset, name, attrs, live_resource, metadata \\ []) do
+    # TODO: validate list of ids, handle errors
+
+    assoc_ids = Map.get(attrs, name |> to_string()) || Map.get(attrs, name, nil)
+
+    posts = case assoc_ids do
+      [_head | _tail] ->
+        posts = Post |> where([p], p.id in ^assoc_ids) |> Repo.all()
+
+        put_assoc(changeset, name, posts)
+
+      "" ->
+        put_assoc(changeset, name, [])
+
+      _other ->
+        changeset
+    end
+  end
+
   @doc false
   def changeset(user, attrs, _metadata \\ []) do
     user
@@ -56,6 +78,8 @@ defmodule Demo.User do
       drop_param: :web_links_delete
     )
     |> validate_required(@required_fields)
+    |> put_assoc_custom(:posts, attrs, DemoWeb.PostLive)
+    |> validate_length(:posts, min: 1)
     |> validate_change(:avatar, fn
       :avatar, "too_many_files" ->
         [avatar: "has to be exactly one"]

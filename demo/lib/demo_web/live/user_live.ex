@@ -110,7 +110,7 @@ defmodule DemoWeb.UserLive do
         prompt: "Choose role..."
       },
       posts: %{
-        module: Backpex.Fields.HasMany,
+        module: Backpex.Fields.HasMany2,
         label: "Posts",
         display_field: :title,
         orderable: false,

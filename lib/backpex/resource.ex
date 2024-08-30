@@ -453,7 +453,7 @@ defmodule Backpex.Resource do
   """
   def change(item, attrs, changeset_function, assigns, assocs \\ [], target \\ nil, action \\ :validate) do
     Ecto.Changeset.change(item)
-    |> put_assocs(assocs)
+    # |> put_assocs(assocs)
     |> LiveResource.call_changeset_function(changeset_function, attrs, assigns, target)
     |> Map.put(:action, action)
   end
