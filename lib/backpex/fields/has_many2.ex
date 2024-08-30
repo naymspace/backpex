@@ -96,7 +96,6 @@ defmodule Backpex.Fields.HasMany2 do
               [id | acc]
 
             %{id: id} = _entry, acc ->
-              IO.inspect("STRUCT DEBUG")
               [id | acc]
 
             entry, acc when is_binary(entry) ->
