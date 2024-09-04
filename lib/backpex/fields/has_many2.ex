@@ -85,9 +85,6 @@ defmodule Backpex.Fields.HasMany2 do
 
   @impl Backpex.Field
   def render_form(assigns) do
-    IO.inspect(assigns.form, label: :form_debug)
-    IO.inspect(assigns.form[assigns.name].value, label: :value_debug)
-
     checked =
       case assigns.form[assigns.name].value do
         [_head | _tail] ->
@@ -109,20 +106,54 @@ defmodule Backpex.Fields.HasMany2 do
           []
       end
 
-    assigns = assign(assigns, :checked, checked)
-
-    IO.inspect(checked, label: :checked_debug)
+    assigns =
+      assigns
+      |> assign_new(:checked, fn -> checked end)
+      |> assign_new(:search_value, fn -> "" end)
+      |> assign(:all_checked, length(checked) == length(assigns.options))
+      |> assign(:errors, Backpex.HTML.Form.translate_form_errors(assigns.form[assigns.name], assigns.field_options))
 
     ~H"""
-    <div>
+    <div id="has-many" phx-hook="BackpexHasMany">
       <Layout.field_container>
         <:label align={Backpex.Field.align_label(@field_options, assigns, :center)}>
           <Layout.input_label text={@field_options[:label]} />
         </:label>
-        <div class="space-y-2">
+        <button
+          data-toggle-all-btn
+          type="button"
+          phx-click={JS.dispatch("toggle-all", detail: %{"checkboxValue" => !@all_checked})}
+        >
+          <span :if={!@all_checked}>Select all</span>
+          <span :if={@all_checked}>Deselect all</span>
+        </button>
+
+        <div data-badges-container>
+          <button
+            :for={{label, value} <- @options}
+            :if={value in @checked}
+            class="badge badge-primary"
+            phx-click={JS.dispatch("toggle", detail: %{"value" => value})}
+            type="button"
+          >
+            <%= label %>
+          </button>
+        </div>
+
+        <input
+          type="text"
+          name={"#{@name}_search"}
+          class="input input-sm input-bordered"
+          phx-change="search"
+          phx-target={@myself}
+          value={@search_value}
+          data-search-input
+        />
+
+        <div id="container" class="space-y-2" data-checkbox-container>
           <input type="hidden" name={@form[@name].name} value="" />
           <%= for {label, value} <- @options do %>
-            <label class="flex cursor-pointer items-center gap-x-2">
+            <label class={["flex cursor-pointer items-center gap-x-2", !show?(label, @search_value) && "hidden"]}>
               <input
                 id={"#{@form[@name].name}[]-#{value}"}
                 type="checkbox"
@@ -137,9 +168,26 @@ defmodule Backpex.Fields.HasMany2 do
             </label>
           <% end %>
         </div>
+        <Backpex.HTML.Form.error :for={msg <- @errors}><%= msg %></Backpex.HTML.Form.error>
       </Layout.field_container>
     </div>
     """
+  end
+
+  defp show?(label, search_value) do
+    search_value = search_value |> String.trim() |> String.downcase()
+    label = label |> String.trim() |> String.downcase()
+
+    String.contains?(label, search_value) or search_value == ""
+  end
+
+  @impl Phoenix.LiveComponent
+  def handle_event("search", params, socket) do
+    search = Map.get(params, to_string(socket.assigns.name) <> "_search", "")
+
+    socket = assign(socket, :search_value, search)
+
+    {:noreply, socket}
   end
 
   defp options(assigns) do

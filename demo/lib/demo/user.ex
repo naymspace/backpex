@@ -48,18 +48,19 @@ defmodule Demo.User do
 
     assoc_ids = Map.get(attrs, name |> to_string()) || Map.get(attrs, name, nil)
 
-    posts = case assoc_ids do
-      [_head | _tail] ->
-        posts = Post |> where([p], p.id in ^assoc_ids) |> Repo.all()
+    posts =
+      case assoc_ids do
+        [_head | _tail] ->
+          posts = Post |> where([p], p.id in ^assoc_ids) |> Repo.all()
 
-        put_assoc(changeset, name, posts)
+          put_assoc(changeset, name, posts)
 
-      "" ->
-        put_assoc(changeset, name, [])
+        "" ->
+          put_assoc(changeset, name, [])
 
-      _other ->
-        changeset
-    end
+        _other ->
+          changeset
+      end
   end
 
   @doc false
