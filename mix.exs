@@ -39,7 +39,7 @@ defmodule Backpex.MixProject do
       {:phoenix_html, "~> 4.1.1"},
       {:phoenix_html_helpers, "~> 1.0"},
       {:phoenix_live_view, "~> 0.20.0"},
-      {:gettext, "~> 0.18"},
+      {:gettext, "~> 0.26"},
       {:jason, "~> 1.2"},
       {:number, "~> 1.0.3"},
       {:credo, "~> 1.7.5", only: [:dev, :test], runtime: false},
