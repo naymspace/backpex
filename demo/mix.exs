@@ -34,7 +34,7 @@ defmodule Demo.MixProject do
   defp deps do
     [
       {:libcluster, "~> 3.2"},
-      {:ex_doc, "~> 0.23", only: [:dev, :test], runtime: false},
+      {:ex_doc, "~> 0.34", only: [:dev, :test], runtime: false},
       {:phoenix, "~> 1.7.6"},
       {:phoenix_pubsub, "~> 2.0"},
       {:phoenix_ecto, "~> 4.0"},
