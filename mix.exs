@@ -91,7 +91,6 @@ defmodule Backpex.MixProject do
       "guides/about/contribute-to-backpex.md",
 
       # Get Started
-      "guides/get_started/prerequisites.md",
       "guides/get_started/installation.md",
 
       # Live Resource
