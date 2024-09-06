@@ -21,7 +21,6 @@
   "devDependencies": {
     "@sentry/browser": "8.28.0",
     "alpinejs": "3.14.1",
-    "lodash": "4.17.21",
     "npm-run-all2": "6.2.2",
     "postcss": "8.4.45",
     "standard": "17.1.0",
