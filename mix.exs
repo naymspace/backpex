@@ -44,7 +44,7 @@ defmodule Backpex.MixProject do
       {:number, "~> 1.0.3"},
       {:credo, "~> 1.7.5", only: [:dev, :test], runtime: false},
       {:mix_audit, "~> 2.0", only: [:dev, :test], runtime: false},
-      {:sobelow, "~> 0.8", only: [:dev, :test]},
+      {:sobelow, "~> 0.13", only: [:dev, :test]},
       {:money, "~> 1.13.1"},
       {:tailwind_formatter, "~> 0.4.0", only: [:dev, :test], runtime: false}
     ]
