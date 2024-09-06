@@ -31,15 +31,15 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4
 
-      - uses: erlef/setup-beam@v1
+      - uses: erlef/setup-beam@b9c58b0450cd832ccdb3c17cc156a47065d2114f # v1
         with:
           otp-version: ${{ matrix.erlang }}
           elixir-version: ${{ matrix.elixir }}
 
       - name: Restore the deps cache
-        uses: actions/cache@v4
+        uses: actions/cache@0c45773b623bea8c8e75f6c82b208c3cf94ea4f9 # v4
         id: deps-cache
         with:
           path: deps
@@ -48,7 +48,7 @@ jobs:
             ${{ runner.os }}-${{ matrix.elixir }}-${{ matrix.erlang }}-deps-
 
       - name: Restore the _build cache
-        uses: actions/cache@v4
+        uses: actions/cache@0c45773b623bea8c8e75f6c82b208c3cf94ea4f9 # v4
         id: build-cache
         with:
           path: _build
@@ -108,9 +108,9 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4
 
-      - uses: erlef/setup-beam@v1
+      - uses: erlef/setup-beam@b9c58b0450cd832ccdb3c17cc156a47065d2114f # v1
         id: beam
         with:
           version-file: .tool-versions
@@ -133,7 +133,7 @@ jobs:
 
     services:
       postgres:
-        image: postgres:16-alpine
+        image: postgres:16-alpine@sha256:492898505cb45f9835acc327e98711eaa9298ed804e0bb36f29e08394229550d
         env:
           POSTGRES_PASSWORD: postgres
         options: >-
@@ -146,24 +146,24 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4
 
       - name: Setup beam
-        uses: erlef/setup-beam@v1
+        uses: erlef/setup-beam@b9c58b0450cd832ccdb3c17cc156a47065d2114f # v1
         id: beam
         with:
           version-file: .tool-versions
           version-type: strict
 
       - name: Setup node
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@1e60f620b9541d16bece96c5465dc8ee9832be0b # v4
         with:
           node-version: 20
           cache: 'yarn'
           cache-dependency-path: demo/yarn.lock
 
       - name: Restore the deps cache
-        uses: actions/cache@v4
+        uses: actions/cache@0c45773b623bea8c8e75f6c82b208c3cf94ea4f9 # v4
         id: deps-cache
         with:
           path: demo/deps
@@ -172,7 +172,7 @@ jobs:
             ${{ runner.os }}-${{ steps.beam.outputs.elixir-version }}-${{ steps.beam.outputs.otp-version }}-deps-demo-
   
       - name: Restore the _build cache
-        uses: actions/cache@v4
+        uses: actions/cache@0c45773b623bea8c8e75f6c82b208c3cf94ea4f9 # v4
         id: build-cache
         with:
           path: demo/_build
@@ -265,13 +265,13 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4
 
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
+        uses: docker/setup-buildx-action@988b5a0280414f521da01fcc63a27aeeb4b104db # v3
 
       - name: Log in to the container registry
-        uses: docker/login-action@v3
+        uses: docker/login-action@9780b0c442fbb1117ed29e0efdff1e18412f7567 # v3
         with:
           registry: ${{ env.REGISTRY }}
           username: ${{ github.actor }}
@@ -279,12 +279,12 @@ jobs:
 
       - name: Extract metadata (tags, labels) for Docker
         id: meta
-        uses: docker/metadata-action@v5
+        uses: docker/metadata-action@8e5442c4ef9f78752691e2d8f8d19755c6f78e81 # v5
         with:
           images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME_RUNTIME }}
 
       - name: Build container
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@5cd11c3a4ced054e52742c5fd54dca954e0edd85 # v6
         with:
           push: true
           tags: ${{ steps.meta.outputs.tags }}
