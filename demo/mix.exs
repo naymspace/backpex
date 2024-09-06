@@ -51,7 +51,7 @@ defmodule Demo.MixProject do
       {:circular_buffer, "~> 0.4.0"},
       {:gettext, "~> 0.26"},
       {:credo, "~> 1.7.5", only: [:dev, :test], runtime: false},
-      {:sobelow, "~> 0.8", only: [:dev, :test]},
+      {:sobelow, "~> 0.13", only: [:dev, :test]},
       {:mix_audit, "~> 2.0", only: [:dev, :test], runtime: false},
       {:sentry, "~> 10.1"},
       {:ex_machina, "~> 2.3"},
