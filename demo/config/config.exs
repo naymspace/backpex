@@ -17,7 +17,7 @@ config :demo, DemoWeb.Endpoint,
 config :demo, Demo.Repo, migration_primary_key: [name: :id, type: :binary_id]
 
 config :esbuild,
-  version: "0.0.0",
+  version: "0.23.1",
   path: Path.expand("../node_modules/.bin/esbuild", __DIR__),
   default: [
     args:
@@ -27,7 +27,7 @@ config :esbuild,
   ]
 
 config :tailwind,
-  version: "0.0.0",
+  version: "3.4.10",
   path: Path.expand("../node_modules/.bin/tailwind", __DIR__),
   default: [
     args: ~w(

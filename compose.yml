@@ -9,6 +9,7 @@ services:
     environment:
       - STARTUP_COMMAND_1=mix do deps.get, ecto.create, ecto.migrate
       - STARTUP_COMMAND_2=yarn install --pure-lockfile
+      - STARTUP_COMMAND_3=mix assets.setup
     volumes:
       - .:/opt/app
     ports:
