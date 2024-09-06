@@ -47,7 +47,7 @@ defmodule Demo.MixProject do
       {:tailwind, "~> 0.2.0", runtime: Mix.env() == :dev},
       {:telemetry_poller, "~> 1.0"},
       {:telemetry_metrics, "~> 1.0"},
-      {:ecto_psql_extras, "~> 0.2"},
+      {:ecto_psql_extras, "~> 0.8"},
       {:circular_buffer, "~> 0.4.0"},
       {:gettext, "~> 0.18"},
       {:credo, "~> 1.7.5", only: [:dev, :test], runtime: false},
