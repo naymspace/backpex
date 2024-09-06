@@ -56,7 +56,7 @@ defmodule Demo.MixProject do
       {:sentry, "~> 10.1"},
       {:ex_machina, "~> 2.3"},
       {:hackney, "~> 1.17", override: true},
-      {:faker, "~> 0.17"},
+      {:faker, "~> 0.18"},
       {:swoosh, "~> 1.0"},
       {:phoenix_swoosh, "~> 1.0"},
       {:gen_smtp, "~> 1.1"},
