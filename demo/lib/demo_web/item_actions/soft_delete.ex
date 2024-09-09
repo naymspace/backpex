@@ -38,7 +38,7 @@ defmodule DemoWeb.ItemActions.SoftDelete do
   end
 
   @impl Backpex.ItemAction
-  def label(assigns), do: Delete.label(assigns)
+  def label(assigns, item), do: Delete.label(assigns, item)
 
   @impl Backpex.ItemAction
   def confirm_label(assigns), do: Delete.confirm_label(assigns)

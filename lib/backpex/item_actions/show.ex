@@ -16,7 +16,7 @@ defmodule Backpex.ItemActions.Show do
   end
 
   @impl Backpex.ItemAction
-  def label(_assigns), do: Backpex.translate("Show")
+  def label(_assigns, _item), do: Backpex.translate("Show")
 
   @impl Backpex.ItemAction
   def handle(socket, [item | _items], _data) do

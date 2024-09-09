@@ -19,7 +19,7 @@ defmodule Backpex.ItemActions.Delete do
   end
 
   @impl Backpex.ItemAction
-  def label(_assigns), do: Backpex.translate("Delete")
+  def label(_assigns, _item), do: Backpex.translate("Delete")
 
   @impl Backpex.ItemAction
   def confirm(assigns) do

@@ -53,7 +53,7 @@ defmodule DemoWeb.ItemAction.Show do
   end
 
   @impl Backpex.ItemAction
-  def label(_assigns), do: Backpex.translate("Show")
+  def label(_assigns, _item), do: Backpex.translate("Show")
 
   @impl Backpex.ItemAction
   def handle(socket, [item | _items], _data) do
@@ -149,7 +149,7 @@ defmodule DemoWeb.ItemAction.SoftDelete do
     end
 
     @impl Backpex.ItemAction
-    def label(_assigns), do: Backpex.translate("Delete")
+    def label(_assigns, _item), do: Backpex.translate("Delete")
 
     @impl Backpex.ItemAction
     def confirm_label(_assigns), do: Backpex.translate("Delete")

@@ -16,7 +16,7 @@ defmodule Backpex.ItemActions.Edit do
   end
 
   @impl Backpex.ItemAction
-  def label(_assigns), do: Backpex.translate("Edit")
+  def label(_assigns, _item), do: Backpex.translate("Edit")
 
   @impl Backpex.ItemAction
   def handle(socket, [item | _items], _data) do
