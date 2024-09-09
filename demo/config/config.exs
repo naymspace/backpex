@@ -52,6 +52,4 @@ config :backpex, :translator_function, {DemoWeb.CoreComponents, :translate_backp
 
 config :backpex, :error_translator_function, {DemoWeb.CoreComponents, :translate_error}
 
-config :tesla, adapter: {Tesla.Adapter.Hackney, [recv_timeout: 30_000]}
-
 import_config "#{config_env()}.exs"
