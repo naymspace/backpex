@@ -6,7 +6,7 @@ defmodule Backpex.ItemActions.Show do
   use BackpexWeb, :item_action
 
   @impl Backpex.ItemAction
-  def icon(assigns) do
+  def icon(assigns, _item) do
     ~H"""
     <Backpex.HTML.CoreComponents.icon
       name="hero-eye"

@@ -9,7 +9,7 @@ defmodule Backpex.ItemActions.Delete do
   require Logger
 
   @impl Backpex.ItemAction
-  def icon(assigns) do
+  def icon(assigns, _item) do
     ~H"""
     <Backpex.HTML.CoreComponents.icon
       name="hero-trash"

@@ -46,7 +46,7 @@ defmodule DemoWeb.ItemAction.Show do
   use BackpexWeb, :item_action
 
   @impl Backpex.ItemAction
-  def icon(assigns) do
+  def icon(assigns, _item) do
     ~H"""
     <Backpex.HTML.CoreComponents.icon name="hero-eye" class="h-5 w-5 cursor-pointer transition duration-75 hover:scale-110 hover:text-green-600" />
     """
@@ -122,7 +122,7 @@ defmodule DemoWeb.ItemAction.SoftDelete do
     alias Backpex.Resource
 
     @impl Backpex.ItemAction
-    def icon(assigns) do
+    def icon(assigns, _item) do
     ~H"""
     <Backpex.HTML.CoreComponents.icon name="hero-eye" class="h-5 w-5 cursor-pointer transition duration-75 hover:scale-110 hover:text-green-600" />
     """

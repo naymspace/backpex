@@ -6,7 +6,7 @@ defmodule DemoWeb.ItemActions.DuplicateTag do
   alias Demo.Repo
 
   @impl Backpex.ItemAction
-  def icon(assigns) do
+  def icon(assigns, _item) do
     ~H"""
     <Backpex.HTML.CoreComponents.icon
       name="hero-document-duplicate"
