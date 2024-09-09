@@ -23,9 +23,6 @@ defmodule Backpex.HTML do
       iex> Backpex.HTML.pretty_value("Hello, universe")
       "Hello, universe"
   """
-  def pretty_value(input) when is_nil(input), do: "—"
-
-  def pretty_value(""), do: "—"
-
+  def pretty_value(input) when is_nil(input) or input == "", do: "—"
   def pretty_value(input), do: input
 end
