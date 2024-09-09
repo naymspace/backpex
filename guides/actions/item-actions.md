@@ -71,7 +71,7 @@ See `Backpex.ItemAction` for a list of all available callbacks.
 
 ## Placement of Item Actions
 
-Item actions can be placed in the resource table or at the top of the resource table. You can specify the placement of the item action by using the `only` key.
+Item actions can be placed in the resource table or at the top of it. You can specify the placement of the item action by using the `only` key.
 
 The only key must provide a list and accepts the following options
 
