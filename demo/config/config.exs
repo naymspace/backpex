@@ -18,7 +18,6 @@ config :demo, Demo.Repo, migration_primary_key: [name: :id, type: :binary_id]
 
 config :esbuild,
   version: "0.23.1",
-  path: Path.expand("../node_modules/.bin/esbuild", __DIR__),
   default: [
     args:
       ~w(assets/js/app.js --bundle --target=es2017 --outdir=priv/static/assets --external:/fonts/* --external:/images/*),
@@ -28,7 +27,6 @@ config :esbuild,
 
 config :tailwind,
   version: "3.4.10",
-  path: Path.expand("../node_modules/.bin/tailwind", __DIR__),
   default: [
     args: ~w(
       --config=assets/tailwind.config.js
