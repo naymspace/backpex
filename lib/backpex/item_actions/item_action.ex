@@ -6,7 +6,7 @@ defmodule Backpex.ItemAction do
   @doc """
   Action icon
   """
-  @callback icon(assigns :: map()) :: %Phoenix.LiveView.Rendered{}
+  @callback icon(assigns :: map(), item :: struct() | nil) :: %Phoenix.LiveView.Rendered{}
 
   @doc """
   A list of fields to be displayed in the item action. See `Backpex.Field`. In addition you have to provide
