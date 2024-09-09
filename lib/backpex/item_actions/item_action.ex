@@ -53,7 +53,7 @@ defmodule Backpex.ItemAction do
   @doc """
   Action label (Show label on hover)
   """
-  @callback label(assigns :: map(), item :: map() | nil) :: binary()
+  @callback label(assigns :: map(), item :: struct() | nil) :: binary()
 
   @doc """
   Confirm button label
