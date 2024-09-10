@@ -154,8 +154,8 @@ jobs:
           MIX_LOCK_HASH: ${{ hashFiles(format('{0}{1}', github.workspace, '/demo/mix.lock')) }}
         with:
           path: |
-            deps
-            _build
+            demo/deps
+            demo/_build
           key: ${{ runner.os }}-${{ env.ELIXIR_VERSION }}-${{ env.OTP_VERSION }}-build-deps-demo-mixlockhash-${{ env.MIX_LOCK_HASH }}
           restore-keys:  ${{ runner.os }}-${{ env.ELIXIR_VERSION }}-${{ env.OTP_VERSION }}-build-deps-demo-
 
