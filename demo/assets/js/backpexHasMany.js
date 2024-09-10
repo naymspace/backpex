@@ -46,7 +46,6 @@ const BackpexHasMany = {
   destroyed() {
     this.toggleAllButton.removeEventListener('toggle-all', this.onToggleAll)
     this.badgesList.removeEventListener('toggle', this.onSingleToggle)
-    this.searchInput.removeEventListener('input', this.onSearch)
   }
 }
 
