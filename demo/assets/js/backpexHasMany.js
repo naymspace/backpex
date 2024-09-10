@@ -2,10 +2,10 @@ const BackpexHasMany = {
   mounted() {
     this.toggleAllButton = this.el.querySelector('[data-toggle-all-btn]')
     this.badgesList = this.el.querySelector('[data-badges-container]')
-    this.selectedValuesInput = this.el.querySelector("input[type='hidden']")
+    this.hiddenInput = this.el.querySelector("input[type='hidden']")
     this.checkboxContainer = this.el.querySelector('[data-checkbox-container]')
 
-    if (!this.toggleAllButton || !this.badgesList || !this.selectedValuesInput || !this.checkboxContainer) {
+    if (!this.toggleAllButton || !this.badgesList || !this.hiddenInput || !this.checkboxContainer) {
       console.error('BackpexHasMany Hook: One or more required elements not found')
       return
     }
@@ -41,7 +41,7 @@ const BackpexHasMany = {
     }
   },
   notifyInputChange() {
-    this.selectedValuesInput.dispatchEvent(new Event('input', { bubbles: true }))
+    this.hiddenInput.dispatchEvent(new Event('input', { bubbles: true }))
   },
   destroyed() {
     this.toggleAllButton.removeEventListener('toggle-all', this.onToggleAll)
