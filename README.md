@@ -10,11 +10,11 @@
   Phoenix Admin Panel built with PETAL · Backpex
   <br />
   <br />
-  <a href="https://hexdocs.pm/backpex">📚 Documentation</a>
+  <span>📚 <a href="https://hexdocs.pm/backpex">Documentation</a></span>
   •
-  <a href="https://hexdocs.pm/backpex/installation.html">🛠️ Installation Guide</a>
+  <span>🛠️ <a href="https://hexdocs.pm/backpex/installation.html">Installation Guide</a></span>
   •
-  <a href="https://hexdocs.pm/backpex/contribute-to-backpex.html">🩵 Contribute</a>
+  <span>🩵 <a href="https://hexdocs.pm/backpex/contribute-to-backpex.html">Contribute</a></span>
 </div>
 
 # Backpex
@@ -27,7 +27,7 @@ Welcome! Backpex is a highly customizable administration panel for Phoenix LiveV
   <a href="https://backpex.live/"><strong>Visit our Live Demo →</strong></a>
 </div>
 
-## 🚀 Key Features
+## Key Features
 
 - 📊 **LiveResources**: Quickly create LiveResource modules for your database tables with fully customizable CRUD views. Bring your own layout or use our components.
 - 🔍 **Search and Filters**: Define searchable fields and add custom filters for instant, LiveView-powered results.
@@ -37,18 +37,18 @@ Welcome! Backpex is a highly customizable administration panel for Phoenix LiveV
 - 🔗 **Associations**: Effortlessly handle HasOne, BelongsTo, and HasMany(Through) associations with minimal configuration. Customize available options and rendered columns.
 - 📈 **Metrics**: Add value metrics such as sums or averages for quick data insights, with more metric types on the horizon.
 
-## 🛠️ Installation & Documentation
+## Installation & Documentation
 
 See our comprehensive [installation guide](https://hexdocs.pm/backpex/installation.html) for more information on how to install and configure Backpex in your Phoenix application.
 
 We also provide a detailed [documentation](https://hexdocs.pm/backpex) with guides on how to use Backpex and how to customize it to your needs.
 
-## 🤔 Learn More
+## Learn More
 
 - [What is Backpex?](https://hexdocs.pm/backpex/what-is-backpex.html)
 - [Why we built Backpex?](https://hexdocs.pm/backpex/what-is-backpex.html)
 - [Contribute to Backpex](https://hexdocs.pm/backpex/contribute-to-backpex.html)
 
-## 📜 License
+## License
 
 Backpex is open-source software, licensed under the [MIT License](https://github.com/naymspace/backpex/blob/main/LICENSE.md).
