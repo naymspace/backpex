@@ -7,15 +7,14 @@ An item action could be something like deleting a user, or sending an email to a
 There are multiple ways to perform an Item Action:
 - use the checkboxes in the first column of the resource table to select 1-n items and trigger the action later on
 - use an icon in the last column of the resource table to perform the Item Action for one item
-- use the corresponding icon in the show view to perform the Item Action for the corresponding item
 
-If you use the first method, you must trigger the item action using the button above the resource action. If you use the second or third method, the item action is triggered immediately.
+If you use the first method, you must trigger the item action using the button above the resource action. If you use the second method, the item action is triggered immediately.
 
 Backpex ships with a few built-in item actions, such as `delete`, `show`, and `edit`.
 
 ## Configuration
 
-To add an item action to a resource, you need to implement the [`item_actions/1`](Backpex.LiveResource.html#c:item_actions/1) callback in your resource configuration module. The function should return a list of maps, where each map represents an item action. It takes the default item actions as an argument. This way you can add your custom item actions to the default ones or even replace them.
+To add an item action to a resource, you need to implement the [`item_actions/1`](Backpex.LiveResource.html#c:item_actions/1) callback in your resource configuration module. The function has to return a list of maps, where each map represents an item action. It takes the default item actions as an argument. This way you can add your custom item actions to the default ones or even replace them.
 
 Let's say we want to add a `show` item action to navigate to the show view of a user and replace all other default item actions.
 
@@ -63,9 +62,16 @@ defmodule DemoWeb.ItemAction.Show do
 end
 ```
 
-Like in resource actions the `handle/3` function is called when the item action is triggered. The handle function receives the socket, the items that should be affected by the action, and the parameters that were submitted by the user.
+As with resource actions, the [handle/3](Backpex.ItemAction.html#c:handle/3) function is called when the item action is triggered. The handle function receives the socket, the items to be affected by the action, and the parameters passed by the user.
 
-In the above example, we define an item action to navigate to the show view of a user. The `handle/3` function is used to navigate to the show view of the user. The `Router.get_path/5` function is used to generate the path to the show view of the user.
+In the example above, we define an item action to navigate to a user's show view. The function [handle/3](Backpex.ItemAction.html#c:handle/3) is used to navigate to the corresponding view. The [get_path/6](Backpex.Router.html#get_path/6) function is used to generate the path needed.
+
+The callbacks [icon/2](Backpex.ItemAction.html#c:icon/2) and [label/2](Backpex.ItemAction.html#c:label/2) get the item on which the action is executed. You can use the item to customize this function depending on the item.
+
+> #### Important {: .warning}
+>
+> Note that the item in the [label/2](Backpex.ItemAction.html#c:label/2) callback is nil if the callback is used to display the label of the item action button above the resource table or the label of the confirmation dialog. The item is present if the callback is used to determine the tooltip for the item action icon.
+> 
 
 See `Backpex.ItemAction` for a list of all available callbacks.
 
