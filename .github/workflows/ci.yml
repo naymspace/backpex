@@ -42,7 +42,7 @@ jobs:
         uses: actions/cache@0c45773b623bea8c8e75f6c82b208c3cf94ea4f9 # v4
         id: restore-cache
         env:
-          MIX_LOCK_HASH: ${{ hashFiles('/mix.lock') }}
+          MIX_LOCK_HASH: ${{ hashFiles(format('{0}{1}', github.workspace, '/mix.lock')) }}
         with:
           path: |
             deps
@@ -151,7 +151,7 @@ jobs:
         env:
           OTP_VERSION: ${{ steps.beam.outputs.otp-version }}
           ELIXIR_VERSION: ${{ steps.beam.outputs.elixir-version }}
-          MIX_LOCK_HASH: ${{ hashFiles('/demo/mix.lock') }}
+          MIX_LOCK_HASH: ${{ hashFiles(format('{0}{1}', github.workspace, '/demo/mix.lock')) }}
         with:
           path: |
             deps
