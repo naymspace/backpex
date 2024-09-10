@@ -364,6 +364,7 @@ defmodule Backpex.Resource do
   * `item` (struct): The Ecto schema struct.
   * `attrs` (map): A map of parameters that will be passed to the `changeset_function`.
   * `repo` (module): The repository module.
+  * `fields` (keyword): The keyword list of fields defined in the live resource.
   * `changeset_function` (function): The function that transforms the item and parameters into a changeset.
   * `opts` (keyword list): A list of options for customizing the behavior of the insert function. The available options are:
     * `:assigns` (map, default: `%{}`): The assigns that will be passed to the changeset function.
@@ -371,14 +372,14 @@ defmodule Backpex.Resource do
     * `:assocs` (list, default: `[]`): A list of associations.
     * `:after_save` (function, default: `&{:ok, &1}`): A function to handle operations after the save.
   """
-  def update(item, attrs, repo, changeset_function, opts) do
+  def update(item, attrs, repo, fields, changeset_function, opts) do
     assigns = Keyword.get(opts, :assigns, %{})
     pubsub = Keyword.get(opts, :pubsub, nil)
     assocs = Keyword.get(opts, :assocs, [])
     after_save = Keyword.get(opts, :after_save, &{:ok, &1})
 
     item
-    |> change(attrs, changeset_function, assigns, assocs, nil, :update)
+    |> change(attrs, changeset_function, repo, fields, assigns, assocs, nil, :update)
     |> repo.update()
     |> after_save(after_save)
     |> broadcast("updated", pubsub)
@@ -418,6 +419,7 @@ defmodule Backpex.Resource do
   * `item` (struct): The Ecto schema struct.
   * `attrs` (map): A map of parameters that will be passed to the `changeset_function`.
   * `repo` (module): The repository module.
+  * `fields` (keyword): The keyword list of fields defined in the live resource.
   * `changeset_function` (function): The function that transforms the item and parameters into a changeset.
   * `opts` (keyword list): A list of options for customizing the behavior of the insert function. The available options are:
     * `:assigns` (map, default: `%{}`): The assigns that will be passed to the changeset function.
@@ -425,14 +427,14 @@ defmodule Backpex.Resource do
     * `:assocs` (list, default: `[]`): A list of associations.
     * `:after_save` (function, default: `&{:ok, &1}`): A function to handle operations after the save.
   """
-  def insert(item, attrs, repo, changeset_function, opts) do
+  def insert(item, attrs, repo, fields, changeset_function, opts) do
     assigns = Keyword.get(opts, :assigns, %{})
     pubsub = Keyword.get(opts, :pubsub, nil)
     assocs = Keyword.get(opts, :assocs, [])
     after_save = Keyword.get(opts, :after_save, &{:ok, &1})
 
     item
-    |> change(attrs, changeset_function, assigns, assocs, nil, :insert)
+    |> change(attrs, changeset_function, repo, fields, assigns, assocs, nil, :insert)
     |> repo.insert()
     |> after_save(after_save)
     |> broadcast("created", pubsub)
@@ -446,16 +448,27 @@ defmodule Backpex.Resource do
   * `item`: The initial data structure to be changed.
   * `attrs`: A map of attributes that will be used to modify the item. These attributes are passed to the changeset function.
   * `changeset_function`: A function used to generate the changeset. This function is usually defined elsewhere in your codebase and should follow the changeset Ecto convention.
+  * `repo` (module): The repository module.
+  * `fields` (keyword): The keyword list of fields defined in the live resource.
   * `assigns`: The assigns that will be passed to the changeset function.
   * `assocs` (optional, default `[]`): A list of associations that should be put into the changeset.
   * `target` (optional, default `nil`): The target to be passed to the changeset function.
   * `action` (optional, default `:validate`): An atom indicating the action to be performed on the changeset.
   """
-  def change(item, attrs, changeset_function, assigns, assocs \\ [], target \\ nil, action \\ :validate) do
+  def change(item, attrs, changeset_function, repo, fields, assigns, assocs \\ [], target \\ nil, action \\ :validate) do
+    metadata = LiveResource.build_changeset_metadata(assigns, target)
+
     Ecto.Changeset.change(item)
     # |> put_assocs(assocs)
-    |> LiveResource.call_changeset_function(changeset_function, attrs, assigns, target)
+    |> modify_changesets(attrs, metadata, repo, fields, assigns)
+    |> LiveResource.call_changeset_function(changeset_function, attrs, metadata)
     |> Map.put(:action, action)
+  end
+
+  defp modify_changesets(changeset, attrs, metadata, repo, fields, assigns) do
+    Enum.reduce(fields, changeset, fn {_name, field_options} = field, acc ->
+      field_options.module.modify_changeset(acc, attrs, metadata, repo, field, assigns)
+    end)
   end
 
   @doc """

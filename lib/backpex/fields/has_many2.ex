@@ -206,6 +206,36 @@ defmodule Backpex.Fields.HasMany2 do
   end
 
   @impl Backpex.Field
+  def modify_changeset(changeset, attrs, _metadata, repo, field, _assigns) do
+    {field_name, field_options} = field
+
+    assoc_live_resource = Map.get(field_options, :live_resource)
+
+    if is_nil(assoc_live_resource) do
+      raise """
+      The field #{field_name} does not have the required key :live_resource defined.
+      """
+    end
+
+    schema = assoc_live_resource.schema()
+
+    assoc_ids = Map.get(attrs, field_name |> to_string()) || Map.get(attrs, field_name, nil)
+
+    case assoc_ids do
+      [_head | _tail] ->
+        assocs = schema |> where([p], p.id in ^assoc_ids) |> repo.all()
+
+        Ecto.Changeset.put_assoc(changeset, field_name, assocs)
+
+      "" ->
+        Ecto.Changeset.put_assoc(changeset, field_name, [])
+
+      _other ->
+        changeset
+    end
+  end
+
+  @impl Backpex.Field
   def display_field({_name, field_options}), do: Map.get(field_options, :display_field)
 
   @impl Backpex.Field
