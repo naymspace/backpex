@@ -15,17 +15,10 @@ defmodule DemoWeb.ShortLinkLive do
   @impl Backpex.LiveResource
   def plural_name, do: "Short Links"
 
+  # short links might be saved by a user and should always keep working
   @impl Backpex.LiveResource
-  def can?(_assigns, :index, _item), do: true
-
-  @impl Backpex.LiveResource
+  def can?(_assigns, :delete, _item), do: false
   def can?(_assigns, _action, _item), do: true
-
-  @impl Backpex.LiveResource
-  def item_actions(default_actions) do
-    default_actions
-    |> Keyword.drop([:delete])
-  end
 
   @impl Backpex.LiveResource
   def fields do

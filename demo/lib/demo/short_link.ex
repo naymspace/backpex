@@ -21,7 +21,7 @@ defmodule Demo.ShortLink do
   def changeset(short_link, attrs, _metadata \\ []) do
     short_link
     |> cast(attrs, @required_fields)
-    |> cast_assoc(:product, with: &Product.changeset/3)
+    |> cast_assoc(:product, with: &Demo.Product.changeset/2)
     |> add_short_key()
     |> validate_required(@required_fields)
   end
