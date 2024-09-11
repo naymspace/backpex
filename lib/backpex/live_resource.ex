@@ -594,8 +594,6 @@ defmodule Backpex.LiveResource do
         assign(socket, :items, list_items(socket, init_order, &item_query/3))
       end
 
-      defp primary_key(assigns, item), do: Map.get(item, assigns.primary_key_field)
-
       defp maybe_assign_metrics(socket) do
         %{
           assigns:
@@ -928,6 +926,8 @@ defmodule Backpex.LiveResource do
       def get_primary_key_field, do: @primary_key_field
 
       defp primary_key(item), do: Map.get(item, @primary_key_field)
+
+      defp primary_key(assigns, item), do: Map.get(item, assigns.primary_key_field)
 
       defp update_item(socket, %{id: id} = _item) do
         %{assigns: %{live_action: live_action, repo: repo, schema: schema} = assigns} = socket

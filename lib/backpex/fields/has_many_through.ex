@@ -43,13 +43,13 @@ defmodule Backpex.Fields.HasManyThrough do
   The field requires a [`Ecto.Schema.has_many/3`](https://hexdocs.pm/ecto/Ecto.Schema.html#has_many/3) relation with a mandatory `through` option in the main schema. Any extra column in the pivot table besides the relational id's must be mapped in the `pivot_fields` option or given a default value.
   """
 
-  alias Backpex.Ecto.EctoUtils
   use BackpexWeb, :field
 
   import Ecto.Query
   import Backpex.HTML.Layout, only: [modal: 1]
   import PhoenixHTMLHelpers.Form, only: [hidden_inputs_for: 1]
 
+  alias Backpex.Ecto.EctoUtils
   alias Backpex.LiveResource
   alias Ecto.Changeset
 

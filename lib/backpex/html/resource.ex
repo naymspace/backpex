@@ -114,8 +114,6 @@ defmodule Backpex.HTML.Resource do
       not LiveResource.can?(assigns, :edit, item, live_resource) or
         Backpex.Field.readonly?(field_options, assigns)
 
-    primary_key = Map.get(item, live_resource.get_primary_key_field())
-
     assigns =
       assigns
       |> assign(:field, field)
@@ -123,7 +121,7 @@ defmodule Backpex.HTML.Resource do
       |> assign(:value, Map.get(item, name))
       |> assign(:type, :index)
       |> assign(:readonly, readonly)
-      |> assign(:primary_key, primary_key)
+      |> assign(:primary_key, Map.get(item, live_resource.get_primary_key_field()))
 
     ~H"""
     <.live_component
