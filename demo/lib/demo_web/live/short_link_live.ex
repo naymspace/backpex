@@ -1,4 +1,6 @@
 defmodule DemoWeb.ShortLinkLive do
+  use DemoWeb, :verified_routes
+
   use Backpex.LiveResource,
     layout: {DemoWeb.Layouts, :admin},
     schema: Demo.ShortLink,
@@ -19,6 +21,11 @@ defmodule DemoWeb.ShortLinkLive do
   @impl Backpex.LiveResource
   def can?(_assigns, :delete, _item), do: false
   def can?(_assigns, _action, _item), do: true
+
+  def return_to(_socket, _assigns, :edit, _item) do
+    # since the primary key might be updated, we go to the index page
+    ~p"/admin/short-links"
+  end
 
   @impl Backpex.LiveResource
   def fields do
