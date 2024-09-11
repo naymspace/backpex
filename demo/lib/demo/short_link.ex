@@ -16,12 +16,12 @@ defmodule Demo.ShortLink do
     timestamps()
   end
 
-  @required_fields ~w[short_key url product_id]a
+  @required_fields ~w[short_key url]a
 
-  def changeset(short_link, attrs, metadata \\ []) do
+  def changeset(short_link, attrs, _metadata \\ []) do
     short_link
     |> cast(attrs, @required_fields)
-    |> cast_assoc(:product, with: &Product.changeset/2)
+    |> cast_assoc(:product, with: &Product.changeset/3)
     |> add_short_key()
     |> validate_required(@required_fields)
   end
