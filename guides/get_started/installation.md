@@ -2,7 +2,62 @@
 
 The following guide will help you to install Backpex in your Phoenix application. We will guide you through the installation process and show you how to create a simple resource.
 
-Make sure you meet the [prerequisites](prerequisites.md) before you start the installation.
+## Prerequisites
+
+Backpex integrates seamlessly with your existing Phoenix LiveView application, but there are a few prerequisites you need to meet before you can start using it.
+
+### Phoenix LiveView
+
+Backpex is built on top of Phoenix LiveView, so you need to have Phoenix LiveView installed in your application. If you generate a new Phoenix application using the latest version of the `mix phx.new` generator, Phoenix LiveView is included by default.
+
+### Alpine.js
+
+Backpex uses [Alpine.js](https://alpinejs.dev/) for some interactivity. Make sure you have Alpine.js installed in your application.
+
+You can install Alpine.js by installing it via npm:
+
+```bash
+cd assets && npm install alpinejs
+```
+
+Then, import Alpine.js in your `app.js` file, start it and adjust your LiveView configuration:
+
+```javascript
+import Alpine from "alpinejs";
+
+window.Alpine = Alpine;
+Alpine.start();
+
+const liveSocket = new LiveSocket('/live', Socket, {
+  // add this
+  dom: {
+    onBeforeElUpdated (from, to) {
+      if (from._x_dataStack) {
+        window.Alpine.clone(from, to)
+      }
+    },
+  },
+  params: { _csrf_token: csrfToken },
+})
+```
+
+### Tailwind CSS
+
+Backpex uses Tailwind CSS for styling. Make sure you have Tailwind CSS installed in your application. You can install Tailwind CSS by following the [official installation guide](https://tailwindcss.com/docs/installation). If you generate a new Phoenix application using the latest version of the `mix phx.new` generator, Tailwind CSS is included by default.
+
+### daisyUI
+
+Backpex is styled using daisyUI. Make sure you have daisyUI installed in your application. You can install daisyUI by following the [official installation guide](https://daisyui.com/docs/install/).
+
+### Ecto
+
+Backpex currently depends on Ecto as the database layer. Make sure you have a running Ecto repository in your application.
+
+> #### Warning {: .warning}
+>
+> Backpex requires an `id` field in your database schema. We tested Backpex with UUID (binary_id) and integer (bigserial) primary keys.
+
+If you meet all these prerequisites, you are ready to install and configure Backpex in your Phoenix application. See our [installation guide](guides/get_started/installation.md) for more information on how to install and configure Backpex.
 
 ## Add to list of dependencies
 
@@ -272,7 +327,7 @@ So if you have this in your `root.html.heex`.
 
 ```html
 <body class="bg-white">
-</body> 
+</body>
 ```
 
 You should remove the `bg-white` class.
@@ -281,9 +336,11 @@ If you need this color on your body tag to style your application, consider usin
 
 ## Set daisyUI theme
 
-Backpex supports daisyUI themes, to use them you need to do two things:
+Backpex supports daisyUI themes. The following steps will guide you through setting up daisyUI themes in your application and optionally adding a theme selector to your layout.
 
-1. Add the themes to your application.
+**1. Add the themes to your application.**
+
+First, you need to add the themes to your `tailwind.config.js` file. You can add the themes to the `daisyui` key in the configuration file. The following example shows how to add the `light`, `dark`, and `cyberpunk` themes to your application.
 
 ```js
 // tailwind.config.js
@@ -297,29 +354,158 @@ module.exports = {
           'primary-content': 'white',
           secondary: '#f39325',
           'secondary-content': 'white'
-        },
-        dark: {
-          ...require('daisyui/src/theming/themes').dark
-        },
-        cyberpunk: {
-          ...require('daisyui/src/theming/themes').cyberpunk
         }
-      }
+      },
+        "dark",
+        "cyberpunk"
     ]
   },
   ...
 }
 ```
 
-The full list of themes can be found at the [daisyUI](https://daisyui.com/docs/themes/) website.
+The full list of themes can be found at the [daisyUI website](https://daisyui.com/docs/themes/).
 
-2. Explicitly set the daisyUI theme in your layout.
+**2. Set the assign and the default daisyUI theme in your layout.**
+
+We fetch the theme from the assigns and set the `data-theme` attribute on the `html` tag. If no theme is set, we default to the `light` theme.
+
+```elixir
+# root.html.heex
+<html data-theme={assigns[:theme] || "light"}>
+  ...
+</html>
+```
+
+If you just want to use a single theme, you can set the `data-theme` attribute to the theme name. You can skip the next steps and are done with the theme setup.
 
 ```elixir
 # root.html.heex
 <html data-theme="light">
   ...
 </html>
+```
+
+**3. Add `Backpex.ThemeSelectorPlug` to the pipeline in the router**
+
+To add the saved theme to the assigns, you can add the `Backpex.ThemeSelectorPlug` to the pipeline in your router. This plug will fetch the selected theme from the session and put it in the assigns.
+
+```elixir
+# router.ex
+  pipeline :browser do
+    ...
+    # Add this plug
+    plug Backpex.ThemeSelectorPlug
+  end
+```
+
+**4. Add the theme selector component to the app shell**
+
+You can add a theme selector to your layout to allow users to change the theme. The following example shows how to add a theme selector to the `admin.html.heex` layout. The list of themes should match the themes you added to your `tailwind.config.js` file.
+
+```elixir
+# admin.html.heex
+<Backpex.HTML.Layout.app_shell fluid={@fluid?}>
+  <:topbar>
+    <Backpex.HTML.Layout.topbar_branding />
+    # Add this
+    <Backpex.HTML.Layout.theme_selector
+      socket={@socket}
+      themes={[
+        {"Light", "light"},
+        {"Dark", "dark"},
+        {"Cyberpunk", "cyberpunk"}
+      ]}
+    />
+    <Backpex.HTML.Layout.topbar_dropdown>
+      <:label>
+        <label tabindex="0" class="btn btn-square btn-ghost">
+          <.icon name="hero-user" class="h-8 w-8" />
+        </label>
+      </:label>
+      <li>
+        <.link navigate={~p"/"} class="flex justify-between text-red-600 hover:bg-gray-100">
+          <p>Logout</p>
+          <.icon name="hero-arrow-right-on-rectangle" class="h-5 w-5" />
+        </.link>
+      </li>
+    </Backpex.HTML.Layout.topbar_dropdown>
+  </:topbar>
+  <:sidebar>
+    <Backpex.HTML.Layout.sidebar_item current_url={@current_url} navigate={~p"/admin/posts"}>
+      <.icon name="hero-book-open" class="h-5 w-5" /> Posts
+    </Backpex.HTML.Layout.sidebar_item>
+  </:sidebar>
+  <Backpex.HTML.Layout.flash_messages flash={@flash} />
+  <%= @inner_content %>
+</Backpex.HTML.Layout.app_shell>
+```
+
+**5. Add a hook to persist the selected theme**
+
+To persist the selected theme, you can add a hook to your `app.js` file. This hook will listen for the `backpex:theme-change` event and store the selected theme in the session and in the local storage. The hook will also send a request to the server to store the selected theme in the session.
+
+```js
+// app.js
+// We want this to run as soon as possible to minimize
+// flashes with the old theme in some situations
+const storedTheme = window.localStorage.getItem('backpexTheme')
+if (storedTheme != null) {
+  document.documentElement.setAttribute('data-theme', storedTheme)
+}
+
+const Hooks = {}
+
+Hooks.BackpexThemeSelector = {
+  mounted () {
+    const form = document.querySelector('#backpex-theme-selector-form')
+    const storedTheme = window.localStorage.getItem('backpexTheme')
+
+    // Marking current theme as active
+    if (storedTheme != null) {
+      const activeThemeRadio = form.querySelector(
+        `input[name='theme-selector'][value='${storedTheme}']`
+      )
+      activeThemeRadio.checked = true
+    }
+
+    // Event listener that handles the theme changes and store
+    // the selected theme in the session and also in localStorage
+    window.addEventListener('backpex:theme-change', async (event) => {
+      const cookiePath = form.dataset.cookiePath
+      const selectedTheme = form.querySelector(
+        'input[name="theme-selector"]:checked'
+      )
+      if (selectedTheme) {
+        window.localStorage.setItem('backpexTheme', selectedTheme.value)
+        document.documentElement.setAttribute(
+          'data-theme',
+          selectedTheme.value
+        )
+        await fetch(cookiePath, {
+          body: `select_theme=${selectedTheme.value}`,
+          method: 'POST',
+          headers: {
+            'Content-type': 'application/x-www-form-urlencoded',
+            'x-csrf-token': csrfToken
+          }
+        })
+      }
+    })
+  }
+}
+
+let liveSocket = new LiveSocket("/live", Socket, {
+  hooks: Hooks,
+  dom: {
+    onBeforeElUpdated (from, to) {
+      if (from._x_dataStack) {
+        window.Alpine.clone(from, to);
+      }
+    },
+  },
+  params: { _csrf_token: csrfToken },
+});
 ```
 
 ## Remove `@tailwindcss/forms` plugin

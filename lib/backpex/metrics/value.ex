@@ -34,7 +34,7 @@ defmodule Backpex.Metrics.Value do
 
   use BackpexWeb, :metric
 
-  attr(:metric, :any, required: true, doc: "the metric to be rendered")
+  attr :metric, :any, required: true, doc: "the metric to be rendered"
 
   @impl Backpex.Metric
   def render(assigns) do

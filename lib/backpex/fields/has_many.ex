@@ -270,7 +270,7 @@ defmodule Backpex.Fields.HasMany do
 
   @impl Phoenix.LiveComponent
   def handle_event("search", params, socket) do
-    search_input = get_in(params, ["change", "#{socket.assigns.name}_search"])
+    search_input = Map.get(params, "change[#{socket.assigns.name}]_search")
 
     socket =
       socket

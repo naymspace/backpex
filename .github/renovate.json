@@ -1,0 +1,15 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": [
+    "config:best-practices",
+    ":disableRateLimiting",
+    "github>pehbehbeh/renovate-config//workarounds/mixGitVersioning",
+    "github>pehbehbeh/renovate-config//customManagers/hexEsbuild",
+    "github>pehbehbeh/renovate-config//customManagers/hexTailwind",
+    ":reviewer(krns)"
+  ],
+  "labels": [
+    "dependencies",
+    "{{categories}}"
+  ]
+}

@@ -138,7 +138,12 @@ defmodule DemoWeb.PostLive do
           _assigns ->
             true
         end,
-        searchable: true
+        searchable: true,
+        render: fn assigns ->
+          ~H"""
+          <p><%= Number.Delimit.number_to_delimited(@value, precision: 0, delimiter: ".") %></p>
+          """
+        end
       },
       user: %{
         module: Backpex.Fields.BelongsTo,
@@ -185,10 +190,19 @@ defmodule DemoWeb.PostLive do
       total_likes: %{
         module: Backpex.Metrics.Value,
         label: "Total likes",
-        class: "w-1/3",
+        class: "lg:w-1/4",
         select: dynamic([p], sum(p.likes)),
         format: fn value ->
           Integer.to_string(value) <> " likes"
+        end
+      },
+      published_posts: %{
+        module: Backpex.Metrics.Value,
+        label: "Published Posts",
+        class: "lg:w-1/4",
+        select: dynamic([p], count(fragment("CASE WHEN ? = TRUE THEN 1 ELSE NULL END", p.published))),
+        format: fn value ->
+          Integer.to_string(value)
         end
       }
     ]

@@ -175,7 +175,7 @@ defmodule Backpex.Fields.MultiSelect do
   def handle_event("search", params, socket) do
     %{assigns: %{name: name, field_options: field_options} = assigns} = socket
 
-    search_input = get_in(params, ["change", "#{name}_search"])
+    search_input = Map.get(params, "change[#{name}]_search")
 
     options =
       field_options.options.(assigns)
