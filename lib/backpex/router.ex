@@ -134,7 +134,7 @@ defmodule Backpex.Router do
     id_field = module.get_primary_key_field()
 
     if Map.has_key?(params_or_item, id_field) do
-      id = params_or_item |> Map.get(id_field) |> to_string() |> URI.encode()
+      id = params_or_item |> Map.get(id_field) |> to_string() |> URI.encode_www_form()
 
       put_route_params(route_path, Map.put(params, "backpex_id", maybe_to_string(id)))
     else
@@ -179,6 +179,8 @@ defmodule Backpex.Router do
       "/123/events/xyz/show"
       iex> Backpex.Router.put_route_params("/:param1/events/:id/edit", %{"param1" => "123", "id" => "xyz"})
       "/123/events/xyz/edit"
+      iex> Backpex.Router.put_route_params("/:param1/events/:id/edit", %{"param1" => "123", "id" => "hällö / world"})
+      "/123/events/h%C3%A4ll%C3%B6+%2F+world/edit"
       iex> Backpex.Router.put_route_params("/events", %{"param1" => "123", "param2" => "xyz"})
       "/events"
       iex> Backpex.Router.put_route_params("/events", %{})
@@ -189,7 +191,7 @@ defmodule Backpex.Router do
     |> String.split("/")
     |> Enum.reduce("", fn
       "", acc -> acc
-      ":" <> param, acc -> acc <> "/#{params[param]}"
+      ":" <> param, acc -> acc <> "/#{URI.encode_www_form(params[param])}"
       path, acc -> acc <> "/#{path}"
     end)
   end
