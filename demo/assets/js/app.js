@@ -5,7 +5,6 @@ import * as Sentry from '@sentry/browser'
 import topbar from 'topbar'
 import { Socket } from 'phoenix'
 import { LiveSocket } from 'phoenix_live_view'
-import BackpexHasMany from './backpexHasMany.js'
 
 /**
  * Alpine
@@ -33,13 +32,11 @@ window.addEventListener('phx:page-loading-stop', function (info) {
   topbar.hide()
 })
 
-const Hooks = {
-  BackpexHasMany
-}
-
 /**
  * theme selector
  */
+
+const Hooks = {}
 
 // We want this to run as soon as possible to minimize
 // flashes with the old theme in some situations
@@ -48,7 +45,7 @@ if (storedTheme != null) {
   document.documentElement.setAttribute('data-theme', storedTheme)
 }
 Hooks.BackpexThemeSelector = {
-  mounted() {
+  mounted () {
     const form = document.querySelector('#backpex-theme-selector-form')
     const storedTheme = window.localStorage.getItem('backpexTheme')
 
@@ -86,8 +83,6 @@ Hooks.BackpexThemeSelector = {
   }
 }
 
-console.log(Hooks)
-
 /**
  * phoenix_live_view
  */
@@ -95,12 +90,12 @@ const csrfToken = document.querySelector("meta[name='csrf-token']").getAttribute
 
 const liveSocket = new LiveSocket('/live', Socket, {
   dom: {
-    onBeforeElUpdated(from, to) {
+    onBeforeElUpdated (from, to) {
       if (from._x_dataStack) {
         window.Alpine.clone(from, to)
       }
     },
-    onNodeAdded(node) {
+    onNodeAdded (node) {
       // Mimic autofocus for dynamically inserted elements
       if (node.nodeType === window.Node.ELEMENT_NODE && node.hasAttribute('autofocus')) {
         node.focus()
