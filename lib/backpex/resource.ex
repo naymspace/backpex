@@ -459,7 +459,7 @@ defmodule Backpex.Resource do
     metadata = LiveResource.build_changeset_metadata(assigns, target)
 
     Ecto.Changeset.change(item)
-    # |> put_assocs(assocs)
+    |> put_assocs(assocs)
     |> before_changesets(attrs, metadata, repo, fields, assigns)
     |> LiveResource.call_changeset_function(changeset_function, attrs, metadata)
     |> Map.put(:action, action)
