@@ -32,18 +32,18 @@ defmodule DemoWeb.ShortLinkLive do
     [
       short_key: %{
         module: Backpex.Fields.Text,
-        label: "URL Suffix",
+        label: "URL Suffix"
       },
       url: %{
         module: Backpex.Fields.URL,
         label: "URL",
-        placeholder: "https://example.com",
+        placeholder: "https://example.com"
       },
       product: %{
         module: Backpex.Fields.BelongsTo,
         label: "Product",
         source: Demo.Product,
-        display_field: :name,
+        display_field: :name
       }
     ]
   end

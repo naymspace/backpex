@@ -71,7 +71,7 @@ defmodule Demo.Factory do
       manufacturer: "https://example.com/",
       price: Enum.random(50..5_000_000),
       suppliers: build_list(Enum.random(0..5), :supplier),
-      short_links: build_list(Enum.random(0..5), :short_link),
+      short_links: build_list(Enum.random(0..5), :short_link)
     }
   end
 
@@ -81,7 +81,6 @@ defmodule Demo.Factory do
       url: "https://example.com/"
     }
   end
-
 
   def address_factory do
     %Address{
