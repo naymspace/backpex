@@ -64,7 +64,7 @@ defmodule Backpex.Field do
   @doc """
   TODO
   """
-  @callback modify_changeset(
+  @callback before_changeset(
               changeset :: Phoenix.LiveView.Socket.t(),
               attrs :: map(),
               metadata :: keyword(),
@@ -161,7 +161,7 @@ defmodule Backpex.Field do
       end
 
       @impl Backpex.Field
-      def modify_changeset(changeset, _attrs, _metadata, _repo, _field, _assigns), do: changeset
+      def before_changeset(changeset, _attrs, _metadata, _repo, _field, _assigns), do: changeset
     end
   end
 

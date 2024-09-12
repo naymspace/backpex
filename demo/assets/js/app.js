@@ -48,7 +48,7 @@ if (storedTheme != null) {
   document.documentElement.setAttribute('data-theme', storedTheme)
 }
 Hooks.BackpexThemeSelector = {
-  mounted () {
+  mounted() {
     const form = document.querySelector('#backpex-theme-selector-form')
     const storedTheme = window.localStorage.getItem('backpexTheme')
 
@@ -95,12 +95,12 @@ const csrfToken = document.querySelector("meta[name='csrf-token']").getAttribute
 
 const liveSocket = new LiveSocket('/live', Socket, {
   dom: {
-    onBeforeElUpdated (from, to) {
+    onBeforeElUpdated(from, to) {
       if (from._x_dataStack) {
         window.Alpine.clone(from, to)
       }
     },
-    onNodeAdded (node) {
+    onNodeAdded(node) {
       // Mimic autofocus for dynamically inserted elements
       if (node.nodeType === window.Node.ELEMENT_NODE && node.hasAttribute('autofocus')) {
         node.focus()

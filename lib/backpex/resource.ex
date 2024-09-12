@@ -460,14 +460,14 @@ defmodule Backpex.Resource do
 
     Ecto.Changeset.change(item)
     # |> put_assocs(assocs)
-    |> modify_changesets(attrs, metadata, repo, fields, assigns)
+    |> before_changesets(attrs, metadata, repo, fields, assigns)
     |> LiveResource.call_changeset_function(changeset_function, attrs, metadata)
     |> Map.put(:action, action)
   end
 
-  defp modify_changesets(changeset, attrs, metadata, repo, fields, assigns) do
+  defp before_changesets(changeset, attrs, metadata, repo, fields, assigns) do
     Enum.reduce(fields, changeset, fn {_name, field_options} = field, acc ->
-      field_options.module.modify_changeset(acc, attrs, metadata, repo, field, assigns)
+      field_options.module.before_changeset(acc, attrs, metadata, repo, field, assigns)
     end)
   end
 
