@@ -62,15 +62,15 @@ defmodule DemoWeb.ItemAction.Show do
 end
 ```
 
-As with resource actions, the [handle/3](Backpex.ItemAction.html#c:handle/3) function is called when the item action is triggered. The handle function receives the socket, the items to be affected by the action, and the parameters passed by the user.
+As with resource actions, the `c:Backpex.ItemAction.handle/3` function is called when the item action is triggered. The handle function receives the socket, the items to be affected by the action, and the parameters passed by the user.
 
-In the example above, we define an item action to navigate to a user's show view. The function [handle/3](Backpex.ItemAction.html#c:handle/3) is used to navigate to the corresponding view. The [get_path/6](Backpex.Router.html#get_path/6) function is used to generate the path needed.
+In the example above, we define an item action to navigate to a user's show view. The function `c:Backpex.ItemAction.handle/3` is used to navigate to the corresponding view. The `Backpex.Router.get_path/6` function is used to generate the path needed.
 
-The callbacks [icon/2](Backpex.ItemAction.html#c:icon/2) and [label/2](Backpex.ItemAction.html#c:label/2) get the item on which the action is executed. You can use the item to customize this function depending on the item.
+The callbacks `c:Backpex.ItemAction.icon/2` and `c:Backpex.ItemAction.label/2` get the item on which the action is executed. You can use the item to customize this function depending on the item.
 
 > #### Important {: .warning}
 >
-> Note that the item in the [label/2](Backpex.ItemAction.html#c:label/2) callback is nil if the callback is used to display the label of the item action button above the resource table or the label of the confirmation dialog. The item is present if the callback is used to determine the tooltip for the item action icon.
+> Note that the item in the `c:Backpex.ItemAction.label/2` callback is nil if the callback is used to display the label of the item action button above the resource table or the label of the confirmation dialog. The item is present if the callback is used to determine the tooltip for the item action icon.
 > 
 
 See `Backpex.ItemAction` for a list of all available callbacks.
@@ -191,8 +191,8 @@ defmodule DemoWeb.ItemAction.SoftDelete do
 end
 ```
 
-In the above example, we define an item action to soft delete users. The item action will also ask the user for a reason before the user can be deleted. The user needs to fill out the reason field before the item action can be performed. The reason field is defined in the `fields/0` function. The `changeset/2` function is used to validate the user input.
+In the above example, we define an item action to soft delete users. The item action will also ask the user for a reason before the user can be deleted. The user needs to fill out the reason field before the item action can be performed. The reason field is defined in the `c:Backpex.ItemAction.fields/0` function. The `c:Backpex.ItemAction.changeset/3` function is used to validate the user input.
 
-The `handle/3` function is called when the item action is triggered. The handle function receives the socket, the items that should be affected by the action, and the parameters that were submitted by the user.
+The `c:Backpex.ItemAction.handle/3` function is called when the item action is triggered. The handle function receives the socket, the items that should be affected by the action, and the parameters that were submitted by the user.
 
-By default an item action is triggered immediately when the user clicks on the corresponding icon in the resource table or in the show view, but an item actions also supports a confirmation dialog. To enable the confirmation dialog you need to implement the `confirm_label/1` function and return a string that will be displayed in the confirmation dialog. The confirmation dialog will be displayed when the user clicks on the icon in the resource table.
+By default an item action is triggered immediately when the user clicks on the corresponding icon in the resource table or in the show view, but an item actions also supports a confirmation dialog. To enable the confirmation dialog you need to implement the `c:Backpex.ItemAction.confirm_label/1` function and return a string that will be displayed in the confirmation dialog. The confirmation dialog will be displayed when the user clicks on the icon in the resource table.
