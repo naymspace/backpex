@@ -442,7 +442,7 @@ defmodule Backpex.Fields.HasMany do
   defp assign_form_errors(assigns) do
     %{form: form, name: name, field_options: field_options} = assigns
 
-    assign(assigns, :errors, Backpex.HTML.Form.translate_form_errors(form[name], field_options))
+    assign(assigns, :errors, translate_form_errors(form[name], field_options))
   end
 
   defp query_limit(field_options), do: Map.get(field_options, :query_limit, 10)
