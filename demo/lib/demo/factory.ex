@@ -7,10 +7,10 @@ defmodule Demo.Factory do
   alias Demo.Category
   alias Demo.Post
   alias Demo.Product
+  alias Demo.ShortLink
   alias Demo.Supplier
   alias Demo.Tag
   alias Demo.User
-  alias Demo.ShortLink
 
   def user_factory do
     %User{
