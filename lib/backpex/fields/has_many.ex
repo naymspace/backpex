@@ -337,7 +337,7 @@ defmodule Backpex.Fields.HasMany3 do
     |> assign(:show_more, show_more)
   end
 
-  defp options(assigns, opts \\ []) do
+  defp options(assigns, opts) do
     %{repo: repo, schema: schema, field: field, field_options: field_options, name: name} = assigns
 
     %{queryable: queryable} = schema.__schema__(:association, name)
