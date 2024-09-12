@@ -1,5 +1,5 @@
 # credo:disable-for-this-file Credo.Check.Design.DuplicatedCode
-defmodule Backpex.Fields.HasMany3 do
+defmodule Backpex.Fields.HasMany do
   @moduledoc """
   A field for handling a `has_many` or `many_to_many` relation.
 
