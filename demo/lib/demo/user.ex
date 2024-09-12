@@ -40,8 +40,6 @@ defmodule Demo.User do
   @required_fields ~w[username first_name last_name role]a
   @optional_fields ~w[avatar deleted_at permissions age]a
 
-  alias Demo.Repo
-  import Ecto.Query
 
   @doc false
   def changeset(user, attrs, _metadata \\ []) do
