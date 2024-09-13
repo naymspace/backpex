@@ -424,68 +424,55 @@ defmodule Backpex.Fields.HasMany do
     |> repo.aggregate(:count, :id)
   end
 
-  defp assign_selected(socket) do
-    %{
-      assigns:
-        %{
-          form: form,
-          field: field,
-          name: name,
-          schema: schema,
-          repo: repo,
-          options_count: options_count,
-          field_options: field_options,
-          options: options
-        } = assigns
-    } = socket
-
-    %{queryable: queryable} = schema.__schema__(:association, name)
-
-    selected_ids = extract_selected_ids(form[name].value)
-
-    options_map = Map.new(options, fn {label, id} -> {id, {label, id}} end)
-
-    {selected_from_options, ids_to_fetch} =
-      Enum.reduce(selected_ids, {[], []}, fn id, {from_options, to_fetch} ->
-        case Map.get(options_map, id) do
-          nil -> {from_options, [id | to_fetch]}
-          item -> {[item | from_options], to_fetch}
-        end
-      end)
-
-    selected_from_db =
-      if Enum.empty?(ids_to_fetch) do
-        []
-      else
-        queryable
-        |> where([x], x.id in ^ids_to_fetch)
-        |> maybe_options_query(field_options, assigns)
-        |> select([x], {field(x, ^display_field_form(field)), x.id})
-        |> repo.all()
-      end
-
-    selected = selected_from_options ++ selected_from_db
+  def assign_selected(socket) do
+    selected_ids = extract_selected_ids(socket.assigns.form[socket.assigns.name].value)
+    selected_items = fetch_selected_items(socket, selected_ids)
 
     socket
-    |> assign(:selected, selected)
-    |> assign(:all_selected, length(selected) == options_count)
-    |> assign(:selected_ids, Enum.map(selected, &elem(&1, 1)))
+    |> assign(:selected, selected_items)
+    |> assign(:selected_ids, selected_ids)
+    |> assign(:all_selected, length(selected_items) == socket.assigns.options_count)
   end
 
-  defp extract_selected_ids(value) do
-    case value do
-      list when is_list(list) ->
-        Enum.reduce(list, [], fn
-          %Ecto.Changeset{data: %{id: id}, action: :update}, acc -> [id | acc]
-          %{id: id}, acc -> [id | acc]
-          entry, acc when is_binary(entry) -> [entry | acc]
-          _entry, acc -> acc
-        end)
+  defp fetch_selected_items(socket, selected_ids) do
+    %{queryable: queryable} = socket.assigns.schema.__schema__(:association, socket.assigns.name)
+    {from_options, to_fetch} = separate_selected_items(selected_ids, socket.assigns.options)
+    from_db = fetch_from_db(to_fetch, queryable, socket)
 
-      _other ->
-        []
-    end
+    from_options ++ from_db
   end
+
+  defp separate_selected_items(selected_ids, options) do
+    options_map = Map.new(options, fn {label, id} -> {id, {label, id}} end)
+
+    Enum.reduce(selected_ids, {[], []}, fn id, {from_options, to_fetch} ->
+      case Map.get(options_map, id) do
+        nil -> {from_options, [id | to_fetch]}
+        item -> {[item | from_options], to_fetch}
+      end
+    end)
+  end
+
+  defp fetch_from_db([], _queryable, _socket), do: []
+
+  defp fetch_from_db(ids_to_fetch, queryable, socket) do
+    queryable
+    |> where([x], x.id in ^ids_to_fetch)
+    |> maybe_options_query(socket.assigns.field_options, socket.assigns)
+    |> select([x], {field(x, ^display_field_form(socket.assigns.field)), x.id})
+    |> socket.assigns.repo.all()
+  end
+
+  defp extract_selected_ids(value) when is_list(value) do
+    Enum.reduce(value, [], fn
+      %Ecto.Changeset{data: %{id: id}, action: :update}, acc -> [id | acc]
+      %{id: id}, acc -> [id | acc]
+      entry, acc when is_binary(entry) -> [entry | acc]
+      _entry, acc -> acc
+    end)
+  end
+
+  defp extract_selected_ids(_value), do: []
 
   defp assign_form_errors(socket) do
     %{assigns: %{form: form, name: name, field_options: field_options}} = socket
