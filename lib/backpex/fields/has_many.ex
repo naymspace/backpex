@@ -8,14 +8,15 @@ defmodule Backpex.Fields.HasMany do
 
     * `:display_field` - The field of the relation to be used for searching, ordering and displaying values.
     * `:display_field_form` - Optional field to be used to display form values.
-    * `:live_resource` - The live resource of the association. Used to generate links navigating to the associations.
+    * `:live_resource` - The live resource of the association.
+    * `:link_assocs` - Whether to automatically generate links to the association items.
+      Defaults to true.
     * `:options_query` - Manipulates the list of available options in the multi select.
       Defaults to `fn (query, _field) -> query end` which returns all entries.
     * `:prompt` - The text to be displayed when no options are selected or function that receives the assigns.
       Defaults to "Select options...".
     * `:not_found_text` - The text to be displayed when no options are found.
       Defaults to "No options found".
-    * `:live_resource` - Optional live resource module used to generate links to the corresponding show view for the item.
     * `:query_limit` - Optional limit passed to the query to fetch new items. Set to `nil` to have no limit.
       Defaults to 10.
 
@@ -53,6 +54,10 @@ defmodule Backpex.Fields.HasMany do
     {:ok, socket}
   end
 
+  defp apply_action(socket, :index) do
+    assign_new(socket, :link_assocs, fn -> link_assocs(socket.assigns.field_options) end)
+  end
+
   defp apply_action(socket, :form) do
     %{assigns: %{field_options: field_options} = assigns} = socket
 
@@ -88,6 +93,7 @@ defmodule Backpex.Fields.HasMany do
             live_resource={@live_resource}
             live_action={@live_action}
             item={item}
+            link_assocs={@link_assocs}
           />
         </.intersperse>
       </div>
@@ -320,10 +326,18 @@ defmodule Backpex.Fields.HasMany do
   end
 
   defp assign_link(assigns) do
-    %{socket: socket, field_options: field_options, item: item, live_resource: live_resource, params: params} = assigns
+    %{
+      socket: socket,
+      field_options: field_options,
+      item: item,
+      live_resource: live_resource,
+      params: params,
+      link_assocs: link_assocs
+    } = assigns
 
     link =
-      if Map.has_key?(field_options, :live_resource) and LiveResource.can?(assigns, :show, item, live_resource) do
+      if link_assocs and Map.has_key?(field_options, :live_resource) and
+           LiveResource.can?(assigns, :show, item, live_resource) do
         Router.get_path(socket, Map.get(field_options, :live_resource), params, :show, item)
       else
         nil
@@ -492,6 +506,9 @@ defmodule Backpex.Fields.HasMany do
     end
   end
 
-  defp not_found_text(%{not_found_text: not_found_text} = _field), do: not_found_text
+  defp not_found_text(%{not_found_text: not_found_text} = _field_options), do: not_found_text
   defp not_found_text(_field_options), do: Backpex.translate("No options found")
+
+  defp link_assocs(%{link_assocs: link_assocs} = _field_options) when is_boolean(link_assocs), do: link_assocs
+  defp link_assocs(_field_options), do: true
 end
