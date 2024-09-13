@@ -57,8 +57,8 @@ defmodule Backpex.Fields.HasMany do
     %{assigns: %{field_options: field_options} = assigns} = socket
 
     socket
-    |> assign_new(:prompt, fn -> prompt(assigns, assigns.field_options) end)
-    |> assign_new(:not_found_text, fn -> not_found_text(assigns.field_options) end)
+    |> assign_new(:prompt, fn -> prompt(assigns, field_options) end)
+    |> assign_new(:not_found_text, fn -> not_found_text(field_options) end)
     |> assign_new(:search_input, fn -> "" end)
     |> assign_new(:offset, fn -> 0 end)
     |> assign_new(:options_count, fn -> count_options(assigns) end)
@@ -243,7 +243,7 @@ defmodule Backpex.Fields.HasMany do
     |> Map.get(:queryable)
   end
 
-  @impl Backpex.Fields
+  @impl Backpex.Field
   def before_changeset(changeset, attrs, _metadata, repo, field, assigns) do
     {field_name, field_options} = field
     validate_live_resource(field_name, field_options)
