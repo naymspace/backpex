@@ -28,7 +28,8 @@ defmodule DemoWeb.ItemActions.DuplicateTag do
   end
 
   @impl Backpex.ItemAction
-  def label(_assigns, _item), do: "Duplicate"
+  def label(_assigns, nil), do: "Duplicate"
+  def label(_assigns, item), do: "Duplicate #{item.name}"
 
   @impl Backpex.ItemAction
   def confirm(_assigns), do: "Please complete the form to duplicate the item."
