@@ -379,8 +379,10 @@ defmodule Backpex.Fields.HasMany do
     |> maybe_search_query(schema_name, field_options, display_field, Keyword.get(opts, :search))
     |> maybe_offset_query(Keyword.get(opts, :offset))
     |> maybe_limit_query(Keyword.get(opts, :limit))
-    |> select([x], {field(x, ^display_field_form(field)), x.id})
     |> repo.all()
+    |> Enum.map(fn item ->
+      {Map.get(item, display_field_form(field)), item.id}
+    end)
   end
 
   defp maybe_limit_query(query, nil), do: query
@@ -459,8 +461,10 @@ defmodule Backpex.Fields.HasMany do
     queryable
     |> where([x], x.id in ^ids_to_fetch)
     |> maybe_options_query(socket.assigns.field_options, socket.assigns)
-    |> select([x], {field(x, ^display_field_form(socket.assigns.field)), x.id})
     |> socket.assigns.repo.all()
+    |> Enum.map(fn item ->
+      {Map.get(item, display_field_form(socket.assigns.field)), item.id}
+    end)
   end
 
   defp extract_selected_ids(value) when is_list(value) do
