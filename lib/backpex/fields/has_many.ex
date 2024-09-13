@@ -235,51 +235,58 @@ defmodule Backpex.Fields.HasMany do
     |> Map.get(:queryable)
   end
 
-  @impl Backpex.Field
+  @impl Backpex.Fields
   def before_changeset(changeset, attrs, _metadata, repo, field, assigns) do
     {field_name, field_options} = field
+    validate_live_resource(field_name, field_options)
 
-    assoc_live_resource = Map.get(field_options, :live_resource)
-
-    if is_nil(assoc_live_resource) do
-      raise """
-      The field #{field_name} does not have the required key :live_resource defined.
-      """
-    end
-
-    schema = assoc_live_resource.schema()
+    schema = field_options.live_resource.schema()
     field_name_string = to_string(field_name)
 
-    new_assocs =
-      cond do
-        Map.has_key?(attrs, field_name_string <> "_select_all") ->
-          # It is important add an empty map to force the list to be always present in the changes.
-          # Otherwise the "select all" would not work if the item already contains all items.
-          [%{} | repo.all(schema)]
-
-        Map.has_key?(attrs, field_name_string <> "_deselect_all") ->
-          []
-
-        assoc_ids = Map.get(attrs, field_name_string) ->
-          case assoc_ids do
-            ids when is_list(ids) and ids != [] ->
-              schema
-              |> where([x], x.id in ^ids)
-              |> maybe_options_query(field_options, assigns)
-              |> repo.all()
-
-            "" ->
-              []
-
-            _ ->
-              nil
-          end
-      end
+    new_assocs = get_new_assocs(attrs, field_name_string, schema, repo, field_options, assigns)
 
     if is_nil(new_assocs) do
       changeset
     else
       Ecto.Changeset.put_assoc(changeset, field_name, new_assocs)
+    end
+  end
+
+  defp validate_live_resource(field_name, field_options) do
+    unless Map.has_key?(field_options, :live_resource) do
+      raise "The field #{field_name} does not have the required key :live_resource defined."
+    end
+  end
+
+  defp get_new_assocs(attrs, field_name_string, schema, repo, field_options, assigns) do
+    cond do
+      Map.has_key?(attrs, field_name_string <> "_select_all") ->
+        [%{} | repo.all(schema)]
+
+      Map.has_key?(attrs, field_name_string <> "_deselect_all") ->
+        []
+
+      assoc_ids = Map.get(attrs, field_name_string) ->
+        get_assocs_by_ids(assoc_ids, schema, repo, field_options, assigns)
+
+      true ->
+        nil
+    end
+  end
+
+  defp get_assocs_by_ids(assoc_ids, schema, repo, field_options, assigns) do
+    case assoc_ids do
+      ids when is_list(ids) and ids != [] ->
+        schema
+        |> where([x], x.id in ^ids)
+        |> maybe_options_query(field_options, assigns)
+        |> repo.all()
+
+      "" ->
+        []
+
+      _ ->
+        nil
     end
   end
 
