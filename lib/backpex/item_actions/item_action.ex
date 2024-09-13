@@ -6,7 +6,7 @@ defmodule Backpex.ItemAction do
   @doc """
   Action icon
   """
-  @callback icon(assigns :: map()) :: %Phoenix.LiveView.Rendered{}
+  @callback icon(assigns :: map(), item :: struct()) :: %Phoenix.LiveView.Rendered{}
 
   @doc """
   A list of fields to be displayed in the item action. See `Backpex.Field`. In addition you have to provide
@@ -53,7 +53,7 @@ defmodule Backpex.ItemAction do
   @doc """
   Action label (Show label on hover)
   """
-  @callback label(assigns :: map()) :: binary()
+  @callback label(assigns :: map(), item :: struct() | nil) :: binary()
 
   @doc """
   Confirm button label

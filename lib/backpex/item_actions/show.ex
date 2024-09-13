@@ -6,7 +6,7 @@ defmodule Backpex.ItemActions.Show do
   use BackpexWeb, :item_action
 
   @impl Backpex.ItemAction
-  def icon(assigns) do
+  def icon(assigns, _item) do
     ~H"""
     <Backpex.HTML.CoreComponents.icon
       name="hero-eye"
@@ -16,7 +16,7 @@ defmodule Backpex.ItemActions.Show do
   end
 
   @impl Backpex.ItemAction
-  def label(_assigns), do: Backpex.translate("Show")
+  def label(_assigns, _item), do: Backpex.translate("Show")
 
   @impl Backpex.ItemAction
   def handle(socket, [item | _items], _data) do
