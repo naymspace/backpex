@@ -278,7 +278,7 @@ defmodule Backpex.Fields.HasMany do
         [%{} | repo.all(schema)]
 
       Map.has_key?(attrs, field_name_string <> "_deselect_all") ->
-        []
+        [%{}]
 
       assoc_ids = Map.get(attrs, field_name_string) ->
         get_assocs_by_ids(assoc_ids, schema, repo, field_options, assigns)
