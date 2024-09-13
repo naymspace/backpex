@@ -446,6 +446,7 @@ defmodule Backpex.Resource do
 
   @doc """
   Applies a change to a given item by calling the specified changeset function.
+  In addition, puts the given assocs into the function and calls the `c:Backpex.Field.before_changeset/6` callback for each field.
 
   ## Parameters
 
