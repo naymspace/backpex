@@ -379,8 +379,7 @@ defmodule Backpex.Resource do
     after_save = Keyword.get(opts, :after_save, &{:ok, &1})
 
     item
-    |> before_changeset(attrs, repo, fields, assigns, assocs, nil)
-    |> change(attrs, changeset_function, assigns, nil, :update)
+    |> change(attrs, changeset_function, repo, fields, assigns, assocs: assocs, action: :update)
     |> repo.update()
     |> after_save(after_save)
     |> broadcast("updated", pubsub)
@@ -435,8 +434,7 @@ defmodule Backpex.Resource do
     after_save = Keyword.get(opts, :after_save, &{:ok, &1})
 
     item
-    |> before_changeset(attrs, repo, fields, assigns, assocs, nil)
-    |> change(attrs, changeset_function, assigns, nil, :insert)
+    |> change(attrs, changeset_function, repo, fields, assigns, assocs: assocs, action: :insert)
     |> repo.insert()
     |> after_save(after_save)
     |> broadcast("created", pubsub)
@@ -447,74 +445,53 @@ defmodule Backpex.Resource do
 
   ## Parameters
 
-  * `item_or_changeset`: The initial data structure to be changed.
+  * `item`: The initial data structure to be changed.
   * `attrs`: A map of attributes that will be used to modify the item. These attributes are passed to the changeset function.
   * `changeset_function`: A function used to generate the changeset. This function is usually defined elsewhere in your codebase and should follow the changeset Ecto convention.
   * `assigns`: The assigns that will be passed to the changeset function.
-  * `target` (optional, default `nil`): The target to be passed to the changeset function.
-  * `action` (optional, default `:validate`): An atom indicating the action to be performed on the changeset.
+  * `opts` (keyword list): A list of options for customizing the behavior of the change function. The available options are:
+    * `assocs` (optional, default `[]`): A list of associations that should be put into the changeset.
+    * `target` (optional, default `nil`): The target to be passed to the changeset function.
+    * `action` (optional, default `:validate`): An atom indicating the action to be performed on the changeset.
   """
-  def change(item_or_changeset, attrs, changeset_function, assigns, target \\ nil, action \\ :validate) do
-    metadata = LiveResource.build_changeset_metadata(assigns, target)
+  def change(item, attrs, changeset_function, repo, fields, assigns, opts \\ []) do
+    assocs = Keyword.get(opts, :assocs, [])
+    target = Keyword.get(opts, :target, nil)
+    action = Keyword.get(opts, :action, :validate)
+    metadata = build_changeset_metadata(assigns, target)
 
-    changeset =
-      case item_or_changeset do
-        %Ecto.Changeset{} ->
-          item_or_changeset
-
-        item ->
-          Ecto.Changeset.change(item)
-      end
-
-    changeset
+    item
+    |> Ecto.Changeset.change()
+    |> before_changesets(attrs, metadata, repo, fields, assigns)
+    |> put_assocs(assocs)
     |> LiveResource.call_changeset_function(changeset_function, attrs, metadata)
     |> Map.put(:action, action)
   end
 
-  @doc """
-  Calls `before_changeset` function for each field of the provided fields list and puts assocs.
-
-  ## Parameters
-
-  * `item_or_changeset`: The initial data structure to be changed.
-  * `attrs`: A map of attributes that will be used to modify the item. These attributes are passed to the changeset function.
-  * `repo` (module): The repository module.
-  * `fields` (keyword): The keyword list of fields defined in the live resource.
-  * `assigns`: The assigns that will be passed to the changeset function.
-  * `assocs` (optional, default `[]`): A list of associations that should be put into the changeset.
-  * `target` (optional, default `nil`): The target to be passed to the changeset function.
-  """
-
-  def before_changeset(item_or_changeset, attrs, repo, fields, assigns, assocs \\ [], target \\ nil) do
-    metadata = LiveResource.build_changeset_metadata(assigns, target)
-
-    changeset =
-      case item_or_changeset do
-        %Ecto.Changeset{} ->
-          item_or_changeset
-
-        item ->
-          Ecto.Changeset.change(item)
-      end
-
+  def before_changesets(changeset, attrs, metadata, repo, fields, assigns) do
     Enum.reduce(fields, changeset, fn {_name, field_options} = field, acc ->
       field_options.module.before_changeset(acc, attrs, metadata, repo, field, assigns)
     end)
-    |> put_assocs(assocs)
   end
 
-  @doc """
-  Updates an Ecto changeset with a list of associations. It takes an existing changeset and a list of associations, and it updates the changeset with each association using `Ecto.Changeset.put_assoc/3`.
-
-  ## Parameters
-
-  * `changeset`: The changeset that you want to update with new associations.
-  * `assocs` (keyword): A keyword list of associations to be added to the changeset. Each element should be a tuple with the association's key as the first element and the associated value as the second element.
-  """
-  def put_assocs(changeset, assocs) do
+  defp put_assocs(changeset, assocs) do
     Enum.reduce(assocs, changeset, fn {key, value}, acc ->
       Ecto.Changeset.put_assoc(acc, key, value)
     end)
+  end
+
+  @doc """
+  Builds metadata passed to changeset functions.
+
+  ## Parameters
+
+  * `assigns`: The assigns that will be passed to the changeset function.
+  * `target` (optional, default `nil`): The target to be passed to the changeset function.
+  """
+  def build_changeset_metadata(assigns, target \\ nil) do
+    Keyword.new()
+    |> Keyword.put(:assigns, assigns)
+    |> Keyword.put(:target, target)
   end
 
   @doc """

@@ -505,7 +505,7 @@ defmodule Backpex.LiveResource do
             } = assigns
         } = socket
 
-        metadata = Backpex.LiveResource.build_changeset_metadata(assigns)
+        metadata = Resource.build_changeset_metadata(assigns)
 
         changeset =
           Backpex.LiveResource.call_changeset_function(
@@ -677,7 +677,7 @@ defmodule Backpex.LiveResource do
         init_change = action.module.init_change(socket.assigns)
         changeset_function = &action.module.changeset/3
 
-        metadata = build_changeset_metadata(socket.assigns)
+        metadata = Resource.build_changeset_metadata(socket.assigns)
 
         changeset =
           init_change
@@ -1524,15 +1524,6 @@ defmodule Backpex.LiveResource do
   """
   def call_changeset_function(item, changeset_function, change, metadata) do
     changeset_function.(item, change, metadata)
-  end
-
-  @doc """
-  Build metadata passed to changeset function.
-  """
-  def build_changeset_metadata(assigns, target \\ nil) do
-    Keyword.new()
-    |> Keyword.put(:assigns, assigns)
-    |> Keyword.put(:target, target)
   end
 
   def maybe_put_empty_filter(%{} = filters, empty_filter_key) when filters == %{} do

@@ -91,8 +91,7 @@ defmodule Backpex.FormComponent do
 
     changeset =
       item_action_types
-      |> Resource.before_changeset(change, repo, fields, assigns, [], target)
-      |> Resource.change(change, changeset_function, assigns, target)
+      |> Resource.change(change, changeset_function, repo, fields, assigns, target: target)
 
     form = Phoenix.Component.to_form(changeset, as: :change)
 
@@ -119,8 +118,7 @@ defmodule Backpex.FormComponent do
 
     changeset =
       item
-      |> Resource.before_changeset(change, repo, fields, assigns, assocs, target)
-      |> Resource.change(change, changeset_function, assigns, target)
+      |> Resource.change(change, changeset_function, repo, fields, assigns, assocs: assocs, target: target)
 
     form = Phoenix.Component.to_form(changeset, as: :change)
 
@@ -328,8 +326,7 @@ defmodule Backpex.FormComponent do
 
     result =
       item
-      |> Backpex.Resource.before_changeset(params, repo, fields, assigns, assocs)
-      |> Backpex.Resource.change(params, changeset_function, assigns)
+      |> Resource.change(params, changeset_function, repo, fields, assigns, assocs: assocs)
       |> Ecto.Changeset.apply_action(:insert)
 
     case result do
@@ -376,8 +373,7 @@ defmodule Backpex.FormComponent do
 
     result =
       item_action_types
-      |> Backpex.Resource.before_changeset(params, repo, fields, assigns)
-      |> Backpex.Resource.change(item_action_types, params, changeset_function, assigns)
+      |> Backpex.Resource.change(params, changeset_function, repo, fields, assigns)
       |> Ecto.Changeset.apply_action(:insert)
 
     case result do
