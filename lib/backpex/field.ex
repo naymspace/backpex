@@ -62,7 +62,8 @@ defmodule Backpex.Field do
               Phoenix.LiveView.Socket.t()
 
   @doc """
-  TODO
+  This function is called before the changeset function is called. This allows fields to modify the changeset.
+  The `Backpex.Fields.HasMany` uses this callback to put the linked associations into the changeset.
   """
   @callback before_changeset(
               changeset :: Phoenix.LiveView.Socket.t(),
