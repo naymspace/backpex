@@ -413,48 +413,64 @@ defmodule Backpex.Fields.HasMany do
   defp assign_selected(socket) do
     %{
       assigns:
-        %{form: form, field: field, name: name, schema: schema, repo: repo, options_count: options_count} = assigns
+        %{
+          form: form,
+          field: field,
+          name: name,
+          schema: schema,
+          repo: repo,
+          options_count: options_count,
+          field_options: field_options,
+          options: options
+        } = assigns
     } = socket
 
     %{queryable: queryable} = schema.__schema__(:association, name)
-    schema_name = Resource.name_by_schema(queryable)
 
-    selected_ids =
-      case form[name].value do
-        [_head | _tail] ->
-          Enum.reduce(form[name].value, [], fn
-            # new association
-            %Ecto.Changeset{data: %{id: id}, action: :update}, acc ->
-              [id | acc]
+    selected_ids = extract_selected_ids(form[name].value)
 
-            # struct on initial load
-            %{id: id} = _entry, acc ->
-              [id | acc]
+    options_map = Map.new(options, fn {label, id} -> {id, {label, id}} end)
 
-            # checkbox value
-            entry, acc when is_binary(entry) ->
-              [entry | acc]
+    {selected_from_options, ids_to_fetch} =
+      Enum.reduce(selected_ids, {[], []}, fn id, {from_options, to_fetch} ->
+        case Map.get(options_map, id) do
+          nil -> {from_options, [id | to_fetch]}
+          item -> {[item | from_options], to_fetch}
+        end
+      end)
 
-            _entry, acc ->
-              acc
-          end)
-
-        _other ->
-          []
+    selected_from_db =
+      if Enum.empty?(ids_to_fetch) do
+        []
+      else
+        queryable
+        |> where([x], x.id in ^ids_to_fetch)
+        |> maybe_options_query(field_options, assigns)
+        |> select([x], {field(x, ^display_field_form(field)), x.id})
+        |> repo.all()
       end
 
-    # TODO: fetch from options first to not load some items twice
-    selected =
-      from(queryable, as: ^schema_name)
-      |> where([x], x.id in ^selected_ids)
-      |> maybe_options_query(assigns.field_options, assigns)
-      |> select([x], {field(x, ^display_field_form(field)), x.id})
-      |> repo.all()
+    selected = selected_from_options ++ selected_from_db
 
     socket
     |> assign(:selected, selected)
     |> assign(:all_selected, length(selected) == options_count)
-    |> assign(:selected_ids, Enum.map(selected, fn {_label, value} -> value end))
+    |> assign(:selected_ids, Enum.map(selected, &elem(&1, 1)))
+  end
+
+  defp extract_selected_ids(value) do
+    case value do
+      list when is_list(list) ->
+        Enum.reduce(list, [], fn
+          %Ecto.Changeset{data: %{id: id}, action: :update}, acc -> [id | acc]
+          %{id: id}, acc -> [id | acc]
+          entry, acc when is_binary(entry) -> [entry | acc]
+          _entry, acc -> acc
+        end)
+
+      _other ->
+        []
+    end
   end
 
   defp assign_form_errors(socket) do
