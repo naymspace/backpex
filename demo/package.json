@@ -19,16 +19,13 @@
     "gettext": "mix gettext.extract --merge"
   },
   "devDependencies": {
-    "@sentry/browser": "8.28.0",
-    "@tailwindcss/forms": "0.5.8",
-    "@tailwindcss/typography": "0.5.15",
+    "@sentry/browser": "8.30.0",
     "alpinejs": "3.14.1",
-    "lodash": "4.17.21",
     "npm-run-all2": "6.2.2",
     "postcss": "8.4.45",
-    "standard": "17.1.0",
-    "stylelint": "15.11.0",
-    "stylelint-config-standard": "34.0.0",
+    "standard": "17.1.1",
+    "stylelint": "16.9.0",
+    "stylelint-config-standard": "36.0.1",
     "topbar": "3.0.0"
   },
   "dependencies": {

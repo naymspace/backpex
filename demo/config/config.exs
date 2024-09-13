@@ -18,7 +18,6 @@ config :demo, Demo.Repo, migration_primary_key: [name: :id, type: :binary_id]
 
 config :esbuild,
   version: "0.23.1",
-  path: Path.expand("../node_modules/.bin/esbuild", __DIR__),
   default: [
     args:
       ~w(assets/js/app.js --bundle --target=es2017 --outdir=priv/static/assets --external:/fonts/* --external:/images/*),
@@ -27,8 +26,7 @@ config :esbuild,
   ]
 
 config :tailwind,
-  version: "3.4.10",
-  path: Path.expand("../node_modules/.bin/tailwind", __DIR__),
+  version: "3.4.11",
   default: [
     args: ~w(
       --config=assets/tailwind.config.js
@@ -53,7 +51,5 @@ config :demo, DemoWeb.Gettext, default_locale: "en"
 config :backpex, :translator_function, {DemoWeb.CoreComponents, :translate_backpex}
 
 config :backpex, :error_translator_function, {DemoWeb.CoreComponents, :translate_error}
-
-config :tesla, adapter: {Tesla.Adapter.Hackney, [recv_timeout: 30_000]}
 
 import_config "#{config_env()}.exs"

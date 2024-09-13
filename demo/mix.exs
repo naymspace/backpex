@@ -57,13 +57,9 @@ defmodule Demo.MixProject do
       {:ex_machina, "~> 2.3"},
       {:hackney, "~> 1.17", override: true},
       {:faker, "~> 0.18"},
-      {:swoosh, "~> 1.0"},
-      {:phoenix_swoosh, "~> 1.0"},
-      {:gen_smtp, "~> 1.1"},
       {:backpex, path: "../."},
       {:tailwind_formatter, "~> 0.4.0", only: [:dev, :test], runtime: false},
       {:csv, "~> 3.2.0"},
-      {:tesla, "~> 1.4"},
       {:jason, ">= 1.0.0"},
       {:bandit, "~> 1.0"},
       {:heroicons, github: "tailwindlabs/heroicons", tag: "v2.1.5", sparse: "optimized", app: false, compile: false}

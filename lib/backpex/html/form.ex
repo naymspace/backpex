@@ -229,7 +229,9 @@ defmodule Backpex.HTML.Form do
   @doc """
   Generates a generic error message.
   """
-  slot(:inner_block, required: true)
+  @doc type: :component
+
+  slot :inner_block, required: true
 
   def error(assigns) do
     ~H"""
@@ -243,18 +245,19 @@ defmodule Backpex.HTML.Form do
   Renders a searchable multi select.
   """
   @doc type: :component
-  attr(:prompt, :string, required: true, doc: "string that will be shown when no option is selected")
-  attr(:not_found_text, :string, required: true, doc: "string that will be shown when there are no options")
-  attr(:options, :list, required: true, doc: "a list of options for the select")
-  attr(:search_input, :string, required: true, doc: "to prefill and or persist the search term for rerendering")
-  attr(:event_target, :any, required: true, doc: "the target that handles the events of this component")
-  attr(:field_options, :map, required: true, doc: "field options for the corresponding field")
-  attr(:field, :any, required: true, doc: "form field the select should be for")
-  attr(:selected, :list, required: true, doc: "the selected values")
-  attr(:show_select_all, :boolean, required: true, doc: "whether to display the select all button")
-  attr(:show_more, :boolean, required: true, doc: "whether there are more options to show")
-  attr(:search_event, :string, default: "search", doc: "the event that will be sent when the search input changes")
-  attr(:hide_errors, :boolean, default: false, doc: "if errors should be hidden")
+
+  attr :prompt, :string, required: true, doc: "string that will be shown when no option is selected"
+  attr :not_found_text, :string, required: true, doc: "string that will be shown when there are no options"
+  attr :options, :list, required: true, doc: "a list of options for the select"
+  attr :search_input, :string, required: true, doc: "to prefill and or persist the search term for rerendering"
+  attr :event_target, :any, required: true, doc: "the target that handles the events of this component"
+  attr :field_options, :map, required: true, doc: "field options for the corresponding field"
+  attr :field, :any, required: true, doc: "form field the select should be for"
+  attr :selected, :list, required: true, doc: "the selected values"
+  attr :show_select_all, :boolean, required: true, doc: "whether to display the select all button"
+  attr :show_more, :boolean, required: true, doc: "whether there are more options to show"
+  attr :search_event, :string, default: "search", doc: "the event that will be sent when the search input changes"
+  attr :hide_errors, :boolean, default: false, doc: "if errors should be hidden"
 
   def multi_select(assigns) do
     assigns = assign(assigns, :errors, translate_form_errors(assigns.field, assigns.field_options))

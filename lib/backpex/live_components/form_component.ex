@@ -73,7 +73,13 @@ defmodule Backpex.FormComponent do
 
   def handle_event("validate", %{"change" => change, "_target" => target}, %{assigns: %{action_type: :item}} = socket) do
     %{
-      assigns: %{item_action_types: item_action_types, changeset_function: changeset_function, fields: fields} = assigns
+      assigns:
+        %{
+          item_action_types: item_action_types,
+          changeset_function: changeset_function,
+          repo: repo,
+          fields: fields
+        } = assigns
     } = socket
 
     target = Enum.at(target, 1)
@@ -83,7 +89,10 @@ defmodule Backpex.FormComponent do
       |> drop_readonly_changes(fields, assigns)
       |> put_upload_change(socket, :validate)
 
-    changeset = Resource.change(item_action_types, change, changeset_function, assigns, [], target)
+    changeset =
+      item_action_types
+      |> Resource.change(change, changeset_function, repo, fields, assigns, target: target)
+
     form = Phoenix.Component.to_form(changeset, as: :change)
 
     send(self(), {:update_changeset, changeset})
@@ -97,7 +106,7 @@ defmodule Backpex.FormComponent do
   end
 
   def handle_event("validate", %{"change" => change, "_target" => target}, socket) do
-    %{assigns: %{item: item, changeset_function: changeset_function, fields: fields} = assigns} = socket
+    %{assigns: %{item: item, changeset_function: changeset_function, repo: repo, fields: fields} = assigns} = socket
 
     target = Enum.at(target, 1)
     assocs = Map.get(assigns, :assocs, [])
@@ -107,7 +116,10 @@ defmodule Backpex.FormComponent do
       |> drop_readonly_changes(fields, assigns)
       |> put_upload_change(socket, :validate)
 
-    changeset = Resource.change(item, change, changeset_function, assigns, assocs, target)
+    changeset =
+      item
+      |> Resource.change(change, changeset_function, repo, fields, assigns, assocs: assocs, target: target)
+
     form = Phoenix.Component.to_form(changeset, as: :change)
 
     send(self(), {:update_changeset, changeset})
@@ -195,7 +207,14 @@ defmodule Backpex.FormComponent do
 
   defp handle_save(socket, :new, params) do
     %{
-      assigns: %{repo: repo, live_resource: live_resource, changeset_function: changeset_function, item: item} = assigns
+      assigns:
+        %{
+          repo: repo,
+          live_resource: live_resource,
+          changeset_function: changeset_function,
+          fields: fields,
+          item: item
+        } = assigns
     } = socket
 
     opts = [
@@ -210,7 +229,7 @@ defmodule Backpex.FormComponent do
       end
     ]
 
-    case Resource.insert(item, params, repo, changeset_function, opts) do
+    case Resource.insert(item, params, repo, fields, changeset_function, opts) do
       {:ok, item} ->
         return_to = live_resource.return_to(socket, assigns, :new, item)
 
@@ -245,7 +264,8 @@ defmodule Backpex.FormComponent do
           live_resource: live_resource,
           singular_name: singular_name,
           changeset_function: changeset_function,
-          item: item
+          item: item,
+          fields: fields
         } = assigns
     } = socket
 
@@ -261,7 +281,7 @@ defmodule Backpex.FormComponent do
       end
     ]
 
-    case Resource.update(item, params, repo, changeset_function, opts) do
+    case Resource.update(item, params, repo, fields, changeset_function, opts) do
       {:ok, item} ->
         return_to = live_resource.return_to(socket, assigns, :edit, item)
         info_msg = Backpex.translate({"%{resource} has been edited successfully.", %{resource: singular_name}})
@@ -296,14 +316,17 @@ defmodule Backpex.FormComponent do
           resource_action: resource_action,
           item: item,
           changeset_function: changeset_function,
-          return_to: return_to
+          return_to: return_to,
+          repo: repo,
+          fields: fields
         } = assigns
     } = socket
 
     assocs = Map.get(assigns, :assocs, [])
 
     result =
-      Backpex.Resource.change(item, params, changeset_function, assigns, assocs)
+      item
+      |> Resource.change(params, changeset_function, repo, fields, assigns, assocs: assocs)
       |> Ecto.Changeset.apply_action(:insert)
 
     case result do
@@ -342,12 +365,15 @@ defmodule Backpex.FormComponent do
           action_to_confirm: action_to_confirm,
           return_to: return_to,
           item_action_types: item_action_types,
-          changeset_function: changeset_function
+          changeset_function: changeset_function,
+          repo: repo,
+          fields: fields
         } = assigns
     } = socket
 
     result =
-      Backpex.Resource.change(item_action_types, params, changeset_function, assigns)
+      item_action_types
+      |> Backpex.Resource.change(params, changeset_function, repo, fields, assigns)
       |> Ecto.Changeset.apply_action(:insert)
 
     case result do

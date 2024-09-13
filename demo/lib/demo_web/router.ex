@@ -14,14 +14,10 @@ defmodule DemoWeb.Router do
     plug Backpex.ThemeSelectorPlug
   end
 
-  scope "/" do
-    pipe_through :browser
-  end
-
   scope "/", DemoWeb do
     pipe_through :browser
 
-    live "/", HomeLive.Index, :index
+    get "/", RedirectController, :redirect_to_users
   end
 
   scope "/phoenix_live_dashboard", DemoWeb do

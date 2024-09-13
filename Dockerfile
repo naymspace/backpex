@@ -71,7 +71,7 @@ RUN mix do deps.get, deps.compile, assets.deploy, sentry.package_source_code, re
 # Stage: runtime
 ########################################################################
 
-FROM alpine:3.20.2@sha256:0a4eaa0eecf5f8c050e5bba433f58c052be7587ee8af3e8b3910ef9ab5fbe9f5 as runtime
+FROM alpine:3.20.3@sha256:beefdbd8a1da6d2915566fde36db9db0b524eb737fc57cd1367effd16dc0d06d as runtime
 
 ENV APP_HOME=/opt/app
 WORKDIR $APP_HOME
