@@ -1,4 +1,3 @@
-import { debounce } from 'lodash'
 import Alpine from 'alpinejs'
 import 'phoenix_html'
 import * as Sentry from '@sentry/browser'
@@ -24,13 +23,8 @@ if (sentryMetaTag !== null) {
  * topbar
  */
 topbar.config({ barColors: { 0: '#29d' }, shadowColor: 'rgba(0, 0, 0, .3)' })
-
-const debouncedTopbarShow = debounce(topbar.show, 250)
-window.addEventListener('phx:page-loading-start', info => debouncedTopbarShow())
-window.addEventListener('phx:page-loading-stop', function (info) {
-  debouncedTopbarShow.cancel()
-  topbar.hide()
-})
+window.addEventListener('phx:page-loading-start', _info => topbar.show(250))
+window.addEventListener('phx:page-loading-stop', _info => topbar.hide())
 
 /**
  * theme selector

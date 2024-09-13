@@ -254,7 +254,7 @@ defmodule Backpex.Field do
   @doc """
   Handles index editable.
   """
-  def handle_index_editable(socket, change) do
+  def handle_index_editable(socket, value, change) do
     if not Backpex.LiveResource.can?(socket.assigns, :edit, socket.assigns.item, socket.assigns.live_resource) do
       raise Backpex.ForbiddenError
     end
@@ -291,6 +291,7 @@ defmodule Backpex.Field do
         _error ->
           assign(socket, :valid, false)
       end
+      |> assign(:form, Phoenix.Component.to_form(%{"value" => value}, as: :index_form))
 
     {:noreply, socket}
   end

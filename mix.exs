@@ -31,7 +31,7 @@ defmodule Backpex.MixProject do
 
   defp deps do
     [
-      {:ex_doc, "~> 0.23", only: [:dev, :test], runtime: false},
+      {:ex_doc, "~> 0.34", only: [:dev, :test], runtime: false},
       {:phoenix, "~> 1.7.6"},
       {:phoenix_ecto, "~> 4.4"},
       {:ecto_sql, "~> 3.6"},
@@ -39,12 +39,12 @@ defmodule Backpex.MixProject do
       {:phoenix_html, "~> 4.1.1"},
       {:phoenix_html_helpers, "~> 1.0"},
       {:phoenix_live_view, "~> 0.20.0"},
-      {:gettext, "~> 0.18"},
+      {:gettext, "~> 0.26"},
       {:jason, "~> 1.2"},
       {:number, "~> 1.0.3"},
       {:credo, "~> 1.7.5", only: [:dev, :test], runtime: false},
       {:mix_audit, "~> 2.0", only: [:dev, :test], runtime: false},
-      {:sobelow, "~> 0.8", only: [:dev, :test]},
+      {:sobelow, "~> 0.13", only: [:dev, :test]},
       {:money, "~> 1.13.1"},
       {:tailwind_formatter, "~> 0.4.0", only: [:dev, :test], runtime: false}
     ]
@@ -91,7 +91,6 @@ defmodule Backpex.MixProject do
       "guides/about/contribute-to-backpex.md",
 
       # Get Started
-      "guides/get_started/prerequisites.md",
       "guides/get_started/installation.md",
 
       # Live Resource
@@ -143,6 +142,7 @@ defmodule Backpex.MixProject do
       "guides/custom_labels_and_translations/custom-labels-and-translations.md",
 
       # Upgrade Guides
+      "guides/upgrading/v0.7.md",
       "guides/upgrading/v0.6.md",
       "guides/upgrading/v0.5.md",
       "guides/upgrading/v0.3.md",

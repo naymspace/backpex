@@ -106,11 +106,15 @@ defmodule Backpex.Resource do
       %{queryable: queryable, owner_key: owner_key, cardinality: :one} = association, query ->
         custom_alias = Map.get(association, :custom_alias, name_by_schema(queryable))
 
-        from(item in query,
-          left_join: b in ^queryable,
-          as: ^custom_alias,
-          on: field(item, ^owner_key) == b.id
-        )
+        if has_named_binding?(query, custom_alias) do
+          query
+        else
+          from(item in query,
+            left_join: b in ^queryable,
+            as: ^custom_alias,
+            on: field(item, ^owner_key) == b.id
+          )
+        end
 
       _relation, query ->
         query

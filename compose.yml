@@ -9,6 +9,7 @@ services:
     environment:
       - STARTUP_COMMAND_1=mix do deps.get, ecto.create, ecto.migrate
       - STARTUP_COMMAND_2=yarn install --pure-lockfile
+      - STARTUP_COMMAND_3=mix assets.setup
     volumes:
       - .:/opt/app
     ports:
@@ -17,7 +18,7 @@ services:
       postgres:
         condition: service_healthy
   postgres:
-    image: postgres:16-alpine
+    image: postgres:16-alpine@sha256:d898b0b78a2627cb4ee63464a14efc9d296884f1b28c841b0ab7d7c42f1fffdf
     environment:
       - POSTGRES_PASSWORD=postgres
     ports:
