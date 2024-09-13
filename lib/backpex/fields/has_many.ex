@@ -45,10 +45,29 @@ defmodule Backpex.Fields.HasMany do
 
   @impl Phoenix.LiveComponent
   def update(assigns, socket) do
-    socket = assign(socket, assigns)
+    socket =
+      socket
+      |> assign(assigns)
+      |> apply_action(assigns.type)
 
     {:ok, socket}
   end
+
+  defp apply_action(socket, :form) do
+    %{assigns: %{field_options: field_options} = assigns} = socket
+
+    socket
+    |> assign_new(:prompt, fn -> prompt(assigns, assigns.field_options) end)
+    |> assign_new(:not_found_text, fn -> not_found_text(assigns.field_options) end)
+    |> assign_new(:search_input, fn -> "" end)
+    |> assign_new(:offset, fn -> 0 end)
+    |> assign_new(:options_count, fn -> count_options(assigns) end)
+    |> assign_initial_options()
+    |> assign_selected()
+    |> assign_form_errors()
+  end
+
+  defp apply_action(socket, _type), do: socket
 
   @impl Backpex.Field
   def render_value(assigns) do
@@ -78,17 +97,6 @@ defmodule Backpex.Fields.HasMany do
 
   @impl Backpex.Field
   def render_form(assigns) do
-    assigns =
-      assigns
-      |> assign_new(:prompt, fn -> prompt(assigns, assigns.field_options) end)
-      |> assign_new(:not_found_text, fn -> not_found_text(assigns.field_options) end)
-      |> assign_new(:search_input, fn -> "" end)
-      |> assign_new(:offset, fn -> 0 end)
-      |> assign_new(:options_count, fn -> count_options(assigns) end)
-      |> assign_initial_options()
-      |> assign_selected()
-      |> assign_form_errors()
-
     ~H"""
     <div id={@name}>
       <Layout.field_container>
@@ -324,12 +332,12 @@ defmodule Backpex.Fields.HasMany do
     assign(assigns, :link, link)
   end
 
-  defp assign_initial_options(%{options: _options} = assigns), do: assigns
+  defp assign_initial_options(%{assigns: %{options: _options}} = socket), do: socket
 
-  defp assign_initial_options(assigns), do: assign_options(assigns)
+  defp assign_initial_options(socket), do: assign_options(socket)
 
-  defp assign_options(assigns, other_options \\ []) do
-    %{field_options: field_options, search_input: search_input, offset: offset} = assigns
+  defp assign_options(socket, other_options \\ []) do
+    %{assigns: %{field_options: field_options, search_input: search_input, offset: offset} = assigns} = socket
 
     limit = query_limit(field_options)
 
@@ -337,7 +345,7 @@ defmodule Backpex.Fields.HasMany do
 
     show_more = count_options(assigns, search: search_input) > length(options)
 
-    assigns
+    socket
     |> assign(:options, options)
     |> assign(:options_ids, Enum.map(options, fn {_label, value} -> value end))
     |> assign(:show_more, show_more)
@@ -402,8 +410,11 @@ defmodule Backpex.Fields.HasMany do
     |> repo.aggregate(:count, :id)
   end
 
-  defp assign_selected(assigns) do
-    %{form: form, field: field, name: name, schema: schema, repo: repo, options_count: options_count} = assigns
+  defp assign_selected(socket) do
+    %{
+      assigns:
+        %{form: form, field: field, name: name, schema: schema, repo: repo, options_count: options_count} = assigns
+    } = socket
 
     %{queryable: queryable} = schema.__schema__(:association, name)
     schema_name = Resource.name_by_schema(queryable)
@@ -440,16 +451,16 @@ defmodule Backpex.Fields.HasMany do
       |> select([x], {field(x, ^display_field_form(field)), x.id})
       |> repo.all()
 
-    assigns
+    socket
     |> assign(:selected, selected)
     |> assign(:all_selected, length(selected) == options_count)
     |> assign(:selected_ids, Enum.map(selected, fn {_label, value} -> value end))
   end
 
-  defp assign_form_errors(assigns) do
-    %{form: form, name: name, field_options: field_options} = assigns
+  defp assign_form_errors(socket) do
+    %{assigns: %{form: form, name: name, field_options: field_options}} = socket
 
-    assign(assigns, :errors, translate_form_errors(form[name], field_options))
+    assign(socket, :errors, translate_form_errors(form[name], field_options))
   end
 
   defp query_limit(field_options), do: Map.get(field_options, :query_limit, 10)
