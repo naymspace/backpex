@@ -274,6 +274,8 @@ defmodule Backpex.Fields.HasMany do
 
   defp get_new_assocs(attrs, field_name_string, schema, repo, field_options, assigns) do
     cond do
+      # It is important add empty maps when selecting or deselecting all items to force the list to be always present in the changes.
+      # Otherwise it would not work if the item already contains all items ("select all") or none items ("deselect all").
       Map.has_key?(attrs, field_name_string <> "_select_all") ->
         [%{} | repo.all(schema)]
 
