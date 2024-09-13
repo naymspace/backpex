@@ -56,7 +56,7 @@ defmodule Demo.User do
       drop_param: :web_links_delete
     )
     |> validate_required(@required_fields)
-    |> validate_length(:posts, min: 1)
+    |> validate_posts()
     |> validate_change(:avatar, fn
       :avatar, "too_many_files" ->
         [avatar: "has to be exactly one"]
@@ -81,5 +81,14 @@ defmodule Demo.User do
     schema
     |> cast(attrs, @required_fields ++ @optional_fields)
     |> validate_required(@required_fields)
+  end
+
+  defp validate_posts(changeset) do
+    posts = get_field(changeset, :posts) || []
+    if length(posts) < 1 do
+      add_error(changeset, :posts, "must have at least one post")
+    else
+      changeset
+    end
   end
 end
