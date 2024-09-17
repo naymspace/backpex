@@ -653,7 +653,7 @@ defmodule Backpex.HTML.Resource do
         phx-click="item-action"
         phx-value-action-key={key}
       >
-        <%= action.module.label(assigns) %>
+        <%= action.module.label(assigns, nil) %>
       </button>
     </div>
     """

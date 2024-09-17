@@ -8,7 +8,7 @@ defmodule DemoWeb.ItemActions.SoftDelete do
   require Logger
 
   @impl Backpex.ItemAction
-  def icon(assigns) do
+  def icon(assigns, _item) do
     ~H"""
     <Backpex.HTML.CoreComponents.icon
       name="hero-trash"
@@ -38,7 +38,7 @@ defmodule DemoWeb.ItemActions.SoftDelete do
   end
 
   @impl Backpex.ItemAction
-  def label(assigns), do: Delete.label(assigns)
+  def label(assigns, item), do: Delete.label(assigns, item)
 
   @impl Backpex.ItemAction
   def confirm_label(assigns), do: Delete.confirm_label(assigns)

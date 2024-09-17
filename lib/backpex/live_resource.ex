@@ -132,6 +132,11 @@ defmodule Backpex.LiveResource do
   @callback resource_created_message() :: binary()
 
   @doc """
+  Returns the schema of the live resource.
+  """
+  @callback schema() :: module()
+
+  @doc """
   Uses LiveResource in the current module to make it a LiveResource.
 
       use Backpex.LiveResource,
@@ -512,12 +517,14 @@ defmodule Backpex.LiveResource do
             } = assigns
         } = socket
 
+        metadata = Resource.build_changeset_metadata(assigns)
+
         changeset =
           Backpex.LiveResource.call_changeset_function(
             item,
             changeset_function,
             default_attrs(live_action, fields, assigns),
-            assigns
+            metadata
           )
 
         socket
@@ -682,10 +689,12 @@ defmodule Backpex.LiveResource do
         init_change = action.module.init_change(socket.assigns)
         changeset_function = &action.module.changeset/3
 
+        metadata = Resource.build_changeset_metadata(socket.assigns)
+
         changeset =
           init_change
           |> Ecto.Changeset.change()
-          |> call_changeset_function(changeset_function, %{}, socket.assigns)
+          |> call_changeset_function(changeset_function, %{}, metadata)
 
         socket =
           socket
@@ -1038,6 +1047,9 @@ defmodule Backpex.LiveResource do
 
       @impl Backpex.LiveResource
       def create_button_label, do: Backpex.translate({"New %{resource}", %{resource: singular_name()}})
+
+      @impl Backpex.LiveResource
+      def schema, do: unquote(schema)
 
       @impl Backpex.LiveResource
       def resource_created_message,
@@ -1528,12 +1540,7 @@ defmodule Backpex.LiveResource do
   @doc """
   Calls the changeset function with the given change and target.
   """
-  def call_changeset_function(item, changeset_function, change, assigns, target \\ nil) do
-    metadata =
-      Keyword.new()
-      |> Keyword.put(:assigns, assigns)
-      |> Keyword.put(:target, target)
-
+  def call_changeset_function(item, changeset_function, change, metadata) do
     changeset_function.(item, change, metadata)
   end
 

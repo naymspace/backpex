@@ -115,16 +115,16 @@
             :for={{key, action} <- row_item_actions(@item_actions)}
             :if={LiveResource.can?(assigns, key, item, @live_resource)}
             class="tooltip hover:z-30"
-            data-tip={action.module.label(assigns)}
+            data-tip={action.module.label(assigns, item)}
           >
             <button
               type="button"
               phx-click="item-action"
               phx-value-action-key={key}
               phx-value-item-id={Map.get(item, @live_resource.get_primary_key_field())}
-              aria-label={action.module.label(assigns)}
+              aria-label={action.module.label(assigns, item)}
             >
-              <%= action.module.icon(assigns) %>
+              <%= action.module.icon(assigns, item) %>
             </button>
           </div>
         </div>
