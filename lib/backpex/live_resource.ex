@@ -227,6 +227,8 @@ defmodule Backpex.LiveResource do
 
       @resource_opts NimbleOptions.validate!(opts, options_schema)
 
+      @resource_opts[:adapter].validate_config!(@resource_opts[:adapter_config])
+
       use BackpexWeb, :html
       use Phoenix.LiveView, layout: @resource_opts[:layout]
 
@@ -244,6 +246,10 @@ defmodule Backpex.LiveResource do
       @permitted_order_directions ~w(asc desc)a
       @empty_filter_key :empty_filter
 
+      def config(key) do
+        Keyword.fetch!(@resource_opts, key)
+      end
+
       @impl Phoenix.LiveView
       def mount(params, session, socket) do
         pubsub = pubsub_settings(@resource_opts[:pubsub], @resource_opts[:topic], @resource_opts[:event_prefix])
@@ -252,6 +258,7 @@ defmodule Backpex.LiveResource do
 
         socket =
           socket
+          |> assign(:live_resource, __MODULE__)
           |> assign(:schema, @resource_opts[:adapter_config][:schema])
           |> assign(:repo, @resource_opts[:adapter_config][:repo])
           |> assign(:pubsub, pubsub)

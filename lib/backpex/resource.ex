@@ -337,20 +337,20 @@ defmodule Backpex.Resource do
   end
 
   @doc """
-  Deletes multiple items from a given repository and schema.
+  Deletes multiple items.
   Additionally broadcasts the corresponding event, when PubSub config is given.
 
   ## Parameters
 
   * `items` (list): A list of structs, each representing an entity to be deleted. The list must contain items that have an `id` field.
-  * `repo` (module): The repository module.
-  * `schema` (module): The Ecto schema module corresponding to the entities in `items`.
-  * `pubsub` (map, default: `nil`): The PubSub config to use for broadcasting events.
+  * `live_resource` (module): The `Backpex.LiveResource` module.
   """
-  def delete_all(items, repo, schema, pubsub \\ nil) do
-    case schema
-         |> where([i], i.id in ^Enum.map(items, & &1.id))
-         |> repo.delete_all() do
+  def delete_all(items, live_resource) do
+    adapter = live_resource.config(:adapter)
+    adapter_config = live_resource.config(:adapter_config)
+    pubsub = live_resource.config(:pubsub)
+
+    case adapter.delete_all(items, adapter_config) do
       {_count_, nil} ->
         Enum.each(items, fn item -> broadcast({:ok, item}, "deleted", pubsub) end)
         {:ok, items}
