@@ -32,6 +32,7 @@ defmodule Backpex.MixProject do
   defp deps do
     [
       {:ex_doc, "~> 0.34", only: [:dev, :test], runtime: false},
+      {:nimble_options, "~> 1.1"},
       {:phoenix, "~> 1.7.6"},
       {:phoenix_ecto, "~> 4.4"},
       {:ecto_sql, "~> 3.6"},
