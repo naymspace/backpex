@@ -169,6 +169,7 @@ defmodule Backpex.MixProject do
 
   defp groups_for_modules do
     [
+      Adapters: ~r/Backpex\.Adapter.?/,
       Components: ~r/Backpex\.HTML.?/,
       Fields: ~r/Backpex\.Field.?/,
       Actions: ~r/Backpex\.(ItemAction|ResourceAction).?/,
