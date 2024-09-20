@@ -10,6 +10,73 @@ defmodule Backpex.LiveResource do
   > When you `use Backpex.LiveResource`, the `Backpex.LiveResource` module will set `@behavior Backpex.LiveResource`. Additionally it will create a LiveView based on the given configuration in order to create fully functional index, show, new and edit views for a resource. It will also insert fallback functions that can be overridden.
   '''
 
+  @options_schema [
+    adapter: [
+      doc: "The datalayer adapter to use.",
+      type: :atom,
+      default: Backpex.Adapters.Ecto
+    ],
+    adapter_config: [
+      doc: "The configuration for the datalayer. See corresponding adapter for possible configuration values.",
+      type: :keyword_list,
+      required: true
+    ],
+    layout: [
+      doc: "Layout to be used by the LiveResource.",
+      type: :mod_arg,
+      required: true
+    ],
+    pubsub: [
+      doc: "PubSub name of the project.",
+      type: :atom,
+      required: true
+    ],
+    topic: [
+      doc: "The topic for PubSub.",
+      type: :string,
+      required: true
+    ],
+    event_prefix: [
+      doc:
+        "The event prefix for Pubsub, to differentiate between events of different resources when subscribed to multiple resources.",
+      type: :string,
+      required: true
+    ],
+    per_page_options: [
+      doc: "The page size numbers you can choose from.",
+      type: {:list, :integer},
+      default: [15, 50, 100]
+    ],
+    per_page_default: [
+      doc: "The default page size number.",
+      type: :integer,
+      default: 15
+    ],
+    init_order: [
+      doc: "Order that will be used when no other order options are given.",
+      type: :map,
+      keys: [
+        by: [
+          doc: "The column used for ordering.",
+          type: :atom,
+          default: :id
+        ],
+        direction: [
+          doc: "The order direction",
+          type: :atom,
+          default: :asc
+        ]
+      ]
+    ],
+    fluid?: [
+      type: :boolean,
+      default: false
+    ],
+    full_text_search: [
+      type: :atom
+    ]
+  ]
+
   alias Backpex.Resource
 
   @doc """
@@ -140,64 +207,28 @@ defmodule Backpex.LiveResource do
   Uses LiveResource in the current module to make it a LiveResource.
 
       use Backpex.LiveResource,
-        layout: {MyAppWeb.LayoutView, :admin},
-        schema: MyApp.User,
-        repo: MyApp.Repo,
-        update_changeset: &MyApp.User.update_changeset/3,
-        create_changeset: &MyApp.User.create_changeset/3
+        adapter_options: [
+          schema: MyApp.User,
+          repo: MyApp.Repo,
+          update_changeset: &MyApp.User.update_changeset/3,
+          create_changeset: &MyApp.User.create_changeset/3
+        ],
+        layout: {MyAppWeb.LayoutView, :admin}
+        # ...
 
   ## Options
 
-    * `:layout` - Layout to be used by the LiveResource.
-    * `:schema` - Schema for the resource.
-    * `:repo` - Ecto repo that will be used to perform CRUD operations for the given schema.
-    * `:update_changeset` - Changeset to use when updating items. Additional metadata is passed as a keyword list via the third parameter.
-
-      The list of metadata:
-      - `:assigns` - the assigns
-      - `:target` - the name of the `form` target that triggered the changeset call. Default to `nil` if the call was not triggered by a form field.
-    * `:create_changeset` - Changeset to use when creating items. Additional metadata is passed as a keyword list via the third parameter.
-
-      The list of metadata:
-      - `:assigns` - the assigns
-      - `:target` - the name of the `form` target that triggered the changeset call. Default to `nil` if the call was not triggered by a form field.
-    * `:pubsub` - PubSub name of the project.
-    * `:topic` - The topic for PubSub.
-    * `:event_prefix` - The event prefix for Pubsub, to differentiate between events of different resources when subscribed to multiple resources.
-    * `:per_page_options` - The page size numbers you can choose from.
-      Defaults to `[15, 50, 100]`.
-    * `:per_page_default` - The default page size number.
-      Defaults to the first element of the `per_page_options` list.
-    * `:init_order` - Order that will be used when no other order options are given.
-      Defaults to `%{by: :id, direction: :asc}`.
+  #{NimbleOptions.docs(@options_schema)}
   """
   defmacro __using__(opts) do
-    layout = Keyword.fetch!(opts, :layout)
-    schema = Keyword.fetch!(opts, :schema)
-    repo = Keyword.fetch!(opts, :repo)
-
-    pubsub = Keyword.get(opts, :pubsub)
-    topic = Keyword.get(opts, :topic)
-    event_prefix = Keyword.get(opts, :event_prefix)
-
-    update_changeset = Keyword.fetch!(opts, :update_changeset)
-    create_changeset = Keyword.fetch!(opts, :create_changeset)
-
-    per_page_options = Keyword.get(opts, :per_page_options, [15, 50, 100])
-    per_page_default = Keyword.get(opts, :per_page_default, hd(per_page_options))
-
-    init_order = Keyword.get(opts, :init_order, Macro.escape(%{by: :id, direction: :asc}))
-
-    fluid? = Keyword.get(opts, :fluid?, false)
-
-    full_text_search = Keyword.get(opts, :full_text_search)
-
-    quote do
+    quote bind_quoted: [opts: opts, options_schema: @options_schema] do
       @before_compile Backpex.LiveResource
       @behaviour Backpex.LiveResource
 
+      @resource_opts NimbleOptions.validate!(opts, options_schema)
+
       use BackpexWeb, :html
-      use Phoenix.LiveView, layout: unquote(layout)
+      use Phoenix.LiveView, layout: @resource_opts[:layout]
 
       import Backpex.HTML.Resource
       import Backpex.LiveResource
@@ -215,14 +246,14 @@ defmodule Backpex.LiveResource do
 
       @impl Phoenix.LiveView
       def mount(params, session, socket) do
-        pubsub = pubsub_settings(unquote(pubsub), unquote(topic), unquote(event_prefix))
+        pubsub = pubsub_settings(@resource_opts[:pubsub], @resource_opts[:topic], @resource_opts[:event_prefix])
 
         maybe_subscribe(socket, pubsub)
 
         socket =
           socket
-          |> assign(:schema, unquote(schema))
-          |> assign(:repo, unquote(repo))
+          |> assign(:schema, @resource_opts[:adapter_config][:schema])
+          |> assign(:repo, @resource_opts[:adapter_config][:repo])
           |> assign(:pubsub, pubsub)
           |> assign(:singular_name, singular_name())
           |> assign(:plural_name, plural_name())
@@ -231,8 +262,8 @@ defmodule Backpex.LiveResource do
           |> assign(:search_placeholder, search_placeholder())
           |> assign(:panels, panels())
           |> assign(:live_resource, __MODULE__)
-          |> assign(:fluid?, unquote(fluid?))
-          |> assign(:full_text_search, unquote(full_text_search))
+          |> assign(:fluid?, @resource_opts[:fluid?])
+          |> assign(:full_text_search, @resource_opts[:full_text_search])
           |> assign_active_fields(session)
           |> assign_metrics_visibility(session)
           |> assign_filters_changed_status(params)
@@ -325,7 +356,7 @@ defmodule Backpex.LiveResource do
 
         socket
         |> assign(:fields, fields)
-        |> assign(:changeset_function, unquote(update_changeset))
+        |> assign(:changeset_function, @resource_opts[:adapter_config][:update_changeset])
         |> assign(
           :page_title,
           Backpex.translate({"Edit %{resource}", %{resource: singular_name}})
@@ -374,7 +405,7 @@ defmodule Backpex.LiveResource do
         empty_item = schema.__struct__()
 
         socket
-        |> assign(:changeset_function, unquote(create_changeset))
+        |> assign(:changeset_function, @resource_opts[:adapter_config][:create_changeset])
         |> assign(:page_title, create_button_label)
         |> assign(:fields, fields)
         |> assign(:item, empty_item)
@@ -440,9 +471,9 @@ defmodule Backpex.LiveResource do
 
         fields = filtered_fields_by_action(fields(), assigns, :index)
 
-        per_page_options = unquote(per_page_options)
-        per_page_default = unquote(per_page_default)
-        init_order = unquote(init_order)
+        per_page_options = @resource_opts[:per_page_options]
+        per_page_default = @resource_opts[:per_page_default]
+        init_order = @resource_opts[:init_order]
 
         filters = Backpex.LiveResource.get_active_filters(__MODULE__, assigns)
         valid_filter_params = Backpex.LiveResource.get_valid_filters_from_params(params, filters, @empty_filter_key)
@@ -488,7 +519,7 @@ defmodule Backpex.LiveResource do
         |> assign(:selected_items, [])
         |> assign(:select_all, false)
         |> assign(:fields, fields)
-        |> assign(:changeset_function, unquote(update_changeset))
+        |> assign(:changeset_function, @resource_opts[:adapter_config][:update_changeset])
         |> maybe_redirect_to_default_filters()
         |> assign_items(init_order)
         |> maybe_assign_metrics()
@@ -877,13 +908,13 @@ defmodule Backpex.LiveResource do
       end
 
       @impl Phoenix.LiveView
-      def handle_info({"backpex:" <> unquote(event_prefix) <> "created", item}, socket)
+      def handle_info({"backpex:" <> unquote(@resource_opts[:event_prefix]) <> "created", item}, socket)
           when socket.assigns.live_action in [:index, :resource_action] do
         {:noreply, refresh_items(socket)}
       end
 
       @impl Phoenix.LiveView
-      def handle_info({"backpex:" <> unquote(event_prefix) <> "deleted", item}, socket)
+      def handle_info({"backpex:" <> unquote(@resource_opts[:event_prefix]) <> "deleted", item}, socket)
           when socket.assigns.live_action in [:index, :resource_action] do
         if Enum.filter(socket.assigns.items, &(to_string(&1.id) == to_string(item.id))) != [] do
           {:noreply, refresh_items(socket)}
@@ -893,7 +924,7 @@ defmodule Backpex.LiveResource do
       end
 
       @impl Phoenix.LiveView
-      def handle_info({"backpex:" <> unquote(event_prefix) <> "updated", item}, socket)
+      def handle_info({"backpex:" <> unquote(@resource_opts[:event_prefix]) <> "updated", item}, socket)
           when socket.assigns.live_action in [:index, :resource_action, :show] do
         {:noreply, update_item(socket, item)}
       end
@@ -1031,7 +1062,7 @@ defmodule Backpex.LiveResource do
       def create_button_label, do: Backpex.translate({"New %{resource}", %{resource: singular_name()}})
 
       @impl Backpex.LiveResource
-      def schema, do: unquote(schema)
+      def schema, do: @resource_opts[:adapter_config][:schema]
 
       @impl Backpex.LiveResource
       def resource_created_message,
