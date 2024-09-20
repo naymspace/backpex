@@ -1,10 +1,12 @@
 defmodule DemoWeb.FilmReviewLive do
   use Backpex.LiveResource,
+    adapter_config: [
+      schema: Demo.FilmReview,
+      repo: Demo.Repo,
+      update_changeset: &Demo.FilmReview.update_changeset/3,
+      create_changeset: &Demo.FilmReview.create_changeset/3
+    ],
     layout: {DemoWeb.Layouts, :admin},
-    schema: Demo.FilmReview,
-    repo: Demo.Repo,
-    update_changeset: &Demo.FilmReview.update_changeset/3,
-    create_changeset: &Demo.FilmReview.create_changeset/3,
     pubsub: Demo.PubSub,
     topic: "film_reviews",
     event_prefix: "film_reviews_",

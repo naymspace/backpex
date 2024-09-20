@@ -1,10 +1,12 @@
 defmodule DemoWeb.ProductLive do
   use Backpex.LiveResource,
+    adapter_config: [
+      schema: Demo.Product,
+      repo: Demo.Repo,
+      update_changeset: &Demo.Product.changeset/3,
+      create_changeset: &Demo.Product.changeset/3
+    ],
     layout: {DemoWeb.Layouts, :admin},
-    schema: Demo.Product,
-    repo: Demo.Repo,
-    update_changeset: &Demo.Product.changeset/3,
-    create_changeset: &Demo.Product.changeset/3,
     pubsub: Demo.PubSub,
     topic: "products",
     event_prefix: "product_"
