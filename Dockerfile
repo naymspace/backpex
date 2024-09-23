@@ -33,9 +33,6 @@ RUN curl -fsSL https://deb.nodesource.com/setup_lts.x | bash - \
     && apt-get install -y nodejs \
     && npm install --global yarn
 
-
-SHELL ["/bin/bash", "-c"]
-
 COPY .docker/opt/scripts/ /opt/scripts
 ADD https://github.com/naymspace/env-secrets-expand/raw/main/env-secrets-expand.sh /opt/scripts/
 RUN chmod -R +x /opt/scripts/
