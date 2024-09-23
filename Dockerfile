@@ -99,9 +99,9 @@ RUN chown -R nobody /opt
 ENV PATH=/opt/scripts/:/opt/app/bin:$PATH \
     MIX_ENV=prod
 
-COPY --from=release --chown=nobody:nobody /opt/app/demo/_build/${MIX_ENV}/rel/demo .
+COPY --from=release --chown=nobody /opt/app/demo/_build/${MIX_ENV}/rel/demo .
 
-USER nobody:nobody
+USER nobody
 
 ENTRYPOINT ["entrypoint.sh"]
 CMD ["bash", "-c", "demo start"]
