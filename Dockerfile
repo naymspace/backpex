@@ -18,9 +18,6 @@ RUN apk --no-cache --update upgrade \
 
 SHELL ["/bin/bash", "-c"]
 
-COPY .docker/etc /etc/
-RUN find /etc/bashrc.d/ -name "*.sh" -exec chmod -v +x {} \;
-COPY .docker/root/.bashrc /root/
 COPY .docker/opt/scripts/ /opt/scripts
 ADD https://github.com/naymspace/env-secrets-expand/raw/main/env-secrets-expand.sh /opt/scripts/
 RUN chmod -R +x /opt/scripts/
@@ -82,10 +79,7 @@ RUN apk --no-cache --update upgrade \
 
 SHELL ["/bin/bash", "-c"]
 
-COPY --from=builder /etc/bashrc.d /etc/bashrc.d
-COPY --from=builder /etc/bash.bashrc /etc/bash.bashrc
 COPY --from=builder /opt/scripts /opt/scripts
-COPY .docker/root/.bashrc /root/
 
 RUN chown -R nobody:nobody /opt
 
