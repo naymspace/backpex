@@ -2,11 +2,31 @@
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
   "extends": [
     "config:best-practices",
+    "customManagers:dockerfileVersions",
     ":disableRateLimiting",
     "github>pehbehbeh/renovate-config//workarounds/mixGitVersioning",
     "github>pehbehbeh/renovate-config//customManagers/hexEsbuild",
     "github>pehbehbeh/renovate-config//customManagers/hexTailwind",
     ":reviewer(krns)"
+  ],
+  "packageRules": [
+    {
+      "groupName": "Base Image",
+      "matchDepNames": [
+        "erlang",
+        "elixir",
+        "ubuntu"
+      ]
+    },
+    {
+      "matchDepNames": [
+        "ubuntu"
+      ],
+      "matchUpdateTypes": [
+        "major"
+      ],
+      "enabled": false
+    }
   ],
   "labels": [
     "dependencies",
