@@ -11,19 +11,20 @@ defmodule Backpex.HTML.Layout do
   Renders an app shell representing the base of your layout.
   """
   @doc type: :component
-  slot(:inner_block)
 
-  slot(:topbar, doc: "content to be displayed in the topbar") do
-    attr(:class, :string, doc: "additional class that will be added to the component")
+  attr :fluid, :boolean, default: false, doc: "toggles fluid layout"
+
+  slot :inner_block
+
+  slot :topbar, doc: "content to be displayed in the topbar" do
+    attr :class, :string, doc: "additional class that will be added to the component"
   end
 
-  slot(:sidebar, doc: "content to be displayed in the sidebar") do
-    attr(:class, :string, doc: "additional class that will be added to the component")
+  slot :sidebar, doc: "content to be displayed in the sidebar" do
+    attr :class, :string, doc: "additional class that will be added to the component"
   end
 
-  slot(:footer, doc: "content to be displayed in the footer")
-
-  attr(:fluid, :boolean, default: false, doc: "toggles fluid layout")
+  slot :footer, doc: "content to be displayed in the footer"
 
   def app_shell(assigns) do
     ~H"""
@@ -59,12 +60,6 @@ defmodule Backpex.HTML.Layout do
         </div>
       </div>
 
-      <div class="fixed top-0 z-10 hidden w-full md:block">
-        <.topbar class={for topbar <- @topbar, do: topbar[:class] || ""}>
-          <%= render_slot(@topbar) %>
-        </.topbar>
-      </div>
-
       <%= for sidebar <- @sidebar do %>
         <div class="hidden md:fixed md:inset-y-0 md:mt-16 md:flex md:w-64 md:flex-col">
           <div class="flex min-h-0 flex-1 flex-col">
@@ -76,13 +71,13 @@ defmodule Backpex.HTML.Layout do
       <% end %>
 
       <div class={"#{if length(@sidebar) > 0, do: "md:pl-64", else: ""} flex flex-1 flex-col"}>
-        <div class="fixed top-0 z-30 w-full md:hidden">
+        <div class="fixed top-0 z-30 block w-full md:-ml-64">
           <.topbar class={for topbar <- @topbar, do: topbar[:class] || ""}>
             <%= render_slot(@topbar) %>
             <%= for _ <- @sidebar do %>
               <button
                 type="button"
-                class="text-base-content rounded-btn -mt-0.5 -ml-0.5 inline-flex h-12 w-12 items-center justify-center focus:ring-base-content focus:outline-none focus:ring-2 focus:ring-inset"
+                class="text-base-content rounded-btn -mt-0.5 -ml-0.5 inline-flex h-12 w-12 items-center justify-center focus:ring-base-content focus:outline-none focus:ring-2 focus:ring-inset md:hidden"
                 @click="mobile_menu_open = !mobile_menu_open"
               >
                 <Backpex.HTML.CoreComponents.icon name="hero-bars-3-solid" class="h-8 w-8" />
@@ -109,9 +104,10 @@ defmodule Backpex.HTML.Layout do
   Renders a topbar.
   """
   @doc type: :component
-  attr(:class, :string, default: "", doc: "additional class to be added to the component")
 
-  slot(:inner_block)
+  attr :class, :string, default: "", doc: "additional class to be added to the component"
+
+  slot :inner_block
 
   def topbar(assigns) do
     ~H"""
@@ -125,10 +121,8 @@ defmodule Backpex.HTML.Layout do
   Renders flash messages.
   """
   @doc type: :component
-  attr(:flash, :map,
-    required: true,
-    doc: "flash map that will be passed to `Phoenix.Flash.get/2`"
-  )
+
+  attr :flash, :map, required: true, doc: "flash map that will be passed to `Phoenix.Flash.get/2`"
 
   def flash_messages(assigns) do
     ~H"""
@@ -178,9 +172,10 @@ defmodule Backpex.HTML.Layout do
   Renders a footer. It provides a default look when no content is provided.
   """
   @doc type: :component
-  attr(:class, :string, default: "", doc: "additional class that will be added to the component")
 
-  slot(:inner_block)
+  attr :class, :string, default: "", doc: "additional class that will be added to the component"
+
+  slot :inner_block
 
   def footer(assigns) do
     ~H"""
@@ -205,11 +200,12 @@ defmodule Backpex.HTML.Layout do
   Renders the topbar branding.
   """
   @doc type: :component
-  attr(:class, :string, default: "", doc: "additional class that will be added to the component")
-  attr(:title, :string, default: "Backpex", doc: "title that will be displayed next to the logo")
-  attr(:hide_title, :boolean, default: false, doc: "if the title should be hidden")
 
-  slot(:logo, doc: "the logo of the branding")
+  attr :class, :string, default: "", doc: "additional class that will be added to the component"
+  attr :title, :string, default: "Backpex", doc: "title that will be displayed next to the logo"
+  attr :hide_title, :boolean, default: false, doc: "if the title should be hidden"
+
+  slot :logo, doc: "the logo of the branding"
 
   def topbar_branding(assigns) do
     ~H"""
@@ -227,10 +223,57 @@ defmodule Backpex.HTML.Layout do
   end
 
   @doc """
+  Renders a theme selector.
+  """
+  @doc type: :component
+
+  attr :socket, :any, required: true
+
+  attr :themes, :list,
+    doc: "A list of tuples with {theme_label, theme_name} format",
+    examples: [[{"Light", "light"}, {"Dark", "dark"}]]
+
+  def theme_selector(assigns) do
+    ~H"""
+    <div
+      id="backpex-theme-selector"
+      phx-hook="BackpexThemeSelector"
+      class="dropdown dropdown-bottom dropdown-end no-animation"
+    >
+      <div tabindex="0" role="button" class="btn btn-ghost m-1">
+        <span class="hidden md:block">
+          <%= Backpex.translate("Theme") %>
+        </span>
+        <Backpex.HTML.CoreComponents.icon name="hero-swatch" class="h-5 w-5 md:hidden" />
+        <Backpex.HTML.CoreComponents.icon name="hero-chevron-down" class="h-5 w-5" />
+      </div>
+      <form id="backpex-theme-selector-form" data-cookie-path={Router.cookie_path(@socket)}>
+        <ul
+          tabindex="0"
+          class="dropdown-content bg-base-300 rounded-box z-[1] max-h-96 w-52 overflow-y-scroll p-2 shadow-2xl"
+        >
+          <li :for={{label, theme_name} <- @themes}>
+            <input
+              type="radio"
+              name="theme-selector"
+              class="theme-controller btn btn-sm btn-block btn-ghost justify-start"
+              aria-label={label}
+              phx-click={JS.dispatch("backpex:theme-change")}
+              value={theme_name}
+            />
+          </li>
+        </ul>
+      </form>
+    </div>
+    """
+  end
+
+  @doc """
   Get the Backpex logo SVG.
   """
   @doc type: :component
-  attr(:class, :string, required: false, default: nil, doc: "class that will be added to the SVG element")
+
+  attr :class, :string, required: false, default: nil, doc: "class that will be added to the SVG element"
 
   def backpex_logo(assigns) do
     ~H"""
@@ -290,13 +333,10 @@ defmodule Backpex.HTML.Layout do
   Renders a topbar dropdown.
   """
   @doc type: :component
-  attr(:class, :string,
-    required: false,
-    default: "",
-    doc: "additional class that will be added to the component"
-  )
 
-  slot(:label, required: true, doc: "label of the dropdown")
+  attr :class, :string, required: false, default: "", doc: "additional class that will be added to the component"
+
+  slot :label, required: true, doc: "label of the dropdown"
 
   def topbar_dropdown(assigns) do
     ~H"""
@@ -312,10 +352,11 @@ defmodule Backpex.HTML.Layout do
   @doc """
   Container to wrap main elements and add margin.
   """
-  attr(:class, :string, default: "", doc: "additional class that will be added to the component")
-  slot(:inner_block)
-
   @doc type: :component
+
+  attr :class, :string, default: "", doc: "additional class that will be added to the component"
+  slot :inner_block
+
   def main_container(assigns) do
     ~H"""
     <div class={@class}>
@@ -328,9 +369,10 @@ defmodule Backpex.HTML.Layout do
   Renders a title.
   """
   @doc type: :component
-  attr(:class, :string, default: "", doc: "additional class that will be added to the component")
 
-  slot(:inner_block)
+  attr :class, :string, default: "", doc: "additional class that will be added to the component"
+
+  slot :inner_block
 
   def main_title(assigns) do
     ~H"""
@@ -344,16 +386,16 @@ defmodule Backpex.HTML.Layout do
   Renders a sidebar section.
   """
   @doc type: :component
-  attr(:class, :string, default: "", doc: "additional class that will be added to the component")
 
-  attr(:id, :string,
+  attr :class, :string, default: "", doc: "additional class that will be added to the component"
+
+  attr :id, :string,
     default: "section",
     doc:
       "The id for this section. It will be used to save and load the opening state of this section from local storage."
-  )
 
-  slot(:inner_block)
-  slot(:label, required: true, doc: "label to be displayed on the section.")
+  slot :inner_block
+  slot :label, required: true, doc: "label to be displayed on the section."
 
   def sidebar_section(assigns) do
     ~H"""
@@ -384,13 +426,14 @@ defmodule Backpex.HTML.Layout do
   Renders a sidebar item. It uses `Phoenix.Component.link/1` component, so you can can use link and href navigation.
   """
   @doc type: :component
-  attr(:class, :string, default: "", doc: "additional class that will be added to the component")
-  attr(:current_url, :string, doc: "the current url")
-  attr(:navigate, :string)
-  attr(:patch, :string)
-  attr(:href, :any)
 
-  slot(:inner_block)
+  attr :class, :string, default: "", doc: "additional class that will be added to the component"
+  attr :current_url, :string, doc: "the current url"
+  attr :navigate, :string
+  attr :patch, :string
+  attr :href, :any
+
+  slot :inner_block
 
   def sidebar_item(assigns) do
     path =
@@ -426,13 +469,15 @@ defmodule Backpex.HTML.Layout do
   @doc """
   Renders the form label and input with corresponding margin and alignment.
   """
-  attr(:class, :string, default: "", doc: "extra classes to be added")
+  @doc type: :component
+
+  attr :class, :string, default: "", doc: "extra classes to be added"
 
   slot :label, required: true do
-    attr(:align, :atom, values: [:top, :center, :bottom])
+    attr :align, :atom, values: [:top, :center, :bottom]
   end
 
-  slot(:inner_block)
+  slot :inner_block
 
   def field_container(assigns) do
     ~H"""
@@ -448,20 +493,19 @@ defmodule Backpex.HTML.Layout do
     """
   end
 
-  attr(:title, :string, default: nil, doc: "modal title")
-  attr(:target, :string, default: nil, doc: "live component for the close event to go to")
-  attr(:close_event_name, :string, default: "close-modal", doc: "close event name")
+  @doc """
+  Renders a modal.
+  """
+  @doc type: :component
 
-  attr(:max_width, :string,
-    default: "md",
-    values: ["sm", "md", "lg", "xl", "2xl", "full"],
-    doc: "modal max width"
-  )
+  attr :title, :string, default: nil, doc: "modal title"
+  attr :target, :string, default: nil, doc: "live component for the close event to go to"
+  attr :close_event_name, :string, default: "close-modal", doc: "close event name"
+  attr :max_width, :string, default: "md", values: ["sm", "md", "lg", "xl", "2xl", "full"], doc: "modal max width"
+  attr :open, :boolean, default: true, doc: "modal open"
+  attr :rest, :global
 
-  attr(:open, :boolean, default: true, doc: "modal open")
-  attr(:rest, :global)
-
-  slot(:inner_block, required: false)
+  slot :inner_block, required: false
 
   def modal(assigns) do
     assigns =
@@ -554,7 +598,12 @@ defmodule Backpex.HTML.Layout do
     [base_classes, max_width_class]
   end
 
-  attr(:text, :string, doc: "text of the label")
+  @doc """
+  Renders a text to be used as a label for an input.
+  """
+  @doc type: :component
+
+  attr :text, :string, doc: "text of the label"
 
   def input_label(assigns) do
     ~H"""

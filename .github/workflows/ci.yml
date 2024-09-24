@@ -24,81 +24,64 @@ jobs:
     strategy:
       matrix:
         elixir: ["1.17", "1.16"]
-        erlang: ["27.0", "26.2"]
+        erlang: ["27.1", "26.2"]
         exclude:
           - elixir: "1.16"
-            erlang: "27.0"
+            erlang: "27.1"
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4
 
-      - uses: erlef/setup-beam@v1
+      - uses: erlef/setup-beam@b9c58b0450cd832ccdb3c17cc156a47065d2114f # v1
         with:
           otp-version: ${{ matrix.erlang }}
           elixir-version: ${{ matrix.elixir }}
 
-      - name: Restore the deps cache
-        uses: actions/cache@v4
-        id: deps-cache
+      - name: Restore the deps and _build cache
+        uses: actions/cache@0c45773b623bea8c8e75f6c82b208c3cf94ea4f9 # v4
+        id: restore-cache
+        env:
+          MIX_LOCK_HASH: ${{ hashFiles(format('{0}{1}', github.workspace, '/mix.lock')) }}
         with:
-          path: deps
-          key: ${{ runner.os }}-${{ matrix.elixir }}-${{ matrix.erlang }}-deps-mixlockhash-${{ hashFiles(format('{0}{1}', github.workspace, '/mix.lock')) }}
-          restore-keys: |
-            ${{ runner.os }}-${{ matrix.elixir }}-${{ matrix.erlang }}-deps-
-
-      - name: Restore the _build cache
-        uses: actions/cache@v4
-        id: build-cache
-        with:
-          path: _build
-          key: ${{ runner.os }}-${{ matrix.elixir }}-${{ matrix.erlang }}-build-mixlockhash-${{ hashFiles(format('{0}{1}', github.workspace, '/mix.lock')) }}
-          restore-keys: |
-            ${{ runner.os }}-${{ matrix.elixir }}-${{ matrix.erlang }}-build-
+          path: |
+            deps
+            _build
+          key: ${{ runner.os }}-${{ matrix.elixir }}-${{ matrix.erlang }}-build-deps-mixlockhash-${{ env.MIX_LOCK_HASH }}
+          restore-keys:  ${{ runner.os }}-${{ matrix.elixir }}-${{ matrix.erlang }}-build-deps-
 
       - name: Install dependencies
-        if: steps.deps-cache.outputs.cache-hit != 'true'
-        run: |
-          mix local.hex --force --if-missing
-          mix local.rebar --force --if-missing
-          mix deps.get
+        if: steps.restore-cache.outputs.cache-hit != 'true'
+        run: mix deps.get
 
       - name: Compile dependencies
-        if: steps.deps-cache.outputs.cache-hit != 'true'
+        if: steps.restore-cache.outputs.cache-hit != 'true'
         run: mix deps.compile
 
       - name: Run tests
-        run: |
-          mix test
+        run: mix test
 
       - name: Check formatting
-        run: |
-          mix format --check-formatted
+        run: mix format --check-formatted
 
       - name: Compile with warnings as errors
-        run: |
-          mix compile --warnings-as-errors --force
+        run: mix compile --warnings-as-errors --force
 
       - name: Credo
-        run: |
-          mix credo
+        run: mix credo
 
       - name: Sobelow
-        run: |
-          mix sobelow --config
+        run: mix sobelow --config
 
       - name: Deps Unused
-        run: |
-          mix deps.unlock --check-unused
+        run: mix deps.unlock --check-unused
 
       - name: Deps Audit
         continue-on-error: true
-        run: |
-          mix deps.audit
+        run: mix deps.audit
 
       - name: Gettext Check
-        run: |
-          mix gettext.extract --check-up-to-date
+        run: mix gettext.extract --check-up-to-date
 
   publish:
     needs: test
@@ -108,9 +91,9 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4
 
-      - uses: erlef/setup-beam@v1
+      - uses: erlef/setup-beam@b9c58b0450cd832ccdb3c17cc156a47065d2114f # v1
         id: beam
         with:
           version-file: .tool-versions
@@ -133,7 +116,7 @@ jobs:
 
     services:
       postgres:
-        image: postgres:16-alpine
+        image: postgres:16-alpine@sha256:d898b0b78a2627cb4ee63464a14efc9d296884f1b28c841b0ab7d7c42f1fffdf
         env:
           POSTGRES_PASSWORD: postgres
         options: >-
@@ -146,57 +129,50 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4
 
       - name: Setup beam
-        uses: erlef/setup-beam@v1
+        uses: erlef/setup-beam@b9c58b0450cd832ccdb3c17cc156a47065d2114f # v1
         id: beam
         with:
           version-file: .tool-versions
           version-type: strict
 
       - name: Setup node
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@0a44ba7841725637a19e28fa30b79a866c81b0a6 # v4
         with:
           node-version: 20
           cache: 'yarn'
           cache-dependency-path: demo/yarn.lock
 
-      - name: Restore the deps cache
-        uses: actions/cache@v4
-        id: deps-cache
+      - name: Restore the deps and _build cache
+        uses: actions/cache@0c45773b623bea8c8e75f6c82b208c3cf94ea4f9 # v4
+        id: restore-cache
+        env:
+          OTP_VERSION: ${{ steps.beam.outputs.otp-version }}
+          ELIXIR_VERSION: ${{ steps.beam.outputs.elixir-version }}
+          MIX_LOCK_HASH: ${{ hashFiles(format('{0}{1}', github.workspace, '/demo/mix.lock')) }}
         with:
-          path: demo/deps
-          key: ${{ runner.os }}-${{ steps.beam.outputs.elixir-version }}-${{ steps.beam.outputs.otp-version }}-deps-demo-mixlockhash-${{ hashFiles(format('{0}{1}', github.workspace, '/demo/mix.lock')) }}
-          restore-keys: |
-            ${{ runner.os }}-${{ steps.beam.outputs.elixir-version }}-${{ steps.beam.outputs.otp-version }}-deps-demo-
-  
-      - name: Restore the _build cache
-        uses: actions/cache@v4
-        id: build-cache
-        with:
-          path: demo/_build
-          key: ${{ runner.os }}-${{ steps.beam.outputs.elixir-version }}-${{ steps.beam.outputs.otp-version }}-build-demo-mixlockhash-${{ hashFiles(format('{0}{1}', github.workspace, '/demo/mix.lock')) }}
-          restore-keys: |
-            ${{ runner.os }}-${{ steps.beam.outputs.elixir-version }}-${{ steps.beam.outputs.otp-version }}-build-demo-
-  
+          path: |
+            demo/deps
+            demo/_build
+          key: ${{ runner.os }}-${{ env.ELIXIR_VERSION }}-${{ env.OTP_VERSION }}-build-deps-demo-mixlockhash-${{ env.MIX_LOCK_HASH }}
+          restore-keys:  ${{ runner.os }}-${{ env.ELIXIR_VERSION }}-${{ env.OTP_VERSION }}-build-deps-demo-
+
       - name: Install dependencies
-        if: steps.deps-cache.outputs.cache-hit != 'true'
+        if: steps.restore-cache.outputs.cache-hit != 'true'
         working-directory: demo
-        run: |
-          mix local.hex --force --if-missing
-          mix local.rebar --force --if-missing
-          mix deps.get
+        run: mix deps.get
+          
   
       - name: Compile dependencies
-        if: steps.deps-cache.outputs.cache-hit != 'true'
+        if: steps.restore-cache.outputs.cache-hit != 'true'
         working-directory: demo
         run: mix deps.compile
 
       - name: Compile with warnings as errors
         working-directory: demo
-        run: |
-          mix compile --warnings-as-errors --force
+        run: mix compile --warnings-as-errors --force
 
       - name: Install node dependencies
         working-directory: demo
@@ -204,38 +180,31 @@ jobs:
 
       - name: lint:mix
         working-directory: demo
-        run: |
-          yarn lint:mix
+        run: yarn lint:mix
 
       - name: lint:credo
         working-directory: demo
-        run: |
-          yarn lint:credo
+        run: yarn lint:credo
 
       - name: lint:sobelow
         working-directory: demo
-        run: |
-          yarn lint:sobelow
+        run: yarn lint:sobelow
 
       - name: lint:style
         working-directory: demo
-        run: |
-          yarn lint:style
+        run: yarn lint:style
 
       - name: lint:standard
         working-directory: demo
-        run: |
-          yarn lint:standard
+        run: yarn lint:standard
 
       - name: lint:deps-unused
         working-directory: demo
-        run: |
-          yarn lint:deps-unused
+        run: yarn lint:deps-unused
 
       - name: lint:gettext
         working-directory: demo
-        run: |
-          yarn lint:gettext
+        run: yarn lint:gettext
 
       - name: Run test
         working-directory: demo
@@ -244,14 +213,12 @@ jobs:
           DB_USERNAME: postgres
           DB_PASSWORD: postgres
           DB_DATABASE: test
-        run: |
-          yarn test
+        run: yarn test
 
       - name: Deps audit
         working-directory: demo
         continue-on-error: true
-        run: |
-          mix deps.audit
+        run: mix deps.audit
 
   build-runtime:
     name: "Build and push image (Demo)"
@@ -265,13 +232,13 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4
 
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
+        uses: docker/setup-buildx-action@988b5a0280414f521da01fcc63a27aeeb4b104db # v3
 
       - name: Log in to the container registry
-        uses: docker/login-action@v3
+        uses: docker/login-action@9780b0c442fbb1117ed29e0efdff1e18412f7567 # v3
         with:
           registry: ${{ env.REGISTRY }}
           username: ${{ github.actor }}
@@ -279,12 +246,12 @@ jobs:
 
       - name: Extract metadata (tags, labels) for Docker
         id: meta
-        uses: docker/metadata-action@v5
+        uses: docker/metadata-action@8e5442c4ef9f78752691e2d8f8d19755c6f78e81 # v5
         with:
           images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME_RUNTIME }}
 
       - name: Build container
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@5cd11c3a4ced054e52742c5fd54dca954e0edd85 # v6
         with:
           push: true
           tags: ${{ steps.meta.outputs.tags }}

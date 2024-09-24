@@ -158,7 +158,7 @@ defmodule Backpex.Router do
 
   defp get_route_path(socket, module, action) do
     %{path: path} =
-      Enum.find(Map.get(socket, :router).__routes__, fn element ->
+      Enum.find(Map.get(socket, :router).__routes__(), fn element ->
         element[:metadata][:log_module] == module and element[:plug_opts] == action
       end)
 
@@ -187,6 +187,18 @@ defmodule Backpex.Router do
       ":" <> param, acc -> acc <> "/#{params[param]}"
       path, acc -> acc <> "/#{path}"
     end)
+  end
+
+  @doc """
+  Finds the cookie path by the given socket.
+  """
+  def cookie_path(socket) do
+    %{path: path} =
+      Enum.find(Map.get(socket, :router).__routes__(), fn element ->
+        element[:plug] == Backpex.CookieController and element[:plug_opts] == :update
+      end)
+
+    path
   end
 
   defp maybe_to_string(value) when is_atom(value), do: Atom.to_string(value)

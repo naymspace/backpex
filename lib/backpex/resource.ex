@@ -106,11 +106,15 @@ defmodule Backpex.Resource do
       %{queryable: queryable, owner_key: owner_key, cardinality: :one} = association, query ->
         custom_alias = Map.get(association, :custom_alias, name_by_schema(queryable))
 
-        from(item in query,
-          left_join: b in ^queryable,
-          as: ^custom_alias,
-          on: field(item, ^owner_key) == b.id
-        )
+        if has_named_binding?(query, custom_alias) do
+          query
+        else
+          from(item in query,
+            left_join: b in ^queryable,
+            as: ^custom_alias,
+            on: field(item, ^owner_key) == b.id
+          )
+        end
 
       _relation, query ->
         query
@@ -364,6 +368,7 @@ defmodule Backpex.Resource do
   * `item` (struct): The Ecto schema struct.
   * `attrs` (map): A map of parameters that will be passed to the `changeset_function`.
   * `repo` (module): The repository module.
+  * `fields` (keyword): The keyword list of fields defined in the live resource.
   * `changeset_function` (function): The function that transforms the item and parameters into a changeset.
   * `opts` (keyword list): A list of options for customizing the behavior of the insert function. The available options are:
     * `:assigns` (map, default: `%{}`): The assigns that will be passed to the changeset function.
@@ -371,14 +376,14 @@ defmodule Backpex.Resource do
     * `:assocs` (list, default: `[]`): A list of associations.
     * `:after_save` (function, default: `&{:ok, &1}`): A function to handle operations after the save.
   """
-  def update(item, attrs, repo, changeset_function, opts) do
+  def update(item, attrs, repo, fields, changeset_function, opts) do
     assigns = Keyword.get(opts, :assigns, %{})
     pubsub = Keyword.get(opts, :pubsub, nil)
     assocs = Keyword.get(opts, :assocs, [])
     after_save = Keyword.get(opts, :after_save, &{:ok, &1})
 
     item
-    |> change(attrs, changeset_function, assigns, assocs, nil, :update)
+    |> change(attrs, changeset_function, repo, fields, assigns, assocs: assocs, action: :update)
     |> repo.update()
     |> after_save(after_save)
     |> broadcast("updated", pubsub)
@@ -418,6 +423,7 @@ defmodule Backpex.Resource do
   * `item` (struct): The Ecto schema struct.
   * `attrs` (map): A map of parameters that will be passed to the `changeset_function`.
   * `repo` (module): The repository module.
+  * `fields` (keyword): The keyword list of fields defined in the live resource.
   * `changeset_function` (function): The function that transforms the item and parameters into a changeset.
   * `opts` (keyword list): A list of options for customizing the behavior of the insert function. The available options are:
     * `:assigns` (map, default: `%{}`): The assigns that will be passed to the changeset function.
@@ -425,14 +431,14 @@ defmodule Backpex.Resource do
     * `:assocs` (list, default: `[]`): A list of associations.
     * `:after_save` (function, default: `&{:ok, &1}`): A function to handle operations after the save.
   """
-  def insert(item, attrs, repo, changeset_function, opts) do
+  def insert(item, attrs, repo, fields, changeset_function, opts) do
     assigns = Keyword.get(opts, :assigns, %{})
     pubsub = Keyword.get(opts, :pubsub, nil)
     assocs = Keyword.get(opts, :assocs, [])
     after_save = Keyword.get(opts, :after_save, &{:ok, &1})
 
     item
-    |> change(attrs, changeset_function, assigns, assocs, nil, :insert)
+    |> change(attrs, changeset_function, repo, fields, assigns, assocs: assocs, action: :insert)
     |> repo.insert()
     |> after_save(after_save)
     |> broadcast("created", pubsub)
@@ -440,6 +446,7 @@ defmodule Backpex.Resource do
 
   @doc """
   Applies a change to a given item by calling the specified changeset function.
+  In addition, puts the given assocs into the function and calls the `c:Backpex.Field.before_changeset/6` callback for each field.
 
   ## Parameters
 
@@ -447,29 +454,49 @@ defmodule Backpex.Resource do
   * `attrs`: A map of attributes that will be used to modify the item. These attributes are passed to the changeset function.
   * `changeset_function`: A function used to generate the changeset. This function is usually defined elsewhere in your codebase and should follow the changeset Ecto convention.
   * `assigns`: The assigns that will be passed to the changeset function.
-  * `assocs` (optional, default `[]`): A list of associations that should be put into the changeset.
-  * `target` (optional, default `nil`): The target to be passed to the changeset function.
-  * `action` (optional, default `:validate`): An atom indicating the action to be performed on the changeset.
+  * `opts` (keyword list): A list of options for customizing the behavior of the change function. The available options are:
+    * `assocs` (optional, default `[]`): A list of associations that should be put into the changeset.
+    * `target` (optional, default `nil`): The target to be passed to the changeset function.
+    * `action` (optional, default `:validate`): An atom indicating the action to be performed on the changeset.
   """
-  def change(item, attrs, changeset_function, assigns, assocs \\ [], target \\ nil, action \\ :validate) do
-    Ecto.Changeset.change(item)
+  def change(item, attrs, changeset_function, repo, fields, assigns, opts \\ []) do
+    assocs = Keyword.get(opts, :assocs, [])
+    target = Keyword.get(opts, :target, nil)
+    action = Keyword.get(opts, :action, :validate)
+    metadata = build_changeset_metadata(assigns, target)
+
+    item
+    |> Ecto.Changeset.change()
+    |> before_changesets(attrs, metadata, repo, fields, assigns)
     |> put_assocs(assocs)
-    |> LiveResource.call_changeset_function(changeset_function, attrs, assigns, target)
+    |> LiveResource.call_changeset_function(changeset_function, attrs, metadata)
     |> Map.put(:action, action)
   end
 
-  @doc """
-  Updates an Ecto changeset with a list of associations. It takes an existing changeset and a list of associations, and it updates the changeset with each association using `Ecto.Changeset.put_assoc/3`.
+  def before_changesets(changeset, attrs, metadata, repo, fields, assigns) do
+    Enum.reduce(fields, changeset, fn {_name, field_options} = field, acc ->
+      field_options.module.before_changeset(acc, attrs, metadata, repo, field, assigns)
+    end)
+  end
 
-  ## Parameters
-
-  * `changeset`: The changeset that you want to update with new associations.
-  * `assocs` (keyword): A keyword list of associations to be added to the changeset. Each element should be a tuple with the association's key as the first element and the associated value as the second element.
-  """
-  def put_assocs(changeset, assocs) do
+  defp put_assocs(changeset, assocs) do
     Enum.reduce(assocs, changeset, fn {key, value}, acc ->
       Ecto.Changeset.put_assoc(acc, key, value)
     end)
+  end
+
+  @doc """
+  Builds metadata passed to changeset functions.
+
+  ## Parameters
+
+  * `assigns`: The assigns that will be passed to the changeset function.
+  * `target` (optional, default `nil`): The target to be passed to the changeset function.
+  """
+  def build_changeset_metadata(assigns, target \\ nil) do
+    Keyword.new()
+    |> Keyword.put(:assigns, assigns)
+    |> Keyword.put(:target, target)
   end
 
   @doc """

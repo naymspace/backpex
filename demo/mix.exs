@@ -34,7 +34,7 @@ defmodule Demo.MixProject do
   defp deps do
     [
       {:libcluster, "~> 3.2"},
-      {:ex_doc, "~> 0.23", only: [:dev, :test], runtime: false},
+      {:ex_doc, "~> 0.34", only: [:dev, :test], runtime: false},
       {:phoenix, "~> 1.7.6"},
       {:phoenix_pubsub, "~> 2.0"},
       {:phoenix_ecto, "~> 4.0"},
@@ -43,31 +43,26 @@ defmodule Demo.MixProject do
       {:phoenix_live_view, "~> 0.20.0"},
       {:phoenix_live_dashboard, "~> 0.8"},
       {:phoenix_live_reload, "~> 1.2", only: :dev},
-      {:esbuild, "~> 0.5", runtime: Mix.env() == :dev},
+      {:esbuild, "~> 0.8", runtime: Mix.env() == :dev},
       {:tailwind, "~> 0.2.0", runtime: Mix.env() == :dev},
       {:telemetry_poller, "~> 1.0"},
       {:telemetry_metrics, "~> 1.0"},
-      {:ecto_psql_extras, "~> 0.2"},
+      {:ecto_psql_extras, "~> 0.8"},
       {:circular_buffer, "~> 0.4.0"},
-      {:gettext, "~> 0.18"},
+      {:gettext, "~> 0.26"},
       {:credo, "~> 1.7.5", only: [:dev, :test], runtime: false},
-      {:sobelow, "~> 0.8", only: [:dev, :test]},
+      {:sobelow, "~> 0.13", only: [:dev, :test]},
       {:mix_audit, "~> 2.0", only: [:dev, :test], runtime: false},
       {:sentry, "~> 10.1"},
       {:ex_machina, "~> 2.3"},
       {:hackney, "~> 1.17", override: true},
-      {:faker, "~> 0.17"},
-      {:swoosh, "~> 1.0"},
-      {:phoenix_swoosh, "~> 1.0"},
-      {:gen_smtp, "~> 1.1"},
+      {:faker, "~> 0.18"},
       {:backpex, path: "../."},
       {:tailwind_formatter, "~> 0.4.0", only: [:dev, :test], runtime: false},
       {:csv, "~> 3.2.0"},
-      {:tesla, "~> 1.4"},
       {:jason, ">= 1.0.0"},
       {:bandit, "~> 1.0"},
-      {:heroicons,
-       github: "tailwindlabs/heroicons", tag: "v2.1.1", sparse: "optimized", app: false, compile: false, depth: 1}
+      {:heroicons, github: "tailwindlabs/heroicons", tag: "v2.1.5", sparse: "optimized", app: false, compile: false}
     ]
   end
 
@@ -78,6 +73,8 @@ defmodule Demo.MixProject do
       "ecto.seed": ["run priv/repo/seeds.exs"],
       "ecto.reset": ["ecto.rollback --all", "ecto.setup"],
       test: ["ecto.create --quiet", "ecto.migrate --quiet", "test --warnings-as-errors"],
+      "assets.setup": ["tailwind.install --if-missing", "esbuild.install --if-missing"],
+      "assets.build": ["tailwind default", "esbuild default"],
       "assets.deploy": ["tailwind default --minify", "esbuild default --minify", "phx.digest"]
     ]
   end

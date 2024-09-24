@@ -6,7 +6,7 @@ defmodule DemoWeb.ItemActions.DuplicateTag do
   alias Demo.Repo
 
   @impl Backpex.ItemAction
-  def icon(assigns) do
+  def icon(assigns, _item) do
     ~H"""
     <Backpex.HTML.CoreComponents.icon
       name="hero-document-duplicate"
@@ -28,7 +28,8 @@ defmodule DemoWeb.ItemActions.DuplicateTag do
   end
 
   @impl Backpex.ItemAction
-  def label(_assigns), do: "Duplicate"
+  def label(_assigns, nil), do: "Duplicate"
+  def label(_assigns, item), do: "Duplicate #{item.name}"
 
   @impl Backpex.ItemAction
   def confirm(_assigns), do: "Please complete the form to duplicate the item."

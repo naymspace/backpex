@@ -62,6 +62,19 @@ defmodule Backpex.Field do
               Phoenix.LiveView.Socket.t()
 
   @doc """
+  This function is called before the changeset function is called. This allows fields to modify the changeset.
+  The `Backpex.Fields.HasMany` uses this callback to put the linked associations into the changeset.
+  """
+  @callback before_changeset(
+              changeset :: Phoenix.LiveView.Socket.t(),
+              attrs :: map(),
+              metadata :: keyword(),
+              repo :: module(),
+              field :: tuple(),
+              assigns :: map()
+            ) :: Ecto.Changeset.t()
+
+  @doc """
   Defines the search condition. Defaults to an ilike condition with text comparison. The function has to return a query wrapped into a `Ecto.Query.dynamic/2` which is then passed into a `Ecto.Query.where/3`.
 
   ## Example
@@ -147,6 +160,9 @@ defmodule Backpex.Field do
           ilike(schema_name |> field(^field_name), ^search_string)
         )
       end
+
+      @impl Backpex.Field
+      def before_changeset(changeset, _attrs, _metadata, _repo, _field, _assigns), do: changeset
     end
   end
 
@@ -238,7 +254,7 @@ defmodule Backpex.Field do
   @doc """
   Handles index editable.
   """
-  def handle_index_editable(socket, change) do
+  def handle_index_editable(socket, value, change) do
     if not Backpex.LiveResource.can?(socket.assigns, :edit, socket.assigns.item, socket.assigns.live_resource) do
       raise Backpex.ForbiddenError
     end
@@ -250,7 +266,8 @@ defmodule Backpex.Field do
           item: item,
           pubsub: pubsub,
           changeset_function: changeset_function,
-          live_resource: live_resource
+          live_resource: live_resource,
+          fields: fields
         } = assigns
     } = socket
 
@@ -264,7 +281,7 @@ defmodule Backpex.Field do
       end
     ]
 
-    result = Backpex.Resource.update(item, change, repo, changeset_function, opts)
+    result = Backpex.Resource.update(item, change, repo, fields, changeset_function, opts)
 
     socket =
       case result do
@@ -274,6 +291,7 @@ defmodule Backpex.Field do
         _error ->
           assign(socket, :valid, false)
       end
+      |> assign(:form, Phoenix.Component.to_form(%{"value" => value}, as: :index_form))
 
     {:noreply, socket}
   end

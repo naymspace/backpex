@@ -96,8 +96,8 @@ defmodule Backpex.Fields.DateTime do
 
     assigns =
       assigns
-      |> assign(:form, form)
       |> assign(:valid, Map.get(assigns, :valid, true))
+      |> assign_new(:form, fn -> form end)
 
     ~H"""
     <div>
@@ -117,6 +117,6 @@ defmodule Backpex.Fields.DateTime do
 
   @impl Phoenix.LiveComponent
   def handle_event("update-field", %{"index_form" => %{"value" => value}}, socket) do
-    Backpex.Field.handle_index_editable(socket, %{} |> Map.put(socket.assigns.name, value))
+    Backpex.Field.handle_index_editable(socket, value, Map.put(%{}, socket.assigns.name, value))
   end
 end
