@@ -1,7 +1,7 @@
 defmodule Backpex.MixProject do
   use Mix.Project
 
-  @version "0.6.0"
+  @version "0.7.0"
   @source_url "https://github.com/naymspace/backpex"
 
   def project do
@@ -52,7 +52,7 @@ defmodule Backpex.MixProject do
 
   defp package do
     [
-      files: ~w(lib priv mix.exs README.md LICENSE.md),
+      files: ~w(lib priv .formatter.exs mix.exs README.md LICENSE.md),
       maintainers: ["Florian Arens", "Phil-Bastian Berndt", "Simon Hansen"],
       licenses: ["MIT"],
       links: %{"GitHub" => @source_url}

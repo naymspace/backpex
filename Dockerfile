@@ -2,7 +2,7 @@
 # Stage: builder
 ########################################################################
 
-FROM hexpm/elixir:1.17.2-erlang-27.0.1-alpine-3.20.1@sha256:43613f6ac80df7f1598dda6e2157307a5779a2107f73813798c1f0abce60d36d as builder
+FROM hexpm/elixir:1.17.3-erlang-27.1-alpine-3.20.3@sha256:3ff1231940202c670487c11de2a818835bae2bbbf862215fb5e4accb05653a6a as builder
 
 ENV MIX_HOME=/opt/mix \
     HEX_HOME=/opt/hex \

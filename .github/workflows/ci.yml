@@ -24,10 +24,10 @@ jobs:
     strategy:
       matrix:
         elixir: ["1.17", "1.16"]
-        erlang: ["27.0", "26.2"]
+        erlang: ["27.1", "26.2"]
         exclude:
           - elixir: "1.16"
-            erlang: "27.0"
+            erlang: "27.1"
 
     steps:
       - name: Checkout code
@@ -139,7 +139,7 @@ jobs:
           version-type: strict
 
       - name: Setup node
-        uses: actions/setup-node@1e60f620b9541d16bece96c5465dc8ee9832be0b # v4
+        uses: actions/setup-node@0a44ba7841725637a19e28fa30b79a866c81b0a6 # v4
         with:
           node-version: 20
           cache: 'yarn'
