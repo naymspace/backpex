@@ -28,7 +28,9 @@ defmodule Demo.ShortLink do
     |> cast_assoc(:product, with: &Demo.Product.changeset/2)
     |> add_short_key()
     |> validate_required(@required_fields)
-    |> validate_format(:short_key, ~r/^[A-Za-z0-9_-]+$/, message: "must be URL safe (only letters, numbers, underscores, and hyphens)")
+    |> validate_format(:short_key, ~r/^[A-Za-z0-9_-]+$/,
+      message: "must be URL safe (only letters, numbers, underscores, and hyphens)"
+    )
     |> validate_length(:short_key, min: 1, max: 64)
     |> unique_constraint(:short_key)
   end
