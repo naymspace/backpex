@@ -43,7 +43,8 @@ defmodule DemoWeb.ShortLinkLive do
         module: Backpex.Fields.BelongsTo,
         label: "Product",
         source: Demo.Product,
-        display_field: :name
+        display_field: :name,
+        prompt: "Choose product..."
       }
     ]
   end
