@@ -77,7 +77,7 @@ defmodule Demo.Factory do
 
   def short_link_factory do
     %ShortLink{
-      short_key: ShortLink.generate_short_key(),
+      short_key: ShortLink.generate_unique_short_key(),
       url: "https://example.com/"
     }
   end
