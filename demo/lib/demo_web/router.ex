@@ -43,6 +43,7 @@ defmodule DemoWeb.Router do
       live_resources "/tags", TagLive
       live_resources "/addresses", AddressLive
       live_resources "/film-reviews", FilmReviewLive
+      live_resources "/short-links", ShortLinkLive
     end
   end
 end

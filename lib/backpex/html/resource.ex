@@ -115,10 +115,11 @@ defmodule Backpex.HTML.Resource do
       |> assign(:value, Map.get(item, name))
       |> assign(:type, :index)
       |> assign(:readonly, readonly)
+      |> assign(:primary_key, Map.get(item, live_resource.get_primary_key_field()))
 
     ~H"""
     <.live_component
-      id={"resource_#{@name}_#{@item.id}"}
+      id={"resource_#{@name}_#{@primary_key}"}
       module={@field_options.module}
       type={@type}
       {Map.drop(assigns, [:socket, :flash, :myself, :uploads])}
