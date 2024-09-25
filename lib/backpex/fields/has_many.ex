@@ -113,7 +113,7 @@ defmodule Backpex.Fields.HasMany do
           <label
             tabindex="0"
             class={[
-              "input phx-no-feedback:input-bordered phx-no-feedback:bg-transparent block h-fit w-full p-2",
+              "input block h-fit w-full p-2 phx-no-feedback:input-bordered phx-no-feedback:bg-transparent",
               @errors == [] && "input-bordered bg-transparent",
               @errors != [] && "input-error bg-error/10"
             ]}
