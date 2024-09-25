@@ -10,5 +10,7 @@ defmodule Demo.Repo.Migrations.CreateShortLinks do
 
       timestamps()
     end
+
+    create unique_index(:short_links, [:short_key])
   end
 end
