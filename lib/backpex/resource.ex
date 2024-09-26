@@ -3,9 +3,7 @@ defmodule Backpex.Resource do
   Generic context module for Backpex resources.
   """
   import Ecto.Query
-
   import Backpex.Adapters.Ecto, only: [name_by_schema: 1]
-
   alias Backpex.Ecto.EctoUtils
   alias Backpex.LiveResource
 
@@ -20,28 +18,11 @@ defmodule Backpex.Resource do
     search: {"hello", [:title, :description]}
   ]
   """
-  def list(assigns, item_query, fields, criteria \\ []) do
-    list_query(assigns, item_query, fields, criteria)
-    |> assigns.repo.all()
-  end
+  def list(criteria \\ [], fields, assigns, live_resource) do
+    adapter = live_resource.config(:adapter)
+    adapter_config = live_resource.config(:adapter_config)
 
-  @doc """
-  Returns the main database query for selecting a list of items by given criteria.
-  """
-  def list_query(assigns, item_query, fields, criteria \\ []) do
-    %{schema: schema, full_text_search: full_text_search, live_resource: live_resource} = assigns
-
-    associations = associations(fields, schema)
-
-    schema
-    |> from(as: ^name_by_schema(schema))
-    |> item_query.()
-    |> maybe_join(associations)
-    |> maybe_preload(associations, fields)
-    |> maybe_merge_dynamic_fields(fields)
-    |> apply_search(schema, full_text_search, criteria[:search])
-    |> apply_filters(criteria[:filters], live_resource.get_empty_filter_key())
-    |> apply_criteria(criteria, fields)
+    adapter.list(criteria, fields, assigns, adapter_config)
   end
 
   def metric_data(assigns, select, item_query, fields, criteria \\ []) do
@@ -54,24 +35,10 @@ defmodule Backpex.Resource do
     |> item_query.()
     |> maybe_join(associations)
     |> maybe_preload(associations, fields)
-    |> apply_search(schema, full_text_search, criteria[:search])
-    |> apply_filters(criteria[:filters], live_resource.get_empty_filter_key())
+    |> Backpex.Adapters.Ecto.apply_search(schema, full_text_search, criteria[:search])
+    |> Backpex.Adapters.Ecto.apply_filters(criteria[:filters], live_resource.get_empty_filter_key())
     |> select(^select)
     |> repo.one()
-  end
-
-  defp maybe_merge_dynamic_fields(query, fields) do
-    fields
-    |> Enum.reduce(query, fn
-      {_name, %{display_field: _display_field}}, q ->
-        q
-
-      {name, %{select: select}}, q ->
-        select_merge(q, ^%{name => select})
-
-      _field, q ->
-        q
-    end)
   end
 
   defp maybe_preload(query, [], _fields), do: query
@@ -124,118 +91,6 @@ defmodule Backpex.Resource do
     end)
   end
 
-  def apply_search(query, _schema, nil, {_search_string, []}), do: query
-
-  def apply_search(query, _schema, nil, {search_string, searchable_fields}) do
-    search_string = "%#{search_string}%"
-
-    conditions = search_conditions(searchable_fields, search_string)
-    where(query, ^conditions)
-  end
-
-  def apply_search(query, schema, full_text_search, {search_string, _searchable_fields}) do
-    case search_string do
-      "" ->
-        query
-
-      search ->
-        schema_name = name_by_schema(schema)
-
-        where(
-          query,
-          [{^schema_name, schema_name}],
-          fragment("? @@ websearch_to_tsquery(?)", field(schema_name, ^full_text_search), ^search)
-        )
-    end
-  end
-
-  defp search_conditions([field], search_string) do
-    search_condition(field, search_string)
-  end
-
-  defp search_conditions([field | searchable_fields], search_string) do
-    dynamic(^search_condition(field, search_string) or ^search_conditions(searchable_fields, search_string))
-  end
-
-  defp search_condition({_name, %{select: select} = _field_options}, search_string) do
-    dynamic(ilike(^select, ^search_string))
-  end
-
-  defp search_condition({name, %{queryable: queryable} = field_options}, search_string) do
-    field_name = Map.get(field_options, :display_field, name)
-    schema_name = Map.get(field_options, :custom_alias, name_by_schema(queryable))
-
-    dynamic(^field_options.module.search_condition(schema_name, field_name, search_string))
-  end
-
-  def apply_filters(query, [], _empty_filter_key), do: query
-
-  def apply_filters(query, filters, empty_filter_key) do
-    Enum.reduce(filters, query, fn
-      %{field: ^empty_filter_key} = _filter, acc ->
-        acc
-
-      %{field: field, value: value, filter_config: filter_config} = _filter, acc ->
-        filter_config.module.query(acc, field, value)
-    end)
-  end
-
-  def apply_criteria(query, [], _fields), do: query
-
-  def apply_criteria(query, criteria, fields) do
-    Enum.reduce(criteria, query, fn
-      {:order, %{by: by, direction: direction, schema: schema, field_name: field_name}}, query ->
-        schema_name = get_custom_alias(fields, field_name, name_by_schema(schema))
-
-        direction =
-          case direction do
-            :desc -> :desc_nulls_last
-            :asc -> :asc_nulls_first
-          end
-
-        field =
-          Enum.find(fields, fn
-            {^by, field} -> field
-            {^field_name, %{display_field: ^by} = field} -> field
-            _field -> nil
-          end)
-
-        case field do
-          {_name, %{select: select} = _field_options} ->
-            query
-            |> order_by([{^schema_name, schema_name}], ^[{direction, select}])
-
-          _field ->
-            query
-            |> order_by([{^schema_name, schema_name}], [
-              {^direction, field(schema_name, ^by)}
-            ])
-        end
-
-      {:limit, limit}, query ->
-        query
-        |> limit(^limit)
-
-      {:pagination, %{page: page, size: size}}, query ->
-        query
-        |> offset(^((page - 1) * size))
-        |> limit(^size)
-
-      _criteria, query ->
-        query
-    end)
-  end
-
-  defp get_custom_alias(fields, field_name, default_alias) do
-    case Keyword.get(fields, field_name) do
-      %{custom_alias: custom_alias} ->
-        custom_alias
-
-      _field_or_nil ->
-        default_alias
-    end
-  end
-
   @doc """
   Gets the total count of the current live_resource.
   Possibly being constrained the item query and the search- and filter options.
@@ -253,8 +108,8 @@ defmodule Backpex.Resource do
     from(schema, as: ^name_by_schema(schema))
     |> item_query.()
     |> maybe_join(associations)
-    |> apply_search(schema, full_text_search, search_options)
-    |> apply_filters(filter_options, live_resource.get_empty_filter_key())
+    |> Backpex.Adapters.Ecto.apply_search(schema, full_text_search, search_options)
+    |> Backpex.Adapters.Ecto.apply_filters(filter_options, live_resource.get_empty_filter_key())
     |> exclude(:preload)
     |> subquery()
     |> repo.aggregate(:count)

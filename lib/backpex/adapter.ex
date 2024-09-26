@@ -30,6 +30,11 @@ defmodule Backpex.Adapter do
   @callback get!(term(), term(), term(), term()) :: term()
 
   @doc """
+  Returns a list of items by given criteria.
+  """
+  @callback list(term(), term(), term(), term()) :: term()
+
+  @doc """
   Deletes multiple items.
   """
   @callback delete_all(list(), term()) :: {:ok, term()} | {:error, term()}

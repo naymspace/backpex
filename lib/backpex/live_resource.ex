@@ -648,7 +648,7 @@ defmodule Backpex.LiveResource do
         filters = Backpex.LiveResource.get_active_filters(__MODULE__, assigns)
 
         query =
-          Resource.list_query(
+          Backpex.Adapters.Ecto.list_query(
             assigns,
             &item_query(&1, live_action, assigns),
             fields,
@@ -1399,15 +1399,12 @@ defmodule Backpex.LiveResource do
   """
   def list_items(socket, init_order, item_query) do
     %{
-      assigns:
-        %{
-          schema: schema,
-          fields: fields,
-          live_action: live_action,
-          filters: filters,
-          query_options: query_options
-        } = assigns
-    } = socket
+      live_resource: live_resource,
+      schema: schema,
+      fields: fields,
+      filters: filters,
+      query_options: query_options
+    } = socket.assigns
 
     field = Enum.find(fields, fn {name, _field_options} -> name == query_options.order_by end)
 
@@ -1426,15 +1423,14 @@ defmodule Backpex.LiveResource do
         |> Map.put(:schema, schema)
       end
 
-    Resource.list(
-      assigns,
-      &item_query.(&1, live_action, assigns),
-      fields,
+    criteria = [
       order: order,
       pagination: %{page: query_options.page, size: query_options.per_page},
       search: search_options(query_options, fields, schema),
       filters: filter_options(query_options, filters)
-    )
+    ]
+
+    Resource.list(criteria, fields, socket.assigns, live_resource)
   end
 
   @doc """
