@@ -109,10 +109,14 @@ defmodule Backpex.Fields.HasMany do
         <:label align={Backpex.Field.align_label(@field_options, assigns)}>
           <Layout.input_label text={@field_options[:label]} />
         </:label>
-        <div class="dropdown w-full">
+        <div class="dropdown w-full" phx-feedback-for={@form[@name].name}>
           <label
             tabindex="0"
-            class={["input input-bordered block h-fit w-full p-2", @errors != [] && "bg-error/10 input-error"]}
+            class={[
+              "input block h-fit w-full p-2 phx-no-feedback:input-bordered phx-no-feedback:bg-transparent",
+              @errors == [] && "input-bordered bg-transparent",
+              @errors != [] && "input-error bg-error/10"
+            ]}
           >
             <div class="flex h-full w-full flex-wrap items-center gap-1 px-2">
               <p :if={@selected == []} class="p-0.5 text-sm">
@@ -426,11 +430,16 @@ defmodule Backpex.Fields.HasMany do
     |> maybe_options_query(field_options, assigns)
     |> maybe_search_query(schema_name, field_options, display_field, Keyword.get(opts, :search))
     |> subquery()
-    |> repo.aggregate(:count, :id)
+    |> repo.aggregate(:count)
   end
 
   def assign_selected(socket) do
-    selected_ids = extract_selected_ids(socket.assigns.form[socket.assigns.name].value)
+    {field_name, field_options} = socket.assigns.field
+    validate_live_resource(field_name, field_options)
+
+    primary_key_field = field_options.live_resource.get_primary_key_field()
+
+    selected_ids = extract_selected_ids(socket.assigns.form[socket.assigns.name].value, primary_key_field)
     selected_items = fetch_selected_items(socket, selected_ids)
 
     socket
@@ -470,16 +479,26 @@ defmodule Backpex.Fields.HasMany do
     end)
   end
 
-  defp extract_selected_ids(value) when is_list(value) do
+  defp extract_selected_ids(value, primary_key_field) when is_list(value) and is_atom(primary_key_field) do
     Enum.reduce(value, [], fn
-      %Ecto.Changeset{data: %{id: id}, action: :update}, acc -> [id | acc]
-      %{id: id}, acc -> [id | acc]
-      entry, acc when is_binary(entry) -> [entry | acc]
-      _entry, acc -> acc
+      %Ecto.Changeset{data: data, action: :update}, acc ->
+        [Map.fetch!(data, primary_key_field) | acc]
+
+      %Ecto.Changeset{}, acc ->
+        acc
+
+      struct, acc when is_struct(struct) ->
+        [Map.fetch!(struct, primary_key_field) | acc]
+
+      entry, acc when is_binary(entry) and entry != "" ->
+        [entry | acc]
+
+      _entry, acc ->
+        acc
     end)
   end
 
-  defp extract_selected_ids(_value), do: []
+  defp extract_selected_ids(_value, _primary_key_field), do: []
 
   defp assign_form_errors(socket) do
     %{assigns: %{form: form, name: name, field_options: field_options}} = socket

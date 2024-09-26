@@ -46,8 +46,10 @@ defmodule Backpex.Adapters.Ecto do
   """
   @impl Backpex.Adapter
   def delete_all(items, config) do
+    id_field = Backpex.Ecto.EctoUtils.get_primary_key_field(config[:schema])
+
     config[:schema]
-    |> where([i], i.id in ^Enum.map(items, & &1.id))
+    |> where([i], field(i, ^id_field) in ^Enum.map(items, &Map.get(&1, id_field)))
     |> config[:repo].delete_all()
   end
 end

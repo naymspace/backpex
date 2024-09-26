@@ -7,6 +7,7 @@ defmodule Demo.Factory do
   alias Demo.Category
   alias Demo.Post
   alias Demo.Product
+  alias Demo.ShortLink
   alias Demo.Supplier
   alias Demo.Tag
   alias Demo.User
@@ -69,7 +70,15 @@ defmodule Demo.Factory do
       quantity: Enum.random(0..1_000),
       manufacturer: "https://example.com/",
       price: Enum.random(50..5_000_000),
-      suppliers: build_list(Enum.random(0..5), :supplier)
+      suppliers: build_list(Enum.random(0..5), :supplier),
+      short_links: build_list(Enum.random(0..5), :short_link)
+    }
+  end
+
+  def short_link_factory do
+    %ShortLink{
+      short_key: ShortLink.generate_unique_short_key(),
+      url: "https://example.com/"
     }
   end
 
