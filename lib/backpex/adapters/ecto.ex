@@ -97,6 +97,19 @@ defmodule Backpex.Adapters.Ecto do
   end
 
   @doc """
+
+  """
+  @impl Backpex.Adapter
+  def count(criteria \\ [], fields, assigns, config) do
+    item_query = prepare_item_query(config, assigns)
+
+    list_query(assigns, item_query, fields, criteria)
+    |> exclude(:preload)
+    |> subquery()
+    |> config[:repo].aggregate(:count)
+  end
+
+  @doc """
   Returns the main database query for selecting a list of items by given criteria.
 
   TODO: Should be private.

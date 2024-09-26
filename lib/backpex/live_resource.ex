@@ -456,35 +456,29 @@ defmodule Backpex.LiveResource do
 
       defp apply_index(socket) do
         %{
-          assigns:
-            %{
-              repo: repo,
-              schema: schema,
-              live_action: live_action,
-              params: params
-            } = assigns
-        } = socket
+          live_resource: live_resource,
+          repo: repo,
+          schema: schema,
+          params: params
+        } = socket.assigns
 
-        unless can?(assigns, :index, nil, __MODULE__),
-          do: raise(Backpex.ForbiddenError)
+        unless can?(socket.assigns, :index, nil, __MODULE__), do: raise(Backpex.ForbiddenError)
 
-        fields = filtered_fields_by_action(fields(), assigns, :index)
+        fields = filtered_fields_by_action(fields(), socket.assigns, :index)
 
         per_page_options = @resource_opts[:per_page_options]
         per_page_default = @resource_opts[:per_page_default]
         init_order = @resource_opts[:init_order]
 
-        filters = Backpex.LiveResource.get_active_filters(__MODULE__, assigns)
+        filters = Backpex.LiveResource.get_active_filters(__MODULE__, socket.assigns)
         valid_filter_params = Backpex.LiveResource.get_valid_filters_from_params(params, filters, @empty_filter_key)
 
-        item_count =
-          Resource.count(
-            assigns,
-            &item_query(&1, live_action, assigns),
-            fields,
-            search_options(params, fields, schema),
-            filter_options(valid_filter_params, filters)
-          )
+        count_criteria = [
+          search: search_options(params, fields, schema),
+          filters: filter_options(valid_filter_params, filters)
+        ]
+
+        item_count = Resource.count(count_criteria, fields, socket.assigns, live_resource)
 
         per_page =
           params
@@ -520,7 +514,7 @@ defmodule Backpex.LiveResource do
         |> assign(:fields, fields)
         |> assign(:changeset_function, @resource_opts[:adapter_config][:update_changeset])
         |> maybe_redirect_to_default_filters()
-        |> assign_items(init_order)
+        |> assign_items()
         |> maybe_assign_metrics()
         |> apply_index_return_to()
       end
@@ -626,8 +620,16 @@ defmodule Backpex.LiveResource do
 
       defp maybe_put_search(query_options, params), do: query_options
 
-      def assign_items(socket, init_order) do
-        assign(socket, :items, list_items(socket, init_order, &item_query/3))
+      def assign_items(socket) do
+        %{
+          live_resource: live_resource,
+          fields: fields
+        } = socket.assigns
+
+        criteria = build_criteria(socket.assigns)
+        items = Resource.list(criteria, fields, socket.assigns, live_resource)
+
+        assign(socket, :items, items)
       end
 
       defp maybe_assign_metrics(socket) do
@@ -995,29 +997,22 @@ defmodule Backpex.LiveResource do
 
       defp refresh_items(socket) do
         %{
-          assigns:
-            %{
-              schema: schema,
-              live_action: live_action,
-              params: params,
-              fields: fields,
-              query_options: query_options,
-              init_order: init_order
-            } = assigns
-        } = socket
+          live_resource: live_resource,
+          schema: schema,
+          params: params,
+          fields: fields,
+          query_options: query_options
+        } = socket.assigns
 
-        filters = Backpex.LiveResource.get_active_filters(__MODULE__, assigns)
+        filters = Backpex.LiveResource.get_active_filters(__MODULE__, socket.assigns)
         valid_filter_params = Backpex.LiveResource.get_valid_filters_from_params(params, filters, @empty_filter_key)
 
-        item_count =
-          Resource.count(
-            assigns,
-            &item_query(&1, live_action, assigns),
-            fields,
-            search_options(params, fields, schema),
-            filter_options(valid_filter_params, filters)
-          )
+        count_criteria = [
+          search: search_options(params, fields, schema),
+          filters: filter_options(valid_filter_params, filters)
+        ]
 
+        item_count = Resource.count(count_criteria, fields, socket.assigns, live_resource)
         %{page: page, per_page: per_page} = query_options
         total_pages = calculate_total_pages(item_count, per_page)
         new_query_options = Map.put(query_options, :page, validate_page(page, total_pages))
@@ -1026,7 +1021,7 @@ defmodule Backpex.LiveResource do
         |> assign(:item_count, item_count)
         |> assign(:total_pages, total_pages)
         |> assign(:query_options, new_query_options)
-        |> assign_items(init_order)
+        |> assign_items()
         |> maybe_assign_metrics()
       end
 
@@ -1395,16 +1390,16 @@ defmodule Backpex.LiveResource do
   def orderable?({_name, field_options}), do: Map.get(field_options, :orderable, true)
 
   @doc """
-  List all items for current page with filters and search applied.
+  TODO: make private?
   """
-  def list_items(socket, init_order, item_query) do
+  def build_criteria(assigns) do
     %{
-      live_resource: live_resource,
       schema: schema,
       fields: fields,
       filters: filters,
-      query_options: query_options
-    } = socket.assigns
+      query_options: query_options,
+      init_order: init_order
+    } = assigns
 
     field = Enum.find(fields, fn {name, _field_options} -> name == query_options.order_by end)
 
@@ -1423,14 +1418,12 @@ defmodule Backpex.LiveResource do
         |> Map.put(:schema, schema)
       end
 
-    criteria = [
+    [
       order: order,
       pagination: %{page: query_options.page, size: query_options.per_page},
       search: search_options(query_options, fields, schema),
       filters: filter_options(query_options, filters)
     ]
-
-    Resource.list(criteria, fields, socket.assigns, live_resource)
   end
 
   @doc """

@@ -45,24 +45,11 @@ defmodule Backpex.Resource do
   Gets the total count of the current live_resource.
   Possibly being constrained the item query and the search- and filter options.
   """
-  def count(assigns, item_query, fields, search_options, filter_options) do
-    %{
-      repo: repo,
-      schema: schema,
-      full_text_search: full_text_search,
-      live_resource: live_resource
-    } = assigns
+  def count(criteria \\ [], fields, assigns, live_resource) do
+    adapter = live_resource.config(:adapter)
+    adapter_config = live_resource.config(:adapter_config)
 
-    associations = Backpex.Adapters.Ecto.associations(fields, schema)
-
-    from(schema, as: ^name_by_schema(schema))
-    |> item_query.()
-    |> Backpex.Adapters.Ecto.maybe_join(associations)
-    |> Backpex.Adapters.Ecto.apply_search(schema, full_text_search, search_options)
-    |> Backpex.Adapters.Ecto.apply_filters(filter_options, live_resource.get_empty_filter_key())
-    |> exclude(:preload)
-    |> subquery()
-    |> repo.aggregate(:count)
+    adapter.count(criteria, fields, assigns, adapter_config)
   end
 
   @doc """

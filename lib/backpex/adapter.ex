@@ -35,6 +35,12 @@ defmodule Backpex.Adapter do
   @callback list(term(), term(), term(), term()) :: term()
 
   @doc """
+  Gets the total count of the current live_resource.
+  Possibly being constrained the item query and the search- and filter options.
+  """
+  @callback count(term(), term(), term(), term()) :: term()
+
+  @doc """
   Deletes multiple items.
   """
   @callback delete_all(list(), term()) :: {:ok, term()} | {:error, term()}
