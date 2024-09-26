@@ -4,7 +4,8 @@ defmodule DemoWeb.UserLive do
       schema: Demo.User,
       repo: Demo.Repo,
       update_changeset: &Demo.User.changeset/3,
-      create_changeset: &Demo.User.changeset/3
+      create_changeset: &Demo.User.changeset/3,
+      item_query: &__MODULE__.item_query/3
     ],
     layout: {DemoWeb.Layouts, :admin},
     pubsub: Demo.PubSub,
@@ -23,7 +24,6 @@ defmodule DemoWeb.UserLive do
   @impl Backpex.LiveResource
   def can?(_assigns, _action, _item), do: true
 
-  @impl Backpex.LiveResource
   def item_query(query, live_action, _assigns) when live_action in [:index, :resource_action] do
     from u in query,
       where: is_nil(u.deleted_at)

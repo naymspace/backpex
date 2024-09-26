@@ -268,7 +268,6 @@ defmodule Backpex.LiveResource do
           |> assign(:resource_created_message, resource_created_message())
           |> assign(:search_placeholder, search_placeholder())
           |> assign(:panels, panels())
-          |> assign(:live_resource, __MODULE__)
           |> assign(:fluid?, @resource_opts[:fluid?])
           |> assign(:full_text_search, @resource_opts[:full_text_search])
           |> assign_active_fields(session)
@@ -335,72 +334,51 @@ defmodule Backpex.LiveResource do
 
       def apply_action(socket, :index) do
         socket
-        |> assign(
-          :page_title,
-          socket.assigns.plural_name
-        )
+        |> assign(:page_title, socket.assigns.plural_name)
         |> apply_index()
         |> assign(:item, nil)
       end
 
       def apply_action(socket, :edit) do
         %{
-          assigns:
-            %{
-              live_action: live_action,
-              singular_name: singular_name,
-              params: params,
-              repo: repo,
-              schema: schema
-            } = assigns
-        } = socket
+          live_resource: live_resource,
+          singular_name: singular_name,
+          params: params
+        } = socket.assigns
 
-        fields = filtered_fields_by_action(fields(), assigns, :edit)
+        fields = filtered_fields_by_action(fields(), socket.assigns, :edit)
 
         item =
           URI.decode(params["backpex_id"])
-          |> Resource.get!(repo, schema, &item_query(&1, live_action, assigns), fields)
+          |> Resource.get!(fields, socket.assigns, live_resource)
 
-        unless can?(socket.assigns, :edit, item, __MODULE__),
-          do: raise(Backpex.ForbiddenError)
+        unless can?(socket.assigns, :edit, item, __MODULE__), do: raise(Backpex.ForbiddenError)
 
         socket
         |> assign(:fields, fields)
         |> assign(:changeset_function, @resource_opts[:adapter_config][:update_changeset])
-        |> assign(
-          :page_title,
-          Backpex.translate({"Edit %{resource}", %{resource: singular_name}})
-        )
+        |> assign(:page_title, Backpex.translate({"Edit %{resource}", %{resource: singular_name}}))
         |> assign(:item, item)
         |> assign_changeset(fields)
       end
 
       def apply_action(socket, :show) do
         %{
-          assigns:
-            %{
-              live_action: live_action,
-              singular_name: singular_name,
-              params: params,
-              repo: repo,
-              schema: schema
-            } = assigns
-        } = socket
+          live_resource: live_resource,
+          singular_name: singular_name,
+          params: params
+        } = socket.assigns
 
-        fields = filtered_fields_by_action(fields(), assigns, :show)
+        fields = filtered_fields_by_action(fields(), socket.assigns, :show)
 
         item =
           URI.decode(params["backpex_id"])
-          |> Resource.get!(repo, schema, &item_query(&1, live_action, assigns), fields)
+          |> Resource.get!(fields, socket.assigns, live_resource)
 
-        unless can?(assigns, :show, item, __MODULE__),
-          do: raise(Backpex.ForbiddenError)
+        unless can?(socket.assigns, :show, item, __MODULE__), do: raise(Backpex.ForbiddenError)
 
         socket
-        |> assign(
-          :page_title,
-          singular_name
-        )
+        |> assign(:page_title, singular_name)
         |> assign(:fields, fields)
         |> assign(:item, item)
         |> apply_show_return_to(item)
@@ -408,11 +386,15 @@ defmodule Backpex.LiveResource do
 
       def apply_action(socket, :new) do
         %{
-          assigns: %{schema: schema, singular_name: singular_name, create_button_label: create_button_label} = assigns
+          assigns:
+            %{
+              schema: schema,
+              singular_name: singular_name,
+              create_button_label: create_button_label
+            } = assigns
         } = socket
 
-        unless can?(assigns, :new, nil, __MODULE__),
-          do: raise(Backpex.ForbiddenError)
+        unless can?(assigns, :new, nil, __MODULE__), do: raise(Backpex.ForbiddenError)
 
         fields = filtered_fields_by_action(fields(), assigns, :new)
         empty_item = schema.__struct__()
@@ -434,8 +416,7 @@ defmodule Backpex.LiveResource do
 
         action = resource_actions()[id]
 
-        unless can?(socket.assigns, id, nil, __MODULE__),
-          do: raise(Backpex.ForbiddenError)
+        unless can?(socket.assigns, id, nil, __MODULE__), do: raise(Backpex.ForbiddenError)
 
         socket =
           socket
@@ -987,10 +968,13 @@ defmodule Backpex.LiveResource do
       defp primary_key(assigns, item), do: Map.get(item, assigns.primary_key_field)
 
       defp update_item(socket, %{id: id} = _item) do
-        %{assigns: %{live_action: live_action, repo: repo, schema: schema} = assigns} = socket
+        %{
+          live_resource: live_resource,
+          live_action: live_action
+        } = socket.assigns
 
-        fields = filtered_fields_by_action(fields(), assigns, :show)
-        item = Resource.get(id, repo, schema, &item_query(&1, live_action, assigns), fields)
+        fields = filtered_fields_by_action(fields(), socket.assigns, :show)
+        item = Resource.get(id, fields, socket.assigns, live_resource)
 
         socket =
           cond do

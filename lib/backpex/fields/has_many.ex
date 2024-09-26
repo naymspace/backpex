@@ -41,7 +41,6 @@ defmodule Backpex.Fields.HasMany do
   import Backpex.HTML.Form
 
   alias Backpex.LiveResource
-  alias Backpex.Resource
   alias Backpex.Router
 
   @impl Phoenix.LiveComponent
@@ -379,7 +378,7 @@ defmodule Backpex.Fields.HasMany do
 
     display_field = display_field(field)
 
-    schema_name = Resource.name_by_schema(queryable)
+    schema_name = Backpex.Adapters.Ecto.name_by_schema(queryable)
 
     from(queryable, as: ^schema_name)
     |> maybe_options_query(field_options, assigns)
@@ -424,7 +423,7 @@ defmodule Backpex.Fields.HasMany do
     display_field = display_field(field)
 
     %{queryable: queryable} = schema.__schema__(:association, name)
-    schema_name = Resource.name_by_schema(queryable)
+    schema_name = Backpex.Adapters.Ecto.name_by_schema(queryable)
 
     from(queryable, as: ^schema_name)
     |> maybe_options_query(field_options, assigns)

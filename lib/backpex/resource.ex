@@ -4,6 +4,8 @@ defmodule Backpex.Resource do
   """
   import Ecto.Query
 
+  import Backpex.Adapters.Ecto, only: [name_by_schema: 1]
+
   alias Backpex.Ecto.EctoUtils
   alias Backpex.LiveResource
 
@@ -259,68 +261,41 @@ defmodule Backpex.Resource do
   end
 
   @doc """
-  Gets a database record with the given fields by the given id. Raises `Ecto.NoResultsError` if no record was found.
+  Gets a database record with the given `fields` by the given  `primary_key_value`.
+
+  Raises `Ecto.NoResultsError` if no record was found.
 
   ## Parameters
 
-  * `id`: The identifier for the specific item to be fetched.
-  * `repo` (module): The repository module.
-  * `schema`: The Ecto schema module corresponding to the item
-  * `item_query` (function): A function that modifies the base query. This function should accept an Ecto.Queryable and return an Ecto.Queryable. It's used to apply additional query logic.
+  * `primary_key_value`: The identifier for the specific item to be fetched.
   * `fields` (list): A list of atoms representing the fields to be selected and potentially preloaded.
+  * `assigns` (map): The current assigns of the socket.
+  * `live_resource` (module): The `Backpex.LiveResource` module.
   """
-  def get!(id, repo, schema, item_query, fields) do
-    record_query(id, schema, item_query, fields)
-    |> repo.one!()
+  def get!(primary_key_value, fields, assigns, live_resource) do
+    adapter = live_resource.config(:adapter)
+    adapter_config = live_resource.config(:adapter_config)
+
+    adapter.get!(primary_key_value, fields, assigns, adapter_config)
   end
 
   @doc """
-  Gets a database record with the given fields by the given id. Returns nil if no result was found.
+  Gets a database record with the given `fields` by the given  `primary_key_value`.
+
+  Returns `nil` if no result was found.
 
   ## Parameters
 
-  * `id`: The identifier for the specific item to be fetched.
-  * `repo` (module): The repository module.
-  * `schema`: The Ecto schema module corresponding to the item
-  * `item_query` (function): A function that modifies the base query. This function should accept an Ecto.Queryable and return an Ecto.Queryable. It's used to apply additional query logic.
+  * `primary_key_value`: The identifier for the specific item to be fetched.
   * `fields` (list): A list of atoms representing the fields to be selected and potentially preloaded.
+  * `assigns` (map): The current assigns of the socket.
+  * `live_resource` (module): The `Backpex.LiveResource` module.
   """
-  def get(id, repo, schema, item_query, fields) do
-    record_query(id, schema, item_query, fields)
-    |> repo.one()
-  end
+  def get(primary_key_value, fields, assigns, live_resource) do
+    adapter = live_resource.config(:adapter)
+    adapter_config = live_resource.config(:adapter_config)
 
-  defp record_query(id, schema, item_query, fields) do
-    schema_name = name_by_schema(schema)
-
-    id_field = EctoUtils.get_primary_key_field(schema)
-    id_type = schema.__schema__(:type, id_field)
-    associations = associations(fields, schema)
-
-    from(item in schema, as: ^schema_name, distinct: field(item, ^id_field))
-    |> item_query.()
-    |> maybe_join(associations)
-    |> maybe_preload(associations, fields)
-    |> maybe_merge_dynamic_fields(fields)
-    |> where_id(schema_name, id_field, id_type, id)
-  end
-
-  defp where_id(query, schema_name, id_field, :id, id) do
-    case Ecto.Type.cast(:id, id) do
-      {:ok, valid_id} -> where(query, [{^schema_name, schema_name}], field(schema_name, ^id_field) == ^valid_id)
-      :error -> raise Ecto.NoResultsError, queryable: query
-    end
-  end
-
-  defp where_id(query, schema_name, id_field, :binary_id, id) do
-    case Ecto.UUID.cast(id) do
-      {:ok, valid_id} -> where(query, [{^schema_name, schema_name}], field(schema_name, ^id_field) == ^valid_id)
-      :error -> raise Ecto.NoResultsError, queryable: query
-    end
-  end
-
-  defp where_id(query, schema_name, id_field, _id_type, id) do
-    where(query, [{^schema_name, schema_name}], field(schema_name, ^id_field) == ^id)
+    adapter.get!(primary_key_value, fields, assigns, adapter_config)
   end
 
   @doc """
@@ -502,24 +477,6 @@ defmodule Backpex.Resource do
     Keyword.new()
     |> Keyword.put(:assigns, assigns)
     |> Keyword.put(:target, target)
-  end
-
-  @doc """
-  Gets name by schema. This is the last part of the module name as a lowercase atom.
-
-  ## Examples
-
-      iex> Backpex.Resource.name_by_schema(Backpex.Resource)
-      :resource
-  """
-  # sobelow_skip ["DOS.StringToAtom"]
-  def name_by_schema(schema) do
-    schema
-    |> Module.split()
-    |> List.last()
-    |> String.downcase()
-    # credo:disable-for-next-line Credo.Check.Warning.UnsafeToAtom
-    |> String.to_atom()
   end
 
   defp after_save({:ok, item}, func) do
