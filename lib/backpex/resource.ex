@@ -28,67 +28,17 @@ defmodule Backpex.Resource do
   def metric_data(assigns, select, item_query, fields, criteria \\ []) do
     %{repo: repo, schema: schema, full_text_search: full_text_search, live_resource: live_resource} = assigns
 
-    associations = associations(fields, schema)
+    associations = Backpex.Adapters.Ecto.associations(fields, schema)
 
     schema
     |> from(as: ^name_by_schema(schema))
     |> item_query.()
-    |> maybe_join(associations)
-    |> maybe_preload(associations, fields)
+    |> Backpex.Adapters.Ecto.maybe_join(associations)
+    |> Backpex.Adapters.Ecto.maybe_preload(associations, fields)
     |> Backpex.Adapters.Ecto.apply_search(schema, full_text_search, criteria[:search])
     |> Backpex.Adapters.Ecto.apply_filters(criteria[:filters], live_resource.get_empty_filter_key())
     |> select(^select)
     |> repo.one()
-  end
-
-  defp maybe_preload(query, [], _fields), do: query
-
-  defp maybe_preload(query, associations, fields) do
-    preload_items =
-      Enum.map(associations, fn %{field: assoc_field} = association ->
-        field = Enum.find(fields, fn {name, _field_options} -> name == assoc_field end)
-
-        case field do
-          {_name, %{display_field: display_field, select: select}} ->
-            queryable = Map.get(association, :queryable)
-            custom_alias = Map.get(association, :custom_alias, name_by_schema(queryable))
-
-            preload_query =
-              queryable
-              |> from(as: ^custom_alias)
-              |> select_merge(^%{display_field => select})
-
-            {assoc_field, preload_query}
-
-          _field ->
-            assoc_field
-        end
-      end)
-
-    query
-    |> preload(^preload_items)
-  end
-
-  defp maybe_join(query, []), do: query
-
-  defp maybe_join(query, associations) do
-    Enum.reduce(associations, query, fn
-      %{queryable: queryable, owner_key: owner_key, cardinality: :one} = association, query ->
-        custom_alias = Map.get(association, :custom_alias, name_by_schema(queryable))
-
-        if has_named_binding?(query, custom_alias) do
-          query
-        else
-          from(item in query,
-            left_join: b in ^queryable,
-            as: ^custom_alias,
-            on: field(item, ^owner_key) == field(b, ^EctoUtils.get_primary_key_field(queryable))
-          )
-        end
-
-      _relation, query ->
-        query
-    end)
   end
 
   @doc """
@@ -103,11 +53,11 @@ defmodule Backpex.Resource do
       live_resource: live_resource
     } = assigns
 
-    associations = associations(fields, schema)
+    associations = Backpex.Adapters.Ecto.associations(fields, schema)
 
     from(schema, as: ^name_by_schema(schema))
     |> item_query.()
-    |> maybe_join(associations)
+    |> Backpex.Adapters.Ecto.maybe_join(associations)
     |> Backpex.Adapters.Ecto.apply_search(schema, full_text_search, search_options)
     |> Backpex.Adapters.Ecto.apply_filters(filter_options, live_resource.get_empty_filter_key())
     |> exclude(:preload)
@@ -350,36 +300,4 @@ defmodule Backpex.Resource do
   defp broadcast(result, _event, _pubsub), do: result
 
   defp event_name(event_prefix, event), do: event_prefix <> event
-
-  defp associations(fields, schema) do
-    fields
-    |> Enum.filter(fn {_name, field_options} = field -> field_options.module.association?(field) end)
-    |> Enum.map(fn
-      {name, field_options} ->
-        association = schema.__schema__(:association, name)
-
-        if association == nil do
-          name_str = name |> Atom.to_string()
-          without_id = String.replace(name_str, ~r/_id$/, "")
-
-          # credo:disable-for-lines:3 Credo.Check.Refactor.Nesting
-          raise """
-          The field "#{name}"" is not an association but used as if it were one with the field module #{inspect(field_options.module)}.
-          #{if without_id != name_str,
-            do: """
-            You are using a field ending with _id. Please make sure to use the correct field name for the association. Try using the name of the association, maybe "#{without_id}"?
-            """,
-            else: ""}.
-          """
-        end
-
-        case field_options do
-          %{custom_alias: custom_alias} ->
-            association |> Map.from_struct() |> Map.put(:custom_alias, custom_alias)
-
-          _ ->
-            association |> Map.from_struct()
-        end
-    end)
-  end
 end

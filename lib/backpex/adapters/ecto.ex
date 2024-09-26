@@ -287,7 +287,10 @@ defmodule Backpex.Adapters.Ecto do
     where(query, [{^schema_name, schema_name}], field(schema_name, ^id_field) == ^id)
   end
 
-  defp associations(fields, schema) do
+  @doc """
+  TODO: make private
+  """
+  def associations(fields, schema) do
     fields
     |> Enum.filter(fn {_name, field_options} = field -> field_options.module.association?(field) end)
     |> Enum.map(fn
@@ -319,9 +322,12 @@ defmodule Backpex.Adapters.Ecto do
     end)
   end
 
-  defp maybe_join(query, []), do: query
+  @doc """
+  TODO: make private
+  """
+  def maybe_join(query, []), do: query
 
-  defp maybe_join(query, associations) do
+  def maybe_join(query, associations) do
     Enum.reduce(associations, query, fn
       %{queryable: queryable, owner_key: owner_key, cardinality: :one} = association, query ->
         custom_alias = Map.get(association, :custom_alias, name_by_schema(queryable))
@@ -341,9 +347,12 @@ defmodule Backpex.Adapters.Ecto do
     end)
   end
 
-  defp maybe_preload(query, [], _fields), do: query
+  @doc """
+  TODO: make private
+  """
+  def maybe_preload(query, [], _fields), do: query
 
-  defp maybe_preload(query, associations, fields) do
+  def maybe_preload(query, associations, fields) do
     preload_items =
       Enum.map(associations, fn %{field: assoc_field} = association ->
         field = Enum.find(fields, fn {name, _field_options} -> name == assoc_field end)
