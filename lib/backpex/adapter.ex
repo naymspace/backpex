@@ -41,6 +41,21 @@ defmodule Backpex.Adapter do
   @callback count(term(), term(), term(), term()) :: term()
 
   @doc """
+  Inserts given item.
+  """
+  @callback insert(term(), term()) :: term()
+
+  @doc """
+  Updates given item.
+  """
+  @callback update(term(), term()) :: term()
+
+  @doc """
+  Applies a change to a given item.
+  """
+  @callback change(term(), term(), term(), term(), term(), term()) :: term()
+
+  @doc """
   Deletes multiple items.
   """
   @callback delete_all(list(), term()) :: {:ok, term()} | {:error, term()}

@@ -245,6 +245,61 @@ defmodule Backpex.Adapters.Ecto do
   end
 
   @doc """
+  Inserts given item.
+  """
+  @impl Backpex.Adapter
+  def insert(item, config) do
+    item
+    |> config[:repo].insert()
+  end
+
+  @doc """
+  Updates given item.
+  """
+  @impl Backpex.Adapter
+  def update(item, config) do
+    item
+    |> config[:repo].update()
+  end
+
+  @doc """
+  Applies a change to a given item.
+  """
+  @impl Backpex.Adapter
+  def change(item, attrs, fields, assigns, config, opts) do
+    assocs = Keyword.get(opts, :assocs, [])
+    target = Keyword.get(opts, :target, nil)
+    action = Keyword.get(opts, :action, :validate)
+    metadata = Backpex.Resource.build_changeset_metadata(assigns, target)
+    changeset_function = get_changeset_function(assigns.live_action, config, assigns)
+
+    item
+    |> Ecto.Changeset.change()
+    |> before_changesets(attrs, metadata, config[:repo], fields, assigns)
+    |> put_assocs(assocs)
+    |> changeset_function.(attrs, metadata)
+    |> Map.put(:action, action)
+  end
+
+  defp get_changeset_function(:new, config, _assigns), do: config[:create_changeset]
+  defp get_changeset_function(:edit, config, _assigns), do: config[:update_changeset]
+  # TODO: find solution for this workaround
+  defp get_changeset_function(:index, _config, assigns), do: assigns.changeset_function
+  defp get_changeset_function(:resource_action, _config, assigns), do: assigns.changeset_function
+
+  defp before_changesets(changeset, attrs, metadata, repo, fields, assigns) do
+    Enum.reduce(fields, changeset, fn {_name, field_options} = field, acc ->
+      field_options.module.before_changeset(acc, attrs, metadata, repo, field, assigns)
+    end)
+  end
+
+  defp put_assocs(changeset, assocs) do
+    Enum.reduce(assocs, changeset, fn {key, value}, acc ->
+      Ecto.Changeset.put_assoc(acc, key, value)
+    end)
+  end
+
+  @doc """
   Gets name by schema. This is the last part of the module name as a lowercase atom.
 
   TODO: Make this private once all fields are using the adapter abstractions.
