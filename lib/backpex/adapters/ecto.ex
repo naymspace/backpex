@@ -263,6 +263,18 @@ defmodule Backpex.Adapters.Ecto do
   end
 
   @doc """
+  Updates given items.
+  """
+  @impl Backpex.Adapter
+  def update_all(items, updates, config) do
+    id_field = EctoUtils.get_primary_key_field(config[:schema])
+
+    config[:schema]
+    |> where([i], field(i, ^id_field) in ^Enum.map(items, &Map.get(&1, id_field)))
+    |> config[:repo].update_all(updates)
+  end
+
+  @doc """
   Applies a change to a given item.
   """
   @impl Backpex.Adapter

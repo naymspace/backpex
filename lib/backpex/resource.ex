@@ -145,21 +145,16 @@ defmodule Backpex.Resource do
   ## Parameters
 
   * `items` (list): A list of structs, each representing an entity to be updated.
-  * `repo` (module): The repository module.
-  * `schema` (module): The Ecto schema module corresponding to the entities in `items`.
   * `updates` (list): A list of updates passed to Ecto `update_all` function.
   * `event_name` (string, default: `updated`): The name to be used when broadcasting the event.
-  * `pubsub` (map, default: `nil`): The PubSub config to use for broadcasting events.
+  * `live_resource` (module): The `Backpex.LiveResource` module.
   """
-  def update_all(items, repo, schema, updates, event_name \\ "updated", pubsub \\ nil) do
-    id_field = EctoUtils.get_primary_key_field(schema)
+  def update_all(items, updates, event_name \\ "updated", live_resource) do
+    adapter = live_resource.config(:adapter)
+    adapter_config = live_resource.config(:adapter_config)
+    pubsub = live_resource.config(:pubsub)
 
-    result =
-      schema
-      |> where([i], field(i, ^id_field) in ^Enum.map(items, &Map.get(&1, id_field)))
-      |> repo.update_all(updates)
-
-    case result do
+    case adapter.update_all(items, updates, adapter_config) do
       {_count_, nil} ->
         Enum.each(items, fn item -> broadcast({:ok, item}, event_name, pubsub) end)
         {:ok, items}

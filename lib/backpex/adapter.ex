@@ -51,6 +51,11 @@ defmodule Backpex.Adapter do
   @callback update(term(), term()) :: term()
 
   @doc """
+  Updates given items.
+  """
+  @callback update_all(term(), term(), term()) :: term()
+
+  @doc """
   Applies a change to a given item.
   """
   @callback change(term(), term(), term(), term(), term(), term()) :: term()
