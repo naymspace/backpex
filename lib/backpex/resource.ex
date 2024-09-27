@@ -91,24 +91,8 @@ defmodule Backpex.Resource do
   end
 
   @doc """
-  Deletes the given record from the database.
-  Additionally broadcasts the corresponding event, when PubSub config is given.
-
-  ## Parameters
-
-  * `item` (struct): The item to be deleted.
-  * `repo` (module): The repository module.
-  * `pubsub` (map, default: `nil`): The PubSub config to use for broadcasting events.
-  """
-  def delete(item, repo, pubsub \\ nil) do
-    item
-    |> repo.delete()
-    |> broadcast("deleted", pubsub)
-  end
-
-  @doc """
   Deletes multiple items.
-  Additionally broadcasts the corresponding event, when PubSub config is given.
+  Additionally broadcasts the corresponding event for each deleted item.
 
   ## Parameters
 
