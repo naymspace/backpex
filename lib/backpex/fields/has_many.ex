@@ -36,10 +36,9 @@ defmodule Backpex.Fields.HasMany do
       end
   """
   use BackpexWeb, :field
-
   import Ecto.Query
   import Backpex.HTML.Form
-
+  alias Backpex.Adapters.Ecto, as: EctoAdapter
   alias Backpex.LiveResource
   alias Backpex.Router
 
@@ -378,7 +377,7 @@ defmodule Backpex.Fields.HasMany do
 
     display_field = display_field(field)
 
-    schema_name = Backpex.Adapters.Ecto.name_by_schema(queryable)
+    schema_name = EctoAdapter.name_by_schema(queryable)
 
     from(queryable, as: ^schema_name)
     |> maybe_options_query(field_options, assigns)
@@ -423,7 +422,7 @@ defmodule Backpex.Fields.HasMany do
     display_field = display_field(field)
 
     %{queryable: queryable} = schema.__schema__(:association, name)
-    schema_name = Backpex.Adapters.Ecto.name_by_schema(queryable)
+    schema_name = EctoAdapter.name_by_schema(queryable)
 
     from(queryable, as: ^schema_name)
     |> maybe_options_query(field_options, assigns)

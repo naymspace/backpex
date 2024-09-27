@@ -14,7 +14,7 @@ defmodule Backpex.LiveResource do
     adapter: [
       doc: "The datalayer adapter to use.",
       type: :atom,
-      default: Backpex.Adapters.Ecto
+      default: EctoAdapter
     ],
     adapter_config: [
       doc: "The configuration for the datalayer. See corresponding adapter for possible configuration values.",
@@ -236,6 +236,7 @@ defmodule Backpex.LiveResource do
       import Phoenix.LiveView.Helpers
       import Ecto.Query
 
+      alias Backpex.Adapters.Ecto, as: EctoAdapter
       alias Backpex.Resource
       alias Backpex.ResourceAction
       alias Backpex.Router
@@ -640,7 +641,7 @@ defmodule Backpex.LiveResource do
         filters = Backpex.LiveResource.get_active_filters(__MODULE__, assigns)
 
         query =
-          Backpex.Adapters.Ecto.list_query(
+          EctoAdapter.list_query(
             assigns,
             &item_query(&1, live_action, assigns),
             fields,

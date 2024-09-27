@@ -2,8 +2,6 @@ defmodule Backpex.Resource do
   @moduledoc """
   Generic context module for Backpex resources.
   """
-  import Ecto.Query
-  alias Backpex.Ecto.EctoUtils
 
   @doc """
   Returns a list of items by given criteria.
