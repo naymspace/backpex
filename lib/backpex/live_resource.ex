@@ -521,23 +521,13 @@ defmodule Backpex.LiveResource do
 
       defp assign_changeset(socket, fields) do
         %{
-          assigns:
-            %{
-              item: item,
-              changeset_function: changeset_function,
-              live_action: live_action
-            } = assigns
-        } = socket
+          item: item,
+          changeset_function: changeset_function,
+          live_action: live_action
+        } = socket.assigns
 
-        metadata = Resource.build_changeset_metadata(assigns)
-
-        changeset =
-          Backpex.LiveResource.call_changeset_function(
-            item,
-            changeset_function,
-            default_attrs(live_action, fields, assigns),
-            metadata
-          )
+        metadata = Resource.build_changeset_metadata(socket.assigns)
+        changeset = changeset_function.(item, default_attrs(live_action, fields, socket.assigns), metadata)
 
         socket
         |> assign(:changeset, changeset)
@@ -714,7 +704,7 @@ defmodule Backpex.LiveResource do
         changeset =
           init_change
           |> Ecto.Changeset.change()
-          |> call_changeset_function(changeset_function, %{}, metadata)
+          |> changeset_function.(%{}, metadata)
 
         socket =
           socket
@@ -1545,13 +1535,6 @@ defmodule Backpex.LiveResource do
         only: [:row, :index, :show]
       }
     ]
-  end
-
-  @doc """
-  Calls the changeset function with the given change and target.
-  """
-  def call_changeset_function(item, changeset_function, change, metadata) do
-    changeset_function.(item, change, metadata)
   end
 
   def maybe_put_empty_filter(%{} = filters, empty_filter_key) when filters == %{} do

@@ -4,7 +4,6 @@ defmodule Backpex.Resource do
   """
   import Ecto.Query
   alias Backpex.Ecto.EctoUtils
-  alias Backpex.LiveResource
 
   @doc """
   Returns a list of items by given criteria.
@@ -208,7 +207,7 @@ defmodule Backpex.Resource do
     |> Ecto.Changeset.change()
     |> before_changesets(attrs, metadata, repo, fields, assigns)
     |> put_assocs(assocs)
-    |> LiveResource.call_changeset_function(changeset_function, attrs, metadata)
+    |> changeset_function.(attrs, metadata)
     |> Map.put(:action, action)
   end
 
