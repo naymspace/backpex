@@ -3,7 +3,6 @@ defmodule Backpex.Resource do
   Generic context module for Backpex resources.
   """
   import Ecto.Query
-  import Backpex.Adapters.Ecto, only: [name_by_schema: 1]
   alias Backpex.Ecto.EctoUtils
   alias Backpex.LiveResource
 
@@ -23,22 +22,6 @@ defmodule Backpex.Resource do
     adapter_config = live_resource.config(:adapter_config)
 
     adapter.list(criteria, fields, assigns, adapter_config)
-  end
-
-  def metric_data(assigns, select, item_query, fields, criteria \\ []) do
-    %{repo: repo, schema: schema, full_text_search: full_text_search, live_resource: live_resource} = assigns
-
-    associations = Backpex.Adapters.Ecto.associations(fields, schema)
-
-    schema
-    |> from(as: ^name_by_schema(schema))
-    |> item_query.()
-    |> Backpex.Adapters.Ecto.maybe_join(associations)
-    |> Backpex.Adapters.Ecto.maybe_preload(associations, fields)
-    |> Backpex.Adapters.Ecto.apply_search(schema, full_text_search, criteria[:search])
-    |> Backpex.Adapters.Ecto.apply_filters(criteria[:filters], live_resource.get_empty_filter_key())
-    |> select(^select)
-    |> repo.one()
   end
 
   @doc """
