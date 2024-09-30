@@ -190,7 +190,6 @@ We value concise, readable, and high-quality code. While we don't have a formal 
 - Write tests for all public functions.
 - Use descriptive test names that explain the expected behavior.
 
-
 ### Commit Messages
 
 We value clear and informative commit messages. While we don't have strict rules, please follow these guidelines:
