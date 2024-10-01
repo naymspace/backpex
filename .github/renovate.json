@@ -26,6 +26,15 @@
         "major"
       ],
       "enabled": false
+    },
+    {
+      "matchDepNames": [
+        "ubuntu"
+      ],
+      "matchDatasources": [
+        "docker"
+      ],
+      "pinDigests": false
     }
   ],
   "labels": [
