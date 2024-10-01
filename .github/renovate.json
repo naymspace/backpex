@@ -26,6 +26,12 @@
         "major"
       ],
       "enabled": false
+    },
+    {
+      "matchDepNames": [
+        "ubuntu"
+      ],
+      "pinDigests": false
     }
   ],
   "labels": [
