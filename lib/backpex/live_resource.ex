@@ -977,7 +977,7 @@ defmodule Backpex.LiveResource do
         } = socket.assigns
 
         fields = filtered_fields_by_action(fields(), socket.assigns, :show)
-        item = Resource.get(id, fields, socket.assigns, live_resource)
+        item = Resource.get(id, socket.assigns, live_resource)
 
         socket =
           cond do
