@@ -49,7 +49,6 @@ defmodule Backpex.Fields.HasManyThrough do
   import Backpex.HTML.Layout, only: [modal: 1]
   import PhoenixHTMLHelpers.Form, only: [hidden_inputs_for: 1]
 
-  alias Backpex.Ecto.EctoUtils
   alias Backpex.LiveResource
   alias Ecto.Changeset
 
