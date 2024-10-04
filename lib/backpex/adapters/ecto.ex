@@ -56,7 +56,6 @@ defmodule Backpex.Adapters.Ecto do
   """
 
   use Backpex.Adapter, config_schema: @config_schema
-  alias Backpex.Ecto.EctoUtils
   import Ecto.Query
 
   @doc """
@@ -65,10 +64,11 @@ defmodule Backpex.Adapters.Ecto do
   Returns `nil` if no result was found.
   """
   @impl Backpex.Adapter
-  def get(primary_key_value, fields, assigns, config) do
+  def get(primary_value, assigns, live_resource) do
+    config = live_resource.config(:adapter_config)
     item_query = prepare_item_query(config, assigns)
 
-    record_query(primary_key_value, config[:schema], item_query, fields)
+    record_query(primary_value, config[:schema], item_query, live_resource)
     |> config[:repo].one()
   end
 
@@ -78,10 +78,11 @@ defmodule Backpex.Adapters.Ecto do
   Raises `Ecto.NoResultsError` if no record was found.
   """
   @impl Backpex.Adapter
-  def get!(primary_key_value, fields, assigns, config) do
+  def get!(primary_value, assigns, live_resource) do
+    config = live_resource.config(:adapter_config)
     item_query = prepare_item_query(config, assigns)
 
-    record_query(primary_key_value, config[:schema], item_query, fields)
+    record_query(primary_value, config[:schema], item_query, live_resource)
     |> config[:repo].one!()
   end
 
@@ -116,7 +117,6 @@ defmodule Backpex.Adapters.Ecto do
   """
   def list_query(assigns, item_query, fields, criteria \\ []) do
     %{schema: schema, full_text_search: full_text_search, live_resource: live_resource} = assigns
-
     associations = associations(fields, schema)
 
     schema
@@ -236,11 +236,12 @@ defmodule Backpex.Adapters.Ecto do
   Deletes multiple items.
   """
   @impl Backpex.Adapter
-  def delete_all(items, config) do
-    id_field = EctoUtils.get_primary_key_field(config[:schema])
+  def delete_all(items, live_resource) do
+    config = live_resource.config(:adapter_config)
+    primary_key = live_resource.config(:primary_key)
 
     config[:schema]
-    |> where([i], field(i, ^id_field) in ^Enum.map(items, &Map.get(&1, id_field)))
+    |> where([i], field(i, ^primary_key) in ^Enum.map(items, &Map.get(&1, primary_key)))
     |> config[:repo].delete_all()
   end
 
@@ -266,11 +267,12 @@ defmodule Backpex.Adapters.Ecto do
   Updates given items.
   """
   @impl Backpex.Adapter
-  def update_all(items, updates, config) do
-    id_field = EctoUtils.get_primary_key_field(config[:schema])
+  def update_all(items, updates, live_resource) do
+    config = live_resource.config(:adapter_config)
+    primary_key = live_resource.config(:primary_key)
 
     config[:schema]
-    |> where([i], field(i, ^id_field) in ^Enum.map(items, &Map.get(&1, id_field)))
+    |> where([i], field(i, ^primary_key) in ^Enum.map(items, &Map.get(&1, primary_key)))
     |> config[:repo].update_all(updates)
   end
 
@@ -328,25 +330,25 @@ defmodule Backpex.Adapters.Ecto do
 
   # --- PRIVATE
 
-  def prepare_item_query(config, assigns) do
+  defp prepare_item_query(config, assigns) do
     query_fun = config[:item_query] || fn query, _live_action, _assigns -> query end
 
     &query_fun.(&1, assigns.live_action, assigns)
   end
 
-  defp record_query(id, schema, item_query, fields) do
+  defp record_query(id, schema, item_query, live_resource) do
+    fields = live_resource.fields()
     schema_name = name_by_schema(schema)
-
-    id_field = EctoUtils.get_primary_key_field(schema)
-    id_type = schema.__schema__(:type, id_field)
+    primary_key = live_resource.config(:primary_key)
+    primary_type = schema.__schema__(:type, primary_key)
     associations = associations(fields, schema)
 
-    from(item in schema, as: ^schema_name, distinct: field(item, ^id_field))
+    from(item in schema, as: ^schema_name, distinct: field(item, ^primary_key))
     |> item_query.()
     |> maybe_join(associations)
     |> maybe_preload(associations, fields)
     |> maybe_merge_dynamic_fields(fields)
-    |> where_id(schema_name, id_field, id_type, id)
+    |> where_id(schema_name, primary_key, primary_type, id)
   end
 
   defp where_id(query, schema_name, id_field, :id, id) do
@@ -367,10 +369,7 @@ defmodule Backpex.Adapters.Ecto do
     where(query, [{^schema_name, schema_name}], field(schema_name, ^id_field) == ^id)
   end
 
-  @doc """
-  TODO: make private
-  """
-  def associations(fields, schema) do
+  defp associations(fields, schema) do
     fields
     |> Enum.filter(fn {_name, field_options} = field -> field_options.module.association?(field) end)
     |> Enum.map(fn
@@ -402,15 +401,14 @@ defmodule Backpex.Adapters.Ecto do
     end)
   end
 
-  @doc """
-  TODO: make private
-  """
-  def maybe_join(query, []), do: query
+  defp maybe_join(query, []), do: query
 
-  def maybe_join(query, associations) do
+  defp maybe_join(query, associations) do
     Enum.reduce(associations, query, fn
       %{queryable: queryable, owner_key: owner_key, cardinality: :one} = association, query ->
         custom_alias = Map.get(association, :custom_alias, name_by_schema(queryable))
+
+        dbg(queryable)
 
         if has_named_binding?(query, custom_alias) do
           query
@@ -418,7 +416,7 @@ defmodule Backpex.Adapters.Ecto do
           from(item in query,
             left_join: b in ^queryable,
             as: ^custom_alias,
-            on: field(item, ^owner_key) == field(b, ^EctoUtils.get_primary_key_field(queryable))
+            on: field(item, ^owner_key) == field(b, ^get_primary_key_field(queryable))
           )
         end
 
@@ -427,12 +425,37 @@ defmodule Backpex.Adapters.Ecto do
     end)
   end
 
-  @doc """
-  TODO: make private
-  """
-  def maybe_preload(query, [], _fields), do: query
+  def get_primary_key_field(schema)
 
-  def maybe_preload(query, associations, fields) do
+  def get_primary_key_field(%{__struct__: struct}) when is_atom(struct), do: get_primary_key_field(struct)
+
+  def get_primary_key_field(module) when is_atom(module) do
+    resolve_primary_key(&module.__schema__/1)
+  end
+
+  def get_primary_key_field(%{__schema__: schema_getter}) when is_function(schema_getter, 1) do
+    resolve_primary_key(schema_getter)
+  end
+
+  defp resolve_primary_key(schema_getter) when is_function(schema_getter, 1) do
+    case schema_getter.(:primary_key) do
+      [id] -> id
+      [] -> raise_no_primary_key_error()
+      _multiple -> raise_compound_primary_key_error()
+    end
+  end
+
+  defp raise_no_primary_key_error do
+    raise ArgumentError, "No primary key found. Please define a primary key in your schema."
+  end
+
+  defp raise_compound_primary_key_error do
+    raise ArgumentError, "Compound primary keys are not supported. Please use a single primary key."
+  end
+
+  defp maybe_preload(query, [], _fields), do: query
+
+  defp maybe_preload(query, associations, fields) do
     preload_items =
       Enum.map(associations, fn %{field: assoc_field} = association ->
         field = Enum.find(fields, fn {name, _field_options} -> name == assoc_field end)

@@ -14,12 +14,17 @@ defmodule Backpex.LiveResource do
     adapter: [
       doc: "The datalayer adapter to use.",
       type: :atom,
-      default: EctoAdapter
+      default: Backpex.Adapters.Ecto
     ],
     adapter_config: [
       doc: "The configuration for the datalayer. See corresponding adapter for possible configuration values.",
       type: :keyword_list,
       required: true
+    ],
+    primary_key: [
+      doc: "The primary key used for identifying items.",
+      type: :atom,
+      default: :id
     ],
     layout: [
       doc: "Layout to be used by the LiveResource.",
@@ -245,7 +250,6 @@ defmodule Backpex.LiveResource do
 
       @permitted_order_directions ~w(asc desc)a
       @empty_filter_key :empty_filter
-      @primary_key_field Backpex.Ecto.EctoUtils.get_primary_key_field(@resource_opts[:adapter_config][:schema])
 
       def config(key) do
         Keyword.fetch!(@resource_opts, key)
@@ -343,15 +347,12 @@ defmodule Backpex.LiveResource do
       def apply_action(socket, :edit) do
         %{
           live_resource: live_resource,
-          singular_name: singular_name,
-          params: params
+          singular_name: singular_name
         } = socket.assigns
 
         fields = filtered_fields_by_action(fields(), socket.assigns, :edit)
-
-        item =
-          URI.decode(params["backpex_id"])
-          |> Resource.get!(fields, socket.assigns, live_resource)
+        primary_value = URI.decode(socket.assigns.params["backpex_id"])
+        item = Resource.get!(primary_value, socket.assigns, live_resource)
 
         unless can?(socket.assigns, :edit, item, __MODULE__), do: raise(Backpex.ForbiddenError)
 
@@ -366,15 +367,12 @@ defmodule Backpex.LiveResource do
       def apply_action(socket, :show) do
         %{
           live_resource: live_resource,
-          singular_name: singular_name,
-          params: params
+          singular_name: singular_name
         } = socket.assigns
 
         fields = filtered_fields_by_action(fields(), socket.assigns, :show)
-
-        item =
-          URI.decode(params["backpex_id"])
-          |> Resource.get!(fields, socket.assigns, live_resource)
+        primary_value = URI.decode(socket.assigns.params["backpex_id"])
+        item = Resource.get!(primary_value, socket.assigns, live_resource)
 
         unless can?(socket.assigns, :show, item, __MODULE__), do: raise(Backpex.ForbiddenError)
 
@@ -640,23 +638,33 @@ defmodule Backpex.LiveResource do
 
         filters = Backpex.LiveResource.get_active_filters(__MODULE__, assigns)
 
-        query =
-          EctoAdapter.list_query(
-            assigns,
-            &item_query(&1, live_action, assigns),
-            fields,
-            search: search_options(query_options, fields, schema),
-            filters: filter_options(query_options, filters)
-          )
-
         metrics =
           metrics()
-          |> Backpex.Metric.load_data_for_visible(
-            metric_visibility,
-            live_resource,
-            query,
-            repo
-          )
+          |> Enum.map(fn {key, metric} ->
+            query =
+              EctoAdapter.list_query(
+                assigns,
+                &item_query(&1, live_action, assigns),
+                fields,
+                search: search_options(query_options, fields, schema),
+                filters: filter_options(query_options, filters)
+              )
+
+            case Backpex.Metric.metrics_visible?(metric_visibility, live_resource) do
+              true ->
+                data =
+                  query
+                  |> Ecto.Query.exclude(:select)
+                  |> Ecto.Query.exclude(:preload)
+                  |> Ecto.Query.exclude(:group_by)
+                  |> metric.module.query(metric.select, repo)
+
+                {key, Map.put(metric, :data, data)}
+
+              _visible ->
+                {key, metric}
+            end
+          end)
 
         socket
         |> assign(metrics: metrics)
@@ -673,7 +681,10 @@ defmodule Backpex.LiveResource do
 
       @impl Phoenix.LiveView
       def handle_event("item-action", %{"action-key" => key, "item-id" => item_id}, socket) do
-        item = Enum.find(socket.assigns.items, fn item -> to_string(primary_key(item)) == to_string(item_id) end)
+        item =
+          Enum.find(socket.assigns.items, fn item ->
+            to_string(primary_value(item)) == to_string(item_id)
+          end)
 
         socket
         |> assign(selected_items: [item])
@@ -861,7 +872,7 @@ defmodule Backpex.LiveResource do
       def handle_event("update-selected-items", %{"id" => id}, socket) do
         selected_items = socket.assigns.selected_items
 
-        item = Enum.find(socket.assigns.items, fn item -> to_string(primary_key(item)) == to_string(id) end)
+        item = Enum.find(socket.assigns.items, fn item -> to_string(primary_value(item)) == to_string(id) end)
 
         updated_selected_items =
           if Enum.member?(selected_items, item) do
@@ -908,7 +919,7 @@ defmodule Backpex.LiveResource do
       @impl Phoenix.LiveView
       def handle_info({"backpex:" <> unquote(@resource_opts[:event_prefix]) <> "deleted", item}, socket)
           when socket.assigns.live_action in [:index, :resource_action] do
-        if Enum.filter(socket.assigns.items, &(to_string(primary_key(&1)) == to_string(primary_key(item)))) != [] do
+        if Enum.filter(socket.assigns.items, &(to_string(primary_value(&1)) == to_string(primary_value(item)))) != [] do
           {:noreply, refresh_items(socket)}
         else
           {:noreply, socket}
@@ -954,11 +965,10 @@ defmodule Backpex.LiveResource do
 
       def get_empty_filter_key, do: @empty_filter_key
 
-      def get_primary_key_field, do: @primary_key_field
-
-      defp primary_key(item), do: Map.get(item, @primary_key_field)
-
-      defp primary_key(assigns, item), do: Map.get(item, assigns.primary_key_field)
+      defp primary_value(item) do
+        item
+        |> Map.get(@resource_opts[:primary_key])
+      end
 
       defp update_item(socket, %{id: id} = _item) do
         %{
@@ -972,7 +982,7 @@ defmodule Backpex.LiveResource do
         socket =
           cond do
             live_action in [:index, :resource_action] and item ->
-              items = Enum.map(socket.assigns.items, &if(primary_key(&1) == id, do: item, else: &1))
+              items = Enum.map(socket.assigns.items, &if(primary_value(&1) == id, do: item, else: &1))
 
               assign(socket, :items, items)
 

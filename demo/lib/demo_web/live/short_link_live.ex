@@ -8,6 +8,7 @@ defmodule DemoWeb.ShortLinkLive do
       update_changeset: &Demo.ShortLink.changeset/3,
       create_changeset: &Demo.ShortLink.changeset/3
     ],
+    primary_key: :short_key,
     layout: {DemoWeb.Layouts, :admin},
     pubsub: Demo.PubSub,
     topic: "short_links",

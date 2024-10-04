@@ -33,41 +33,37 @@ defmodule Backpex.Resource do
   end
 
   @doc """
-  Gets a database record with the given `fields` by the given  `primary_key_value`.
+  Gets a database record with the given `fields` by the given  `primary_value`.
 
   Raises `Ecto.NoResultsError` if no record was found.
 
   ## Parameters
 
-  * `primary_key_value`: The identifier for the specific item to be fetched.
-  * `fields` (list): A list of atoms representing the fields to be selected and potentially preloaded.
+  * `primary_value`: The identifier for the specific item to be fetched.
   * `assigns` (map): The current assigns of the socket.
   * `live_resource` (module): The `Backpex.LiveResource` module.
   """
-  def get!(primary_key_value, fields, assigns, live_resource) do
+  def get!(primary_value, assigns, live_resource) do
     adapter = live_resource.config(:adapter)
-    adapter_config = live_resource.config(:adapter_config)
 
-    adapter.get!(primary_key_value, fields, assigns, adapter_config)
+    adapter.get!(primary_value, assigns, live_resource)
   end
 
   @doc """
-  Gets a database record with the given `fields` by the given  `primary_key_value`.
+  Gets a database record with the given `fields` by the given  `primary_value`.
 
   Returns `nil` if no result was found.
 
   ## Parameters
 
-  * `primary_key_value`: The identifier for the specific item to be fetched.
-  * `fields` (list): A list of atoms representing the fields to be selected and potentially preloaded.
+  * `primary_value`: The identifier for the specific item to be fetched.
   * `assigns` (map): The current assigns of the socket.
   * `live_resource` (module): The `Backpex.LiveResource` module.
   """
-  def get(primary_key_value, fields, assigns, live_resource) do
+  def get(primary_value, assigns, live_resource) do
     adapter = live_resource.config(:adapter)
-    adapter_config = live_resource.config(:adapter_config)
 
-    adapter.get!(primary_key_value, fields, assigns, adapter_config)
+    adapter.get!(primary_value, assigns, live_resource)
   end
 
   @doc """
@@ -81,10 +77,9 @@ defmodule Backpex.Resource do
   """
   def delete_all(items, live_resource) do
     adapter = live_resource.config(:adapter)
-    adapter_config = live_resource.config(:adapter_config)
     pubsub = live_resource.config(:pubsub)
 
-    case adapter.delete_all(items, adapter_config) do
+    case adapter.delete_all(items, live_resource) do
       {_count_, nil} ->
         Enum.each(items, fn item -> broadcast({:ok, item}, "deleted", pubsub) end)
         {:ok, items}
@@ -149,10 +144,9 @@ defmodule Backpex.Resource do
   """
   def update_all(items, updates, event_name \\ "updated", live_resource) do
     adapter = live_resource.config(:adapter)
-    adapter_config = live_resource.config(:adapter_config)
     pubsub = live_resource.config(:pubsub)
 
-    case adapter.update_all(items, updates, adapter_config) do
+    case adapter.update_all(items, updates, live_resource) do
       {_count_, nil} ->
         Enum.each(items, fn item -> broadcast({:ok, item}, event_name, pubsub) end)
         {:ok, items}

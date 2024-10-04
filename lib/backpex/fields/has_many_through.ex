@@ -175,20 +175,17 @@ defmodule Backpex.Fields.HasManyThrough do
   @impl Backpex.Field
   def render_form(assigns) do
     %{field: assoc_field} = assigns = assign_fallback_child_fields(assigns)
-
     %{form: form, changeset: changeset, association: association, all_items: all_items} = assigns
-
     {_assoc_field_name, assoc_field_options} = assoc_field
-    primary_key_field = assoc_field_options.live_resource.get_primary_key_field()
-
-    editables = editables(form, changeset, association, primary_key_field)
+    primary_key = assoc_field_options.live_resource.config(:primary_key)
+    editables = editables(form, changeset, association, primary_key)
 
     listables =
       editables
       |> Enum.map(fn editable ->
         edited = Changeset.apply_changes(editable.source)
         relational_id = Map.get(edited, association.child.owner_key)
-        item = Enum.filter(all_items, &(Map.get(&1, primary_key_field) == relational_id)) |> List.first()
+        item = Enum.filter(all_items, &(Map.get(&1, primary_key) == relational_id)) |> List.first()
         item = if is_nil(item), do: %{}, else: item
 
         %{
@@ -359,10 +356,10 @@ defmodule Backpex.Fields.HasManyThrough do
     existing = get_change_or_field(changeset, association.pivot.field)
     {to_delete, rest} = List.pop_at(existing, index)
 
-    primary_key_field = EctoUtils.get_primary_key_field(to_delete)
+    primary_key = socket.assigns.live_resource.config(:primary_key)
 
     updated =
-      if Changeset.change(to_delete).data |> Map.get(primary_key_field) == nil do
+      if Changeset.change(to_delete).data |> Map.get(primary_key) == nil do
         rest
       else
         # mark item for deletion in changeset
@@ -500,7 +497,7 @@ defmodule Backpex.Fields.HasManyThrough do
     }
   end
 
-  defp editables(form, changeset, association, primary_key_field) do
+  defp editables(form, changeset, association, primary_key) do
     deleted_ids =
       case Changeset.get_change(changeset, association.pivot.field) do
         nil ->
@@ -508,12 +505,12 @@ defmodule Backpex.Fields.HasManyThrough do
 
         changes ->
           Enum.filter(changes, &(&1.action == :delete))
-          |> Enum.map(&Map.get(&1.data, primary_key_field))
+          |> Enum.map(&Map.get(&1.data, primary_key))
       end
 
     form.impl.to_form(form.source, form, association.pivot.field, [])
     |> Enum.filter(fn item ->
-      !Enum.member?(deleted_ids, Map.get(item.data, primary_key_field))
+      !Enum.member?(deleted_ids, Map.get(item.data, primary_key))
     end)
   end
 

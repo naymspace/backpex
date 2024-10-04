@@ -20,14 +20,14 @@ defmodule Backpex.Adapter do
 
   Should return `nil` if no result was found.
   """
-  @callback get(term(), term(), term(), term()) :: term()
+  @callback get(term(), term(), term()) :: term()
 
   @doc """
   Gets a database record with the given primary key value.
 
   Should raise an exception if no result was found.
   """
-  @callback get!(term(), term(), term(), term()) :: term()
+  @callback get!(term(), term(), term()) :: term()
 
   @doc """
   Returns a list of items by given criteria.
