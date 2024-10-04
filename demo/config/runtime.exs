@@ -1,10 +1,18 @@
 import Config
 import System, only: [get_env: 1, get_env: 2, fetch_env!: 1]
-import String, only: [to_integer: 1, to_atom: 1, to_existing_atom: 1, split: 2]
+import String, only: [to_integer: 1, to_atom: 1, to_existing_atom: 1]
 
 config :demo, analytics: get_env("ANALYTICS", "false") |> to_existing_atom()
 
 config :demo, Demo.Repo,
+  hostname: get_env("DB_HOSTNAME", "postgres"),
+  username: get_env("DB_USERNAME", "postgres"),
+  password: get_env("DB_PASSWORD", "postgres"),
+  database: get_env("DB_DATABASE", "postgres"),
+  port: get_env("DB_PORT", "5432") |> to_integer(),
+  pool_size: get_env("DB_POOL_SIZE", "5") |> to_integer()
+
+config :demo, Demo.RepoAsh,
   hostname: get_env("DB_HOSTNAME", "postgres"),
   username: get_env("DB_USERNAME", "postgres"),
   password: get_env("DB_PASSWORD", "postgres"),

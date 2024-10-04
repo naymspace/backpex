@@ -31,23 +31,32 @@ defmodule Backpex.MixProject do
 
   defp deps do
     [
+      # development
       {:ex_doc, "~> 0.34", only: [:dev, :test], runtime: false},
+      {:credo, "~> 1.7.5", only: [:dev, :test], runtime: false},
+      {:mix_audit, "~> 2.0", only: [:dev, :test], runtime: false},
+      {:tailwind_formatter, "~> 0.4.0", only: [:dev, :test], runtime: false},
+      {:sobelow, "~> 0.13", only: [:dev, :test]},
+
+      # core
       {:nimble_options, "~> 1.1"},
-      {:phoenix, "~> 1.7.6"},
-      {:phoenix_ecto, "~> 4.4"},
-      {:ecto_sql, "~> 3.6"},
-      {:postgrex, ">= 0.0.0"},
-      {:phoenix_html, "~> 4.1.1"},
-      {:phoenix_html_helpers, "~> 1.0"},
-      {:phoenix_live_view, "~> 0.20.0"},
       {:gettext, "~> 0.26"},
       {:jason, "~> 1.2"},
       {:number, "~> 1.0.3"},
-      {:credo, "~> 1.7.5", only: [:dev, :test], runtime: false},
-      {:mix_audit, "~> 2.0", only: [:dev, :test], runtime: false},
-      {:sobelow, "~> 0.13", only: [:dev, :test]},
       {:money, "~> 1.13.1"},
-      {:tailwind_formatter, "~> 0.4.0", only: [:dev, :test], runtime: false}
+
+      # phoenix
+      {:phoenix, "~> 1.7.6"},
+      {:phoenix_html, "~> 4.1.1"},
+      {:phoenix_html_helpers, "~> 1.0"},
+      {:phoenix_live_view, "~> 0.20.0"},
+
+      # adapters
+      {:ecto_sql, "~> 3.6"},
+      {:postgrex, ">= 0.0.0"},
+      {:phoenix_ecto, "~> 4.4"},
+      {:ash, "~> 3.0", optional: true},
+      {:ash_postgres, "~> 2.0.0", optional: true}
     ]
   end
 

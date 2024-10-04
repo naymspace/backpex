@@ -2,7 +2,8 @@ import Config
 
 config :demo,
   namespace: Demo,
-  ecto_repos: [Demo.Repo],
+  ecto_repos: [Demo.Repo, Demo.RepoAsh],
+  ash_domains: [Demo.Blog],
   generators: [binary_id: true]
 
 config :demo, DemoWeb.Endpoint,

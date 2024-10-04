@@ -408,8 +408,6 @@ defmodule Backpex.Adapters.Ecto do
       %{queryable: queryable, owner_key: owner_key, cardinality: :one} = association, query ->
         custom_alias = Map.get(association, :custom_alias, name_by_schema(queryable))
 
-        dbg(queryable)
-
         if has_named_binding?(query, custom_alias) do
           query
         else
