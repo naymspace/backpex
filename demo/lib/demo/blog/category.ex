@@ -17,6 +17,9 @@ defmodule Demo.Blog.Category do
   attributes do
     uuid_primary_key :id
     attribute :name, :string
+
+    create_timestamp :inserted_at
+    update_timestamp :updated_at
   end
 
   # TODO: validations
