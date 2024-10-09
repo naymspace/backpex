@@ -4,6 +4,7 @@ defmodule Backpex.Resource do
   """
   import Ecto.Query
 
+  alias Backpex.Ecto.EctoUtils
   alias Backpex.LiveResource
 
   @doc """
@@ -112,7 +113,7 @@ defmodule Backpex.Resource do
           from(item in query,
             left_join: b in ^queryable,
             as: ^custom_alias,
-            on: field(item, ^owner_key) == b.id
+            on: field(item, ^owner_key) == field(b, ^EctoUtils.get_primary_key_field(queryable))
           )
         end
 
@@ -254,7 +255,7 @@ defmodule Backpex.Resource do
     |> apply_filters(filter_options, live_resource.get_empty_filter_key())
     |> exclude(:preload)
     |> subquery()
-    |> repo.aggregate(:count, :id)
+    |> repo.aggregate(:count)
   end
 
   @doc """
@@ -291,33 +292,35 @@ defmodule Backpex.Resource do
 
   defp record_query(id, schema, item_query, fields) do
     schema_name = name_by_schema(schema)
-    id_type = schema.__schema__(:type, :id)
+
+    id_field = EctoUtils.get_primary_key_field(schema)
+    id_type = schema.__schema__(:type, id_field)
     associations = associations(fields, schema)
 
-    from(item in schema, as: ^schema_name, distinct: item.id)
+    from(item in schema, as: ^schema_name, distinct: field(item, ^id_field))
     |> item_query.()
     |> maybe_join(associations)
     |> maybe_preload(associations, fields)
     |> maybe_merge_dynamic_fields(fields)
-    |> where_id(schema_name, id_type, id)
+    |> where_id(schema_name, id_field, id_type, id)
   end
 
-  defp where_id(query, schema_name, :id, id) do
+  defp where_id(query, schema_name, id_field, :id, id) do
     case Ecto.Type.cast(:id, id) do
-      {:ok, valid_id} -> where(query, [{^schema_name, schema_name}], schema_name.id == ^valid_id)
+      {:ok, valid_id} -> where(query, [{^schema_name, schema_name}], field(schema_name, ^id_field) == ^valid_id)
       :error -> raise Ecto.NoResultsError, queryable: query
     end
   end
 
-  defp where_id(query, schema_name, :binary_id, id) do
+  defp where_id(query, schema_name, id_field, :binary_id, id) do
     case Ecto.UUID.cast(id) do
-      {:ok, valid_id} -> where(query, [{^schema_name, schema_name}], schema_name.id == ^valid_id)
+      {:ok, valid_id} -> where(query, [{^schema_name, schema_name}], field(schema_name, ^id_field) == ^valid_id)
       :error -> raise Ecto.NoResultsError, queryable: query
     end
   end
 
-  defp where_id(query, schema_name, _id_type, id) do
-    where(query, [{^schema_name, schema_name}], schema_name.id == ^id)
+  defp where_id(query, schema_name, id_field, _id_type, id) do
+    where(query, [{^schema_name, schema_name}], field(schema_name, ^id_field) == ^id)
   end
 
   @doc """
@@ -348,8 +351,10 @@ defmodule Backpex.Resource do
   * `pubsub` (map, default: `nil`): The PubSub config to use for broadcasting events.
   """
   def delete_all(items, repo, schema, pubsub \\ nil) do
+    id_field = EctoUtils.get_primary_key_field(schema)
+
     case schema
-         |> where([i], i.id in ^Enum.map(items, & &1.id))
+         |> where([i], field(i, ^id_field) in ^Enum.map(items, &Map.get(&1, id_field)))
          |> repo.delete_all() do
       {_count_, nil} ->
         Enum.each(items, fn item -> broadcast({:ok, item}, "deleted", pubsub) end)
@@ -403,8 +408,10 @@ defmodule Backpex.Resource do
   * `pubsub` (map, default: `nil`): The PubSub config to use for broadcasting events.
   """
   def update_all(items, repo, schema, updates, event_name \\ "updated", pubsub \\ nil) do
+    id_field = EctoUtils.get_primary_key_field(schema)
+
     case schema
-         |> where([i], i.id in ^Enum.map(items, & &1.id))
+         |> where([i], field(i, ^id_field) in ^Enum.map(items, &Map.get(&1, id_field)))
          |> repo.update_all(updates) do
       {_count_, nil} ->
         Enum.each(items, fn item -> broadcast({:ok, item}, event_name, pubsub) end)
@@ -538,11 +545,31 @@ defmodule Backpex.Resource do
     fields
     |> Enum.filter(fn {_name, field_options} = field -> field_options.module.association?(field) end)
     |> Enum.map(fn
-      {name, %{custom_alias: custom_alias}} ->
-        schema.__schema__(:association, name) |> Map.from_struct() |> Map.put(:custom_alias, custom_alias)
+      {name, field_options} ->
+        association = schema.__schema__(:association, name)
 
-      {name, _field_options} ->
-        schema.__schema__(:association, name) |> Map.from_struct()
+        if association == nil do
+          name_str = name |> Atom.to_string()
+          without_id = String.replace(name_str, ~r/_id$/, "")
+
+          # credo:disable-for-lines:3 Credo.Check.Refactor.Nesting
+          raise """
+          The field "#{name}"" is not an association but used as if it were one with the field module #{inspect(field_options.module)}.
+          #{if without_id != name_str,
+            do: """
+            You are using a field ending with _id. Please make sure to use the correct field name for the association. Try using the name of the association, maybe "#{without_id}"?
+            """,
+            else: ""}.
+          """
+        end
+
+        case field_options do
+          %{custom_alias: custom_alias} ->
+            association |> Map.from_struct() |> Map.put(:custom_alias, custom_alias)
+
+          _ ->
+            association |> Map.from_struct()
+        end
     end)
   end
 end

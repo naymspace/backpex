@@ -4,6 +4,7 @@ defmodule Demo.Product do
 
   import Ecto.Changeset
 
+  alias Demo.ShortLink
   alias Demo.Supplier
 
   @primary_key {:id, :binary_id, autogenerate: true}
@@ -19,6 +20,7 @@ defmodule Demo.Product do
       opts: [separator: ".", delimiter: ",", symbol_on_right: true, symbol_space: true]
 
     has_many :suppliers, Supplier, on_replace: :delete, on_delete: :delete_all
+    has_many :short_links, ShortLink, on_replace: :delete, on_delete: :delete_all, foreign_key: :product_id
 
     timestamps()
   end
@@ -33,6 +35,11 @@ defmodule Demo.Product do
       with: &Demo.Supplier.changeset/2,
       sort_param: :suppliers_order,
       drop_param: :suppliers_delete
+    )
+    |> cast_assoc(:short_links,
+      with: &Demo.ShortLink.changeset/2,
+      sort_param: :short_links_order,
+      drop_param: :short_links_delete
     )
     |> validate_required(@required_fields)
     |> validate_length(:images, max: 2)
