@@ -4,14 +4,40 @@ You can configure the ordering of the resource index page. By default, the resou
 
 ## Configuration
 
-To configure the ordering of the resource index page, you need to provide an `init_order` option in the resource configuration file:
+To configure the ordering of the resource index page, use the `init_order` option in your resource configuration file. This option accepts either a map or a function that returns a map.
+
+The map must contain the following keys:
+
+- `:by` - The field to order by (atom)
+- `:direction` - The order direction (`:asc` for ascending or `:desc` for descending)
+
+### Using a Map
+
+You can directly specify the ordering with a map:
 
 ```elixir
-# in your resource configuration file
-
+# in your resource configuration file (live resource)
 use Backpex.LiveResource,
-    ...,
-    init_order: %{by: :inserted_at, direction: :desc}
+  # ...other options
+  init_order: %{by: :inserted_at, direction: :desc}
 ```
 
-The example above will order the resources by the `inserted_at` field in descending order.
+This configuration orders resources by the inserted_at field in descending order.
+
+### Using a Function
+
+```elixir
+# in your resource configuration file (live resource)
+use Backpex.LiveResource,
+  # ...other options
+  init_order: fn assigns -> 
+    %{by: :inserted_at, direction: :desc}
+  end
+```
+
+The function must:
+
+- Take one argument (assigns)
+- Return a map with `:by` and `:direction` keys
+
+This approach allows you to determine the ordering based on runtime conditions or user-specific data in assigns.
