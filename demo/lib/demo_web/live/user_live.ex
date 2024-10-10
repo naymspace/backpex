@@ -7,7 +7,10 @@ defmodule DemoWeb.UserLive do
     create_changeset: &Demo.User.changeset/3,
     pubsub: Demo.PubSub,
     topic: "users",
-    event_prefix: "user_"
+    event_prefix: "user_",
+    init_order: fn _assigns ->
+      %{by: :username, direction: :asc}
+    end
 
   @impl Backpex.LiveResource
   def singular_name, do: "User"
