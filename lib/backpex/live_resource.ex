@@ -1456,8 +1456,7 @@ defmodule Backpex.LiveResource do
 
   def resolve_init_order(invalid = _init_order, _assigns) do
     raise ArgumentError,
-      message:
-        "init_order must be a map with keys :by and :direction, or a function returning such a map. Got: #{inspect(invalid)}"
+          "init_order must be a map with keys :by and :direction, or a function returning such a map. Got: #{inspect(invalid)}"
   end
 
   @doc """
