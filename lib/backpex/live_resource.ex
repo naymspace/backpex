@@ -1431,13 +1431,10 @@ defmodule Backpex.LiveResource do
       %{by: :age, direction: :desc}
 
       iex> Backpex.LiveResource.resolve_init_order(fn assigns -> fn _ -> %{by: assigns.sort_by, direction: :asc} end end, %{sort_by: :date})
-      %{by: :date, direction: :asc}
+      ** (ArgumentError) init_order function should not return another function
 
       iex> Backpex.LiveResource.resolve_init_order(:invalid, %{})
       ** (ArgumentError) init_order must be a map with keys :by and :direction, or a function returning such a map. Got: :invalid
-
-      iex> Backpex.LiveResource.resolve_init_order(fn _ -> fn _ -> %{by: :name, direction: :asc} end end, %{})
-      ** (ArgumentError) init_order function should not return another function
   """
   def resolve_init_order(fun = _init_order, assigns) when is_function(fun, 1) do
     value = fun.(assigns)
