@@ -8,12 +8,12 @@ defmodule Backpex.Fields.Date do
 
   ## Options
 
-    * `:format` - Defines the date format printed on the index view.
-      Defaults to `#{@default_format}`.
+    * `:format` - Format string which will be used to format the date value or function that formats the date.
+      Defaults to `#{@default_format}`. If a function, must receive a `Date` and return a string.
     * `:debounce` - Optional integer timeout value (in milliseconds), "blur" or function that receives the assigns.
     * `:throttle` - Optional integer timeout value (in milliseconds) or function that receives the assigns.
 
-  ## Example
+  ## Examples
 
       @impl Backpex.LiveResource
       def fields do
@@ -25,6 +25,21 @@ defmodule Backpex.Fields.Date do
           }
         ]
       end
+
+      @impl Backpex.LiveResource
+      def fields do
+        [
+          created_at: %{
+            module: Backpex.Fields.Date,
+            label: "Created At",
+            format: fn date -> # Takes a `Date` and returns a string
+              # Timex should be installed separately, used as a reference for
+              # custom formatting logic.
+              Timex.format!(date, "{relative}", :relative)
+            end
+          }
+        ]
+      end
   """
   use BackpexWeb, :field
 
@@ -33,9 +48,11 @@ defmodule Backpex.Fields.Date do
     format = Map.get(assigns.field_options, :format, @default_format)
 
     value =
-      if assigns.value,
-        do: Calendar.strftime(assigns.value, format),
-        else: HTML.pretty_value(assigns.value)
+      cond do
+        is_function(format, 1) -> format.(assigns.value)
+        assigns.value -> Calendar.strftime(assigns.value, format)
+        true -> HTML.pretty_value(assigns.value)
+      end
 
     assigns =
       assigns
