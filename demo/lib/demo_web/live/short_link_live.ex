@@ -2,11 +2,14 @@ defmodule DemoWeb.ShortLinkLive do
   use DemoWeb, :verified_routes
 
   use Backpex.LiveResource,
+    adapter_config: [
+      schema: Demo.ShortLink,
+      repo: Demo.Repo,
+      update_changeset: &Demo.ShortLink.changeset/3,
+      create_changeset: &Demo.ShortLink.changeset/3
+    ],
+    primary_key: :short_key,
     layout: {DemoWeb.Layouts, :admin},
-    schema: Demo.ShortLink,
-    repo: Demo.Repo,
-    update_changeset: &Demo.ShortLink.changeset/3,
-    create_changeset: &Demo.ShortLink.changeset/3,
     pubsub: Demo.PubSub,
     topic: "short_links",
     event_prefix: "short_link_"
