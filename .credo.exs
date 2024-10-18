@@ -16,7 +16,10 @@
       parse_timeout: 5000,
       color: true,
       checks: %{
-        disabled: []
+        disabled: [],
+        enabled: [
+          {Credo.Check.Consistency.UnusedVariableNames, []}
+        ]
       }
     }
   ]
