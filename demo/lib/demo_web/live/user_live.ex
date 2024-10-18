@@ -10,7 +10,10 @@ defmodule DemoWeb.UserLive do
     layout: {DemoWeb.Layouts, :admin},
     pubsub: Demo.PubSub,
     topic: "users",
-    event_prefix: "user_"
+    event_prefix: "user_",
+    init_order: fn _assigns ->
+      %{by: :username, direction: :asc}
+    end
 
   @impl Backpex.LiveResource
   def singular_name, do: "User"

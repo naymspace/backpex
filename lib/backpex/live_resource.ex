@@ -489,7 +489,7 @@ defmodule Backpex.LiveResource do
 
         page_options = %{page: page, per_page: per_page}
 
-        order_options = order_options_by_params(params, fields, init_order, @permitted_order_directions)
+        order_options = order_options_by_params(params, fields, init_order, assigns, @permitted_order_directions)
 
         query_options =
           page_options
@@ -1248,14 +1248,16 @@ defmodule Backpex.LiveResource do
 
   ## Examples
 
-      iex> Backpex.LiveResource.order_options_by_params(%{"order_by" => "field", "order_direction" => "asc"}, [field: %{}], %{by: :id, direction: :asc}, [:asc, :desc])
+      iex> Backpex.LiveResource.order_options_by_params(%{"order_by" => "field", "order_direction" => "asc"}, [field: %{}], %{by: :id, direction: :asc}, %{}, [:asc, :desc])
       %{order_by: :field, order_direction: :asc}
-      iex> Backpex.LiveResource.order_options_by_params(%{}, [field: %{}], %{by: :id, direction: :desc}, [:asc, :desc])
+      iex> Backpex.LiveResource.order_options_by_params(%{}, [field: %{}], %{by: :id, direction: :desc}, %{}, [:asc, :desc])
       %{order_by: :id, order_direction: :desc}
-      iex> Backpex.LiveResource.order_options_by_params(%{"order_by" => "field", "order_direction" => "asc"}, [field: %{orderable: false}], %{by: :id, direction: :asc}, [:asc, :desc])
+      iex> Backpex.LiveResource.order_options_by_params(%{"order_by" => "field", "order_direction" => "asc"}, [field: %{orderable: false}], %{by: :id, direction: :asc}, %{}, [:asc, :desc])
       %{order_by: :id, order_direction: :asc}
   """
-  def order_options_by_params(params, fields, init_order, permitted_order_directions) do
+  def order_options_by_params(params, fields, init_order, assigns, permitted_order_directions) do
+    init_order = resolve_init_order(init_order, assigns)
+
     order_by =
       params
       |> Map.get("order_by")
@@ -1416,6 +1418,7 @@ defmodule Backpex.LiveResource do
         }
       else
         init_order
+        |> resolve_init_order(assigns)
         |> Map.put(:schema, schema)
       end
 
@@ -1425,6 +1428,43 @@ defmodule Backpex.LiveResource do
       search: search_options(query_options, fields, schema),
       filters: filter_options(query_options, filters)
     ]
+  end
+
+  @doc """
+  Resolves the initial order configuration.
+
+  ## Examples
+
+      iex> Backpex.LiveResource.resolve_init_order(%{by: :name, direction: :asc}, %{})
+      %{by: :name, direction: :asc}
+
+      iex> Backpex.LiveResource.resolve_init_order(fn _ -> %{by: :age, direction: :desc} end, %{})
+      %{by: :age, direction: :desc}
+
+      iex> Backpex.LiveResource.resolve_init_order(fn assigns -> fn _ -> %{by: assigns.sort_by, direction: :asc} end end, %{sort_by: :date})
+      ** (ArgumentError) init_order function should not return another function
+
+      iex> Backpex.LiveResource.resolve_init_order(:invalid, %{})
+      ** (ArgumentError) init_order must be a map with keys :by and :direction, or a function returning such a map. Got: :invalid
+  """
+  def resolve_init_order(init_order, assigns) when is_function(init_order, 1) do
+    init_order = init_order.(assigns)
+
+    # check if result is another function to prevent infinite loop
+    if is_function(init_order, 1) do
+      raise ArgumentError, "init_order function should not return another function"
+    end
+
+    resolve_init_order(init_order, assigns)
+  end
+
+  def resolve_init_order(%{by: _by, direction: _dir} = init_order, _assigns) do
+    init_order
+  end
+
+  def resolve_init_order(init_order, _assigns) do
+    raise ArgumentError,
+          "init_order must be a map with keys :by and :direction, or a function returning such a map. Got: #{inspect(init_order)}"
   end
 
   @doc """
