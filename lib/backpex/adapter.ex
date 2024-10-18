@@ -1,6 +1,13 @@
 defmodule Backpex.Adapter do
   @moduledoc ~S"""
   Specification of the datalayer adapter.
+
+  > ### Work in progress {: .warning}
+  >
+  > The `Backpex.Adapter` behaviour is currently under heavy development and will change drastically in future updates.
+  > Backpex started out as `Ecto`-only and that is still deeply anchored in the core. We are working on changing that.
+  > Do not rely on the current API to build new adapters, as the callbacks will still change significantly. This will be
+  > an iterative process over the next few releases.
   """
 
   defmacro __using__(opts) do

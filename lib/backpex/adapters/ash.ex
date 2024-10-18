@@ -13,6 +13,11 @@ defmodule Backpex.Adapters.Ash do
   ## `adapter_config`
 
   #{NimbleOptions.docs(@config_schema)}
+
+  > ### Work in progress {: .error}
+  >
+  > The `Backpex.Adapters.Ash` is not usable right now! It can barely list and show items. We will work on that, as we
+  > progress implementing the `Backpex.Adapter` pattern throughout the codebase.
   """
 
   use Backpex.Adapter, config_schema: @config_schema
