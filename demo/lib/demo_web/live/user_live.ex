@@ -11,9 +11,7 @@ defmodule DemoWeb.UserLive do
     pubsub: Demo.PubSub,
     topic: "users",
     event_prefix: "user_",
-    init_order: fn _assigns ->
-      %{by: :username, direction: :asc}
-    end
+    init_order: &__MODULE__.init_order/1
 
   @impl Backpex.LiveResource
   def singular_name, do: "User"
@@ -30,6 +28,10 @@ defmodule DemoWeb.UserLive do
   def item_query(query, live_action, _assigns) when live_action in [:index, :resource_action] do
     from u in query,
       where: is_nil(u.deleted_at)
+  end
+
+  def init_order(_assigns) do
+    %{by: :username, direction: :asc}
   end
 
   @impl Backpex.LiveResource

@@ -59,18 +59,24 @@ defmodule Backpex.LiveResource do
     ],
     init_order: [
       doc: "Order that will be used when no other order options are given.",
-      type: :map,
-      default: Macro.escape(%{by: :id, direction: :asc}),
-      keys: [
-        by: [
-          doc: "The column used for ordering.",
-          type: :atom
-        ],
-        direction: [
-          doc: "The order direction",
-          type: :atom
+      type: {
+        :or,
+        [
+          {:fun, 1},
+          map: [
+              by: [
+                doc: "The column used for ordering.",
+                type: :atom
+              ],
+              direction: [
+                doc: "The order direction",
+                type: :atom
+            ]
+          ]
+
         ]
-      ]
+      },
+      default: Macro.escape(%{by: :id, direction: :asc}),
     ],
     fluid?: [
       type: :boolean,
@@ -489,7 +495,7 @@ defmodule Backpex.LiveResource do
 
         page_options = %{page: page, per_page: per_page}
 
-        order_options = order_options_by_params(params, fields, init_order, assigns, @permitted_order_directions)
+        order_options = order_options_by_params(params, fields, init_order, socket.assigns, @permitted_order_directions)
 
         query_options =
           page_options
