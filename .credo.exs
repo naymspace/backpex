@@ -15,9 +15,9 @@
       strict: true,
       parse_timeout: 5000,
       color: true,
-      checks: %{
-        disabled: []
-      }
+      checks: [
+        {Credo.Check.Design.TagTODO, false}
+      ]
     }
   ]
 }

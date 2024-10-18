@@ -131,7 +131,7 @@ defmodule Backpex.Router do
   def get_path(socket, module, params, action, params_or_item \\ %{}) do
     route_path = get_route_path(socket, module, action)
 
-    id_field = module.get_primary_key_field()
+    id_field = module.config(:primary_key)
 
     if Map.has_key?(params_or_item, id_field) do
       id = params_or_item |> Map.get(id_field) |> to_string() |> URI.encode_www_form()
@@ -144,7 +144,7 @@ defmodule Backpex.Router do
   end
 
   def get_path(socket, module, params, action, id_or_instance, query_params) do
-    id_field = module.get_primary_key_field()
+    id_field = module.config(:primary_key)
 
     id_serializable =
       if is_map(id_or_instance) and Map.has_key?(id_or_instance, id_field),

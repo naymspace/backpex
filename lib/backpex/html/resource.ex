@@ -115,7 +115,7 @@ defmodule Backpex.HTML.Resource do
       |> assign(:value, Map.get(item, name))
       |> assign(:type, :index)
       |> assign(:readonly, readonly)
-      |> assign(:primary_key, Map.get(item, live_resource.get_primary_key_field()))
+      |> assign(:primary_key, Map.get(item, live_resource.config(:primary_key)))
 
     ~H"""
     <.live_component

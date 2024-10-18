@@ -2,7 +2,7 @@ import Demo.Factory
 
 category_names = ["Tech", "Misc", "Crew", "News"]
 
-categories =
+_categories =
   Enum.reduce(category_names, [], fn name, acc ->
     [insert(:category, name: name) | acc]
   end)
@@ -15,7 +15,8 @@ admin_user = insert(:user, role: :admin)
 users = [admin_user | insert_list(9, :user)]
 
 for _index <- 0..50 do
-  insert(:post, category: Enum.random(categories), tags: [Enum.random(tags)], user: Enum.random(users))
+  # TODO: add category or seed differently (once the whole blog is done via Ash)
+  insert(:post, category: nil, tags: [Enum.random(tags)], user: Enum.random(users))
 end
 
 insert_list(10, :product)

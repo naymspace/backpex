@@ -36,12 +36,10 @@ defmodule Backpex.Fields.HasMany do
       end
   """
   use BackpexWeb, :field
-
   import Ecto.Query
   import Backpex.HTML.Form
-
+  alias Backpex.Adapters.Ecto, as: EctoAdapter
   alias Backpex.LiveResource
-  alias Backpex.Resource
   alias Backpex.Router
 
   @impl Phoenix.LiveComponent
@@ -379,7 +377,7 @@ defmodule Backpex.Fields.HasMany do
 
     display_field = display_field(field)
 
-    schema_name = Resource.name_by_schema(queryable)
+    schema_name = EctoAdapter.name_by_schema(queryable)
 
     from(queryable, as: ^schema_name)
     |> maybe_options_query(field_options, assigns)
@@ -424,7 +422,7 @@ defmodule Backpex.Fields.HasMany do
     display_field = display_field(field)
 
     %{queryable: queryable} = schema.__schema__(:association, name)
-    schema_name = Resource.name_by_schema(queryable)
+    schema_name = EctoAdapter.name_by_schema(queryable)
 
     from(queryable, as: ^schema_name)
     |> maybe_options_query(field_options, assigns)
@@ -437,9 +435,9 @@ defmodule Backpex.Fields.HasMany do
     {field_name, field_options} = socket.assigns.field
     validate_live_resource(field_name, field_options)
 
-    primary_key_field = field_options.live_resource.get_primary_key_field()
+    primary_key = field_options.live_resource.config(:primary_key)
 
-    selected_ids = extract_selected_ids(socket.assigns.form[socket.assigns.name].value, primary_key_field)
+    selected_ids = extract_selected_ids(socket.assigns.form[socket.assigns.name].value, primary_key)
     selected_items = fetch_selected_items(socket, selected_ids)
 
     socket
@@ -479,16 +477,16 @@ defmodule Backpex.Fields.HasMany do
     end)
   end
 
-  defp extract_selected_ids(value, primary_key_field) when is_list(value) and is_atom(primary_key_field) do
+  defp extract_selected_ids(value, primary_key) when is_list(value) and is_atom(primary_key) do
     Enum.reduce(value, [], fn
       %Ecto.Changeset{data: data, action: :update}, acc ->
-        [Map.fetch!(data, primary_key_field) | acc]
+        [Map.fetch!(data, primary_key) | acc]
 
       %Ecto.Changeset{}, acc ->
         acc
 
       struct, acc when is_struct(struct) ->
-        [Map.fetch!(struct, primary_key_field) | acc]
+        [Map.fetch!(struct, primary_key) | acc]
 
       entry, acc when is_binary(entry) and entry != "" ->
         [entry | acc]
@@ -498,7 +496,7 @@ defmodule Backpex.Fields.HasMany do
     end)
   end
 
-  defp extract_selected_ids(_value, _primary_key_field), do: []
+  defp extract_selected_ids(_value, _primary_key), do: []
 
   defp assign_form_errors(socket) do
     %{assigns: %{form: form, name: name, field_options: field_options}} = socket
