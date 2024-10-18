@@ -313,7 +313,7 @@ defmodule Backpex.FormComponent do
     end
   end
 
-  defp handle_save(socket, :resource_action, params, _) do
+  defp handle_save(socket, :resource_action, params, _save_type) do
     %{
       assigns:
         %{
@@ -426,7 +426,7 @@ defmodule Backpex.FormComponent do
   defp flash_key(:ok), do: :info
   defp flash_key(:error), do: :error
 
-  defp return_to_path("continue", _, _, %{current_url: url}, item, :new) do
+  defp return_to_path("continue", _live_resource, _socket, %{current_url: url}, item, :new) do
     url
     |> URI.parse()
     |> Map.get(:path)
@@ -434,11 +434,11 @@ defmodule Backpex.FormComponent do
     |> Kernel.<>("/#{item.id}/edit")
   end
 
-  defp return_to_path("continue", _, _, %{current_url: url}, _, _) do
+  defp return_to_path("continue", _live_resource, _socket, %{current_url: url}, _item, :edit) do
     URI.parse(url).path
   end
 
-  defp return_to_path(_, live_resource, socket, assigns, item, type) do
+  defp return_to_path(_save_type, live_resource, socket, assigns, item, type) do
     live_resource.return_to(socket, assigns, type, item)
   end
 

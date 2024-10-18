@@ -48,7 +48,7 @@
         </button>
       <% else %>
         <.link navigate={@live_resource.return_to(@socket, assigns, @live_action, @item)}>
-          <button type="button" class="btn btn-neutral btn-outline">
+          <button type="button" class="btn btn-ghost">
             <%= Backpex.translate("Cancel") %>
           </button>
         </.link>
@@ -57,7 +57,7 @@
           type="submit"
           name="save-type"
           value="continue"
-          class={["btn", if(form_errors?(@show_form_errors, @form), do: "btn-error", else: "btn-primary")]}
+          class={["btn", if(form_errors?(@show_form_errors, @form), do: "btn-error", else: "btn-neutral btn-outline")]}
           phx-disable-with={@continue_label <> "..."}
         >
           <%= @continue_label %>
