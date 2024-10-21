@@ -38,7 +38,7 @@ defmodule Demo.ShortLink do
   defp add_short_key(changeset) do
     case get_field(changeset, :short_key) do
       nil -> put_change(changeset, :short_key, generate_short_key())
-      _ -> changeset
+      _field -> changeset
     end
   end
 
