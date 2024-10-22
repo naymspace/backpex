@@ -5,13 +5,13 @@ defmodule Demo.Factory do
 
   alias Demo.Address
   alias Demo.Category
+  alias Demo.Helpdesk.Ticket
   alias Demo.Post
   alias Demo.Product
   alias Demo.ShortLink
   alias Demo.Supplier
   alias Demo.Tag
   alias Demo.User
-  alias Demo.Helpdesk.Ticket
 
   def user_factory do
     %User{

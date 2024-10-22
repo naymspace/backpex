@@ -1,4 +1,6 @@
 defmodule Demo.Helpdesk do
+  @moduledoc false
+
   use Ash.Domain
 
   resources do

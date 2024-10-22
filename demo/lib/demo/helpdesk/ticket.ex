@@ -1,4 +1,6 @@
 defmodule Demo.Helpdesk.Ticket do
+  @moduledoc false
+
   use Ash.Resource,
     domain: Demo.Helpdesk,
     data_layer: AshPostgres.DataLayer
