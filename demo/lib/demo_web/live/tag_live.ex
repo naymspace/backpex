@@ -1,13 +1,16 @@
 defmodule DemoWeb.TagLive do
   use Backpex.LiveResource,
+    adapter_config: [
+      schema: Demo.Tag,
+      repo: Demo.Repo,
+      update_changeset: &Demo.Tag.update_changeset/3,
+      create_changeset: &Demo.Tag.create_changeset/3
+    ],
     layout: {DemoWeb.Layouts, :admin},
-    schema: Demo.Tag,
-    repo: Demo.Repo,
-    update_changeset: &Demo.Tag.update_changeset/3,
-    create_changeset: &Demo.Tag.create_changeset/3,
     pubsub: Demo.PubSub,
     topic: "tags",
-    event_prefix: "tag_"
+    event_prefix: "tag_",
+    init_order: %{by: :name, direction: :desc}
 
   @impl Backpex.LiveResource
   def singular_name, do: "Tag"

@@ -84,6 +84,12 @@
         <Backpex.HTML.CoreComponents.icon name="hero-tag" class="h-5 w-5" /> Tags
       </Backpex.HTML.Layout.sidebar_item>
     </Backpex.HTML.Layout.sidebar_section>
+    <Backpex.HTML.Layout.sidebar_section id="blog">
+      <:label>Helpdesk</:label>
+      <Backpex.HTML.Layout.sidebar_item current_url={@current_url} navigate="/admin/tickets">
+        <Backpex.HTML.CoreComponents.icon name="hero-book-open" class="h-5 w-5" /> Tickets
+      </Backpex.HTML.Layout.sidebar_item>
+    </Backpex.HTML.Layout.sidebar_section>
   </:sidebar>
   <Backpex.HTML.Layout.flash_messages flash={@flash} />
   <%= @inner_content %>
