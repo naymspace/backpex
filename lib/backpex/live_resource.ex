@@ -64,19 +64,18 @@ defmodule Backpex.LiveResource do
         [
           {:fun, 1},
           map: [
-              by: [
-                doc: "The column used for ordering.",
-                type: :atom
-              ],
-              direction: [
-                doc: "The order direction",
-                type: :atom
+            by: [
+              doc: "The column used for ordering.",
+              type: :atom
+            ],
+            direction: [
+              doc: "The order direction",
+              type: :atom
             ]
           ]
-
         ]
       },
-      default: Macro.escape(%{by: :id, direction: :asc}),
+      default: Macro.escape(%{by: :id, direction: :asc})
     ],
     fluid?: [
       type: :boolean,
