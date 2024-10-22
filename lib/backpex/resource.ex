@@ -1,6 +1,11 @@
 defmodule Backpex.Resource do
   @moduledoc """
   Generic context module for Backpex resources.
+
+  > ### Work in progress {: .warning}
+  >
+  > This module is still under heavy development and will change as we progress with the `Backpex.Adapter`
+  > implementation in the coming releases. Keep this in mind when using this module directly.
   """
 
   @doc """
