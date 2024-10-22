@@ -15,7 +15,6 @@ admin_user = insert(:user, role: :admin)
 users = [admin_user | insert_list(9, :user)]
 
 for _index <- 0..50 do
-  # TODO: add category or seed differently (once the whole blog is done via Ash)
   insert(:post, category: nil, tags: [Enum.random(tags)], user: Enum.random(users))
 end
 
@@ -38,3 +37,5 @@ insert_list(10, :address)
   Demo.FilmReview.create_changeset(%Demo.FilmReview{}, item)
   |> Demo.Repo.insert!()
 end)
+
+insert_list(10, :ticket)

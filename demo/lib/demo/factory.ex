@@ -11,6 +11,7 @@ defmodule Demo.Factory do
   alias Demo.Supplier
   alias Demo.Tag
   alias Demo.User
+  alias Demo.Helpdesk.Ticket
 
   def user_factory do
     %User{
@@ -88,6 +89,13 @@ defmodule Demo.Factory do
       zip: Faker.Address.zip(),
       city: Faker.Address.city(),
       country: Enum.random([:de, :ch, :at])
+    }
+  end
+
+  def ticket_factory do
+    %Ticket{
+      subject: Faker.Lorem.sentence(),
+      body: Faker.Lorem.paragraph()
     }
   end
 
