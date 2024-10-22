@@ -4,7 +4,7 @@ defmodule Demo.Factory do
   use ExMachina.Ecto, repo: Demo.Repo
 
   alias Demo.Address
-  alias Demo.Blog.Category
+  alias Demo.Category
   alias Demo.Post
   alias Demo.Product
   alias Demo.ShortLink
@@ -34,12 +34,8 @@ defmodule Demo.Factory do
   end
 
   def category_factory do
-    # TODO: change ash seeding?
     %Category{
-      id: Ecto.UUID.generate(),
-      name: Faker.Team.name(),
-      inserted_at: DateTime.utc_now(),
-      updated_at: DateTime.utc_now()
+      name: Faker.Team.name()
     }
   end
 

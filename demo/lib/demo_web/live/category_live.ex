@@ -1,8 +1,10 @@
 defmodule DemoWeb.CategoryLive do
   use Backpex.LiveResource,
-    adapter: Backpex.Adapters.Ash,
     adapter_config: [
-      resource: Demo.Blog.Category
+      schema: Demo.Category,
+      repo: Demo.Repo,
+      update_changeset: &Demo.Category.update_changeset/3,
+      create_changeset: &Demo.Category.create_changeset/3,
     ],
     layout: {DemoWeb.Layouts, :admin},
     pubsub: Demo.PubSub,

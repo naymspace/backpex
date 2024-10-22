@@ -3,7 +3,7 @@ import Config
 config :demo,
   namespace: Demo,
   ecto_repos: [Demo.Repo, Demo.RepoAsh],
-  ash_domains: [Demo.Blog],
+  ash_domains: [Demo.Helpdesk],
   generators: [binary_id: true]
 
 config :demo, DemoWeb.Endpoint,
@@ -48,6 +48,10 @@ config :sentry,
 config :phoenix, :json_library, Jason
 
 config :demo, DemoWeb.Gettext, default_locale: "en"
+
+config :ash, include_embedded_source_by_default?: false
+
+config :ash, :policies, no_filter_static_forbidden_reads?: false
 
 config :backpex, :translator_function, {DemoWeb.CoreComponents, :translate_backpex}
 
