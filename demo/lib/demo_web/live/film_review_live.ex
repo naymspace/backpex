@@ -7,9 +7,11 @@ defmodule DemoWeb.FilmReviewLive do
       create_changeset: &Demo.FilmReview.create_changeset/3
     ],
     layout: {DemoWeb.Layouts, :admin},
-    pubsub: Demo.PubSub,
-    topic: "film_reviews",
-    event_prefix: "film_reviews_",
+    pubsub: [
+      name: Demo.PubSub,
+      topic: "film_reviews",
+      event_prefix: "film_reviews_"
+    ],
     full_text_search: :generated_tsvector
 
   @impl Backpex.LiveResource

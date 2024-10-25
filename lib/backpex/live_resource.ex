@@ -32,20 +32,27 @@ defmodule Backpex.LiveResource do
       required: true
     ],
     pubsub: [
-      doc: "PubSub name of the project.",
-      type: :atom,
-      required: true
-    ],
-    topic: [
-      doc: "The topic for PubSub.",
-      type: :string,
-      required: true
-    ],
-    event_prefix: [
-      doc:
-        "The event prefix for Pubsub, to differentiate between events of different resources when subscribed to multiple resources.",
-      type: :string,
-      required: true
+      doc: "PubSub configuration.",
+      type: :keyword_list,
+      required: true,
+      keys: [
+        name: [
+          doc: "PubSub name of the project.",
+          required: true,
+          type: :atom
+        ],
+        event_prefix: [
+          doc:
+            "The event prefix for Pubsub, to differentiate between events of different resources when subscribed to multiple resources.",
+          required: true,
+          type: :string
+        ],
+        topic: [
+          doc: "The topic for PubSub.",
+          required: true,
+          type: :string
+        ]
+      ]
     ],
     per_page_options: [
       doc: "The page size numbers you can choose from.",
@@ -262,16 +269,13 @@ defmodule Backpex.LiveResource do
 
       @impl Phoenix.LiveView
       def mount(params, session, socket) do
-        pubsub = pubsub_settings(@resource_opts[:pubsub], @resource_opts[:topic], @resource_opts[:event_prefix])
-
-        maybe_subscribe(socket, pubsub)
+        subscribe_to_topic(socket, @resource_opts[:pubsub])
 
         socket =
           socket
           |> assign(:live_resource, __MODULE__)
           |> assign(:schema, @resource_opts[:adapter_config][:schema])
           |> assign(:repo, @resource_opts[:adapter_config][:repo])
-          |> assign(:pubsub, pubsub)
           |> assign(:singular_name, singular_name())
           |> assign(:plural_name, plural_name())
           |> assign(:create_button_label, create_button_label())
@@ -916,13 +920,13 @@ defmodule Backpex.LiveResource do
       end
 
       @impl Phoenix.LiveView
-      def handle_info({"backpex:" <> unquote(@resource_opts[:event_prefix]) <> "created", item}, socket)
+      def handle_info({"backpex:" <> unquote(@resource_opts[:pubsub][:event_prefix]) <> "created", item}, socket)
           when socket.assigns.live_action in [:index, :resource_action] do
         {:noreply, refresh_items(socket)}
       end
 
       @impl Phoenix.LiveView
-      def handle_info({"backpex:" <> unquote(@resource_opts[:event_prefix]) <> "deleted", item}, socket)
+      def handle_info({"backpex:" <> unquote(@resource_opts[:pubsub][:event_prefix]) <> "deleted", item}, socket)
           when socket.assigns.live_action in [:index, :resource_action] do
         if Enum.filter(socket.assigns.items, &(to_string(primary_value(&1)) == to_string(primary_value(item)))) != [] do
           {:noreply, refresh_items(socket)}
@@ -932,7 +936,7 @@ defmodule Backpex.LiveResource do
       end
 
       @impl Phoenix.LiveView
-      def handle_info({"backpex:" <> unquote(@resource_opts[:event_prefix]) <> "updated", item}, socket)
+      def handle_info({"backpex:" <> unquote(@resource_opts[:pubsub][:event_prefix]) <> "updated", item}, socket)
           when socket.assigns.live_action in [:index, :resource_action, :show] do
         {:noreply, update_item(socket, item)}
       end
@@ -1229,20 +1233,9 @@ defmodule Backpex.LiveResource do
   end
 
   @doc """
-  Returns pubsub settings based on configuration.
+  Subscribes to pubsub topic.
   """
-  def pubsub_settings(false, _topic, _event_prefix), do: false
-
-  def pubsub_settings(pubsub, topic, event_prefix) do
-    %{name: pubsub, topic: topic, event_prefix: event_prefix}
-  end
-
-  @doc """
-  Maybe subscribes to pubsub.
-  """
-  def maybe_subscribe(_socket, false), do: :ok
-
-  def maybe_subscribe(socket, %{name: name, topic: topic}) do
+  def subscribe_to_topic(socket, name: name, topic: topic, event_prefix: _event_prefix) do
     if Phoenix.LiveView.connected?(socket) do
       Phoenix.PubSub.subscribe(name, topic)
     end

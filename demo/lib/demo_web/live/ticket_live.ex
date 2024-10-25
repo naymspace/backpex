@@ -5,9 +5,11 @@ defmodule DemoWeb.TicketLive do
       resource: Demo.Helpdesk.Ticket
     ],
     layout: {DemoWeb.Layouts, :admin},
-    pubsub: Demo.PubSub,
-    topic: "tickets",
-    event_prefix: "ticket_"
+    pubsub: [
+      name: Demo.PubSub,
+      topic: "tickets",
+      event_prefix: "ticket_"
+    ]
 
   @impl Backpex.LiveResource
   def singular_name, do: "Ticket"

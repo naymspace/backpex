@@ -7,9 +7,11 @@ defmodule DemoWeb.ProductLive do
       create_changeset: &Demo.Product.changeset/3
     ],
     layout: {DemoWeb.Layouts, :admin},
-    pubsub: Demo.PubSub,
-    topic: "products",
-    event_prefix: "product_"
+    pubsub: [
+      name: Demo.PubSub,
+      topic: "products",
+      event_prefix: "product_"
+    ]
 
   @impl Backpex.LiveResource
   def singular_name, do: "Product"

@@ -7,9 +7,11 @@ defmodule DemoWeb.CategoryLive do
       create_changeset: &Demo.Category.create_changeset/3
     ],
     layout: {DemoWeb.Layouts, :admin},
-    pubsub: Demo.PubSub,
-    topic: "categories",
-    event_prefix: "category_"
+    pubsub: [
+      name: Demo.PubSub,
+      topic: "categories",
+      event_prefix: "category_"
+    ]
 
   @impl Backpex.LiveResource
   def singular_name, do: "Category"

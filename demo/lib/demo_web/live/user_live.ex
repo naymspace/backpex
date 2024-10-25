@@ -8,10 +8,12 @@ defmodule DemoWeb.UserLive do
       item_query: &__MODULE__.item_query/3
     ],
     layout: {DemoWeb.Layouts, :admin},
-    pubsub: Demo.PubSub,
-    topic: "users",
-    event_prefix: "user_",
-    init_order: &__MODULE__.init_order/1
+    init_order: &__MODULE__.init_order/1,
+    pubsub: [
+      name: Demo.PubSub,
+      topic: "users",
+      event_prefix: "user_"
+    ]
 
   @impl Backpex.LiveResource
   def singular_name, do: "User"

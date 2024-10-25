@@ -10,9 +10,11 @@ defmodule DemoWeb.ShortLinkLive do
     ],
     primary_key: :short_key,
     layout: {DemoWeb.Layouts, :admin},
-    pubsub: Demo.PubSub,
-    topic: "short_links",
-    event_prefix: "short_link_"
+    pubsub: [
+      name: Demo.PubSub,
+      topic: "short_links",
+      event_prefix: "short_link_"
+    ]
 
   @impl Backpex.LiveResource
   def singular_name, do: "Short Link"
