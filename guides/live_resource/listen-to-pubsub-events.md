@@ -11,9 +11,11 @@ We assume you configured PubSub for your Posts *LiveResource* like this:
 ```elixir
 use Backpex.LiveResource,
     ...,
-    pubsub: Demo.PubSub
-    topic: "posts",
-    event_prefix: "post_"
+    pubsub: [
+        name: Demo.PubSub
+        topic: "posts",
+        event_prefix: "post_"
+    ]
 ```
 
 You could implement the following `handle_info/2` callbacks in your *LiveResource*:
@@ -22,19 +24,19 @@ You could implement the following `handle_info/2` callbacks in your *LiveResourc
 # in your resource configuration file
 
 @impl Phoenix.LiveView
-def handle_info({"post_created", item}, socket) do
+def handle_info({"backpex:post_created", item}, socket) do
     # make something in response to the event
     {:noreply, socket}
 end
 
 @impl Phoenix.LiveView
-def handle_info({"post_updated", item}, socket) do
+def handle_info({"backpex:post_updated", item}, socket) do
     # make something in response to the event
     {:noreply, socket}
 end
 
 @impl Phoenix.LiveView
-def handle_info({"post_deleted", item}, socket) do
+def handle_info({"backpex:post_deleted", item}, socket) do
     # make something in response to the event
     {:noreply, socket}
 end
