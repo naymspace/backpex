@@ -9,15 +9,15 @@ defmodule Demo.RepoAsh.Migrations.CreateTicket do
 
   def up do
     create table(:tickets, primary_key: false) do
-      add(:id, :uuid, null: false, default: fragment("gen_random_uuid()"), primary_key: true)
-      add(:subject, :text, null: false)
-      add(:body, :text, null: false)
-      add(:inserted_at, :utc_datetime_usec, null: false, default: fragment("(now() AT TIME ZONE 'utc')"))
-      add(:updated_at, :utc_datetime_usec, null: false, default: fragment("(now() AT TIME ZONE 'utc')"))
+      add :id, :uuid, null: false, default: fragment("gen_random_uuid()"), primary_key: true
+      add :subject, :text, null: false
+      add :body, :text, null: false
+      add :inserted_at, :utc_datetime_usec, null: false, default: fragment("(now() AT TIME ZONE 'utc')")
+      add :updated_at, :utc_datetime_usec, null: false, default: fragment("(now() AT TIME ZONE 'utc')")
     end
   end
 
   def down do
-    drop(table(:tickets))
+    drop table(:tickets)
   end
 end
