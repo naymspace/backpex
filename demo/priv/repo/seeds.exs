@@ -22,6 +22,8 @@ insert_list(10, :product)
 
 insert_list(10, :address)
 
+insert_list(10, :ticket)
+
 :code.priv_dir(:demo)
 |> Path.join("repo/film_reviews.csv")
 |> File.stream!()
@@ -37,5 +39,3 @@ insert_list(10, :address)
   Demo.FilmReview.create_changeset(%Demo.FilmReview{}, item)
   |> Demo.Repo.insert!()
 end)
-
-insert_list(10, :ticket)
