@@ -74,9 +74,8 @@ defmodule Backpex.Adapters.Ash do
   Deletes multiple items.
   """
   @impl Backpex.Adapter
-  def delete_all(items, _config) do
-    items
-    |> Ash.bulk_destroy!(:destroy, %{})
+  def delete_all(_items, _config) do
+    raise "not implemented yet"
   end
 
   @doc """
