@@ -53,6 +53,12 @@ defmodule Backpex.Adapters.Ecto do
   ## `adapter_config`
 
   #{NimbleOptions.docs(@config_schema)}
+
+  > ### Work in progress {: .warning}
+  >
+  > The `Backpex.Adapters.Ecto` is under heavy development and will change drastically in future updates.
+  > Backpex started out as `Ecto`-only and we are working on decoupling things to support multiple data sources.
+  > This is the first draft of moving all `Ecto` related functions into a dedicated Ecto adapter.
   """
 
   use Backpex.Adapter, config_schema: @config_schema
