@@ -37,7 +37,7 @@ defmodule Backpex.Adapters.Ecto do
       This function should accept the following parameters:
 
       - `query` - `Ecto.Query.t()`
-      - `live_action` - atom()`
+      - `live_action` - `atom()`
       - `assigns` - `map()`
 
       It should return an `Ecto.Queryable`. It is recommended to build your `item_query` on top of the incoming query.
