@@ -30,8 +30,7 @@ defmodule DemoWeb.TicketLive do
   end
 
   @impl Backpex.LiveResource
-  def can?(_assigns, :index, _item), do: true
-  def can?(_assigns, :show, _item), do: true
+  def can?(_assigns, action, _item) when action in [:index, :show], do: true
   def can?(_assigns, _action, _item), do: false
 
   @impl Backpex.LiveResource
