@@ -16,8 +16,7 @@ defmodule Backpex.Adapters.Ash do
 
   > ### Work in progress {: .error}
   >
-  > The `Backpex.Adapters.Ash` is not usable right now! It can barely list and show items. We will work on that, as we
-  > progress implementing the `Backpex.Adapter` pattern throughout the codebase.
+  > The `Backpex.Adapters.Ash` is currently not usable! It can barely list and show items. We will work on this as we continue to implement  the `Backpex.Adapter` pattern throughout the codebase.
   """
 
   use Backpex.Adapter, config_schema: @config_schema
