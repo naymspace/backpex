@@ -103,7 +103,7 @@ defmodule Backpex.Resource do
   * `attrs` (map): A map of parameters that will be passed to the `changeset_function`.
   * TODO: docs
   """
-  def insert(item, attrs, after_save_fun, fields, assigns, live_resource) do
+  def insert(item, attrs, after_save_fun \\ &{:ok, &1}, fields, assigns, live_resource) do
     adapter = live_resource.config(:adapter)
     adapter_config = live_resource.config(:adapter_config)
     pubsub = live_resource.config(:pubsub)
@@ -124,7 +124,7 @@ defmodule Backpex.Resource do
   * `attrs` (map): A map of parameters that will be passed to the `changeset_function`.
   * TODO: docs
   """
-  def update(item, attrs, after_save_fun, fields, assigns, live_resource) do
+  def update(item, attrs, after_save_fun \\ &{:ok, &1}, fields, assigns, live_resource) do
     adapter = live_resource.config(:adapter)
     adapter_config = live_resource.config(:adapter_config)
     pubsub = live_resource.config(:pubsub)
