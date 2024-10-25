@@ -62,7 +62,7 @@ defmodule Backpex.Adapters.Ash do
   end
 
   @doc """
-
+  Returns the number of items matching the given criteria.
   """
   @impl Backpex.Adapter
   def count(_criteria \\ [], _fields, _assigns, config) do

@@ -98,7 +98,7 @@ defmodule Backpex.Adapters.Ecto do
   end
 
   @doc """
-
+  Returns the number of items matching the given criteria.
   """
   @impl Backpex.Adapter
   def count(criteria \\ [], fields, assigns, config) do
