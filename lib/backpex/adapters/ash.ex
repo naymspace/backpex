@@ -40,7 +40,7 @@ defmodule Backpex.Adapters.Ash do
   @doc """
   Gets a database record with the given primary key value.
 
-  Raises `Ecto.NoResultsError` if no record was found.
+  Raises an error if no record was found.
   """
   @impl Backpex.Adapter
   def get!(primary_value, _assigns, live_resource) do
