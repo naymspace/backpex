@@ -18,7 +18,7 @@ defmodule DemoWeb.TicketLive do
   @impl Backpex.LiveResource
   def render_resource_slot(assigns, :index, :before_page_title) do
     ~H"""
-    <div class="alert my-4 bg-blue-100 text-sm text-blue-800">
+    <div role="alert" class="alert alert-info my-4 text-sm">
       <Backpex.HTML.CoreComponents.icon name="hero-information-circle" class="h-5 w-5" />
       <p>
         This resource uses the <strong>Ash adapter</strong> which is currently in a very early alpha stage.
