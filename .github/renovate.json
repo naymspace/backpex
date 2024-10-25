@@ -35,6 +35,12 @@
         "docker"
       ],
       "pinDigests": false
+    },
+    {
+      "matchManagers": [
+        "github-actions"
+      ],
+      "automerge": true
     }
   ],
   "labels": [
