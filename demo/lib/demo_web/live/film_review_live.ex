@@ -21,7 +21,7 @@ defmodule DemoWeb.FilmReviewLive do
   @impl Backpex.LiveResource
   def render_resource_slot(assigns, :index, :before_page_title) do
     ~H"""
-    <div class="alert my-4 bg-blue-100 text-sm text-blue-800">
+    <div role="alert" class="alert alert-info my-4 text-sm">
       <Backpex.HTML.CoreComponents.icon name="hero-information-circle" class="h-5 w-5" />
       <span>
         This resource uses the full-text search functionality. The search accepts web search query operators. For example, a dash (-) excludes words.
