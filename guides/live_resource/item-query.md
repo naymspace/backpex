@@ -28,3 +28,7 @@ use Backpex.LiveResource,
 ```
 
 The example above will filter all posts by a published boolean on `index` view. We also made use of the named binding. It's always the name of the provided schema in `snake_case`. It is recommended to build your `item_query` on top of the incoming query. Otherwise you will likely get binding errors.
+
+> #### Important {: .info}
+>
+> Note that it is not possible to use an anonymous function for `item_query` configuration. You must refer to a public function defined within a module.
