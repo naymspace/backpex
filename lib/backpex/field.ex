@@ -261,13 +261,15 @@ defmodule Backpex.Field do
 
     %{assigns: %{item: item, live_resource: live_resource, fields: fields} = assigns} = socket
 
-    after_save_fun = fn item ->
-      live_resource.on_item_updated(socket, item)
+    opts = [
+      after_save_fun: fn item ->
+        live_resource.on_item_updated(socket, item)
 
-      {:ok, item}
-    end
+        {:ok, item}
+      end
+    ]
 
-    result = Backpex.Resource.update(item, change, after_save_fun, fields, assigns, live_resource)
+    result = Backpex.Resource.update(item, change, fields, assigns, live_resource, opts)
 
     socket =
       case result do
