@@ -19,11 +19,11 @@ defmodule Backpex.Resource do
     search: {"hello", [:title, :description]}
   ]
   """
-  def list(criteria \\ [], fields, assigns, live_resource) do
+  def list(fields, assigns, live_resource, criteria \\ []) do
     adapter = live_resource.config(:adapter)
     adapter_config = live_resource.config(:adapter_config)
 
-    adapter.list(criteria, fields, assigns, adapter_config)
+    adapter.list(fields, assigns, adapter_config, criteria)
   end
 
   @doc """

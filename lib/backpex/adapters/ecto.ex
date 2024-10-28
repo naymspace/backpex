@@ -96,7 +96,7 @@ defmodule Backpex.Adapters.Ecto do
   Returns a list of items by given criteria.
   """
   @impl Backpex.Adapter
-  def list(criteria \\ [], fields, assigns, config) do
+  def list(fields, assigns, config, criteria \\ []) do
     item_query = prepare_item_query(config, assigns)
 
     list_query(assigns, item_query, fields, criteria)

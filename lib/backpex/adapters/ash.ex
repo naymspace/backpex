@@ -57,7 +57,7 @@ if Code.ensure_loaded?(Ash) do
     Returns a list of items by given criteria.
     """
     @impl Backpex.Adapter
-    def list(_criteria \\ [], _fields, _assigns, config) do
+    def list(_fields, _assigns, config, _criteria \\ []) do
       config[:resource]
       |> Ash.read!()
     end

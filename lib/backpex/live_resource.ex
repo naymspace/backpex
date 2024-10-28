@@ -625,7 +625,7 @@ defmodule Backpex.LiveResource do
         } = socket.assigns
 
         criteria = build_criteria(socket.assigns)
-        items = Resource.list(criteria, fields, socket.assigns, live_resource)
+        items = Resource.list(fields, socket.assigns, live_resource, criteria)
 
         assign(socket, :items, items)
       end
