@@ -223,7 +223,7 @@ defmodule Backpex.LiveResource do
   Uses LiveResource in the current module to make it a LiveResource.
 
       use Backpex.LiveResource,
-        adapter_options: [
+        adapter_config: [
           schema: MyApp.User,
           repo: MyApp.Repo,
           update_changeset: &MyApp.User.update_changeset/3,
