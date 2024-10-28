@@ -32,9 +32,9 @@ use Backpex.LiveResource,
   # ...other options
   init_order: &__MODULE__.init_order/1
 
-  def init_order(_assigns) do
-    %{by: :username, direction: :asc}
-  end
+def init_order(_assigns) do
+  %{by: :username, direction: :asc}
+end
 ```
 
 The function must:
