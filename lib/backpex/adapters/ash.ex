@@ -66,7 +66,7 @@ if Code.ensure_loaded?(Ash) do
     Returns the number of items matching the given criteria.
     """
     @impl Backpex.Adapter
-    def count(_criteria \\ [], _fields, _assigns, config) do
+    def count(_fields, _assigns, config, _criteria \\ []) do
       config[:resource]
       |> Ash.count!()
     end

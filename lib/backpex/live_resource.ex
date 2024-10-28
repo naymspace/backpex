@@ -486,7 +486,7 @@ defmodule Backpex.LiveResource do
           filters: filter_options(valid_filter_params, filters)
         ]
 
-        item_count = Resource.count(count_criteria, fields, socket.assigns, live_resource)
+        item_count = Resource.count(fields, socket.assigns, live_resource, count_criteria)
 
         per_page =
           params
@@ -1022,7 +1022,7 @@ defmodule Backpex.LiveResource do
           filters: filter_options(valid_filter_params, filters)
         ]
 
-        item_count = Resource.count(count_criteria, fields, socket.assigns, live_resource)
+        item_count = Resource.count(fields, socket.assigns, live_resource, count_criteria)
         %{page: page, per_page: per_page} = query_options
         total_pages = calculate_total_pages(item_count, per_page)
         new_query_options = Map.put(query_options, :page, validate_page(page, total_pages))

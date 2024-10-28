@@ -30,11 +30,11 @@ defmodule Backpex.Resource do
   Gets the total count of the current live_resource.
   Possibly being constrained the item query and the search- and filter options.
   """
-  def count(criteria \\ [], fields, assigns, live_resource) do
+  def count(fields, assigns, live_resource, criteria \\ []) do
     adapter = live_resource.config(:adapter)
     adapter_config = live_resource.config(:adapter_config)
 
-    adapter.count(criteria, fields, assigns, adapter_config)
+    adapter.count(fields, assigns, adapter_config, criteria)
   end
 
   @doc """

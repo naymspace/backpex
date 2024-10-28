@@ -107,7 +107,7 @@ defmodule Backpex.Adapters.Ecto do
   Returns the number of items matching the given criteria.
   """
   @impl Backpex.Adapter
-  def count(criteria \\ [], fields, assigns, config) do
+  def count(fields, assigns, config, criteria \\ []) do
     item_query = prepare_item_query(config, assigns)
 
     list_query(assigns, item_query, fields, criteria)
