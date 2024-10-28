@@ -12,12 +12,12 @@ defmodule Backpex.LiveResource do
 
   @options_schema [
     adapter: [
-      doc: "The datalayer adapter to use.",
+      doc: "The data layer adapter to use.",
       type: :atom,
       default: Backpex.Adapters.Ecto
     ],
     adapter_config: [
-      doc: "The configuration for the datalayer. See corresponding adapter for possible configuration values.",
+      doc: "The configuration for the data layer. See corresponding adapter for possible configuration values.",
       type: :keyword_list,
       required: true
     ],
