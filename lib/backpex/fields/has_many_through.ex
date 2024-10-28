@@ -349,13 +349,13 @@ defmodule Backpex.Fields.HasManyThrough do
 
   @impl Phoenix.LiveComponent
   def handle_event("detach-relational", %{"index" => index}, socket) do
-    %{changeset: changeset, association: association} = socket.assigns
+    %{changeset: changeset, association: association, field_options: field_options} = socket.assigns
 
     index = String.to_integer(index)
     existing = get_change_or_field(changeset, association.pivot.field)
     {to_delete, rest} = List.pop_at(existing, index)
 
-    primary_key = socket.assigns.live_resource.config(:primary_key)
+    primary_key = field_options.live_resource.config(:primary_key)
 
     updated =
       if Changeset.change(to_delete).data |> Map.get(primary_key) == nil do
