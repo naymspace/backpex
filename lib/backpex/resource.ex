@@ -103,13 +103,15 @@ defmodule Backpex.Resource do
   * `attrs` (map): A map of parameters that will be passed to the `changeset_function`.
   * TODO: docs
   """
-  def insert(item, attrs, after_save_fun \\ &{:ok, &1}, fields, assigns, live_resource) do
+  def insert(item, attrs, fields, assigns, live_resource, opts) do
+    {after_save_fun, opts} = Keyword.pop(opts, :after_save_fun, &{:ok, &1})
+
     adapter = live_resource.config(:adapter)
     adapter_config = live_resource.config(:adapter_config)
     pubsub = live_resource.config(:pubsub)
 
     item
-    |> change(attrs, fields, assigns, live_resource, action: :insert)
+    |> change(attrs, fields, assigns, live_resource, Keyword.put(opts, :action, :insert))
     |> adapter.insert(adapter_config)
     |> after_save(after_save_fun)
     |> broadcast("created", pubsub)
@@ -124,13 +126,15 @@ defmodule Backpex.Resource do
   * `attrs` (map): A map of parameters that will be passed to the `changeset_function`.
   * TODO: docs
   """
-  def update(item, attrs, after_save_fun \\ &{:ok, &1}, fields, assigns, live_resource) do
+  def update(item, attrs, fields, assigns, live_resource, opts \\ []) do
+    {after_save_fun, opts} = Keyword.pop(opts, :after_save_fun, &{:ok, &1})
+
     adapter = live_resource.config(:adapter)
     adapter_config = live_resource.config(:adapter_config)
     pubsub = live_resource.config(:pubsub)
 
     item
-    |> change(attrs, fields, assigns, live_resource, action: :update)
+    |> change(attrs, fields, assigns, live_resource, Keyword.put(opts, :action, :update))
     |> adapter.update(adapter_config)
     |> after_save(after_save_fun)
     |> broadcast("updated", pubsub)
