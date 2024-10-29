@@ -259,29 +259,17 @@ defmodule Backpex.Field do
       raise Backpex.ForbiddenError
     end
 
-    %{
-      assigns:
-        %{
-          repo: repo,
-          item: item,
-          pubsub: pubsub,
-          changeset_function: changeset_function,
-          live_resource: live_resource,
-          fields: fields
-        } = assigns
-    } = socket
+    %{assigns: %{item: item, live_resource: live_resource, fields: fields} = assigns} = socket
 
     opts = [
-      pubsub: pubsub,
-      assigns: assigns,
-      after_save: fn item ->
+      after_save_fun: fn item ->
         live_resource.on_item_updated(socket, item)
 
         {:ok, item}
       end
     ]
 
-    result = Backpex.Resource.update(item, change, repo, fields, changeset_function, opts)
+    result = Backpex.Resource.update(item, change, fields, assigns, live_resource, opts)
 
     socket =
       case result do

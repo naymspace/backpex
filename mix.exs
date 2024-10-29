@@ -1,7 +1,7 @@
 defmodule Backpex.MixProject do
   use Mix.Project
 
-  @version "0.7.1"
+  @version "0.8.0"
   @source_url "https://github.com/naymspace/backpex"
 
   def project do
@@ -31,22 +31,32 @@ defmodule Backpex.MixProject do
 
   defp deps do
     [
+      # development
       {:ex_doc, "~> 0.34", only: [:dev, :test], runtime: false},
-      {:phoenix, "~> 1.7.6"},
-      {:phoenix_ecto, "~> 4.4"},
-      {:ecto_sql, "~> 3.6"},
-      {:postgrex, ">= 0.0.0"},
-      {:phoenix_html, "~> 4.1.1"},
-      {:phoenix_html_helpers, "~> 1.0"},
-      {:phoenix_live_view, "~> 0.20.0"},
+      {:credo, "~> 1.7.5", only: [:dev, :test], runtime: false},
+      {:mix_audit, "~> 2.0", only: [:dev, :test], runtime: false},
+      {:tailwind_formatter, "~> 0.4.0", only: [:dev, :test], runtime: false},
+      {:sobelow, "~> 0.13", only: [:dev, :test]},
+
+      # core
+      {:nimble_options, "~> 1.1"},
       {:gettext, "~> 0.26"},
       {:jason, "~> 1.2"},
       {:number, "~> 1.0.3"},
-      {:credo, "~> 1.7.5", only: [:dev, :test], runtime: false},
-      {:mix_audit, "~> 2.0", only: [:dev, :test], runtime: false},
-      {:sobelow, "~> 0.13", only: [:dev, :test]},
       {:money, "~> 1.13.1"},
-      {:tailwind_formatter, "~> 0.4.0", only: [:dev, :test], runtime: false}
+
+      # phoenix
+      {:phoenix, "~> 1.7.6"},
+      {:phoenix_html, "~> 4.1.1"},
+      {:phoenix_html_helpers, "~> 1.0"},
+      {:phoenix_live_view, "~> 0.20.0"},
+
+      # adapters
+      {:ecto_sql, "~> 3.6"},
+      {:postgrex, ">= 0.0.0"},
+      {:phoenix_ecto, "~> 4.4"},
+      {:ash, "~> 3.0", optional: true},
+      {:ash_postgres, "~> 2.0.0", optional: true}
     ]
   end
 
@@ -77,7 +87,23 @@ defmodule Backpex.MixProject do
         Components: &(&1[:type] == :component)
       ],
       source_ref: @version,
-      source_url: @source_url
+      source_url: @source_url,
+      before_closing_head_tag: fn type ->
+        if type == :html do
+          """
+          <script>
+            if (location.hostname === "hexdocs.pm" && !document.getElementById("plausible-analytics")) {
+              const script = document.createElement("script");
+              script.id = "plausible-analytics";
+              script.src = "https://plausible.io/js/script.js";
+              script.defer = true;
+              script.setAttribute("data-domain", "backpexhexdocs");
+              document.head.appendChild(script);
+            }
+          </script>
+          """
+        end
+      end
     ]
   end
 
@@ -142,6 +168,7 @@ defmodule Backpex.MixProject do
       "guides/custom_labels_and_translations/custom-labels-and-translations.md",
 
       # Upgrade Guides
+      "guides/upgrading/v0.8.md",
       "guides/upgrading/v0.7.md",
       "guides/upgrading/v0.6.md",
       "guides/upgrading/v0.5.md",
@@ -168,6 +195,7 @@ defmodule Backpex.MixProject do
 
   defp groups_for_modules do
     [
+      Adapters: ~r/Backpex\.Adapter.?/,
       Components: ~r/Backpex\.HTML.?/,
       Fields: ~r/Backpex\.Field.?/,
       Actions: ~r/Backpex\.(ItemAction|ResourceAction).?/,

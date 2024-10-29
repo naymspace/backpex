@@ -1,13 +1,19 @@
 defmodule DemoWeb.UserLive do
   use Backpex.LiveResource,
+    adapter_config: [
+      schema: Demo.User,
+      repo: Demo.Repo,
+      update_changeset: &Demo.User.changeset/3,
+      create_changeset: &Demo.User.changeset/3,
+      item_query: &__MODULE__.item_query/3
+    ],
     layout: {DemoWeb.Layouts, :admin},
-    schema: Demo.User,
-    repo: Demo.Repo,
-    update_changeset: &Demo.User.changeset/3,
-    create_changeset: &Demo.User.changeset/3,
-    pubsub: Demo.PubSub,
-    topic: "users",
-    event_prefix: "user_"
+    init_order: &__MODULE__.init_order/1,
+    pubsub: [
+      name: Demo.PubSub,
+      topic: "users",
+      event_prefix: "user_"
+    ]
 
   @impl Backpex.LiveResource
   def singular_name, do: "User"
@@ -21,10 +27,13 @@ defmodule DemoWeb.UserLive do
   @impl Backpex.LiveResource
   def can?(_assigns, _action, _item), do: true
 
-  @impl Backpex.LiveResource
   def item_query(query, live_action, _assigns) when live_action in [:index, :resource_action] do
     from u in query,
       where: is_nil(u.deleted_at)
+  end
+
+  def init_order(_assigns) do
+    %{by: :username, direction: :asc}
   end
 
   @impl Backpex.LiveResource

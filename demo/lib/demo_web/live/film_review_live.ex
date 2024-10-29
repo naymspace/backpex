@@ -1,13 +1,17 @@
 defmodule DemoWeb.FilmReviewLive do
   use Backpex.LiveResource,
+    adapter_config: [
+      schema: Demo.FilmReview,
+      repo: Demo.Repo,
+      update_changeset: &Demo.FilmReview.update_changeset/3,
+      create_changeset: &Demo.FilmReview.create_changeset/3
+    ],
     layout: {DemoWeb.Layouts, :admin},
-    schema: Demo.FilmReview,
-    repo: Demo.Repo,
-    update_changeset: &Demo.FilmReview.update_changeset/3,
-    create_changeset: &Demo.FilmReview.create_changeset/3,
-    pubsub: Demo.PubSub,
-    topic: "film_reviews",
-    event_prefix: "film_reviews_",
+    pubsub: [
+      name: Demo.PubSub,
+      topic: "film_reviews",
+      event_prefix: "film_reviews_"
+    ],
     full_text_search: :generated_tsvector
 
   @impl Backpex.LiveResource
@@ -19,7 +23,7 @@ defmodule DemoWeb.FilmReviewLive do
   @impl Backpex.LiveResource
   def render_resource_slot(assigns, :index, :before_page_title) do
     ~H"""
-    <div class="alert my-4 bg-blue-100 text-sm text-blue-800">
+    <div role="alert" class="alert alert-info my-4 text-sm">
       <Backpex.HTML.CoreComponents.icon name="hero-information-circle" class="h-5 w-5" />
       <span>
         This resource uses the full-text search functionality. The search accepts web search query operators. For example, a dash (-) excludes words.
