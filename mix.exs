@@ -77,7 +77,23 @@ defmodule Backpex.MixProject do
         Components: &(&1[:type] == :component)
       ],
       source_ref: @version,
-      source_url: @source_url
+      source_url: @source_url,
+      before_closing_head_tag: fn type ->
+        if type == :html do
+          """
+          <script>
+            if (location.hostname === "hexdocs.pm" && !document.getElementById("plausible-analytics")) {
+              const script = document.createElement("script");
+              script.id = "plausible-analytics";
+              script.src = "https://plausible.io/js/script.js";
+              script.defer = true;
+              script.setAttribute("data-domain", "backpexhexdocs");
+              document.head.appendChild(script);
+            }
+          </script>
+          """
+        end
+      end
     ]
   end
 
