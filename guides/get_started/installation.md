@@ -67,7 +67,7 @@ In your `mix.exs`:
 defp deps do
   [
     ...
-    {:backpex, "~> 0.6.0"}
+    {:backpex, "~> 0.8.0"}
   ]
 end
 ```
@@ -176,11 +176,14 @@ To create a LiveResource for the `Post` resource, you need to create LiveResourc
 ```elixir
 defmodule MyAppWeb.Live.PostLive do
   use Backpex.LiveResource,
+    adapter_config: [
+      schema: MyApp.Blog.Post,
+      repo: MyApp.Repo,
+      update_changeset: &MyApp.Blog.Post.update_changeset/3,
+      create_changeset: &MyApp.Blog.Post.create_changeset/3,
+      item_query: &__MODULE__.item_query/3
+    ],
     layout: {MyAppWeb.Layouts, :admin},
-    schema: MyApp.Blog.Post,
-    repo: MyApp.Repo,
-    update_changeset: &MyApp.Blog.Post.update_changeset/3,
-    create_changeset: &MyApp.Blog.Post.create_changeset/3,
     pubsub: [
       name: MyApp.PubSub,
       topic: "posts",
@@ -210,11 +213,14 @@ After implementing the required callback functions, our `PostLive` module looks 
 ```elixir
 defmodule MyAppWeb.Live.PostLive do
   use Backpex.LiveResource,
+    adapter_config: [
+      schema: MyApp.Blog.Post,
+      repo: MyApp.Repo,
+      update_changeset: &MyApp.Blog.Post.update_changeset/3,
+      create_changeset: &MyApp.Blog.Post.create_changeset/3,
+      item_query: &__MODULE__.item_query/3
+    ],
     layout: {MyAppWeb.Layouts, :admin},
-    schema: MyApp.Blog.Post,
-    repo: MyApp.Repo,
-    update_changeset: &MyApp.Blog.Post.update_changeset/3,
-    create_changeset: &MyApp.Blog.Post.create_changeset/3,
     pubsub: [
       name: MyApp.PubSub,
       topic: "posts",
