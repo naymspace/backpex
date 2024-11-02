@@ -109,7 +109,7 @@ defmodule DemoWeb.PostLive do
         searchable: true
       },
       body: %{
-        module: Backpex.Fields.Textarea,
+        module: Backpex.Fields.TextareaMarkdown,
         label: "Body",
         except: [:index]
       },

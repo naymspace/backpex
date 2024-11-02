@@ -31,12 +31,7 @@ defmodule Backpex.Fields.TextareaMarkdown do
         <:label align={Backpex.Field.align_label(@field_options, assigns, :top)}>
           <Layout.input_label text={@field_options[:label]} />
         </:label>
-        <BackpexForm.field_input
-          type="textarea"
-          field={@form[@name]}
-          field_options={@field_options}
-          input_class="min-h-[200px]"
-        />
+        <BackpexForm.field_input type="textarea" field={@form[@name]} field_options={@field_options} input_class="h-96" />
       </Layout.field_container>
     </div>
     """
