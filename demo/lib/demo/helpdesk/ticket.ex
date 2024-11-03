@@ -6,7 +6,7 @@ defmodule Demo.Helpdesk.Ticket do
     data_layer: AshPostgres.DataLayer
 
   postgres do
-    repo Demo.RepoAsh
+    repo Demo.Repo
     table "tickets"
   end
 
