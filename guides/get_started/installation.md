@@ -67,7 +67,7 @@ In your `mix.exs`:
 defp deps do
   [
     ...
-    {:backpex, "~> 0.6.0"}
+    {:backpex, "~> 0.8.0"}
   ]
 end
 ```
@@ -176,14 +176,19 @@ To create a LiveResource for the `Post` resource, you need to create LiveResourc
 ```elixir
 defmodule MyAppWeb.Live.PostLive do
   use Backpex.LiveResource,
+    adapter_config: [
+      schema: MyApp.Blog.Post,
+      repo: MyApp.Repo,
+      update_changeset: &MyApp.Blog.Post.update_changeset/3,
+      create_changeset: &MyApp.Blog.Post.create_changeset/3,
+      item_query: &__MODULE__.item_query/3
+    ],
     layout: {MyAppWeb.Layouts, :admin},
-    schema: MyApp.Blog.Post,
-    repo: MyApp.Repo,
-    update_changeset: &MyApp.Blog.Post.update_changeset/3,
-    create_changeset: &MyApp.Blog.Post.create_changeset/3,
-    pubsub: MyApp.PubSub,
-    topic: "posts",
-    event_prefix: "post_"
+    pubsub: [
+      name: MyApp.PubSub,
+      topic: "posts",
+      event_prefix: "post_"
+    ]
 end
 ```
 
@@ -195,9 +200,7 @@ All options you can see in the above example are required:
 - The `schema` option tells Backpex which schema to use for the resource.
 - The `repo` option tells Backpex which repo to use for the resource.
 - The `update_changeset` and `create_changeset` options tell Backpex which changesets to use for updating and creating the resource.
-- The `pubsub` option tells Backpex which pubsub to use for the resource (see the [Listen to PubSub Events](live_resource/listen-to-pubsub-events.md) guide for more information).
-- The `topic` option tells Backpex which topic to use for the resource when broadcasting events.
-- The `event_prefix` option tells Backpex which event prefix to use for the resource when broadcasting events.
+- The `pubsub` option tells Backpex which pubsub options to use for the resource (see the [Listen to PubSub Events](live_resource/listen-to-pubsub-events.md) guide for more information).
 
 In addition to the required options, you pass to the `Backpex.LiveResource` macro, you are required to implement the following callback functions in the module:
 
@@ -210,14 +213,19 @@ After implementing the required callback functions, our `PostLive` module looks 
 ```elixir
 defmodule MyAppWeb.Live.PostLive do
   use Backpex.LiveResource,
+    adapter_config: [
+      schema: MyApp.Blog.Post,
+      repo: MyApp.Repo,
+      update_changeset: &MyApp.Blog.Post.update_changeset/3,
+      create_changeset: &MyApp.Blog.Post.create_changeset/3,
+      item_query: &__MODULE__.item_query/3
+    ],
     layout: {MyAppWeb.Layouts, :admin},
-    schema: MyApp.Blog.Post,
-    repo: MyApp.Repo,
-    update_changeset: &MyApp.Blog.Post.update_changeset/3,
-    create_changeset: &MyApp.Blog.Post.create_changeset/3,
-    pubsub: MyApp.PubSub,
-    topic: "posts",
-    event_prefix: "post_"
+    pubsub: [
+      name: MyApp.PubSub,
+      topic: "posts",
+      event_prefix: "post_"
+    ]
 
   @impl Backpex.LiveResource
   def singular_name, do: "Post"

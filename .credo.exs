@@ -15,12 +15,10 @@
       strict: true,
       parse_timeout: 5000,
       color: true,
-      checks: %{
-        disabled: [],
-        enabled: [
-          {Credo.Check.Consistency.UnusedVariableNames, []}
-        ]
-      }
+      checks: [
+        {Credo.Check.Design.TagTODO, false},
+        {Credo.Check.Consistency.UnusedVariableNames, []}
+      ]
     }
   ]
 }
