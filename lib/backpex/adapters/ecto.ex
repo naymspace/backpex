@@ -401,7 +401,7 @@ defmodule Backpex.Adapters.Ecto do
           %{custom_alias: custom_alias} ->
             association |> Map.from_struct() |> Map.put(:custom_alias, custom_alias)
 
-          _ ->
+          _other ->
             association |> Map.from_struct()
         end
     end)
