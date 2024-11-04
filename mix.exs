@@ -92,12 +92,11 @@ defmodule Backpex.MixProject do
         if type == :html do
           """
           <script>
-            if (location.hostname === "hexdocs.pm" && !document.getElementById("plausible-analytics")) {
+            if (location.hostname === "hexdocs.pm") {
               const script = document.createElement("script");
-              script.id = "plausible-analytics";
               script.src = "https://plausible.io/js/script.js";
               script.defer = true;
-              script.setAttribute("data-domain", "backpexhexdocs");
+              script.setAttribute("data-domain", "hexdocs.pm/backpex");
               document.head.appendChild(script);
             }
           </script>
