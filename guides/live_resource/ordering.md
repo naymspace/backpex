@@ -30,9 +30,11 @@ This configuration orders resources by the inserted_at field in descending order
 # in your resource configuration file (live resource)
 use Backpex.LiveResource,
   # ...other options
-  init_order: fn assigns -> 
-    %{by: :inserted_at, direction: :desc}
-  end
+  init_order: &__MODULE__.init_order/1
+
+def init_order(_assigns) do
+  %{by: :username, direction: :asc}
+end
 ```
 
 The function must:
@@ -41,3 +43,7 @@ The function must:
 - Return a map with `:by` and `:direction` keys
 
 This approach allows you to determine the ordering based on runtime conditions or user-specific data in assigns.
+
+> #### Important {: .info}
+>
+> Note that it is not possible to use an anonymous function for `init_order` configuration. You must refer to a public function defined within a module.

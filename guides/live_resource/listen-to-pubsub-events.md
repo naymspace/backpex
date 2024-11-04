@@ -11,9 +11,11 @@ We assume you configured PubSub for your Posts *LiveResource* like this:
 ```elixir
 use Backpex.LiveResource,
     ...,
-    pubsub: Demo.PubSub
-    topic: "posts",
-    event_prefix: "post_"
+    pubsub: [
+        name: Demo.PubSub
+        topic: "posts",
+        event_prefix: "post_"
+    ]
 ```
 
 You could implement the following `handle_info/2` callbacks in your *LiveResource*:
