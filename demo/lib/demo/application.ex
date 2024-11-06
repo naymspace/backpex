@@ -11,7 +11,6 @@ defmodule Demo.Application do
       {Cluster.Supervisor, [topologies, [name: Sourceboat.ClusterSupervisor]]},
       {Phoenix.PubSub, name: Demo.PubSub},
       Demo.Repo,
-      Demo.RepoAsh,
       DemoWeb.Telemetry,
       {DemoWeb.MetricsStorage, DemoWeb.Telemetry.metrics()},
       DemoWeb.Endpoint

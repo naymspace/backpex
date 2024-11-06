@@ -1,4 +1,4 @@
-defmodule Demo.RepoAsh.Migrations.CreateTicket do
+defmodule Demo.Repo.Migrations.CreateTicket do
   @moduledoc """
   Updates resources based on their most recent snapshots.
 
