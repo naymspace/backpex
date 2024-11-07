@@ -304,7 +304,7 @@ defmodule Backpex.Fields.HasMany do
       "" ->
         []
 
-      _ ->
+      _other ->
         nil
     end
   end
