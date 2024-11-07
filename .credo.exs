@@ -1,5 +1,4 @@
 overwrite_checks = [
-  {Credo.Check.Consistency.ExceptionNames, false},
   {Credo.Check.Design.TagTODO, false},
   {Credo.Check.Readability.AliasAs, false},
   {Credo.Check.Readability.OnePipePerLine, false},
@@ -7,7 +6,6 @@ overwrite_checks = [
   {Credo.Check.Readability.Specs, false},
   {Credo.Check.Readability.StrictModuleLayout, ignore_module_attributes: ~w[config_schema]a},
   {Credo.Check.Refactor.ABCSize, false},
-  {Credo.Check.Refactor.CyclomaticComplexity, false},
   {Credo.Check.Refactor.ModuleDependencies, false},
   {Credo.Check.Refactor.PipeChainStart, false},
   {Credo.Check.Refactor.VariableRebinding, false},
