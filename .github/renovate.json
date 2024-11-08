@@ -12,6 +12,7 @@
   ],
   "packageRules": [
     {
+      "description": "Group updates to the Elixir base image",
       "groupName": "Base Image",
       "matchDepNames": [
         "erlang",
@@ -20,6 +21,7 @@
       ]
     },
     {
+      "description": "Disable ubuntu major updates",
       "matchDepNames": [
         "ubuntu"
       ],
@@ -29,6 +31,7 @@
       "enabled": false
     },
     {
+      "description": "Disable digest pinning for Ubuntu",
       "matchDepNames": [
         "ubuntu"
       ],
@@ -36,6 +39,17 @@
         "docker"
       ],
       "pinDigests": false
+    },
+    {
+      "description": "Label updates in demo directory",
+      "matchFileNames": [
+        "demo/**"
+      ],
+      "labels": [
+        "demo",
+        "dependencies",
+        "{{categories}}"
+      ]
     }
   ],
   "labels": [
