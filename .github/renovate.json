@@ -4,6 +4,7 @@
     "config:best-practices",
     "customManagers:dockerfileVersions",
     ":disableRateLimiting",
+    ":semanticCommitsDisabled",
     "github>pehbehbeh/renovate-config//workarounds/mixGitVersioning",
     "github>pehbehbeh/renovate-config//customManagers/hexEsbuild",
     "github>pehbehbeh/renovate-config//customManagers/hexTailwind",
