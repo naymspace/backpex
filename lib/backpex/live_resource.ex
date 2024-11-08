@@ -10,6 +10,8 @@ defmodule Backpex.LiveResource do
   > When you `use Backpex.LiveResource`, the `Backpex.LiveResource` module will set `@behavior Backpex.LiveResource`. Additionally it will create a LiveView based on the given configuration in order to create fully functional index, show, new and edit views for a resource. It will also insert fallback functions that can be overridden.
   '''
 
+  alias Backpex.Resource
+
   @options_schema [
     adapter: [
       doc: "The data layer adapter to use.",
@@ -92,8 +94,6 @@ defmodule Backpex.LiveResource do
       type: :atom
     ]
   ]
-
-  alias Backpex.Resource
 
   @doc """
   A list of [resource_actions](Backpex.ResourceAction.html) that may be performed on the given resource.
@@ -417,10 +417,9 @@ defmodule Backpex.LiveResource do
 
       def apply_action(socket, :resource_action) do
         id =
-          String.to_existing_atom(
-            socket.assigns.params["backpex_id"]
-            |> URI.decode()
-          )
+          socket.assigns.params["backpex_id"]
+          |> URI.decode()
+          |> String.to_existing_atom()
 
         action = resource_actions()[id]
 
