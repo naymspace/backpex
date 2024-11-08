@@ -586,7 +586,7 @@ defmodule Backpex.LiveResource do
         } = assigns
     } = socket
 
-    filters = Backpex.LiveResource.get_active_filters(live_resource, assigns)
+    filters = get_active_filters(live_resource, assigns)
 
     metrics =
       socket.assigns.live_resource.metrics()
@@ -756,8 +756,8 @@ defmodule Backpex.LiveResource do
     per_page_default = live_resource.config(:per_page_default)
     init_order = live_resource.config(:init_order)
 
-    filters = Backpex.LiveResource.get_active_filters(live_resource, socket.assigns)
-    valid_filter_params = Backpex.LiveResource.get_valid_filters_from_params(params, filters, @empty_filter_key)
+    filters = get_active_filters(live_resource, socket.assigns)
+    valid_filter_params = get_valid_filters_from_params(params, filters, @empty_filter_key)
 
     count_criteria = [
       search: search_options(params, fields, schema),
@@ -1002,7 +1002,7 @@ defmodule Backpex.LiveResource do
         :filters,
         Map.get(query_options, :filters, %{})
         |> Map.delete(field)
-        |> Backpex.LiveResource.maybe_put_empty_filter(@empty_filter_key)
+        |> maybe_put_empty_filter(@empty_filter_key)
       )
 
     to = Router.get_path(socket, live_resource, params, :index, new_query_options)
@@ -1162,8 +1162,8 @@ defmodule Backpex.LiveResource do
       query_options: query_options
     } = socket.assigns
 
-    filters = Backpex.LiveResource.get_active_filters(live_resource, socket.assigns)
-    valid_filter_params = Backpex.LiveResource.get_valid_filters_from_params(params, filters, @empty_filter_key)
+    filters = get_active_filters(live_resource, socket.assigns)
+    valid_filter_params = get_valid_filters_from_params(params, filters, @empty_filter_key)
 
     count_criteria = [
       search: search_options(params, fields, schema),
