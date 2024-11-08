@@ -167,6 +167,7 @@ defmodule Backpex.MixProject do
       "guides/custom_labels_and_translations/custom-labels-and-translations.md",
 
       # Upgrade Guides
+      "guides/upgrading/v0.9.md",
       "guides/upgrading/v0.8.md",
       "guides/upgrading/v0.7.md",
       "guides/upgrading/v0.6.md",
