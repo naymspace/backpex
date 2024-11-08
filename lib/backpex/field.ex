@@ -1,9 +1,85 @@
 # credo:disable-for-this-file Credo.Check.Refactor.CyclomaticComplexity
 defmodule Backpex.Field do
-  @moduledoc ~S'''
+  @config_schema [
+    module: [
+      doc: "The field module.",
+      type: :atom,
+      required: true
+    ],
+    label: [
+      doc: "The field label.",
+      type: :string,
+      required: true
+    ],
+    render: [
+      doc: "",
+      type: {:fun, 1}
+    ],
+    custom_alias: [
+      doc: "",
+      type: :atom
+    ],
+    align: [
+      doc: "",
+      type: :atom
+    ],
+    searchable: [
+      doc: "",
+      type: :boolean
+    ],
+    orderable: [
+      doc: "",
+      type: :boolean
+    ],
+    visible: [
+      doc: "Function to change the visibility of a field. Receives the assigns and has to return a boolean.",
+      type: {:fun, 1}
+    ],
+    panel: [
+      doc: "",
+      type: :atom
+    ],
+    index_editable: [
+      doc: "",
+      type: :boolean
+    ],
+    index_column_class: [
+      doc: "",
+      type: :string
+    ],
+    select: [
+      doc: "",
+      type: {:struct, Ecto.Query.DynamicExpr}
+    ],
+    only: [
+      doc: "",
+      type: {:list, :atom}
+    ],
+    except: [
+      doc: "",
+      type: {:list, :atom}
+    ],
+    translate_error: [
+      doc: """
+      Function to customize error messages for a field. The function receives the error tuple and must return a tuple
+      with the message and metadata.
+      """,
+      type: {:fun, 1}
+    ]
+  ]
+
+  @moduledoc """
   Behaviour implemented by all fields.
 
-  A field defines how a column is rendered on index, show and edit views. In the resource configuration file you can configure a list of fields. You may create your own field by implementing this behaviour. A field has to be a [LiveComponent](https://hexdocs.pm/phoenix_live_view/Phoenix.LiveComponent.html).
+  A field defines how a column is rendered on index, show and edit views. In the resource configuration file you can
+  configure a list of fields. You may create your own field by implementing this behaviour. A field has to be a
+  [LiveComponent](https://hexdocs.pm/phoenix_live_view/Phoenix.LiveComponent.html).
+
+  ### Options
+
+  These are general field options which can be used on every field. Check the field modules for field-specific options.
+
+  #{NimbleOptions.docs(@config_schema)}
 
   ### Example
 
@@ -15,7 +91,7 @@ defmodule Backpex.Field do
           }
         ]
       end
-  '''
+  """
   import Phoenix.Component, only: [assign: 3]
 
   @doc """
@@ -98,12 +174,39 @@ defmodule Backpex.Field do
   @optional_callbacks render_form_readonly: 1, render_index_form: 1
 
   @doc """
+  Returns the default config schema.
+  """
+  def default_config_schema(), do: @config_schema
+
+  @doc """
   Defines `Backpex.Field` behaviour and provides default implementations.
   """
-  defmacro __using__(_) do
-    quote do
+  defmacro __using__(opts) do
+    quote bind_quoted: [opts: opts] do
+      @config_schema opts[:config_schema] || []
+
       @before_compile Backpex.Field
       @behaviour Backpex.Field
+
+      use BackpexWeb, :field
+
+      def validate_config!({name, options} = _field, live_resource) do
+        field_options = Keyword.new(options)
+
+        dbg(field_options)
+
+        case NimbleOptions.validate(field_options, Backpex.Field.default_config_schema() ++ @config_schema) do
+          {:ok, validated_options} ->
+            validated_options
+
+          {:error, error} ->
+            raise """
+            Configuration error for field "#{name}" in "#{live_resource}".
+
+            #{error.message}
+            """
+        end
+      end
     end
   end
 

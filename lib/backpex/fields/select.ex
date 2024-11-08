@@ -1,11 +1,24 @@
 defmodule Backpex.Fields.Select do
+  @config_schema [
+    options: [
+      doc: "List of options or function that receives the assigns.",
+      type: {:or, [:keyword_list, {:fun, 1}]},
+      required: true
+    ],
+    prompt: [
+      doc: "The text to be displayed when no option is selected or function that receives the assigns.",
+      type: :string
+    ]
+  ]
+
   @moduledoc """
   A field for handling a select value.
 
-  ## Options
+  ## Field-specific options
 
-    * `:options` - Required (keyword) list of options or function that receives the assigns.
-    * `:prompt` - The text to be displayed when no option is selected or function that receives the assigns.
+  See `Backpex.Field` for general field options.
+
+  #{NimbleOptions.docs(@config_schema)}
 
   ## Example
 
@@ -20,7 +33,7 @@ defmodule Backpex.Fields.Select do
         ]
       end
   """
-  use BackpexWeb, :field
+  use Backpex.Field, config_schema: @config_schema
 
   @impl Backpex.Field
   def render_value(assigns) do

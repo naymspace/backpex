@@ -257,6 +257,8 @@ defmodule Backpex.LiveResource do
 
       def config(key), do: Keyword.fetch!(@resource_opts, key)
 
+      def validated_fields, do: LiveResource.validated_fields(__MODULE__)
+
       @impl Phoenix.LiveView
       def mount(params, session, socket), do: LiveResource.mount(params, session, socket)
 
@@ -480,7 +482,7 @@ defmodule Backpex.LiveResource do
 
   defp assign_active_fields(socket, session) do
     fields =
-      socket.assigns.live_resource.fields()
+      socket.assigns.live_resource.validated_fields()
       |> filtered_fields_by_action(socket.assigns, :index)
 
     saved_fields = get_in(session, ["backpex", "column_toggle", "#{socket.assigns.live_resource}"]) || %{}
@@ -611,6 +613,18 @@ defmodule Backpex.LiveResource do
     {:noreply, socket}
   end
 
+  @doc """
+  Returns the fields of the given `Backpex.LiveResource` validated against each fields config schema.
+  """
+  def validated_fields(live_resource) do
+    live_resource.fields()
+    |> Enum.map(fn {name, options} = field ->
+      options.module.validate_config!(field, live_resource)
+      |> Enum.into(%{})
+      |> then(&{name, &1})
+    end)
+  end
+
   defp apply_action(socket, :index) do
     socket
     |> assign(:page_title, socket.assigns.plural_name)
@@ -644,7 +658,7 @@ defmodule Backpex.LiveResource do
       singular_name: singular_name
     } = socket.assigns
 
-    fields = live_resource.fields() |> filtered_fields_by_action(socket.assigns, :show)
+    fields = live_resource.validated_fields() |> filtered_fields_by_action(socket.assigns, :show)
     primary_value = URI.decode(socket.assigns.params["backpex_id"])
     item = Resource.get!(primary_value, socket.assigns, live_resource)
 
@@ -666,7 +680,7 @@ defmodule Backpex.LiveResource do
 
     unless live_resource.can?(socket.assigns, :new, nil), do: raise(Backpex.ForbiddenError)
 
-    fields = live_resource.fields() |> filtered_fields_by_action(socket.assigns, :new)
+    fields = live_resource.validated_fields() |> filtered_fields_by_action(socket.assigns, :new)
     empty_item = schema.__struct__()
 
     socket
@@ -732,7 +746,7 @@ defmodule Backpex.LiveResource do
 
     unless live_resource.can?(socket.assigns, :index, nil), do: raise(Backpex.ForbiddenError)
 
-    fields = live_resource.fields() |> filtered_fields_by_action(socket.assigns, :index)
+    fields = live_resource.validated_fields() |> filtered_fields_by_action(socket.assigns, :index)
 
     per_page_options = live_resource.config(:per_page_options)
     per_page_default = live_resource.config(:per_page_default)

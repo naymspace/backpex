@@ -2,16 +2,35 @@
 defmodule Backpex.Fields.Date do
   @default_format "%Y-%m-%d"
 
+  @config_schema [
+    format: [
+      doc: """
+      Format string which will be used to format the date time value or function that formats the date time.
+
+      Can also be a function wich receives a `DateTime` and must return a string.
+      """,
+      type: {:or, [:string, {:fun, 1}]},
+      default: @default_format
+    ],
+    debounce: [
+      doc: "Timeout value (in milliseconds), \"blur\" or function that receives the assigns.",
+      type: {:or, [:pos_integer, :string, {:fun, 1}]}
+    ],
+    throttle: [
+      doc: "Timeout value (in milliseconds) or function that receives the assigns.",
+      type: {:or, [:pos_integer, {:fun, 1}]}
+    ]
+  ]
+
   # credo:disable-for-next-line Credo.Check.Readability.StrictModuleLayout
   @moduledoc """
   A field for handling a date value.
 
-  ## Options
+  ## Field-specific options
 
-    * `:format` - Format string which will be used to format the date value or function that formats the date.
-      Defaults to `#{@default_format}`. If a function, must receive a `Date` and return a string.
-    * `:debounce` - Optional integer timeout value (in milliseconds), "blur" or function that receives the assigns.
-    * `:throttle` - Optional integer timeout value (in milliseconds) or function that receives the assigns.
+  See `Backpex.Field` for general field options.
+
+  #{NimbleOptions.docs(@config_schema)}
 
   ## Examples
 
@@ -53,7 +72,7 @@ defmodule Backpex.Fields.Date do
         ]
       end
   """
-  use BackpexWeb, :field
+  use Backpex.Field
 
   @impl Backpex.Field
   def render_value(assigns) do
