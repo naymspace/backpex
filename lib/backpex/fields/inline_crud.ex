@@ -132,7 +132,9 @@ defmodule Backpex.Fields.InlineCRUD do
                 <BackpexForm.field_input
                   type={input_type(child_field_options) |> Atom.to_string()}
                   field={f_nested[child_field_name]}
-                  field_options={child_field_options}
+                  translate_error_fun={Backpex.Field.translate_error_fun(child_field_options, assigns)}
+                  phx-debounce={Backpex.Field.debounce(child_field_options, assigns)}
+                  phx-throttle={Backpex.Field.throttle(child_field_options, assigns)}
                 />
               </div>
 

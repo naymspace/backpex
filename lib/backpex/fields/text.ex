@@ -27,7 +27,13 @@ defmodule Backpex.Fields.Text do
         <:label align={Backpex.Field.align_label(@field_options, assigns, :center)}>
           <Layout.input_label text={@field_options[:label]} />
         </:label>
-        <BackpexForm.field_input type="text" field={@form[@name]} field_options={@field_options} />
+        <BackpexForm.field_input
+          type="text"
+          field={@form[@name]}
+          translate_error_fun={Backpex.Field.translate_error_fun(@field_options, assigns)}
+          phx-debounce={Backpex.Field.debounce(@field_options, assigns)}
+          phx-throttle={Backpex.Field.throttle(@field_options, assigns)}
+        />
       </Layout.field_container>
     </div>
     """
@@ -41,7 +47,15 @@ defmodule Backpex.Fields.Text do
         <:label align={Backpex.Field.align_label(@field_options, assigns, :center)}>
           <Layout.input_label text={@field_options[:label]} />
         </:label>
-        <BackpexForm.field_input type="text" field={@form[@name]} field_options={@field_options} readonly disabled />
+        <BackpexForm.field_input
+          type="text"
+          field={@form[@name]}
+          translate_error_fun={Backpex.Field.translate_error_fun(@field_options, assigns)}
+          phx-debounce={Backpex.Field.debounce(@field_options, assigns)}
+          phx-throttle={Backpex.Field.throttle(@field_options, assigns)}
+          readonly
+          disabled
+        />
       </Layout.field_container>
     </div>
     """
@@ -59,13 +73,13 @@ defmodule Backpex.Fields.Text do
     ~H"""
     <div>
       <.form for={@form} class="relative" phx-change="update-field" phx-submit="update-field" phx-target={@myself}>
-        <input
+        <BackpexForm.field_input
           type="text"
-          name={@form[:value].name}
-          value={@form[:value].value}
-          class={["input input-sm", @valid && "hover:input-bordered", !@valid && "input-error"]}
+          field={@form[:value]}
+          input_class={["input input-sm", @valid && "hover:input-bordered", !@valid && "input-error bg-error/10"]}
           phx-debounce="100"
           readonly={@readonly}
+          hide_errors
         />
       </.form>
     </div>

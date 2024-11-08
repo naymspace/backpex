@@ -88,7 +88,7 @@ defmodule Backpex.Fields.DateTime do
         <BackpexForm.field_input
           type="datetime-local"
           field={@form[@name]}
-          field_options={@field_options}
+          translate_error_fun={Backpex.Field.translate_error_fun(@field_options, assigns)}
           phx-debounce={Backpex.Field.debounce(@field_options, assigns)}
           phx-throttle={Backpex.Field.throttle(@field_options, assigns)}
         />
@@ -108,7 +108,7 @@ defmodule Backpex.Fields.DateTime do
         <BackpexForm.field_input
           type="datetime-local"
           field={@form[@name]}
-          field_options={@field_options}
+          translate_error_fun={Backpex.Field.translate_error_fun(@field_options, assigns)}
           phx-debounce={Backpex.Field.debounce(@field_options, assigns)}
           phx-throttle={Backpex.Field.throttle(@field_options, assigns)}
           readonly
@@ -131,13 +131,13 @@ defmodule Backpex.Fields.DateTime do
     ~H"""
     <div>
       <.form for={@form} phx-change="update-field" phx-submit="update-field" phx-target={@myself}>
-        <input
+        <BackpexForm.field_input
           type="datetime-local"
-          name={@form[:value].name}
-          value={@form[:value].value}
-          class={["input input-sm w-52", @valid && "hover:input-bordered", !@valid && "input-error"]}
+          field={@form[:value]}
+          input_class={["input input-sm w-52", @valid && "hover:input-bordered", !@valid && "input-error"]}
           phx-debounce="100"
           readonly={@readonly}
+          hide_errors
         />
       </.form>
     </div>

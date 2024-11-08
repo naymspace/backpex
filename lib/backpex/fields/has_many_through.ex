@@ -536,7 +536,14 @@ defmodule Backpex.Fields.HasManyThrough do
       <:label>
         <Layout.input_label text={@label} />
       </:label>
-      <BackpexForm.field_input type="select" field={@form[@owner_key]} field_options={@field_options} options={@options} />
+      <BackpexForm.field_input
+        type="select"
+        field={@form[@owner_key]}
+        options={@options}
+        translate_error_fun={Backpex.Field.translate_error_fun(@field_options, assigns)}
+        phx-debounce={Backpex.Field.debounce(@field_options, assigns)}
+        phx-throttle={Backpex.Field.throttle(@field_options, assigns)}
+      />
     </Layout.field_container>
     """
   end

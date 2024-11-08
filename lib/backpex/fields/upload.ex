@@ -386,7 +386,8 @@ defmodule Backpex.Fields.Upload do
   def render_form(assigns) do
     upload_key = assigns.field_options.upload_key
     uploads_allowed = not is_nil(assigns.field_uploads)
-    form_errors = BackpexForm.translate_form_errors(assigns.form[assigns.name], assigns.field_options)
+    translate_error_fun = Map.get(assigns.field_options, :translate_error, &Function.identity/1)
+    form_errors = BackpexForm.translate_form_errors(assigns.form[assigns.name], translate_error_fun)
 
     assigns =
       assigns

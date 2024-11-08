@@ -27,7 +27,13 @@ defmodule Backpex.Fields.Boolean do
         <:label align={Backpex.Field.align_label(@field_options, assigns, :top)}>
           <Layout.input_label text={@field_options[:label]} />
         </:label>
-        <BackpexForm.field_input type="toggle" field={@form[@name]} field_options={@field_options} />
+        <BackpexForm.field_input
+          type="toggle"
+          field={@form[@name]}
+          translate_error_fun={Backpex.Field.translate_error_fun(@field_options, assigns)}
+          phx-debounce={Backpex.Field.debounce(@field_options, assigns)}
+          phx-throttle={Backpex.Field.throttle(@field_options, assigns)}
+        />
       </Layout.field_container>
     </div>
     """

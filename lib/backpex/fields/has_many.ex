@@ -501,7 +501,9 @@ defmodule Backpex.Fields.HasMany do
   defp assign_form_errors(socket) do
     %{assigns: %{form: form, name: name, field_options: field_options}} = socket
 
-    assign(socket, :errors, translate_form_errors(form[name], field_options))
+    translate_error_fun = Map.get(field_options, :translate_error, &Function.identity/1)
+
+    assign(socket, :errors, translate_form_errors(form[name], translate_error_fun))
   end
 
   defp query_limit(field_options), do: Map.get(field_options, :query_limit, 10)
