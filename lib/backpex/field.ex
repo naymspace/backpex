@@ -188,29 +188,34 @@ defmodule Backpex.Field do
   Defines placeholder value.
   """
   def placeholder(%{placeholder: placeholder}, _assigns) when is_binary(placeholder), do: placeholder
-  def placeholder(%{placeholder: placeholder}, assigns) when is_function(placeholder), do: placeholder.(assigns)
+  def placeholder(%{placeholder: placeholder}, assigns) when is_function(placeholder, 1), do: placeholder.(assigns)
   def placeholder(_field, _assigns), do: nil
 
   @doc """
   Defines debounce timeout value.
   """
   def debounce(%{debounce: debounce}, _assigns) when is_binary(debounce) or is_integer(debounce), do: debounce
-  def debounce(%{debounce: debounce}, assigns) when is_function(debounce), do: debounce.(assigns)
+  def debounce(%{debounce: debounce}, assigns) when is_function(debounce, 1), do: debounce.(assigns)
   def debounce(_field, _assigns), do: nil
 
   @doc """
   Defines throttle timeout value.
   """
   def throttle(%{throttle: throttle}, _assigns) when is_binary(throttle) or is_integer(throttle), do: throttle
-  def throttle(%{throttle: throttle}, assigns) when is_function(throttle), do: throttle.(assigns)
+  def throttle(%{throttle: throttle}, assigns) when is_function(throttle, 1), do: throttle.(assigns)
   def throttle(_field, _assigns), do: nil
 
   @doc """
   Determines whether the field should be rendered as readonly version.
   """
   def readonly?(%{readonly: readonly}, _assigns) when is_boolean(readonly), do: readonly
-  def readonly?(%{readonly: readonly}, assigns) when is_function(readonly), do: readonly.(assigns)
+  def readonly?(%{readonly: readonly}, assigns) when is_function(readonly, 1), do: readonly.(assigns)
   def readonly?(_field_options, _assigns), do: false
+
+  def translate_error_fun(%{translate_error: translate_error}, _assigns) when is_function(translate_error, 1),
+    do: translate_error
+
+  def translate_error_fun(_field_options, _assigns), do: &Function.identity/1
 
   @doc """
   Gets alignment option for label.
