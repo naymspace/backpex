@@ -38,7 +38,7 @@ defmodule Demo.ShortLink do
   defp add_short_key(changeset) do
     case get_field(changeset, :short_key) do
       nil -> put_change(changeset, :short_key, generate_short_key())
-      _field -> changeset
+      _other -> changeset
     end
   end
 
@@ -54,5 +54,8 @@ defmodule Demo.ShortLink do
     |> binary_part(0, length)
   end
 
-  defp key_exists?(key), do: Repo.exists?(from s in __MODULE__, where: s.short_key == ^key)
+  defp key_exists?(key) do
+    from(s in __MODULE__, where: s.short_key == ^key)
+    |> Repo.exists?()
+  end
 end

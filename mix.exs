@@ -1,7 +1,7 @@
 defmodule Backpex.MixProject do
   use Mix.Project
 
-  @version "0.8.1"
+  @version "0.8.2"
   @source_url "https://github.com/naymspace/backpex"
 
   def project do
@@ -56,7 +56,7 @@ defmodule Backpex.MixProject do
       {:postgrex, ">= 0.0.0"},
       {:phoenix_ecto, "~> 4.4"},
       {:ash, "~> 3.0", optional: true},
-      {:ash_postgres, "~> 2.0.0", optional: true}
+      {:ash_postgres, "~> 2.0", optional: true}
     ]
   end
 

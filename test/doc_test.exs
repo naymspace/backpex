@@ -1,5 +1,6 @@
 defmodule DocTest do
-  use ExUnit.Case
+  use ExUnit.Case, async: true
+
   doctest Backpex.LiveResource
   doctest Backpex.ResourceAction
   doctest Backpex.Resource
