@@ -85,7 +85,7 @@ defmodule Backpex.Fields.Date do
         <:label align={Backpex.Field.align_label(@field_options, assigns, :top)}>
           <Layout.input_label text={@field_options[:label]} />
         </:label>
-        <BackpexForm.field_input
+        <BackpexForm.input
           type="date"
           field={@form[@name]}
           translate_error_fun={Backpex.Field.translate_error_fun(@field_options, assigns)}
@@ -105,7 +105,7 @@ defmodule Backpex.Fields.Date do
         <:label align={Backpex.Field.align_label(@field_options, assigns, :top)}>
           <Layout.input_label text={@field_options[:label]} />
         </:label>
-        <BackpexForm.field_input
+        <BackpexForm.input
           type="date"
           field={@form[@name]}
           translate_error_fun={Backpex.Field.translate_error_fun(@field_options, assigns)}
@@ -131,7 +131,7 @@ defmodule Backpex.Fields.Date do
     ~H"""
     <div>
       <.form for={@form} phx-change="update-field" phx-submit="update-field" phx-target={@myself}>
-        <BackpexForm.field_input
+        <BackpexForm.input
           type="date"
           field={@form[:value]}
           input_class={["input input-sm w-52", @valid && "hover:input-bordered", !@valid && "input-error"]}

@@ -29,7 +29,7 @@ defmodule Backpex.Fields.Number do
         <:label align={Backpex.Field.align_label(@field_options, assigns)}>
           <Layout.input_label text={@field_options[:label]} />
         </:label>
-        <BackpexForm.field_input
+        <BackpexForm.input
           type="text"
           field={@form[@name]}
           translate_error_fun={Backpex.Field.translate_error_fun(@field_options, assigns)}
@@ -49,7 +49,7 @@ defmodule Backpex.Fields.Number do
         <:label align={Backpex.Field.align_label(@field_options, assigns)}>
           <Layout.input_label text={@field_options[:label]} />
         </:label>
-        <BackpexForm.field_input
+        <BackpexForm.input
           type="text"
           field={@form[@name]}
           translate_error_fun={Backpex.Field.translate_error_fun(@field_options, assigns)}
@@ -75,7 +75,7 @@ defmodule Backpex.Fields.Number do
     ~H"""
     <div>
       <.form for={@form} class="relative" phx-change="update-field" phx-submit="update-field" phx-target={@myself}>
-        <BackpexForm.field_input
+        <BackpexForm.input
           type="text"
           field={@form[:value]}
           input_class={["input input-sm", @valid && "hover:input-bordered", !@valid && "input-error bg-error/10"]}

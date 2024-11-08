@@ -60,7 +60,7 @@ def render_form_readonly(assigns) do
         <:label>
             <Layout.input_label text={@field[:label]} />
         </:label>
-        <BackpexForm.field_input
+        <BackpexForm.input
         type="text"
         field={@form[@name]}
         translate_error_fun={Backpex.Field.translate_error_fun(@field_options, assigns)}

@@ -110,7 +110,7 @@ defmodule Backpex.Fields.BelongsTo do
         <:label align={Backpex.Field.align_label(@field_options, assigns)}>
           <Layout.input_label text={@field_options[:label]} />
         </:label>
-        <BackpexForm.field_input
+        <BackpexForm.input
           type="select"
           field={@form[@owner_key]}
           options={@options}
@@ -142,7 +142,7 @@ defmodule Backpex.Fields.BelongsTo do
     ~H"""
     <div>
       <.form for={@form} class="relative" phx-change="update-field" phx-submit="update-field" phx-target={@myself}>
-        <BackpexForm.field_input
+        <BackpexForm.input
           type="select"
           field={@form[:value]}
           options={@options}

@@ -61,7 +61,7 @@ defmodule Backpex.Fields.Currency do
         <:label align={Backpex.Field.align_label(@field_options, assigns)}>
           <Layout.input_label text={@field_options[:label]} />
         </:label>
-        <BackpexForm.field_input
+        <BackpexForm.input
           type="number"
           field={@form[@name]}
           field_options={@field_options}

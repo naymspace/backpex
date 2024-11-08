@@ -129,7 +129,7 @@ defmodule Backpex.Fields.InlineCRUD do
                 <p :if={f_nested.index == 0} class="mb-1 text-xs">
                   <%= child_field_options.label %>
                 </p>
-                <BackpexForm.field_input
+                <BackpexForm.input
                   type={input_type(child_field_options) |> Atom.to_string()}
                   field={f_nested[child_field_name]}
                   translate_error_fun={Backpex.Field.translate_error_fun(child_field_options, assigns)}

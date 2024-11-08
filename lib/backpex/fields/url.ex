@@ -29,7 +29,7 @@ defmodule Backpex.Fields.URL do
         <:label align={Backpex.Field.align_label(@field_options, assigns)}>
           <Layout.input_label text={@field_options[:label]} />
         </:label>
-        <BackpexForm.field_input
+        <BackpexForm.input
           type="text"
           field={@form[@name]}
           translate_error_fun={Backpex.Field.translate_error_fun(@field_options, assigns)}

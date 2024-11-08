@@ -45,16 +45,16 @@ defmodule Backpex.HTML.Form do
 
   slot :inner_block
 
-  def field_input(%{field: %Phoenix.HTML.FormField{} = field} = assigns) do
+  def input(%{field: %Phoenix.HTML.FormField{} = field} = assigns) do
     assigns
     |> assign(field: nil, id: assigns.id || field.id)
     |> assign(:errors, translate_form_errors(field, assigns.translate_error_fun))
     |> assign_new(:name, fn -> if assigns.multiple, do: field.name <> "[]", else: field.name end)
     |> assign_new(:value, fn -> field.value end)
-    |> field_input()
+    |> input()
   end
 
-  def field_input(%{type: "checkbox"} = assigns) do
+  def input(%{type: "checkbox"} = assigns) do
     assigns = assign_new(assigns, :checked, fn -> Form.normalize_value("checkbox", assigns.value) end)
 
     ~H"""
@@ -106,7 +106,7 @@ defmodule Backpex.HTML.Form do
     """
   end
 
-  def field_input(%{type: "toggle"} = assigns) do
+  def input(%{type: "toggle"} = assigns) do
     assigns = assign_new(assigns, :checked, fn -> Form.normalize_value("checkbox", assigns.value) end)
 
     ~H"""
@@ -158,7 +158,7 @@ defmodule Backpex.HTML.Form do
     """
   end
 
-  def field_input(%{type: "select"} = assigns) do
+  def input(%{type: "select"} = assigns) do
     ~H"""
     <div phx-feedback-for={@name} class={@class}>
       <div class="form-control">
@@ -184,7 +184,7 @@ defmodule Backpex.HTML.Form do
     """
   end
 
-  def field_input(%{type: "textarea"} = assigns) do
+  def input(%{type: "textarea"} = assigns) do
     ~H"""
     <div phx-feedback-for={@name} class={@class}>
       <div class="form-control">
@@ -210,7 +210,7 @@ defmodule Backpex.HTML.Form do
     """
   end
 
-  def field_input(assigns) do
+  def input(assigns) do
     ~H"""
     <div phx-feedback-for={@name} class={@class}>
       <div class="form-control">
