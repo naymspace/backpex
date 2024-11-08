@@ -703,7 +703,7 @@ defmodule Backpex.HTML.Resource do
 
   defp resource_actions(assigns, resource_actions) do
     Enum.filter(resource_actions, fn {key, _action} ->
-      assigns.live_resource.can?(assigns, key, nil, assigns)
+      assigns.live_resource.can?(assigns, key, nil)
     end)
   end
 
