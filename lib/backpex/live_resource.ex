@@ -156,8 +156,7 @@ defmodule Backpex.LiveResource do
 
   The function has to return an `Ecto.Query`. It is recommended to build your `item_query` on top of the incoming query. Otherwise you will likely get binding errors.
   """
-  @callback item_query(query :: Ecto.Query.t(), live_action :: atom(), assigns :: map()) ::
-              Ecto.Query.t()
+  @callback item_query(query :: Ecto.Query.t(), live_action :: atom(), assigns :: map()) :: Ecto.Query.t()
 
   @doc """
   The function that can be used to add content to certain positions on Backpex views. It may also be used to overwrite content.
@@ -1625,7 +1624,7 @@ defmodule Backpex.LiveResource do
   @doc """
   Returns list of filter options from query options
   """
-  def get_filter_options(module, query_options) do
+  def get_filter_options(query_options) do
     query_options
     |> Map.get(:filters, %{})
     |> Map.drop([Atom.to_string(get_empty_filter_key())])
