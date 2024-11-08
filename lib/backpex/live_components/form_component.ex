@@ -9,7 +9,6 @@ defmodule Backpex.FormComponent do
   import Backpex.HTML.Resource
 
   alias Backpex.Fields.Upload
-  alias Backpex.LiveResource
   alias Backpex.Resource
   alias Backpex.ResourceAction
 

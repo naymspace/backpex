@@ -1182,18 +1182,20 @@ defmodule Backpex.LiveResource do
     |> maybe_assign_metrics()
   end
 
-  defp update_item(socket, %{id: id} = _item) do
+  defp update_item(socket, item) do
     %{
       live_resource: live_resource,
       live_action: live_action
     } = socket.assigns
 
-    item = Resource.get(id, socket.assigns, live_resource)
+    item_primary_value = primary_value(socket, item)
+    item = Resource.get(item_primary_value, socket.assigns, live_resource)
 
     socket =
       cond do
         live_action in [:index, :resource_action] and item ->
-          items = Enum.map(socket.assigns.items, &if(primary_value(socket, &1) == id, do: item, else: &1))
+          items =
+            Enum.map(socket.assigns.items, &if(primary_value(socket, &1) == item_primary_value, do: item, else: &1))
 
           assign(socket, :items, items)
 
