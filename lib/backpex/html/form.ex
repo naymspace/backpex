@@ -32,10 +32,10 @@ defmodule Backpex.HTML.Form do
   attr :rest, :global, include: ~w(accept autocomplete capture cols disabled form list max maxlength min minlength
                 multiple pattern placeholder readonly required rows size step)
 
-  attr :class, :string, default: nil, doc: "additional class"
-  attr :input_class, :string, default: nil, doc: "additional class for the input element"
+  attr :class, :any, default: nil, doc: "additional class for the container"
+  attr :input_class, :any, default: nil, doc: "additional class for the input element"
 
-  attr :input_wrapper_class, :string,
+  attr :input_wrapper_class, :any,
     default: nil,
     doc: "additional class for the input wrapper element, currently only used in select type"
 
