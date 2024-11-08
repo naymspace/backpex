@@ -21,9 +21,19 @@ changelog:
     - title: Dependency updates
       labels:
         - dependencies
+      exclude:
+        labels:
+          - demo
     - title: Demo enhancements
       labels:
         - demo
+      exclude:
+        labels:
+          - dependencies
+    - title: Demo dependency updates
+      labels:
+        - demo
+        - dependencies
     - title: Other changes
       labels:
         - "*"
