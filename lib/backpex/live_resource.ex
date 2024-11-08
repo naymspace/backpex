@@ -7,6 +7,7 @@ defmodule Backpex.LiveResource do
   > When you `use Backpex.LiveResource`, the `Backpex.LiveResource` module will set `@behavior Backpex.LiveResource`. Additionally it will create a LiveView based on the given configuration in order to create fully functional index, show, new and edit views for a resource. It will also insert fallback functions that can be overridden.
   '''
 
+  alias Backpex.Adapters.Ecto, as: EctoAdapter
   alias Backpex.Resource
   alias Backpex.Router
   use Phoenix.LiveView
@@ -618,18 +619,6 @@ defmodule Backpex.LiveResource do
 
       defp maybe_put_search(query_options, params), do: query_options
 
-      def assign_items(socket) do
-        %{
-          live_resource: live_resource,
-          fields: fields
-        } = socket.assigns
-
-        criteria = build_criteria(socket.assigns)
-        items = Resource.list(fields, socket.assigns, live_resource, criteria)
-
-        assign(socket, :items, items)
-      end
-
       defp maybe_assign_metrics(socket) do
         %{
           assigns:
@@ -685,56 +674,8 @@ defmodule Backpex.LiveResource do
       end
 
       @impl Phoenix.LiveView
-      def handle_info({"backpex:" <> unquote(@resource_opts[:pubsub][:event_prefix]) <> "created", item}, socket)
-          when socket.assigns.live_action in [:index, :resource_action] do
-        {:noreply, refresh_items(socket)}
-      end
-
-      @impl Phoenix.LiveView
-      def handle_info({"backpex:" <> unquote(@resource_opts[:pubsub][:event_prefix]) <> "deleted", item}, socket)
-          when socket.assigns.live_action in [:index, :resource_action] do
-        if Enum.filter(socket.assigns.items, &(to_string(primary_value(&1)) == to_string(primary_value(item)))) != [] do
-          {:noreply, refresh_items(socket)}
-        else
-          {:noreply, socket}
-        end
-      end
-
-      @impl Phoenix.LiveView
-      def handle_info({"backpex:" <> unquote(@resource_opts[:pubsub][:event_prefix]) <> "updated", item}, socket)
-          when socket.assigns.live_action in [:index, :resource_action, :show] do
-        {:noreply, update_item(socket, item)}
-      end
-
-      @impl Phoenix.LiveView
-      def handle_info({:put_assoc, {key, value} = _assoc}, socket) do
-        changeset = Ecto.Changeset.put_assoc(socket.assigns.changeset, key, value)
-        assocs = Map.get(socket.assigns, :assocs, []) |> Keyword.put(key, value)
-
-        socket =
-          socket
-          |> assign(:assocs, assocs)
-          |> assign(:changeset, changeset)
-
-        {:noreply, socket}
-      end
-
-      @impl Phoenix.LiveView
-      def handle_info({:put_embed, {key, value} = _assoc}, socket) do
-        changeset = Ecto.Changeset.put_embed(socket.assigns.changeset, key, value)
-        embeds = Map.get(socket.assigns, :embeds, []) |> Keyword.put(key, value)
-
-        socket =
-          socket
-          |> assign(:embeds, embeds)
-          |> assign(:changeset, changeset)
-
-        {:noreply, socket}
-      end
-
-      @impl Phoenix.LiveView
-      def handle_info({:update_changeset, changeset}, socket) do
-        {:noreply, assign(socket, :changeset, changeset)}
+      def handle_info(msg, socket) do
+        LiveResource.handle_info(msg, socket)
       end
 
       def get_empty_filter_key, do: @empty_filter_key
@@ -742,62 +683,6 @@ defmodule Backpex.LiveResource do
       defp primary_value(item) do
         item
         |> Map.get(@resource_opts[:primary_key])
-      end
-
-      defp update_item(socket, %{id: id} = _item) do
-        %{
-          live_resource: live_resource,
-          live_action: live_action
-        } = socket.assigns
-
-        fields = filtered_fields_by_action(fields(), socket.assigns, :show)
-        item = Resource.get(id, socket.assigns, live_resource)
-
-        socket =
-          cond do
-            live_action in [:index, :resource_action] and item ->
-              items = Enum.map(socket.assigns.items, &if(primary_value(&1) == id, do: item, else: &1))
-
-              assign(socket, :items, items)
-
-            live_action == :show and item ->
-              assign(socket, :item, item)
-
-            true ->
-              socket
-          end
-
-        socket
-      end
-
-      defp refresh_items(socket) do
-        %{
-          live_resource: live_resource,
-          schema: schema,
-          params: params,
-          fields: fields,
-          query_options: query_options
-        } = socket.assigns
-
-        filters = Backpex.LiveResource.get_active_filters(__MODULE__, socket.assigns)
-        valid_filter_params = Backpex.LiveResource.get_valid_filters_from_params(params, filters, @empty_filter_key)
-
-        count_criteria = [
-          search: search_options(params, fields, schema),
-          filters: filter_options(valid_filter_params, filters)
-        ]
-
-        item_count = Resource.count(fields, socket.assigns, live_resource, count_criteria)
-        %{page: page, per_page: per_page} = query_options
-        total_pages = calculate_total_pages(item_count, per_page)
-        new_query_options = Map.put(query_options, :page, validate_page(page, total_pages))
-
-        socket
-        |> assign(:item_count, item_count)
-        |> assign(:total_pages, total_pages)
-        |> assign(:query_options, new_query_options)
-        |> assign_items()
-        |> maybe_assign_metrics()
       end
 
       @impl Phoenix.LiveView
@@ -998,6 +883,66 @@ defmodule Backpex.LiveResource do
     end
   end
 
+  def assign_items(socket) do
+    %{
+      live_resource: live_resource,
+      fields: fields
+    } = socket.assigns
+
+    criteria = build_criteria(socket.assigns)
+    items = Resource.list(fields, socket.assigns, live_resource, criteria)
+
+    assign(socket, :items, items)
+  end
+
+  defp maybe_assign_metrics(socket) do
+    %{
+      assigns:
+        %{
+          repo: repo,
+          schema: schema,
+          live_action: live_action,
+          live_resource: live_resource,
+          fields: fields,
+          query_options: query_options,
+          metric_visibility: metric_visibility
+        } = assigns
+    } = socket
+
+    filters = Backpex.LiveResource.get_active_filters(live_resource, assigns)
+
+    metrics =
+      socket.assigns.live_resource.metrics()
+      |> Enum.map(fn {key, metric} ->
+        query =
+          EctoAdapter.list_query(
+            assigns,
+            &socket.assigns.live_resource.item_query(&1, live_action, assigns),
+            fields,
+            search: search_options(query_options, fields, schema),
+            filters: filter_options(query_options, filters)
+          )
+
+        case Backpex.Metric.metrics_visible?(metric_visibility, live_resource) do
+          true ->
+            data =
+              query
+              |> Ecto.Query.exclude(:select)
+              |> Ecto.Query.exclude(:preload)
+              |> Ecto.Query.exclude(:group_by)
+              |> metric.module.query(metric.select, repo)
+
+            {key, Map.put(metric, :data, data)}
+
+          _visible ->
+            {key, metric}
+        end
+      end)
+
+    socket
+    |> assign(metrics: metrics)
+  end
+
   @impl Phoenix.LiveView
   def handle_event("close-modal", _params, socket) do
     socket =
@@ -1194,6 +1139,122 @@ defmodule Backpex.LiveResource do
       |> assign(:selected_items, selected_items)
 
     {:noreply, socket}
+  end
+
+  @impl Phoenix.LiveView
+  def handle_info({:put_assoc, {key, value} = _assoc}, socket) do
+    changeset = Ecto.Changeset.put_assoc(socket.assigns.changeset, key, value)
+    assocs = Map.get(socket.assigns, :assocs, []) |> Keyword.put(key, value)
+
+    socket =
+      socket
+      |> assign(:assocs, assocs)
+      |> assign(:changeset, changeset)
+
+    {:noreply, socket}
+  end
+
+  @impl Phoenix.LiveView
+  def handle_info({:put_embed, {key, value} = _assoc}, socket) do
+    changeset = Ecto.Changeset.put_embed(socket.assigns.changeset, key, value)
+    embeds = Map.get(socket.assigns, :embeds, []) |> Keyword.put(key, value)
+
+    socket =
+      socket
+      |> assign(:embeds, embeds)
+      |> assign(:changeset, changeset)
+
+    {:noreply, socket}
+  end
+
+  @impl Phoenix.LiveView
+  def handle_info({:update_changeset, changeset}, socket) do
+    {:noreply, assign(socket, :changeset, changeset)}
+  end
+
+  @impl Phoenix.LiveView
+  def handle_info({"backpex:" <> event, item}, socket) do
+    event_prefix = socket.assigns.live_resource.config(:pubsub)[:event_prefix]
+    ^event_prefix <> event_type = event
+
+    handle_backpex_info({event_type, item}, socket)
+  end
+
+  @impl Phoenix.LiveView
+  def handle_info(_msg, socket) do
+    {:noreply, socket}
+  end
+
+  defp handle_backpex_info({"created", _item}, socket) when socket.assigns.live_action in [:index, :resource_action] do
+    {:noreply, refresh_items(socket)}
+  end
+
+  defp handle_backpex_info({"deleted", item}, socket) when socket.assigns.live_action in [:index, :resource_action] do
+    if Enum.filter(socket.assigns.items, &(to_string(primary_value(&1)) == to_string(primary_value(item)))) != [] do
+      {:noreply, refresh_items(socket)}
+    else
+      {:noreply, socket}
+    end
+  end
+
+  defp handle_backpex_info({"updated", item}, socket)
+       when socket.assigns.live_action in [:index, :resource_action, :show] do
+    {:noreply, update_item(socket, item)}
+  end
+
+  defp refresh_items(socket) do
+    %{
+      live_resource: live_resource,
+      schema: schema,
+      params: params,
+      fields: fields,
+      query_options: query_options
+    } = socket.assigns
+
+    filters = Backpex.LiveResource.get_active_filters(live_resource, socket.assigns)
+    valid_filter_params = Backpex.LiveResource.get_valid_filters_from_params(params, filters, @empty_filter_key)
+
+    count_criteria = [
+      search: search_options(params, fields, schema),
+      filters: filter_options(valid_filter_params, filters)
+    ]
+
+    item_count = Resource.count(fields, socket.assigns, live_resource, count_criteria)
+    %{page: page, per_page: per_page} = query_options
+    total_pages = calculate_total_pages(item_count, per_page)
+    new_query_options = Map.put(query_options, :page, validate_page(page, total_pages))
+
+    socket
+    |> assign(:item_count, item_count)
+    |> assign(:total_pages, total_pages)
+    |> assign(:query_options, new_query_options)
+    |> assign_items()
+    |> maybe_assign_metrics()
+  end
+
+  defp update_item(socket, %{id: id} = _item) do
+    %{
+      live_resource: live_resource,
+      live_action: live_action
+    } = socket.assigns
+
+    item = Resource.get(id, socket.assigns, live_resource)
+
+    socket =
+      cond do
+        live_action in [:index, :resource_action] and item ->
+          items = Enum.map(socket.assigns.items, &if(primary_value(&1) == id, do: item, else: &1))
+
+          assign(socket, :items, items)
+
+        live_action == :show and item ->
+          assign(socket, :item, item)
+
+        true ->
+          socket
+      end
+
+    socket
   end
 
   defp maybe_handle_item_action(socket, key) do
