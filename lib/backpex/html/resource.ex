@@ -687,7 +687,7 @@ defmodule Backpex.HTML.Resource do
       <.index_filter
         live_resource={@live_resource}
         filter_options={LiveResource.get_filter_options(@query_options)}
-        filters={LiveResource.get_active_filters(@live_resource, assigns)}
+        filters={LiveResource.active_filters(assigns)}
       />
     </div>
     """

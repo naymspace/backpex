@@ -586,7 +586,7 @@ defmodule Backpex.LiveResource do
         } = assigns
     } = socket
 
-    filters = get_active_filters(live_resource, assigns)
+    filters = active_filters(assigns)
 
     metrics =
       socket.assigns.live_resource.metrics()
@@ -756,7 +756,7 @@ defmodule Backpex.LiveResource do
     per_page_default = live_resource.config(:per_page_default)
     init_order = live_resource.config(:init_order)
 
-    filters = get_active_filters(live_resource, socket.assigns)
+    filters = active_filters(socket.assigns)
     valid_filter_params = get_valid_filters_from_params(params, filters, @empty_filter_key)
 
     count_criteria = [
@@ -1162,7 +1162,7 @@ defmodule Backpex.LiveResource do
       query_options: query_options
     } = socket.assigns
 
-    filters = get_active_filters(live_resource, socket.assigns)
+    filters = active_filters(socket.assigns)
     valid_filter_params = get_valid_filters_from_params(params, filters, @empty_filter_key)
 
     count_criteria = [
@@ -1633,8 +1633,8 @@ defmodule Backpex.LiveResource do
   @doc """
   Returns list of active filters.
   """
-  def get_active_filters(module, assigns) do
-    filters = module.filters(assigns)
+  def active_filters(assigns) do
+    filters = assigns.live_resource.filters(assigns)
 
     Enum.filter(filters, fn {key, option} ->
       get_empty_filter_key() != key and option.module.can?(assigns)
