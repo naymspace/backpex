@@ -85,10 +85,10 @@ defmodule Backpex.Fields.Date do
         <:label align={Backpex.Field.align_label(@field_options, assigns, :top)}>
           <Layout.input_label text={@field_options[:label]} />
         </:label>
-        <BackpexForm.field_input
+        <BackpexForm.input
           type="date"
           field={@form[@name]}
-          field_options={@field_options}
+          translate_error_fun={Backpex.Field.translate_error_fun(@field_options, assigns)}
           phx-debounce={Backpex.Field.debounce(@field_options, assigns)}
           phx-throttle={Backpex.Field.throttle(@field_options, assigns)}
         />
@@ -105,10 +105,10 @@ defmodule Backpex.Fields.Date do
         <:label align={Backpex.Field.align_label(@field_options, assigns, :top)}>
           <Layout.input_label text={@field_options[:label]} />
         </:label>
-        <BackpexForm.field_input
+        <BackpexForm.input
           type="date"
           field={@form[@name]}
-          field_options={@field_options}
+          translate_error_fun={Backpex.Field.translate_error_fun(@field_options, assigns)}
           phx-debounce={Backpex.Field.debounce(@field_options, assigns)}
           phx-throttle={Backpex.Field.throttle(@field_options, assigns)}
           readonly
@@ -131,13 +131,13 @@ defmodule Backpex.Fields.Date do
     ~H"""
     <div>
       <.form for={@form} phx-change="update-field" phx-submit="update-field" phx-target={@myself}>
-        <input
+        <BackpexForm.input
           type="date"
-          name={@form[:value].name}
-          value={@form[:value].value}
-          class={["input input-sm w-32", @valid && "hover:input-bordered", !@valid && "input-error"]}
+          field={@form[:value]}
+          input_class={["input input-sm w-52", @valid && "hover:input-bordered", !@valid && "input-error"]}
           phx-debounce="100"
           readonly={@readonly}
+          hide_errors
         />
       </.form>
     </div>
