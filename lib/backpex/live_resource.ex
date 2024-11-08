@@ -1,6 +1,3 @@
-# credo:disable-for-this-file Credo.Check.Refactor.LongQuoteBlocks
-# credo:disable-for-this-file Credo.Check.Refactor.CyclomaticComplexity
-
 defmodule Backpex.LiveResource do
   @moduledoc ~S'''
   A LiveResource makes it easy to manage existing resources in your application. It provides extensive configuration options in order to meet everyone's needs. In connection with `Backpex.Components` you can build an individual admin dashboard on top of your application in minutes.
@@ -11,6 +8,9 @@ defmodule Backpex.LiveResource do
   '''
 
   alias Backpex.Resource
+  alias Backpex.Router
+  use Phoenix.LiveView
+  import Backpex.HTML.Resource
 
   @options_schema [
     adapter: [
@@ -94,6 +94,8 @@ defmodule Backpex.LiveResource do
       type: :atom
     ]
   ]
+
+  @empty_filter_key :empty_filter
 
   @doc """
   A list of [resource_actions](Backpex.ResourceAction.html) that may be performed on the given resource.
@@ -248,7 +250,6 @@ defmodule Backpex.LiveResource do
       use BackpexWeb, :html
       use Phoenix.LiveView, layout: @resource_opts[:layout]
 
-      import Backpex.HTML.Resource
       import Backpex.LiveResource
       import Phoenix.LiveView.Helpers
       import Ecto.Query
@@ -256,7 +257,7 @@ defmodule Backpex.LiveResource do
       alias Backpex.Adapters.Ecto, as: EctoAdapter
       alias Backpex.Resource
       alias Backpex.ResourceAction
-      alias Backpex.Router
+      alias Backpex.LiveResource
 
       require Logger
 
@@ -679,243 +680,8 @@ defmodule Backpex.LiveResource do
       end
 
       @impl Phoenix.LiveView
-      def handle_event("close-modal", _params, socket) do
-        socket =
-          socket
-          |> push_patch(to: socket.assigns.return_to)
-
-        {:noreply, socket}
-      end
-
-      @impl Phoenix.LiveView
-      def handle_event("item-action", %{"action-key" => key, "item-id" => item_id}, socket) do
-        item =
-          Enum.find(socket.assigns.items, fn item ->
-            to_string(primary_value(item)) == to_string(item_id)
-          end)
-
-        socket
-        |> assign(selected_items: [item])
-        |> maybe_handle_item_action(key)
-      end
-
-      def handle_event("item-action", %{"action-key" => key}, socket) do
-        maybe_handle_item_action(socket, key)
-      end
-
-      defp maybe_handle_item_action(socket, key) do
-        key = String.to_existing_atom(key)
-        action = socket.assigns.item_actions[key]
-        items = socket.assigns.selected_items
-
-        if has_modal?(action.module) do
-          open_action_confirm_modal(socket, action, key)
-        else
-          handle_item_action(socket, action, key, items)
-        end
-      end
-
-      defp open_action_confirm_modal(socket, action, key) do
-        init_change = action.module.init_change(socket.assigns)
-        changeset_function = &action.module.changeset/3
-
-        metadata = Resource.build_changeset_metadata(socket.assigns)
-
-        changeset =
-          init_change
-          |> Ecto.Changeset.change()
-          |> changeset_function.(%{}, metadata)
-
-        socket =
-          socket
-          |> assign(:item_action_types, init_change)
-          |> assign(:changeset_function, changeset_function)
-          |> assign(:changeset, changeset)
-          |> assign(:action_to_confirm, Map.put(action, :key, key))
-
-        {:noreply, socket}
-      end
-
-      defp handle_item_action(socket, action, key, items) do
-        items = Enum.filter(items, fn item -> can?(socket.assigns, key, item, __MODULE__) end)
-
-        socket
-        |> assign(action_to_confirm: nil)
-        |> assign(selected_items: [])
-        |> assign(select_all: false)
-        |> action.module.handle(items, %{})
-      end
-
-      @impl Phoenix.LiveView
-      def handle_event("select-page-size", %{"select_per_page" => %{"value" => per_page}}, socket) do
-        %{assigns: %{query_options: query_options, params: params} = assigns} = socket
-
-        per_page = String.to_integer(per_page)
-
-        to =
-          Router.get_path(
-            socket,
-            __MODULE__,
-            params,
-            :index,
-            Map.merge(query_options, %{per_page: per_page})
-          )
-
-        socket = push_patch(socket, to: to, replace: true)
-
-        {:noreply, socket}
-      end
-
-      @impl Phoenix.LiveView
-      def handle_event("index-search", %{"index_search" => %{"value" => search_input}}, socket) do
-        %{assigns: %{query_options: query_options, params: params} = assigns} = socket
-
-        to =
-          Router.get_path(
-            socket,
-            __MODULE__,
-            params,
-            :index,
-            Map.merge(query_options, %{search: search_input})
-          )
-
-        socket = push_patch(socket, to: to, replace: true)
-
-        {:noreply, socket}
-      end
-
-      @impl Phoenix.LiveView
-      def handle_event("change-filter", params, socket) do
-        query_options = socket.assigns.query_options
-
-        empty_filter_name = Atom.to_string(@empty_filter_key)
-
-        filters =
-          Map.get(query_options, :filters, %{})
-          |> Map.merge(params["filters"])
-          # Filter manually emptied filters and empty filter
-          |> Enum.filter(fn
-            {^empty_filter_name, _value} -> false
-            {_filter, ""} -> false
-            {_filter, %{"start" => "", "end" => ""}} -> false
-            _filter_params -> true
-          end)
-
-        to =
-          Router.get_path(
-            socket,
-            __MODULE__,
-            socket.assigns.params,
-            :index,
-            Map.put(query_options, :filters, filters)
-          )
-
-        socket =
-          socket
-          |> assign(filters_changed: true)
-          |> push_patch(to: to)
-
-        {:noreply, socket}
-      end
-
-      @impl Phoenix.LiveView
-      def handle_event("clear-filter", %{"field" => field}, socket) do
-        %{assigns: %{query_options: query_options, params: params, live_resource: live_resource} = assigns} = socket
-
-        new_query_options =
-          Map.put(
-            query_options,
-            :filters,
-            Map.get(query_options, :filters, %{})
-            |> Map.delete(field)
-            |> Backpex.LiveResource.maybe_put_empty_filter(@empty_filter_key)
-          )
-
-        to = Router.get_path(socket, __MODULE__, params, :index, new_query_options)
-
-        socket =
-          push_patch(socket, to: to)
-          |> assign(params: Map.merge(params, new_query_options))
-          |> assign(query_options: new_query_options)
-          |> assign(filters_changed: true)
-
-        {:noreply, socket}
-      end
-
-      @impl Phoenix.LiveView
-      def handle_event("filter-preset-selected", %{"field" => field, "preset-index" => preset_index} = params, socket) do
-        query_options = socket.assigns.query_options
-        preset_index = String.to_integer(preset_index)
-        field_atom = String.to_existing_atom(field)
-
-        get_preset_values =
-          socket.assigns
-          |> get_in([:filters, field_atom, :presets])
-          |> Enum.at(preset_index)
-          |> Map.get(:values)
-
-        filters =
-          Map.get(query_options, :filters, %{})
-          |> Map.put(field, get_preset_values.())
-          |> Map.drop([Atom.to_string(@empty_filter_key)])
-
-        to =
-          Router.get_path(
-            socket,
-            __MODULE__,
-            socket.assigns.params,
-            :index,
-            Map.put(query_options, :filters, filters)
-          )
-
-        socket =
-          socket
-          |> assign(filters_changed: true)
-          |> push_patch(to: to)
-
-        {:noreply, socket}
-      end
-
-      @impl Phoenix.LiveView
-      def handle_event("update-selected-items", %{"id" => id}, socket) do
-        selected_items = socket.assigns.selected_items
-
-        item = Enum.find(socket.assigns.items, fn item -> to_string(primary_value(item)) == to_string(id) end)
-
-        updated_selected_items =
-          if Enum.member?(selected_items, item) do
-            List.delete(selected_items, item)
-          else
-            [item | selected_items]
-          end
-
-        select_all = length(updated_selected_items) == length(socket.assigns.items)
-
-        socket =
-          socket
-          |> assign(:selected_items, updated_selected_items)
-          |> assign(:select_all, select_all)
-
-        {:noreply, socket}
-      end
-
-      @impl Phoenix.LiveView
-      def handle_event("toggle-item-selection", _params, socket) do
-        select_all = not socket.assigns.select_all
-
-        selected_items =
-          if select_all do
-            socket.assigns.items
-          else
-            []
-          end
-
-        socket =
-          socket
-          |> assign(:select_all, select_all)
-          |> assign(:selected_items, selected_items)
-
-        {:noreply, socket}
+      def handle_event(event, params, socket) do
+        LiveResource.handle_event(event, params, socket)
       end
 
       @impl Phoenix.LiveView
@@ -1092,6 +858,7 @@ defmodule Backpex.LiveResource do
     end
   end
 
+  # credo:disable-for-next-line Credo.Check.Refactor.CyclomaticComplexity
   defmacro __before_compile__(_env) do
     quote do
       import Backpex.HTML.Layout
@@ -1229,6 +996,253 @@ defmodule Backpex.LiveResource do
       @impl Backpex.LiveResource
       def render_resource_slot(var!(assigns), _action, _position), do: ~H""
     end
+  end
+
+  @impl Phoenix.LiveView
+  def handle_event("close-modal", _params, socket) do
+    socket =
+      socket
+      |> push_patch(to: socket.assigns.return_to)
+
+    {:noreply, socket}
+  end
+
+  @impl Phoenix.LiveView
+  def handle_event("item-action", %{"action-key" => key, "item-id" => item_id}, socket) do
+    item =
+      Enum.find(socket.assigns.items, fn item ->
+        to_string(primary_value(item)) == to_string(item_id)
+      end)
+
+    socket
+    |> assign(selected_items: [item])
+    |> maybe_handle_item_action(key)
+  end
+
+  @impl Phoenix.LiveView
+  def handle_event("item-action", %{"action-key" => key}, socket) do
+    maybe_handle_item_action(socket, key)
+  end
+
+  @impl Phoenix.LiveView
+  def handle_event("select-page-size", %{"select_per_page" => %{"value" => per_page}}, socket) do
+    %{query_options: query_options, params: params} = socket.assigns
+
+    per_page = String.to_integer(per_page)
+
+    to =
+      Router.get_path(
+        socket,
+        __MODULE__,
+        params,
+        :index,
+        Map.merge(query_options, %{per_page: per_page})
+      )
+
+    socket = push_patch(socket, to: to, replace: true)
+
+    {:noreply, socket}
+  end
+
+  @impl Phoenix.LiveView
+  def handle_event("index-search", %{"index_search" => %{"value" => search_input}}, socket) do
+    %{query_options: query_options, params: params} = socket.assigns
+
+    to =
+      Router.get_path(
+        socket,
+        __MODULE__,
+        params,
+        :index,
+        Map.merge(query_options, %{search: search_input})
+      )
+
+    socket = push_patch(socket, to: to, replace: true)
+
+    {:noreply, socket}
+  end
+
+  @impl Phoenix.LiveView
+  def handle_event("change-filter", params, socket) do
+    query_options = socket.assigns.query_options
+
+    empty_filter_name = Atom.to_string(@empty_filter_key)
+
+    filters =
+      Map.get(query_options, :filters, %{})
+      |> Map.merge(params["filters"])
+      # Filter manually emptied filters and empty filter
+      |> Enum.filter(fn
+        {^empty_filter_name, _value} -> false
+        {_filter, ""} -> false
+        {_filter, %{"start" => "", "end" => ""}} -> false
+        _filter_params -> true
+      end)
+
+    to =
+      Router.get_path(
+        socket,
+        __MODULE__,
+        socket.assigns.params,
+        :index,
+        Map.put(query_options, :filters, filters)
+      )
+
+    socket =
+      socket
+      |> assign(filters_changed: true)
+      |> push_patch(to: to)
+
+    {:noreply, socket}
+  end
+
+  @impl Phoenix.LiveView
+  def handle_event("clear-filter", %{"field" => field}, socket) do
+    %{query_options: query_options, params: params} = socket.assigns
+
+    new_query_options =
+      Map.put(
+        query_options,
+        :filters,
+        Map.get(query_options, :filters, %{})
+        |> Map.delete(field)
+        |> Backpex.LiveResource.maybe_put_empty_filter(@empty_filter_key)
+      )
+
+    to = Router.get_path(socket, __MODULE__, params, :index, new_query_options)
+
+    socket =
+      push_patch(socket, to: to)
+      |> assign(params: Map.merge(params, new_query_options))
+      |> assign(query_options: new_query_options)
+      |> assign(filters_changed: true)
+
+    {:noreply, socket}
+  end
+
+  @impl Phoenix.LiveView
+  def handle_event("filter-preset-selected", %{"field" => field, "preset-index" => preset_index} = _params, socket) do
+    query_options = socket.assigns.query_options
+    preset_index = String.to_integer(preset_index)
+    field_atom = String.to_existing_atom(field)
+
+    get_preset_values =
+      socket.assigns
+      |> get_in([:filters, field_atom, :presets])
+      |> Enum.at(preset_index)
+      |> Map.get(:values)
+
+    filters =
+      Map.get(query_options, :filters, %{})
+      |> Map.put(field, get_preset_values.())
+      |> Map.drop([Atom.to_string(@empty_filter_key)])
+
+    to =
+      Router.get_path(
+        socket,
+        __MODULE__,
+        socket.assigns.params,
+        :index,
+        Map.put(query_options, :filters, filters)
+      )
+
+    socket =
+      socket
+      |> assign(filters_changed: true)
+      |> push_patch(to: to)
+
+    {:noreply, socket}
+  end
+
+  @impl Phoenix.LiveView
+  def handle_event("update-selected-items", %{"id" => id}, socket) do
+    selected_items = socket.assigns.selected_items
+
+    item = Enum.find(socket.assigns.items, fn item -> to_string(primary_value(item)) == to_string(id) end)
+
+    updated_selected_items =
+      if Enum.member?(selected_items, item) do
+        List.delete(selected_items, item)
+      else
+        [item | selected_items]
+      end
+
+    select_all = length(updated_selected_items) == length(socket.assigns.items)
+
+    socket =
+      socket
+      |> assign(:selected_items, updated_selected_items)
+      |> assign(:select_all, select_all)
+
+    {:noreply, socket}
+  end
+
+  @impl Phoenix.LiveView
+  def handle_event("toggle-item-selection", _params, socket) do
+    select_all = not socket.assigns.select_all
+
+    selected_items =
+      if select_all do
+        socket.assigns.items
+      else
+        []
+      end
+
+    socket =
+      socket
+      |> assign(:select_all, select_all)
+      |> assign(:selected_items, selected_items)
+
+    {:noreply, socket}
+  end
+
+  defp maybe_handle_item_action(socket, key) do
+    key = String.to_existing_atom(key)
+    action = socket.assigns.item_actions[key]
+    items = socket.assigns.selected_items
+
+    if has_modal?(action.module) do
+      open_action_confirm_modal(socket, action, key)
+    else
+      handle_item_action(socket, action, key, items)
+    end
+  end
+
+  defp open_action_confirm_modal(socket, action, key) do
+    init_change = action.module.init_change(socket.assigns)
+    changeset_function = &action.module.changeset/3
+
+    metadata = Resource.build_changeset_metadata(socket.assigns)
+
+    changeset =
+      init_change
+      |> Ecto.Changeset.change()
+      |> changeset_function.(%{}, metadata)
+
+    socket =
+      socket
+      |> assign(:item_action_types, init_change)
+      |> assign(:changeset_function, changeset_function)
+      |> assign(:changeset, changeset)
+      |> assign(:action_to_confirm, Map.put(action, :key, key))
+
+    {:noreply, socket}
+  end
+
+  defp handle_item_action(socket, action, key, items) do
+    items = Enum.filter(items, fn item -> can?(socket.assigns, key, item, socket.assigns.live_resource) end)
+
+    socket
+    |> assign(action_to_confirm: nil)
+    |> assign(selected_items: [])
+    |> assign(select_all: false)
+    |> action.module.handle(items, %{})
+  end
+
+  defp primary_value(item) do
+    item
+    # |> Map.get(@resource_opts[:primary_key])
+    |> Map.get(:id)
   end
 
   @doc """
