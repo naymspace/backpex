@@ -611,14 +611,14 @@ defmodule Backpex.LiveResource do
     {:noreply, socket}
   end
 
-  def apply_action(socket, :index) do
+  defp apply_action(socket, :index) do
     socket
     |> assign(:page_title, socket.assigns.plural_name)
     |> apply_index()
     |> assign(:item, nil)
   end
 
-  def apply_action(socket, :edit) do
+  defp apply_action(socket, :edit) do
     %{
       live_resource: live_resource,
       singular_name: singular_name
@@ -638,7 +638,7 @@ defmodule Backpex.LiveResource do
     |> assign_changeset(fields)
   end
 
-  def apply_action(socket, :show) do
+  defp apply_action(socket, :show) do
     %{
       live_resource: live_resource,
       singular_name: singular_name
@@ -657,7 +657,7 @@ defmodule Backpex.LiveResource do
     |> apply_show_return_to(item)
   end
 
-  def apply_action(socket, :new) do
+  defp apply_action(socket, :new) do
     %{
       live_resource: live_resource,
       schema: schema,
@@ -677,7 +677,7 @@ defmodule Backpex.LiveResource do
     |> assign_changeset(fields)
   end
 
-  def apply_action(socket, :resource_action) do
+  defp apply_action(socket, :resource_action) do
     %{live_resource: live_resource} = socket.assigns
 
     id =
@@ -699,12 +699,12 @@ defmodule Backpex.LiveResource do
     |> assign_changeset(action.module.fields())
   end
 
-  def apply_item_actions(socket, action) when action in [:index, :resource_action] do
+  defp apply_item_actions(socket, action) when action in [:index, :resource_action] do
     item_actions = socket.assigns.live_resource.item_actions(default_item_actions())
     assign(socket, :item_actions, item_actions)
   end
 
-  def apply_item_actions(socket, _action), do: socket
+  defp apply_item_actions(socket, _action), do: socket
 
   defp apply_index_return_to(socket) do
     %{live_resource: live_resource, params: params, query_options: query_options} = socket.assigns
@@ -1404,10 +1404,7 @@ defmodule Backpex.LiveResource do
   def orderable?(field) when is_nil(field), do: false
   def orderable?({_name, field_options}), do: Map.get(field_options, :orderable, true)
 
-  @doc """
-  TODO: make private?
-  """
-  def build_criteria(assigns) do
+  defp build_criteria(assigns) do
     %{
       schema: schema,
       fields: fields,
@@ -1576,7 +1573,7 @@ defmodule Backpex.LiveResource do
     if value in permitted, do: value, else: default
   end
 
-  def default_item_actions do
+  defp default_item_actions do
     [
       show: %{
         module: Backpex.ItemActions.Show,
@@ -1593,11 +1590,11 @@ defmodule Backpex.LiveResource do
     ]
   end
 
-  def maybe_put_empty_filter(%{} = filters, empty_filter_key) when filters == %{} do
+  defp maybe_put_empty_filter(%{} = filters, empty_filter_key) when filters == %{} do
     Map.put(filters, Atom.to_string(empty_filter_key), true)
   end
 
-  def maybe_put_empty_filter(filters, _empty_filter_key) do
+  defp maybe_put_empty_filter(filters, _empty_filter_key) do
     filters
   end
 
@@ -1621,7 +1618,7 @@ defmodule Backpex.LiveResource do
     end)
   end
 
-  def get_valid_filters_from_params(%{"filters" => filters} = params, valid_filters, empty_filter_key) do
+  defp get_valid_filters_from_params(%{"filters" => filters} = params, valid_filters, empty_filter_key) do
     valid_filters = Keyword.put(valid_filters, empty_filter_key, %{})
 
     filters =
@@ -1641,7 +1638,7 @@ defmodule Backpex.LiveResource do
     Map.put(params, "filters", filters)
   end
 
-  def get_valid_filters_from_params(_params, _valid_filters, _empty_filter_key), do: %{}
+  defp get_valid_filters_from_params(_params, _valid_filters, _empty_filter_key), do: %{}
 
   defp maybe_to_atom(nil), do: nil
   defp maybe_to_atom(value), do: String.to_existing_atom(value)
