@@ -21,7 +21,7 @@
       ]
     },
     {
-      "description": "Disable ubuntu major updates",
+      "description": "Disable Ubuntu major updates",
       "matchDepNames": [
         "ubuntu"
       ],
