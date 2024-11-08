@@ -39,7 +39,6 @@ defmodule Backpex.HTML.Form do
     default: nil,
     doc: "additional class for the input wrapper element, currently only used in select type"
 
-  attr :field_options, :map, default: %{}, doc: "field options map"
   attr :translate_error_fun, :any, default: &Function.identity/1, doc: "TODO"
   attr :hide_errors, :boolean, default: false, doc: "if errors should be hidden"
 
