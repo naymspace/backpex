@@ -350,7 +350,7 @@ defmodule Backpex.FormComponent do
       {:ok, data} ->
         selected_items =
           Enum.filter(selected_items, fn item ->
-            LiveResource.can?(socket.assigns, action_key, item, socket.assigns.live_resource)
+            live_resource.can?(socket.assigns, action_key, item)
           end)
 
         {message, socket} =

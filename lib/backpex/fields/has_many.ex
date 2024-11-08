@@ -39,7 +39,6 @@ defmodule Backpex.Fields.HasMany do
   import Ecto.Query
   import Backpex.HTML.Form
   alias Backpex.Adapters.Ecto, as: EctoAdapter
-  alias Backpex.LiveResource
   alias Backpex.Router
 
   @impl Phoenix.LiveComponent
@@ -341,8 +340,7 @@ defmodule Backpex.Fields.HasMany do
     } = assigns
 
     link =
-      if link_assocs and Map.has_key?(field_options, :live_resource) and
-           LiveResource.can?(assigns, :show, item, live_resource) do
+      if link_assocs and Map.has_key?(field_options, :live_resource) and live_resource.can?(assigns, :show, item) do
         Router.get_path(socket, Map.get(field_options, :live_resource), params, :show, item)
       else
         nil

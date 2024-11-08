@@ -423,7 +423,7 @@ defmodule Backpex.LiveResource do
         <.main_title class="flex items-center justify-between">
           <%= @singular_name %>
           <.link
-            :if={Backpex.LiveResource.can?(assigns, :edit, @item, @live_resource)}
+            :if={@live_resource.can?(assigns, :edit, @item)}
             class="tooltip hover:z-30"
             data-tip={Backpex.translate("Edit")}
             aria-label={Backpex.translate("Edit")}
@@ -648,7 +648,7 @@ defmodule Backpex.LiveResource do
     primary_value = URI.decode(socket.assigns.params["backpex_id"])
     item = Resource.get!(primary_value, socket.assigns, live_resource)
 
-    unless can?(socket.assigns, :edit, item, live_resource), do: raise(Backpex.ForbiddenError)
+    unless live_resource.can?(socket.assigns, :edit, item), do: raise(Backpex.ForbiddenError)
 
     socket
     |> assign(:fields, fields)
@@ -668,7 +668,7 @@ defmodule Backpex.LiveResource do
     primary_value = URI.decode(socket.assigns.params["backpex_id"])
     item = Resource.get!(primary_value, socket.assigns, live_resource)
 
-    unless can?(socket.assigns, :show, item, live_resource), do: raise(Backpex.ForbiddenError)
+    unless live_resource.can?(socket.assigns, :show, item), do: raise(Backpex.ForbiddenError)
 
     socket
     |> assign(:page_title, singular_name)
@@ -684,7 +684,7 @@ defmodule Backpex.LiveResource do
       create_button_label: create_button_label
     } = socket.assigns
 
-    unless can?(socket.assigns, :new, nil, live_resource), do: raise(Backpex.ForbiddenError)
+    unless live_resource.can?(socket.assigns, :new, nil), do: raise(Backpex.ForbiddenError)
 
     fields = live_resource.fields() |> filtered_fields_by_action(socket.assigns, :new)
     empty_item = schema.__struct__()
@@ -698,14 +698,16 @@ defmodule Backpex.LiveResource do
   end
 
   def apply_action(socket, :resource_action) do
+    %{live_resource: live_resource} = socket.assigns
+
     id =
       socket.assigns.params["backpex_id"]
       |> URI.decode()
       |> String.to_existing_atom()
 
-    action = socket.assigns.live_resource.resource_actions()[id]
+    action = live_resource.resource_actions()[id]
 
-    unless can?(socket.assigns, id, nil, socket.assigns.live_resource), do: raise(Backpex.ForbiddenError)
+    unless live_resource.can?(socket.assigns, id, nil), do: raise(Backpex.ForbiddenError)
 
     socket
     |> assign(:page_title, ResourceAction.name(action, :title))
@@ -748,7 +750,7 @@ defmodule Backpex.LiveResource do
       params: params
     } = socket.assigns
 
-    unless can?(socket.assigns, :index, nil, live_resource), do: raise(Backpex.ForbiddenError)
+    unless live_resource.can?(socket.assigns, :index, nil), do: raise(Backpex.ForbiddenError)
 
     fields = live_resource.fields() |> filtered_fields_by_action(socket.assigns, :index)
 
@@ -1242,7 +1244,8 @@ defmodule Backpex.LiveResource do
   end
 
   defp handle_item_action(socket, action, key, items) do
-    items = Enum.filter(items, fn item -> can?(socket.assigns, key, item, socket.assigns.live_resource) end)
+    %{live_resource: live_resource} = socket.assigns
+    items = Enum.filter(items, fn item -> live_resource.can?(socket.assigns, key, item) end)
 
     socket
     |> assign(action_to_confirm: nil)
@@ -1587,13 +1590,6 @@ defmodule Backpex.LiveResource do
   """
   def value_in_permitted_or_default(value, permitted, default) do
     if value in permitted, do: value, else: default
-  end
-
-  @doc """
-  Checks whether user is allowed to perform provided action or not
-  """
-  def can?(assigns, action, item, module) do
-    module.can?(assigns, action, item)
   end
 
   def default_item_actions do
