@@ -50,6 +50,17 @@
         "dependencies",
         "{{categories}}"
       ]
+    },
+    {
+      "description": "Label updates to github-actions",
+      "matchManagers": [
+        "github-actions"
+      ],
+      "labels": [
+        "ignore-for-release",
+        "dependencies",
+        "{{categories}}"
+      ]
     }
   ],
   "labels": [
