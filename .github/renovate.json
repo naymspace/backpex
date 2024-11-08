@@ -52,9 +52,9 @@
       ]
     },
     {
-      "description": "Label updates to github-actions",
-      "matchManagers": [
-        "github-actions"
+      "description": "Label updates in ci.yml",
+      "matchFileNames": [
+        ".github/workflows/ci.yml"
       ],
       "labels": [
         "ignore-for-release",
