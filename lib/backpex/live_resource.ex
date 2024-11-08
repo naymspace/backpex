@@ -92,7 +92,8 @@ defmodule Backpex.LiveResource do
       default: false
     ],
     full_text_search: [
-      type: :atom
+      type: :atom,
+      default: nil
     ]
   ]
 
@@ -271,70 +272,7 @@ defmodule Backpex.LiveResource do
 
       @impl Phoenix.LiveView
       def mount(params, session, socket) do
-        subscribe_to_topic(socket, @resource_opts[:pubsub])
-
-        socket =
-          socket
-          |> assign(:live_resource, __MODULE__)
-          |> assign(:schema, @resource_opts[:adapter_config][:schema])
-          |> assign(:repo, @resource_opts[:adapter_config][:repo])
-          |> assign(:singular_name, singular_name())
-          |> assign(:plural_name, plural_name())
-          |> assign(:create_button_label, create_button_label())
-          |> assign(:resource_created_message, resource_created_message())
-          |> assign(:search_placeholder, search_placeholder())
-          |> assign(:panels, panels())
-          |> assign(:fluid?, @resource_opts[:fluid?])
-          |> assign(:full_text_search, @resource_opts[:full_text_search])
-          |> assign_active_fields(session)
-          |> assign_metrics_visibility(session)
-          |> assign_filters_changed_status(params)
-
-        {:ok, socket}
-      end
-
-      defp assign_active_fields(socket, session) do
-        fields = filtered_fields_by_action(fields(), socket.assigns, :index)
-        saved_fields = get_in(session, ["backpex", "column_toggle", "#{__MODULE__}"]) || %{}
-
-        active_fields =
-          Enum.map(fields, fn {name, %{label: label}} ->
-            {name,
-             %{
-               active: field_active?(name, saved_fields),
-               label: label
-             }}
-          end)
-
-        socket
-        |> assign(:active_fields, active_fields)
-      end
-
-      defp assign_metrics_visibility(socket, session) do
-        value = get_in(session, ["backpex", "metric_visibility"]) || %{}
-
-        socket
-        |> assign(metric_visibility: value)
-      end
-
-      defp assign_filters_changed_status(socket, params) do
-        %{assigns: %{live_action: live_action}} = socket
-
-        socket
-        |> assign(:filters_changed, live_action == :index and params["filters_changed"] == "true")
-      end
-
-      defp field_active?(name, saved_fields) do
-        case Map.get(saved_fields, Atom.to_string(name)) do
-          "true" ->
-            true
-
-          "false" ->
-            false
-
-          _other ->
-            true
-        end
+        LiveResource.mount(params, session, socket)
       end
 
       @impl Phoenix.LiveView
@@ -880,6 +818,84 @@ defmodule Backpex.LiveResource do
 
       @impl Backpex.LiveResource
       def render_resource_slot(var!(assigns), _action, _position), do: ~H""
+    end
+  end
+
+  @impl Phoenix.LiveView
+  def mount(params, session, socket) do
+    live_resource = socket.view
+    pubsub = live_resource.config(:pubsub)
+    subscribe_to_topic(socket, pubsub)
+
+    # TODO: move these "config assigns" (and other global assigns) to where they are needed
+    adapter_config = live_resource.config(:adapter_config)
+    fluid? = live_resource.config(:fluid?)
+    full_text_search = live_resource.config(:full_text_search)
+
+    socket =
+      socket
+      |> assign(:live_resource, live_resource)
+      |> assign(:schema, adapter_config[:schema])
+      |> assign(:repo, adapter_config[:repo])
+      |> assign(:singular_name, live_resource.singular_name())
+      |> assign(:plural_name, live_resource.plural_name())
+      |> assign(:create_button_label, live_resource.create_button_label())
+      |> assign(:resource_created_message, live_resource.resource_created_message())
+      |> assign(:search_placeholder, live_resource.search_placeholder())
+      |> assign(:panels, live_resource.panels())
+      |> assign(:fluid?, fluid?)
+      |> assign(:full_text_search, full_text_search)
+      |> assign_active_fields(session)
+      |> assign_metrics_visibility(session)
+      |> assign_filters_changed_status(params)
+
+    {:ok, socket}
+  end
+
+  defp assign_active_fields(socket, session) do
+    fields =
+      socket.assigns.live_resource.fields()
+      |> filtered_fields_by_action(socket.assigns, :index)
+
+    saved_fields = get_in(session, ["backpex", "column_toggle", "#{__MODULE__}"]) || %{}
+
+    active_fields =
+      Enum.map(fields, fn {name, %{label: label}} ->
+        {name,
+         %{
+           active: field_active?(name, saved_fields),
+           label: label
+         }}
+      end)
+
+    socket
+    |> assign(:active_fields, active_fields)
+  end
+
+  defp assign_metrics_visibility(socket, session) do
+    value = get_in(session, ["backpex", "metric_visibility"]) || %{}
+
+    socket
+    |> assign(metric_visibility: value)
+  end
+
+  defp assign_filters_changed_status(socket, params) do
+    %{assigns: %{live_action: live_action}} = socket
+
+    socket
+    |> assign(:filters_changed, live_action == :index and params["filters_changed"] == "true")
+  end
+
+  defp field_active?(name, saved_fields) do
+    case Map.get(saved_fields, Atom.to_string(name)) do
+      "true" ->
+        true
+
+      "false" ->
+        false
+
+      _other ->
+        true
     end
   end
 
