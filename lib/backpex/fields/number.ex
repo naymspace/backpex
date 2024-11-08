@@ -23,7 +23,7 @@ defmodule Backpex.Fields.Number do
 
   #{NimbleOptions.docs(@config_schema)}
   """
-  use Backpex.Field
+  use Backpex.Field, config_schema: @config_schema
   import Ecto.Query
 
   @impl Backpex.Field

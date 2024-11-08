@@ -1,7 +1,5 @@
 # credo:disable-for-this-file Credo.Check.Design.DuplicatedCode
 defmodule Backpex.Fields.Date do
-  @default_format "%Y-%m-%d"
-
   @config_schema [
     format: [
       doc: """
@@ -10,7 +8,7 @@ defmodule Backpex.Fields.Date do
       Can also be a function wich receives a `DateTime` and must return a string.
       """,
       type: {:or, [:string, {:fun, 1}]},
-      default: @default_format
+      default: "%Y-%m-%d"
     ],
     debounce: [
       doc: "Timeout value (in milliseconds), \"blur\" or function that receives the assigns.",
@@ -22,7 +20,6 @@ defmodule Backpex.Fields.Date do
     ]
   ]
 
-  # credo:disable-for-next-line Credo.Check.Readability.StrictModuleLayout
   @moduledoc """
   A field for handling a date value.
 
@@ -72,11 +69,11 @@ defmodule Backpex.Fields.Date do
         ]
       end
   """
-  use Backpex.Field
+  use Backpex.Field, config_schema: @config_schema
 
   @impl Backpex.Field
   def render_value(assigns) do
-    format = Map.get(assigns.field_options, :format, @default_format)
+    format = assigns.field_options[:format]
 
     value =
       cond do

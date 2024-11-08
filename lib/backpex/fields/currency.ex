@@ -46,7 +46,7 @@ defmodule Backpex.Fields.Currency do
         ]
       end
   """
-  use Backpex.Field
+  use Backpex.Field, config_schema: @config_schema
   import Ecto.Query
   alias Backpex.Ecto.Amount.Type
 

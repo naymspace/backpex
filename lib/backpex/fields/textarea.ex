@@ -17,11 +17,11 @@ defmodule Backpex.Fields.Textarea do
   @moduledoc """
   A field for handling long text values.
 
-  ## Options
+  ## Field-specific options
 
-  * `:placeholder` - Optional placeholder value or function that receives the assigns.
-  * `:debounce` - Optional integer timeout value (in milliseconds), "blur" or function that receives the assigns.
-  * `:throttle` - Optional integer timeout value (in milliseconds) or function that receives the assigns.
+  See `Backpex.Field` for general field options.
+
+  #{NimbleOptions.docs(@config_schema)}
   """
   use Backpex.Field, config_schema: @config_schema
 

@@ -176,7 +176,7 @@ defmodule Backpex.Field do
   @doc """
   Returns the default config schema.
   """
-  def default_config_schema(), do: @config_schema
+  def default_config_schema, do: @config_schema
 
   @doc """
   Defines `Backpex.Field` behaviour and provides default implementations.
@@ -192,8 +192,6 @@ defmodule Backpex.Field do
 
       def validate_config!({name, options} = _field, live_resource) do
         field_options = Keyword.new(options)
-
-        dbg(field_options)
 
         case NimbleOptions.validate(field_options, Backpex.Field.default_config_schema() ++ @config_schema) do
           {:ok, validated_options} ->
