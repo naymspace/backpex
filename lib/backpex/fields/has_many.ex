@@ -255,7 +255,8 @@ defmodule Backpex.Fields.HasMany do
     {field_name, field_options} = field
     validate_live_resource(field_name, field_options)
 
-    schema = field_options.live_resource.schema()
+    # TODO: do not rely on specific adapter
+    schema = field_options.live_resource.config(:adapter_config)[:schema]
     field_name_string = to_string(field_name)
 
     new_assocs = get_new_assocs(attrs, field_name_string, schema, repo, field_options, assigns)

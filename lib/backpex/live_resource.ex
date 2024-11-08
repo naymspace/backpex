@@ -221,11 +221,6 @@ defmodule Backpex.LiveResource do
   @callback resource_created_message() :: binary()
 
   @doc """
-  Returns the schema of the live resource.
-  """
-  @callback schema() :: module()
-
-  @doc """
   Uses LiveResource in the current module to make it a LiveResource.
 
       use Backpex.LiveResource,
@@ -300,9 +295,6 @@ defmodule Backpex.LiveResource do
 
       @impl Backpex.LiveResource
       def create_button_label, do: Backpex.translate({"New %{resource}", %{resource: singular_name()}})
-
-      @impl Backpex.LiveResource
-      def schema, do: @resource_opts[:adapter_config][:schema]
 
       @impl Backpex.LiveResource
       def resource_created_message,
