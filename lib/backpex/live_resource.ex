@@ -260,44 +260,22 @@ defmodule Backpex.LiveResource do
 
       alias Backpex.LiveResource
 
-      def config(key) do
-        Keyword.fetch!(@resource_opts, key)
-      end
+      def config(key), do: Keyword.fetch!(@resource_opts, key)
 
       @impl Phoenix.LiveView
-      def mount(params, session, socket) do
-        LiveResource.mount(params, session, socket)
-      end
+      def mount(params, session, socket), do: LiveResource.mount(params, session, socket)
 
       @impl Phoenix.LiveView
-      def handle_params(params, url, socket) do
-        LiveResource.handle_params(params, url, socket)
-      end
+      def handle_params(params, url, socket), do: LiveResource.handle_params(params, url, socket)
 
       @impl Phoenix.LiveView
-      def handle_event(event, params, socket) do
-        LiveResource.handle_event(event, params, socket)
-      end
+      def handle_event(event, params, socket), do: LiveResource.handle_event(event, params, socket)
 
       @impl Phoenix.LiveView
-      def handle_info(msg, socket) do
-        LiveResource.handle_info(msg, socket)
-      end
+      def handle_info(msg, socket), do: LiveResource.handle_info(msg, socket)
 
       @impl Phoenix.LiveView
-      def render(%{live_action: action} = assigns) when action in [:show, :show_edit] do
-        resource_show(assigns)
-      end
-
-      @impl Phoenix.LiveView
-      def render(%{live_action: action} = assigns) when action in [:new, :edit] do
-        resource_form(assigns)
-      end
-
-      @impl Phoenix.LiveView
-      def render(assigns) do
-        resource_index(assigns)
-      end
+      def render(assigns), do: LiveResource.render(assigns)
 
       @impl Backpex.LiveResource
       def can?(_assigns, _action, _item), do: true
@@ -613,6 +591,21 @@ defmodule Backpex.LiveResource do
 
     socket
     |> assign(metrics: metrics)
+  end
+
+  @impl Phoenix.LiveView
+  def render(%{live_action: action} = assigns) when action in [:show, :show_edit] do
+    resource_show(assigns)
+  end
+
+  @impl Phoenix.LiveView
+  def render(%{live_action: action} = assigns) when action in [:new, :edit] do
+    resource_form(assigns)
+  end
+
+  @impl Phoenix.LiveView
+  def render(assigns) do
+    resource_index(assigns)
   end
 
   @impl Phoenix.LiveView

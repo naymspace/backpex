@@ -626,10 +626,7 @@ defmodule Backpex.HTML.Resource do
   def resource_buttons(assigns) do
     ~H"""
     <div class="mb-4 flex space-x-2">
-      <.link
-        :if={@live_resource.can?(assigns, :new, nil)}
-        patch={Router.get_path(@socket, @live_resource, @params, :new)}
-      >
+      <.link :if={@live_resource.can?(assigns, :new, nil)} patch={Router.get_path(@socket, @live_resource, @params, :new)}>
         <button class="btn btn-sm btn-outline btn-primary">
           <%= @create_button_label %>
         </button>
