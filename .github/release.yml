@@ -18,12 +18,22 @@ changelog:
     - title: Documentation
       labels:
         - documentation
-    - title: Dependency updates
+    - title: Dependency Updates
       labels:
         - dependencies
-    - title: Demo enhancements
+      exclude:
+        labels:
+          - demo
+    - title: Demo Enhancements
       labels:
         - demo
+      exclude:
+        labels:
+          - dependencies
+    - title: Demo Dependency Updates
+      labels:
+        - demo
+        - dependencies
     - title: Other changes
       labels:
         - "*"
