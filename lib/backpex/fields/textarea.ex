@@ -4,6 +4,7 @@ defmodule Backpex.Fields.Textarea do
 
   ## Options
 
+  * `:rows` - Optional integer number of visible text lines for the control. If it is not specified, the default value is 2.
   * `:placeholder` - Optional placeholder value or function that receives the assigns.
   * `:debounce` - Optional integer timeout value (in milliseconds), "blur" or function that receives the assigns.
   * `:throttle` - Optional integer timeout value (in milliseconds) or function that receives the assigns.
