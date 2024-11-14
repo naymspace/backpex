@@ -13,10 +13,6 @@ defmodule Backpex.Fields.BelongsTo do
       doc: "The live resource of the association. Used to generate links navigating to the association.",
       type: :atom
     ],
-    source: [
-      doc: "",
-      type: :atom
-    ],
     options_query: [
       doc: """
       Manipulates the list of available options in the select.
