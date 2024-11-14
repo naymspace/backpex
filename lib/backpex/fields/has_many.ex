@@ -27,14 +27,20 @@ defmodule Backpex.Fields.HasMany do
       type: {:fun, 2}
     ],
     prompt: [
-      doc: "The text to be displayed when no options are selected or function that receives the assigns.",
-      type: :string,
-      default: Backpex.translate("Select options...")
+      doc: """
+      The text to be displayed when no options are selected or function that receives the assigns.
+
+      The default value is `"Select options..."`.
+      """,
+      type: :string
     ],
     not_found_text: [
-      doc: "The text to be displayed when no options are found.",
-      type: :string,
-      default: Backpex.translate("No options found")
+      doc: """
+      The text to be displayed when no options are found.
+
+      The default value is `"No options found"`.
+      """,
+      type: :string
     ],
     query_limit: [
       doc: "Limit passed to the query to fetch new items. Set to `nil` to have no limit.",
@@ -94,7 +100,7 @@ defmodule Backpex.Fields.HasMany do
 
     socket
     |> assign_new(:prompt, fn -> prompt(assigns, field_options) end)
-    |> assign_new(:not_found_text, fn -> field_options[:not_found_text] end)
+    |> assign_new(:not_found_text, fn -> field_options[:not_found_text] || Backpex.translate("No options found") end)
     |> assign_new(:search_input, fn -> "" end)
     |> assign_new(:offset, fn -> 0 end)
     |> assign_new(:options_count, fn -> count_options(assigns) end)
@@ -542,6 +548,7 @@ defmodule Backpex.Fields.HasMany do
 
   defp prompt(assigns, field_options) do
     case Map.get(field_options, :prompt) do
+      nil -> Backpex.translate("Select options...")
       prompt when is_function(prompt) -> prompt.(assigns)
       prompt -> prompt
     end

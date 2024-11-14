@@ -10,9 +10,12 @@ defmodule Backpex.Fields.MultiSelect do
       type: :string
     ],
     not_found_text: [
-      doc: "The text to be displayed when no options are found.",
-      type: :string,
-      default: Backpex.translate("No options found")
+      doc: """
+      The text to be displayed when no options are found.
+
+      The default value is `"No options found"`.
+      """,
+      type: :string
     ]
   ]
 
@@ -48,7 +51,7 @@ defmodule Backpex.Fields.MultiSelect do
     socket =
       socket
       |> assign(assigns)
-      |> assign(:not_found_text, assigns.field_options[:not_found_text])
+      |> assign(:not_found_text, assigns.field_options[:not_found_text] || Backpex.translate("No options found"))
       |> assign(:prompt, prompt(assigns, assigns.field_options))
       |> assign(:search_input, "")
       |> assign_options()
