@@ -1,8 +1,8 @@
 defmodule Backpex.Fields.InlineCRUD do
   @config_schema [
     type: [
-      doc: "The type of the field. Either `:embed` or `:assoc`.",
-      type: :atom,
+      doc: "The type of the field.",
+      type: {:in, [:embed, :assoc]},
       required: true
     ],
     child_fields: [
