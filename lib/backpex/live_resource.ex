@@ -14,8 +14,6 @@ defmodule Backpex.LiveResource do
   alias Backpex.ResourceAction
   alias Backpex.Router
 
-  @permitted_order_directions ~w(asc desc)a
-
   @options_schema [
     adapter: [
       doc: "The data layer adapter to use.",
@@ -738,7 +736,7 @@ defmodule Backpex.LiveResource do
 
     page_options = %{page: page, per_page: per_page}
 
-    order_options = order_options_by_params(params, fields, init_order, socket.assigns, @permitted_order_directions)
+    order_options = order_options_by_params(params, fields, init_order, socket.assigns)
 
     query_options =
       page_options
@@ -1233,7 +1231,7 @@ defmodule Backpex.LiveResource do
       iex> Backpex.LiveResource.order_options_by_params(%{"order_by" => "field", "order_direction" => "asc"}, [field: %{orderable: false}], %{by: :id, direction: :asc}, %{}, [:asc, :desc])
       %{order_by: :id, order_direction: :asc}
   """
-  def order_options_by_params(params, fields, init_order, assigns, permitted_order_directions) do
+  def order_options_by_params(params, fields, init_order, assigns) do
     init_order = resolve_init_order(init_order, assigns)
 
     order_by =
@@ -1250,12 +1248,14 @@ defmodule Backpex.LiveResource do
       |> Map.get("order_direction")
       |> maybe_to_atom()
       |> value_in_permitted_or_default(
-        permitted_order_directions,
+        permitted_order_directions(),
         Map.get(init_order, :direction)
       )
 
     %{order_by: order_by, order_direction: order_direction}
   end
+
+  defp permitted_order_directions(), do: ~w(asc desc)a
 
   @doc """
   Returns all orderable fields. A field is orderable by default.
