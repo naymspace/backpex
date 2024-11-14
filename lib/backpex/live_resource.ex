@@ -14,8 +14,6 @@ defmodule Backpex.LiveResource do
   alias Backpex.ResourceAction
   alias Backpex.Router
 
-  @empty_filter_key :empty_filter
-
   @permitted_order_directions ~w(asc desc)a
 
   @options_schema [
@@ -721,7 +719,7 @@ defmodule Backpex.LiveResource do
     init_order = live_resource.config(:init_order)
 
     filters = active_filters(socket.assigns)
-    valid_filter_params = get_valid_filters_from_params(params, filters, @empty_filter_key)
+    valid_filter_params = get_valid_filters_from_params(params, filters, empty_filter_key())
 
     count_criteria = [
       search: search_options(params, fields, schema),
@@ -917,7 +915,7 @@ defmodule Backpex.LiveResource do
   def handle_event("change-filter", params, socket) do
     query_options = socket.assigns.query_options
 
-    empty_filter_name = Atom.to_string(@empty_filter_key)
+    empty_filter_name = Atom.to_string(empty_filter_key())
 
     filters =
       Map.get(query_options, :filters, %{})
@@ -957,7 +955,7 @@ defmodule Backpex.LiveResource do
         :filters,
         Map.get(query_options, :filters, %{})
         |> Map.delete(field)
-        |> maybe_put_empty_filter(@empty_filter_key)
+        |> maybe_put_empty_filter(empty_filter_key())
       )
 
     to = Router.get_path(socket, live_resource, params, :index, new_query_options)
@@ -986,7 +984,7 @@ defmodule Backpex.LiveResource do
     filters =
       Map.get(query_options, :filters, %{})
       |> Map.put(field, get_preset_values.())
-      |> Map.drop([Atom.to_string(@empty_filter_key)])
+      |> Map.drop([Atom.to_string(empty_filter_key())])
 
     to =
       Router.get_path(
@@ -1120,7 +1118,7 @@ defmodule Backpex.LiveResource do
     } = socket.assigns
 
     filters = active_filters(socket.assigns)
-    valid_filter_params = get_valid_filters_from_params(params, filters, @empty_filter_key)
+    valid_filter_params = get_valid_filters_from_params(params, filters, empty_filter_key())
 
     count_criteria = [
       search: search_options(params, fields, schema),
@@ -1355,7 +1353,7 @@ defmodule Backpex.LiveResource do
 
   def filter_options(_no_filters_present, _filter_configs), do: %{}
 
-  def get_empty_filter_key, do: @empty_filter_key
+  def empty_filter_key, do: :empty_filter
 
   @doc """
   Checks whether a field is orderable or not.
@@ -1574,7 +1572,7 @@ defmodule Backpex.LiveResource do
   def get_filter_options(query_options) do
     query_options
     |> Map.get(:filters, %{})
-    |> Map.drop([Atom.to_string(get_empty_filter_key())])
+    |> Map.drop([Atom.to_string(empty_filter_key())])
   end
 
   @doc """
@@ -1584,7 +1582,7 @@ defmodule Backpex.LiveResource do
     filters = assigns.live_resource.filters(assigns)
 
     Enum.filter(filters, fn {key, option} ->
-      get_empty_filter_key() != key and option.module.can?(assigns)
+      empty_filter_key() != key and option.module.can?(assigns)
     end)
   end
 

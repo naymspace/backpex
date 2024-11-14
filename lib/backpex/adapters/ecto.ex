@@ -132,7 +132,7 @@ defmodule Backpex.Adapters.Ecto do
     |> maybe_preload(associations, fields)
     |> maybe_merge_dynamic_fields(fields)
     |> apply_search(schema, full_text_search, criteria[:search])
-    |> apply_filters(criteria[:filters], Backpex.LiveResource.get_empty_filter_key())
+    |> apply_filters(criteria[:filters], Backpex.LiveResource.empty_filter_key())
     |> apply_criteria(criteria, fields)
   end
 
