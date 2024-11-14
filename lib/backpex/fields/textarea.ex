@@ -13,7 +13,7 @@ defmodule Backpex.Fields.Textarea do
       type: {:or, [:pos_integer, {:fun, 1}]}
     ],
     rows: [
-      doc: "Number of visible text lines for the control. If it is not specified.",
+      doc: "Number of visible text lines for the control.",
       type: :non_neg_integer,
       default: 2
     ]

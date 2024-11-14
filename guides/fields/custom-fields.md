@@ -13,7 +13,7 @@ When creating your own custom field, you can use the `field` macro from the `Bac
 The simplest version of a custom field would look like this:
 
 ```elixir
-use BackpexWeb, :field
+use Backpex.Field
 
 @impl Backpex.Field
 def render_value(assigns) do

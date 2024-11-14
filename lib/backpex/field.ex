@@ -12,7 +12,7 @@ defmodule Backpex.Field do
       required: true
     ],
     render: [
-      doc: "",
+      doc: "A function to overwrite the template used . It should take `assigns` and return a HEEX template.",
       type: {:fun, 1}
     ],
     render_form: [
@@ -20,19 +20,23 @@ defmodule Backpex.Field do
       type: {:fun, 1}
     ],
     custom_alias: [
-      doc: "",
+      doc: "A custom alias for the field.",
       type: :atom
     ],
     align: [
-      doc: "",
-      type: :atom
+      doc: "Align the fields of a resource in the index view.",
+      type: {:in, [:left, :center, :right]}
+    ],
+    align_label: [
+      doc: "Align the labels of the fields in the edit view.",
+      type: {:in, [:top, :center, :bottom]}
     ],
     searchable: [
-      doc: "",
+      doc: "Define wether this field should be searchable on the index view.",
       type: :boolean
     ],
     orderable: [
-      doc: "",
+      doc: "Define wether this field should be orderable on the index view.",
       type: :boolean
     ],
     visible: [
@@ -40,28 +44,44 @@ defmodule Backpex.Field do
       type: {:fun, 1}
     ],
     panel: [
-      doc: "",
+      doc: "Group field into panel. Also see the [panels](/guides/authorization/panels.md) guide.",
       type: :atom
     ],
     index_editable: [
-      doc: "",
+      doc: """
+      Define wether this field should be editable on the index view. Also see the
+      [index edit](/guides/authorization/index-edit.md) guide.
+      """,
       type: :boolean
     ],
     index_column_class: [
-      doc: "",
-      type: :string
+      doc: """
+      Add additional class(es) to the index column.
+      In case of a function it takes the `assigns` and should return a string.
+      """,
+      type: {:or, [:string, {:fun, 1}]}
     ],
     select: [
-      doc: "",
+      doc: """
+      Define a dynamic select query expression for this field.
+
+      ### Example
+
+          full_name: %{
+            module: Backpex.Fields.Text,
+            label: "Full Name",
+            select: dynamic([user: u], fragment("concat(?, ' ', ?)", u.first_name, u.last_name)),
+          }
+      """,
       type: {:struct, Ecto.Query.DynamicExpr}
     ],
     only: [
-      doc: "",
-      type: {:list, :atom}
+      doc: "Define the only views where this field should be visible.",
+      type: {:list, {:in, [:new, :edit, :show, :index, :resource_action]}}
     ],
     except: [
-      doc: "",
-      type: {:list, :atom}
+      doc: "Define the views where this field should not be visible.",
+      type: {:list, {:in, [:new, :edit, :show, :index, :resource_action]}}
     ],
     translate_error: [
       doc: """
