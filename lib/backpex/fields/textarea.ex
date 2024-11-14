@@ -11,6 +11,11 @@ defmodule Backpex.Fields.Textarea do
     throttle: [
       doc: "Timeout value (in milliseconds) or function that receives the assigns.",
       type: {:or, [:pos_integer, {:fun, 1}]}
+    ],
+    rows: [
+      docs: "Number of visible text lines for the control. If it is not specified.",
+      type: :non_neg_integer,
+      default: 2
     ]
   ]
 
@@ -49,6 +54,7 @@ defmodule Backpex.Fields.Textarea do
         <BackpexForm.input
           type="textarea"
           field={@form[@name]}
+          rows={@field_options[:rows] || 2}
           translate_error_fun={Backpex.Field.translate_error_fun(@field_options, assigns)}
           phx-debounce={Backpex.Field.debounce(@field_options, assigns)}
           phx-throttle={Backpex.Field.throttle(@field_options, assigns)}

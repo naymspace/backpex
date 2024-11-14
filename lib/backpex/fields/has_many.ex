@@ -369,13 +369,12 @@ defmodule Backpex.Fields.HasMany do
       socket: socket,
       field_options: field_options,
       item: item,
-      live_resource: live_resource,
       params: params,
       link_assocs: link_assocs
     } = assigns
 
     link =
-      if link_assocs and Map.has_key?(field_options, :live_resource) and live_resource.can?(assigns, :show, item) do
+      if link_assocs and field_options.live_resource.can?(assigns, :show, item) do
         Router.get_path(socket, Map.get(field_options, :live_resource), params, :show, item)
       else
         nil
