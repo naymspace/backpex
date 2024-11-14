@@ -30,7 +30,6 @@ defmodule Backpex.Fields.BelongsTo do
 
   import Ecto.Query
 
-  alias Backpex.LiveResource
   alias Backpex.Router
 
   @impl Phoenix.LiveComponent
@@ -194,7 +193,7 @@ defmodule Backpex.Fields.BelongsTo do
       assigns
 
     link =
-      if Map.has_key?(field_options, :live_resource) and LiveResource.can?(assigns, :show, value, live_resource) do
+      if Map.has_key?(field_options, :live_resource) and live_resource.can?(assigns, :show, value) do
         Router.get_path(socket, Map.get(field_options, :live_resource), params, :show, value)
       else
         nil
