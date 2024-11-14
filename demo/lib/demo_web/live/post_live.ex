@@ -111,6 +111,7 @@ defmodule DemoWeb.PostLive do
       body: %{
         module: Backpex.Fields.Textarea,
         label: "Body",
+        rows: 10,
         except: [:index]
       },
       published: %{
