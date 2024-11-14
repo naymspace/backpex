@@ -708,7 +708,7 @@ defmodule Backpex.LiveResource do
         action = socket.assigns.item_actions[key]
         items = socket.assigns.selected_items
 
-        if has_modal?(action.module) do
+        if Backpex.ItemAction.has_confirm_modal?(action) do
           open_action_confirm_modal(socket, action, key)
         else
           handle_item_action(socket, action, key, items)
@@ -716,21 +716,22 @@ defmodule Backpex.LiveResource do
       end
 
       defp open_action_confirm_modal(socket, action, key) do
-        init_change = action.module.init_change(socket.assigns)
-        changeset_function = &action.module.changeset/3
-
-        metadata = Resource.build_changeset_metadata(socket.assigns)
-
-        changeset =
-          init_change
-          |> Ecto.Changeset.change()
-          |> changeset_function.(%{}, metadata)
-
         socket =
-          socket
-          |> assign(:item_action_types, init_change)
-          |> assign(:changeset_function, changeset_function)
-          |> assign(:changeset, changeset)
+          if Backpex.ItemAction.has_form?(action) do
+            changeset_function = &action.module.changeset/3
+            init_schema = action.module.init_change(socket.assigns)
+
+            metadata = Resource.build_changeset_metadata(socket.assigns)
+
+            changeset = changeset_function.(init_schema, %{}, metadata)
+
+            socket
+            |> assign(:init_schema, init_schema)
+            |> assign(:changeset, changeset)
+          else
+            socket
+            |> assign(:changeset, %{})
+          end
           |> assign(:action_to_confirm, Map.put(action, :key, key))
 
         {:noreply, socket}
@@ -890,6 +891,9 @@ defmodule Backpex.LiveResource do
           end
 
         select_all = length(updated_selected_items) == length(socket.assigns.items)
+
+        IO.inspect(updated_selected_items, label: :updated_selected_items)
+
 
         socket =
           socket

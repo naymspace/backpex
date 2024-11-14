@@ -929,11 +929,6 @@ defmodule Backpex.HTML.Resource do
     """
   end
 
-  @doc """
-  Checks the given module if it has a `confirm/1` function exported or a list with fields.
-  """
-  def has_modal?(module), do: function_exported?(module, :confirm, 1) or module.fields() != []
-
   defp metric_toggle(assigns) do
     visible = Backpex.Metric.metrics_visible?(assigns.metric_visibility, assigns.live_resource)
 

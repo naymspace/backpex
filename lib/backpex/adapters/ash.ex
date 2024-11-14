@@ -75,8 +75,17 @@ if Code.ensure_loaded?(Ash) do
     Deletes multiple items.
     """
     @impl Backpex.Adapter
-    def delete_all(_items, _config) do
-      raise "not implemented yet"
+    def delete_all(items, live_resource) do
+      config = live_resource.config(:adapter_config)
+      primary_key = live_resource.config(:primary_key)
+
+      ids = Enum.map(items, &Map.fetch!(&1, primary_key))
+
+      config[:resource]
+      |> Ash.Query.filter(^Ash.Expr.ref(primary_key) in ^ids)
+      |> Ash.bulk_destroy!(:destroy, %{})
+
+      :ok
     end
 
     @doc """

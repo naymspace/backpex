@@ -72,7 +72,9 @@ defmodule Backpex.FormComponent do
   end
 
   def handle_event("validate", %{"change" => change, "_target" => target}, %{assigns: %{action_type: :item}} = socket) do
-    %{assigns: %{item_action_types: item_action_types, live_resource: live_resource, fields: fields} = assigns} = socket
+    %{assigns: %{init_schema: init_schema, fields: fields} = assigns} = socket
+
+    changeset_function = &assigns.action_to_confirm.module.changeset/3
 
     target = Enum.at(target, 1)
 
@@ -81,9 +83,12 @@ defmodule Backpex.FormComponent do
       |> drop_readonly_changes(fields, assigns)
       |> put_upload_change(socket, :validate)
 
+    metadata = Resource.build_changeset_metadata(socket.assigns, target)
+
     changeset =
-      item_action_types
-      |> Resource.change(change, fields, assigns, live_resource, target: target)
+      init_schema
+      |> changeset_function.(change, metadata)
+      |> Map.put(:action, :validate)
 
     form = Phoenix.Component.to_form(changeset, as: :change)
 
@@ -332,19 +337,25 @@ defmodule Backpex.FormComponent do
     %{
       assigns:
         %{
-          live_resource: live_resource,
           selected_items: selected_items,
           action_to_confirm: action_to_confirm,
           return_to: return_to,
-          item_action_types: item_action_types,
-          fields: fields
         } = assigns
     } = socket
 
     result =
-      item_action_types
-      |> Backpex.Resource.change(params, fields, assigns, live_resource)
-      |> Ecto.Changeset.apply_action(:insert)
+      if Backpex.ItemAction.has_form?(action_to_confirm) do
+        changeset_function = &action_to_confirm.module.changeset/3
+
+        metadata = Resource.build_changeset_metadata(assigns)
+
+        assigns.init_schema
+        |> changeset_function.(params, metadata)
+        |> Map.put(:action, :insert)
+        |> Ecto.Changeset.apply_action(:insert)
+      else
+        {:ok, %{}}
+      end
 
     case result do
       {:ok, data} ->

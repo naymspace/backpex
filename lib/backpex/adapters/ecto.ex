@@ -249,6 +249,8 @@ defmodule Backpex.Adapters.Ecto do
     config[:schema]
     |> where([i], field(i, ^primary_key) in ^Enum.map(items, &Map.get(&1, primary_key)))
     |> config[:repo].delete_all()
+
+    :ok
   end
 
   @doc """

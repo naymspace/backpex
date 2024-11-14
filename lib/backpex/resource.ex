@@ -85,8 +85,9 @@ defmodule Backpex.Resource do
     pubsub = live_resource.config(:pubsub)
 
     case adapter.delete_all(items, live_resource) do
-      {_count_, nil} ->
+      :ok ->
         Enum.each(items, fn item -> broadcast({:ok, item}, "deleted", pubsub) end)
+
         {:ok, items}
 
       _error ->
