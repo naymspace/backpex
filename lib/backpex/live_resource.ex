@@ -1224,11 +1224,11 @@ defmodule Backpex.LiveResource do
 
   ## Examples
 
-      iex> Backpex.LiveResource.order_options_by_params(%{"order_by" => "field", "order_direction" => "asc"}, [field: %{}], %{by: :id, direction: :asc}, %{}, [:asc, :desc])
+      iex> Backpex.LiveResource.order_options_by_params(%{"order_by" => "field", "order_direction" => "asc"}, [field: %{}], %{by: :id, direction: :asc}, %{})
       %{order_by: :field, order_direction: :asc}
-      iex> Backpex.LiveResource.order_options_by_params(%{}, [field: %{}], %{by: :id, direction: :desc}, %{}, [:asc, :desc])
+      iex> Backpex.LiveResource.order_options_by_params(%{}, [field: %{}], %{by: :id, direction: :desc}, %{})
       %{order_by: :id, order_direction: :desc}
-      iex> Backpex.LiveResource.order_options_by_params(%{"order_by" => "field", "order_direction" => "asc"}, [field: %{orderable: false}], %{by: :id, direction: :asc}, %{}, [:asc, :desc])
+      iex> Backpex.LiveResource.order_options_by_params(%{"order_by" => "field", "order_direction" => "asc"}, [field: %{orderable: false}], %{by: :id, direction: :asc}, %{})
       %{order_by: :id, order_direction: :asc}
   """
   def order_options_by_params(params, fields, init_order, assigns) do
