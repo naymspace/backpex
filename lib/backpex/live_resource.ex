@@ -1255,7 +1255,7 @@ defmodule Backpex.LiveResource do
     %{order_by: order_by, order_direction: order_direction}
   end
 
-  defp permitted_order_directions(), do: ~w(asc desc)a
+  defp permitted_order_directions, do: ~w(asc desc)a
 
   @doc """
   Returns all orderable fields. A field is orderable by default.
