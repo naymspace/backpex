@@ -39,21 +39,6 @@ if Code.ensure_loaded?(Ash) do
     end
 
     @doc """
-    Gets a database record with the given primary key value.
-
-    Raises an error if no record was found.
-    """
-    @impl Backpex.Adapter
-    def get!(primary_value, _assigns, live_resource) do
-      config = live_resource.config(:adapter_config)
-      primary_key = live_resource.config(:primary_key)
-
-      config[:resource]
-      |> Ash.Query.filter(^Ash.Expr.ref(primary_key) == ^primary_value)
-      |> Ash.read_one!()
-    end
-
-    @doc """
     Returns a list of items by given criteria.
     """
     @impl Backpex.Adapter

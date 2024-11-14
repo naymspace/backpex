@@ -1140,7 +1140,7 @@ defmodule Backpex.LiveResource do
     %{live_resource: live_resource, live_action: live_action} = socket.assigns
 
     item_primary_value = primary_value(socket, item)
-    item = Resource.get(item_primary_value, socket.assigns, live_resource)
+    {:ok, item} = Resource.get(item_primary_value, socket.assigns, live_resource)
 
     socket =
       cond do

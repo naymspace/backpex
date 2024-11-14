@@ -40,24 +40,7 @@ defmodule Backpex.Resource do
   @doc """
   Gets a database record with the given `fields` by the given  `primary_value`.
 
-  Raises `Ecto.NoResultsError` if no record was found.
-
-  ## Parameters
-
-  * `primary_value`: The identifier for the specific item to be fetched.
-  * `assigns` (map): The current assigns of the socket.
-  * `live_resource` (module): The `Backpex.LiveResource` module.
-  """
-  def get!(primary_value, assigns, live_resource) do
-    adapter = live_resource.config(:adapter)
-
-    adapter.get!(primary_value, assigns, live_resource)
-  end
-
-  @doc """
-  Gets a database record with the given `fields` by the given  `primary_value`.
-
-  Returns `nil` if no result was found.
+  Returns `{:ok, nil}` if no result was found.
 
   ## Parameters
 
@@ -68,7 +51,26 @@ defmodule Backpex.Resource do
   def get(primary_value, assigns, live_resource) do
     adapter = live_resource.config(:adapter)
 
-    adapter.get!(primary_value, assigns, live_resource)
+    adapter.get(primary_value, assigns, live_resource)
+  end
+
+  @doc """
+  Gets a database record with the given `fields` by the given  `primary_value`.
+
+  Raises `Backpex.NoResultsError` if no record was found.
+
+  ## Parameters
+
+  * `primary_value`: The identifier for the specific item to be fetched.
+  * `assigns` (map): The current assigns of the socket.
+  * `live_resource` (module): The `Backpex.LiveResource` module.
+  """
+  def get!(primary_value, assigns, live_resource) do
+    case get(primary_value, assigns, live_resource) do
+      {:ok, nil} -> raise Backpex.NoResultsError
+      {:ok, result} -> result
+      {:error, _error} -> raise Backpex.NoResultsError
+    end
   end
 
   @doc """
