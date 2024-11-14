@@ -15,6 +15,10 @@ defmodule Backpex.Field do
       doc: "",
       type: {:fun, 1}
     ],
+    render_form: [
+      doc: "A function to overwrite the template used in forms. It should take `assigns` and return a HEEX template.",
+      type: {:fun, 1}
+    ],
     custom_alias: [
       doc: "",
       type: :atom
