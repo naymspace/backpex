@@ -892,8 +892,6 @@ defmodule Backpex.LiveResource do
 
         select_all = length(updated_selected_items) == length(socket.assigns.items)
 
-        IO.inspect(updated_selected_items, label: :updated_selected_items)
-
         socket =
           socket
           |> assign(:selected_items, updated_selected_items)
