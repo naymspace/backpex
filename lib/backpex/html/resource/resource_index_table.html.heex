@@ -111,7 +111,7 @@
         >
           <div
             :for={{key, action} <- row_item_actions(@item_actions)}
-            :if={LiveResource.can?(assigns, key, item, @live_resource)}
+            :if={@live_resource.can?(assigns, key, item)}
             class="tooltip hover:z-30"
             data-tip={action.module.label(assigns, item)}
           >
