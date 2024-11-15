@@ -339,7 +339,7 @@ defmodule Backpex.FormComponent do
         %{
           selected_items: selected_items,
           action_to_confirm: action_to_confirm,
-          return_to: return_to,
+          return_to: return_to
         } = assigns
     } = socket
 
