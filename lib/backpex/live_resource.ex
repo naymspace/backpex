@@ -1173,17 +1173,17 @@ defmodule Backpex.LiveResource do
   end
 
   defp open_action_confirm_modal(socket, action, key) do
-    base_schema = action.module.base_schema(socket.assigns)
+    base_item = action.module.base_item(socket.assigns)
 
     changeset_function = &action.module.changeset/3
 
     metadata = Resource.build_changeset_metadata(socket.assigns)
 
-    changeset = changeset_function.(base_schema, %{}, metadata)
+    changeset = changeset_function.(base_item, %{}, metadata)
 
     socket =
       socket
-      |> assign(:item_action_base_schema, base_schema)
+      |> assign(:item_action_base_item, base_item)
       |> assign(:changeset_function, changeset_function)
       |> assign(:changeset, changeset)
       |> assign(:action_to_confirm, Map.put(action, :key, key))
