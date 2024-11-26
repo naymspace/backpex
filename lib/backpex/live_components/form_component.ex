@@ -71,7 +71,10 @@ defmodule Backpex.FormComponent do
   end
 
   def handle_event("validate", %{"change" => change, "_target" => target}, %{assigns: %{action_type: :item}} = socket) do
-    %{assigns: %{item_action_types: item_action_types, live_resource: live_resource, fields: fields} = assigns} = socket
+    %{
+      assigns:
+        %{item_action_base_schema: item_action_base_schema, live_resource: live_resource, fields: fields} = assigns
+    } = socket
 
     target = Enum.at(target, 1)
 
@@ -81,7 +84,7 @@ defmodule Backpex.FormComponent do
       |> put_upload_change(socket, :validate)
 
     changeset =
-      item_action_types
+      item_action_base_schema
       |> Resource.change(change, fields, assigns, live_resource, target: target)
 
     form = Phoenix.Component.to_form(changeset, as: :change)
@@ -335,13 +338,13 @@ defmodule Backpex.FormComponent do
           selected_items: selected_items,
           action_to_confirm: action_to_confirm,
           return_to: return_to,
-          item_action_types: item_action_types,
+          item_action_base_schema: item_action_base_schema,
           fields: fields
         } = assigns
     } = socket
 
     result =
-      item_action_types
+      item_action_base_schema
       |> Backpex.Resource.change(params, fields, assigns, live_resource)
       |> Ecto.Changeset.apply_action(:insert)
 

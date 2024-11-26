@@ -22,12 +22,13 @@ defmodule Backpex.ItemAction do
   @callback fields() :: list()
 
   @doc """
-  Initial change. The result will be passed to `c:changeset/3` in order to generate a changeset.
+  The base schema to use for the changeset. The result will be passed as the first parameter to `c:changeset/3' each time it is called.
 
-  This function is optional and can be used to use changesets with schemas in item actions. If this function
-  is not provided a changeset will be generated automatically based on the provided types in `c:fields/0`.
+
+  This function is optional and can be used to use changesets with schemas in item actions. If this function is not provided,
+  a schemaless changeset will be created with the provided types from `c:fields/0`.
   """
-  @callback init_change(assigns :: map()) ::
+  @callback base_schema(assigns :: map()) ::
               Ecto.Schema.t()
               | Ecto.Changeset.t()
               | {Ecto.Changeset.data(), Ecto.Changeset.types()}
@@ -105,12 +106,13 @@ defmodule Backpex.ItemAction do
       def changeset(_change, _attrs, metadata) do
         assigns = Keyword.get(metadata, :assigns)
 
-        init_change(assigns)
+        assigns
+        |> base_schema()
         |> Ecto.Changeset.change()
       end
 
       @impl Backpex.ItemAction
-      def init_change(_assigns) do
+      def base_schema(_assigns) do
         types = Backpex.Field.changeset_types(fields())
 
         {%{}, types}
