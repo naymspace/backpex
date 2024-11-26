@@ -1183,7 +1183,7 @@ defmodule Backpex.LiveResource do
 
     socket =
       socket
-      |> assign(:item_action_base_item, base_item)
+      |> assign(:item, base_item)
       |> assign(:changeset_function, changeset_function)
       |> assign(:changeset, changeset)
       |> assign(:action_to_confirm, Map.put(action, :key, key))
