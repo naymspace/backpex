@@ -22,7 +22,7 @@ defmodule Backpex.ItemAction do
   @callback fields() :: list()
 
   @doc """
-  The base schema to use for the changeset. The result will be passed as the first parameter to `c:changeset/3' each time it is called.
+  The base schema to use for the changeset. The result will be passed as the first parameter to `c:changeset/3` each time it is called.
 
 
   This function is optional and can be used to use changesets with schemas in item actions. If this function is not provided,
