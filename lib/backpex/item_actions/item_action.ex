@@ -34,6 +34,14 @@ defmodule Backpex.ItemAction do
               | {Ecto.Changeset.data(), Ecto.Changeset.types()}
 
   @doc """
+  The initial params for the changeset. The result is passed as the second parameter to `c:changeset/3` the first time it is called.
+
+  This function is optional and can be used to set an initial change, e.g. to pre-populate the form with values.
+  If this function is not provided, an empty map will be used.
+  """
+  @callback init_params(assigns :: map()) :: map()
+
+  @doc """
   The changeset to be used in the resource action. It may be used to validate form inputs.
 
   Additional metadata is passed as a keyword list via the third parameter.
@@ -117,6 +125,9 @@ defmodule Backpex.ItemAction do
 
         {%{}, types}
       end
+
+      @impl Backpex.ItemAction
+      def init_params(_assigns), do: %{}
     end
   end
 end

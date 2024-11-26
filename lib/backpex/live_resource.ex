@@ -1174,12 +1174,13 @@ defmodule Backpex.LiveResource do
 
   defp open_action_confirm_modal(socket, action, key) do
     base_item = action.module.base_item(socket.assigns)
+    init_params = action.module.init_params(socket.assigns)
 
     changeset_function = &action.module.changeset/3
 
     metadata = Resource.build_changeset_metadata(socket.assigns)
 
-    changeset = changeset_function.(base_item, %{}, metadata)
+    changeset = changeset_function.(base_item, init_params, metadata)
 
     socket =
       socket
