@@ -380,7 +380,7 @@ defmodule Backpex.FormComponent do
         Expected: {:ok, socket} or {:error, changeset}
         Got: #{inspect(unexpected_return)}
 
-        Item Actions must return {:ok, socket} or {:error, changeset}.
+        Item Actions with form fields must return {:ok, socket} or {:error, changeset}.
         """
     end
   end
