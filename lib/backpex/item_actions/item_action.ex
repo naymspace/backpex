@@ -74,10 +74,20 @@ defmodule Backpex.ItemAction do
   @callback confirm(assigns :: map()) :: binary()
 
   @doc """
-  Performs the action. It takes the socket and the casted and validated data (received from [`Ecto.Changeset.apply_action/2`](https://hexdocs.pm/ecto/Ecto.Changeset.html#apply_action/2)).
+  Performs the action. It takes the socket, the list of affected items, and the casted and validated data (received from [`Ecto.Changeset.apply_action/2`](https://hexdocs.pm/ecto/Ecto.Changeset.html#apply_action/2)).
+
+  You must return either `{:ok, socket}` or `{:error, changeset}`.
+
+  If `{:ok, socket}` is returned, the action is considered successful by Backpex and the action modal is closed. However, you can add an error flash message to the socket to indicate that something has gone wrong.
+
+  If `{:error, changeset}` is returned, the changeset is used to update the form to display the errors. Note that Backpex already validates the form for you.
+  Therefore it is only necessary in rare cases to perform additional validation and return a changeset from `c:handle/3`.
+  For example, if you are building a duplicate action and can only check for a unique constraint when inserting the duplicate element.
+
+  You are only allowed to return `{:error, changeset}` if the action has a form. Otherwise Backpex will throw an ArgumentError.
   """
   @callback handle(socket :: Phoenix.LiveView.Socket.t(), items :: list(map()), params :: map() | struct()) ::
-              {:noreply, Phoenix.LiveView.Socket.t()} | {:reply, map(), Phoenix.LiveView.Socket.t()}
+              {:ok, Phoenix.LiveView.Socket.t()} | {:error, Ecto.Changeset.t()}
 
   @optional_callbacks confirm: 1, confirm_label: 1, cancel_label: 1, changeset: 3, fields: 0
 

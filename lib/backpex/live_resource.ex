@@ -1199,11 +1199,25 @@ defmodule Backpex.LiveResource do
     %{live_resource: live_resource} = socket.assigns
     items = Enum.filter(items, fn item -> live_resource.can?(socket.assigns, key, item) end)
 
-    socket
-    |> assign(action_to_confirm: nil)
-    |> assign(selected_items: [])
-    |> assign(select_all: false)
-    |> action.module.handle(items, %{})
+    case action.module.handle(socket, items, %{}) do
+      {:ok, socket} ->
+        socket
+        |> assign(action_to_confirm: nil)
+        |> assign(selected_items: [])
+        |> assign(select_all: false)
+
+        {:noreply, socket}
+
+      unexpected_return ->
+        raise ArgumentError, """
+        Invalid return value from #{inspect(action.module)}.handle/3.
+
+        Expected: {:ok, socket}
+        Got: #{inspect(unexpected_return)}
+
+        Item Actions with no form fields must return {:ok, socket}.
+        """
+    end
   end
 
   defp primary_value(socket, item) do

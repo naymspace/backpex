@@ -54,12 +54,18 @@ defmodule Backpex.ResourceAction do
             ) :: Ecto.Changeset.t()
 
   @doc """
-  The handle function for the corresponding action. It receives the socket and casted and validated data (received from [`Ecto.Changeset.apply_action/2`](https://hexdocs.pm/ecto/Ecto.Changeset.html#apply_action/2)) and will be called when the form is valid and submitted.
+  Performs the action. It takes the socket and the casted and validated data (received from [`Ecto.Changeset.apply_action/2`](https://hexdocs.pm/ecto/Ecto.Changeset.html#apply_action/2)).
 
-  It must return either `{:ok, binary()}` or `{:error, binary()}`
+  You must return either `{:ok, socket}` or `{:error, changeset}`.
+
+  If `{:ok, socket}` is returned, the action is considered successful by Backpex and the action modal is closed. However, you can add an error flash message to the socket to indicate that something has gone wrong.
+
+  If `{:error, changeset}` is returned, the changeset is used to update the form to display the errors. Note that Backpex already validates the form for you. Therefore it is only necessary in rare cases to perform additional validation and return a changeset from `c:handle/3`.
+
+  You have to use `Phoenix.LiveView.put_flash/3` along with the socket to show a success or error message.
   """
   @callback handle(socket :: Phoenix.LiveView.Socket.t(), data :: map()) ::
-              {:ok, binary()} | {:error, binary()}
+              {:ok, Phoenix.LiveView.Socket.t()} | {:error, Ecto.Changeset.t()}
 
   @doc """
   Defines `Backpex.ResourceAction` behaviour.

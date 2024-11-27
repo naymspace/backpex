@@ -54,7 +54,11 @@ defmodule DemoWeb.ResourceActions.Upload do
   end
 
   @impl Backpex.ResourceAction
-  def handle(_socket, _data), do: {:ok, "File was uploaded successfully."}
+  def handle(socket, _data) do
+    socket = Phoenix.LiveView.put_flash(socket, :info, "File was uploaded successfully.")
+
+    {:ok, socket}
+  end
 
   defp list_existing_files(_item), do: []
 

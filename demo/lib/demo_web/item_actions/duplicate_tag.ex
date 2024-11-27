@@ -70,6 +70,6 @@ defmodule DemoWeb.ItemActions.DuplicateTag do
           put_flash(socket, :error, "Error while duplicating item.")
       end
 
-    {:noreply, socket}
+    {:ok, socket}
   end
 end
