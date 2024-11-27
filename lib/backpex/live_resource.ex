@@ -1200,7 +1200,7 @@ defmodule Backpex.LiveResource do
     items = Enum.filter(items, fn item -> live_resource.can?(socket.assigns, key, item) end)
 
     case action.module.handle(socket, items, %{}) do
-      {:noreply, socket} ->
+      {:ok, socket} ->
         socket
         |> assign(action_to_confirm: nil)
         |> assign(selected_items: [])
@@ -1212,10 +1212,10 @@ defmodule Backpex.LiveResource do
         raise ArgumentError, """
         Invalid return value from #{inspect(action.module)}.handle/3.
 
-        Expected: {:noreply, socket}
+        Expected: {:ok, socket}
         Got: #{inspect(unexpected_return)}
 
-        Item Actions with no form fields must return {:noreply, socket}.
+        Item Actions with no form fields must return {:ok, socket}.
         """
     end
   end

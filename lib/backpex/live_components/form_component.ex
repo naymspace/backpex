@@ -355,7 +355,7 @@ defmodule Backpex.FormComponent do
 
     with {:ok, data} <- result,
          selected_items <- Enum.filter(selected_items, &live_resource.can?(socket.assigns, action_key, &1)),
-         {:noreply, socket} <- action_to_confirm.module.handle(socket, selected_items, data) do
+         {:ok, socket} <- action_to_confirm.module.handle(socket, selected_items, data) do
       socket
       |> assign(:show_form_errors, false)
       |> assign(:selected_items, [])
@@ -377,10 +377,10 @@ defmodule Backpex.FormComponent do
         raise ArgumentError, """
         Invalid return value from #{inspect(action_to_confirm.module)}.handle/2.
 
-        Expected: {:noreply, socket} or {:error, changeset}
+        Expected: {:ok, socket} or {:error, changeset}
         Got: #{inspect(unexpected_return)}
 
-        Item Actions must return {:noreply, socket} or {:error, changeset}.
+        Item Actions must return {:ok, socket} or {:error, changeset}.
         """
     end
   end
