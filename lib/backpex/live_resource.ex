@@ -622,7 +622,7 @@ defmodule Backpex.LiveResource do
     |> assign(:changeset_function, changeset_function)
     |> assign(:page_title, Backpex.translate({"Edit %{resource}", %{resource: singular_name}}))
     |> assign(:item, item)
-    |> assign_changeset(changeset_function, item, :edit, fields)
+    |> assign_changeset(changeset_function, item, fields, :edit)
   end
 
   defp apply_action(socket, :show) do
@@ -656,7 +656,7 @@ defmodule Backpex.LiveResource do
     |> assign(:page_title, create_button_label)
     |> assign(:fields, fields)
     |> assign(:item, empty_item)
-    |> assign_changeset(changeset_function, empty_item, :new, fields)
+    |> assign_changeset(changeset_function, empty_item, fields, :new)
   end
 
   defp apply_action(socket, :resource_action) do
@@ -681,7 +681,7 @@ defmodule Backpex.LiveResource do
     |> assign(:item, item)
     |> apply_index()
     |> assign(:changeset_function, changeset_function)
-    |> assign_changeset(changeset_function, item, :resource_action, action.module.fields())
+    |> assign_changeset(changeset_function, item, action.module.fields(), :resource_action)
   end
 
   defp apply_item_actions(socket, action) when action in [:index, :resource_action] do
@@ -772,7 +772,7 @@ defmodule Backpex.LiveResource do
     |> apply_index_return_to()
   end
 
-  defp assign_changeset(socket, changeset_function, item, live_action, fields) do
+  defp assign_changeset(socket, changeset_function, item, fields, live_action) do
     metadata = Resource.build_changeset_metadata(socket.assigns)
     changeset = changeset_function.(item, default_attrs(live_action, fields, socket.assigns), metadata)
 
