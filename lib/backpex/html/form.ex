@@ -19,7 +19,7 @@ defmodule Backpex.HTML.Form do
   attr :type, :string,
     default: "text",
     values: ~w(checkbox color date datetime-local email file hidden month number password
-               range radio search select tel text textarea time url week toggle)
+               range radio search select tel text textarea time toggle url week)
 
   attr :field, Phoenix.HTML.FormField, doc: "a form field struct retrieved from the form, for example: @form[:email]"
 
@@ -32,29 +32,29 @@ defmodule Backpex.HTML.Form do
   attr :rest, :global, include: ~w(accept autocomplete capture cols disabled form list max maxlength min minlength
                 multiple pattern placeholder readonly required rows size step)
 
-  attr :class, :string, default: nil, doc: "additional class"
-  attr :input_class, :string, default: nil, doc: "additional class for the input element"
+  attr :class, :any, default: nil, doc: "additional class for the container"
+  attr :input_class, :any, default: nil, doc: "additional class for the input element"
 
-  attr :input_wrapper_class, :string,
+  attr :input_wrapper_class, :any,
     default: nil,
     doc: "additional class for the input wrapper element, currently only used in select type"
 
-  attr :field_options, :map, default: %{}, doc: "field options map"
+  attr :translate_error_fun, :any, default: &Function.identity/1, doc: "TODO"
   attr :hide_errors, :boolean, default: false, doc: "if errors should be hidden"
 
   slot :inner_block
 
-  def field_input(%{field: %Phoenix.HTML.FormField{} = field} = assigns) do
+  def input(%{field: %Phoenix.HTML.FormField{} = field} = assigns) do
     assigns
     |> assign(field: nil, id: assigns.id || field.id)
-    |> assign(:errors, translate_form_errors(field, assigns.field_options))
+    |> assign(:errors, translate_form_errors(field, assigns.translate_error_fun))
     |> assign_new(:name, fn -> if assigns.multiple, do: field.name <> "[]", else: field.name end)
     |> assign_new(:value, fn -> field.value end)
-    |> field_input()
+    |> input()
   end
 
-  def field_input(%{type: "checkbox", value: value} = assigns) do
-    assigns = assign_new(assigns, :checked, fn -> Form.normalize_value("checkbox", value) end)
+  def input(%{type: "checkbox"} = assigns) do
+    assigns = assign_new(assigns, :checked, fn -> Form.normalize_value("checkbox", assigns.value) end)
 
     ~H"""
     <div phx-feedback-for={@name} class={@class}>
@@ -68,12 +68,14 @@ defmodule Backpex.HTML.Form do
               name={@name}
               value="true"
               checked={@checked}
-              class={[
-                "checkbox checkbox-sm phx-no-feedback:checkbox phx-no-feedback:checkbox-primary",
-                @input_class,
-                @errors == [] && "checkbox-primary",
-                @errors != [] && "checkbox-error"
-              ]}
+              class={
+                @input_class ||
+                  [
+                    "checkbox checkbox-sm phx-no-feedback:checkbox phx-no-feedback:checkbox-primary",
+                    @errors == [] && "checkbox-primary",
+                    @errors != [] && "checkbox-error"
+                  ]
+              }
               {@rest}
             />
             <span class="label-text ml-2"><%= @label %></span>
@@ -86,12 +88,14 @@ defmodule Backpex.HTML.Form do
             name={@name}
             value="true"
             checked={@checked}
-            class={[
-              "checkbox checkbox-sm phx-no-feedback:checkbox phx-no-feedback:checkbox-primary",
-              @input_class,
-              @errors == [] && "checkbox-primary",
-              @errors != [] && "checkbox-error"
-            ]}
+            class={
+              @input_class ||
+                [
+                  "checkbox checkbox-sm phx-no-feedback:checkbox phx-no-feedback:checkbox-primary",
+                  @errors == [] && "checkbox-primary",
+                  @errors != [] && "checkbox-error"
+                ]
+            }
             {@rest}
           />
         <% end %>
@@ -101,8 +105,8 @@ defmodule Backpex.HTML.Form do
     """
   end
 
-  def field_input(%{type: "toggle", value: value} = assigns) do
-    assigns = assign_new(assigns, :checked, fn -> Form.normalize_value("checkbox", value) end)
+  def input(%{type: "toggle"} = assigns) do
+    assigns = assign_new(assigns, :checked, fn -> Form.normalize_value("checkbox", assigns.value) end)
 
     ~H"""
     <div phx-feedback-for={@name} class={@class}>
@@ -116,12 +120,14 @@ defmodule Backpex.HTML.Form do
               name={@name}
               value="true"
               checked={@checked}
-              class={[
-                "toggle phx-no-feedback:toggle phx-no-feedback:toggle-primary",
-                @input_class,
-                @errors == [] && "toggle-primary",
-                @errors != [] && "toggle-error"
-              ]}
+              class={
+                @input_class ||
+                  [
+                    "toggle phx-no-feedback:toggle phx-no-feedback:toggle-primary",
+                    @errors == [] && "toggle-primary",
+                    @errors != [] && "toggle-error"
+                  ]
+              }
               {@rest}
             />
             <span class="label-text ml-2"><%= @label %></span>
@@ -134,12 +140,14 @@ defmodule Backpex.HTML.Form do
             name={@name}
             value="true"
             checked={@checked}
-            class={[
-              "toggle phx-no-feedback:toggle phx-no-feedback:toggle-primary",
-              @input_class,
-              @errors == [] && "toggle-primary",
-              @errors != [] && "toggle-error"
-            ]}
+            class={
+              @input_class ||
+                [
+                  "toggle phx-no-feedback:toggle phx-no-feedback:toggle-primary",
+                  @errors == [] && "toggle-primary",
+                  @errors != [] && "toggle-error"
+                ]
+            }
             {@rest}
           />
         <% end %>
@@ -149,20 +157,22 @@ defmodule Backpex.HTML.Form do
     """
   end
 
-  def field_input(%{type: "select"} = assigns) do
+  def input(%{type: "select"} = assigns) do
     ~H"""
     <div phx-feedback-for={@name} class={@class}>
       <div class="form-control">
         <label :if={@label} class="label">
           <span class="label-text"><%= @label %></span>
         </label>
-        <div class={[
-          @input_wrapper_class,
-          "phx-no-feedback:[&>*]:select phx-no-feedback:[&>*]:select-bordered phx-no-feedback:[&>*]:text-base-content",
-          @errors == [] && "[&>*]:select [&>*]:select-bordered [&>*]:text-base-content",
-          @errors != [] && "[&>*]:select [&>*]:select-error [&>*]:bg-error/10 [&>*]:text-error-content"
-        ]}>
-          <select class={["w-full", @input_class]} name={@name} {@rest}>
+        <div class={
+          @input_wrapper_class ||
+            [
+              "phx-no-feedback:[&>*]:select phx-no-feedback:[&>*]:select-bordered phx-no-feedback:[&>*]:text-base-content",
+              @errors == [] && "[&>*]:select [&>*]:select-bordered [&>*]:text-base-content",
+              @errors != [] && "[&>*]:select [&>*]:select-error [&>*]:bg-error/10 [&>*]:text-error-content"
+            ]
+        }>
+          <select class={@input_class || "w-full"} name={@name} {@rest}>
             <option :if={@prompt} value=""><%= @prompt %></option>
             <%= Phoenix.HTML.Form.options_for_select(@options, @value) %>
           </select>
@@ -173,7 +183,7 @@ defmodule Backpex.HTML.Form do
     """
   end
 
-  def field_input(%{type: "textarea"} = assigns) do
+  def input(%{type: "textarea"} = assigns) do
     ~H"""
     <div phx-feedback-for={@name} class={@class}>
       <div class="form-control">
@@ -183,12 +193,14 @@ defmodule Backpex.HTML.Form do
         <textarea
           id={@id}
           name={@name}
-          class={[
-            "textarea phx-no-feedback:textarea phx-no-feedback:textarea-bordered",
-            @input_class,
-            @errors == [] && "textarea-bordered",
-            @errors != [] && "textarea-error bg-error/10"
-          ]}
+          class={
+            @input_class ||
+              [
+                "textarea phx-no-feedback:textarea phx-no-feedback:textarea-bordered",
+                @errors == [] && "textarea-bordered",
+                @errors != [] && "textarea-error bg-error/10"
+              ]
+          }
           {@rest}
         ><%= Phoenix.HTML.Form.normalize_value("textarea", @value) %></textarea>
       </div>
@@ -197,7 +209,7 @@ defmodule Backpex.HTML.Form do
     """
   end
 
-  def field_input(assigns) do
+  def input(assigns) do
     ~H"""
     <div phx-feedback-for={@name} class={@class}>
       <div class="form-control">
@@ -209,15 +221,15 @@ defmodule Backpex.HTML.Form do
           name={@name}
           id={@id}
           value={Phoenix.HTML.Form.normalize_value(@type, @value)}
-          class={[
-            "input phx-no-feedback:input phx-no-feedback:input-bordered",
-            @input_class,
-            @errors == [] && "input-bordered",
-            @errors != [] && "input-error bg-error/10"
-          ]}
-          placeholder={Backpex.Field.placeholder(@field_options, assigns)}
-          phx-debounce={Backpex.Field.debounce(@field_options, assigns)}
-          phx-throttle={Backpex.Field.throttle(@field_options, assigns)}
+          class={
+            @input_class ||
+              [
+                "input phx-no-feedback:input phx-no-feedback:input-bordered",
+                @input_class,
+                @errors == [] && "input-bordered",
+                @errors != [] && "input-error bg-error/10"
+              ]
+          }
           {@rest}
         />
       </div>
@@ -260,7 +272,8 @@ defmodule Backpex.HTML.Form do
   attr :hide_errors, :boolean, default: false, doc: "if errors should be hidden"
 
   def multi_select(assigns) do
-    assigns = assign(assigns, :errors, translate_form_errors(assigns.field, assigns.field_options))
+    translate_error_fun = Map.get(assigns.field_options, :translate_error, &Function.identity/1)
+    assigns = assign(assigns, :errors, translate_form_errors(assigns.field, translate_error_fun))
 
     ~H"""
     <div class="dropdown w-full">
@@ -360,17 +373,14 @@ defmodule Backpex.HTML.Form do
   def form_errors?(false, _form), do: false
   def form_errors?(true = _show_errors, form), do: form.errors != []
 
-  def translate_form_errors(form_field, field_options) do
-    translator_func =
-      case field_options do
-        %{translate_error: translate_error} = _field_options ->
-          fn error -> translate_error.(error) end
-
-        _field_options ->
-          &Function.identity/1
-      end
-
-    Enum.map(form_field.errors, fn error -> translator_func.(error) |> Backpex.translate(:error) end)
+  def translate_form_errors(field = %Phoenix.HTML.FormField{}, translate_error_fun)
+      when is_function(translate_error_fun, 1) do
+    field.errors
+    |> Enum.map(fn error ->
+      error
+      |> translate_error_fun.()
+      |> Backpex.translate(:error)
+    end)
   end
 
   defp selected?(id, selected), do: Enum.any?(selected, fn {_label, value} -> id == value end)

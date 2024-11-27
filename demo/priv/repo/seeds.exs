@@ -22,6 +22,8 @@ insert_list(10, :product)
 
 insert_list(10, :address)
 
+insert_list(10, :ticket)
+
 :code.priv_dir(:demo)
 |> Path.join("repo/film_reviews.csv")
 |> File.stream!()

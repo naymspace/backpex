@@ -59,14 +59,12 @@ defmodule DemoWeb.ItemActions.SoftDelete do
 
   @impl Backpex.ItemAction
   def handle(socket, items, _data) do
-    datetime = DateTime.truncate(DateTime.utc_now(), :second)
+    datetime = DateTime.utc_now(:second)
 
     socket =
       try do
-        %{assigns: %{repo: repo, schema: schema, pubsub: pubsub}} = socket
-
-        {:ok, _items} =
-          Backpex.Resource.update_all(items, repo, schema, [set: [deleted_at: datetime]], "deleted", pubsub)
+        updates = [set: [deleted_at: datetime]]
+        {:ok, _items} = Backpex.Resource.update_all(items, updates, "deleted", socket.assigns.live_resource)
 
         socket
         |> clear_flash()

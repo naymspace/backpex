@@ -188,29 +188,34 @@ defmodule Backpex.Field do
   Defines placeholder value.
   """
   def placeholder(%{placeholder: placeholder}, _assigns) when is_binary(placeholder), do: placeholder
-  def placeholder(%{placeholder: placeholder}, assigns) when is_function(placeholder), do: placeholder.(assigns)
+  def placeholder(%{placeholder: placeholder}, assigns) when is_function(placeholder, 1), do: placeholder.(assigns)
   def placeholder(_field, _assigns), do: nil
 
   @doc """
   Defines debounce timeout value.
   """
   def debounce(%{debounce: debounce}, _assigns) when is_binary(debounce) or is_integer(debounce), do: debounce
-  def debounce(%{debounce: debounce}, assigns) when is_function(debounce), do: debounce.(assigns)
+  def debounce(%{debounce: debounce}, assigns) when is_function(debounce, 1), do: debounce.(assigns)
   def debounce(_field, _assigns), do: nil
 
   @doc """
   Defines throttle timeout value.
   """
   def throttle(%{throttle: throttle}, _assigns) when is_binary(throttle) or is_integer(throttle), do: throttle
-  def throttle(%{throttle: throttle}, assigns) when is_function(throttle), do: throttle.(assigns)
+  def throttle(%{throttle: throttle}, assigns) when is_function(throttle, 1), do: throttle.(assigns)
   def throttle(_field, _assigns), do: nil
 
   @doc """
   Determines whether the field should be rendered as readonly version.
   """
   def readonly?(%{readonly: readonly}, _assigns) when is_boolean(readonly), do: readonly
-  def readonly?(%{readonly: readonly}, assigns) when is_function(readonly), do: readonly.(assigns)
+  def readonly?(%{readonly: readonly}, assigns) when is_function(readonly, 1), do: readonly.(assigns)
   def readonly?(_field_options, _assigns), do: false
+
+  def translate_error_fun(%{translate_error: translate_error}, _assigns) when is_function(translate_error, 1),
+    do: translate_error
+
+  def translate_error_fun(_field_options, _assigns), do: &Function.identity/1
 
   @doc """
   Gets alignment option for label.
@@ -255,33 +260,21 @@ defmodule Backpex.Field do
   Handles index editable.
   """
   def handle_index_editable(socket, value, change) do
-    if not Backpex.LiveResource.can?(socket.assigns, :edit, socket.assigns.item, socket.assigns.live_resource) do
+    %{assigns: %{item: item, live_resource: live_resource, fields: fields} = assigns} = socket
+
+    if not live_resource.can?(assigns, :edit, item) do
       raise Backpex.ForbiddenError
     end
 
-    %{
-      assigns:
-        %{
-          repo: repo,
-          item: item,
-          pubsub: pubsub,
-          changeset_function: changeset_function,
-          live_resource: live_resource,
-          fields: fields
-        } = assigns
-    } = socket
-
     opts = [
-      pubsub: pubsub,
-      assigns: assigns,
-      after_save: fn item ->
+      after_save_fun: fn item ->
         live_resource.on_item_updated(socket, item)
 
         {:ok, item}
       end
     ]
 
-    result = Backpex.Resource.update(item, change, repo, fields, changeset_function, opts)
+    result = Backpex.Resource.update(item, change, fields, assigns, live_resource, opts)
 
     socket =
       case result do

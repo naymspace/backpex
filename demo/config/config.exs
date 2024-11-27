@@ -1,8 +1,34 @@
 import Config
 
+config :spark,
+  formatter: [
+    remove_parens?: true,
+    "Ash.Resource": [
+      section_order: [
+        :postgres,
+        :resource,
+        :code_interface,
+        :actions,
+        :policies,
+        :pub_sub,
+        :preparations,
+        :changes,
+        :validations,
+        :multitenancy,
+        :attributes,
+        :relationships,
+        :calculations,
+        :aggregates,
+        :identities
+      ]
+    ],
+    "Ash.Domain": [section_order: [:resources, :policies, :authorization, :domain, :execution]]
+  ]
+
 config :demo,
   namespace: Demo,
   ecto_repos: [Demo.Repo],
+  ash_domains: [Demo.Helpdesk],
   generators: [binary_id: true]
 
 config :demo, DemoWeb.Endpoint,
@@ -47,6 +73,10 @@ config :sentry,
 config :phoenix, :json_library, Jason
 
 config :demo, DemoWeb.Gettext, default_locale: "en"
+
+config :ash, include_embedded_source_by_default?: false, default_page_type: :keyset
+
+config :ash, :policies, no_filter_static_forbidden_reads?: false
 
 config :backpex, :translator_function, {DemoWeb.CoreComponents, :translate_backpex}
 

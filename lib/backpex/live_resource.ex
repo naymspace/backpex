@@ -1,6 +1,3 @@
-# credo:disable-for-this-file Credo.Check.Refactor.LongQuoteBlocks
-# credo:disable-for-this-file Credo.Check.Refactor.CyclomaticComplexity
-
 defmodule Backpex.LiveResource do
   @moduledoc ~S'''
   A LiveResource makes it easy to manage existing resources in your application. It provides extensive configuration options in order to meet everyone's needs. In connection with `Backpex.Components` you can build an individual admin dashboard on top of your application in minutes.
@@ -10,7 +7,96 @@ defmodule Backpex.LiveResource do
   > When you `use Backpex.LiveResource`, the `Backpex.LiveResource` module will set `@behavior Backpex.LiveResource`. Additionally it will create a LiveView based on the given configuration in order to create fully functional index, show, new and edit views for a resource. It will also insert fallback functions that can be overridden.
   '''
 
+  use Phoenix.LiveView
+  import Backpex.HTML.Resource
+  alias Backpex.Adapters.Ecto, as: EctoAdapter
   alias Backpex.Resource
+  alias Backpex.ResourceAction
+  alias Backpex.Router
+
+  @options_schema [
+    adapter: [
+      doc: "The data layer adapter to use.",
+      type: :atom,
+      default: Backpex.Adapters.Ecto
+    ],
+    adapter_config: [
+      doc: "The configuration for the data layer. See corresponding adapter for possible configuration values.",
+      type: :keyword_list,
+      required: true
+    ],
+    primary_key: [
+      doc: "The primary key used for identifying items.",
+      type: :atom,
+      default: :id
+    ],
+    layout: [
+      doc: "Layout to be used by the LiveResource.",
+      type: :mod_arg,
+      required: true
+    ],
+    pubsub: [
+      doc: "PubSub configuration.",
+      type: :keyword_list,
+      required: true,
+      keys: [
+        name: [
+          doc: "PubSub name of the project.",
+          required: true,
+          type: :atom
+        ],
+        event_prefix: [
+          doc:
+            "The event prefix for Pubsub, to differentiate between events of different resources when subscribed to multiple resources.",
+          required: true,
+          type: :string
+        ],
+        topic: [
+          doc: "The topic for PubSub.",
+          required: true,
+          type: :string
+        ]
+      ]
+    ],
+    per_page_options: [
+      doc: "The page size numbers you can choose from.",
+      type: {:list, :integer},
+      default: [15, 50, 100]
+    ],
+    per_page_default: [
+      doc: "The default page size number.",
+      type: :integer,
+      default: 15
+    ],
+    init_order: [
+      doc: "Order that will be used when no other order options are given.",
+      type: {
+        :or,
+        [
+          {:fun, 1},
+          map: [
+            by: [
+              doc: "The column used for ordering.",
+              type: :atom
+            ],
+            direction: [
+              doc: "The order direction",
+              type: :atom
+            ]
+          ]
+        ]
+      },
+      default: Macro.escape(%{by: :id, direction: :asc})
+    ],
+    fluid?: [
+      type: :boolean,
+      default: false
+    ],
+    full_text_search: [
+      type: :atom,
+      default: nil
+    ]
+  ]
 
   @doc """
   A list of [resource_actions](Backpex.ResourceAction.html) that may be performed on the given resource.
@@ -66,8 +152,7 @@ defmodule Backpex.LiveResource do
 
   The function has to return an `Ecto.Query`. It is recommended to build your `item_query` on top of the incoming query. Otherwise you will likely get binding errors.
   """
-  @callback item_query(query :: Ecto.Query.t(), live_action :: atom(), assigns :: map()) ::
-              Ecto.Query.t()
+  @callback item_query(query :: Ecto.Query.t(), live_action :: atom(), assigns :: map()) :: Ecto.Query.t()
 
   @doc """
   The function that can be used to add content to certain positions on Backpex views. It may also be used to overwrite content.
@@ -132,897 +217,56 @@ defmodule Backpex.LiveResource do
   @callback resource_created_message() :: binary()
 
   @doc """
-  Returns the schema of the live resource.
-  """
-  @callback schema() :: module()
-
-  @doc """
   Uses LiveResource in the current module to make it a LiveResource.
 
       use Backpex.LiveResource,
-        layout: {MyAppWeb.LayoutView, :admin},
-        schema: MyApp.User,
-        repo: MyApp.Repo,
-        update_changeset: &MyApp.User.update_changeset/3,
-        create_changeset: &MyApp.User.create_changeset/3
+        adapter_config: [
+          schema: MyApp.User,
+          repo: MyApp.Repo,
+          update_changeset: &MyApp.User.update_changeset/3,
+          create_changeset: &MyApp.User.create_changeset/3
+        ],
+        layout: {MyAppWeb.LayoutView, :admin}
+        # ...
 
   ## Options
 
-    * `:layout` - Layout to be used by the LiveResource.
-    * `:schema` - Schema for the resource.
-    * `:repo` - Ecto repo that will be used to perform CRUD operations for the given schema.
-    * `:update_changeset` - Changeset to use when updating items. Additional metadata is passed as a keyword list via the third parameter.
-
-      The list of metadata:
-      - `:assigns` - the assigns
-      - `:target` - the name of the `form` target that triggered the changeset call. Default to `nil` if the call was not triggered by a form field.
-    * `:create_changeset` - Changeset to use when creating items. Additional metadata is passed as a keyword list via the third parameter.
-
-      The list of metadata:
-      - `:assigns` - the assigns
-      - `:target` - the name of the `form` target that triggered the changeset call. Default to `nil` if the call was not triggered by a form field.
-    * `:pubsub` - PubSub name of the project.
-    * `:topic` - The topic for PubSub.
-    * `:event_prefix` - The event prefix for Pubsub, to differentiate between events of different resources when subscribed to multiple resources.
-    * `:per_page_options` - The page size numbers you can choose from.
-      Defaults to `[15, 50, 100]`.
-    * `:per_page_default` - The default page size number.
-      Defaults to the first element of the `per_page_options` list.
-    * `:init_order` - Order that will be used when no other order options are given.
-      Defaults to `%{by: :id, direction: :asc}`.
+  #{NimbleOptions.docs(@options_schema)}
   """
   defmacro __using__(opts) do
-    layout = Keyword.fetch!(opts, :layout)
-    schema = Keyword.fetch!(opts, :schema)
-    repo = Keyword.fetch!(opts, :repo)
-
-    pubsub = Keyword.get(opts, :pubsub)
-    topic = Keyword.get(opts, :topic)
-    event_prefix = Keyword.get(opts, :event_prefix)
-
-    update_changeset = Keyword.fetch!(opts, :update_changeset)
-    create_changeset = Keyword.fetch!(opts, :create_changeset)
-
-    per_page_options = Keyword.get(opts, :per_page_options, [15, 50, 100])
-    per_page_default = Keyword.get(opts, :per_page_default, hd(per_page_options))
-
-    init_order = Keyword.get(opts, :init_order, Macro.escape(%{by: :id, direction: :asc}))
-
-    fluid? = Keyword.get(opts, :fluid?, false)
-
-    full_text_search = Keyword.get(opts, :full_text_search)
-
-    quote do
+    quote bind_quoted: [opts: opts, options_schema: @options_schema] do
       @before_compile Backpex.LiveResource
       @behaviour Backpex.LiveResource
 
-      use BackpexWeb, :html
-      use Phoenix.LiveView, layout: unquote(layout)
+      @resource_opts NimbleOptions.validate!(opts, options_schema)
 
-      import Backpex.HTML.Resource
+      @resource_opts[:adapter].validate_config!(@resource_opts[:adapter_config])
+
+      use BackpexWeb, :html
+      use Phoenix.LiveView, layout: @resource_opts[:layout]
+
       import Backpex.LiveResource
       import Phoenix.LiveView.Helpers
       import Ecto.Query
 
-      alias Backpex.Resource
-      alias Backpex.ResourceAction
-      alias Backpex.Router
+      alias Backpex.LiveResource
 
-      require Logger
-
-      @permitted_order_directions ~w(asc desc)a
-      @empty_filter_key :empty_filter
-      @primary_key_field Backpex.Ecto.EctoUtils.get_primary_key_field(unquote(schema))
+      def config(key), do: Keyword.fetch!(@resource_opts, key)
 
       @impl Phoenix.LiveView
-      def mount(params, session, socket) do
-        pubsub = pubsub_settings(unquote(pubsub), unquote(topic), unquote(event_prefix))
-
-        maybe_subscribe(socket, pubsub)
-
-        socket =
-          socket
-          |> assign(:schema, unquote(schema))
-          |> assign(:repo, unquote(repo))
-          |> assign(:pubsub, pubsub)
-          |> assign(:singular_name, singular_name())
-          |> assign(:plural_name, plural_name())
-          |> assign(:create_button_label, create_button_label())
-          |> assign(:resource_created_message, resource_created_message())
-          |> assign(:search_placeholder, search_placeholder())
-          |> assign(:panels, panels())
-          |> assign(:live_resource, __MODULE__)
-          |> assign(:fluid?, unquote(fluid?))
-          |> assign(:full_text_search, unquote(full_text_search))
-          |> assign_active_fields(session)
-          |> assign_metrics_visibility(session)
-          |> assign_filters_changed_status(params)
-
-        {:ok, socket}
-      end
-
-      defp assign_active_fields(socket, session) do
-        fields = filtered_fields_by_action(fields(), socket.assigns, :index)
-        saved_fields = get_in(session, ["backpex", "column_toggle", "#{__MODULE__}"]) || %{}
-
-        active_fields =
-          Enum.map(fields, fn {name, %{label: label}} ->
-            {name,
-             %{
-               active: field_active?(name, saved_fields),
-               label: label
-             }}
-          end)
-
-        socket
-        |> assign(:active_fields, active_fields)
-      end
-
-      defp assign_metrics_visibility(socket, session) do
-        value = get_in(session, ["backpex", "metric_visibility"]) || %{}
-
-        socket
-        |> assign(metric_visibility: value)
-      end
-
-      defp assign_filters_changed_status(socket, params) do
-        %{assigns: %{live_action: live_action}} = socket
-
-        socket
-        |> assign(:filters_changed, live_action == :index and params["filters_changed"] == "true")
-      end
-
-      defp field_active?(name, saved_fields) do
-        case Map.get(saved_fields, Atom.to_string(name)) do
-          "true" ->
-            true
-
-          "false" ->
-            false
-
-          _other ->
-            true
-        end
-      end
+      def mount(params, session, socket), do: LiveResource.mount(params, session, socket)
 
       @impl Phoenix.LiveView
-      def handle_params(params, _url, socket) do
-        socket =
-          socket
-          |> assign(:params, params)
-          |> apply_item_actions(socket.assigns.live_action)
-          |> apply_action(socket.assigns.live_action)
-
-        {:noreply, socket}
-      end
-
-      def apply_action(socket, :index) do
-        socket
-        |> assign(
-          :page_title,
-          socket.assigns.plural_name
-        )
-        |> apply_index()
-        |> assign(:item, nil)
-      end
-
-      def apply_action(socket, :edit) do
-        %{
-          assigns:
-            %{
-              live_action: live_action,
-              singular_name: singular_name,
-              params: params,
-              repo: repo,
-              schema: schema
-            } = assigns
-        } = socket
-
-        fields = filtered_fields_by_action(fields(), assigns, :edit)
-
-        item =
-          URI.decode(params["backpex_id"])
-          |> Resource.get!(repo, schema, &item_query(&1, live_action, assigns), fields)
-
-        unless can?(socket.assigns, :edit, item, __MODULE__),
-          do: raise(Backpex.ForbiddenError)
-
-        socket
-        |> assign(:fields, fields)
-        |> assign(:changeset_function, unquote(update_changeset))
-        |> assign(
-          :page_title,
-          Backpex.translate({"Edit %{resource}", %{resource: singular_name}})
-        )
-        |> assign(:item, item)
-        |> assign_changeset(fields)
-      end
-
-      def apply_action(socket, :show) do
-        %{
-          assigns:
-            %{
-              live_action: live_action,
-              singular_name: singular_name,
-              params: params,
-              repo: repo,
-              schema: schema
-            } = assigns
-        } = socket
-
-        fields = filtered_fields_by_action(fields(), assigns, :show)
-
-        item =
-          URI.decode(params["backpex_id"])
-          |> Resource.get!(repo, schema, &item_query(&1, live_action, assigns), fields)
-
-        unless can?(assigns, :show, item, __MODULE__),
-          do: raise(Backpex.ForbiddenError)
-
-        socket
-        |> assign(
-          :page_title,
-          singular_name
-        )
-        |> assign(:fields, fields)
-        |> assign(:item, item)
-        |> apply_show_return_to(item)
-      end
-
-      def apply_action(socket, :new) do
-        %{
-          assigns: %{schema: schema, singular_name: singular_name, create_button_label: create_button_label} = assigns
-        } = socket
-
-        unless can?(assigns, :new, nil, __MODULE__),
-          do: raise(Backpex.ForbiddenError)
-
-        fields = filtered_fields_by_action(fields(), assigns, :new)
-        empty_item = schema.__struct__()
-
-        socket
-        |> assign(:changeset_function, unquote(create_changeset))
-        |> assign(:page_title, create_button_label)
-        |> assign(:fields, fields)
-        |> assign(:item, empty_item)
-        |> assign_changeset(fields)
-      end
-
-      def apply_action(socket, :resource_action) do
-        id =
-          String.to_existing_atom(
-            socket.assigns.params["backpex_id"]
-            |> URI.decode()
-          )
-
-        action = resource_actions()[id]
-
-        unless can?(socket.assigns, id, nil, __MODULE__),
-          do: raise(Backpex.ForbiddenError)
-
-        socket =
-          socket
-          |> assign(:page_title, ResourceAction.name(action, :title))
-          |> assign(:resource_action, action)
-          |> assign(:resource_action_id, id)
-          |> assign(:item, action.module.init_change(socket.assigns))
-          |> apply_index()
-          |> assign(:changeset_function, &action.module.changeset/3)
-          |> assign_changeset(action.module.fields())
-      end
-
-      def apply_item_actions(socket, action) when action in [:index, :resource_action] do
-        item_actions = item_actions(default_item_actions())
-        assign(socket, :item_actions, item_actions)
-      end
-
-      def apply_item_actions(socket, _action), do: socket
-
-      defp apply_index_return_to(socket) do
-        %{assigns: %{params: params, query_options: query_options} = assigns} = socket
-
-        socket
-        |> assign(
-          :return_to,
-          Router.get_path(socket, __MODULE__, params, :index, query_options)
-        )
-      end
-
-      defp apply_show_return_to(socket, item) do
-        socket
-        |> assign(
-          :return_to,
-          Router.get_path(socket, __MODULE__, socket.assigns.params, :show, item)
-        )
-      end
-
-      defp apply_index(socket) do
-        %{
-          assigns:
-            %{
-              repo: repo,
-              schema: schema,
-              live_action: live_action,
-              params: params
-            } = assigns
-        } = socket
-
-        unless can?(assigns, :index, nil, __MODULE__),
-          do: raise(Backpex.ForbiddenError)
-
-        fields = filtered_fields_by_action(fields(), assigns, :index)
-
-        per_page_options = unquote(per_page_options)
-        per_page_default = unquote(per_page_default)
-        init_order = unquote(init_order)
-
-        filters = Backpex.LiveResource.get_active_filters(__MODULE__, assigns)
-        valid_filter_params = Backpex.LiveResource.get_valid_filters_from_params(params, filters, @empty_filter_key)
-
-        item_count =
-          Resource.count(
-            assigns,
-            &item_query(&1, live_action, assigns),
-            fields,
-            search_options(params, fields, schema),
-            filter_options(valid_filter_params, filters)
-          )
-
-        per_page =
-          params
-          |> parse_integer("per_page", per_page_default)
-          |> value_in_permitted_or_default(per_page_options, per_page_default)
-
-        total_pages = calculate_total_pages(item_count, per_page)
-        page = params |> parse_integer("page", 1) |> validate_page(total_pages)
-
-        page_options = %{page: page, per_page: per_page}
-
-        order_options = order_options_by_params(params, fields, init_order, assigns, @permitted_order_directions)
-
-        query_options =
-          page_options
-          |> Map.merge(order_options)
-          |> maybe_put_search(params)
-          |> Map.put(:filters, Map.get(valid_filter_params, "filters", %{}))
-
-        socket
-        |> assign(:item_count, item_count)
-        |> assign(:query_options, query_options)
-        |> assign(:init_order, init_order)
-        |> assign(:total_pages, total_pages)
-        |> assign(:per_page_options, per_page_options)
-        |> assign(:filters, filters)
-        |> assign(:orderable_fields, orderable_fields(fields))
-        |> assign(:searchable_fields, searchable_fields(fields))
-        |> assign(:resource_actions, resource_actions())
-        |> assign(:action_to_confirm, nil)
-        |> assign(:selected_items, [])
-        |> assign(:select_all, false)
-        |> assign(:fields, fields)
-        |> assign(:changeset_function, unquote(update_changeset))
-        |> maybe_redirect_to_default_filters()
-        |> assign_items(init_order)
-        |> maybe_assign_metrics()
-        |> apply_index_return_to()
-      end
-
-      defp assign_changeset(socket, fields) do
-        %{
-          assigns:
-            %{
-              item: item,
-              changeset_function: changeset_function,
-              live_action: live_action
-            } = assigns
-        } = socket
-
-        metadata = Resource.build_changeset_metadata(assigns)
-
-        changeset =
-          Backpex.LiveResource.call_changeset_function(
-            item,
-            changeset_function,
-            default_attrs(live_action, fields, assigns),
-            metadata
-          )
-
-        socket
-        |> assign(:changeset, changeset)
-      end
-
-      defp default_attrs(:new, fields, %{schema: schema} = assigns) do
-        Enum.reduce(fields, %{}, fn
-          {name, %{default: default} = field_options} = field, attrs ->
-            if field_options.module.association?(field) && schema.__schema__(:association, name).cardinality == :one do
-              owner_key = schema.__schema__(:association, name).owner_key
-
-              Map.put(attrs, owner_key, default.(assigns))
-            else
-              Map.put(attrs, name, default.(assigns))
-            end
-
-          _field, attrs ->
-            attrs
-        end)
-      end
-
-      defp default_attrs(:resource_action, fields, assigns) do
-        Enum.reduce(fields, %{}, fn
-          {name, %{default: default} = _field}, attrs ->
-            Map.put(attrs, name, default.(assigns))
-
-          _field, attrs ->
-            attrs
-        end)
-      end
-
-      defp default_attrs(_live_action, _fields, _assigns), do: %{}
-
-      defp maybe_redirect_to_default_filters(%{assigns: %{filters_changed: false}} = socket) do
-        %{
-          assigns:
-            %{
-              query_options: query_options,
-              params: params,
-              filters: filters
-            } = assigns
-        } = socket
-
-        filters_with_defaults =
-          filters
-          |> Enum.filter(fn {_key, filter_config} ->
-            Map.has_key?(filter_config, :default)
-          end)
-
-        # redirect to default filters if no filters are set and defaults are available
-        if Map.get(query_options, :filters) == %{} and Enum.count(filters_with_defaults) > 0 do
-          default_filter_options =
-            filters_with_defaults
-            |> Enum.map(fn {key, filter_config} ->
-              {key, filter_config.default}
-            end)
-            |> Enum.into(%{}, fn {key, value} ->
-              {Atom.to_string(key), value}
-            end)
-
-          # redirect with updated query options
-          options = Map.put(query_options, :filters, default_filter_options)
-          to = Router.get_path(socket, __MODULE__, params, :index, options)
-          push_navigate(socket, to: to)
-        else
-          socket
-        end
-      end
-
-      defp maybe_redirect_to_default_filters(socket) do
-        socket
-      end
-
-      defp maybe_put_search(query_options, %{"search" => search} = _params)
-           when is_nil(search) or search == "",
-           do: query_options
-
-      defp maybe_put_search(query_options, %{"search" => search} = _params),
-        do: Map.put(query_options, :search, search)
-
-      defp maybe_put_search(query_options, params), do: query_options
-
-      def assign_items(socket, init_order) do
-        assign(socket, :items, list_items(socket, init_order, &item_query/3))
-      end
-
-      defp maybe_assign_metrics(socket) do
-        %{
-          assigns:
-            %{
-              repo: repo,
-              schema: schema,
-              live_action: live_action,
-              live_resource: live_resource,
-              params: params,
-              fields: fields,
-              query_options: query_options,
-              metric_visibility: metric_visibility
-            } = assigns
-        } = socket
-
-        filters = Backpex.LiveResource.get_active_filters(__MODULE__, assigns)
-
-        query =
-          Resource.list_query(
-            assigns,
-            &item_query(&1, live_action, assigns),
-            fields,
-            search: search_options(query_options, fields, schema),
-            filters: filter_options(query_options, filters)
-          )
-
-        metrics =
-          metrics()
-          |> Backpex.Metric.load_data_for_visible(
-            metric_visibility,
-            live_resource,
-            query,
-            repo
-          )
-
-        socket
-        |> assign(metrics: metrics)
-      end
+      def handle_params(params, url, socket), do: LiveResource.handle_params(params, url, socket)
 
       @impl Phoenix.LiveView
-      def handle_event("close-modal", _params, socket) do
-        socket =
-          socket
-          |> push_patch(to: socket.assigns.return_to)
-
-        {:noreply, socket}
-      end
+      def handle_event(event, params, socket), do: LiveResource.handle_event(event, params, socket)
 
       @impl Phoenix.LiveView
-      def handle_event("item-action", %{"action-key" => key, "item-id" => item_id}, socket) do
-        item = Enum.find(socket.assigns.items, fn item -> to_string(primary_key(item)) == to_string(item_id) end)
-
-        socket
-        |> assign(selected_items: [item])
-        |> maybe_handle_item_action(key)
-      end
-
-      def handle_event("item-action", %{"action-key" => key}, socket) do
-        maybe_handle_item_action(socket, key)
-      end
-
-      defp maybe_handle_item_action(socket, key) do
-        key = String.to_existing_atom(key)
-        action = socket.assigns.item_actions[key]
-        items = socket.assigns.selected_items
-
-        if has_modal?(action.module) do
-          open_action_confirm_modal(socket, action, key)
-        else
-          handle_item_action(socket, action, key, items)
-        end
-      end
-
-      defp open_action_confirm_modal(socket, action, key) do
-        init_change = action.module.init_change(socket.assigns)
-        changeset_function = &action.module.changeset/3
-
-        metadata = Resource.build_changeset_metadata(socket.assigns)
-
-        changeset =
-          init_change
-          |> Ecto.Changeset.change()
-          |> call_changeset_function(changeset_function, %{}, metadata)
-
-        socket =
-          socket
-          |> assign(:item_action_types, init_change)
-          |> assign(:changeset_function, changeset_function)
-          |> assign(:changeset, changeset)
-          |> assign(:action_to_confirm, Map.put(action, :key, key))
-
-        {:noreply, socket}
-      end
-
-      defp handle_item_action(socket, action, key, items) do
-        items = Enum.filter(items, fn item -> can?(socket.assigns, key, item, __MODULE__) end)
-
-        socket
-        |> assign(action_to_confirm: nil)
-        |> assign(selected_items: [])
-        |> assign(select_all: false)
-        |> action.module.handle(items, %{})
-      end
+      def handle_info(msg, socket), do: LiveResource.handle_info(msg, socket)
 
       @impl Phoenix.LiveView
-      def handle_event("select-page-size", %{"select_per_page" => %{"value" => per_page}}, socket) do
-        %{assigns: %{query_options: query_options, params: params} = assigns} = socket
-
-        per_page = String.to_integer(per_page)
-
-        to =
-          Router.get_path(
-            socket,
-            __MODULE__,
-            params,
-            :index,
-            Map.merge(query_options, %{per_page: per_page})
-          )
-
-        socket = push_patch(socket, to: to, replace: true)
-
-        {:noreply, socket}
-      end
-
-      @impl Phoenix.LiveView
-      def handle_event("index-search", %{"index_search" => %{"value" => search_input}}, socket) do
-        %{assigns: %{query_options: query_options, params: params} = assigns} = socket
-
-        to =
-          Router.get_path(
-            socket,
-            __MODULE__,
-            params,
-            :index,
-            Map.merge(query_options, %{search: search_input})
-          )
-
-        socket = push_patch(socket, to: to, replace: true)
-
-        {:noreply, socket}
-      end
-
-      @impl Phoenix.LiveView
-      def handle_event("change-filter", params, socket) do
-        query_options = socket.assigns.query_options
-
-        empty_filter_name = Atom.to_string(@empty_filter_key)
-
-        filters =
-          Map.get(query_options, :filters, %{})
-          |> Map.merge(params["filters"])
-          # Filter manually emptied filters and empty filter
-          |> Enum.filter(fn
-            {^empty_filter_name, _value} -> false
-            {_filter, ""} -> false
-            {_filter, %{"start" => "", "end" => ""}} -> false
-            _filter_params -> true
-          end)
-
-        to =
-          Router.get_path(
-            socket,
-            __MODULE__,
-            socket.assigns.params,
-            :index,
-            Map.put(query_options, :filters, filters)
-          )
-
-        socket =
-          socket
-          |> assign(filters_changed: true)
-          |> push_patch(to: to)
-
-        {:noreply, socket}
-      end
-
-      @impl Phoenix.LiveView
-      def handle_event("clear-filter", %{"field" => field}, socket) do
-        %{assigns: %{query_options: query_options, params: params, live_resource: live_resource} = assigns} = socket
-
-        new_query_options =
-          Map.put(
-            query_options,
-            :filters,
-            Map.get(query_options, :filters, %{})
-            |> Map.delete(field)
-            |> Backpex.LiveResource.maybe_put_empty_filter(@empty_filter_key)
-          )
-
-        to = Router.get_path(socket, __MODULE__, params, :index, new_query_options)
-
-        socket =
-          push_patch(socket, to: to)
-          |> assign(params: Map.merge(params, new_query_options))
-          |> assign(query_options: new_query_options)
-          |> assign(filters_changed: true)
-
-        {:noreply, socket}
-      end
-
-      @impl Phoenix.LiveView
-      def handle_event("filter-preset-selected", %{"field" => field, "preset-index" => preset_index} = params, socket) do
-        query_options = socket.assigns.query_options
-        preset_index = String.to_integer(preset_index)
-        field_atom = String.to_existing_atom(field)
-
-        get_preset_values =
-          socket.assigns
-          |> get_in([:filters, field_atom, :presets])
-          |> Enum.at(preset_index)
-          |> Map.get(:values)
-
-        filters =
-          Map.get(query_options, :filters, %{})
-          |> Map.put(field, get_preset_values.())
-          |> Map.drop([Atom.to_string(@empty_filter_key)])
-
-        to =
-          Router.get_path(
-            socket,
-            __MODULE__,
-            socket.assigns.params,
-            :index,
-            Map.put(query_options, :filters, filters)
-          )
-
-        socket =
-          socket
-          |> assign(filters_changed: true)
-          |> push_patch(to: to)
-
-        {:noreply, socket}
-      end
-
-      @impl Phoenix.LiveView
-      def handle_event("update-selected-items", %{"id" => id}, socket) do
-        selected_items = socket.assigns.selected_items
-
-        item = Enum.find(socket.assigns.items, fn item -> to_string(primary_key(item)) == to_string(id) end)
-
-        updated_selected_items =
-          if Enum.member?(selected_items, item) do
-            List.delete(selected_items, item)
-          else
-            [item | selected_items]
-          end
-
-        select_all = length(updated_selected_items) == length(socket.assigns.items)
-
-        socket =
-          socket
-          |> assign(:selected_items, updated_selected_items)
-          |> assign(:select_all, select_all)
-
-        {:noreply, socket}
-      end
-
-      @impl Phoenix.LiveView
-      def handle_event("toggle-item-selection", _params, socket) do
-        select_all = not socket.assigns.select_all
-
-        selected_items =
-          if select_all do
-            socket.assigns.items
-          else
-            []
-          end
-
-        socket =
-          socket
-          |> assign(:select_all, select_all)
-          |> assign(:selected_items, selected_items)
-
-        {:noreply, socket}
-      end
-
-      @impl Phoenix.LiveView
-      def handle_info({"backpex:" <> unquote(event_prefix) <> "created", item}, socket)
-          when socket.assigns.live_action in [:index, :resource_action] do
-        {:noreply, refresh_items(socket)}
-      end
-
-      @impl Phoenix.LiveView
-      def handle_info({"backpex:" <> unquote(event_prefix) <> "deleted", item}, socket)
-          when socket.assigns.live_action in [:index, :resource_action] do
-        if Enum.filter(socket.assigns.items, &(to_string(primary_key(&1)) == to_string(primary_key(item)))) != [] do
-          {:noreply, refresh_items(socket)}
-        else
-          {:noreply, socket}
-        end
-      end
-
-      @impl Phoenix.LiveView
-      def handle_info({"backpex:" <> unquote(event_prefix) <> "updated", item}, socket)
-          when socket.assigns.live_action in [:index, :resource_action, :show] do
-        {:noreply, update_item(socket, item)}
-      end
-
-      @impl Phoenix.LiveView
-      def handle_info({:put_assoc, {key, value} = _assoc}, socket) do
-        changeset = Ecto.Changeset.put_assoc(socket.assigns.changeset, key, value)
-        assocs = Map.get(socket.assigns, :assocs, []) |> Keyword.put(key, value)
-
-        socket =
-          socket
-          |> assign(:assocs, assocs)
-          |> assign(:changeset, changeset)
-
-        {:noreply, socket}
-      end
-
-      @impl Phoenix.LiveView
-      def handle_info({:put_embed, {key, value} = _assoc}, socket) do
-        changeset = Ecto.Changeset.put_embed(socket.assigns.changeset, key, value)
-        embeds = Map.get(socket.assigns, :embeds, []) |> Keyword.put(key, value)
-
-        socket =
-          socket
-          |> assign(:embeds, embeds)
-          |> assign(:changeset, changeset)
-
-        {:noreply, socket}
-      end
-
-      @impl Phoenix.LiveView
-      def handle_info({:update_changeset, changeset}, socket) do
-        {:noreply, assign(socket, :changeset, changeset)}
-      end
-
-      def get_empty_filter_key, do: @empty_filter_key
-
-      def get_primary_key_field, do: @primary_key_field
-
-      defp primary_key(item), do: Map.get(item, @primary_key_field)
-
-      defp primary_key(assigns, item), do: Map.get(item, assigns.primary_key_field)
-
-      defp update_item(socket, %{id: id} = _item) do
-        %{assigns: %{live_action: live_action, repo: repo, schema: schema} = assigns} = socket
-
-        fields = filtered_fields_by_action(fields(), assigns, :show)
-        item = Resource.get(id, repo, schema, &item_query(&1, live_action, assigns), fields)
-
-        socket =
-          cond do
-            live_action in [:index, :resource_action] and item ->
-              items = Enum.map(socket.assigns.items, &if(primary_key(&1) == id, do: item, else: &1))
-
-              assign(socket, :items, items)
-
-            live_action == :show and item ->
-              assign(socket, :item, item)
-
-            true ->
-              socket
-          end
-
-        socket
-      end
-
-      defp refresh_items(socket) do
-        %{
-          assigns:
-            %{
-              schema: schema,
-              live_action: live_action,
-              params: params,
-              fields: fields,
-              query_options: query_options,
-              init_order: init_order
-            } = assigns
-        } = socket
-
-        filters = Backpex.LiveResource.get_active_filters(__MODULE__, assigns)
-        valid_filter_params = Backpex.LiveResource.get_valid_filters_from_params(params, filters, @empty_filter_key)
-
-        item_count =
-          Resource.count(
-            assigns,
-            &item_query(&1, live_action, assigns),
-            fields,
-            search_options(params, fields, schema),
-            filter_options(valid_filter_params, filters)
-          )
-
-        %{page: page, per_page: per_page} = query_options
-        total_pages = calculate_total_pages(item_count, per_page)
-        new_query_options = Map.put(query_options, :page, validate_page(page, total_pages))
-
-        socket
-        |> assign(:item_count, item_count)
-        |> assign(:total_pages, total_pages)
-        |> assign(:query_options, new_query_options)
-        |> assign_items(init_order)
-        |> maybe_assign_metrics()
-      end
-
-      @impl Phoenix.LiveView
-      def render(%{live_action: action} = assigns) when action in [:show, :show_edit] do
-        resource_show(assigns)
-      end
-
-      @impl Phoenix.LiveView
-      def render(%{live_action: action} = assigns) when action in [:new, :edit] do
-        resource_form(assigns)
-      end
-
-      @impl Phoenix.LiveView
-      def render(assigns) do
-        resource_index(assigns)
-      end
+      def render(assigns), do: LiveResource.render(assigns)
 
       @impl Backpex.LiveResource
       def can?(_assigns, _action, _item), do: true
@@ -1049,9 +293,6 @@ defmodule Backpex.LiveResource do
       def create_button_label, do: Backpex.translate({"New %{resource}", %{resource: singular_name()}})
 
       @impl Backpex.LiveResource
-      def schema, do: unquote(schema)
-
-      @impl Backpex.LiveResource
       def resource_created_message,
         do: Backpex.translate({"New %{resource} has been created successfully.", %{resource: singular_name()}})
 
@@ -1067,16 +308,12 @@ defmodule Backpex.LiveResource do
     end
   end
 
+  # credo:disable-for-next-line Credo.Check.Refactor.CyclomaticComplexity
   defmacro __before_compile__(_env) do
     quote do
       import Backpex.HTML.Layout
       import Backpex.HTML.Resource
       alias Backpex.Router
-
-      @impl Phoenix.LiveView
-      def handle_info(_message, socket) do
-        {:noreply, socket}
-      end
 
       @impl Backpex.LiveResource
       def panels, do: []
@@ -1101,7 +338,7 @@ defmodule Backpex.LiveResource do
 
       @impl Backpex.LiveResource
       def return_to(socket, assigns, _action, _item) do
-        Map.get(assigns, :return_to, Router.get_path(socket, __MODULE__, %{}, :index))
+        Map.get(assigns, :return_to, Router.get_path(socket, assigns.live_resource, %{}, :index))
       end
 
       @impl Backpex.LiveResource
@@ -1147,7 +384,7 @@ defmodule Backpex.LiveResource do
         <.main_title class="flex items-center justify-between">
           <%= @singular_name %>
           <.link
-            :if={Backpex.LiveResource.can?(assigns, :edit, @item, @live_resource)}
+            :if={@live_resource.can?(assigns, :edit, @item)}
             class="tooltip hover:z-30"
             data-tip={Backpex.translate("Edit")}
             aria-label={Backpex.translate("Edit")}
@@ -1206,21 +443,777 @@ defmodule Backpex.LiveResource do
     end
   end
 
-  @doc """
-  Returns pubsub settings based on configuration.
-  """
-  def pubsub_settings(false, _topic, _event_prefix), do: false
+  @impl Phoenix.LiveView
+  def mount(params, session, socket) do
+    live_resource = socket.view
+    pubsub = live_resource.config(:pubsub)
+    subscribe_to_topic(socket, pubsub)
 
-  def pubsub_settings(pubsub, topic, event_prefix) do
-    %{name: pubsub, topic: topic, event_prefix: event_prefix}
+    # TODO: move these "config assigns" (and other global assigns) to where they are needed
+    adapter_config = live_resource.config(:adapter_config)
+    fluid? = live_resource.config(:fluid?)
+    full_text_search = live_resource.config(:full_text_search)
+
+    socket =
+      socket
+      |> assign(:live_resource, live_resource)
+      |> assign(:schema, adapter_config[:schema])
+      |> assign(:repo, adapter_config[:repo])
+      |> assign(:singular_name, live_resource.singular_name())
+      |> assign(:plural_name, live_resource.plural_name())
+      |> assign(:create_button_label, live_resource.create_button_label())
+      |> assign(:resource_created_message, live_resource.resource_created_message())
+      |> assign(:search_placeholder, live_resource.search_placeholder())
+      |> assign(:panels, live_resource.panels())
+      |> assign(:fluid?, fluid?)
+      |> assign(:full_text_search, full_text_search)
+      |> assign_active_fields(session)
+      |> assign_metrics_visibility(session)
+      |> assign_filters_changed_status(params)
+
+    {:ok, socket}
+  end
+
+  defp assign_active_fields(socket, session) do
+    fields =
+      socket.assigns.live_resource.fields()
+      |> filtered_fields_by_action(socket.assigns, :index)
+
+    saved_fields = get_in(session, ["backpex", "column_toggle", "#{socket.assigns.live_resource}"]) || %{}
+
+    active_fields =
+      Enum.map(fields, fn {name, %{label: label}} ->
+        {name,
+         %{
+           active: field_active?(name, saved_fields),
+           label: label
+         }}
+      end)
+
+    socket
+    |> assign(:active_fields, active_fields)
+  end
+
+  defp assign_metrics_visibility(socket, session) do
+    value = get_in(session, ["backpex", "metric_visibility"]) || %{}
+
+    socket
+    |> assign(metric_visibility: value)
+  end
+
+  defp assign_filters_changed_status(socket, params) do
+    %{assigns: %{live_action: live_action}} = socket
+
+    socket
+    |> assign(:filters_changed, live_action == :index and params["filters_changed"] == "true")
+  end
+
+  defp field_active?(name, saved_fields) do
+    case Map.get(saved_fields, Atom.to_string(name)) do
+      "true" -> true
+      "false" -> false
+      _other -> true
+    end
+  end
+
+  def assign_items(socket) do
+    %{live_resource: live_resource, fields: fields} = socket.assigns
+
+    criteria = build_criteria(socket.assigns)
+    items = Resource.list(fields, socket.assigns, live_resource, criteria)
+
+    assign(socket, :items, items)
+  end
+
+  defp maybe_assign_metrics(socket) do
+    %{
+      assigns:
+        %{
+          repo: repo,
+          schema: schema,
+          live_action: live_action,
+          live_resource: live_resource,
+          fields: fields,
+          query_options: query_options,
+          metric_visibility: metric_visibility
+        } = assigns
+    } = socket
+
+    filters = active_filters(assigns)
+
+    metrics =
+      socket.assigns.live_resource.metrics()
+      |> Enum.map(fn {key, metric} ->
+        query =
+          EctoAdapter.list_query(
+            assigns,
+            &socket.assigns.live_resource.item_query(&1, live_action, assigns),
+            fields,
+            search: search_options(query_options, fields, schema),
+            filters: filter_options(query_options, filters)
+          )
+
+        case Backpex.Metric.metrics_visible?(metric_visibility, live_resource) do
+          true ->
+            data =
+              query
+              |> Ecto.Query.exclude(:select)
+              |> Ecto.Query.exclude(:preload)
+              |> Ecto.Query.exclude(:group_by)
+              |> metric.module.query(metric.select, repo)
+
+            {key, Map.put(metric, :data, data)}
+
+          _visible ->
+            {key, metric}
+        end
+      end)
+
+    socket
+    |> assign(metrics: metrics)
+  end
+
+  @impl Phoenix.LiveView
+  def render(%{live_action: action} = assigns) when action in [:show] do
+    resource_show(assigns)
+  end
+
+  @impl Phoenix.LiveView
+  def render(%{live_action: action} = assigns) when action in [:new, :edit] do
+    resource_form(assigns)
+  end
+
+  @impl Phoenix.LiveView
+  def render(assigns) do
+    resource_index(assigns)
+  end
+
+  @impl Phoenix.LiveView
+  def handle_params(params, _url, socket) do
+    socket =
+      socket
+      |> assign(:params, params)
+      |> apply_item_actions(socket.assigns.live_action)
+      |> apply_action(socket.assigns.live_action)
+
+    {:noreply, socket}
+  end
+
+  defp apply_action(socket, :index) do
+    socket
+    |> assign(:page_title, socket.assigns.plural_name)
+    |> apply_index()
+    |> assign(:item, nil)
+  end
+
+  defp apply_action(socket, :edit) do
+    %{live_resource: live_resource, singular_name: singular_name} = socket.assigns
+
+    fields = live_resource.fields |> filtered_fields_by_action(socket.assigns, :edit)
+    primary_value = URI.decode(socket.assigns.params["backpex_id"])
+    item = Resource.get!(primary_value, socket.assigns, live_resource)
+
+    if not live_resource.can?(socket.assigns, :edit, item), do: raise(Backpex.ForbiddenError)
+
+    socket
+    |> assign(:fields, fields)
+    |> assign(:changeset_function, live_resource.config(:adapter_config)[:update_changeset])
+    |> assign(:page_title, Backpex.translate({"Edit %{resource}", %{resource: singular_name}}))
+    |> assign(:item, item)
+    |> assign_changeset(fields)
+  end
+
+  defp apply_action(socket, :show) do
+    %{live_resource: live_resource, singular_name: singular_name} = socket.assigns
+
+    fields = live_resource.fields() |> filtered_fields_by_action(socket.assigns, :show)
+    primary_value = URI.decode(socket.assigns.params["backpex_id"])
+    item = Resource.get!(primary_value, socket.assigns, live_resource)
+
+    if not live_resource.can?(socket.assigns, :show, item), do: raise(Backpex.ForbiddenError)
+
+    socket
+    |> assign(:page_title, singular_name)
+    |> assign(:fields, fields)
+    |> assign(:item, item)
+    |> apply_show_return_to(item)
+  end
+
+  defp apply_action(socket, :new) do
+    %{live_resource: live_resource, schema: schema, create_button_label: create_button_label} = socket.assigns
+
+    if not live_resource.can?(socket.assigns, :new, nil), do: raise(Backpex.ForbiddenError)
+
+    fields = live_resource.fields() |> filtered_fields_by_action(socket.assigns, :new)
+    empty_item = schema.__struct__()
+
+    socket
+    |> assign(:changeset_function, live_resource.config(:adapter_config)[:create_changeset])
+    |> assign(:page_title, create_button_label)
+    |> assign(:fields, fields)
+    |> assign(:item, empty_item)
+    |> assign_changeset(fields)
+  end
+
+  defp apply_action(socket, :resource_action) do
+    %{live_resource: live_resource} = socket.assigns
+
+    id =
+      socket.assigns.params["backpex_id"]
+      |> URI.decode()
+      |> String.to_existing_atom()
+
+    action = live_resource.resource_actions()[id]
+
+    if not live_resource.can?(socket.assigns, id, nil), do: raise(Backpex.ForbiddenError)
+
+    socket
+    |> assign(:page_title, ResourceAction.name(action, :title))
+    |> assign(:resource_action, action)
+    |> assign(:resource_action_id, id)
+    |> assign(:item, action.module.init_change(socket.assigns))
+    |> apply_index()
+    |> assign(:changeset_function, &action.module.changeset/3)
+    |> assign_changeset(action.module.fields())
+  end
+
+  defp apply_item_actions(socket, action) when action in [:index, :resource_action] do
+    item_actions = socket.assigns.live_resource.item_actions(default_item_actions())
+    assign(socket, :item_actions, item_actions)
+  end
+
+  defp apply_item_actions(socket, _action), do: socket
+
+  defp apply_index_return_to(socket) do
+    %{live_resource: live_resource, params: params, query_options: query_options} = socket.assigns
+
+    socket
+    |> assign(
+      :return_to,
+      Router.get_path(socket, live_resource, params, :index, query_options)
+    )
+  end
+
+  defp apply_show_return_to(socket, item) do
+    %{live_resource: live_resource, params: params} = socket.assigns
+
+    socket
+    |> assign(:return_to, Router.get_path(socket, live_resource, params, :show, item))
+  end
+
+  defp apply_index(socket) do
+    %{
+      live_resource: live_resource,
+      schema: schema,
+      params: params
+    } = socket.assigns
+
+    if not live_resource.can?(socket.assigns, :index, nil), do: raise(Backpex.ForbiddenError)
+
+    fields = live_resource.fields() |> filtered_fields_by_action(socket.assigns, :index)
+
+    per_page_options = live_resource.config(:per_page_options)
+    per_page_default = live_resource.config(:per_page_default)
+    init_order = live_resource.config(:init_order)
+
+    filters = active_filters(socket.assigns)
+    valid_filter_params = get_valid_filters_from_params(params, filters, empty_filter_key())
+
+    count_criteria = [
+      search: search_options(params, fields, schema),
+      filters: filter_options(valid_filter_params, filters)
+    ]
+
+    item_count = Resource.count(fields, socket.assigns, live_resource, count_criteria)
+
+    per_page =
+      params
+      |> parse_integer("per_page", per_page_default)
+      |> value_in_permitted_or_default(per_page_options, per_page_default)
+
+    total_pages = calculate_total_pages(item_count, per_page)
+    page = params |> parse_integer("page", 1) |> validate_page(total_pages)
+
+    page_options = %{page: page, per_page: per_page}
+
+    order_options = order_options_by_params(params, fields, init_order, socket.assigns)
+
+    query_options =
+      page_options
+      |> Map.merge(order_options)
+      |> maybe_put_search(params)
+      |> Map.put(:filters, Map.get(valid_filter_params, "filters", %{}))
+
+    socket
+    |> assign(:item_count, item_count)
+    |> assign(:query_options, query_options)
+    |> assign(:init_order, init_order)
+    |> assign(:total_pages, total_pages)
+    |> assign(:per_page_options, per_page_options)
+    |> assign(:filters, filters)
+    |> assign(:orderable_fields, orderable_fields(fields))
+    |> assign(:searchable_fields, searchable_fields(fields))
+    |> assign(:resource_actions, live_resource.resource_actions())
+    |> assign(:action_to_confirm, nil)
+    |> assign(:selected_items, [])
+    |> assign(:select_all, false)
+    |> assign(:fields, fields)
+    |> assign(:changeset_function, live_resource.config(:adapter_config)[:update_changeset])
+    |> maybe_redirect_to_default_filters()
+    |> assign_items()
+    |> maybe_assign_metrics()
+    |> apply_index_return_to()
+  end
+
+  defp assign_changeset(socket, fields) do
+    %{item: item, changeset_function: changeset_function, live_action: live_action} = socket.assigns
+
+    metadata = Resource.build_changeset_metadata(socket.assigns)
+    changeset = changeset_function.(item, default_attrs(live_action, fields, socket.assigns), metadata)
+
+    socket
+    |> assign(:changeset, changeset)
+  end
+
+  defp default_attrs(:new, fields, %{schema: schema} = assigns) do
+    Enum.reduce(fields, %{}, fn
+      {name, %{default: default} = field_options} = field, attrs ->
+        if field_options.module.association?(field) && schema.__schema__(:association, name).cardinality == :one do
+          owner_key = schema.__schema__(:association, name).owner_key
+
+          Map.put(attrs, owner_key, default.(assigns))
+        else
+          Map.put(attrs, name, default.(assigns))
+        end
+
+      _field, attrs ->
+        attrs
+    end)
+  end
+
+  defp default_attrs(:resource_action, fields, assigns) do
+    Enum.reduce(fields, %{}, fn
+      {name, %{default: default} = _field}, attrs ->
+        Map.put(attrs, name, default.(assigns))
+
+      _field, attrs ->
+        attrs
+    end)
+  end
+
+  defp default_attrs(_live_action, _fields, _assigns), do: %{}
+
+  defp maybe_redirect_to_default_filters(%{assigns: %{filters_changed: false}} = socket) do
+    %{live_resource: live_resource, query_options: query_options, params: params, filters: filters} = socket.assigns
+
+    filters_with_defaults =
+      filters
+      |> Enum.filter(fn {_key, filter_config} ->
+        Map.has_key?(filter_config, :default)
+      end)
+
+    # redirect to default filters if no filters are set and defaults are available
+    if Map.get(query_options, :filters) == %{} and Enum.count(filters_with_defaults) > 0 do
+      default_filter_options =
+        filters_with_defaults
+        |> Enum.map(fn {key, filter_config} ->
+          {key, filter_config.default}
+        end)
+        |> Enum.into(%{}, fn {key, value} ->
+          {Atom.to_string(key), value}
+        end)
+
+      # redirect with updated query options
+      options = Map.put(query_options, :filters, default_filter_options)
+      to = Router.get_path(socket, live_resource, params, :index, options)
+      push_navigate(socket, to: to)
+    else
+      socket
+    end
+  end
+
+  defp maybe_redirect_to_default_filters(socket) do
+    socket
+  end
+
+  defp maybe_put_search(query_options, %{"search" => search} = _params)
+       when is_nil(search) or search == "",
+       do: query_options
+
+  defp maybe_put_search(query_options, %{"search" => search} = _params),
+    do: Map.put(query_options, :search, search)
+
+  defp maybe_put_search(query_options, _params), do: query_options
+
+  @impl Phoenix.LiveView
+  def handle_event("close-modal", _params, socket) do
+    socket =
+      socket
+      |> push_patch(to: socket.assigns.return_to)
+
+    {:noreply, socket}
+  end
+
+  @impl Phoenix.LiveView
+  def handle_event("item-action", %{"action-key" => key, "item-id" => item_id}, socket) do
+    item =
+      Enum.find(socket.assigns.items, fn item ->
+        to_string(primary_value(socket, item)) == to_string(item_id)
+      end)
+
+    socket
+    |> assign(selected_items: [item])
+    |> maybe_handle_item_action(key)
+  end
+
+  @impl Phoenix.LiveView
+  def handle_event("item-action", %{"action-key" => key}, socket) do
+    maybe_handle_item_action(socket, key)
+  end
+
+  @impl Phoenix.LiveView
+  def handle_event("select-page-size", %{"select_per_page" => %{"value" => per_page}}, socket) do
+    %{query_options: query_options, params: params} = socket.assigns
+
+    per_page = String.to_integer(per_page)
+
+    to =
+      Router.get_path(
+        socket,
+        socket.assigns.live_resource,
+        params,
+        :index,
+        Map.merge(query_options, %{per_page: per_page})
+      )
+
+    socket = push_patch(socket, to: to, replace: true)
+
+    {:noreply, socket}
+  end
+
+  @impl Phoenix.LiveView
+  def handle_event("index-search", %{"index_search" => %{"value" => search_input}}, socket) do
+    %{query_options: query_options, params: params} = socket.assigns
+
+    to =
+      Router.get_path(
+        socket,
+        socket.assigns.live_resource,
+        params,
+        :index,
+        Map.merge(query_options, %{search: search_input})
+      )
+
+    socket = push_patch(socket, to: to, replace: true)
+
+    {:noreply, socket}
+  end
+
+  @impl Phoenix.LiveView
+  def handle_event("change-filter", params, socket) do
+    query_options = socket.assigns.query_options
+
+    empty_filter_name = Atom.to_string(empty_filter_key())
+
+    filters =
+      Map.get(query_options, :filters, %{})
+      |> Map.merge(params["filters"])
+      # Filter manually emptied filters and empty filter
+      |> Enum.filter(fn
+        {^empty_filter_name, _value} -> false
+        {_filter, ""} -> false
+        {_filter, %{"start" => "", "end" => ""}} -> false
+        _filter_params -> true
+      end)
+
+    to =
+      Router.get_path(
+        socket,
+        socket.assigns.live_resource,
+        socket.assigns.params,
+        :index,
+        Map.put(query_options, :filters, filters)
+      )
+
+    socket =
+      socket
+      |> assign(filters_changed: true)
+      |> push_patch(to: to)
+
+    {:noreply, socket}
+  end
+
+  @impl Phoenix.LiveView
+  def handle_event("clear-filter", %{"field" => field}, socket) do
+    %{live_resource: live_resource, query_options: query_options, params: params} = socket.assigns
+
+    new_query_options =
+      Map.put(
+        query_options,
+        :filters,
+        Map.get(query_options, :filters, %{})
+        |> Map.delete(field)
+        |> maybe_put_empty_filter(empty_filter_key())
+      )
+
+    to = Router.get_path(socket, live_resource, params, :index, new_query_options)
+
+    socket =
+      push_patch(socket, to: to)
+      |> assign(params: Map.merge(params, new_query_options))
+      |> assign(query_options: new_query_options)
+      |> assign(filters_changed: true)
+
+    {:noreply, socket}
+  end
+
+  @impl Phoenix.LiveView
+  def handle_event("filter-preset-selected", %{"field" => field, "preset-index" => preset_index} = _params, socket) do
+    query_options = socket.assigns.query_options
+    preset_index = String.to_integer(preset_index)
+    field_atom = String.to_existing_atom(field)
+
+    get_preset_values =
+      socket.assigns
+      |> get_in([:filters, field_atom, :presets])
+      |> Enum.at(preset_index)
+      |> Map.get(:values)
+
+    filters =
+      Map.get(query_options, :filters, %{})
+      |> Map.put(field, get_preset_values.())
+      |> Map.drop([Atom.to_string(empty_filter_key())])
+
+    to =
+      Router.get_path(
+        socket,
+        socket.assigns.live_resource,
+        socket.assigns.params,
+        :index,
+        Map.put(query_options, :filters, filters)
+      )
+
+    socket =
+      socket
+      |> assign(filters_changed: true)
+      |> push_patch(to: to)
+
+    {:noreply, socket}
+  end
+
+  @impl Phoenix.LiveView
+  def handle_event("update-selected-items", %{"id" => id}, socket) do
+    selected_items = socket.assigns.selected_items
+
+    item = Enum.find(socket.assigns.items, fn item -> to_string(primary_value(socket, item)) == to_string(id) end)
+
+    updated_selected_items =
+      if Enum.member?(selected_items, item) do
+        List.delete(selected_items, item)
+      else
+        [item | selected_items]
+      end
+
+    select_all = length(updated_selected_items) == length(socket.assigns.items)
+
+    socket =
+      socket
+      |> assign(:selected_items, updated_selected_items)
+      |> assign(:select_all, select_all)
+
+    {:noreply, socket}
+  end
+
+  @impl Phoenix.LiveView
+  def handle_event("toggle-item-selection", _params, socket) do
+    select_all = not socket.assigns.select_all
+
+    selected_items =
+      if select_all do
+        socket.assigns.items
+      else
+        []
+      end
+
+    socket =
+      socket
+      |> assign(:select_all, select_all)
+      |> assign(:selected_items, selected_items)
+
+    {:noreply, socket}
+  end
+
+  @impl Phoenix.LiveView
+  def handle_info({:put_assoc, {key, value} = _assoc}, socket) do
+    changeset = Ecto.Changeset.put_assoc(socket.assigns.changeset, key, value)
+    assocs = Map.get(socket.assigns, :assocs, []) |> Keyword.put(key, value)
+
+    socket =
+      socket
+      |> assign(:assocs, assocs)
+      |> assign(:changeset, changeset)
+
+    {:noreply, socket}
+  end
+
+  @impl Phoenix.LiveView
+  def handle_info({:put_embed, {key, value} = _assoc}, socket) do
+    changeset = Ecto.Changeset.put_embed(socket.assigns.changeset, key, value)
+    embeds = Map.get(socket.assigns, :embeds, []) |> Keyword.put(key, value)
+
+    socket =
+      socket
+      |> assign(:embeds, embeds)
+      |> assign(:changeset, changeset)
+
+    {:noreply, socket}
+  end
+
+  @impl Phoenix.LiveView
+  def handle_info({:update_changeset, changeset}, socket) do
+    {:noreply, assign(socket, :changeset, changeset)}
+  end
+
+  @impl Phoenix.LiveView
+  def handle_info({"backpex:" <> event, item}, socket) do
+    event_prefix = socket.assigns.live_resource.config(:pubsub)[:event_prefix]
+    ^event_prefix <> event_type = event
+
+    handle_backpex_info({event_type, item}, socket)
+  end
+
+  @impl Phoenix.LiveView
+  def handle_info(_msg, socket) do
+    {:noreply, socket}
+  end
+
+  defp handle_backpex_info({"created", _item}, socket) when socket.assigns.live_action in [:index, :resource_action] do
+    {:noreply, refresh_items(socket)}
+  end
+
+  defp handle_backpex_info({"deleted", item}, socket) when socket.assigns.live_action in [:index, :resource_action] do
+    %{items: items} = socket.assigns
+
+    if Enum.filter(items, &(to_string(primary_value(socket, &1)) == to_string(primary_value(socket, item)))) != [] do
+      {:noreply, refresh_items(socket)}
+    else
+      {:noreply, socket}
+    end
+  end
+
+  defp handle_backpex_info({"updated", item}, socket)
+       when socket.assigns.live_action in [:index, :resource_action, :show] do
+    {:noreply, update_item(socket, item)}
+  end
+
+  defp refresh_items(socket) do
+    %{
+      live_resource: live_resource,
+      schema: schema,
+      params: params,
+      fields: fields,
+      query_options: query_options
+    } = socket.assigns
+
+    filters = active_filters(socket.assigns)
+    valid_filter_params = get_valid_filters_from_params(params, filters, empty_filter_key())
+
+    count_criteria = [
+      search: search_options(params, fields, schema),
+      filters: filter_options(valid_filter_params, filters)
+    ]
+
+    item_count = Resource.count(fields, socket.assigns, live_resource, count_criteria)
+    %{page: page, per_page: per_page} = query_options
+    total_pages = calculate_total_pages(item_count, per_page)
+    new_query_options = Map.put(query_options, :page, validate_page(page, total_pages))
+
+    socket
+    |> assign(:item_count, item_count)
+    |> assign(:total_pages, total_pages)
+    |> assign(:query_options, new_query_options)
+    |> assign_items()
+    |> maybe_assign_metrics()
+  end
+
+  defp update_item(socket, item) do
+    %{live_resource: live_resource, live_action: live_action} = socket.assigns
+
+    item_primary_value = primary_value(socket, item)
+    item = Resource.get(item_primary_value, socket.assigns, live_resource)
+
+    socket =
+      cond do
+        live_action in [:index, :resource_action] and item ->
+          items =
+            Enum.map(socket.assigns.items, &if(primary_value(socket, &1) == item_primary_value, do: item, else: &1))
+
+          assign(socket, :items, items)
+
+        live_action == :show and item ->
+          assign(socket, :item, item)
+
+        true ->
+          socket
+      end
+
+    socket
+  end
+
+  defp maybe_handle_item_action(socket, key) do
+    key = String.to_existing_atom(key)
+    action = socket.assigns.item_actions[key]
+    items = socket.assigns.selected_items
+
+    if has_modal?(action.module) do
+      open_action_confirm_modal(socket, action, key)
+    else
+      handle_item_action(socket, action, key, items)
+    end
+  end
+
+  defp open_action_confirm_modal(socket, action, key) do
+    init_change = action.module.init_change(socket.assigns)
+    changeset_function = &action.module.changeset/3
+
+    metadata = Resource.build_changeset_metadata(socket.assigns)
+
+    changeset =
+      init_change
+      |> Ecto.Changeset.change()
+      |> changeset_function.(%{}, metadata)
+
+    socket =
+      socket
+      |> assign(:item_action_types, init_change)
+      |> assign(:changeset_function, changeset_function)
+      |> assign(:changeset, changeset)
+      |> assign(:action_to_confirm, Map.put(action, :key, key))
+
+    {:noreply, socket}
+  end
+
+  defp handle_item_action(socket, action, key, items) do
+    %{live_resource: live_resource} = socket.assigns
+    items = Enum.filter(items, fn item -> live_resource.can?(socket.assigns, key, item) end)
+
+    socket
+    |> assign(action_to_confirm: nil)
+    |> assign(selected_items: [])
+    |> assign(select_all: false)
+    |> action.module.handle(items, %{})
+  end
+
+  defp primary_value(socket, item) do
+    primary_key = socket.assigns.live_resource.config(:primary_key)
+
+    Map.get(item, primary_key)
   end
 
   @doc """
-  Maybe subscribes to pubsub.
+  Subscribes to pubsub topic.
   """
-  def maybe_subscribe(_socket, false), do: :ok
-
-  def maybe_subscribe(socket, %{name: name, topic: topic}) do
+  def subscribe_to_topic(socket, name: name, topic: topic, event_prefix: _event_prefix) do
     if Phoenix.LiveView.connected?(socket) do
       Phoenix.PubSub.subscribe(name, topic)
     end
@@ -1231,14 +1224,14 @@ defmodule Backpex.LiveResource do
 
   ## Examples
 
-      iex> Backpex.LiveResource.order_options_by_params(%{"order_by" => "field", "order_direction" => "asc"}, [field: %{}], %{by: :id, direction: :asc}, %{}, [:asc, :desc])
+      iex> Backpex.LiveResource.order_options_by_params(%{"order_by" => "field", "order_direction" => "asc"}, [field: %{}], %{by: :id, direction: :asc}, %{})
       %{order_by: :field, order_direction: :asc}
-      iex> Backpex.LiveResource.order_options_by_params(%{}, [field: %{}], %{by: :id, direction: :desc}, %{}, [:asc, :desc])
+      iex> Backpex.LiveResource.order_options_by_params(%{}, [field: %{}], %{by: :id, direction: :desc}, %{})
       %{order_by: :id, order_direction: :desc}
-      iex> Backpex.LiveResource.order_options_by_params(%{"order_by" => "field", "order_direction" => "asc"}, [field: %{orderable: false}], %{by: :id, direction: :asc}, %{}, [:asc, :desc])
+      iex> Backpex.LiveResource.order_options_by_params(%{"order_by" => "field", "order_direction" => "asc"}, [field: %{orderable: false}], %{by: :id, direction: :asc}, %{})
       %{order_by: :id, order_direction: :asc}
   """
-  def order_options_by_params(params, fields, init_order, assigns, permitted_order_directions) do
+  def order_options_by_params(params, fields, init_order, assigns) do
     init_order = resolve_init_order(init_order, assigns)
 
     order_by =
@@ -1255,12 +1248,14 @@ defmodule Backpex.LiveResource do
       |> Map.get("order_direction")
       |> maybe_to_atom()
       |> value_in_permitted_or_default(
-        permitted_order_directions,
+        permitted_order_directions(),
         Map.get(init_order, :direction)
       )
 
     %{order_by: order_by, order_direction: order_direction}
   end
+
+  defp permitted_order_directions, do: ~w(asc desc)a
 
   @doc """
   Returns all orderable fields. A field is orderable by default.
@@ -1358,6 +1353,8 @@ defmodule Backpex.LiveResource do
 
   def filter_options(_no_filters_present, _filter_configs), do: %{}
 
+  def empty_filter_key, do: :empty_filter
+
   @doc """
   Checks whether a field is orderable or not.
 
@@ -1375,20 +1372,14 @@ defmodule Backpex.LiveResource do
   def orderable?(field) when is_nil(field), do: false
   def orderable?({_name, field_options}), do: Map.get(field_options, :orderable, true)
 
-  @doc """
-  List all items for current page with filters and search applied.
-  """
-  def list_items(socket, init_order, item_query) do
+  defp build_criteria(assigns) do
     %{
-      assigns:
-        %{
-          schema: schema,
-          fields: fields,
-          live_action: live_action,
-          filters: filters,
-          query_options: query_options
-        } = assigns
-    } = socket
+      schema: schema,
+      fields: fields,
+      filters: filters,
+      query_options: query_options,
+      init_order: init_order
+    } = assigns
 
     field = Enum.find(fields, fn {name, _field_options} -> name == query_options.order_by end)
 
@@ -1408,15 +1399,12 @@ defmodule Backpex.LiveResource do
         |> Map.put(:schema, schema)
       end
 
-    Resource.list(
-      assigns,
-      &item_query.(&1, live_action, assigns),
-      fields,
+    [
       order: order,
       pagination: %{page: query_options.page, size: query_options.per_page},
       search: search_options(query_options, fields, schema),
       filters: filter_options(query_options, filters)
-    )
+    ]
   end
 
   @doc """
@@ -1553,14 +1541,7 @@ defmodule Backpex.LiveResource do
     if value in permitted, do: value, else: default
   end
 
-  @doc """
-  Checks whether user is allowed to perform provided action or not
-  """
-  def can?(assigns, action, item, module) do
-    module.can?(assigns, action, item)
-  end
-
-  def default_item_actions do
+  defp default_item_actions do
     [
       show: %{
         module: Backpex.ItemActions.Show,
@@ -1577,42 +1558,35 @@ defmodule Backpex.LiveResource do
     ]
   end
 
-  @doc """
-  Calls the changeset function with the given change and target.
-  """
-  def call_changeset_function(item, changeset_function, change, metadata) do
-    changeset_function.(item, change, metadata)
-  end
-
-  def maybe_put_empty_filter(%{} = filters, empty_filter_key) when filters == %{} do
+  defp maybe_put_empty_filter(%{} = filters, empty_filter_key) when filters == %{} do
     Map.put(filters, Atom.to_string(empty_filter_key), true)
   end
 
-  def maybe_put_empty_filter(filters, _empty_filter_key) do
+  defp maybe_put_empty_filter(filters, _empty_filter_key) do
     filters
   end
 
   @doc """
   Returns list of filter options from query options
   """
-  def get_filter_options(module, query_options) do
+  def get_filter_options(query_options) do
     query_options
     |> Map.get(:filters, %{})
-    |> Map.drop([Atom.to_string(module.get_empty_filter_key())])
+    |> Map.drop([Atom.to_string(empty_filter_key())])
   end
 
   @doc """
   Returns list of active filters.
   """
-  def get_active_filters(module, assigns) do
-    filters = module.filters(assigns)
+  def active_filters(assigns) do
+    filters = assigns.live_resource.filters(assigns)
 
     Enum.filter(filters, fn {key, option} ->
-      module.get_empty_filter_key() != key and option.module.can?(assigns)
+      empty_filter_key() != key and option.module.can?(assigns)
     end)
   end
 
-  def get_valid_filters_from_params(%{"filters" => filters} = params, valid_filters, empty_filter_key) do
+  defp get_valid_filters_from_params(%{"filters" => filters} = params, valid_filters, empty_filter_key) do
     valid_filters = Keyword.put(valid_filters, empty_filter_key, %{})
 
     filters =
@@ -1632,7 +1606,7 @@ defmodule Backpex.LiveResource do
     Map.put(params, "filters", filters)
   end
 
-  def get_valid_filters_from_params(_params, _valid_filters, _empty_filter_key), do: %{}
+  defp get_valid_filters_from_params(_params, _valid_filters, _empty_filter_key), do: %{}
 
   defp maybe_to_atom(nil), do: nil
   defp maybe_to_atom(value), do: String.to_existing_atom(value)

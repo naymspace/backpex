@@ -1,6 +1,6 @@
 import Config
 import System, only: [get_env: 1, get_env: 2, fetch_env!: 1]
-import String, only: [to_integer: 1, to_atom: 1, to_existing_atom: 1, split: 2]
+import String, only: [to_integer: 1, to_atom: 1, to_existing_atom: 1]
 
 config :demo, analytics: get_env("ANALYTICS", "false") |> to_existing_atom()
 

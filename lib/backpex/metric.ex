@@ -37,28 +37,4 @@ defmodule Backpex.Metric do
       extra_class -> class <> " " <> extra_class
     end
   end
-
-  @doc """
-  Load and append the corresponding metric value(s) via the module's query for
-  every metric in the given list. Query's are only performed if metrics are
-  marked as visible for the give live resource.
-  """
-  def load_data_for_visible(metrics, visibility, resource, query, repo) do
-    Enum.map(metrics, fn {key, metric} ->
-      case metrics_visible?(visibility, resource) do
-        true ->
-          data =
-            query
-            |> Ecto.Query.exclude(:select)
-            |> Ecto.Query.exclude(:preload)
-            |> Ecto.Query.exclude(:group_by)
-            |> metric.module.query(metric.select, repo)
-
-          {key, Map.put(metric, :data, data)}
-
-        _visible ->
-          {key, metric}
-      end
-    end)
-  end
 end
