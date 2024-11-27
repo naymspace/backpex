@@ -74,12 +74,11 @@ defmodule Backpex.ItemAction do
   @callback confirm(assigns :: map()) :: binary()
 
   @doc """
-  Performs the action. It takes the socket and the casted and validated data (received from [`Ecto.Changeset.apply_action/2`](https://hexdocs.pm/ecto/Ecto.Changeset.html#apply_action/2)).
+  Performs the action. It takes the socket, the list of affected items, and the casted and validated data (received from [`Ecto.Changeset.apply_action/2`](https://hexdocs.pm/ecto/Ecto.Changeset.html#apply_action/2)).
 
   You must return either `{:noreply, socket}` or `{:error, changeset}`.
 
-  If `{:noreply, socket}` is returned, the action is considered successful by Backpex and the action modal is closed.
-  However, you can add an error flash message to the socket to indicate that something has gone wrong.
+  If `{:noreply, socket}` is returned, the action is considered successful by Backpex and the action modal is closed. However, you can add an error flash message to the socket to indicate that something has gone wrong.
 
   If `{:error, changeset}` is returned, the changeset is used to update the form to display the errors. Note that Backpex already validates the form for you.
   Therefore it is only necessary in rare cases to perform additional validation and return a changeset from `c:handle/3`.
