@@ -372,6 +372,16 @@ defmodule Backpex.FormComponent do
           |> assign(:form, form)
 
         {:noreply, socket}
+
+      unexpected_return ->
+        raise ArgumentError, """
+        Invalid return value from #{inspect(action_to_confirm.module)}.handle/2.
+
+        Expected: {:noreply, socket} or {:error, changeset}
+        Got: #{inspect(unexpected_return)}
+
+        Item Actions must return {:noreply, socket} or {:error, changeset}.
+        """
     end
   end
 
