@@ -615,12 +615,14 @@ defmodule Backpex.LiveResource do
 
     if not live_resource.can?(socket.assigns, :edit, item), do: raise(Backpex.ForbiddenError)
 
+    changeset_function = live_resource.config(:adapter_config)[:update_changeset]
+
     socket
     |> assign(:fields, fields)
-    |> assign(:changeset_function, live_resource.config(:adapter_config)[:update_changeset])
+    |> assign(:changeset_function, changeset_function)
     |> assign(:page_title, Backpex.translate({"Edit %{resource}", %{resource: singular_name}}))
     |> assign(:item, item)
-    |> assign_changeset(fields)
+    |> assign_changeset(changeset_function, item, :edit, fields)
   end
 
   defp apply_action(socket, :show) do
@@ -647,12 +649,14 @@ defmodule Backpex.LiveResource do
     fields = live_resource.fields() |> filtered_fields_by_action(socket.assigns, :new)
     empty_item = schema.__struct__()
 
+    changeset_function = live_resource.config(:adapter_config)[:create_changeset]
+
     socket
-    |> assign(:changeset_function, live_resource.config(:adapter_config)[:create_changeset])
+    |> assign(:changeset_function, changeset_function)
     |> assign(:page_title, create_button_label)
     |> assign(:fields, fields)
     |> assign(:item, empty_item)
-    |> assign_changeset(fields)
+    |> assign_changeset(changeset_function, empty_item, :new, fields)
   end
 
   defp apply_action(socket, :resource_action) do
@@ -667,14 +671,17 @@ defmodule Backpex.LiveResource do
 
     if not live_resource.can?(socket.assigns, id, nil), do: raise(Backpex.ForbiddenError)
 
+    changeset_function = &action.module.changeset/3
+    item = action.module.base_item(socket.assigns)
+
     socket
     |> assign(:page_title, ResourceAction.name(action, :title))
     |> assign(:resource_action, action)
     |> assign(:resource_action_id, id)
-    |> assign(:item, action.module.base_item(socket.assigns))
+    |> assign(:item, item)
     |> apply_index()
-    |> assign(:changeset_function, &action.module.changeset/3)
-    |> assign_changeset(action.module.fields())
+    |> assign(:changeset_function, changeset_function)
+    |> assign_changeset(changeset_function, item, :resource_action, action.module.fields())
   end
 
   defp apply_item_actions(socket, action) when action in [:index, :resource_action] do
@@ -765,14 +772,11 @@ defmodule Backpex.LiveResource do
     |> apply_index_return_to()
   end
 
-  defp assign_changeset(socket, fields) do
-    %{item: item, changeset_function: changeset_function, live_action: live_action} = socket.assigns
-
+  defp assign_changeset(socket, changeset_function, item, live_action, fields) do
     metadata = Resource.build_changeset_metadata(socket.assigns)
     changeset = changeset_function.(item, default_attrs(live_action, fields, socket.assigns), metadata)
 
-    socket
-    |> assign(:changeset, changeset)
+    assign(socket, :changeset, changeset)
   end
 
   defp default_attrs(:new, fields, %{schema: schema} = assigns) do
