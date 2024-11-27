@@ -46,7 +46,7 @@ defmodule DemoWeb.ItemActions.DuplicateTag do
   end
 
   @impl Backpex.ItemAction
-  def init_change(assigns) do
+  def base_schema(assigns) do
     [item | _other] = assigns.selected_items
 
     item
