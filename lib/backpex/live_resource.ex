@@ -672,7 +672,7 @@ defmodule Backpex.LiveResource do
     if not live_resource.can?(socket.assigns, id, nil), do: raise(Backpex.ForbiddenError)
 
     changeset_function = &action.module.changeset/3
-    item = action.module.base_item(socket.assigns)
+    item = action.module.base_schema(socket.assigns)
 
     socket
     |> assign(:page_title, ResourceAction.name(action, :title))
@@ -1177,17 +1177,17 @@ defmodule Backpex.LiveResource do
   end
 
   defp open_action_confirm_modal(socket, action, key) do
-    base_item = action.module.base_item(socket.assigns)
+    base_schema = action.module.base_schema(socket.assigns)
 
     changeset_function = &action.module.changeset/3
 
     metadata = Resource.build_changeset_metadata(socket.assigns)
 
-    changeset = changeset_function.(base_item, %{}, metadata)
+    changeset = changeset_function.(base_schema, %{}, metadata)
 
     socket =
       socket
-      |> assign(:item, base_item)
+      |> assign(:item, base_schema)
       |> assign(:changeset_function, changeset_function)
       |> assign(:changeset, changeset)
       |> assign(:action_to_confirm, Map.put(action, :key, key))

@@ -5,7 +5,7 @@ defmodule Backpex.ResourceAction do
   > #### `use Backpex.ResourceAction` {: .info}
   >
   > When you `use Backpex.ResourceAction`, the `Backpex.ResourceAction` module will set `@behavior Backpex.ResourceAction`.
-  > In addition it will implement the `c:base_item/1` function in order to generate a schemaless changeset by default.
+  > In addition it will implement the `c:base_schema/1` function in order to generate a schemaless changeset by default.
   '''
 
   @doc """
@@ -30,7 +30,7 @@ defmodule Backpex.ResourceAction do
   This function is optional and can be used to use changesets with schemas in item actions. If this function is not provided,
   a schemaless changeset will be created with the provided types from `c:fields/0`.
   """
-  @callback base_item(assigns :: map()) ::
+  @callback base_schema(assigns :: map()) ::
               Ecto.Schema.t()
               | Ecto.Changeset.t()
               | {Ecto.Changeset.data(), Ecto.Changeset.types()}
@@ -69,7 +69,7 @@ defmodule Backpex.ResourceAction do
       @behaviour Backpex.ResourceAction
 
       @impl Backpex.ResourceAction
-      def base_item(_assigns) do
+      def base_schema(_assigns) do
         types = Backpex.Field.changeset_types(fields())
 
         {%{}, types}

@@ -28,7 +28,7 @@ defmodule Backpex.ItemAction do
   This function is optional and can be used to use changesets with schemas in item actions. If this function is not provided,
   a schemaless changeset will be created with the provided types from `c:fields/0`.
   """
-  @callback base_item(assigns :: map()) ::
+  @callback base_schema(assigns :: map()) ::
               Ecto.Schema.t()
               | Ecto.Changeset.t()
               | {Ecto.Changeset.data(), Ecto.Changeset.types()}
@@ -107,12 +107,12 @@ defmodule Backpex.ItemAction do
         assigns = Keyword.get(metadata, :assigns)
 
         assigns
-        |> base_item()
+        |> base_schema()
         |> Ecto.Changeset.change()
       end
 
       @impl Backpex.ItemAction
-      def base_item(_assigns) do
+      def base_schema(_assigns) do
         types = Backpex.Field.changeset_types(fields())
 
         {%{}, types}
