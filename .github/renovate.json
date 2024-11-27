@@ -61,6 +61,12 @@
         "dependencies",
         "{{categories}}"
       ]
+    },
+    {
+      "matchManagers": [
+        "github-actions"
+      ],
+      "automerge": true
     }
   ],
   "labels": [
