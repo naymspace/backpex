@@ -78,7 +78,8 @@ defmodule Backpex.ItemAction do
 
   You must return either `{:noreply, socket}` or `{:error, changeset}`.
 
-  If `{:noreply, socket}` is returned, the action is considered successful and the action modal is closed.
+  If `{:noreply, socket}` is returned, the action is considered successful by Backpex and the action modal is closed.
+  However, you can add an error flash message to the socket to indicate that something has gone wrong.
 
   If `{:error, changeset}` is returned, the changeset is used to update the form to display the errors. Note that Backpex already validates the form for you.
   Therefore it is only necessary in rare cases to perform additional validation and return a changeset from `c:handle/3`.
