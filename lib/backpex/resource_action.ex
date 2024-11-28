@@ -60,7 +60,7 @@ defmodule Backpex.ResourceAction do
 
   If `{:ok, socket}` is returned, the action is considered successful by Backpex and the action modal is closed. However, you can add an error flash message to the socket to indicate that something has gone wrong.
 
-  If `{:error, changeset}` is returned, the changeset is used to update the form to display the errors. Note that Backpex already validates the form for you. Therefore it is only necessary in rare cases to perform additional validation and return a changeset from `c:handle/3`.
+  If `{:error, changeset}` is returned, the changeset is used to update the form to display the errors. Note that Backpex already validates the form for you. Therefore it is only necessary in rare cases to perform additional validation and return a changeset from `c:handle/2`.
 
   You have to use `Phoenix.LiveView.put_flash/3` along with the socket to show a success or error message.
   """
