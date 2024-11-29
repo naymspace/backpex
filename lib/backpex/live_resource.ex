@@ -308,8 +308,8 @@ defmodule Backpex.LiveResource do
       import Backpex.HTML.Layout
       import Backpex.HTML.Resource
 
-      alias Backpex.Router
       alias Backpex.LiveResource
+      alias Backpex.Router
 
       @impl Phoenix.LiveView
       def handle_event(event, params, socket), do: LiveResource.handle_event(event, params, socket)
