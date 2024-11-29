@@ -260,12 +260,6 @@ defmodule Backpex.LiveResource do
       def handle_params(params, url, socket), do: LiveResource.handle_params(params, url, socket)
 
       @impl Phoenix.LiveView
-      def handle_event(event, params, socket), do: LiveResource.handle_event(event, params, socket)
-
-      @impl Phoenix.LiveView
-      def handle_info(msg, socket), do: LiveResource.handle_info(msg, socket)
-
-      @impl Phoenix.LiveView
       def render(assigns), do: LiveResource.render(assigns)
 
       @impl Backpex.LiveResource
@@ -313,7 +307,15 @@ defmodule Backpex.LiveResource do
     quote do
       import Backpex.HTML.Layout
       import Backpex.HTML.Resource
+
       alias Backpex.Router
+      alias Backpex.LiveResource
+
+      @impl Phoenix.LiveView
+      def handle_event(event, params, socket), do: LiveResource.handle_event(event, params, socket)
+
+      @impl Phoenix.LiveView
+      def handle_info(msg, socket), do: LiveResource.handle_info(msg, socket)
 
       @impl Backpex.LiveResource
       def panels, do: []
