@@ -66,8 +66,6 @@ defmodule Backpex.Adapters.Ecto do
 
   @doc """
   Gets a database record with the given primary key value.
-
-  Returns `nil` if no result was found.
   """
   @impl Backpex.Adapter
   def get(primary_value, assigns, live_resource) do
@@ -76,20 +74,7 @@ defmodule Backpex.Adapters.Ecto do
 
     record_query(primary_value, config[:schema], item_query, live_resource)
     |> config[:repo].one()
-  end
-
-  @doc """
-  Gets a database record with the given primary key value.
-
-  Raises `Ecto.NoResultsError` if no record was found.
-  """
-  @impl Backpex.Adapter
-  def get!(primary_value, assigns, live_resource) do
-    config = live_resource.config(:adapter_config)
-    item_query = prepare_item_query(config, assigns)
-
-    record_query(primary_value, config[:schema], item_query, live_resource)
-    |> config[:repo].one!()
+    |> then(fn result -> {:ok, result} end)
   end
 
   @doc """
