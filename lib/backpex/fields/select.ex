@@ -2,12 +2,12 @@ defmodule Backpex.Fields.Select do
   @config_schema [
     options: [
       doc: "List of options or function that receives the assigns.",
-      type: {:or, [:keyword_list, {:fun, 1}]},
+      type: {:or, [{:list, :any}, {:fun, 1}]},
       required: true
     ],
     prompt: [
       doc: "The text to be displayed when no option is selected or function that receives the assigns.",
-      type: :string
+      type: {:or, [:string, {:fun, 1}]}
     ]
   ]
 
