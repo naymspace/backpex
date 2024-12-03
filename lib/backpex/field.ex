@@ -35,7 +35,7 @@ defmodule Backpex.Field do
     ],
     align_label: [
       doc: "Align the labels of the fields in the edit view.",
-      type: {:in, [:top, :center, :bottom]}
+      type: {:or, [{:in, [:top, :center, :bottom]}, {:fun, 1}]}
     ],
     searchable: [
       doc: "Define wether this field should be searchable on the index view.",
@@ -58,7 +58,7 @@ defmodule Backpex.Field do
       Define wether this field should be editable on the index view. Also see the
       [index edit](/guides/authorization/index-edit.md) guide.
       """,
-      type: :boolean
+      type: {:or, [:boolean, {:fun, 1}]}
     ],
     index_column_class: [
       doc: """
