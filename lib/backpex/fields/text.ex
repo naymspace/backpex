@@ -49,6 +49,7 @@ defmodule Backpex.Fields.Text do
         <BackpexForm.input
           type="text"
           field={@form[@name]}
+          placeholder={@field_options[:placeholder]}
           translate_error_fun={Backpex.Field.translate_error_fun(@field_options, assigns)}
           phx-debounce={Backpex.Field.debounce(@field_options, assigns)}
           phx-throttle={Backpex.Field.throttle(@field_options, assigns)}
@@ -69,6 +70,7 @@ defmodule Backpex.Fields.Text do
         <BackpexForm.input
           type="text"
           field={@form[@name]}
+          placeholder={@field_options[:placeholder]}
           translate_error_fun={Backpex.Field.translate_error_fun(@field_options, assigns)}
           phx-debounce={Backpex.Field.debounce(@field_options, assigns)}
           phx-throttle={Backpex.Field.throttle(@field_options, assigns)}
@@ -95,6 +97,7 @@ defmodule Backpex.Fields.Text do
         <BackpexForm.input
           type="text"
           field={@form[:value]}
+          placeholder={@field_options[:placeholder]}
           input_class={["input input-sm", @valid && "hover:input-bordered", !@valid && "input-error bg-error/10"]}
           phx-debounce="100"
           readonly={@readonly}
