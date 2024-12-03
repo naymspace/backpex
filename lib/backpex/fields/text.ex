@@ -11,6 +11,10 @@ defmodule Backpex.Fields.Text do
     throttle: [
       doc: "Timeout value (in milliseconds) or function that receives the assigns.",
       type: {:or, [:pos_integer, {:fun, 1}]}
+    ],
+    readonly: [
+      doc: "Sets the field to readonly. Also see the [panels](/guides/fields/readonly.md) guide.",
+      type: {:or, [:boolean, {:fun, 1}]}
     ]
   ]
 
