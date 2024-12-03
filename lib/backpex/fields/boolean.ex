@@ -1,5 +1,14 @@
 defmodule Backpex.Fields.Boolean do
-  @config_schema []
+  @config_schema [
+    debounce: [
+      doc: "Timeout value (in milliseconds), \"blur\" or function that receives the assigns.",
+      type: {:or, [:pos_integer, :string, {:fun, 1}]}
+    ],
+    throttle: [
+      doc: "Timeout value (in milliseconds) or function that receives the assigns.",
+      type: {:or, [:pos_integer, {:fun, 1}]}
+    ]
+  ]
 
   @moduledoc """
   A field for handling a boolean value.
