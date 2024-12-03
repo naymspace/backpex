@@ -18,7 +18,6 @@ defmodule DemoWeb.ResourceActions.Upload do
         label: "Upload",
         upload_key: :upload,
         accept: ~w(.jpg .jpeg .png),
-        max_entries: 1,
         put_upload_change: &put_upload_change/6,
         consume_upload: &consume_upload/4,
         remove_uploads: &remove_uploads/3,

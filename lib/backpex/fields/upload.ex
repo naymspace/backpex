@@ -9,8 +9,9 @@ defmodule Backpex.Fields.Upload do
       type: {:list, :string}
     ],
     max_entries: [
-      doc: "Required number of max files that can be uploaded.",
-      type: :non_neg_integer
+      doc: "Number of max files that can be uploaded.",
+      type: :non_neg_integer,
+      default: 1
     ],
     max_file_size: [
       doc: "Optional maximum file size in bytes to be allowed to uploaded.",
@@ -210,7 +211,6 @@ defmodule Backpex.Fields.Upload do
               label: "Avatar",
               upload_key: :avatar,
               accept: ~w(.jpg .jpeg .png),
-              max_entries: 1,
               max_file_size: 512_000,
               put_upload_change: &put_upload_change/6,
               consume_upload: &consume_upload/4,
