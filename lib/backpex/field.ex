@@ -11,6 +11,12 @@ defmodule Backpex.Field do
       type: :string,
       required: true
     ],
+    default: [
+      doc: """
+      A function to assign default values to fields. Also see the [field defaults](/guides/fields/defaults.md) guide.
+      """,
+      type: {:fun, 1}
+    ],
     render: [
       doc: "A function to overwrite the template used . It should take `assigns` and return a HEEX template.",
       type: {:fun, 1}
