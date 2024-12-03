@@ -9,14 +9,6 @@ defmodule Backpex.Fields.Date do
       """,
       type: {:or, [:string, {:fun, 1}]},
       default: "%Y-%m-%d"
-    ],
-    debounce: [
-      doc: "Timeout value (in milliseconds), \"blur\" or function that receives the assigns.",
-      type: {:or, [:pos_integer, :string, {:fun, 1}]}
-    ],
-    throttle: [
-      doc: "Timeout value (in milliseconds) or function that receives the assigns.",
-      type: {:or, [:pos_integer, {:fun, 1}]}
     ]
   ]
 
