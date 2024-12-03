@@ -2,11 +2,13 @@ defmodule Backpex.Fields.Upload do
   @config_schema [
     upload_key: [
       doc: "Required identifier for the upload field (the name of the upload).",
-      type: :atom
+      type: :atom,
+      required: true
     ],
     accept: [
-      doc: "Required filetypes that will be accepted.",
-      type: {:list, :string}
+      doc: "List of filetypes that will be accepted or `:any`.",
+      type: {:or, [{:list, :string}, :atom]},
+      default: :any
     ],
     max_entries: [
       doc: "Number of max files that can be uploaded.",
