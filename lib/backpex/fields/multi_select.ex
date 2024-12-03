@@ -2,7 +2,7 @@ defmodule Backpex.Fields.MultiSelect do
   @config_schema [
     options: [
       doc: "List of options or function that receives the assigns.",
-      type: {:or, [:keyword_list, {:fun, 1}]},
+      type: {:or, [{:list, :any}, {:fun, 1}]},
       required: true
     ],
     prompt: [
