@@ -625,7 +625,7 @@ defmodule Backpex.LiveResource do
   defp apply_action(socket, :edit) do
     %{live_resource: live_resource, singular_name: singular_name} = socket.assigns
 
-    fields = live_resource.fields |> filtered_fields_by_action(socket.assigns, :edit)
+    fields = live_resource.validated_fields() |> filtered_fields_by_action(socket.assigns, :edit)
     primary_value = URI.decode(socket.assigns.params["backpex_id"])
     item = Resource.get!(primary_value, socket.assigns, live_resource)
 
