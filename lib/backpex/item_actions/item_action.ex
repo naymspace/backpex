@@ -22,12 +22,13 @@ defmodule Backpex.ItemAction do
   @callback fields() :: list()
 
   @doc """
-  Initial change. The result will be passed to `c:changeset/3` in order to generate a changeset.
+  The base item / schema to use for the changeset. The result will be passed as the first parameter to `c:changeset/3` each time it is called.
 
-  This function is optional and can be used to use changesets with schemas in item actions. If this function
-  is not provided a changeset will be generated automatically based on the provided types in `c:fields/0`.
+
+  This function is optional and can be used to use changesets with schemas in item actions. If this function is not provided,
+  a schemaless changeset will be created with the provided types from `c:fields/0`.
   """
-  @callback init_change(assigns :: map()) ::
+  @callback base_schema(assigns :: map()) ::
               Ecto.Schema.t()
               | Ecto.Changeset.t()
               | {Ecto.Changeset.data(), Ecto.Changeset.types()}
@@ -73,10 +74,20 @@ defmodule Backpex.ItemAction do
   @callback confirm(assigns :: map()) :: binary()
 
   @doc """
-  Performs the action. It takes the socket and the casted and validated data (received from [`Ecto.Changeset.apply_action/2`](https://hexdocs.pm/ecto/Ecto.Changeset.html#apply_action/2)).
+  Performs the action. It takes the socket, the list of affected items, and the casted and validated data (received from [`Ecto.Changeset.apply_action/2`](https://hexdocs.pm/ecto/Ecto.Changeset.html#apply_action/2)).
+
+  You must return either `{:ok, socket}` or `{:error, changeset}`.
+
+  If `{:ok, socket}` is returned, the action is considered successful by Backpex and the action modal is closed. However, you can add an error flash message to the socket to indicate that something has gone wrong.
+
+  If `{:error, changeset}` is returned, the changeset is used to update the form to display the errors. Note that Backpex already validates the form for you.
+  Therefore it is only necessary in rare cases to perform additional validation and return a changeset from `c:handle/3`.
+  For example, if you are building a duplicate action and can only check for a unique constraint when inserting the duplicate element.
+
+  You are only allowed to return `{:error, changeset}` if the action has a form. Otherwise Backpex will throw an ArgumentError.
   """
   @callback handle(socket :: Phoenix.LiveView.Socket.t(), items :: list(map()), params :: map() | struct()) ::
-              {:noreply, Phoenix.LiveView.Socket.t()} | {:reply, map(), Phoenix.LiveView.Socket.t()}
+              {:ok, Phoenix.LiveView.Socket.t()} | {:error, Ecto.Changeset.t()}
 
   @optional_callbacks confirm: 1, confirm_label: 1, cancel_label: 1, changeset: 3, fields: 0
 
@@ -105,12 +116,13 @@ defmodule Backpex.ItemAction do
       def changeset(_change, _attrs, metadata) do
         assigns = Keyword.get(metadata, :assigns)
 
-        init_change(assigns)
+        assigns
+        |> base_schema()
         |> Ecto.Changeset.change()
       end
 
       @impl Backpex.ItemAction
-      def init_change(_assigns) do
+      def base_schema(_assigns) do
         types = Backpex.Field.changeset_types(fields())
 
         {%{}, types}

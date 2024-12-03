@@ -71,7 +71,7 @@ defmodule Backpex.FormComponent do
   end
 
   def handle_event("validate", %{"change" => change, "_target" => target}, %{assigns: %{action_type: :item}} = socket) do
-    %{assigns: %{item_action_types: item_action_types, live_resource: live_resource, fields: fields} = assigns} = socket
+    %{assigns: %{item: item, live_resource: live_resource, fields: fields} = assigns} = socket
 
     target = Enum.at(target, 1)
 
@@ -80,9 +80,7 @@ defmodule Backpex.FormComponent do
       |> drop_readonly_changes(fields, assigns)
       |> put_upload_change(socket, :validate)
 
-    changeset =
-      item_action_types
-      |> Resource.change(change, fields, assigns, live_resource, target: target)
+    changeset = Resource.change(item, change, fields, assigns, live_resource, target: target)
 
     form = Phoenix.Component.to_form(changeset, as: :change)
 
@@ -293,26 +291,24 @@ defmodule Backpex.FormComponent do
     } = socket
 
     assocs = Map.get(assigns, :assocs, [])
+    params = drop_readonly_changes(params, fields, assigns)
 
     result =
       item
       |> Resource.change(params, fields, assigns, live_resource, assocs: assocs)
       |> Ecto.Changeset.apply_action(:insert)
 
-    case result do
-      {:ok, data} ->
-        resource_action_result = resource_action.module.handle(socket, data)
+    with {:ok, data} <- result,
+         {:ok, socket} <- resource_action.module.handle(socket, data) do
+      handle_uploads(socket, data)
 
-        if match?({:ok, _msg}, resource_action_result), do: handle_uploads(socket, data)
+      socket =
+        socket
+        |> assign(:show_form_errors, false)
+        |> push_navigate(to: return_to)
 
-        socket =
-          socket
-          |> assign(:show_form_errors, false)
-          |> put_flash_message(resource_action_result)
-          |> push_navigate(to: return_to)
-
-        {:noreply, socket}
-
+      {:noreply, socket}
+    else
       {:error, changeset} ->
         form = Phoenix.Component.to_form(changeset, as: :change)
 
@@ -324,6 +320,16 @@ defmodule Backpex.FormComponent do
         send(self(), {:update_changeset, changeset})
 
         {:noreply, socket}
+
+      unexpected_return ->
+        raise ArgumentError, """
+        Invalid return value from #{inspect(resource_action.module)}.handle/2.
+
+        Expected: {:ok, socket} or {:error, changeset}
+        Got: #{inspect(unexpected_return)}
+
+        Resource Actions must return {:ok, socket} or {:error, changeset}.
+        """
     end
   end
 
@@ -335,32 +341,28 @@ defmodule Backpex.FormComponent do
           selected_items: selected_items,
           action_to_confirm: action_to_confirm,
           return_to: return_to,
-          item_action_types: item_action_types,
+          item: item,
           fields: fields
         } = assigns
     } = socket
 
+    params = drop_readonly_changes(params, fields, assigns)
+
     result =
-      item_action_types
+      item
       |> Backpex.Resource.change(params, fields, assigns, live_resource)
       |> Ecto.Changeset.apply_action(:insert)
 
-    case result do
-      {:ok, data} ->
-        selected_items =
-          Enum.filter(selected_items, fn item ->
-            live_resource.can?(socket.assigns, action_key, item)
-          end)
+    with {:ok, data} <- result,
+         selected_items <- Enum.filter(selected_items, &live_resource.can?(socket.assigns, action_key, &1)),
+         {:ok, socket} <- action_to_confirm.module.handle(socket, selected_items, data) do
+      socket
+      |> assign(:show_form_errors, false)
+      |> assign(:selected_items, [])
+      |> assign(:select_all, false)
 
-        {message, socket} =
-          socket
-          |> assign(:show_form_errors, false)
-          |> assign(selected_items: [])
-          |> assign(select_all: false)
-          |> action_to_confirm.module.handle(selected_items, data)
-
-        {message, push_patch(socket, to: return_to)}
-
+      {:noreply, push_patch(socket, to: return_to)}
+    else
       {:error, changeset} ->
         form = Phoenix.Component.to_form(changeset, as: :change)
 
@@ -370,6 +372,16 @@ defmodule Backpex.FormComponent do
           |> assign(:form, form)
 
         {:noreply, socket}
+
+      unexpected_return ->
+        raise ArgumentError, """
+        Invalid return value from #{inspect(action_to_confirm.module)}.handle/2.
+
+        Expected: {:ok, socket} or {:error, changeset}
+        Got: #{inspect(unexpected_return)}
+
+        Item Actions with form fields must return {:ok, socket} or {:error, changeset}.
+        """
     end
   end
 
@@ -381,15 +393,6 @@ defmodule Backpex.FormComponent do
 
     Map.drop(change, read_only)
   end
-
-  defp put_flash_message(socket, {type, msg}) do
-    socket
-    |> clear_flash()
-    |> put_flash(flash_key(type), msg)
-  end
-
-  defp flash_key(:ok), do: :info
-  defp flash_key(:error), do: :error
 
   defp put_upload_change(change, socket, action) do
     Enum.reduce(socket.assigns.fields, change, fn
