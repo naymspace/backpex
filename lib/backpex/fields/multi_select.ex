@@ -7,7 +7,7 @@ defmodule Backpex.Fields.MultiSelect do
     ],
     prompt: [
       doc: "The text to be displayed when no option is selected or function that receives the assigns.",
-      type: :string
+      type: {:or, [:string, {:fun, 1}]}
     ],
     not_found_text: [
       doc: """

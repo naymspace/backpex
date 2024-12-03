@@ -32,7 +32,7 @@ defmodule Backpex.Fields.HasMany do
 
       The default value is `"Select options..."`.
       """,
-      type: :string
+      type: {:or, [:string, {:fun, 1}]}
     ],
     not_found_text: [
       doc: """
