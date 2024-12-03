@@ -18,7 +18,8 @@
         "erlang",
         "elixir",
         "ubuntu"
-      ]
+      ],
+      "pinDigests": false
     },
     {
       "description": "Disable Ubuntu major updates",
