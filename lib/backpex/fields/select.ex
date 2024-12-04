@@ -8,6 +8,14 @@ defmodule Backpex.Fields.Select do
     prompt: [
       doc: "The text to be displayed when no option is selected or function that receives the assigns.",
       type: {:or, [:string, {:fun, 1}]}
+    ],
+    debounce: [
+      doc: "Timeout value (in milliseconds), \"blur\" or function that receives the assigns.",
+      type: {:or, [:pos_integer, :string, {:fun, 1}]}
+    ],
+    throttle: [
+      doc: "Timeout value (in milliseconds) or function that receives the assigns.",
+      type: {:or, [:pos_integer, {:fun, 1}]}
     ]
   ]
 
