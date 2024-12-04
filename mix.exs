@@ -109,7 +109,10 @@ defmodule Backpex.MixProject do
           </script>
           """
         end
-      end
+      end,
+      skip_code_autolink_to: [
+        "Ecto.Query.DynamicExpr"
+      ]
     ]
   end
 

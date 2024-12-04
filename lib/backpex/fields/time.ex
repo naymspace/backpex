@@ -1,19 +1,39 @@
 # credo:disable-for-this-file Credo.Check.Design.DuplicatedCode
 defmodule Backpex.Fields.Time do
-  @default_format "%I:%M %p"
+  @config_schema [
+    format: [
+      doc: """
+      Format string which will be used to format the date time value or function that formats the date time.
 
-  # credo:disable-for-next-line Credo.Check.Readability.StrictModuleLayout
+      Can also be a function wich receives a `DateTime` and must return a string.
+      """,
+      type: {:or, [:string, {:fun, 1}]},
+      default: "%I:%M %p"
+    ],
+    debounce: [
+      doc: "Timeout value (in milliseconds), \"blur\" or function that receives the assigns.",
+      type: {:or, [:pos_integer, :string, {:fun, 1}]}
+    ],
+    throttle: [
+      doc: "Timeout value (in milliseconds) or function that receives the assigns.",
+      type: {:or, [:pos_integer, {:fun, 1}]}
+    ],
+    readonly: [
+      doc: "Sets the field to readonly. Also see the [panels](/guides/fields/readonly.md) guide.",
+      type: {:or, [:boolean, {:fun, 1}]}
+    ]
+  ]
+
   @moduledoc """
   A field for handling a time value.
 
-  ## Options
+  ## Field-specific options
 
-    * `:format` - Format string which will be used to format the time value or function that formats the time.
-      Defaults to `#{@default_format}`.
-    * `:debounce` - Optional integer timeout value (in milliseconds), "blur" or function that receives the assigns.
-    * `:throttle` - Optional integer timeout value (in milliseconds) or function that receives the assigns.
+  See `Backpex.Field` for general field options.
 
-  ## Example
+  #{NimbleOptions.docs(@config_schema)}
+
+  ## Examples
 
       @impl Backpex.LiveResource
       def fields do
@@ -26,11 +46,11 @@ defmodule Backpex.Fields.Time do
         ]
       end
   """
-  use BackpexWeb, :field
+  use Backpex.Field, config_schema: @config_schema
 
   @impl Backpex.Field
   def render_value(assigns) do
-    format = Map.get(assigns.field_options, :format, @default_format)
+    format = assigns.field_options[:format]
 
     value =
       cond do
