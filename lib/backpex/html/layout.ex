@@ -130,12 +130,6 @@ defmodule Backpex.HTML.Layout do
       :if={Phoenix.Flash.get(@flash, :info) && Phoenix.Flash.get(@flash, :info) != ""}
       class="alert bg-info text-info-content my-4 text-sm"
       phx-value-key="info"
-      x-data="{ isVisible: false }"
-      x-init="() => { isVisible = true; setTimeout(() => isVisible = false, 5000) }"
-      x-show="isVisible"
-      x-transition:leave="transition ease-in duration-2000"
-      x-transition:leave-start="opacity-100 transform scale-100"
-      x-transition:leave-end="opacity-0 transform scale-90"
     >
       <Backpex.HTML.CoreComponents.icon name="hero-information-circle" class="h-5 w-5" />
       <span>
