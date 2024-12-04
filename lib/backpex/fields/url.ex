@@ -30,7 +30,7 @@ defmodule Backpex.Fields.URL do
     ~H"""
     <p class={@live_action in [:index, :resource_action] && "truncate"}>
       <.link href={@value} class="text-blue-600 underline">
-        <%= @value %>
+        {@value}
       </.link>
     </p>
     """

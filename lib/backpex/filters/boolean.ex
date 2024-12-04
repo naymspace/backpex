@@ -84,7 +84,7 @@ defmodule Backpex.Filters.Boolean do
     assigns = assign(assigns, :label, option_value_to_label(assigns.options, assigns.value))
 
     ~H"""
-    <%= @label %>
+    {@label}
     """
   end
 
@@ -116,7 +116,7 @@ defmodule Backpex.Filters.Boolean do
             checked={to_string(v) in @value}
           />
           <span class="label-text">
-            <%= label %>
+            {label}
           </span>
         </label>
       <% end %>

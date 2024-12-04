@@ -27,10 +27,10 @@ defmodule Backpex.HTML.CoreComponents do
     ~H"""
     <div class="join indicator ring-base-content/10 relative ring-1">
       <div class="badge badge-outline join-item bg-base-300 h-auto border-0 px-4 py-1.5 font-semibold">
-        <%= @label %>
+        {@label}
       </div>
       <div class="badge badge-outline join-item h-auto border-0 px-4 py-1.5">
-        <%= render_slot(@inner_block) %>
+        {render_slot(@inner_block)}
       </div>
       <button
         type="button"

@@ -115,7 +115,7 @@ defmodule Backpex.Fields.HasMany do
   def render_value(assigns) do
     ~H"""
     <div class={[@live_action in [:index, :resource_action] && "truncate"]}>
-      <%= if @value == [], do: raw("&mdash;") %>
+      {if @value == [], do: raw("&mdash;")}
 
       <div class={["flex", @live_action == :show && "flex-wrap"]}>
         <.intersperse :let={item} enum={@value |> Enum.sort_by(&Map.get(&1, display_field(@field)), :asc)}>
@@ -157,12 +157,12 @@ defmodule Backpex.Fields.HasMany do
           >
             <div class="flex h-full w-full flex-wrap items-center gap-1 px-2">
               <p :if={@selected == []} class="p-0.5 text-sm">
-                <%= @prompt %>
+                {@prompt}
               </p>
 
               <div :for={{label, value} <- @selected} class="badge badge-primary p-[11px]">
                 <p class="mr-1">
-                  <%= label %>
+                  {label}
                 </p>
 
                 <label
@@ -175,7 +175,7 @@ defmodule Backpex.Fields.HasMany do
               </div>
             </div>
           </label>
-          <.error :for={msg <- @errors}><%= msg %></.error>
+          <.error :for={msg <- @errors}>{msg}</.error>
           <div tabindex="0" class="dropdown-content z-[1] menu bg-base-100 rounded-box w-full overflow-y-auto shadow">
             <div class="max-h-72 p-2">
               <input
@@ -188,7 +188,7 @@ defmodule Backpex.Fields.HasMany do
                 value={@search_input}
               />
               <p :if={@options == []} class="w-full">
-                <%= @not_found_text %>
+                {@not_found_text}
               </p>
 
               <label :if={Enum.any?(@options)}>
@@ -200,9 +200,9 @@ defmodule Backpex.Fields.HasMany do
                 />
                 <span role="button" class="text-primary my-2 cursor-pointer text-sm underline">
                   <%= if @all_selected do %>
-                    <%= Backpex.translate("Deselect all") %>
+                    {Backpex.translate("Deselect all")}
                   <% else %>
-                    <%= Backpex.translate("Select all") %>
+                    {Backpex.translate("Select all")}
                   <% end %>
                 </span>
               </label>
@@ -231,7 +231,7 @@ defmodule Backpex.Fields.HasMany do
                     class="checkbox checkbox-sm checkbox-primary"
                   />
                   <span class="label-text">
-                    <%= label %>
+                    {label}
                   </span>
                 </label>
               </div>
@@ -243,7 +243,7 @@ defmodule Backpex.Fields.HasMany do
                 phx-click="show-more"
                 phx-target={@myself}
               >
-                <%= Backpex.translate("Show more") %>
+                {Backpex.translate("Show more")}
               </button>
             </div>
           </div>
@@ -360,11 +360,11 @@ defmodule Backpex.Fields.HasMany do
     ~H"""
     <%= if is_nil(@link) do %>
       <span>
-        <%= HTML.pretty_value(@display_text) %>
+        {HTML.pretty_value(@display_text)}
       </span>
     <% else %>
       <.link navigate={@link} class="hover:underline">
-        <%= @display_text %>
+        {@display_text}
       </.link>
     <% end %>
     """
