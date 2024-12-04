@@ -46,7 +46,13 @@ defmodule Backpex.Field do
       type: :boolean
     ],
     visible: [
-      doc: "Function to change the visibility of a field. Receives the assigns and has to return a boolean.",
+      doc:
+        "Function to change the visibility of a field for all views except index. Receives the assigns and has to return a boolean.",
+      type: {:fun, 1}
+    ],
+    can?: [
+      doc:
+        "Function to change the visibility of a field for all views. Receives the assigns and has to return a boolean.",
       type: {:fun, 1}
     ],
     panel: [
