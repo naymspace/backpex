@@ -4,6 +4,7 @@ defmodule Backpex.Fields.Textarea do
 
   ## Options
 
+  * `:rows` - Optional integer number of visible text lines for the control. If it is not specified, the default value is 2.
   * `:placeholder` - Optional placeholder value or function that receives the assigns.
   * `:debounce` - Optional integer timeout value (in milliseconds), "blur" or function that receives the assigns.
   * `:throttle` - Optional integer timeout value (in milliseconds) or function that receives the assigns.
@@ -31,7 +32,14 @@ defmodule Backpex.Fields.Textarea do
         <:label align={Backpex.Field.align_label(@field_options, assigns, :top)}>
           <Layout.input_label text={@field_options[:label]} />
         </:label>
-        <BackpexForm.field_input type="textarea" field={@form[@name]} field_options={@field_options} />
+        <BackpexForm.input
+          type="textarea"
+          field={@form[@name]}
+          rows={@field_options[:rows] || 2}
+          translate_error_fun={Backpex.Field.translate_error_fun(@field_options, assigns)}
+          phx-debounce={Backpex.Field.debounce(@field_options, assigns)}
+          phx-throttle={Backpex.Field.throttle(@field_options, assigns)}
+        />
       </Layout.field_container>
     </div>
     """
@@ -45,7 +53,15 @@ defmodule Backpex.Fields.Textarea do
         <:label align={Backpex.Field.align_label(@field_options, assigns, :top)}>
           <Layout.input_label text={@field_options[:label]} />
         </:label>
-        <BackpexForm.field_input type="textarea" field={@form[@name]} field_options={@field_options} readonly disabled />
+        <BackpexForm.input
+          type="textarea"
+          field={@form[@name]}
+          translate_error_fun={Backpex.Field.translate_error_fun(@field_options, assigns)}
+          phx-debounce={Backpex.Field.debounce(@field_options, assigns)}
+          phx-throttle={Backpex.Field.throttle(@field_options, assigns)}
+          readonly
+          disabled
+        />
       </Layout.field_container>
     </div>
     """

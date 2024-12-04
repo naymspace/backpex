@@ -19,12 +19,12 @@
     "gettext": "mix gettext.extract --merge"
   },
   "devDependencies": {
-    "@sentry/browser": "8.34.0",
-    "alpinejs": "3.14.3",
-    "npm-run-all2": "6.2.3",
-    "postcss": "8.4.47",
+    "@sentry/browser": "8.42.0",
+    "alpinejs": "3.14.6",
+    "npm-run-all2": "7.0.1",
+    "postcss": "8.4.49",
     "standard": "17.1.2",
-    "stylelint": "16.10.0",
+    "stylelint": "16.11.0",
     "stylelint-config-standard": "36.0.1",
     "topbar": "3.0.0"
   },

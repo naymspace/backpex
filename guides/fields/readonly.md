@@ -60,13 +60,14 @@ def render_form_readonly(assigns) do
         <:label>
             <Layout.input_label text={@field[:label]} />
         </:label>
-        <BackpexForm.field_input
-            type="text"
-            form={@form}
-            field_name={@name}
-            field_options={@field_options}
-            readonly
-            disabled
+        <BackpexForm.input
+        type="text"
+        field={@form[@name]}
+        translate_error_fun={Backpex.Field.translate_error_fun(@field_options, assigns)}
+        phx-debounce={Backpex.Field.debounce(@field_options, assigns)}
+        phx-throttle={Backpex.Field.throttle(@field_options, assigns)}
+        readonly
+        disabled
         />
     </Layout.field_container>
 </div>

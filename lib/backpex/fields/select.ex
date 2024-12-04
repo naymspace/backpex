@@ -51,12 +51,14 @@ defmodule Backpex.Fields.Select do
         <:label align={Backpex.Field.align_label(@field_options, assigns)}>
           <Layout.input_label text={@field_options[:label]} />
         </:label>
-        <BackpexForm.field_input
+        <BackpexForm.input
           type="select"
           field={@form[@name]}
-          field_options={@field_options}
           options={@options}
           prompt={@prompt}
+          translate_error_fun={Backpex.Field.translate_error_fun(@field_options, assigns)}
+          phx-debounce={Backpex.Field.debounce(@field_options, assigns)}
+          phx-throttle={Backpex.Field.throttle(@field_options, assigns)}
         />
       </Layout.field_container>
     </div>
@@ -78,14 +80,16 @@ defmodule Backpex.Fields.Select do
     ~H"""
     <div>
       <.form for={@form} class="relative" phx-change="update-field" phx-submit="update-field" phx-target={@myself}>
-        <select
-          name={@form[:value].name}
-          class={["select select-sm", if(@valid, do: "hover:input-bordered", else: "select-error")]}
+        <BackpexForm.input
+          type="select"
+          field={@form[:value]}
+          options={@options}
+          prompt={@prompt}
+          input_wrapper_class=""
+          input_class={["select select-sm", if(@valid, do: "hover:input-bordered", else: "select-error")]}
           disabled={@readonly}
-        >
-          <option :if={@prompt} value=""><%= @prompt %></option>
-          <%= Phoenix.HTML.Form.options_for_select(@options, @form[:value].value) %>
-        </select>
+          hide_errors
+        />
       </.form>
     </div>
     """

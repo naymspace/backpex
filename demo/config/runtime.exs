@@ -12,14 +12,6 @@ config :demo, Demo.Repo,
   port: get_env("DB_PORT", "5432") |> to_integer(),
   pool_size: get_env("DB_POOL_SIZE", "5") |> to_integer()
 
-config :demo, Demo.RepoAsh,
-  hostname: get_env("DB_HOSTNAME", "postgres"),
-  username: get_env("DB_USERNAME", "postgres"),
-  password: get_env("DB_PASSWORD", "postgres"),
-  database: get_env("DB_DATABASE", "postgres"),
-  port: get_env("DB_PORT", "5432") |> to_integer(),
-  pool_size: get_env("DB_POOL_SIZE", "5") |> to_integer()
-
 config :demo, DemoWeb.Endpoint,
   http: [
     port: get_env("PORT", "4000") |> to_integer()

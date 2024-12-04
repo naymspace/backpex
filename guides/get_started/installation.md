@@ -180,8 +180,7 @@ defmodule MyAppWeb.Live.PostLive do
       schema: MyApp.Blog.Post,
       repo: MyApp.Repo,
       update_changeset: &MyApp.Blog.Post.update_changeset/3,
-      create_changeset: &MyApp.Blog.Post.create_changeset/3,
-      item_query: &__MODULE__.item_query/3
+      create_changeset: &MyApp.Blog.Post.create_changeset/3
     ],
     layout: {MyAppWeb.Layouts, :admin},
     pubsub: [
@@ -217,8 +216,7 @@ defmodule MyAppWeb.Live.PostLive do
       schema: MyApp.Blog.Post,
       repo: MyApp.Repo,
       update_changeset: &MyApp.Blog.Post.update_changeset/3,
-      create_changeset: &MyApp.Blog.Post.create_changeset/3,
-      item_query: &__MODULE__.item_query/3
+      create_changeset: &MyApp.Blog.Post.create_changeset/3
     ],
     layout: {MyAppWeb.Layouts, :admin},
     pubsub: [

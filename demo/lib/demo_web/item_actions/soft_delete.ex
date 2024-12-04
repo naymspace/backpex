@@ -59,7 +59,7 @@ defmodule DemoWeb.ItemActions.SoftDelete do
 
   @impl Backpex.ItemAction
   def handle(socket, items, _data) do
-    datetime = DateTime.truncate(DateTime.utc_now(), :second)
+    datetime = DateTime.utc_now(:second)
 
     socket =
       try do
@@ -78,7 +78,7 @@ defmodule DemoWeb.ItemActions.SoftDelete do
           |> put_flash(:error, error_message(socket.assigns, error, items))
       end
 
-    {:noreply, socket}
+    {:ok, socket}
   end
 
   defp success_message(assigns, [_item]) do

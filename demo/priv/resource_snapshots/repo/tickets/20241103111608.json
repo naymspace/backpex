@@ -52,14 +52,14 @@
     }
   ],
   "table": "tickets",
-  "hash": "E3E87D7112A09D07945C96CD8FD2DAFD892CB07B82C9A14F42CE4D29C6DF1894",
-  "repo": "Elixir.Demo.RepoAsh",
+  "hash": "9B5D9315CFB3750457FCF436EF56A515A5539855FE2669BA3DD7AD7A3CC29DC7",
+  "repo": "Elixir.Demo.Repo",
   "identities": [],
   "schema": null,
   "multitenancy": {
     "global": null,
-    "strategy": null,
-    "attribute": null
+    "attribute": null,
+    "strategy": null
   },
   "base_filter": null,
   "check_constraints": [],
