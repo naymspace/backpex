@@ -65,7 +65,10 @@ defmodule Backpex.MixProject do
       files: ~w(lib priv .formatter.exs mix.exs README.md LICENSE.md),
       maintainers: ["Florian Arens", "Phil-Bastian Berndt", "Simon Hansen"],
       licenses: ["MIT"],
-      links: %{"GitHub" => @source_url}
+      links: %{
+        Changelog: @source_url <> "/releases",
+        GitHub: @source_url
+      }
     ]
   end
 
