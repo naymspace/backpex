@@ -78,7 +78,7 @@ defmodule DemoWeb.ItemActions.SoftDelete do
           |> put_flash(:error, error_message(socket.assigns, error, items))
       end
 
-    {:noreply, socket}
+    {:ok, socket}
   end
 
   defp success_message(assigns, [_item]) do

@@ -32,7 +32,7 @@ defmodule Demo.ShortLink do
       message: "must be URL safe (only letters, numbers, underscores, and hyphens)"
     )
     |> validate_length(:short_key, min: 1, max: 64)
-    |> unique_constraint(:short_key)
+    |> unique_constraint(:short_key, name: :short_links_pkey)
   end
 
   defp add_short_key(changeset) do

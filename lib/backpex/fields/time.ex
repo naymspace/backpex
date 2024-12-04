@@ -1,20 +1,51 @@
-defmodule Backpex.Fields.Text do
+# credo:disable-for-this-file Credo.Check.Design.DuplicatedCode
+defmodule Backpex.Fields.Time do
+  @default_format "%I:%M %p"
+
+  # credo:disable-for-next-line Credo.Check.Readability.StrictModuleLayout
   @moduledoc """
-  A field for handling a text value.
+  A field for handling a time value.
 
   ## Options
 
-  * `:placeholder` - Optional placeholder value or function that receives the assigns.
-  * `:debounce` - Optional integer timeout value (in milliseconds), "blur" or function that receives the assigns.
-  * `:throttle` - Optional integer timeout value (in milliseconds) or function that receives the assigns.
+    * `:format` - Format string which will be used to format the time value or function that formats the time.
+      Defaults to `#{@default_format}`.
+    * `:debounce` - Optional integer timeout value (in milliseconds), "blur" or function that receives the assigns.
+    * `:throttle` - Optional integer timeout value (in milliseconds) or function that receives the assigns.
+
+  ## Example
+
+      @impl Backpex.LiveResource
+      def fields do
+        [
+          created_at: %{
+            module: Backpex.Fields.Time,
+            label: "Deliver By",
+            format: "%I:%M %p"
+          }
+        ]
+      end
   """
   use BackpexWeb, :field
 
   @impl Backpex.Field
   def render_value(assigns) do
+    format = Map.get(assigns.field_options, :format, @default_format)
+
+    value =
+      cond do
+        is_function(format, 1) -> format.(assigns.value)
+        assigns.value -> Calendar.strftime(assigns.value, format)
+        true -> HTML.pretty_value(assigns.value)
+      end
+
+    assigns =
+      assigns
+      |> assign(:value, value)
+
     ~H"""
     <p class={@live_action in [:index, :resource_action] && "truncate"}>
-      <%= HTML.pretty_value(@value) %>
+      <%= @value %>
     </p>
     """
   end
@@ -24,11 +55,11 @@ defmodule Backpex.Fields.Text do
     ~H"""
     <div>
       <Layout.field_container>
-        <:label align={Backpex.Field.align_label(@field_options, assigns, :center)}>
+        <:label align={Backpex.Field.align_label(@field_options, assigns, :top)}>
           <Layout.input_label text={@field_options[:label]} />
         </:label>
         <BackpexForm.input
-          type="text"
+          type="time"
           field={@form[@name]}
           translate_error_fun={Backpex.Field.translate_error_fun(@field_options, assigns)}
           phx-debounce={Backpex.Field.debounce(@field_options, assigns)}
@@ -44,11 +75,11 @@ defmodule Backpex.Fields.Text do
     ~H"""
     <div>
       <Layout.field_container>
-        <:label align={Backpex.Field.align_label(@field_options, assigns, :center)}>
+        <:label align={Backpex.Field.align_label(@field_options, assigns, :top)}>
           <Layout.input_label text={@field_options[:label]} />
         </:label>
         <BackpexForm.input
-          type="text"
+          type="time"
           field={@form[@name]}
           translate_error_fun={Backpex.Field.translate_error_fun(@field_options, assigns)}
           phx-debounce={Backpex.Field.debounce(@field_options, assigns)}
@@ -67,16 +98,16 @@ defmodule Backpex.Fields.Text do
 
     assigns =
       assigns
+      |> assign(:valid, Map.get(assigns, :valid, true))
       |> assign_new(:form, fn -> form end)
-      |> assign_new(:valid, fn -> true end)
 
     ~H"""
     <div>
-      <.form for={@form} class="relative" phx-change="update-field" phx-submit="update-field" phx-target={@myself}>
+      <.form for={@form} phx-change="update-field" phx-submit="update-field" phx-target={@myself}>
         <BackpexForm.input
-          type="text"
+          type="time"
           field={@form[:value]}
-          input_class={["input input-sm", @valid && "hover:input-bordered", !@valid && "input-error bg-error/10"]}
+          input_class={["input input-sm w-32", @valid && "hover:input-bordered", !@valid && "input-error"]}
           phx-debounce="100"
           readonly={@readonly}
           hide_errors

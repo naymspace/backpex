@@ -39,7 +39,6 @@ defmodule Backpex.Fields.HasMany do
   import Ecto.Query
   import Backpex.HTML.Form
   alias Backpex.Adapters.Ecto, as: EctoAdapter
-  alias Backpex.LiveResource
   alias Backpex.Router
 
   @impl Phoenix.LiveComponent
@@ -256,7 +255,8 @@ defmodule Backpex.Fields.HasMany do
     {field_name, field_options} = field
     validate_live_resource(field_name, field_options)
 
-    schema = field_options.live_resource.schema()
+    # TODO: do not rely on specific adapter
+    schema = field_options.live_resource.config(:adapter_config)[:schema]
     field_name_string = to_string(field_name)
 
     new_assocs = get_new_assocs(attrs, field_name_string, schema, repo, field_options, assigns)
@@ -335,14 +335,12 @@ defmodule Backpex.Fields.HasMany do
       socket: socket,
       field_options: field_options,
       item: item,
-      live_resource: live_resource,
       params: params,
       link_assocs: link_assocs
     } = assigns
 
     link =
-      if link_assocs and Map.has_key?(field_options, :live_resource) and
-           LiveResource.can?(assigns, :show, item, live_resource) do
+      if link_assocs and field_options.live_resource.can?(assigns, :show, item) do
         Router.get_path(socket, Map.get(field_options, :live_resource), params, :show, item)
       else
         nil
@@ -501,7 +499,9 @@ defmodule Backpex.Fields.HasMany do
   defp assign_form_errors(socket) do
     %{assigns: %{form: form, name: name, field_options: field_options}} = socket
 
-    assign(socket, :errors, translate_form_errors(form[name], field_options))
+    translate_error_fun = Map.get(field_options, :translate_error, &Function.identity/1)
+
+    assign(socket, :errors, translate_form_errors(form[name], translate_error_fun))
   end
 
   defp query_limit(field_options), do: Map.get(field_options, :query_limit, 10)
