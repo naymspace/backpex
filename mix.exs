@@ -2,7 +2,10 @@ defmodule Backpex.MixProject do
   use Mix.Project
 
   @version "0.8.2"
+
   @source_url "https://github.com/naymspace/backpex"
+  @changelog_url "https://github.com/naymspace/backpex/releases"
+  @website_url "https://backpex.live"
 
   def project do
     [
@@ -21,7 +24,7 @@ defmodule Backpex.MixProject do
       # Docs
       name: "Backpex",
       source_url: @source_url,
-      homepage_url: "https://backpex.live",
+      homepage_url: @website_url,
       docs: docs()
     ]
   end
@@ -66,8 +69,9 @@ defmodule Backpex.MixProject do
       maintainers: ["Florian Arens", "Phil-Bastian Berndt", "Simon Hansen"],
       licenses: ["MIT"],
       links: %{
-        Changelog: @source_url <> "/releases",
-        GitHub: @source_url
+        Changelog: @changelog_url,
+        GitHub: @source_url,
+        Website: @website_url
       }
     ]
   end
