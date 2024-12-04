@@ -146,11 +146,11 @@ defmodule Backpex.Fields.HasMany do
         <:label align={Backpex.Field.align_label(@field_options, assigns)}>
           <Layout.input_label text={@field_options[:label]} />
         </:label>
-        <div class="dropdown w-full" phx-feedback-for={@form[@name].name}>
+        <div class="dropdown w-full">
           <label
             tabindex="0"
             class={[
-              "input block h-fit w-full p-2 phx-no-feedback:input-bordered phx-no-feedback:bg-transparent",
+              "input block h-fit w-full p-2",
               @errors == [] && "input-bordered bg-transparent",
               @errors != [] && "input-error bg-error/10"
             ]}
@@ -538,9 +538,10 @@ defmodule Backpex.Fields.HasMany do
   defp assign_form_errors(socket) do
     %{assigns: %{form: form, name: name, field_options: field_options}} = socket
 
+    errors = if Phoenix.Component.used_input?(form[name]), do: form[name].errors, else: []
     translate_error_fun = Map.get(field_options, :translate_error, &Function.identity/1)
 
-    assign(socket, :errors, translate_form_errors(form[name], translate_error_fun))
+    assign(socket, :errors, translate_form_errors(errors, translate_error_fun))
   end
 
   defp display_field_form({_name, field_options} = field),

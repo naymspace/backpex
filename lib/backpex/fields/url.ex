@@ -29,7 +29,7 @@ defmodule Backpex.Fields.URL do
   def render_value(assigns) do
     ~H"""
     <p class={@live_action in [:index, :resource_action] && "truncate"}>
-      <.link href={@value} class="phx-no-feedback text-blue-600 underline">
+      <.link href={@value} class="text-blue-600 underline">
         <%= @value %>
       </.link>
     </p>

@@ -55,7 +55,7 @@ defmodule Demo.MixProject do
       {:bandit, "~> 1.0"},
       {:phoenix, "~> 1.7.6"},
       {:phoenix_pubsub, "~> 2.0"},
-      {:phoenix_live_view, "~> 0.20.0"},
+      {:phoenix_live_view, "~> 1.0", override: true},
       {:phoenix_live_dashboard, "~> 0.8"},
       {:phoenix_live_reload, "~> 1.2", only: :dev},
 

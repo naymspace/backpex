@@ -427,7 +427,9 @@ defmodule Backpex.Fields.Upload do
     upload_key = assigns.field_options.upload_key
     uploads_allowed = not is_nil(assigns.field_uploads)
     translate_error_fun = Map.get(assigns.field_options, :translate_error, &Function.identity/1)
-    form_errors = BackpexForm.translate_form_errors(assigns.form[assigns.name], translate_error_fun)
+    errors =
+      if Phoenix.Component.used_input?(assigns.form[assigns.name]), do: assigns.form[assigns.name].errors, else: []
+    form_errors = BackpexForm.translate_form_errors(errors, translate_error_fun)
 
     assigns =
       assigns
