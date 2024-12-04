@@ -8,7 +8,7 @@ defmodule Backpex.Fields.Time do
 
   ## Options
 
-    * `:format` - Defines the time format printed on the index view.
+    * `:format` - Format string which will be used to format the time value or function that formats the time.
       Defaults to `#{@default_format}`.
     * `:debounce` - Optional integer timeout value (in milliseconds), "blur" or function that receives the assigns.
     * `:throttle` - Optional integer timeout value (in milliseconds) or function that receives the assigns.
@@ -33,9 +33,11 @@ defmodule Backpex.Fields.Time do
     format = Map.get(assigns.field_options, :format, @default_format)
 
     value =
-      if assigns.value,
-        do: Calendar.strftime(assigns.value, format),
-        else: HTML.pretty_value(assigns.value)
+      cond do
+        is_function(format, 1) -> format.(assigns.value)
+        assigns.value -> Calendar.strftime(assigns.value, format)
+        true -> HTML.pretty_value(assigns.value)
+      end
 
     assigns =
       assigns
@@ -59,7 +61,7 @@ defmodule Backpex.Fields.Time do
         <BackpexForm.field_input
           type="time"
           field={@form[@name]}
-          field_options={@field_options}
+          translate_error_fun={Backpex.Field.translate_error_fun(@field_options, assigns)}
           phx-debounce={Backpex.Field.debounce(@field_options, assigns)}
           phx-throttle={Backpex.Field.throttle(@field_options, assigns)}
         />
@@ -79,7 +81,7 @@ defmodule Backpex.Fields.Time do
         <BackpexForm.field_input
           type="time"
           field={@form[@name]}
-          field_options={@field_options}
+          translate_error_fun={Backpex.Field.translate_error_fun(@field_options, assigns)}
           phx-debounce={Backpex.Field.debounce(@field_options, assigns)}
           phx-throttle={Backpex.Field.throttle(@field_options, assigns)}
           readonly
@@ -96,19 +98,19 @@ defmodule Backpex.Fields.Time do
 
     assigns =
       assigns
-      |> assign_new(:form, fn -> form end)
       |> assign(:valid, Map.get(assigns, :valid, true))
+      |> assign_new(:form, fn -> form end)
 
     ~H"""
     <div>
       <.form for={@form} phx-change="update-field" phx-submit="update-field" phx-target={@myself}>
-        <input
+        <BackpexForm.input
           type="time"
-          name={@form[:value].name}
-          value={@form[:value].value}
-          class={["input input-sm w-32", @valid && "hover:input-bordered", !@valid && "input-error"]}
+          field={@form[:value]}
+          input_class={["input input-sm w-32", @valid && "hover:input-bordered", !@valid && "input-error"]}
           phx-debounce="100"
           readonly={@readonly}
+          hide_errors
         />
       </.form>
     </div>
