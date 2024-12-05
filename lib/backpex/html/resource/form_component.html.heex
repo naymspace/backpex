@@ -31,12 +31,12 @@
     <div class="bg-base-200/50 rounded-b-box flex items-center justify-end space-x-4 px-6 py-3">
       <div :if={form_errors?(@show_form_errors, @form)}>
         <p class="text-error text-sm italic">
-          <%= Backpex.translate("There are errors in the form.") %>
+          {Backpex.translate("There are errors in the form.")}
         </p>
       </div>
       <%= if @action_type == :item do %>
         <button type="button" class="btn" phx-click="close-modal">
-          <%= @action_to_confirm.module.cancel_label(assigns) %>
+          {@action_to_confirm.module.cancel_label(assigns)}
         </button>
 
         <button
@@ -44,12 +44,12 @@
           class={["btn", if(form_errors?(@show_form_errors, @form), do: "btn-error", else: "btn-primary")]}
           phx-disable-with={@action_to_confirm.module.confirm_label(assigns) <> "..."}
         >
-          <%= @action_to_confirm.module.confirm_label(assigns) %>
+          {@action_to_confirm.module.confirm_label(assigns)}
         </button>
       <% else %>
         <.link navigate={@live_resource.return_to(@socket, assigns, @live_action, @item)}>
           <button type="button" class="btn btn-ghost">
-            <%= Backpex.translate("Cancel") %>
+            {Backpex.translate("Cancel")}
           </button>
         </.link>
         <button
@@ -60,7 +60,7 @@
           class={["btn", if(form_errors?(@show_form_errors, @form), do: "btn-error", else: "btn-neutral btn-outline")]}
           phx-disable-with={@continue_label <> "..."}
         >
-          <%= @continue_label %>
+          {@continue_label}
         </button>
         <button
           type="submit"
@@ -69,7 +69,7 @@
           class={["btn", if(form_errors?(@show_form_errors, @form), do: "btn-error", else: "btn-primary")]}
           phx-disable-with={@save_label <> "..."}
         >
-          <%= @save_label %>
+          {@save_label}
         </button>
       <% end %>
     </div>

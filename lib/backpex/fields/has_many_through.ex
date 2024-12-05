@@ -158,13 +158,13 @@ defmodule Backpex.Fields.HasManyThrough do
               :for={{_name, %{label: label}} <- action_fields(@field_options.child_fields, assigns, :index)}
               class="font-medium"
             >
-              <%= label %>
+              {label}
             </th>
             <th
               :for={{_name, %{label: label}} <- action_fields(@field_options.pivot_fields, assigns, :index)}
               class="font-medium"
             >
-              <%= label %>
+              {label}
             </th>
             <th></th>
           </tr>
@@ -252,13 +252,13 @@ defmodule Backpex.Fields.HasManyThrough do
                   :for={{_name, %{label: label}} <- action_fields(@field_options.child_fields, assigns, :index)}
                   class="font-medium"
                 >
-                  <%= label %>
+                  {label}
                 </th>
                 <th
                   :for={{_name, %{label: label}} <- action_fields(@field_options.pivot_fields, assigns, :index)}
                   class="font-medium"
                 >
-                  <%= label %>
+                  {label}
                 </th>
                 <th></th>
               </tr>
@@ -330,7 +330,7 @@ defmodule Backpex.Fields.HasManyThrough do
         >
           <div class="py-3">
             <div :for={e <- @editables} class={[unless(e.index == @edit_relational, do: "hidden")]}>
-              <%= hidden_inputs_for(e) %>
+              {hidden_inputs_for(e)}
               <.select_relational_field
                 form={e}
                 label={@field_options.live_resource.singular_name()}
@@ -343,17 +343,17 @@ defmodule Backpex.Fields.HasManyThrough do
           </div>
           <div class="bg-base-200 flex justify-end space-x-4 px-6 py-3">
             <button type="button" class="btn" phx-click="cancel-relational" phx-target={@myself}>
-              <%= Backpex.translate("Cancel") %>
+              {Backpex.translate("Cancel")}
             </button>
 
             <button type="button" class="btn btn-primary" phx-click="complete-relational" phx-target={@myself}>
-              <%= Backpex.translate("Apply") %>
+              {Backpex.translate("Apply")}
             </button>
           </div>
         </.modal>
 
         <button type="button" class="btn btn-sm btn-outline btn-primary" phx-click="new-relational" phx-target={@myself}>
-          <%= @relational_title %>
+          {@relational_title}
         </button>
       </Layout.field_container>
     </div>

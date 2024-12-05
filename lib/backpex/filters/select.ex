@@ -81,7 +81,7 @@ defmodule Backpex.Filters.Select do
     assigns = assign(assigns, :label, option_value_to_label(assigns.options, assigns.value))
 
     ~H"""
-    <%= @label %>
+    {@label}
     """
   end
 
@@ -94,8 +94,8 @@ defmodule Backpex.Filters.Select do
   def render_form(assigns) do
     ~H"""
     <select name={@form[@field].name} class="select select-sm select-bordered mt-2 w-full">
-      <option value=""><%= @prompt %></option>
-      <%= Phoenix.HTML.Form.options_for_select(@options, selected(@value)) %>
+      <option value="">{@prompt}</option>
+      {Phoenix.HTML.Form.options_for_select(@options, selected(@value))}
     </select>
     """
   end

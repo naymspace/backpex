@@ -33,7 +33,7 @@ defmodule Backpex.Fields.Text do
   def render_value(assigns) do
     ~H"""
     <p class={@live_action in [:index, :resource_action] && "truncate"}>
-      <%= HTML.pretty_value(@value) %>
+      {HTML.pretty_value(@value)}
     </p>
     """
   end
