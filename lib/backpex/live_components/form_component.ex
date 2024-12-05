@@ -351,6 +351,7 @@ defmodule Backpex.FormComponent do
           live_resource: live_resource,
           selected_items: selected_items,
           action_to_confirm: action_to_confirm,
+          fields: fields,
           return_to: return_to
         } = assigns
     } = socket
