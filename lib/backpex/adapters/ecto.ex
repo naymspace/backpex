@@ -246,11 +246,12 @@ defmodule Backpex.Adapters.Ecto do
     config = live_resource.config(:adapter_config)
     primary_key = live_resource.config(:primary_key)
 
-    config[:schema]
-    |> where([i], field(i, ^primary_key) in ^Enum.map(items, &Map.get(&1, primary_key)))
-    |> config[:repo].delete_all()
+    {_count, deleted_items} =
+      config[:schema]
+      |> where([i], field(i, ^primary_key) in ^Enum.map(items, &Map.get(&1, primary_key)))
+      |> config[:repo].delete_all()
 
-    :ok
+    {:ok, deleted_items}
   end
 
   @doc """

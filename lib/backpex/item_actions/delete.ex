@@ -40,27 +40,26 @@ defmodule Backpex.ItemActions.Delete do
 
   @impl Backpex.ItemAction
   def handle(socket, items, _data) do
+    {:ok, deleted_items} = Resource.delete_all(items, socket.assigns.live_resource)
+
+    Enum.each(deleted_items, fn deleted_item -> socket.assigns.live_resource.on_item_deleted(socket, deleted_item) end)
+
     socket =
-      try do
-        {:ok, items} = Resource.delete_all(items, socket.assigns.live_resource)
-
-        for item <- items do
-          socket.assigns.live_resource.on_item_deleted(socket, item)
-        end
-
-        socket
-        |> clear_flash()
-        |> put_flash(:info, success_message(socket.assigns, items))
-      rescue
-        error ->
-          Logger.error("An error occurred while deleting the resource: #{inspect(error)}")
-
-          socket
-          |> clear_flash()
-          |> put_flash(:error, error_message(socket.assigns, error, items))
-      end
+      socket
+      |> clear_flash()
+      |> put_flash(:info, success_message(socket.assigns, deleted_items))
 
     {:noreply, socket}
+  rescue
+    error ->
+      Logger.error("An error occurred while deleting the resource: #{inspect(error)}")
+
+      socket =
+        socket
+        |> clear_flash()
+        |> put_flash(:error, error_message(socket.assigns, error, items))
+
+      {:noreply, socket}
   end
 
   defp success_message(assigns, [_item]) do

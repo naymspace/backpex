@@ -81,11 +81,12 @@ if Code.ensure_loaded?(Ash) do
 
       ids = Enum.map(items, &Map.fetch!(&1, primary_key))
 
-      config[:resource]
-      |> Ash.Query.filter(^Ash.Expr.ref(primary_key) in ^ids)
-      |> Ash.bulk_destroy!(:destroy, %{})
+      result =
+        config[:resource]
+        |> Ash.Query.filter(^Ash.Expr.ref(primary_key) in ^ids)
+        |> Ash.bulk_destroy(:destroy, %{}, return_records?: true)
 
-      :ok
+      {:ok, result.records}
     end
 
     @doc """
