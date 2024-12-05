@@ -346,7 +346,7 @@ defmodule Backpex.Adapters.Ecto do
   end
 
   defp record_query(id, schema, item_query, live_resource) do
-    fields = live_resource.fields()
+    fields = live_resource.validated_fields()
     schema_name = name_by_schema(schema)
     primary_key = live_resource.config(:primary_key)
     primary_type = schema.__schema__(:type, primary_key)

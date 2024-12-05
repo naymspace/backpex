@@ -46,7 +46,7 @@ defmodule DemoWeb.ItemActions.DuplicateTag do
   end
 
   @impl Backpex.ItemAction
-  def init_change(assigns) do
+  def base_schema(assigns) do
     [item | _other] = assigns.selected_items
 
     item
@@ -70,6 +70,6 @@ defmodule DemoWeb.ItemActions.DuplicateTag do
           put_flash(socket, :error, "Error while duplicating item.")
       end
 
-    {:noreply, socket}
+    {:ok, socket}
   end
 end

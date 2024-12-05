@@ -18,7 +18,8 @@
         "erlang",
         "elixir",
         "ubuntu"
-      ]
+      ],
+      "pinDigests": false
     },
     {
       "description": "Disable Ubuntu major updates",
@@ -61,6 +62,12 @@
         "dependencies",
         "{{categories}}"
       ]
+    },
+    {
+      "matchManagers": [
+        "github-actions"
+      ],
+      "automerge": true
     }
   ],
   "labels": [

@@ -37,10 +37,12 @@ defmodule DemoWeb.ResourceActions.Email do
   end
 
   @impl Backpex.ResourceAction
-  def handle(_socket, _data) do
+  def handle(socket, _data) do
     # Send mail
 
     # We suppose there was no error.
-    {:ok, "An email has been successfully sent to the specified users."}
+    socket = Phoenix.LiveView.put_flash(socket, :info, "An email has been successfully sent to the specified users.")
+
+    {:ok, socket}
   end
 end

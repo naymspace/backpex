@@ -253,17 +253,13 @@ defmodule Backpex.LiveResource do
 
       def config(key), do: Keyword.fetch!(@resource_opts, key)
 
+      def validated_fields, do: LiveResource.validated_fields(__MODULE__)
+
       @impl Phoenix.LiveView
       def mount(params, session, socket), do: LiveResource.mount(params, session, socket)
 
       @impl Phoenix.LiveView
       def handle_params(params, url, socket), do: LiveResource.handle_params(params, url, socket)
-
-      @impl Phoenix.LiveView
-      def handle_event(event, params, socket), do: LiveResource.handle_event(event, params, socket)
-
-      @impl Phoenix.LiveView
-      def handle_info(msg, socket), do: LiveResource.handle_info(msg, socket)
 
       @impl Phoenix.LiveView
       def render(assigns), do: LiveResource.render(assigns)
@@ -313,7 +309,15 @@ defmodule Backpex.LiveResource do
     quote do
       import Backpex.HTML.Layout
       import Backpex.HTML.Resource
+
+      alias Backpex.LiveResource
       alias Backpex.Router
+
+      @impl Phoenix.LiveView
+      def handle_event(event, params, socket), do: LiveResource.handle_event(event, params, socket)
+
+      @impl Phoenix.LiveView
+      def handle_info(msg, socket), do: LiveResource.handle_info(msg, socket)
 
       @impl Backpex.LiveResource
       def panels, do: []
@@ -476,7 +480,7 @@ defmodule Backpex.LiveResource do
 
   defp assign_active_fields(socket, session) do
     fields =
-      socket.assigns.live_resource.fields()
+      socket.assigns.live_resource.validated_fields()
       |> filtered_fields_by_action(socket.assigns, :index)
 
     saved_fields = get_in(session, ["backpex", "column_toggle", "#{socket.assigns.live_resource}"]) || %{}
@@ -599,6 +603,18 @@ defmodule Backpex.LiveResource do
     {:noreply, socket}
   end
 
+  @doc """
+  Returns the fields of the given `Backpex.LiveResource` validated against each fields config schema.
+  """
+  def validated_fields(live_resource) do
+    live_resource.fields()
+    |> Enum.map(fn {name, options} = field ->
+      options.module.validate_config!(field, live_resource)
+      |> Enum.into(%{})
+      |> then(&{name, &1})
+    end)
+  end
+
   defp apply_action(socket, :index) do
     socket
     |> assign(:page_title, socket.assigns.plural_name)
@@ -609,24 +625,26 @@ defmodule Backpex.LiveResource do
   defp apply_action(socket, :edit) do
     %{live_resource: live_resource, singular_name: singular_name} = socket.assigns
 
-    fields = live_resource.fields |> filtered_fields_by_action(socket.assigns, :edit)
+    fields = live_resource.validated_fields() |> filtered_fields_by_action(socket.assigns, :edit)
     primary_value = URI.decode(socket.assigns.params["backpex_id"])
     item = Resource.get!(primary_value, socket.assigns, live_resource)
 
     if not live_resource.can?(socket.assigns, :edit, item), do: raise(Backpex.ForbiddenError)
 
+    changeset_function = live_resource.config(:adapter_config)[:update_changeset]
+
     socket
     |> assign(:fields, fields)
-    |> assign(:changeset_function, live_resource.config(:adapter_config)[:update_changeset])
+    |> assign(:changeset_function, changeset_function)
     |> assign(:page_title, Backpex.translate({"Edit %{resource}", %{resource: singular_name}}))
     |> assign(:item, item)
-    |> assign_changeset(fields)
+    |> assign_changeset(changeset_function, item, fields, :edit)
   end
 
   defp apply_action(socket, :show) do
     %{live_resource: live_resource, singular_name: singular_name} = socket.assigns
 
-    fields = live_resource.fields() |> filtered_fields_by_action(socket.assigns, :show)
+    fields = live_resource.validated_fields() |> filtered_fields_by_action(socket.assigns, :show)
     primary_value = URI.decode(socket.assigns.params["backpex_id"])
     item = Resource.get!(primary_value, socket.assigns, live_resource)
 
@@ -644,15 +662,17 @@ defmodule Backpex.LiveResource do
 
     if not live_resource.can?(socket.assigns, :new, nil), do: raise(Backpex.ForbiddenError)
 
-    fields = live_resource.fields() |> filtered_fields_by_action(socket.assigns, :new)
+    fields = live_resource.validated_fields() |> filtered_fields_by_action(socket.assigns, :new)
     empty_item = schema.__struct__()
 
+    changeset_function = live_resource.config(:adapter_config)[:create_changeset]
+
     socket
-    |> assign(:changeset_function, live_resource.config(:adapter_config)[:create_changeset])
+    |> assign(:changeset_function, changeset_function)
     |> assign(:page_title, create_button_label)
     |> assign(:fields, fields)
     |> assign(:item, empty_item)
-    |> assign_changeset(fields)
+    |> assign_changeset(changeset_function, empty_item, fields, :new)
   end
 
   defp apply_action(socket, :resource_action) do
@@ -667,14 +687,17 @@ defmodule Backpex.LiveResource do
 
     if not live_resource.can?(socket.assigns, id, nil), do: raise(Backpex.ForbiddenError)
 
+    changeset_function = &action.module.changeset/3
+    item = action.module.base_schema(socket.assigns)
+
     socket
     |> assign(:page_title, ResourceAction.name(action, :title))
     |> assign(:resource_action, action)
     |> assign(:resource_action_id, id)
-    |> assign(:item, action.module.init_change(socket.assigns))
+    |> assign(:item, item)
     |> apply_index()
-    |> assign(:changeset_function, &action.module.changeset/3)
-    |> assign_changeset(action.module.fields())
+    |> assign(:changeset_function, changeset_function)
+    |> assign_changeset(changeset_function, item, action.module.fields(), :resource_action)
   end
 
   defp apply_item_actions(socket, action) when action in [:index, :resource_action] do
@@ -710,7 +733,7 @@ defmodule Backpex.LiveResource do
 
     if not live_resource.can?(socket.assigns, :index, nil), do: raise(Backpex.ForbiddenError)
 
-    fields = live_resource.fields() |> filtered_fields_by_action(socket.assigns, :index)
+    fields = live_resource.validated_fields() |> filtered_fields_by_action(socket.assigns, :index)
 
     per_page_options = live_resource.config(:per_page_options)
     per_page_default = live_resource.config(:per_page_default)
@@ -765,14 +788,11 @@ defmodule Backpex.LiveResource do
     |> apply_index_return_to()
   end
 
-  defp assign_changeset(socket, fields) do
-    %{item: item, changeset_function: changeset_function, live_action: live_action} = socket.assigns
-
+  defp assign_changeset(socket, changeset_function, item, fields, live_action) do
     metadata = Resource.build_changeset_metadata(socket.assigns)
     changeset = changeset_function.(item, default_attrs(live_action, fields, socket.assigns), metadata)
 
-    socket
-    |> assign(:changeset, changeset)
+    assign(socket, :changeset, changeset)
   end
 
   defp default_attrs(:new, fields, %{schema: schema} = assigns) do
@@ -1176,13 +1196,13 @@ defmodule Backpex.LiveResource do
     socket =
       if Backpex.ItemAction.has_form?(action) do
         changeset_function = &action.module.changeset/3
-        init_schema = action.module.init_change(socket.assigns)
+        base_schema = action.module.base_schema(socket.assigns)
 
         metadata = Resource.build_changeset_metadata(socket.assigns)
-        changeset = changeset_function.(init_schema, %{}, metadata)
+        changeset = changeset_function.(base_schema, %{}, metadata)
 
         socket
-        |> assign(:init_schema, init_schema)
+        |> assign(:item, base_schema)
         |> assign(:changeset, changeset)
       else
         socket
@@ -1197,11 +1217,25 @@ defmodule Backpex.LiveResource do
     %{live_resource: live_resource} = socket.assigns
     items = Enum.filter(items, fn item -> live_resource.can?(socket.assigns, key, item) end)
 
-    socket
-    |> assign(action_to_confirm: nil)
-    |> assign(selected_items: [])
-    |> assign(select_all: false)
-    |> action.module.handle(items, %{})
+    case action.module.handle(socket, items, %{}) do
+      {:ok, socket} ->
+        socket
+        |> assign(action_to_confirm: nil)
+        |> assign(selected_items: [])
+        |> assign(select_all: false)
+
+        {:noreply, socket}
+
+      unexpected_return ->
+        raise ArgumentError, """
+        Invalid return value from #{inspect(action.module)}.handle/3.
+
+        Expected: {:ok, socket}
+        Got: #{inspect(unexpected_return)}
+
+        Item Actions with no form fields must return {:ok, socket}.
+        """
+    end
   end
 
   defp primary_value(socket, item) do

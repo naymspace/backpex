@@ -1,15 +1,33 @@
 defmodule Backpex.Fields.Number do
+  @config_schema [
+    placeholder: [
+      doc: "Placeholder value or function that receives the assigns.",
+      type: {:or, [:string, {:fun, 1}]}
+    ],
+    debounce: [
+      doc: "Timeout value (in milliseconds), \"blur\" or function that receives the assigns.",
+      type: {:or, [:pos_integer, :string, {:fun, 1}]}
+    ],
+    throttle: [
+      doc: "Timeout value (in milliseconds) or function that receives the assigns.",
+      type: {:or, [:pos_integer, {:fun, 1}]}
+    ],
+    readonly: [
+      doc: "Sets the field to readonly. Also see the [panels](/guides/fields/readonly.md) guide.",
+      type: {:or, [:boolean, {:fun, 1}]}
+    ]
+  ]
+
   @moduledoc """
   A field for handling a number value.
 
-  ## Options
+  ## Field-specific options
 
-  * `:placeholder` - Optional placeholder value or function that receives the assigns.
-  * `:debounce` - Optional integer timeout value (in milliseconds), "blur" or function that receives the assigns.
-  * `:throttle` - Optional integer timeout value (in milliseconds) or function that receives the assigns.
+  See `Backpex.Field` for general field options.
+
+  #{NimbleOptions.docs(@config_schema)}
   """
-  use BackpexWeb, :field
-
+  use Backpex.Field, config_schema: @config_schema
   import Ecto.Query
 
   @impl Backpex.Field
@@ -32,6 +50,7 @@ defmodule Backpex.Fields.Number do
         <BackpexForm.input
           type="text"
           field={@form[@name]}
+          placeholder={@field_options[:placeholder]}
           translate_error_fun={Backpex.Field.translate_error_fun(@field_options, assigns)}
           phx-debounce={Backpex.Field.debounce(@field_options, assigns)}
           phx-throttle={Backpex.Field.throttle(@field_options, assigns)}
@@ -52,6 +71,7 @@ defmodule Backpex.Fields.Number do
         <BackpexForm.input
           type="text"
           field={@form[@name]}
+          placeholder={@field_options[:placeholder]}
           translate_error_fun={Backpex.Field.translate_error_fun(@field_options, assigns)}
           phx-debounce={Backpex.Field.debounce(@field_options, assigns)}
           phx-throttle={Backpex.Field.throttle(@field_options, assigns)}
@@ -78,6 +98,7 @@ defmodule Backpex.Fields.Number do
         <BackpexForm.input
           type="text"
           field={@form[:value]}
+          placeholder={@field_options[:placeholder]}
           input_class={["input input-sm", @valid && "hover:input-bordered", !@valid && "input-error bg-error/10"]}
           phx-debounce="100"
           readonly={@readonly}

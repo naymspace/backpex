@@ -49,7 +49,7 @@ defmodule Backpex.ItemActions.Delete do
       |> clear_flash()
       |> put_flash(:info, success_message(socket.assigns, deleted_items))
 
-    {:noreply, socket}
+    {:ok, socket}
   rescue
     error ->
       Logger.error("An error occurred while deleting the resource: #{inspect(error)}")
@@ -59,7 +59,7 @@ defmodule Backpex.ItemActions.Delete do
         |> clear_flash()
         |> put_flash(:error, error_message(socket.assigns, error, items))
 
-      {:noreply, socket}
+      {:ok, socket}
   end
 
   defp success_message(assigns, [_item]) do
