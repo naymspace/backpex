@@ -1185,7 +1185,7 @@ defmodule Backpex.LiveResource do
     action = socket.assigns.item_actions[key]
     items = socket.assigns.selected_items
 
-    if has_modal?(action.module) do
+    if Backpex.ItemAction.has_confirm_modal?(action) do
       open_action_confirm_modal(socket, action, key)
     else
       handle_item_action(socket, action, key, items)
@@ -1193,19 +1193,21 @@ defmodule Backpex.LiveResource do
   end
 
   defp open_action_confirm_modal(socket, action, key) do
-    base_schema = action.module.base_schema(socket.assigns)
-
-    changeset_function = &action.module.changeset/3
-
-    metadata = Resource.build_changeset_metadata(socket.assigns)
-
-    changeset = changeset_function.(base_schema, %{}, metadata)
-
     socket =
-      socket
-      |> assign(:item, base_schema)
-      |> assign(:changeset_function, changeset_function)
-      |> assign(:changeset, changeset)
+      if Backpex.ItemAction.has_form?(action) do
+        changeset_function = &action.module.changeset/3
+        base_schema = action.module.base_schema(socket.assigns)
+
+        metadata = Resource.build_changeset_metadata(socket.assigns)
+        changeset = changeset_function.(base_schema, %{}, metadata)
+
+        socket
+        |> assign(:item, base_schema)
+        |> assign(:changeset, changeset)
+      else
+        socket
+        |> assign(:changeset, %{})
+      end
       |> assign(:action_to_confirm, Map.put(action, :key, key))
 
     {:noreply, socket}
