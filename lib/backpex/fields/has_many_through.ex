@@ -1,4 +1,42 @@
 defmodule Backpex.Fields.HasManyThrough do
+  @config_schema [
+    display_field: [
+      doc: "The field of the relation to be used for displaying options in the select.",
+      type: :atom,
+      required: true
+    ],
+    live_resource: [
+      doc: """
+      The corresponding live resource of the association. Used to display the title of the modal and generate defaults
+      for `:child_fields` fields.
+      """,
+      type: :atom,
+      required: true
+    ],
+    sort_by: [
+      doc: """
+      A list of columns by which the child element output will be sorted. The sorting takes place in ascending order.
+      """,
+      type: {:list, :atom}
+    ],
+    child_fields: [
+      doc: "WIP",
+      type: :keyword_list
+    ],
+    pivot_fields: [
+      doc: "List to map additional data of the pivot table to Backpex fields.",
+      type: :keyword_list
+    ],
+    options_query: [
+      doc: """
+      Manipulates the list of available options in the select. Can be used to select additional data for the `display_field` option or to limit the available entries.",
+
+      Defaults to `fn (query, _field) -> query end` which returns all entries.
+      """,
+      type: {:fun, 2}
+    ]
+  ]
+
   @moduledoc """
   A field for handling a `has_many` (`through`) relation.
 
@@ -8,15 +46,11 @@ defmodule Backpex.Fields.HasManyThrough do
   >
   > This field is in beta state. Use at your own risk.
 
-  ## Options
+  ## Field-specific options
 
-    * `:display_field` - The field of the relation to be used for displaying options in the select.
-    * `:live_resource` - The corresponding live resource of the association. Used to display the title of the modal and generate defaults for `:child_fields` fields.
-    * `:sort_by` - A list of columns by which the child element output will be sorted. The sorting takes place in ascending order.
-    * `:child_fields` - WIP
-    * `:pivot_fields` - List to map additional data of the pivot table to Backpex fields.
-    * `:options_query` - Manipulates the list of available options in the select. Can be used to select additional data for the `display_field` option or to limit the available entries.
-      Defaults to `fn (query, _field) -> query end` which returns all entries.
+  See `Backpex.Field` for general field options.
+
+  #{NimbleOptions.docs(@config_schema)}
 
   ## Example
 
@@ -42,13 +76,10 @@ defmodule Backpex.Fields.HasManyThrough do
 
   The field requires a [`Ecto.Schema.has_many/3`](https://hexdocs.pm/ecto/Ecto.Schema.html#has_many/3) relation with a mandatory `through` option in the main schema. Any extra column in the pivot table besides the relational id's must be mapped in the `pivot_fields` option or given a default value.
   """
-
-  use BackpexWeb, :field
-
+  use Backpex.Field, config_schema: @config_schema
   import Ecto.Query
   import Backpex.HTML.Layout, only: [modal: 1]
   import PhoenixHTMLHelpers.Form, only: [hidden_inputs_for: 1]
-
   alias Backpex.LiveResource
   alias Ecto.Changeset
 
@@ -420,7 +451,8 @@ defmodule Backpex.Fields.HasManyThrough do
         assigns
 
       false ->
-        new_field_options = Map.put(assigns.field_options, :child_fields, assigns.field_options.live_resource.fields())
+        fields = assigns.field_options.live_resource.validated_fields()
+        new_field_options = Map.put(assigns.field_options, :child_fields, fields)
 
         assigns
         |> assign(:field, {assigns.name, new_field_options})
@@ -536,7 +568,14 @@ defmodule Backpex.Fields.HasManyThrough do
       <:label>
         <Layout.input_label text={@label} />
       </:label>
-      <BackpexForm.field_input type="select" field={@form[@owner_key]} field_options={@field_options} options={@options} />
+      <BackpexForm.input
+        type="select"
+        field={@form[@owner_key]}
+        options={@options}
+        translate_error_fun={Backpex.Field.translate_error_fun(@field_options, assigns)}
+        phx-debounce={Backpex.Field.debounce(@field_options, assigns)}
+        phx-throttle={Backpex.Field.throttle(@field_options, assigns)}
+      />
     </Layout.field_container>
     """
   end

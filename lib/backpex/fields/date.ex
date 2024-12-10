@@ -1,17 +1,37 @@
 # credo:disable-for-this-file Credo.Check.Design.DuplicatedCode
 defmodule Backpex.Fields.Date do
-  @default_format "%Y-%m-%d"
+  @config_schema [
+    format: [
+      doc: """
+      Format string which will be used to format the date time value or function that formats the date time.
 
-  # credo:disable-for-next-line Credo.Check.Readability.StrictModuleLayout
+      Can also be a function wich receives a `DateTime` and must return a string.
+      """,
+      type: {:or, [:string, {:fun, 1}]},
+      default: "%Y-%m-%d"
+    ],
+    debounce: [
+      doc: "Timeout value (in milliseconds), \"blur\" or function that receives the assigns.",
+      type: {:or, [:pos_integer, :string, {:fun, 1}]}
+    ],
+    throttle: [
+      doc: "Timeout value (in milliseconds) or function that receives the assigns.",
+      type: {:or, [:pos_integer, {:fun, 1}]}
+    ],
+    readonly: [
+      doc: "Sets the field to readonly. Also see the [panels](/guides/fields/readonly.md) guide.",
+      type: {:or, [:boolean, {:fun, 1}]}
+    ]
+  ]
+
   @moduledoc """
   A field for handling a date value.
 
-  ## Options
+  ## Field-specific options
 
-    * `:format` - Format string which will be used to format the date value or function that formats the date.
-      Defaults to `#{@default_format}`. If a function, must receive a `Date` and return a string.
-    * `:debounce` - Optional integer timeout value (in milliseconds), "blur" or function that receives the assigns.
-    * `:throttle` - Optional integer timeout value (in milliseconds) or function that receives the assigns.
+  See `Backpex.Field` for general field options.
+
+  #{NimbleOptions.docs(@config_schema)}
 
   ## Examples
 
@@ -53,11 +73,11 @@ defmodule Backpex.Fields.Date do
         ]
       end
   """
-  use BackpexWeb, :field
+  use Backpex.Field, config_schema: @config_schema
 
   @impl Backpex.Field
   def render_value(assigns) do
-    format = Map.get(assigns.field_options, :format, @default_format)
+    format = assigns.field_options[:format]
 
     value =
       cond do
@@ -85,10 +105,10 @@ defmodule Backpex.Fields.Date do
         <:label align={Backpex.Field.align_label(@field_options, assigns, :top)}>
           <Layout.input_label text={@field_options[:label]} />
         </:label>
-        <BackpexForm.field_input
+        <BackpexForm.input
           type="date"
           field={@form[@name]}
-          field_options={@field_options}
+          translate_error_fun={Backpex.Field.translate_error_fun(@field_options, assigns)}
           phx-debounce={Backpex.Field.debounce(@field_options, assigns)}
           phx-throttle={Backpex.Field.throttle(@field_options, assigns)}
         />
@@ -105,10 +125,10 @@ defmodule Backpex.Fields.Date do
         <:label align={Backpex.Field.align_label(@field_options, assigns, :top)}>
           <Layout.input_label text={@field_options[:label]} />
         </:label>
-        <BackpexForm.field_input
+        <BackpexForm.input
           type="date"
           field={@form[@name]}
-          field_options={@field_options}
+          translate_error_fun={Backpex.Field.translate_error_fun(@field_options, assigns)}
           phx-debounce={Backpex.Field.debounce(@field_options, assigns)}
           phx-throttle={Backpex.Field.throttle(@field_options, assigns)}
           readonly
@@ -131,13 +151,13 @@ defmodule Backpex.Fields.Date do
     ~H"""
     <div>
       <.form for={@form} phx-change="update-field" phx-submit="update-field" phx-target={@myself}>
-        <input
+        <BackpexForm.input
           type="date"
-          name={@form[:value].name}
-          value={@form[:value].value}
-          class={["input input-sm w-32", @valid && "hover:input-bordered", !@valid && "input-error"]}
+          field={@form[:value]}
+          input_class={["input input-sm w-52", @valid && "hover:input-bordered", !@valid && "input-error"]}
           phx-debounce="100"
           readonly={@readonly}
+          hide_errors
         />
       </.form>
     </div>

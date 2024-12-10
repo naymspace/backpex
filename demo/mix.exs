@@ -34,7 +34,7 @@ defmodule Demo.MixProject do
   defp deps do
     [
       # development
-      {:ex_doc, "~> 0.34", only: [:dev, :test], runtime: false},
+      {:ex_doc, "~> 0.35", only: [:dev, :test], runtime: false},
       {:credo, "~> 1.7.5", only: [:dev, :test], runtime: false},
       {:sobelow, "~> 0.13", only: [:dev, :test]},
       {:mix_audit, "~> 2.0", only: [:dev, :test], runtime: false},
@@ -73,7 +73,7 @@ defmodule Demo.MixProject do
       # assets
       {:esbuild, "~> 0.8", runtime: Mix.env() == :dev},
       {:tailwind, "~> 0.2.0", runtime: Mix.env() == :dev},
-      {:heroicons, github: "tailwindlabs/heroicons", tag: "v2.1.5", sparse: "optimized", app: false, compile: false}
+      {:heroicons, github: "tailwindlabs/heroicons", tag: "v2.2.0", sparse: "optimized", app: false, compile: false}
     ]
   end
 

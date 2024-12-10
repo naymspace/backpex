@@ -1,124 +1,166 @@
 defmodule Backpex.Fields.Upload do
-  @moduledoc ~S"""
+  @config_schema [
+    upload_key: [
+      doc: "Required identifier for the upload field (the name of the upload).",
+      type: :atom,
+      required: true
+    ],
+    accept: [
+      doc: "List of filetypes that will be accepted or `:any`.",
+      type: {:or, [{:list, :string}, :atom]},
+      default: :any
+    ],
+    max_entries: [
+      doc: "Number of max files that can be uploaded.",
+      type: :non_neg_integer,
+      default: 1
+    ],
+    max_file_size: [
+      doc: "Optional maximum file size in bytes to be allowed to uploaded.",
+      type: :pos_integer,
+      default: 8_000_000
+    ],
+    list_existing_files: [
+      doc: """
+      A function being used to display existing uploads. It has to return a list of all uploaded files as strings.
+      Removed files during an edit of an item are automatically removed from the list.
+
+      **Parameters**
+
+      * `:item` (struct) - The item without its changes.
+
+      **Example**
+
+          def list_existing_files(item), do: item.files
+      """,
+      type: {:fun, 1},
+      required: true
+    ],
+    file_label: [
+      doc: """
+      A function to be used to modify a file label of a single file. In the following example each file will have an
+      `_upload` suffix.
+
+      **Parameters**
+
+      * `:file` (string) - The file.
+
+      **Example**
+
+          def file_label(file), do: file <> "_upload"
+      """,
+      type: {:fun, 1}
+    ],
+    consume_upload: [
+      doc: """
+      Required function to consume file uploads.
+      A function to consume uploads. It is called after the item has been saved and is used to copy the files to a
+      specific destination. Backpex will use this function as a callback for `consume_uploaded_entries`. See
+      https://hexdocs.pm/phoenix_live_view/uploads.html#consume-uploaded-entries for more details.
+
+      **Parameters**
+
+      * `:socket` - The socket.
+      * `:item` (struct) - The saved item (with its changes).
+      * `:meta` - The upload meta.
+      * `:entry` - The upload entry.
+
+      **Example**
+
+        defp consume_upload(_socket, _item, %{path: path} = _meta, entry) do
+          file_name = ...
+          file_url = ...
+          static_dir = ...
+          dest = Path.join([:code.priv_dir(:demo), "static", static_dir, file_name])
+
+          File.cp!(path, dest)
+
+          {:ok, file_url}
+        end
+      """,
+      type: {:fun, 4},
+      required: true
+    ],
+    put_upload_change: [
+      doc: """
+      A function to modify the params based on certain parameters. It is important because it ensures that file paths
+      are added to the item change and therefore persisted in the database.
+
+      **Parameters**
+
+      * `:socket` - The socket.
+      * `:params` (map) - The current params that will be passed to the changeset function.
+      * `:item` (struct) - The item without its changes. On create will this will be an empty map.
+      * `uploaded_entries` (tuple) - The completed and in progress entries for the upload.
+      * `removed_entries` (list) - A list of removed uploads during edit.
+      * `action` (atom) - The action (`:validate` or `:insert`)
+
+      **Example**
+
+          def put_upload_change(_socket, params, item, uploaded_entries, removed_entries, action) do
+            existing_files = item.files -- removed_entries
+
+            new_entries =
+              case action do
+                :validate ->
+                  elem(uploaded_entries, 1)
+
+                :insert ->
+                  elem(uploaded_entries, 0)
+              end
+
+            files = existing_files ++ Enum.map(new_entries, fn entry -> file_name(entry) end)
+
+            Map.put(params, "images", files)
+          end
+      """,
+      type: {:fun, 6},
+      required: true
+    ],
+    remove_uploads: [
+      doc: """
+      A function that is being called after saving an item to be able to delete removed files.
+
+      **Parameters**
+
+      * `:socket` - The socket.
+      * `:item` (struct) - The item without its changes.
+      * `removed_entries` (list) - A list of removed uploads during edit.
+
+      **Example**
+
+          defp remove_uploads(_socket, _item, removed_entries) do
+            for file <- removed_entries do
+              file_path = ...
+              File.rm!(file_path)
+            end
+          end
+      """,
+      type: {:fun, 3},
+      required: true
+    ]
+  ]
+
+  @moduledoc """
   A field for handling uploads.
 
   > #### Warning {: .warning}
   >
   > This field does **not** currently support `Phoenix.LiveView.UploadWriter` and direct / external uploads.
 
-  ## Options
+  ## Field-specific options
 
-    * `:upload_key` (atom) - Required identifier for the upload field (the name of the upload).
-    * `:accept` (list) - Required filetypes that will be accepted.
-    * `:max_entries` (integer) - Required number of max files that can be uploaded.
-    * `:max_file_size` (integer) - Optional maximum file size in bytes to be allowed to uploaded. Defaults 8 MB (`8_000_000`).
-    * `:list_existing_files` (function) - Required function that returns a list of all uploaded files based on an item.
-    * `:file_label` (function) - Optional function to get the label of a single file.
-    * `:consume_upload` (function) - Required function to consume file uploads.
-    * `:put_upload_change` (function) - Required function to add file paths to the params.
-    * `:remove_uploads` (function) - Required function that is being called after saving an item to be able to delete removed files
+  See `Backpex.Field` for general field options.
 
+  The `upload_key`, `accept`, `max_entries` and `max_file_size` options are forwarded to
+  https://hexdocs.pm/phoenix_live_view/Phoenix.LiveView.html#allow_upload/3. See the documentation for more information.
+
+  #{NimbleOptions.docs(@config_schema)}
 
   > #### Info {: .info}
   >
-  > The following examples copy uploads to a static folder in the application. In a production environment, you should consider uploading files to an appropriate object store.
-
-  ## Options in detail
-
-  The `upload_key`, `accept`, `max_entries` and `max_file_size` options are forwarded to https://hexdocs.pm/phoenix_live_view/Phoenix.LiveView.html#allow_upload/3. See the documentation for more information.
-
-  ### `list_existing_files`
-
-  **Parameters**
-  * `:socket` - The socket.
-  * `:item` (struct) - The item without its changes.
-
-  The function is being used to display existing uploads. The function receives the socket and the item and has to return a list of strings. Removed files during an edit of an item are automatically removed from the list. This option is required.
-
-  **Example**
-
-      def list_existing_files(_socket, item), do: item.files
-
-  ### `file_label`
-
-  **Parameters**
-  * `:file` (string) - The file.
-
-  The function can be used to modify a file label based on a file. In the following example each file will have an "_upload" suffix. This option is optional.
-
-  **Example**
-
-      def file_label(file), do: file <> "_upload"
-
-  ### `consume_upload`
-
-  **Parameters**
-  * `:socket` - The socket.
-  * `:item` (struct) - The saved item (with its changes).
-  * `:meta` - The upload meta.
-  * `:entry` - The upload entry.
-
-  The function is used to consume uploads. It is called after the item has been saved and is used to copy the files to a specific destination. Backpex will use this function as a callback for `consume_uploaded_entries`. See https://hexdocs.pm/phoenix_live_view/uploads.html#consume-uploaded-entries for more details. This option is required.
-
-  **Example**
-
-      defp consume_upload(_socket, _item, %{path: path} = _meta, entry) do
-        file_name = ...
-        file_url = ...
-        static_dir = ...
-        dest = Path.join([:code.priv_dir(:demo), "static", static_dir, file_name])
-
-        File.cp!(path, dest)
-
-        {:ok, file_url}
-      end
-
-  ### `put_upload_change`
-
-  **Parameters**
-    * `:socket` - The socket.
-    * `:params` (map) - The current params that will be passed to the changeset function.
-    * `:item` (struct) - The item without its changes. On create will this will be an empty map.
-    * `uploaded_entries` (tuple) - The completed and in progress entries for the upload.
-    * `removed_entries` (list) - A list of removed uploads during edit.
-    * `action` (atom) - The action (`:validate` or `:insert`)
-
-  This function is used to modify the params based on certain parameters. It is important because it ensures that file paths are added to the item change and therefore persisted in the database. This option is required.
-
-  **Example**
-
-      def put_upload_change(_socket, params, item, uploaded_entries, removed_entries, action) do
-        existing_files = item.files -- removed_entries
-
-        new_entries =
-          case action do
-            :validate ->
-              elem(uploaded_entries, 1)
-
-            :insert ->
-              elem(uploaded_entries, 0)
-          end
-
-        files = existing_files ++ Enum.map(new_entries, fn entry -> file_name(entry) end)
-
-        Map.put(params, "images", files)
-      end
-
-  ### `remove_uploads`
-
-  **Parameters**
-  * `:socket` - The socket.
-  * `:item` (struct) - The item without its changes.
-  * `removed_entries` (list) - A list of removed uploads during edit.
-
-  **Example**
-
-      defp remove_uploads(_socket, _item, removed_entries) do
-        for file <- removed_entries do
-          file_path = ...
-          File.rm!(file_path)
-        end
-      end
+  > The following examples copy uploads to a static folder in the application. In a production environment, you should
+  consider uploading files to an appropriate object store.
 
   ## Full Single File Example
 
@@ -171,7 +213,6 @@ defmodule Backpex.Fields.Upload do
               label: "Avatar",
               upload_key: :avatar,
               accept: ~w(.jpg .jpeg .png),
-              max_entries: 1,
               max_file_size: 512_000,
               put_upload_change: &put_upload_change/6,
               consume_upload: &consume_upload/4,
@@ -241,7 +282,7 @@ defmodule Backpex.Fields.Upload do
 
         defp file_name(entry) do
           [ext | _] = MIME.extensions(entry.client_type)
-          "#{entry.uuid}.#{ext}"
+          entry.uuid <> "." <> ext
         end
 
         defp upload_dir, do: Path.join(["uploads", "user", "avatar"])
@@ -355,14 +396,13 @@ defmodule Backpex.Fields.Upload do
 
         defp file_name(entry) do
           [ext | _] = MIME.extensions(entry.client_type)
-          "#{entry.uuid}.#{ext}"
+          entry.uuid <> "." <> ext
         end
 
         defp upload_dir, do: Path.join(["uploads", "product", "images"])
       end
   """
-  use BackpexWeb, :field
-
+  use Backpex.Field, config_schema: @config_schema
   alias Backpex.HTML.Form, as: BackpexForm
 
   @impl Backpex.Field
@@ -386,7 +426,8 @@ defmodule Backpex.Fields.Upload do
   def render_form(assigns) do
     upload_key = assigns.field_options.upload_key
     uploads_allowed = not is_nil(assigns.field_uploads)
-    form_errors = BackpexForm.translate_form_errors(assigns.form[assigns.name], assigns.field_options)
+    translate_error_fun = Map.get(assigns.field_options, :translate_error, &Function.identity/1)
+    form_errors = BackpexForm.translate_form_errors(assigns.form[assigns.name], translate_error_fun)
 
     assigns =
       assigns

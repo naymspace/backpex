@@ -5,7 +5,7 @@ defmodule Backpex.ResourceAction do
   > #### `use Backpex.ResourceAction` {: .info}
   >
   > When you `use Backpex.ResourceAction`, the `Backpex.ResourceAction` module will set `@behavior Backpex.ResourceAction`.
-  > In addition it will implement the `Backpex.ResourceAction.init_change` function in order to generate a schemaless changeset by default.
+  > In addition it will implement the `c:base_schema/1` function in order to generate a schemaless changeset by default.
   '''
 
   @doc """
@@ -25,12 +25,12 @@ defmodule Backpex.ResourceAction do
   @callback fields() :: list()
 
   @doc """
-  Initial change. The result will be passed to `c:changeset/3` in order to generate a changeset.
+  The base item / schema to use for the changeset. The result will be passed as the first parameter to `c:changeset/3` each time it is called.
 
-  This function is optional and can be used to use changesets with schemas in resource actions. If this function
-  is not provided a changeset will be generated automatically based on the provided types in `c:fields/0`.
+  This function is optional and can be used to use changesets with schemas in item actions. If this function is not provided,
+  a schemaless changeset will be created with the provided types from `c:fields/0`.
   """
-  @callback init_change(assigns :: map()) ::
+  @callback base_schema(assigns :: map()) ::
               Ecto.Schema.t()
               | Ecto.Changeset.t()
               | {Ecto.Changeset.data(), Ecto.Changeset.types()}
@@ -54,12 +54,18 @@ defmodule Backpex.ResourceAction do
             ) :: Ecto.Changeset.t()
 
   @doc """
-  The handle function for the corresponding action. It receives the socket and casted and validated data (received from [`Ecto.Changeset.apply_action/2`](https://hexdocs.pm/ecto/Ecto.Changeset.html#apply_action/2)) and will be called when the form is valid and submitted.
+  Performs the action. It takes the socket and the casted and validated data (received from [`Ecto.Changeset.apply_action/2`](https://hexdocs.pm/ecto/Ecto.Changeset.html#apply_action/2)).
 
-  It must return either `{:ok, binary()}` or `{:error, binary()}`
+  You must return either `{:ok, socket}` or `{:error, changeset}`.
+
+  If `{:ok, socket}` is returned, the action is considered successful by Backpex and the action modal is closed. However, you can add an error flash message to the socket to indicate that something has gone wrong.
+
+  If `{:error, changeset}` is returned, the changeset is used to update the form to display the errors. Note that Backpex already validates the form for you. Therefore it is only necessary in rare cases to perform additional validation and return a changeset from `c:handle/2`.
+
+  You have to use `Phoenix.LiveView.put_flash/3` along with the socket to show a success or error message.
   """
   @callback handle(socket :: Phoenix.LiveView.Socket.t(), data :: map()) ::
-              {:ok, binary()} | {:error, binary()}
+              {:ok, Phoenix.LiveView.Socket.t()} | {:error, Ecto.Changeset.t()}
 
   @doc """
   Defines `Backpex.ResourceAction` behaviour.
@@ -69,7 +75,7 @@ defmodule Backpex.ResourceAction do
       @behaviour Backpex.ResourceAction
 
       @impl Backpex.ResourceAction
-      def init_change(_assigns) do
+      def base_schema(_assigns) do
         types = Backpex.Field.changeset_types(fields())
 
         {%{}, types}

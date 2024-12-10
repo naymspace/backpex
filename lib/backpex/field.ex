@@ -1,9 +1,121 @@
 # credo:disable-for-this-file Credo.Check.Refactor.CyclomaticComplexity
 defmodule Backpex.Field do
-  @moduledoc ~S'''
+  @config_schema [
+    module: [
+      doc: "The field module.",
+      type: :atom,
+      required: true
+    ],
+    label: [
+      doc: "The field label.",
+      type: :string,
+      required: true
+    ],
+    default: [
+      doc: """
+      A function to assign default values to fields. Also see the [field defaults](/guides/fields/defaults.md) guide.
+      """,
+      type: {:fun, 1}
+    ],
+    render: [
+      doc: "A function to overwrite the template used . It should take `assigns` and return a HEEX template.",
+      type: {:fun, 1}
+    ],
+    render_form: [
+      doc: "A function to overwrite the template used in forms. It should take `assigns` and return a HEEX template.",
+      type: {:fun, 1}
+    ],
+    custom_alias: [
+      doc: "A custom alias for the field.",
+      type: :atom
+    ],
+    align: [
+      doc: "Align the fields of a resource in the index view.",
+      type: {:in, [:left, :center, :right]}
+    ],
+    align_label: [
+      doc: "Align the labels of the fields in the edit view.",
+      type: {:or, [{:in, [:top, :center, :bottom]}, {:fun, 1}]}
+    ],
+    searchable: [
+      doc: "Define wether this field should be searchable on the index view.",
+      type: :boolean
+    ],
+    orderable: [
+      doc: "Define wether this field should be orderable on the index view.",
+      type: :boolean
+    ],
+    visible: [
+      doc:
+        "Function to change the visibility of a field for all views except index. Receives the assigns and has to return a boolean.",
+      type: {:fun, 1}
+    ],
+    can?: [
+      doc:
+        "Function to change the visibility of a field for all views. Receives the assigns and has to return a boolean.",
+      type: {:fun, 1}
+    ],
+    panel: [
+      doc: "Group field into panel. Also see the [panels](/guides/authorization/panels.md) guide.",
+      type: :atom
+    ],
+    index_editable: [
+      doc: """
+      Define wether this field should be editable on the index view. Also see the
+      [index edit](/guides/authorization/index-edit.md) guide.
+      """,
+      type: {:or, [:boolean, {:fun, 1}]}
+    ],
+    index_column_class: [
+      doc: """
+      Add additional class(es) to the index column.
+      In case of a function it takes the `assigns` and should return a string.
+      """,
+      type: {:or, [:string, {:fun, 1}]}
+    ],
+    select: [
+      doc: """
+      Define a dynamic select query expression for this field.
+
+      ### Example
+
+          full_name: %{
+            module: Backpex.Fields.Text,
+            label: "Full Name",
+            select: dynamic([user: u], fragment("concat(?, ' ', ?)", u.first_name, u.last_name)),
+          }
+      """,
+      type: {:struct, Ecto.Query.DynamicExpr}
+    ],
+    only: [
+      doc: "Define the only views where this field should be visible.",
+      type: {:list, {:in, [:new, :edit, :show, :index, :resource_action]}}
+    ],
+    except: [
+      doc: "Define the views where this field should not be visible.",
+      type: {:list, {:in, [:new, :edit, :show, :index, :resource_action]}}
+    ],
+    translate_error: [
+      doc: """
+      Function to customize error messages for a field. The function receives the error tuple and must return a tuple
+      with the message and metadata.
+      """,
+      type: {:fun, 1}
+    ]
+  ]
+
+  @moduledoc """
   Behaviour implemented by all fields.
 
-  A field defines how a column is rendered on index, show and edit views. In the resource configuration file you can configure a list of fields. You may create your own field by implementing this behaviour. A field has to be a [LiveComponent](https://hexdocs.pm/phoenix_live_view/Phoenix.LiveComponent.html).
+  A field defines how a column is rendered on index, show and edit views. In the resource configuration file you can
+  configure a list of fields. You may create your own field by implementing this behaviour. A field has to be a
+  [LiveComponent](https://hexdocs.pm/phoenix_live_view/Phoenix.LiveComponent.html).
+
+  ### Options
+
+  These are general field options which can be used on every field. Check the field modules for field-specific options.
+
+  #{NimbleOptions.docs(@config_schema)}
 
   ### Example
 
@@ -15,7 +127,7 @@ defmodule Backpex.Field do
           }
         ]
       end
-  '''
+  """
   import Phoenix.Component, only: [assign: 3]
 
   @doc """
@@ -98,12 +210,37 @@ defmodule Backpex.Field do
   @optional_callbacks render_form_readonly: 1, render_index_form: 1
 
   @doc """
+  Returns the default config schema.
+  """
+  def default_config_schema, do: @config_schema
+
+  @doc """
   Defines `Backpex.Field` behaviour and provides default implementations.
   """
-  defmacro __using__(_) do
-    quote do
+  defmacro __using__(opts) do
+    quote bind_quoted: [opts: opts] do
+      @config_schema opts[:config_schema] || []
+
       @before_compile Backpex.Field
       @behaviour Backpex.Field
+
+      use BackpexWeb, :field
+
+      def validate_config!({name, options} = _field, live_resource) do
+        field_options = Keyword.new(options)
+
+        case NimbleOptions.validate(field_options, Backpex.Field.default_config_schema() ++ @config_schema) do
+          {:ok, validated_options} ->
+            validated_options
+
+          {:error, error} ->
+            raise """
+            Configuration error for field "#{name}" in "#{live_resource}".
+
+            #{error.message}
+            """
+        end
+      end
     end
   end
 
@@ -188,29 +325,34 @@ defmodule Backpex.Field do
   Defines placeholder value.
   """
   def placeholder(%{placeholder: placeholder}, _assigns) when is_binary(placeholder), do: placeholder
-  def placeholder(%{placeholder: placeholder}, assigns) when is_function(placeholder), do: placeholder.(assigns)
+  def placeholder(%{placeholder: placeholder}, assigns) when is_function(placeholder, 1), do: placeholder.(assigns)
   def placeholder(_field, _assigns), do: nil
 
   @doc """
   Defines debounce timeout value.
   """
   def debounce(%{debounce: debounce}, _assigns) when is_binary(debounce) or is_integer(debounce), do: debounce
-  def debounce(%{debounce: debounce}, assigns) when is_function(debounce), do: debounce.(assigns)
+  def debounce(%{debounce: debounce}, assigns) when is_function(debounce, 1), do: debounce.(assigns)
   def debounce(_field, _assigns), do: nil
 
   @doc """
   Defines throttle timeout value.
   """
   def throttle(%{throttle: throttle}, _assigns) when is_binary(throttle) or is_integer(throttle), do: throttle
-  def throttle(%{throttle: throttle}, assigns) when is_function(throttle), do: throttle.(assigns)
+  def throttle(%{throttle: throttle}, assigns) when is_function(throttle, 1), do: throttle.(assigns)
   def throttle(_field, _assigns), do: nil
 
   @doc """
   Determines whether the field should be rendered as readonly version.
   """
   def readonly?(%{readonly: readonly}, _assigns) when is_boolean(readonly), do: readonly
-  def readonly?(%{readonly: readonly}, assigns) when is_function(readonly), do: readonly.(assigns)
+  def readonly?(%{readonly: readonly}, assigns) when is_function(readonly, 1), do: readonly.(assigns)
   def readonly?(_field_options, _assigns), do: false
+
+  def translate_error_fun(%{translate_error: translate_error}, _assigns) when is_function(translate_error, 1),
+    do: translate_error
+
+  def translate_error_fun(_field_options, _assigns), do: &Function.identity/1
 
   @doc """
   Gets alignment option for label.
@@ -255,11 +397,11 @@ defmodule Backpex.Field do
   Handles index editable.
   """
   def handle_index_editable(socket, value, change) do
-    if not Backpex.LiveResource.can?(socket.assigns, :edit, socket.assigns.item, socket.assigns.live_resource) do
+    %{assigns: %{item: item, live_resource: live_resource, fields: fields} = assigns} = socket
+
+    if not live_resource.can?(assigns, :edit, item) do
       raise Backpex.ForbiddenError
     end
-
-    %{assigns: %{item: item, live_resource: live_resource, fields: fields} = assigns} = socket
 
     opts = [
       after_save_fun: fn item ->

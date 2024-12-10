@@ -1,15 +1,48 @@
 defmodule Backpex.Fields.BelongsTo do
+  @config_schema [
+    display_field: [
+      doc: "The field of the relation to be used for searching, ordering and displaying values.",
+      type: :atom,
+      required: true
+    ],
+    display_field_form: [
+      doc: "Field to be used to display form values.",
+      type: :atom
+    ],
+    live_resource: [
+      doc: "The live resource of the association. Used to generate links navigating to the association.",
+      type: :atom
+    ],
+    options_query: [
+      doc: """
+      Manipulates the list of available options in the select.
+
+      Defaults to `fn (query, _field) -> query end` which returns all entries.
+      """,
+      type: {:fun, 2}
+    ],
+    prompt: [
+      doc: "The text to be displayed when no option is selected or function that receives the assigns.",
+      type: {:or, [:string, {:fun, 1}]}
+    ],
+    debounce: [
+      doc: "Timeout value (in milliseconds), \"blur\" or function that receives the assigns.",
+      type: {:or, [:pos_integer, :string, {:fun, 1}]}
+    ],
+    throttle: [
+      doc: "Timeout value (in milliseconds) or function that receives the assigns.",
+      type: {:or, [:pos_integer, {:fun, 1}]}
+    ]
+  ]
+
   @moduledoc """
   A field for handling a `belongs_to` relation.
 
-  ## Options
+  ## Field-specific options
 
-    * `:display_field` - The field of the relation to be used for searching, ordering and displaying values.
-    * `:display_field_form` - Optional field to be used to display form values.
-    * `:live_resource` - The live resource of the association. Used to generate links navigating to the association.
-    * `:options_query` - Manipulates the list of available options in the select.
-      Defaults to `fn (query, _field) -> query end` which returns all entries.
-    * `:prompt` - The text to be displayed when no option is selected or function that receives the assigns.
+  See `Backpex.Field` for general field options.
+
+  #{NimbleOptions.docs(@config_schema)}
 
   ## Example
 
@@ -26,11 +59,8 @@ defmodule Backpex.Fields.BelongsTo do
       ]
       end
   """
-  use BackpexWeb, :field
-
+  use Backpex.Field, config_schema: @config_schema
   import Ecto.Query
-
-  alias Backpex.LiveResource
   alias Backpex.Router
 
   @impl Phoenix.LiveComponent
@@ -110,12 +140,14 @@ defmodule Backpex.Fields.BelongsTo do
         <:label align={Backpex.Field.align_label(@field_options, assigns)}>
           <Layout.input_label text={@field_options[:label]} />
         </:label>
-        <BackpexForm.field_input
+        <BackpexForm.input
           type="select"
           field={@form[@owner_key]}
-          field_options={@field_options}
           options={@options}
           prompt={@prompt}
+          translate_error_fun={Backpex.Field.translate_error_fun(@field_options, assigns)}
+          phx-debounce={Backpex.Field.debounce(@field_options, assigns)}
+          phx-throttle={Backpex.Field.throttle(@field_options, assigns)}
         />
       </Layout.field_container>
     </div>
@@ -140,14 +172,17 @@ defmodule Backpex.Fields.BelongsTo do
     ~H"""
     <div>
       <.form for={@form} class="relative" phx-change="update-field" phx-submit="update-field" phx-target={@myself}>
-        <select
-          name={@form[:value].name}
-          class={["select select-sm", if(@valid, do: "hover:input-bordered", else: "select-error")]}
+        <BackpexForm.input
+          type="select"
+          field={@form[:value]}
+          options={@options}
+          prompt={@prompt}
+          value={@value && Map.get(@value, :id)}
+          input_wrapper_class=""
+          input_class={["select select-sm", if(@valid, do: "hover:input-bordered", else: "select-error")]}
           disabled={@readonly}
-        >
-          <option :if={@prompt} value=""><%= @prompt %></option>
-          <%= Phoenix.HTML.Form.options_for_select(@options, @value && Map.get(@value, :id)) %>
-        </select>
+          hide_errors
+        />
       </.form>
     </div>
     """
@@ -189,7 +224,7 @@ defmodule Backpex.Fields.BelongsTo do
       assigns
 
     link =
-      if Map.has_key?(field_options, :live_resource) and LiveResource.can?(assigns, :show, value, live_resource) do
+      if Map.has_key?(field_options, :live_resource) and live_resource.can?(assigns, :show, value) do
         Router.get_path(socket, Map.get(field_options, :live_resource), params, :show, value)
       else
         nil

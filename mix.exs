@@ -1,8 +1,11 @@
 defmodule Backpex.MixProject do
   use Mix.Project
 
-  @version "0.8.2"
+  @version "0.9.0"
+
   @source_url "https://github.com/naymspace/backpex"
+  @changelog_url "https://github.com/naymspace/backpex/releases"
+  @website_url "https://backpex.live"
 
   def project do
     [
@@ -21,7 +24,7 @@ defmodule Backpex.MixProject do
       # Docs
       name: "Backpex",
       source_url: @source_url,
-      homepage_url: "https://backpex.live",
+      homepage_url: @website_url,
       docs: docs()
     ]
   end
@@ -32,7 +35,7 @@ defmodule Backpex.MixProject do
   defp deps do
     [
       # development
-      {:ex_doc, "~> 0.34", only: [:dev, :test], runtime: false},
+      {:ex_doc, "~> 0.35", only: [:dev, :test], runtime: false},
       {:credo, "~> 1.7.5", only: [:dev, :test], runtime: false},
       {:mix_audit, "~> 2.0", only: [:dev, :test], runtime: false},
       {:tailwind_formatter, "~> 0.4.0", only: [:dev, :test], runtime: false},
@@ -65,7 +68,11 @@ defmodule Backpex.MixProject do
       files: ~w(lib priv .formatter.exs mix.exs README.md LICENSE.md),
       maintainers: ["Florian Arens", "Phil-Bastian Berndt", "Simon Hansen"],
       licenses: ["MIT"],
-      links: %{"GitHub" => @source_url}
+      links: %{
+        Changelog: @changelog_url,
+        GitHub: @source_url,
+        Website: @website_url
+      }
     ]
   end
 
@@ -102,7 +109,10 @@ defmodule Backpex.MixProject do
           </script>
           """
         end
-      end
+      end,
+      skip_code_autolink_to: [
+        "Ecto.Query.DynamicExpr"
+      ]
     ]
   end
 
@@ -167,6 +177,7 @@ defmodule Backpex.MixProject do
       "guides/custom_labels_and_translations/custom-labels-and-translations.md",
 
       # Upgrade Guides
+      "guides/upgrading/v0.9.md",
       "guides/upgrading/v0.8.md",
       "guides/upgrading/v0.7.md",
       "guides/upgrading/v0.6.md",
