@@ -116,7 +116,7 @@ jobs:
 
     services:
       postgres:
-        image: postgres:16-alpine@sha256:52bba373df3c13594014b5e9ccc9f3c2cdb2221d50db1a91ec64570819f18aba
+        image: postgres:16-alpine@sha256:161619c29df5fa5f5ba0d107dd416ddccb9a8e091e53fa2ddbec23cb7b1736f0
         env:
           POSTGRES_PASSWORD: postgres
         options: >-
