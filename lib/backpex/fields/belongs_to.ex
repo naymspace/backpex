@@ -87,7 +87,7 @@ defmodule Backpex.Fields.BelongsTo do
   def render_value(%{value: value} = assigns) when is_nil(value) do
     ~H"""
     <p class={@live_action in [:index, :resource_action] && "truncate"}>
-      <%= HTML.pretty_value(nil) %>
+      {HTML.pretty_value(nil)}
     </p>
     """
   end
@@ -105,11 +105,11 @@ defmodule Backpex.Fields.BelongsTo do
     <div class={[@live_action in [:index, :resource_action] && "truncate"]}>
       <%= if @link do %>
         <.link navigate={@link} class={[@live_action in [:index, :resource_action] && "truncate", "hover:underline"]}>
-          <%= @display_text %>
+          {@display_text}
         </.link>
       <% else %>
         <p class={@live_action in [:index, :resource_action] && "truncate"}>
-          <%= HTML.pretty_value(@display_text) %>
+          {HTML.pretty_value(@display_text)}
         </p>
       <% end %>
     </div>

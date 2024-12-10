@@ -56,7 +56,7 @@ defmodule Backpex.Fields.Currency do
 
     ~H"""
     <p class={@live_action in [:index, :resource_action] && "truncate"}>
-      <%= @casted_value %>
+      {@casted_value}
     </p>
     """
   end

@@ -92,7 +92,7 @@ defmodule Backpex.Fields.DateTime do
 
     ~H"""
     <p class={@live_action in [:index, :resource_action] && "truncate"}>
-      <%= @value %>
+      {@value}
     </p>
     """
   end
