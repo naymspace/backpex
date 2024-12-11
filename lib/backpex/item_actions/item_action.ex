@@ -147,4 +147,24 @@ defmodule Backpex.ItemAction do
 
     module.fields() != []
   end
+
+  @doc """
+  Returns default item actions.
+  """
+  def default_actions do
+    [
+      show: %{
+        module: Backpex.ItemActions.Show,
+        only: [:row]
+      },
+      edit: %{
+        module: Backpex.ItemActions.Edit,
+        only: [:row, :show]
+      },
+      delete: %{
+        module: Backpex.ItemActions.Delete,
+        only: [:row, :index, :show]
+      }
+    ]
+  end
 end
