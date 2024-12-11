@@ -701,7 +701,7 @@ defmodule Backpex.LiveResource do
   end
 
   defp apply_item_actions(socket, action) when action in [:index, :resource_action] do
-    item_actions = socket.assigns.live_resource.item_actions(default_item_actions())
+    item_actions = Backpex.ItemAction.default_actions() |> socket.assigns.live_resource.item_actions()
     assign(socket, :item_actions, item_actions)
   end
 
@@ -1573,23 +1573,6 @@ defmodule Backpex.LiveResource do
   """
   def value_in_permitted_or_default(value, permitted, default) do
     if value in permitted, do: value, else: default
-  end
-
-  defp default_item_actions do
-    [
-      show: %{
-        module: Backpex.ItemActions.Show,
-        only: [:row]
-      },
-      edit: %{
-        module: Backpex.ItemActions.Edit,
-        only: [:row, :show]
-      },
-      delete: %{
-        module: Backpex.ItemActions.Delete,
-        only: [:row, :index, :show]
-      }
-    ]
   end
 
   defp maybe_put_empty_filter(%{} = filters, empty_filter_key) when filters == %{} do
