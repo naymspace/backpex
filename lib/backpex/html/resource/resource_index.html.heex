@@ -11,7 +11,7 @@
     </.modal>
   <% end %>
 
-  <%= if @action_to_confirm && has_modal?(@action_to_confirm.module) do %>
+  <%= if @action_to_confirm do %>
     <.modal title={@action_to_confirm.module.label(assigns, nil)}>
       <div class="px-5 py-3">
         {@action_to_confirm.module.confirm(assigns)}

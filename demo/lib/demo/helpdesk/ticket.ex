@@ -11,7 +11,7 @@ defmodule Demo.Helpdesk.Ticket do
   end
 
   actions do
-    defaults [:read]
+    defaults [:read, :destroy]
   end
 
   attributes do

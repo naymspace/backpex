@@ -701,7 +701,7 @@ defmodule Backpex.LiveResource do
   end
 
   defp apply_item_actions(socket, action) when action in [:index, :resource_action] do
-    item_actions = socket.assigns.live_resource.item_actions(default_item_actions())
+    item_actions = Backpex.ItemAction.default_actions() |> socket.assigns.live_resource.item_actions()
     assign(socket, :item_actions, item_actions)
   end
 
@@ -1185,7 +1185,7 @@ defmodule Backpex.LiveResource do
     action = socket.assigns.item_actions[key]
     items = socket.assigns.selected_items
 
-    if has_modal?(action.module) do
+    if Backpex.ItemAction.has_confirm_modal?(action) do
       open_action_confirm_modal(socket, action, key)
     else
       handle_item_action(socket, action, key, items)
@@ -1193,19 +1193,21 @@ defmodule Backpex.LiveResource do
   end
 
   defp open_action_confirm_modal(socket, action, key) do
-    base_schema = action.module.base_schema(socket.assigns)
-
-    changeset_function = &action.module.changeset/3
-
-    metadata = Resource.build_changeset_metadata(socket.assigns)
-
-    changeset = changeset_function.(base_schema, %{}, metadata)
-
     socket =
-      socket
-      |> assign(:item, base_schema)
-      |> assign(:changeset_function, changeset_function)
-      |> assign(:changeset, changeset)
+      if Backpex.ItemAction.has_form?(action) do
+        changeset_function = &action.module.changeset/3
+        base_schema = action.module.base_schema(socket.assigns)
+
+        metadata = Resource.build_changeset_metadata(socket.assigns)
+        changeset = changeset_function.(base_schema, %{}, metadata)
+
+        socket
+        |> assign(:item, base_schema)
+        |> assign(:changeset, changeset)
+      else
+        socket
+        |> assign(:changeset, %{})
+      end
       |> assign(:action_to_confirm, Map.put(action, :key, key))
 
     {:noreply, socket}
@@ -1571,23 +1573,6 @@ defmodule Backpex.LiveResource do
   """
   def value_in_permitted_or_default(value, permitted, default) do
     if value in permitted, do: value, else: default
-  end
-
-  defp default_item_actions do
-    [
-      show: %{
-        module: Backpex.ItemActions.Show,
-        only: [:row]
-      },
-      edit: %{
-        module: Backpex.ItemActions.Edit,
-        only: [:row, :show]
-      },
-      delete: %{
-        module: Backpex.ItemActions.Delete,
-        only: [:row, :index, :show]
-      }
-    ]
   end
 
   defp maybe_put_empty_filter(%{} = filters, empty_filter_key) when filters == %{} do

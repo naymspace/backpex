@@ -123,10 +123,48 @@ defmodule Backpex.ItemAction do
 
       @impl Backpex.ItemAction
       def base_schema(_assigns) do
-        types = Backpex.Field.changeset_types(fields())
+        types = fields() |> Backpex.Field.changeset_types()
 
         {%{}, types}
       end
     end
+  end
+
+  @doc """
+  Checks whether item action has confirmation modal.
+  """
+  def has_confirm_modal?(item_action) do
+    module = Map.fetch!(item_action, :module)
+
+    function_exported?(module, :confirm, 1)
+  end
+
+  @doc """
+  Checks whether item action has form.
+  """
+  def has_form?(item_action) do
+    module = Map.fetch!(item_action, :module)
+
+    module.fields() != []
+  end
+
+  @doc """
+  Returns default item actions.
+  """
+  def default_actions do
+    [
+      show: %{
+        module: Backpex.ItemActions.Show,
+        only: [:row]
+      },
+      edit: %{
+        module: Backpex.ItemActions.Edit,
+        only: [:row, :show]
+      },
+      delete: %{
+        module: Backpex.ItemActions.Delete,
+        only: [:row, :index, :show]
+      }
+    ]
   end
 end
