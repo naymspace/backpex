@@ -12,6 +12,12 @@
   ],
   "packageRules": [
     {
+      "matchManagers": [
+        "mix"
+      ],
+      "rangeStrategy": "update-lockfile"
+    },
+    {
       "description": "Group updates to the Elixir base image",
       "groupName": "Base Image",
       "matchDepNames": [
