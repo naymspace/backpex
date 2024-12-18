@@ -207,7 +207,7 @@ defmodule Backpex.Fields.HasMany do
                 </span>
               </label>
 
-              <input type="hidden" id={"has-many-#{@name}-hidden-input"} name={@form[@name].name} value="" />
+              <input type="hidden" id={"has-many-#{@name}-hidden-input"} name={"#{@form[@name].name}[]"} value="" />
 
               <input
                 :for={value <- @selected_ids}
@@ -336,8 +336,11 @@ defmodule Backpex.Fields.HasMany do
   defp get_assocs_by_ids(assoc_ids, schema, repo, field_options, assigns) do
     case assoc_ids do
       ids when is_list(ids) and ids != [] ->
+
+        filtered_ids = Enum.reject(ids, &(&1 == ""))
+
         schema
-        |> where([x], x.id in ^ids)
+        |> where([x], x.id in ^filtered_ids)
         |> maybe_options_query(field_options, assigns)
         |> repo.all()
 
