@@ -104,14 +104,14 @@ defmodule Backpex.Fields.InlineCRUD do
         <thead class="bg-base-200/50 text-base-content uppercase">
           <tr>
             <th :for={{_name, %{label: label}} <- @field_options.child_fields} class="font-medium">
-              <%= label %>
+              {label}
             </th>
           </tr>
         </thead>
         <tbody class="text-base-content/75">
           <tr :for={row <- @value} class="border-base-content/10 border-b last:border-b-0">
             <td :for={{name, _field_options} <- @field_options.child_fields}>
-              <%= HTML.pretty_value(Map.get(row, name)) %>
+              {HTML.pretty_value(Map.get(row, name))}
             </td>
           </tr>
         </tbody>
@@ -143,7 +143,7 @@ defmodule Backpex.Fields.InlineCRUD do
                 class={child_field_class(child_field_options, assigns)}
               >
                 <p :if={f_nested.index == 0} class="mb-1 text-xs">
-                  <%= child_field_options.label %>
+                  {child_field_options.label}
                 </p>
                 <BackpexForm.input
                   type={input_type(child_field_options) |> Atom.to_string()}
