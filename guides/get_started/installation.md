@@ -325,29 +325,11 @@ end
 
 This macro will add the required routes for the `PostLive` module. You can now access the `PostLive` LiveResource at `/admin/posts`.
 
-> Hint: To configure a default redirect route for `/admin` we recommend to create a redirect controller like the following:
+### Configure a default route
 
-In your `router.ex` file:
+To make a default route for `/admin` we recommend creating a redirect controller such as the following:
 
-```elixir
-#router.ex
-
-scope "/admin", MyAppWeb do
-
-  pipe_through :browser
-
-  backpex_routes()
-
-  get "/", RedirectController, :redirect_to_posts
-  
-  live_session :default, on_mount: Backpex.InitAssigns do
-    # add this line
-    live_resources "/posts", PostLive
-  end
-end
-```
-
-And in `my_app_web/controller` create a file named `redirect_controller.ex`:
+In `my_app_web/controller` create a file named `redirect_controller.ex`:
 
 ```elixir
 # redirect_controller.ex
@@ -359,6 +341,26 @@ defmodule MyAppWeb.RedirectController do
     conn
     |> Phoenix.Controller.redirect(to: ~p"/admin/posts")
     |> Plug.Conn.halt()
+  end
+end
+```
+
+And configure in your `router.ex` file:
+
+```elixir
+#router.ex
+
+scope "/admin", MyAppWeb do
+
+  pipe_through :browser
+
+  backpex_routes()
+
+  get "/", RedirectController, :redirect_to_posts
+
+  live_session :default, on_mount: Backpex.InitAssigns do
+    # add this line
+    live_resources "/posts", PostLive
   end
 end
 ```
