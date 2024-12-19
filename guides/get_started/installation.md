@@ -325,6 +325,44 @@ end
 
 This macro will add the required routes for the `PostLive` module. You can now access the `PostLive` LiveResource at `/admin/posts`.
 
+> Hint: To configure a default redirect route for `/admin` we recommend to create a redirect controller like the following:
+
+In your `router.ex` file:
+
+```elixir
+#router.ex
+
+scope "/admin", MyAppWeb do
+
+  pipe_through :browser
+
+  backpex_routes()
+
+  get "/", RedirectController, :redirect_to_posts
+  
+  live_session :default, on_mount: Backpex.InitAssigns do
+    # add this line
+    live_resources "/posts", PostLive
+  end
+end
+```
+
+And in `my_app_web/controller` create a file named `redirect_controller.ex`:
+
+```elixir
+# redirect_controller.ex
+
+defmodule MyAppWeb.RedirectController do
+  use MyAppWeb, :controller
+
+  def redirect_to_posts(conn, _params) do
+    conn
+    |> Phoenix.Controller.redirect(to: ~p"/admin/posts")
+    |> Plug.Conn.halt()
+  end
+end
+```
+
 ## Remove default background color
 
 If you start with a new Phoenix project, you may have a default background color set for your body tag. This conflicts with the background color of the Backpex `app_shell`.
