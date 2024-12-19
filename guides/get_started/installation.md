@@ -356,10 +356,10 @@ scope "/admin", MyAppWeb do
 
   backpex_routes()
 
+  # add this line
   get "/", RedirectController, :redirect_to_posts
 
   live_session :default, on_mount: Backpex.InitAssigns do
-    # add this line
     live_resources "/posts", PostLive
   end
 end
