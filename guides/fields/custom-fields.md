@@ -8,7 +8,7 @@ Note that a field has to be a [LiveComponent](https://hexdocs.pm/phoenix_live_vi
 
 > #### Warning {: .warning}
 >
-> As Backpex is still under active development in a 0.X version, it can be assumed that there will be breaking changes to the 
+> As Backpex is still under active development in a 0.X version, it can be assumed that there will be breaking changes to the
 > fields API in future releases, which will require you to update your custom fields.
 
 ## Creating a Custom Field
@@ -16,7 +16,7 @@ Note that a field has to be a [LiveComponent](https://hexdocs.pm/phoenix_live_vi
 The simplest version of a custom field would look like this:
 
 ```elixir
-use Backpex.Field
+use BackpexWeb, :field
 
 @impl Backpex.Field
 def render_value(assigns) do
