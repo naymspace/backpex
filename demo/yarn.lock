@@ -213,10 +213,10 @@ ajv@^8.0.1:
     require-from-string "^2.0.2"
     uri-js "^4.2.2"
 
-alpinejs@3.14.7:
-  version "3.14.7"
-  resolved "https://registry.yarnpkg.com/alpinejs/-/alpinejs-3.14.7.tgz#3441f008b142fc12b10b7a808c8cc507ba279e3d"
-  integrity sha512-ScnbydNBcWVnCiVupD3wWUvoMPm8244xkvDNMxVCspgmap9m4QuJ7pjc+77UtByU+1+Ejg0wzYkP4mQaOMcvng==
+alpinejs@3.14.8:
+  version "3.14.8"
+  resolved "https://registry.yarnpkg.com/alpinejs/-/alpinejs-3.14.8.tgz#062de45daa219db14375b3cb35ba28e5b0627337"
+  integrity sha512-wT2fuP2DXpGk/jKaglwy7S/IJpm1FD+b7U6zUrhwErjoq5h27S4dxkJEXVvhbdwyPv9U+3OkUuNLkZT4h2Kfrg==
   dependencies:
     "@vue/reactivity" "~3.1.1"
 
