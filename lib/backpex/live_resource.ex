@@ -217,6 +217,16 @@ defmodule Backpex.LiveResource do
   @callback resource_created_message() :: binary()
 
   @doc """
+  Processes the socket after the parameters are handled.
+  Can be used to add additional values to the socket assigns.
+  """
+  @callback after_handle_params(
+              params :: map(),
+              url :: String.t(),
+              socket :: Phoenix.LiveView.Socket.t()
+            ) :: Phoenix.LiveView.Socket.t()
+
+  @doc """
   Uses LiveResource in the current module to make it a LiveResource.
 
       use Backpex.LiveResource,
@@ -259,7 +269,18 @@ defmodule Backpex.LiveResource do
       def mount(params, session, socket), do: LiveResource.mount(params, session, socket)
 
       @impl Phoenix.LiveView
-      def handle_params(params, url, socket), do: LiveResource.handle_params(params, url, socket)
+      def handle_params(params, url, socket) do
+        # Allow backpex to do its thing
+        {:noreply, modified_socket} = LiveResource.handle_params(params, url, socket)
+        # Allow the user to modify the already modified socket
+        transformed_socket = after_handle_params(params, url, modified_socket)
+        {:noreply, transformed_socket}
+      end
+
+      @impl true
+      def after_handle_params(_params, _url, socket) do
+        socket
+      end
 
       @impl Phoenix.LiveView
       def render(assigns), do: LiveResource.render(assigns)
@@ -300,7 +321,8 @@ defmodule Backpex.LiveResource do
                      item_actions: 1,
                      index_row_class: 4,
                      create_button_label: 0,
-                     resource_created_message: 0
+                     resource_created_message: 0,
+                     after_handle_params: 3
     end
   end
 

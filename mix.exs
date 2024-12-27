@@ -29,11 +29,19 @@ defmodule Backpex.MixProject do
     ]
   end
 
-  defp elixirc_paths(:test), do: ["lib", "test/support"]
+  defp elixirc_paths(env) when env in [:dev, :test], do: ["lib", "test/support"]
   defp elixirc_paths(_), do: ["lib"]
 
   defp deps do
     [
+      # test
+      {:floki, ">= 0.30.0", only: [:test, :dev]},
+      {:phx_test, "~> 0.1.0", only: [:dev, :test]},
+      {:phoenix_test, "== 0.4.0", only: [:test, :dev]},
+      {:phoenix_live_reload, "~> 1.2", only: :dev},
+      {:esbuild, "~> 0.8", runtime: Mix.env() == :dev},
+      {:tailwind, "~> 0.2", runtime: Mix.env() == :dev},
+
       # development
       {:ex_doc, "~> 0.35", only: [:dev, :test], runtime: false},
       {:credo, "~> 1.7.5", only: [:dev, :test], runtime: false},
@@ -49,10 +57,14 @@ defmodule Backpex.MixProject do
       {:money, "~> 1.13.1"},
 
       # phoenix
-      {:phoenix, "~> 1.7.6"},
-      {:phoenix_html, "~> 4.1.1"},
+      {:phoenix, "~> 1.7"},
+      {:phoenix_html, "~> 4.1"},
       {:phoenix_html_helpers, "~> 1.0"},
-      {:phoenix_live_view, "~> 0.20.0"},
+      {:phoenix_live_view, "~> 1.0", override: true},
+      {:telemetry_metrics, "~> 1.0"},
+      {:telemetry_poller, "~> 1.0"},
+      {:dns_cluster, "~> 0.1.1"},
+      {:bandit, "~> 1.5"},
 
       # adapters
       {:ecto_sql, "~> 3.6"},
@@ -114,6 +126,17 @@ defmodule Backpex.MixProject do
         "Ecto.Query.DynamicExpr"
       ]
     ]
+  end
+
+  def application do
+    if Mix.env() in [:dev, :test] do
+      [
+        mod: {BackpexTestApp.Application, []},
+        extra_applications: [:logger, :runtime_tools]
+      ]
+    else
+      []
+    end
   end
 
   defp extras do
