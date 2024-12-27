@@ -361,7 +361,6 @@ defmodule Backpex.BackpexTextApp.CrudTests do
   describe "edit resource:" do
     test "/payroll/departments - can save and continue (no change)", %{conn: conn} do
       with_populated_database(fn _data ->
-        # This query can be non-deterministic, but it actually doesn't matter
         department = Repo.one(Query.from d in Department, order_by: d.id, limit: 1)
 
         conn
@@ -376,7 +375,6 @@ defmodule Backpex.BackpexTextApp.CrudTests do
 
     test "/payroll/departments - can save and continue (with change)", %{conn: conn} do
       with_populated_database(fn _data ->
-        # This query can be non-deterministic, but it actually doesn't matter
         department = Repo.one(Query.from d in Department, order_by: d.id, limit: 1)
 
         conn
@@ -397,7 +395,6 @@ defmodule Backpex.BackpexTextApp.CrudTests do
 
     test "/payroll/functions - can save and continue (no change)", %{conn: conn} do
       with_populated_database(fn _data ->
-        # This query can be non-deterministic, but it actually doesn't matter
         function = Repo.one(Query.from f in Function, order_by: f.id, limit: 1)
 
         conn
@@ -412,7 +409,6 @@ defmodule Backpex.BackpexTextApp.CrudTests do
 
     test "/payroll/functions - can save and continue (with change)", %{conn: conn} do
       with_populated_database(fn _data ->
-        # This query can be non-deterministic, but it actually doesn't matter
         function = Repo.one(Query.from f in Function, order_by: f.id, limit: 1)
 
         conn
@@ -433,7 +429,6 @@ defmodule Backpex.BackpexTextApp.CrudTests do
 
     test "/payroll/employees - can save and continue (no change)", %{conn: conn} do
       with_populated_database(fn _data ->
-        # This query can be non-deterministic, but it actually doesn't matter
         employee = Repo.one(Query.from e in Employee, order_by: e.id, limit: 1)
 
         conn
@@ -448,7 +443,6 @@ defmodule Backpex.BackpexTextApp.CrudTests do
 
     test "/payroll/employees - can save and continue (with change)", %{conn: conn} do
       with_populated_database(fn _data ->
-        # This query can be non-deterministic, but it actually doesn't matter
         employee = Repo.one(Query.from e in Employee, order_by: e.id, limit: 1)
 
         conn
@@ -469,7 +463,6 @@ defmodule Backpex.BackpexTextApp.CrudTests do
 
     test "/payroll/employees - clicking 'Save' moves to index (no change)", %{conn: conn} do
       with_populated_database(fn _data ->
-        # This query can be non-deterministic, but it actually doesn't matter
         employee = Repo.one(Query.from e in Employee, order_by: e.id, limit: 1)
 
         conn
@@ -486,7 +479,6 @@ defmodule Backpex.BackpexTextApp.CrudTests do
 
     test "/payroll/employees - clicking 'Save' moves to index (with change)", %{conn: conn} do
       with_populated_database(fn _data ->
-        # This query can be non-deterministic, but it actually doesn't matter
         employee = Repo.one(Query.from e in Employee, order_by: e.id, limit: 1)
 
         conn
