@@ -26,6 +26,10 @@ defmodule BackpexTestAppWeb.EmployeeLive do
           module: Backpex.Fields.Text,
           label: "Full name"
         },
+        address: %{
+          module: Backpex.Fields.Text,
+          label: "Address"
+        },
         employee_number: %{
           module: Backpex.Fields.Text,
           label: "Employee number"

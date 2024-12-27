@@ -22,7 +22,7 @@ defmodule BackpexTestAppWeb.FunctionLive do
     @impl Backpex.LiveResource
     def fields do
       [
-        full_name: %{
+        name: %{
           module: Backpex.Fields.Text,
           label: "Name"
         }

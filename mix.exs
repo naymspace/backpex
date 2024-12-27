@@ -39,8 +39,11 @@ defmodule Backpex.MixProject do
       {:phx_test, "~> 0.1.0", only: [:dev, :test]},
       {:phoenix_test, "== 0.4.0", only: [:test, :dev]},
       {:phoenix_live_reload, "~> 1.2", only: :dev},
-      {:esbuild, "~> 0.8", runtime: Mix.env() == :dev},
-      {:tailwind, "~> 0.2", runtime: Mix.env() == :dev},
+      # TODO: Do esbuild and tailwind need to be runtime?
+      {:esbuild, "~> 0.8", runtime: Mix.env() == [:dev, :test]},
+      {:tailwind, "~> 0.2", runtime: Mix.env() ==  [:dev, :test]},
+      # Faker certainly needs to be runtime
+      {:faker, "~> 0.18", runtime: Mix.env() in [:dev, :test]},
 
       # development
       {:ex_doc, "~> 0.35", only: [:dev, :test], runtime: false},
@@ -90,7 +93,14 @@ defmodule Backpex.MixProject do
 
   defp aliases do
     [
-      lint: ["format --check-formatted", "credo", "sobelow --config"]
+      lint: ["format --check-formatted", "credo", "sobelow --config"],
+      test: ["ecto.create", "ecto.migrate", "test"],
+      reset_db: [
+        "ecto.drop",
+        "ecto.create",
+        "ecto.migrate",
+        "run priv/repo/seeds.exs"
+      ]
     ]
   end
 

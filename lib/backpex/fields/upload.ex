@@ -449,7 +449,7 @@ defmodule Backpex.Fields.Upload do
       }">
       <Layout.field_container>
         <:label align={Backpex.Field.align_label(@field_options, assigns, :top)}>
-          <Layout.input_label text={@field_options[:label]} />
+          <Layout.input_label field={@form[@name]} text={@field_options[:label]} />
         </:label>
         <div
           x-data="{dragging: 0}"

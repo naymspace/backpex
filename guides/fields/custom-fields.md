@@ -30,7 +30,7 @@ def render_form(assigns) do
 <div>
     <Layout.field_container>
     <:label>
-        <Layout.input_label text={@field_options[:label]} />
+        <Layout.input_label field={@form[@name]} text={@field_options[:label]} />
     </:label>
     <BackpexForm.input
         type="text"

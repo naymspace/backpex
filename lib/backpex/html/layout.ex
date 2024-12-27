@@ -604,12 +604,13 @@ defmodule Backpex.HTML.Layout do
   @doc type: :component
 
   attr :text, :string, doc: "text of the label"
+  attr :field, :any, doc: "form field to which the label points"
 
   def input_label(assigns) do
     ~H"""
-    <p class="text-content block break-words text-sm font-medium">
+    <label for={@field.id} class="text-content block break-words text-sm font-medium">
       <%= @text %>
-    </p>
+    </label>
     """
   end
 

@@ -58,7 +58,7 @@ def render_form_readonly(assigns) do
 <div>
     <Layout.field_container>
         <:label>
-            <Layout.input_label text={@field[:label]} />
+            <Layout.input_label field={@form[@name]} text={@field[:label]} />
         </:label>
         <BackpexForm.input
         type="text"
