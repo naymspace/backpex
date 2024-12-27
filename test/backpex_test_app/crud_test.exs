@@ -83,7 +83,7 @@ defmodule Backpex.BackpexTextApp.CrudTests do
     end
   end
 
-  describe "index page for empty database: " do
+  describe "index page for empty database:" do
     test "/payroll/employees", %{conn: conn} do
       conn
       |> visit("/payroll/employees")
@@ -164,7 +164,7 @@ defmodule Backpex.BackpexTextApp.CrudTests do
     end
   end
 
-  describe "create new resource" do
+  describe "create new resource:" do
     test "/payroll/departments (button below title)", %{conn: conn} do
       conn
       |> visit("/payroll/departments")
@@ -358,11 +358,11 @@ defmodule Backpex.BackpexTextApp.CrudTests do
     end
   end
 
-  describe "edit resource: " do
+  describe "edit resource:" do
     test "/payroll/departments - can save and continue (no change)", %{conn: conn} do
       with_populated_database(fn _data ->
         # This query can be non-deterministic, but it actually doesn't matter
-        department = Repo.one(Query.from d in Department, limit: 1)
+        department = Repo.one(Query.from d in Department, order_by: d.id, limit: 1)
 
         conn
         |> visit("/payroll/departments/#{department.id}/edit")
@@ -377,20 +377,133 @@ defmodule Backpex.BackpexTextApp.CrudTests do
     test "/payroll/departments - can save and continue (with change)", %{conn: conn} do
       with_populated_database(fn _data ->
         # This query can be non-deterministic, but it actually doesn't matter
-        department = Repo.one(Query.from d in Department, limit: 1)
+        department = Repo.one(Query.from d in Department, order_by: d.id, limit: 1)
 
         conn
         |> visit("/payroll/departments/#{department.id}/edit")
         # We are in the editing page
         |> assert_has("h1", text: "Edit Department")
-        |> fill_in("Name", with: "New Name")
+        |> fill_in("Name", with: "New Department Name")
         |> click_button("button", "Save & Continue editing")
         # We're still in the editing page (i.e. we didn't move anywhere else)
         |> assert_has("h1", text: "Edit Department")
 
+        # Get the updated resource from the database and ensure the name has been changed
         updated_department = Repo.get!(Department, department.id)
 
-        assert updated_department.name == "New Name"
+        assert updated_department.name == "New Department Name"
+      end)
+    end
+
+    test "/payroll/functions - can save and continue (no change)", %{conn: conn} do
+      with_populated_database(fn _data ->
+        # This query can be non-deterministic, but it actually doesn't matter
+        function = Repo.one(Query.from f in Function, order_by: f.id, limit: 1)
+
+        conn
+        |> visit("/payroll/functions/#{function.id}/edit")
+        # We are in the editing page
+        |> assert_has("h1", text: "Edit Function")
+        |> click_button("button", "Save & Continue editing")
+        # We're still in the editing page (i.e. we didn't move anywhere else)
+        |> assert_has("h1", text: "Edit Function")
+      end)
+    end
+
+    test "/payroll/functions - can save and continue (with change)", %{conn: conn} do
+      with_populated_database(fn _data ->
+        # This query can be non-deterministic, but it actually doesn't matter
+        function = Repo.one(Query.from f in Function, order_by: f.id, limit: 1)
+
+        conn
+        |> visit("/payroll/functions/#{function.id}/edit")
+        # We are in the editing page
+        |> assert_has("h1", text: "Edit Function")
+        |> fill_in("Name", with: "New Function Name")
+        |> click_button("button", "Save & Continue editing")
+        # We're still in the editing page (i.e. we didn't move anywhere else)
+        |> assert_has("h1", text: "Edit Function")
+
+        # Get the updated resource from the database and ensure the name has been changed
+        updated_function = Repo.get!(Function, function.id)
+
+        assert updated_function.name == "New Function Name"
+      end)
+    end
+
+    test "/payroll/employees - can save and continue (no change)", %{conn: conn} do
+      with_populated_database(fn _data ->
+        # This query can be non-deterministic, but it actually doesn't matter
+        employee = Repo.one(Query.from e in Employee, order_by: e.id, limit: 1)
+
+        conn
+        |> visit("/payroll/employees/#{employee.id}/edit")
+        # We are in the editing page
+        |> assert_has("h1", text: "Edit Employee")
+        |> click_button("button", "Save & Continue editing")
+        # We're still in the editing page (i.e. we didn't move anywhere else)
+        |> assert_has("h1", text: "Edit Employee")
+      end)
+    end
+
+    test "/payroll/employees - can save and continue (with change)", %{conn: conn} do
+      with_populated_database(fn _data ->
+        # This query can be non-deterministic, but it actually doesn't matter
+        employee = Repo.one(Query.from e in Employee, order_by: e.id, limit: 1)
+
+        conn
+        |> visit("/payroll/employees/#{employee.id}/edit")
+        # We are in the editing page
+        |> assert_has("h1", text: "Edit Employee")
+        |> fill_in("Full name", with: "New Employee Name")
+        |> click_button("button", "Save & Continue editing")
+        # We're still in the editing page (i.e. we didn't move anywhere else)
+        |> assert_has("h1", text: "Edit Employee")
+
+        # Get the updated resource from the database and ensure the name has been changed
+        updated_employee = Repo.get!(Employee, employee.id)
+
+        assert updated_employee.full_name == "New Employee Name"
+      end)
+    end
+
+    test "/payroll/employees - clicking 'Save' moves to index (no change)", %{conn: conn} do
+      with_populated_database(fn _data ->
+        # This query can be non-deterministic, but it actually doesn't matter
+        employee = Repo.one(Query.from e in Employee, order_by: e.id, limit: 1)
+
+        conn
+        |> visit("/payroll/employees/#{employee.id}/edit")
+        # We are in the editing page
+        |> assert_has("h1", text: "Edit Employee")
+        |> click_button("button[value='save']", "Save")
+        # We're note in the editing page anymore
+        |> refute_has("h1", text: "Edit Employee")
+        # We're in the index page
+        |> assert_has("h1", text: "Employees")
+      end)
+    end
+
+    test "/payroll/employees - clicking 'Save' moves to index (with change)", %{conn: conn} do
+      with_populated_database(fn _data ->
+        # This query can be non-deterministic, but it actually doesn't matter
+        employee = Repo.one(Query.from e in Employee, order_by: e.id, limit: 1)
+
+        conn
+        |> visit("/payroll/employees/#{employee.id}/edit")
+        # We are in the editing page
+        |> assert_has("h1", text: "Edit Employee")
+        |> fill_in("Full name", with: "New Employee Name")
+        |> click_button("button[value='save']", "Save")
+        # We're note in the editing page anymore
+        |> refute_has("h1", text: "Edit Employee")
+        # We're in the index page
+        |> assert_has("h1", text: "Employees")
+
+        # Get the updated resource from the database and ensure the name has been changed
+        updated_employee = Repo.get!(Employee, employee.id)
+
+        assert updated_employee.full_name == "New Employee Name"
       end)
     end
   end
