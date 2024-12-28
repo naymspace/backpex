@@ -428,13 +428,25 @@ defmodule Backpex.Fields.Upload do
     uploads_allowed = not is_nil(assigns.field_uploads)
     translate_error_fun = Map.get(assigns.field_options, :translate_error, &Function.identity/1)
 
+    hidden_field_name = to_string(assigns.name)
+    upload_used_input = Map.get(assigns.form.params, hidden_field_name <> "_used_input")
+
+    used_input? =
+      if upload_used_input == nil or upload_used_input == "false" do
+        false
+      else
+        true
+      end
+
     errors =
-      if Phoenix.Component.used_input?(assigns.form[assigns.name]), do: assigns.form[assigns.name].errors, else: []
+      if used_input?, do: assigns.form[assigns.name].errors, else: []
 
     form_errors = BackpexForm.translate_form_errors(errors, translate_error_fun)
 
     assigns =
       assigns
+      |> assign(:used_input?, to_string(used_input?))
+      |> assign(:hidden_field_name, hidden_field_name)
       |> assign(:upload_key, upload_key)
       |> assign(:uploads_allowed, uploads_allowed)
       |> assign(:uploaded_files, Keyword.get(assigns.uploaded_files, upload_key))
@@ -481,6 +493,13 @@ defmodule Backpex.Fields.Upload do
                     class="hidden"
                   />
                 </label>
+                <input
+                  type="hidden"
+                  class="input input-bordered"
+                  name={"change[#{@hidden_field_name}_used_input]"}
+                  id={"change_#{@hidden_field_name}_used_input"}
+                  value={@used_input?}
+                />
                 <p class="pl-1">{Backpex.translate("or drag and drop")}</p>
               </div>
             </div>
