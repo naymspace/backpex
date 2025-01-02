@@ -663,7 +663,10 @@ defmodule Backpex.LiveResource do
     if not live_resource.can?(socket.assigns, :new, nil), do: raise(Backpex.ForbiddenError)
 
     fields = live_resource.validated_fields() |> filtered_fields_by_action(socket.assigns, :new)
-    empty_item = schema.__struct__()
+
+    new_item = if (builder = live_resource.config(:adapter_config)[:new_item_builder]),
+      do: builder.(socket),
+      else: schema.__struct__()
 
     changeset_function = live_resource.config(:adapter_config)[:create_changeset]
 
@@ -671,8 +674,8 @@ defmodule Backpex.LiveResource do
     |> assign(:changeset_function, changeset_function)
     |> assign(:page_title, create_button_label)
     |> assign(:fields, fields)
-    |> assign(:item, empty_item)
-    |> assign_changeset(changeset_function, empty_item, fields, :new)
+    |> assign(:item, new_item)
+    |> assign_changeset(changeset_function, new_item, fields, :new)
   end
 
   defp apply_action(socket, :resource_action) do

@@ -44,7 +44,22 @@ defmodule Backpex.Adapters.Ecto do
       Otherwise you will likely get binding errors.
       """,
       type: {:fun, 3}
-    ]
+    ],
+    new_item_builder: [
+      doc: """
+      The function that creates new items. Usefull when you want to prefill form when crating new items. With this you can
+      implement "copy" action, create by template, etc.. You have access to socket.params and you can modify creation based
+      on it's values.
+
+      This function should accept the following parameters:
+
+      - `assigns` - `map()`
+
+      It should return an item with expected schema.
+      """,
+      type: {:fun, 1},
+      required: false
+    ],
   ]
 
   @moduledoc """
