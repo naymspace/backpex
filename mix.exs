@@ -52,7 +52,7 @@ defmodule Backpex.MixProject do
       {:phoenix, "~> 1.7.6"},
       {:phoenix_html, "~> 4.1"},
       {:phoenix_html_helpers, "~> 1.0"},
-      {:phoenix_live_view, "~> 0.20.0"},
+      {:phoenix_live_view, "~> 1.0.0"},
 
       # adapters
       {:ecto_sql, "~> 3.6"},
