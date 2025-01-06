@@ -546,7 +546,7 @@ defmodule Backpex.Fields.HasManyThrough do
   end
 
   defp maybe_sort_by(
-         [%{child: _child} | _] = items,
+         [%{child: _child} | _tail] = items,
          %{field: %{sort_by: column_names}} = _assigns
        ) do
     items
