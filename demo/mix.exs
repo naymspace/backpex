@@ -34,7 +34,7 @@ defmodule Demo.MixProject do
   defp deps do
     [
       # development
-      {:ex_doc, "~> 0.35", only: [:dev, :test], runtime: false},
+      {:ex_doc, "~> 0.36", only: [:dev, :test], runtime: false},
       {:credo, "~> 1.7.5", only: [:dev, :test], runtime: false},
       {:sobelow, "~> 0.13", only: [:dev, :test]},
       {:mix_audit, "~> 2.0", only: [:dev, :test], runtime: false},
