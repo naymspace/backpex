@@ -276,7 +276,7 @@ defmodule DemoWeb.UserLive do
   end
 
   defp file_name(entry) do
-    [ext | _] = MIME.extensions(entry.client_type)
+    [ext | _tail] = MIME.extensions(entry.client_type)
     "#{entry.uuid}.#{ext}"
   end
 
