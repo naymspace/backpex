@@ -35,7 +35,7 @@ defmodule Backpex.MixProject do
   defp deps do
     [
       # development
-      {:ex_doc, "~> 0.35", only: [:dev, :test], runtime: false},
+      {:ex_doc, "~> 0.36", only: [:dev, :test], runtime: false},
       {:credo, ">= 0.0.0", only: [:dev, :test], runtime: false},
       {:mix_audit, "~> 2.0", only: [:dev, :test], runtime: false},
       {:tailwind_formatter, "~> 0.4", only: [:dev, :test], runtime: false},
