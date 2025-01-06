@@ -42,7 +42,7 @@ defmodule Backpex.HTML.Layout do
                 class="rounded-badge ml-1 flex h-10 w-10 items-center justify-center focus:ring-primary-content focus:outline-none focus:ring-2 focus:ring-inset"
                 @click="mobile_menu_open = false"
               >
-                <Backpex.HTML.CoreComponents.icon name="hero-x-mark-solid" class="h-5 w-5 text-primary-content" />
+                <Backpex.HTML.CoreComponents.icon name="hero-x-mark-solid" class="text-primary-content h-5 w-5" />
               </button>
             </div>
 
