@@ -23,24 +23,18 @@
       "pinDigests": false
     },
     {
-      "description": "Disable ubuntu major updates",
+      "description": "Disable ubuntu major updates and digest pinning",
+      "matchDatasources": [
+        "docker"
+      ],
       "matchDepNames": [
         "ubuntu"
       ],
       "matchUpdateTypes": [
-        "major"
+        "major",
+        "pinDigest"
       ],
       "enabled": false
-    },
-    {
-      "description": "Disable digest pinning for Ubuntu",
-      "matchDepNames": [
-        "ubuntu"
-      ],
-      "matchDatasources": [
-        "docker"
-      ],
-      "pinDigests": false
     },
     {
       "matchManagers": [
@@ -57,7 +51,8 @@
         "patch",
         "pin",
         "pinDigest"
-      ]
+      ],
+      "automerge": true
     },
     {
       "description": "Label dependency updates in demo directory",
