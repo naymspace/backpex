@@ -50,10 +50,10 @@ defmodule Backpex.Metrics.Value do
     <div class={["card bg-base-100 mb-4 shadow-sm", @class]}>
       <div class="card-body p-4">
         <p class="card-title text-base-content/60 text-sm font-normal">
-          <%= @label %>
+          {@label}
         </p>
         <p class="text-base-content text-2xl font-semibold">
-          <%= @value %>
+          {@value}
         </p>
       </div>
     </div>

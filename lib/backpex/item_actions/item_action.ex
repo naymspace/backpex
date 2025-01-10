@@ -94,7 +94,7 @@ defmodule Backpex.ItemAction do
   @doc """
   Defines `Backpex.ItemAction` behaviour and provides default implementations.
   """
-  defmacro __using__(_) do
+  defmacro __using__(_opts) do
     quote do
       @before_compile Backpex.ItemAction
       @behaviour Backpex.ItemAction

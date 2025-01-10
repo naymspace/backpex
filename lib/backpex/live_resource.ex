@@ -349,7 +349,7 @@ defmodule Backpex.LiveResource do
       def render_resource_slot(var!(assigns), :index, :page_title) do
         ~H"""
         <.main_title class="flex items-center justify-between">
-          <%= @plural_name %>
+          {@plural_name}
         </.main_title>
         """
       end
@@ -386,7 +386,7 @@ defmodule Backpex.LiveResource do
       def render_resource_slot(var!(assigns), :show, :page_title) do
         ~H"""
         <.main_title class="flex items-center justify-between">
-          <%= @singular_name %>
+          {@singular_name}
           <.link
             :if={@live_resource.can?(assigns, :edit, @item)}
             class="tooltip hover:z-30"
@@ -396,7 +396,7 @@ defmodule Backpex.LiveResource do
           >
             <Backpex.HTML.CoreComponents.icon
               name="hero-pencil-square"
-              class="h-6 w-6 cursor-pointer transition duration-75 hover:scale-110 hover:text-primary"
+              class="h-6 w-6 cursor-pointer transition duration-75 hover:text-primary hover:scale-110"
             />
           </.link>
         </.main_title>
@@ -414,7 +414,7 @@ defmodule Backpex.LiveResource do
       def render_resource_slot(var!(assigns), :edit, :page_title) do
         ~H"""
         <.main_title class="mb-4">
-          <%= Backpex.translate({"Edit %{resource}", %{resource: @singular_name}}) %>
+          {Backpex.translate({"Edit %{resource}", %{resource: @singular_name}})}
         </.main_title>
         """
       end
@@ -423,7 +423,7 @@ defmodule Backpex.LiveResource do
       def render_resource_slot(var!(assigns), :new, :page_title) do
         ~H"""
         <.main_title class="mb-4">
-          <%= @create_button_label %>
+          {@create_button_label}
         </.main_title>
         """
       end

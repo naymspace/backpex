@@ -70,7 +70,7 @@ defmodule Backpex.ResourceAction do
   @doc """
   Defines `Backpex.ResourceAction` behaviour.
   """
-  defmacro __using__(_) do
+  defmacro __using__(_opts) do
     quote do
       @behaviour Backpex.ResourceAction
 

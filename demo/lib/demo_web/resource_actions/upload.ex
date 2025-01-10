@@ -22,6 +22,7 @@ defmodule DemoWeb.ResourceActions.Upload do
         consume_upload: &consume_upload/4,
         remove_uploads: &remove_uploads/3,
         list_existing_files: &list_existing_files/1,
+        max_entries: 1,
         type: :string
       },
       description: %{
@@ -105,7 +106,7 @@ defmodule DemoWeb.ResourceActions.Upload do
   end
 
   defp file_name(entry) do
-    [ext | _] = MIME.extensions(entry.client_type)
+    [ext | _tail] = MIME.extensions(entry.client_type)
     "#{entry.uuid}.#{ext}"
   end
 

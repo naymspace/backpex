@@ -115,7 +115,7 @@ defmodule Backpex.Fields.HasMany do
   def render_value(assigns) do
     ~H"""
     <div class={[@live_action in [:index, :resource_action] && "truncate"]}>
-      <%= if @value == [], do: raw("&mdash;") %>
+      {if @value == [], do: raw("&mdash;")}
 
       <div class={["flex", @live_action == :show && "flex-wrap"]}>
         <.intersperse :let={item} enum={@value |> Enum.sort_by(&Map.get(&1, display_field(@field)), :asc)}>
@@ -146,23 +146,23 @@ defmodule Backpex.Fields.HasMany do
         <:label align={Backpex.Field.align_label(@field_options, assigns)}>
           <Layout.input_label text={@field_options[:label]} />
         </:label>
-        <div class="dropdown w-full" phx-feedback-for={@form[@name].name}>
+        <div class="dropdown w-full">
           <label
             tabindex="0"
             class={[
-              "input block h-fit w-full p-2 phx-no-feedback:input-bordered phx-no-feedback:bg-transparent",
+              "input block h-fit w-full p-2",
               @errors == [] && "input-bordered bg-transparent",
               @errors != [] && "input-error bg-error/10"
             ]}
           >
             <div class="flex h-full w-full flex-wrap items-center gap-1 px-2">
               <p :if={@selected == []} class="p-0.5 text-sm">
-                <%= @prompt %>
+                {@prompt}
               </p>
 
               <div :for={{label, value} <- @selected} class="badge badge-primary p-[11px]">
                 <p class="mr-1">
-                  <%= label %>
+                  {label}
                 </p>
 
                 <label
@@ -170,12 +170,12 @@ defmodule Backpex.Fields.HasMany do
                   for={"has-many-#{@name}-checkbox-value-#{value}"}
                   aria-label={Backpex.translate({"Unselect %{label}", %{label: label}})}
                 >
-                  <Backpex.HTML.CoreComponents.icon name="hero-x-mark" class="ml-1 h-4 w-4 text-base-100" />
+                  <Backpex.HTML.CoreComponents.icon name="hero-x-mark" class="text-base-100 ml-1 h-4 w-4" />
                 </label>
               </div>
             </div>
           </label>
-          <.error :for={msg <- @errors}><%= msg %></.error>
+          <.error :for={msg <- @errors}>{msg}</.error>
           <div tabindex="0" class="dropdown-content z-[1] menu bg-base-100 rounded-box w-full overflow-y-auto shadow">
             <div class="max-h-72 p-2">
               <input
@@ -188,7 +188,7 @@ defmodule Backpex.Fields.HasMany do
                 value={@search_input}
               />
               <p :if={@options == []} class="w-full">
-                <%= @not_found_text %>
+                {@not_found_text}
               </p>
 
               <label :if={Enum.any?(@options)}>
@@ -200,14 +200,14 @@ defmodule Backpex.Fields.HasMany do
                 />
                 <span role="button" class="text-primary my-2 cursor-pointer text-sm underline">
                   <%= if @all_selected do %>
-                    <%= Backpex.translate("Deselect all") %>
+                    {Backpex.translate("Deselect all")}
                   <% else %>
-                    <%= Backpex.translate("Select all") %>
+                    {Backpex.translate("Select all")}
                   <% end %>
                 </span>
               </label>
 
-              <input type="hidden" id={"has-many-#{@name}-hidden-input"} name={@form[@name].name} value="" />
+              <input type="hidden" id={"has-many-#{@name}-hidden-input"} name={"#{@form[@name].name}[]"} value="" />
 
               <input
                 :for={value <- @selected_ids}
@@ -231,7 +231,7 @@ defmodule Backpex.Fields.HasMany do
                     class="checkbox checkbox-sm checkbox-primary"
                   />
                   <span class="label-text">
-                    <%= label %>
+                    {label}
                   </span>
                 </label>
               </div>
@@ -243,7 +243,7 @@ defmodule Backpex.Fields.HasMany do
                 phx-click="show-more"
                 phx-target={@myself}
               >
-                <%= Backpex.translate("Show more") %>
+                {Backpex.translate("Show more")}
               </button>
             </div>
           </div>
@@ -336,8 +336,10 @@ defmodule Backpex.Fields.HasMany do
   defp get_assocs_by_ids(assoc_ids, schema, repo, field_options, assigns) do
     case assoc_ids do
       ids when is_list(ids) and ids != [] ->
+        filtered_ids = Enum.reject(ids, &(&1 == ""))
+
         schema
-        |> where([x], x.id in ^ids)
+        |> where([x], x.id in ^filtered_ids)
         |> maybe_options_query(field_options, assigns)
         |> repo.all()
 
@@ -360,11 +362,11 @@ defmodule Backpex.Fields.HasMany do
     ~H"""
     <%= if is_nil(@link) do %>
       <span>
-        <%= HTML.pretty_value(@display_text) %>
+        {HTML.pretty_value(@display_text)}
       </span>
     <% else %>
       <.link navigate={@link} class="hover:underline">
-        <%= @display_text %>
+        {@display_text}
       </.link>
     <% end %>
     """
@@ -538,9 +540,10 @@ defmodule Backpex.Fields.HasMany do
   defp assign_form_errors(socket) do
     %{assigns: %{form: form, name: name, field_options: field_options}} = socket
 
+    errors = if Phoenix.Component.used_input?(form[name]), do: form[name].errors, else: []
     translate_error_fun = Map.get(field_options, :translate_error, &Function.identity/1)
 
-    assign(socket, :errors, translate_form_errors(form[name], translate_error_fun))
+    assign(socket, :errors, translate_form_errors(errors, translate_error_fun))
   end
 
   defp display_field_form({_name, field_options} = field),

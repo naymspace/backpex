@@ -70,9 +70,9 @@ defmodule Backpex.HTML.Resource do
       }
       replace
     >
-      <p><%= @label %></p>
+      <p>{@label}</p>
       <%= if @name == @query_options.order_by do %>
-        <%= order_icon(assigns, @query_options.order_direction) %>
+        {order_icon(assigns, @query_options.order_direction)}
       <% end %>
     </.link>
     """
@@ -220,11 +220,11 @@ defmodule Backpex.HTML.Resource do
     <div :if={@filters != []} class="dropdown">
       <div class="indicator">
         <span :if={@filter_count > 0} class="indicator-item badge badge-secondary">
-          <%= @filter_count %>
+          {@filter_count}
         </span>
         <label tabindex="0" class="btn btn-sm btn-outline ring-base-content/10 border-0 ring-1">
-          <Backpex.HTML.CoreComponents.icon name="hero-funnel-solid" class={["h-5 w-5 mr-2", @filter_icon_class]} />
-          <%= Backpex.translate("Filters") %>
+          <Backpex.HTML.CoreComponents.icon name="hero-funnel-solid" class={["mr-2 h-5 w-5", @filter_icon_class]} />
+          {Backpex.translate("Filters")}
         </label>
       </div>
       <div tabindex="0" class="dropdown-content z-[1] menu bg-base-100 rounded-box p-4 shadow">
@@ -237,11 +237,11 @@ defmodule Backpex.HTML.Resource do
       clear_event="clear-filter"
       label={Keyword.get(@filters, String.to_existing_atom(key)).module.label()}
     >
-      <%= component(
+      {component(
         &Keyword.get(@filters, String.to_existing_atom(key)).module.render/1,
         [value: value],
         {__ENV__.module, __ENV__.function, __ENV__.file, __ENV__.line}
-      ) %>
+      )}
     </Backpex.HTML.CoreComponents.filter_badge>
     """
   end
@@ -254,16 +254,16 @@ defmodule Backpex.HTML.Resource do
         <.form :let={f} for={to_form(%{}, as: :filters)} phx-change="change-filter" phx-submit="change-filter">
           <div>
             <div class="relative flex w-full flex-wrap justify-start gap-2">
-              <div class="text-base-content text-sm font-medium"><%= Map.get(filter, :label, filter.module.label()) %></div>
+              <div class="text-base-content text-sm font-medium">{Map.get(filter, :label, filter.module.label())}</div>
               <.maybe_clear_button field={field} value={value} />
             </div>
             <div class="flex gap-4">
               <div class="w-[240px]">
-                <%= component(
+                {component(
                   &filter.module.render_form/1,
                   [field: field, value: value, form: f],
                   {__ENV__.module, __ENV__.function, __ENV__.file, __ENV__.line}
-                ) %>
+                )}
               </div>
               <.filter_presets field={field} presets={Map.get(filter, :presets)} />
             </div>
@@ -286,7 +286,7 @@ defmodule Backpex.HTML.Resource do
         phx-value-preset-index={index}
         class="text-primary mb-1 cursor-pointer truncate text-xs font-medium"
       >
-        <%= preset.label %>
+        {preset.label}
       </div>
     </div>
     """
@@ -330,12 +330,12 @@ defmodule Backpex.HTML.Resource do
     <div class={["dropdown", @class]} x-bind:style={@x_style}>
       <label tabindex="0" class="hover:cursor-pointer">
         <span class="sr-only">
-          <%= Backpex.translate("Toggle columns") %>
+          {Backpex.translate("Toggle columns")}
         </span>
         <Backpex.HTML.CoreComponents.icon
           name="hero-view-columns-solid"
           aria-hidden="true"
-          class="h-5 w-5 text-base-content/50 hover:text-base-content"
+          class="text-base-content/50 h-5 w-5 hover:text-base-content"
         />
       </label>
       <div tabindex="0" class="dropdown-content z-[1] menu bg-base-100 rounded-box min-w-52 max-w-72 p-4 shadow">
@@ -344,7 +344,7 @@ defmodule Backpex.HTML.Resource do
           <input type="hidden" name={@form[:_cookie_redirect_url].name} value={@form[:_cookie_redirect_url].value} />
           <.toggle_columns_inputs active_fields={@active_fields} form={@form} />
           <button class="btn btn-sm btn-primary mt-4">
-            <%= Backpex.translate("Save") %>
+            {Backpex.translate("Save")}
           </button>
         </.form>
       </div>
@@ -368,7 +368,7 @@ defmodule Backpex.HTML.Resource do
           <input type="hidden" name={@form[name].name} value="false" />
           <input type="checkbox" name={@form[name].name} class="checkbox checkbox-sm checkbox-primary" checked={active} />
           <span class="label-text truncate pl-2">
-            <%= label %>
+            {label}
           </span>
         </label>
       </div>
@@ -394,8 +394,8 @@ defmodule Backpex.HTML.Resource do
 
     ~H"""
     <div :if={@total > 0} class="text-base-content pr-2 text-sm">
-      <%= Backpex.translate({"Items %{from} to %{to}", %{from: @from, to: @to}}) %>
-      <%= "(#{@total} #{Backpex.translate("total")})" %>
+      {Backpex.translate({"Items %{from} to %{to}", %{from: @from, to: @to}})}
+      {"(#{@total} #{Backpex.translate("total")})"}
     </div>
     """
   end
@@ -443,12 +443,12 @@ defmodule Backpex.HTML.Resource do
     ~H"""
     <%= if @current_page == @number do %>
       <button class={["btn btn-active", @class]} aria-disabled="true">
-        <%= Integer.to_string(@number) %>
+        {Integer.to_string(@number)}
       </button>
     <% else %>
       <.link href={@href}>
         <button class={["btn bg-base-100", @class]}>
-          <%= Integer.to_string(@number) %>
+          {Integer.to_string(@number)}
         </button>
       </.link>
     <% end %>
@@ -605,7 +605,7 @@ defmodule Backpex.HTML.Resource do
     ~H"""
     <.form for={@form} class={@class} phx-change="select-page-size" phx-submit="select-page-size">
       <select name={@form[:value].name} class="select select-sm select-bordered">
-        <%= Phoenix.HTML.Form.options_for_select(@options, @selected) %>
+        {Phoenix.HTML.Form.options_for_select(@options, @selected)}
       </select>
     </.form>
     """
@@ -628,7 +628,7 @@ defmodule Backpex.HTML.Resource do
     <div class="mb-4 flex space-x-2">
       <.link :if={@live_resource.can?(assigns, :new, nil)} patch={Router.get_path(@socket, @live_resource, @params, :new)}>
         <button class="btn btn-sm btn-outline btn-primary">
-          <%= @create_button_label %>
+          {@create_button_label}
         </button>
       </.link>
 
@@ -637,7 +637,7 @@ defmodule Backpex.HTML.Resource do
         patch={Router.get_path(@socket, @live_resource, @params, :resource_action, key, @query_options)}
       >
         <button class="btn btn-sm btn-outline btn-primary">
-          <%= ResourceAction.name(action, :label) %>
+          {ResourceAction.name(action, :label)}
         </button>
       </.link>
 
@@ -650,7 +650,7 @@ defmodule Backpex.HTML.Resource do
         phx-click="item-action"
         phx-value-action-key={key}
       >
-        <%= action.module.label(assigns, nil) %>
+        {action.module.label(assigns, nil)}
       </button>
     </div>
     """
@@ -774,7 +774,7 @@ defmodule Backpex.HTML.Resource do
           <.empty_state_content :if={not @search_active? and not @filter_active?} title={@title}>
             <.link :if={@create_allowed} patch={Router.get_path(@socket, @live_resource, @params, :new)}>
               <button class="btn btn-sm btn-outline btn-primary mt-6">
-                <%= @create_button_label %>
+                {@create_button_label}
               </button>
             </.link>
           </.empty_state_content>
@@ -791,10 +791,10 @@ defmodule Backpex.HTML.Resource do
 
   defp empty_state_content(assigns) do
     ~H"""
-    <Backpex.HTML.CoreComponents.icon name="hero-folder-plus" class="mb-1 inline-block h-12 w-12 text-base-content/30" />
-    <p class="text-base-content text-lg font-bold"><%= @title %></p>
-    <p :if={@subtitle} class="text-base-content/75"><%= @subtitle %></p>
-    <%= render_slot(@inner_block) %>
+    <Backpex.HTML.CoreComponents.icon name="hero-folder-plus" class="text-base-content/30 mb-1 inline-block h-12 w-12" />
+    <p class="text-base-content text-lg font-bold">{@title}</p>
+    <p :if={@subtitle} class="text-base-content/75">{@subtitle}</p>
+    {render_slot(@inner_block)}
     """
   end
 
@@ -852,7 +852,7 @@ defmodule Backpex.HTML.Resource do
     ~H"""
     <div class={@class}>
       <p :if={@label != nil} class="text-lg font-semibold">
-        <%= @label %>
+        {@label}
       </p>
 
       <div class="card bg-base-100 mt-4">
@@ -890,7 +890,7 @@ defmodule Backpex.HTML.Resource do
         <hr class="border-1 border-base-200 mb-8" />
 
         <legend class="mb-4 px-6 text-lg font-semibold">
-          <%= @label %>
+          {@label}
         </legend>
       </div>
 
@@ -916,11 +916,11 @@ defmodule Backpex.HTML.Resource do
     ~H"""
     <div :if={length(@metrics) > 0 and @visible} class="items-center gap-4 lg:flex">
       <%= for {_key, metric} <- @metrics do %>
-        <%= component(
+        {component(
           &metric.module.render/1,
           [metric: metric],
           {__ENV__.module, __ENV__.function, __ENV__.file, __ENV__.line}
-        ) %>
+        )}
       <% end %>
     </div>
     """
