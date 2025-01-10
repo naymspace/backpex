@@ -182,6 +182,7 @@ defmodule Backpex.FormComponent do
       change
       |> put_upload_change(socket, :insert)
       |> drop_readonly_changes(fields, assigns)
+      |> drop_unused_changes()
 
     handle_save(socket, live_action, change, save_type)
   end
@@ -413,6 +414,13 @@ defmodule Backpex.FormComponent do
     Map.drop(change, read_only)
   end
 
+  defp drop_unused_changes(change) do
+    change
+    |> Enum.reduce(%{}, fn {key, value}, acc ->
+      if String.starts_with?(key, "_unused_"), do: acc, else: Map.put(acc, key, value)
+    end)
+  end
+
   defp return_to_path("continue", _live_resource, _socket, %{current_url: url}, item, :new) do
     url
     |> URI.parse()
@@ -442,13 +450,10 @@ defmodule Backpex.FormComponent do
         upload_used_input_data = Map.get(change, "#{to_string(name)}_used_input")
         used_input? = upload_used_input_data != "false"
 
-        # Changed
         if uploaded_entries != {[], []} or removed_entries != [] or used_input? == true do
           change
           |> Map.drop(["_unused_#{to_string(name)}", "_unused_#{to_string(name)}_used_input"])
           |> Map.put("#{to_string(name)}_used_input", "true")
-
-          # Unchanged
         else
           change
           |> Map.put("_unused_#{to_string(name)}", "")
