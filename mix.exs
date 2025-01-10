@@ -35,22 +35,22 @@ defmodule Backpex.MixProject do
   defp deps do
     [
       # development
-      {:ex_doc, "~> 0.35", only: [:dev, :test], runtime: false},
-      {:credo, "~> 1.7.5", only: [:dev, :test], runtime: false},
+      {:ex_doc, "~> 0.36", only: [:dev, :test], runtime: false},
+      {:credo, ">= 0.0.0", only: [:dev, :test], runtime: false},
       {:mix_audit, "~> 2.0", only: [:dev, :test], runtime: false},
-      {:tailwind_formatter, "~> 0.4.0", only: [:dev, :test], runtime: false},
-      {:sobelow, "~> 0.13", only: [:dev, :test]},
+      {:tailwind_formatter, "~> 0.4", only: [:dev, :test], runtime: false},
+      {:sobelow, ">= 0.0.0", only: [:dev, :test]},
 
       # core
       {:nimble_options, "~> 1.1"},
       {:gettext, "~> 0.26"},
       {:jason, "~> 1.2"},
-      {:number, "~> 1.0.3"},
-      {:money, "~> 1.13.1"},
+      {:number, "~> 1.0"},
+      {:money, "~> 1.13"},
 
       # phoenix
       {:phoenix, "~> 1.7.6"},
-      {:phoenix_html, "~> 4.1.1"},
+      {:phoenix_html, "~> 4.1"},
       {:phoenix_html_helpers, "~> 1.0"},
       {:phoenix_live_view, "~> 1.0"},
 

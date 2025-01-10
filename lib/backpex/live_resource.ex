@@ -396,7 +396,7 @@ defmodule Backpex.LiveResource do
           >
             <Backpex.HTML.CoreComponents.icon
               name="hero-pencil-square"
-              class="h-6 w-6 cursor-pointer transition duration-75 hover:scale-110 hover:text-primary"
+              class="h-6 w-6 cursor-pointer transition duration-75 hover:text-primary hover:scale-110"
             />
           </.link>
         </.main_title>

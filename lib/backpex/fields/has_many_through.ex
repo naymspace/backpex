@@ -312,7 +312,7 @@ defmodule Backpex.Fields.HasManyThrough do
                       :if={has_error?(@editables, index)}
                       aria-label={Backpex.translate({"Error in relation with index %{index}", %{index: listable.index}})}
                     >
-                      <Backpex.HTML.CoreComponents.icon name="hero-exclamation-triangle" class="h-5 w-5 text-error" />
+                      <Backpex.HTML.CoreComponents.icon name="hero-exclamation-triangle" class="text-error h-5 w-5" />
                     </div>
                   </div>
                 </td>
@@ -546,7 +546,7 @@ defmodule Backpex.Fields.HasManyThrough do
   end
 
   defp maybe_sort_by(
-         [%{child: _child} | _] = items,
+         [%{child: _child} | _tail] = items,
          %{field: %{sort_by: column_names}} = _assigns
        ) do
     items

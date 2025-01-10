@@ -180,7 +180,7 @@ defmodule Backpex.Filters.Range do
 
   def date?(date) do
     case Date.from_iso8601(date) do
-      {:ok, _} -> true
+      {:ok, _date} -> true
       _err -> false
     end
   end

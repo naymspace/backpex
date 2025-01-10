@@ -170,7 +170,7 @@ defmodule Backpex.Fields.HasMany do
                   for={"has-many-#{@name}-checkbox-value-#{value}"}
                   aria-label={Backpex.translate({"Unselect %{label}", %{label: label}})}
                 >
-                  <Backpex.HTML.CoreComponents.icon name="hero-x-mark" class="ml-1 h-4 w-4 text-base-100" />
+                  <Backpex.HTML.CoreComponents.icon name="hero-x-mark" class="text-base-100 ml-1 h-4 w-4" />
                 </label>
               </div>
             </div>

@@ -480,7 +480,7 @@ defmodule Backpex.Fields.Upload do
             x-bind:class="dragging > 0 ? 'border-primary' : 'border-base-content/25'"
           >
             <div class="flex flex-col items-center space-y-1 text-center">
-              <Backpex.HTML.CoreComponents.icon name="hero-document-arrow-up" class="h-8 w-8 text-base-content/50" />
+              <Backpex.HTML.CoreComponents.icon name="hero-document-arrow-up" class="text-base-content/50 h-8 w-8" />
               <div class="flex text-sm">
                 <label>
                   <a class="link link-hover link-primary font-medium">

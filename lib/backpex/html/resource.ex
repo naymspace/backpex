@@ -223,7 +223,7 @@ defmodule Backpex.HTML.Resource do
           {@filter_count}
         </span>
         <label tabindex="0" class="btn btn-sm btn-outline ring-base-content/10 border-0 ring-1">
-          <Backpex.HTML.CoreComponents.icon name="hero-funnel-solid" class={["h-5 w-5 mr-2", @filter_icon_class]} />
+          <Backpex.HTML.CoreComponents.icon name="hero-funnel-solid" class={["mr-2 h-5 w-5", @filter_icon_class]} />
           {Backpex.translate("Filters")}
         </label>
       </div>
@@ -335,7 +335,7 @@ defmodule Backpex.HTML.Resource do
         <Backpex.HTML.CoreComponents.icon
           name="hero-view-columns-solid"
           aria-hidden="true"
-          class="h-5 w-5 text-base-content/50 hover:text-base-content"
+          class="text-base-content/50 h-5 w-5 hover:text-base-content"
         />
       </label>
       <div tabindex="0" class="dropdown-content z-[1] menu bg-base-100 rounded-box min-w-52 max-w-72 p-4 shadow">
@@ -791,7 +791,7 @@ defmodule Backpex.HTML.Resource do
 
   defp empty_state_content(assigns) do
     ~H"""
-    <Backpex.HTML.CoreComponents.icon name="hero-folder-plus" class="mb-1 inline-block h-12 w-12 text-base-content/30" />
+    <Backpex.HTML.CoreComponents.icon name="hero-folder-plus" class="text-base-content/30 mb-1 inline-block h-12 w-12" />
     <p class="text-base-content text-lg font-bold">{@title}</p>
     <p :if={@subtitle} class="text-base-content/75">{@subtitle}</p>
     {render_slot(@inner_block)}

@@ -8,11 +8,12 @@
     "github>pehbehbeh/renovate-config//workarounds/mixGitVersioning",
     "github>pehbehbeh/renovate-config//customManagers/hexEsbuild",
     "github>pehbehbeh/renovate-config//customManagers/hexTailwind",
-    ":reviewer(krns)"
+    ":reviewer(krns)",
+    "helpers:pinGitHubActionDigestsToSemver"
   ],
   "packageRules": [
     {
-      "description": "Group updates to the Elixir base image",
+      "description": "Group dependency updates to the Elixir base image",
       "groupName": "Base Image",
       "matchDepNames": [
         "erlang",
@@ -22,27 +23,39 @@
       "pinDigests": false
     },
     {
-      "description": "Disable Ubuntu major updates",
+      "description": "Disable ubuntu major updates and digest pinning",
+      "matchDatasources": [
+        "docker"
+      ],
       "matchDepNames": [
         "ubuntu"
       ],
       "matchUpdateTypes": [
-        "major"
+        "major",
+        "pinDigest"
       ],
       "enabled": false
     },
     {
-      "description": "Disable digest pinning for Ubuntu",
-      "matchDepNames": [
-        "ubuntu"
+      "matchManagers": [
+        "mix"
       ],
-      "matchDatasources": [
-        "docker"
-      ],
-      "pinDigests": false
+      "rangeStrategy": "update-lockfile"
     },
     {
-      "description": "Label updates in demo directory",
+      "matchManagers": [
+        "github-actions"
+      ],
+      "matchUpdateTypes": [
+        "minor",
+        "patch",
+        "pin",
+        "pinDigest"
+      ],
+      "automerge": true
+    },
+    {
+      "description": "Label dependency updates in demo directory",
       "matchFileNames": [
         "demo/**"
       ],
@@ -53,7 +66,7 @@
       ]
     },
     {
-      "description": "Label updates in ci.yml",
+      "description": "Label dependency updates in ci.yml",
       "matchFileNames": [
         ".github/workflows/ci.yml"
       ],
@@ -62,12 +75,6 @@
         "dependencies",
         "{{categories}}"
       ]
-    },
-    {
-      "matchManagers": [
-        "github-actions"
-      ],
-      "automerge": true
     }
   ],
   "labels": [

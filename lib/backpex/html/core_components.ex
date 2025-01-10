@@ -8,7 +8,7 @@ defmodule Backpex.HTML.CoreComponents do
   attr :class, :any, default: nil
   attr :rest, :global, default: %{"aria-hidden": "true", viewBox: "0 0 24 24", fill: "currentColor"}
 
-  def icon(%{name: "hero-" <> _} = assigns) do
+  def icon(%{name: "hero-" <> _name} = assigns) do
     ~H"""
     <span class={[@name, @class]} {@rest} />
     """
