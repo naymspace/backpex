@@ -440,13 +440,7 @@ defmodule Backpex.FormComponent do
         change = put_upload_change.(socket, acc, socket.assigns.item, uploaded_entries, removed_entries, action)
 
         upload_used_input_data = Map.get(change, "#{to_string(name)}_used_input")
-
-        used_input? =
-          if upload_used_input_data == "false" do
-            false
-          else
-            true
-          end
+        used_input? = upload_used_input_data != "false"
 
         # Changed
         if uploaded_entries != {[], []} or removed_entries != [] or used_input? == true do

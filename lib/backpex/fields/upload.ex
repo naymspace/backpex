@@ -430,16 +430,9 @@ defmodule Backpex.Fields.Upload do
 
     hidden_field_name = to_string(assigns.name)
     upload_used_input = Map.get(assigns.form.params, hidden_field_name <> "_used_input")
+    used_input? = upload_used_input not in [nil, "false"]
 
-    used_input? =
-      if upload_used_input == nil or upload_used_input == "false" do
-        false
-      else
-        true
-      end
-
-    errors =
-      if used_input?, do: assigns.form[assigns.name].errors, else: []
+    errors = if used_input?, do: assigns.form[assigns.name].errors, else: []
 
     form_errors = BackpexForm.translate_form_errors(errors, translate_error_fun)
 
@@ -495,7 +488,6 @@ defmodule Backpex.Fields.Upload do
                 </label>
                 <input
                   type="hidden"
-                  class="input input-bordered"
                   name={"change[#{@hidden_field_name}_used_input]"}
                   id={"change_#{@hidden_field_name}_used_input"}
                   value={@used_input?}
