@@ -52,7 +52,7 @@ defmodule DemoWeb.ProductLive do
             """
 
           assigns ->
-            ~H"<p><%= Backpex.HTML.pretty_value(@value) %></p>"
+            ~H"<p>{Backpex.HTML.pretty_value(@value)}</p>"
         end,
         except: [:index, :resource_action],
         align: :center
@@ -80,7 +80,7 @@ defmodule DemoWeb.ProductLive do
         end,
         render: fn assigns ->
           ~H"""
-          <p><%= Number.Delimit.number_to_delimited(@value, precision: 0, delimiter: ".") %></p>
+          <p>{Number.Delimit.number_to_delimited(@value, precision: 0, delimiter: ".")}</p>
           """
         end
       },

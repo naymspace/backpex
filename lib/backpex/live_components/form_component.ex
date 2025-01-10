@@ -431,13 +431,35 @@ defmodule Backpex.FormComponent do
 
   defp put_upload_change(change, socket, action) do
     Enum.reduce(socket.assigns.fields, change, fn
-      {_name, %{upload_key: upload_key} = field_options} = _field, acc ->
+      {name, %{upload_key: upload_key} = field_options} = _field, acc ->
         %{put_upload_change: put_upload_change} = field_options
 
         uploaded_entries = uploaded_entries(socket, upload_key)
         removed_entries = Keyword.get(socket.assigns.removed_uploads, upload_key, [])
 
-        put_upload_change.(socket, acc, socket.assigns.item, uploaded_entries, removed_entries, action)
+        change = put_upload_change.(socket, acc, socket.assigns.item, uploaded_entries, removed_entries, action)
+
+        upload_used_input_data = Map.get(change, "#{to_string(name)}_used_input")
+
+        used_input? =
+          if upload_used_input_data == "false" do
+            false
+          else
+            true
+          end
+
+        # Changed
+        if uploaded_entries != {[], []} or removed_entries != [] or used_input? == true do
+          change
+          |> Map.drop(["_unused_#{to_string(name)}", "_unused_#{to_string(name)}_used_input"])
+          |> Map.put("#{to_string(name)}_used_input", "true")
+
+          # Unchanged
+        else
+          change
+          |> Map.put("_unused_#{to_string(name)}", "")
+          |> Map.put("#{to_string(name)}_used_input", "false")
+        end
 
       _field, acc ->
         acc

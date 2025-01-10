@@ -6,14 +6,14 @@
     <meta name="csrf-token" content={get_csrf_token()} />
     <.sentry_meta_tag />
     <.live_title suffix=" · Backpex">
-      <%= assigns[:page_title] || "Phoenix Admin Panel build with PETAL" %>
+      {assigns[:page_title] || "Phoenix Admin Panel build with PETAL"}
     </.live_title>
     <link phx-track-static rel="stylesheet" href={~p"/assets/app.css"} />
     <script defer phx-track-static type="text/javascript" src={~p"/assets/app.js"}>
     </script>
   </head>
   <body class="h-full">
-    <%= @inner_content %>
+    {@inner_content}
     <.analytics />
   </body>
 </html>

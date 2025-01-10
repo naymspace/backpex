@@ -416,7 +416,7 @@ defmodule Backpex.Fields.Upload do
     ~H"""
     <div class="flex flex-col">
       <p :for={{_file_key, label} <- @uploaded_files} class="break-all">
-        <%= label %>
+        {label}
       </p>
     </div>
     """
@@ -427,10 +427,26 @@ defmodule Backpex.Fields.Upload do
     upload_key = assigns.field_options.upload_key
     uploads_allowed = not is_nil(assigns.field_uploads)
     translate_error_fun = Map.get(assigns.field_options, :translate_error, &Function.identity/1)
-    form_errors = BackpexForm.translate_form_errors(assigns.form[assigns.name], translate_error_fun)
+
+    hidden_field_name = to_string(assigns.name)
+    upload_used_input = Map.get(assigns.form.params, hidden_field_name <> "_used_input")
+
+    used_input? =
+      if upload_used_input == nil or upload_used_input == "false" do
+        false
+      else
+        true
+      end
+
+    errors =
+      if used_input?, do: assigns.form[assigns.name].errors, else: []
+
+    form_errors = BackpexForm.translate_form_errors(errors, translate_error_fun)
 
     assigns =
       assigns
+      |> assign(:used_input?, to_string(used_input?))
+      |> assign(:hidden_field_name, hidden_field_name)
       |> assign(:upload_key, upload_key)
       |> assign(:uploads_allowed, uploads_allowed)
       |> assign(:uploaded_files, Keyword.get(assigns.uploaded_files, upload_key))
@@ -468,7 +484,7 @@ defmodule Backpex.Fields.Upload do
               <div class="flex text-sm">
                 <label>
                   <a class="link link-hover link-primary font-medium">
-                    <%= Backpex.translate("Upload a file") %>
+                    {Backpex.translate("Upload a file")}
                   </a>
                   <.live_file_input
                     :if={@uploads_allowed}
@@ -477,7 +493,14 @@ defmodule Backpex.Fields.Upload do
                     class="hidden"
                   />
                 </label>
-                <p class="pl-1"><%= Backpex.translate("or drag and drop") %></p>
+                <input
+                  type="hidden"
+                  class="input input-bordered"
+                  name={"change[#{@hidden_field_name}_used_input]"}
+                  id={"change_#{@hidden_field_name}_used_input"}
+                  value={@used_input?}
+                />
+                <p class="pl-1">{Backpex.translate("or drag and drop")}</p>
               </div>
             </div>
           </div>
@@ -487,7 +510,7 @@ defmodule Backpex.Fields.Upload do
           <article>
             <%= if @uploads_allowed do %>
               <div :for={entry <- @field_uploads.entries} class="break-all">
-                <p class="inline"><%= Map.get(entry, :client_name) %></p>
+                <p class="inline">{Map.get(entry, :client_name)}</p>
 
                 <button
                   type="button"
@@ -501,14 +524,14 @@ defmodule Backpex.Fields.Upload do
                 </button>
 
                 <p :for={err <- upload_errors(@field_uploads, entry)} class="text-xs italic text-red-500">
-                  <%= error_to_string(err) %>
+                  {error_to_string(err)}
                 </p>
               </div>
             <% end %>
 
             <%= if @type == :form do %>
               <div :for={{file_key, label} <- @uploaded_files} class="break-all">
-                <p class="inline"><%= label %></p>
+                <p class="inline">{label}</p>
                 <button
                   type="button"
                   phx-click="cancel-existing-entry"
@@ -525,10 +548,10 @@ defmodule Backpex.Fields.Upload do
 
           <%= if @uploads_allowed do %>
             <p :for={err <- upload_errors(@field_uploads)} class="text-xs italic text-red-500">
-              <%= error_to_string(err) %>
+              {error_to_string(err)}
             </p>
           <% end %>
-          <BackpexForm.error :for={msg <- @form_errors}><%= msg %></BackpexForm.error>
+          <BackpexForm.error :for={msg <- @form_errors}>{msg}</BackpexForm.error>
         </section>
       </Layout.field_container>
     </div>

@@ -47,7 +47,7 @@ defmodule Demo.MixProject do
       {:telemetry_poller, "~> 1.0"},
       {:telemetry_metrics, "~> 1.0"},
       {:gettext, "~> 0.26"},
-      {:sentry, "~> 10.1"},
+      {:sentry, "~> 10.8"},
       {:hackney, "~> 1.17", override: true},
       {:circular_buffer, "~> 0.4.0"},
 
@@ -55,7 +55,7 @@ defmodule Demo.MixProject do
       {:bandit, "~> 1.0"},
       {:phoenix, "~> 1.7.6"},
       {:phoenix_pubsub, "~> 2.0"},
-      {:phoenix_live_view, "~> 0.20.0"},
+      {:phoenix_live_view, "~> 1.0"},
       {:phoenix_live_dashboard, "~> 0.8"},
       {:phoenix_live_reload, "~> 1.2", only: :dev},
 
