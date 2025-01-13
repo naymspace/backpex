@@ -432,7 +432,12 @@ defmodule Backpex.Fields.Upload do
     upload_used_input = Map.get(assigns.form.params, hidden_field_name <> "_used_input")
     used_input? = upload_used_input not in [nil, "false"]
 
-    errors = if used_input?, do: assigns.form[assigns.name].errors, else: []
+    errors =
+      if used_input? do
+        assigns.form[assigns.name].errors
+      else
+        if Phoenix.Component.used_input?(assigns.form[assigns.name]), do: assigns.form[assigns.name].errors, else: []
+      end
 
     form_errors = BackpexForm.translate_form_errors(errors, translate_error_fun)
 
@@ -443,6 +448,7 @@ defmodule Backpex.Fields.Upload do
       |> assign(:upload_key, upload_key)
       |> assign(:uploads_allowed, uploads_allowed)
       |> assign(:uploaded_files, Keyword.get(assigns.uploaded_files, upload_key))
+      |> assign(:errors, errors)
       |> assign(:form_errors, form_errors)
 
     ~H"""
@@ -469,7 +475,11 @@ defmodule Backpex.Fields.Upload do
           phx-drop-target={if @uploads_allowed, do: @field_uploads.ref}
         >
           <div
-            class="rounded-btn flex justify-center border-2 border-dashed px-6 pt-5 pb-6"
+            class={[
+              "rounded-btn flex justify-center border-2 border-dashed px-6 pt-5 pb-6",
+              @errors == [] && "border-base-content/25",
+              @errors != [] && "border-error bg-error/10"
+            ]}
             x-bind:class="dragging > 0 ? 'border-primary' : 'border-base-content/25'"
           >
             <div class="flex flex-col items-center space-y-1 text-center">
