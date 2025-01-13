@@ -1548,10 +1548,10 @@ ignore@^5.1.1, ignore@^5.2.0:
   resolved "https://registry.yarnpkg.com/ignore/-/ignore-5.2.4.tgz#a291c0c6178ff1b960befe47fcdec301674a6324"
   integrity sha512-MAb38BcSbH0eHNBxn7ql2NH/kX33OkB3lZ1BNdh7ENeRChHTYsTvWrMubiIAMNS2llXEEgZ1MUOBtXChP3kaFQ==
 
-ignore@^7.0.0:
-  version "7.0.0"
-  resolved "https://registry.yarnpkg.com/ignore/-/ignore-7.0.0.tgz#52da780b009bd0845d1f9dd4d8ae6a7569ae73c4"
-  integrity sha512-lcX8PNQygAa22u/0BysEY8VhaFRzlOkvdlKczDPnJvrkJD1EuqzEky5VYYKM2iySIuaVIDv9N190DfSreSLw2A==
+ignore@^7.0.1:
+  version "7.0.1"
+  resolved "https://registry.yarnpkg.com/ignore/-/ignore-7.0.1.tgz#e0aca8bd28ed81f45bfbc042c57f24eb682aa2b9"
+  integrity sha512-D1gVletsbVOoiXF963rgZnfobGAbq7Lb+dz3fcBmlOmZg6hHkpbycLqL8PLNB8f4GVv6dOVYwhPL/r7hwiH0Fw==
 
 import-fresh@^3.0.0, import-fresh@^3.2.1, import-fresh@^3.3.0:
   version "3.3.0"
@@ -2775,10 +2775,10 @@ stylelint-config-standard@36.0.1:
   dependencies:
     stylelint-config-recommended "^14.0.1"
 
-stylelint@16.13.0:
-  version "16.13.0"
-  resolved "https://registry.yarnpkg.com/stylelint/-/stylelint-16.13.0.tgz#faf0bad7a0e30f079d5e3c6174d968a569c34167"
-  integrity sha512-muxVjMhZB8BrDFSKNva0dmvD2tM0o/szrvuZuXYcAnN9a8nQmbGLqNUOemSgumaCMCPQ+0USYyG3hA5vJjUC1Q==
+stylelint@16.13.1:
+  version "16.13.1"
+  resolved "https://registry.yarnpkg.com/stylelint/-/stylelint-16.13.1.tgz#bc1bb8a01052c60a1b7c1038aa54773b14fea5b7"
+  integrity sha512-691JjSIIcP6f9QJFz0J0/AMG3lupE9RqYAgYCON3wiqp5nQiKqDYIsz321GeTOYNznoRPNh0Mf6VjzP1eBVz/Q==
   dependencies:
     "@csstools/css-parser-algorithms" "^3.0.4"
     "@csstools/css-tokenizer" "^3.0.3"
@@ -2798,7 +2798,7 @@ stylelint@16.13.0:
     globby "^11.1.0"
     globjoin "^0.1.4"
     html-tags "^3.3.1"
-    ignore "^7.0.0"
+    ignore "^7.0.1"
     imurmurhash "^0.1.4"
     is-plain-object "^5.0.0"
     known-css-properties "^0.35.0"
