@@ -22,7 +22,7 @@
     "@sentry/browser": "8.48.0",
     "alpinejs": "3.14.8",
     "npm-run-all2": "7.0.2",
-    "postcss": "8.4.49",
+    "postcss": "8.5.0",
     "standard": "17.1.2",
     "stylelint": "16.13.0",
     "stylelint-config-standard": "36.0.1",
