@@ -58,7 +58,8 @@
       "description": "Label dependency updates in demo directory",
       "matchFileNames": [
         "demo/**",
-        "Dockerfile"
+        "Dockerfile",
+        "compose.yml"
       ],
       "labels": [
         "demo",
