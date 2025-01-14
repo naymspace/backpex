@@ -57,7 +57,8 @@
     {
       "description": "Label dependency updates in demo directory",
       "matchFileNames": [
-        "demo/**"
+        "demo/**",
+        "Dockerfile"
       ],
       "labels": [
         "demo",
