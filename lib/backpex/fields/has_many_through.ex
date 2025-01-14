@@ -329,7 +329,7 @@ defmodule Backpex.Fields.HasManyThrough do
           max_width="xl"
         >
           <div class="py-3">
-            <div :for={e <- @editables} class={[unless(e.index == @edit_relational, do: "hidden")]}>
+            <div :for={e <- @editables} class={[if(e.index != @edit_relational, do: "hidden")]}>
               <%= hidden_inputs_for(e) %>
               <.select_relational_field
                 form={e}
