@@ -309,7 +309,7 @@ defmodule Backpex.Fields.HasMany do
   end
 
   defp validate_live_resource(field_name, field_options) do
-    unless Map.has_key?(field_options, :live_resource) do
+    if !Map.has_key?(field_options, :live_resource) do
       raise "The field #{field_name} does not have the required key :live_resource defined."
     end
   end

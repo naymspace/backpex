@@ -515,10 +515,7 @@ defmodule Backpex.HTML.Layout do
     <div id="modal">
       <div
         id="modal-overlay"
-        class={[
-          "animate-fade-in bg-neutral fixed inset-0 z-50 bg-opacity-40 transition-opacity",
-          unless(@open, do: "hidden")
-        ]}
+        class={["animate-fade-in bg-neutral fixed inset-0 z-50 bg-opacity-40 transition-opacity", if(!@open, do: "hidden")]}
         aria-hidden="true"
       >
       </div>
@@ -526,7 +523,7 @@ defmodule Backpex.HTML.Layout do
         id="modal-content"
         class={[
           "fixed inset-0 z-50 my-4 flex transform items-center justify-center overflow-hidden px-4 sm:px-6",
-          unless(@open, do: "hidden")
+          if(!@open, do: "hidden")
         ]}
         role="dialog"
         aria-modal="true"
