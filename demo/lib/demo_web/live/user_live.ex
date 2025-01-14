@@ -71,7 +71,7 @@ defmodule DemoWeb.UserLive do
         list_existing_files: &list_existing_files/1,
         render: fn
           %{value: value} = assigns when value == "" or is_nil(value) ->
-            ~H"<p><%= Backpex.HTML.pretty_value(@value) %></p>"
+            ~H"<p>{Backpex.HTML.pretty_value(@value)}</p>"
 
           assigns ->
             ~H'<img class="h-10 w-auto" src={file_url(@value)} />'
@@ -276,7 +276,7 @@ defmodule DemoWeb.UserLive do
   end
 
   defp file_name(entry) do
-    [ext | _] = MIME.extensions(entry.client_type)
+    [ext | _tail] = MIME.extensions(entry.client_type)
     "#{entry.uuid}.#{ext}"
   end
 

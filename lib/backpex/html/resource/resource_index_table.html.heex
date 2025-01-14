@@ -43,7 +43,7 @@
               query_options={@query_options}
             />
           <% else %>
-            <%= label %>
+            {label}
           <% end %>
         </div>
       </th>
@@ -59,7 +59,7 @@
             active_fields={@active_fields}
             live_resource={@live_resource}
             current_url={@current_url}
-            class="flex justify-end pt-1 pr-4 font-medium bg-base-200/50 normal-case"
+            class="bg-base-200/50 flex justify-end pt-1 pr-4 font-medium normal-case"
             x_style="'width: ' + actionsWidth + 'px !important'"
           />
         </div>
@@ -122,7 +122,7 @@
               phx-value-item-id={Map.get(item, @live_resource.config(:primary_key))}
               aria-label={action.module.label(assigns, item)}
             >
-              <%= action.module.icon(assigns, item) %>
+              {action.module.icon(assigns, item)}
             </button>
           </div>
         </div>

@@ -52,7 +52,7 @@ defmodule DemoWeb.ItemAction.Show do
   end
 
   @impl Backpex.ItemAction
-  def label(_assigns, _item), do: Backpex.translate("Show")
+  def label(_assigns, _item), do: "Show"
 
   @impl Backpex.ItemAction
   def handle(socket, [item | _items], _data) do
@@ -124,6 +124,8 @@ Next, we need to implement the item action module.
 defmodule DemoWeb.ItemAction.SoftDelete do
     use BackpexWeb, :item_action
 
+    import Ecto.Changeset
+
     alias Backpex.Resource
 
     @impl Backpex.ItemAction
@@ -147,20 +149,23 @@ defmodule DemoWeb.ItemAction.SoftDelete do
     @required_fields ~w[reason]a
 
     @impl Backpex.ItemAction
-    def changeset(change, attrs) do
+    def changeset(change, attrs, _meta) do
         change
         |> cast(attrs, @required_fields)
         |> validate_required(@required_fields)
     end
 
     @impl Backpex.ItemAction
-    def label(_assigns, _item), do: Backpex.translate("Delete")
+    def confirm(_assigns), do: "Why do you want to delete this item?"
 
     @impl Backpex.ItemAction
-    def confirm_label(_assigns), do: Backpex.translate("Delete")
+    def label(_assigns, _item), do: "Delete"
 
     @impl Backpex.ItemAction
-    def cancel_label(_assigns), do: Backpex.translate("Cancel")
+    def confirm_label(_assigns), do: "Delete"
+
+    @impl Backpex.ItemAction
+    def cancel_label(_assigns), do: "Cancel"
 
     @impl Backpex.ItemAction
     def handle(socket, items, data) do
@@ -194,4 +199,6 @@ In the above example, we define an item action to soft delete users. The item ac
 
 The `c:Backpex.ItemAction.handle/3` function is called when the item action is triggered. The handle function receives the socket, the items that should be affected by the action, and the parameters that were submitted by the user.
 
-By default an item action is triggered immediately when the user clicks on the corresponding icon in the resource table or in the show view, but an item actions also supports a confirmation dialog. To enable the confirmation dialog you need to implement the `c:Backpex.ItemAction.confirm_label/1` function and return a string that will be displayed in the confirmation dialog. The confirmation dialog will be displayed when the user clicks on the icon in the resource table.
+By default an item action is triggered immediately when the user clicks on the corresponding icon in the resource table or in the show view, but an item actions also supports a confirmation dialog. To enable the confirmation dialog you need to implement the `c:Backpex.ItemAction.confirm/1` function and return a string that will be displayed in the confirmation dialog. The confirmation dialog will be displayed when the user clicks on the icon in the resource table.
+
+You might want to use the `c:Backpex.ItemAction.cancel_label/0` (defaults to "Cancel") and `c:Backpex.ItemAction.confirm_label/0` (defaults to "Apply") functions to set the labels of the buttons in the dialog.

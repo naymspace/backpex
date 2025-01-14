@@ -121,7 +121,7 @@ defmodule Backpex.Fields.MultiSelect do
 
     ~H"""
     <div class={[@live_action in [:index, :resource_action] && "truncate"]}>
-      <%= if @selected_labels == [], do: raw("&mdash;") %>
+      {if @selected_labels == [], do: raw("&mdash;")}
 
       <div class={["flex", @live_action == :show && "flex-wrap"]}>
         <.intersperse :let={item} enum={@selected_labels}>
@@ -129,7 +129,7 @@ defmodule Backpex.Fields.MultiSelect do
             ,&nbsp;
           </:separator>
           <p>
-            <%= HTML.pretty_value(item) %>
+            {HTML.pretty_value(item)}
           </p>
         </.intersperse>
       </div>

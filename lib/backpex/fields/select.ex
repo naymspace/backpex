@@ -52,7 +52,7 @@ defmodule Backpex.Fields.Select do
 
     ~H"""
     <p class={@live_action in [:index, :resource_action] && "truncate"}>
-      <%= HTML.pretty_value(@label) %>
+      {HTML.pretty_value(@label)}
     </p>
     """
   end

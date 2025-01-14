@@ -14,7 +14,7 @@
   <%= if @action_to_confirm do %>
     <.modal title={@action_to_confirm.module.label(assigns, nil)}>
       <div class="px-5 py-3">
-        <%= @action_to_confirm.module.confirm(assigns) %>
+        {@action_to_confirm.module.confirm(assigns)}
       </div>
       <div>
         <.live_component
@@ -28,18 +28,18 @@
     </.modal>
   <% end %>
 
-  <%= @live_resource.render_resource_slot(assigns, :index, :before_page_title) %>
-  <%= @live_resource.render_resource_slot(assigns, :index, :page_title) %>
+  {@live_resource.render_resource_slot(assigns, :index, :before_page_title)}
+  {@live_resource.render_resource_slot(assigns, :index, :page_title)}
 
-  <%= @live_resource.render_resource_slot(assigns, :index, :before_actions) %>
-  <%= @live_resource.render_resource_slot(assigns, :index, :actions) %>
+  {@live_resource.render_resource_slot(assigns, :index, :before_actions)}
+  {@live_resource.render_resource_slot(assigns, :index, :actions)}
 
-  <%= @live_resource.render_resource_slot(assigns, :index, :before_filters) %>
-  <%= @live_resource.render_resource_slot(assigns, :index, :filters) %>
+  {@live_resource.render_resource_slot(assigns, :index, :before_filters)}
+  {@live_resource.render_resource_slot(assigns, :index, :filters)}
 
-  <%= @live_resource.render_resource_slot(assigns, :index, :before_metrics) %>
-  <%= @live_resource.render_resource_slot(assigns, :index, :metrics) %>
+  {@live_resource.render_resource_slot(assigns, :index, :before_metrics)}
+  {@live_resource.render_resource_slot(assigns, :index, :metrics)}
 
-  <%= @live_resource.render_resource_slot(assigns, :index, :before_main) %>
-  <%= @live_resource.render_resource_slot(assigns, :index, :main) %>
+  {@live_resource.render_resource_slot(assigns, :index, :before_main)}
+  {@live_resource.render_resource_slot(assigns, :index, :main)}
 </div>

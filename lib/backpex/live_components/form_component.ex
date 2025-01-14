@@ -182,6 +182,7 @@ defmodule Backpex.FormComponent do
       change
       |> put_upload_change(socket, :insert)
       |> drop_readonly_changes(fields, assigns)
+      |> drop_unused_changes()
 
     handle_save(socket, live_action, change, save_type)
   end
@@ -413,6 +414,13 @@ defmodule Backpex.FormComponent do
     Map.drop(change, read_only)
   end
 
+  defp drop_unused_changes(change) do
+    change
+    |> Enum.reduce(%{}, fn {key, value}, acc ->
+      if String.starts_with?(key, "_unused_"), do: acc, else: Map.put(acc, key, value)
+    end)
+  end
+
   defp return_to_path("continue", _live_resource, _socket, %{current_url: url}, item, :new) do
     url
     |> URI.parse()
@@ -431,13 +439,26 @@ defmodule Backpex.FormComponent do
 
   defp put_upload_change(change, socket, action) do
     Enum.reduce(socket.assigns.fields, change, fn
-      {_name, %{upload_key: upload_key} = field_options} = _field, acc ->
+      {name, %{upload_key: upload_key} = field_options} = _field, acc ->
         %{put_upload_change: put_upload_change} = field_options
 
         uploaded_entries = uploaded_entries(socket, upload_key)
         removed_entries = Keyword.get(socket.assigns.removed_uploads, upload_key, [])
 
-        put_upload_change.(socket, acc, socket.assigns.item, uploaded_entries, removed_entries, action)
+        change = put_upload_change.(socket, acc, socket.assigns.item, uploaded_entries, removed_entries, action)
+
+        upload_used_input_data = Map.get(change, "#{to_string(name)}_used_input")
+        used_input? = upload_used_input_data != "false"
+
+        if uploaded_entries != {[], []} or removed_entries != [] or used_input? == true do
+          change
+          |> Map.drop(["_unused_#{to_string(name)}", "_unused_#{to_string(name)}_used_input"])
+          |> Map.put("#{to_string(name)}_used_input", "true")
+        else
+          change
+          |> Map.put("_unused_#{to_string(name)}", "")
+          |> Map.put("#{to_string(name)}_used_input", "false")
+        end
 
       _field, acc ->
         acc
