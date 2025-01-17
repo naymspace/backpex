@@ -44,7 +44,8 @@ if Code.ensure_loaded?(Ash) do
     @impl Backpex.Adapter
     def list(_fields, _assigns, config, _criteria \\ []) do
       config[:resource]
-      |> Ash.read!()
+      |> Ash.read()
+      |> then(fn {:ok, results} -> results end)
     end
 
     @doc """
@@ -53,7 +54,8 @@ if Code.ensure_loaded?(Ash) do
     @impl Backpex.Adapter
     def count(_fields, _assigns, config, _criteria \\ []) do
       config[:resource]
-      |> Ash.count!()
+      |> Ash.count()
+      |> then(fn {:ok, count} -> count end)
     end
 
     @doc """
