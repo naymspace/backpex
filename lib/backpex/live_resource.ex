@@ -521,10 +521,8 @@ defmodule Backpex.LiveResource do
   end
 
   def assign_items(socket) do
-    %{live_resource: live_resource, fields: fields} = socket.assigns
-
     criteria = build_criteria(socket.assigns)
-    items = Resource.list(fields, socket.assigns, live_resource, criteria)
+    items = Resource.list(criteria, socket.assigns, socket.assigns.live_resource)
 
     assign(socket, :items, items)
   end
@@ -746,7 +744,7 @@ defmodule Backpex.LiveResource do
       filters: filter_options(valid_filter_params, filters)
     ]
 
-    item_count = Resource.count(fields, socket.assigns, live_resource, count_criteria)
+    item_count = Resource.count(count_criteria, socket.assigns, live_resource)
 
     per_page =
       params
@@ -1142,7 +1140,7 @@ defmodule Backpex.LiveResource do
       filters: filter_options(valid_filter_params, filters)
     ]
 
-    item_count = Resource.count(fields, socket.assigns, live_resource, count_criteria)
+    item_count = Resource.count(count_criteria, socket.assigns, live_resource)
     %{page: page, per_page: per_page} = query_options
     total_pages = calculate_total_pages(item_count, per_page)
     new_query_options = Map.put(query_options, :page, validate_page(page, total_pages))

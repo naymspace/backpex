@@ -19,20 +19,20 @@ defmodule Backpex.Resource do
     search: {"hello", [:title, :description]}
   ]
   """
-  def list(fields, assigns, live_resource, criteria \\ []) do
+  def list(criteria, assigns, live_resource) do
     adapter = live_resource.config(:adapter)
 
-    adapter.list(fields, criteria, assigns, live_resource)
+    adapter.list(criteria, assigns, live_resource)
   end
 
   @doc """
   Gets the total count of the current live_resource.
   Possibly being constrained the item query and the search- and filter options.
   """
-  def count(fields, assigns, live_resource, criteria \\ []) do
+  def count(criteria, assigns, live_resource) do
     adapter = live_resource.config(:adapter)
 
-    adapter.count(fields, criteria, assigns, live_resource)
+    adapter.count(criteria, assigns, live_resource)
   end
 
   @doc """

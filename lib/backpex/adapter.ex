@@ -32,13 +32,13 @@ defmodule Backpex.Adapter do
   @doc """
   Returns a list of items by given criteria.
   """
-  @callback list(term(), term(), term(), term()) :: term()
+  @callback list(keyword(), map(), module()) :: list()
 
   @doc """
   Gets the total count of the current live_resource.
   Possibly being constrained the item query and the search- and filter options.
   """
-  @callback count(term(), term(), term(), term()) :: term()
+  @callback count(keyword(), map(), module()) :: integer()
 
   @doc """
   Inserts given item.

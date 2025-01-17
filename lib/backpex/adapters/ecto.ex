@@ -81,8 +81,9 @@ defmodule Backpex.Adapters.Ecto do
   Returns a list of items by given criteria.
   """
   @impl Backpex.Adapter
-  def list(fields, criteria, assigns, live_resource) do
+  def list(criteria, assigns, live_resource) do
     config = live_resource.config(:adapter_config)
+    fields = live_resource.validated_fields()
     item_query = prepare_item_query(config, assigns)
 
     list_query(fields, criteria, item_query, assigns)
@@ -93,8 +94,9 @@ defmodule Backpex.Adapters.Ecto do
   Returns the number of items matching the given criteria.
   """
   @impl Backpex.Adapter
-  def count(fields, criteria, assigns, live_resource) do
+  def count(criteria, assigns, live_resource) do
     config = live_resource.config(:adapter_config)
+    fields = live_resource.validated_fields()
     item_query = prepare_item_query(config, assigns)
 
     list_query(fields, criteria, item_query, assigns)
