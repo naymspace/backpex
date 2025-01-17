@@ -1,4 +1,4 @@
-defmodule Backpex.Ecto.Amount.Type.Test do
+defmodule Backpex.Ecto.AmountTypeTest do
   use ExUnit.Case, async: true
   alias Backpex.Ecto.Amount.Type
 

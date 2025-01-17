@@ -8,7 +8,7 @@ defmodule DemoWeb.ItemActions.SoftDelete do
   require Logger
 
   @impl Backpex.ItemAction
-  def icon(assigns) do
+  def icon(assigns, _item) do
     ~H"""
     <Backpex.HTML.CoreComponents.icon
       name="hero-trash"
@@ -38,7 +38,7 @@ defmodule DemoWeb.ItemActions.SoftDelete do
   end
 
   @impl Backpex.ItemAction
-  def label(assigns), do: Delete.label(assigns)
+  def label(assigns, item), do: Delete.label(assigns, item)
 
   @impl Backpex.ItemAction
   def confirm_label(assigns), do: Delete.confirm_label(assigns)
@@ -59,14 +59,12 @@ defmodule DemoWeb.ItemActions.SoftDelete do
 
   @impl Backpex.ItemAction
   def handle(socket, items, _data) do
-    datetime = DateTime.truncate(DateTime.utc_now(), :second)
+    datetime = DateTime.utc_now(:second)
 
     socket =
       try do
-        %{assigns: %{repo: repo, schema: schema, pubsub: pubsub}} = socket
-
-        {:ok, _items} =
-          Backpex.Resource.update_all(items, repo, schema, [set: [deleted_at: datetime]], "deleted", pubsub)
+        updates = [set: [deleted_at: datetime]]
+        {:ok, _items} = Backpex.Resource.update_all(items, updates, "deleted", socket.assigns.live_resource)
 
         socket
         |> clear_flash()
@@ -80,7 +78,7 @@ defmodule DemoWeb.ItemActions.SoftDelete do
           |> put_flash(:error, error_message(socket.assigns, error, items))
       end
 
-    {:noreply, socket}
+    {:ok, socket}
   end
 
   defp success_message(assigns, [_item]) do

@@ -1,8 +1,11 @@
 defmodule Backpex.MixProject do
   use Mix.Project
 
-  @version "0.6.0"
+  @version "0.10.0"
+
   @source_url "https://github.com/naymspace/backpex"
+  @changelog_url "https://github.com/naymspace/backpex/releases"
+  @website_url "https://backpex.live"
 
   def project do
     [
@@ -21,7 +24,7 @@ defmodule Backpex.MixProject do
       # Docs
       name: "Backpex",
       source_url: @source_url,
-      homepage_url: "https://backpex.live",
+      homepage_url: @website_url,
       docs: docs()
     ]
   end
@@ -31,31 +34,45 @@ defmodule Backpex.MixProject do
 
   defp deps do
     [
-      {:ex_doc, "~> 0.23", only: [:dev, :test], runtime: false},
+      # development
+      {:ex_doc, "~> 0.36", only: [:dev, :test], runtime: false},
+      {:credo, ">= 0.0.0", only: [:dev, :test], runtime: false},
+      {:mix_audit, "~> 2.0", only: [:dev, :test], runtime: false},
+      {:tailwind_formatter, "~> 0.4", only: [:dev, :test], runtime: false},
+      {:sobelow, ">= 0.0.0", only: [:dev, :test]},
+
+      # core
+      {:nimble_options, "~> 1.1"},
+      {:gettext, "~> 0.26"},
+      {:jason, "~> 1.2"},
+      {:number, "~> 1.0"},
+      {:money, "~> 1.13"},
+
+      # phoenix
       {:phoenix, "~> 1.7.6"},
-      {:phoenix_ecto, "~> 4.4"},
+      {:phoenix_html, "~> 4.1"},
+      {:phoenix_html_helpers, "~> 1.0"},
+      {:phoenix_live_view, "~> 1.0"},
+
+      # adapters
       {:ecto_sql, "~> 3.6"},
       {:postgrex, ">= 0.0.0"},
-      {:phoenix_html, "~> 4.1.1"},
-      {:phoenix_html_helpers, "~> 1.0"},
-      {:phoenix_live_view, "~> 0.20.0"},
-      {:gettext, "~> 0.18"},
-      {:jason, "~> 1.2"},
-      {:number, "~> 1.0.3"},
-      {:credo, "~> 1.7.5", only: [:dev, :test], runtime: false},
-      {:mix_audit, "~> 2.0", only: [:dev, :test], runtime: false},
-      {:sobelow, "~> 0.8", only: [:dev, :test]},
-      {:money, "~> 1.13.1"},
-      {:tailwind_formatter, "~> 0.4.0", only: [:dev, :test], runtime: false}
+      {:phoenix_ecto, "~> 4.4"},
+      {:ash, "~> 3.0", optional: true},
+      {:ash_postgres, "~> 2.0", optional: true}
     ]
   end
 
   defp package do
     [
-      files: ~w(lib priv mix.exs README.md LICENSE.md),
+      files: ~w(lib priv .formatter.exs mix.exs README.md LICENSE.md),
       maintainers: ["Florian Arens", "Phil-Bastian Berndt", "Simon Hansen"],
       licenses: ["MIT"],
-      links: %{"GitHub" => @source_url}
+      links: %{
+        Changelog: @changelog_url,
+        GitHub: @source_url,
+        Website: @website_url
+      }
     ]
   end
 
@@ -77,7 +94,25 @@ defmodule Backpex.MixProject do
         Components: &(&1[:type] == :component)
       ],
       source_ref: @version,
-      source_url: @source_url
+      source_url: @source_url,
+      before_closing_head_tag: fn type ->
+        if type == :html do
+          """
+          <script>
+            if (location.hostname === "hexdocs.pm") {
+              const script = document.createElement("script");
+              script.src = "https://plausible.io/js/script.js";
+              script.defer = true;
+              script.setAttribute("data-domain", "hexdocs.pm/backpex");
+              document.head.appendChild(script);
+            }
+          </script>
+          """
+        end
+      end,
+      skip_code_autolink_to: [
+        "Ecto.Query.DynamicExpr"
+      ]
     ]
   end
 
@@ -91,7 +126,6 @@ defmodule Backpex.MixProject do
       "guides/about/contribute-to-backpex.md",
 
       # Get Started
-      "guides/get_started/prerequisites.md",
       "guides/get_started/installation.md",
 
       # Live Resource
@@ -143,6 +177,9 @@ defmodule Backpex.MixProject do
       "guides/custom_labels_and_translations/custom-labels-and-translations.md",
 
       # Upgrade Guides
+      "guides/upgrading/v0.9.md",
+      "guides/upgrading/v0.8.md",
+      "guides/upgrading/v0.7.md",
       "guides/upgrading/v0.6.md",
       "guides/upgrading/v0.5.md",
       "guides/upgrading/v0.3.md",
@@ -168,6 +205,7 @@ defmodule Backpex.MixProject do
 
   defp groups_for_modules do
     [
+      Adapters: ~r/Backpex\.Adapter.?/,
       Components: ~r/Backpex\.HTML.?/,
       Fields: ~r/Backpex\.Field.?/,
       Actions: ~r/Backpex\.(ItemAction|ResourceAction).?/,

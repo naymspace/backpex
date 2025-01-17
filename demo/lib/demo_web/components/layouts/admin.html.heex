@@ -46,7 +46,7 @@
         </label>
       </:label>
       <li>
-        <.link navigate="/" class="flex justify-between text-error hover:bg-base-200">
+        <.link navigate="/" class="text-error flex justify-between hover:bg-base-200">
           <p>Logout</p>
           <Backpex.HTML.CoreComponents.icon name="hero-arrow-right-on-rectangle" class="h-5 w-5" />
         </.link>
@@ -69,6 +69,9 @@
     <Backpex.HTML.Layout.sidebar_item current_url={@current_url} navigate="/admin/film-reviews">
       <Backpex.HTML.CoreComponents.icon name="hero-film" class="h-5 w-5" /> Film Reviews
     </Backpex.HTML.Layout.sidebar_item>
+    <Backpex.HTML.Layout.sidebar_item current_url={@current_url} navigate="/admin/short-links">
+      <Backpex.HTML.CoreComponents.icon name="hero-link" class="h-5 w-5" /> Short Links
+    </Backpex.HTML.Layout.sidebar_item>
     <Backpex.HTML.Layout.sidebar_section id="blog">
       <:label>Blog</:label>
       <Backpex.HTML.Layout.sidebar_item current_url={@current_url} navigate="/admin/posts">
@@ -81,7 +84,13 @@
         <Backpex.HTML.CoreComponents.icon name="hero-tag" class="h-5 w-5" /> Tags
       </Backpex.HTML.Layout.sidebar_item>
     </Backpex.HTML.Layout.sidebar_section>
+    <Backpex.HTML.Layout.sidebar_section id="helpdesk">
+      <:label>Helpdesk</:label>
+      <Backpex.HTML.Layout.sidebar_item current_url={@current_url} navigate="/admin/tickets">
+        <Backpex.HTML.CoreComponents.icon name="hero-book-open" class="h-5 w-5" /> Tickets
+      </Backpex.HTML.Layout.sidebar_item>
+    </Backpex.HTML.Layout.sidebar_section>
   </:sidebar>
   <Backpex.HTML.Layout.flash_messages flash={@flash} />
-  <%= @inner_content %>
+  {@inner_content}
 </Backpex.HTML.Layout.app_shell>

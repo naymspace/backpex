@@ -1,13 +1,17 @@
 defmodule DemoWeb.ProductLive do
   use Backpex.LiveResource,
+    adapter_config: [
+      schema: Demo.Product,
+      repo: Demo.Repo,
+      update_changeset: &Demo.Product.changeset/3,
+      create_changeset: &Demo.Product.changeset/3
+    ],
     layout: {DemoWeb.Layouts, :admin},
-    schema: Demo.Product,
-    repo: Demo.Repo,
-    update_changeset: &Demo.Product.changeset/3,
-    create_changeset: &Demo.Product.changeset/3,
-    pubsub: Demo.PubSub,
-    topic: "products",
-    event_prefix: "product_"
+    pubsub: [
+      name: Demo.PubSub,
+      topic: "products",
+      event_prefix: "product_"
+    ]
 
   @impl Backpex.LiveResource
   def singular_name, do: "Product"
@@ -48,7 +52,7 @@ defmodule DemoWeb.ProductLive do
             """
 
           assigns ->
-            ~H"<p><%= Backpex.HTML.pretty_value(@value) %></p>"
+            ~H"<p>{Backpex.HTML.pretty_value(@value)}</p>"
         end,
         except: [:index, :resource_action],
         align: :center
@@ -73,6 +77,11 @@ defmodule DemoWeb.ProductLive do
 
           error ->
             error
+        end,
+        render: fn assigns ->
+          ~H"""
+          <p>{Number.Delimit.number_to_delimited(@value, precision: 0, delimiter: ".")}</p>
+          """
         end
       },
       price: %{
@@ -93,6 +102,22 @@ defmodule DemoWeb.ProductLive do
           url: %{
             module: Backpex.Fields.Text,
             label: "URL"
+          }
+        ]
+      },
+      short_links: %{
+        module: Backpex.Fields.InlineCRUD,
+        label: "Short Links",
+        type: :assoc,
+        except: [:index],
+        child_fields: [
+          short_key: %{
+            module: Backpex.Fields.Text,
+            label: "URL Suffix"
+          },
+          url: %{
+            module: Backpex.Fields.Text,
+            label: "Target URL"
           }
         ]
       }
@@ -158,7 +183,7 @@ defmodule DemoWeb.ProductLive do
   end
 
   defp file_name(entry) do
-    [ext | _] = MIME.extensions(entry.client_type)
+    [ext | _tail] = MIME.extensions(entry.client_type)
     "#{entry.uuid}.#{ext}"
   end
 

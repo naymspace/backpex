@@ -1,13 +1,17 @@
 defmodule DemoWeb.AddressLive do
   use Backpex.LiveResource,
+    adapter_config: [
+      schema: Demo.Address,
+      repo: Demo.Repo,
+      update_changeset: &Demo.Address.update_changeset/3,
+      create_changeset: &Demo.Address.create_changeset/3
+    ],
     layout: {DemoWeb.Layouts, :admin},
-    schema: Demo.Address,
-    repo: Demo.Repo,
-    update_changeset: &Demo.Address.update_changeset/3,
-    create_changeset: &Demo.Address.create_changeset/3,
-    pubsub: Demo.PubSub,
-    topic: "addresses",
-    event_prefix: "address_",
+    pubsub: [
+      name: Demo.PubSub,
+      topic: "addresses",
+      event_prefix: "address_"
+    ],
     fluid?: true
 
   @impl Backpex.LiveResource

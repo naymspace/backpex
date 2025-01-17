@@ -2,7 +2,62 @@
 
 The following guide will help you to install Backpex in your Phoenix application. We will guide you through the installation process and show you how to create a simple resource.
 
-Make sure you meet the [prerequisites](prerequisites.md) before you start the installation.
+## Prerequisites
+
+Backpex integrates seamlessly with your existing Phoenix LiveView application, but there are a few prerequisites you need to meet before you can start using it.
+
+### Phoenix LiveView
+
+Backpex is built on top of Phoenix LiveView, so you need to have Phoenix LiveView installed in your application. If you generate a new Phoenix application using the latest version of the `mix phx.new` generator, Phoenix LiveView is included by default.
+
+### Alpine.js
+
+Backpex uses [Alpine.js](https://alpinejs.dev/) for some interactivity. Make sure you have Alpine.js installed in your application.
+
+You can install Alpine.js by installing it via npm:
+
+```bash
+cd assets && npm install alpinejs
+```
+
+Then, import Alpine.js in your `app.js` file, start it and adjust your LiveView configuration:
+
+```javascript
+import Alpine from "alpinejs";
+
+window.Alpine = Alpine;
+Alpine.start();
+
+const liveSocket = new LiveSocket('/live', Socket, {
+  // add this
+  dom: {
+    onBeforeElUpdated (from, to) {
+      if (from._x_dataStack) {
+        window.Alpine.clone(from, to)
+      }
+    },
+  },
+  params: { _csrf_token: csrfToken },
+})
+```
+
+### Tailwind CSS
+
+Backpex uses Tailwind CSS for styling. Make sure you have Tailwind CSS installed in your application. You can install Tailwind CSS by following the [official installation guide](https://tailwindcss.com/docs/installation). If you generate a new Phoenix application using the latest version of the `mix phx.new` generator, Tailwind CSS is included by default.
+
+### daisyUI
+
+Backpex is styled using daisyUI. Make sure you have daisyUI installed in your application. You can install daisyUI by following the [official installation guide](https://daisyui.com/docs/install/).
+
+### Ecto
+
+Backpex currently depends on Ecto as the database layer. Make sure you have a running Ecto repository in your application.
+
+> #### Warning {: .warning}
+>
+> Backpex requires a single primary key field in your database schema. Compound keys are not supported. We tested Backpex with UUID (binary_id), integer (bigserial) and string primary keys. Note that the primary key is used in the URL for Show and Edit Views, so make sure it is always URL-encoded or safe to use in a URL.
+
+If you meet all these prerequisites, you are ready to install and configure Backpex in your Phoenix application. See our [installation guide](guides/get_started/installation.md) for more information on how to install and configure Backpex.
 
 ## Add to list of dependencies
 
@@ -12,7 +67,7 @@ In your `mix.exs`:
 defp deps do
   [
     ...
-    {:backpex, "~> 0.6.0"}
+    {:backpex, "~> 0.8.0"}
   ]
 end
 ```
@@ -121,14 +176,18 @@ To create a LiveResource for the `Post` resource, you need to create LiveResourc
 ```elixir
 defmodule MyAppWeb.Live.PostLive do
   use Backpex.LiveResource,
+    adapter_config: [
+      schema: MyApp.Blog.Post,
+      repo: MyApp.Repo,
+      update_changeset: &MyApp.Blog.Post.update_changeset/3,
+      create_changeset: &MyApp.Blog.Post.create_changeset/3
+    ],
     layout: {MyAppWeb.Layouts, :admin},
-    schema: MyApp.Blog.Post,
-    repo: MyApp.Repo,
-    update_changeset: &MyApp.Blog.Post.update_changeset/3,
-    create_changeset: &MyApp.Blog.Post.create_changeset/3,
-    pubsub: MyApp.PubSub,
-    topic: "posts",
-    event_prefix: "post_"
+    pubsub: [
+      name: MyApp.PubSub,
+      topic: "posts",
+      event_prefix: "post_"
+    ]
 end
 ```
 
@@ -140,9 +199,7 @@ All options you can see in the above example are required:
 - The `schema` option tells Backpex which schema to use for the resource.
 - The `repo` option tells Backpex which repo to use for the resource.
 - The `update_changeset` and `create_changeset` options tell Backpex which changesets to use for updating and creating the resource.
-- The `pubsub` option tells Backpex which pubsub to use for the resource (see the [Listen to PubSub Events](live_resource/listen-to-pubsub-events.md) guide for more information).
-- The `topic` option tells Backpex which topic to use for the resource when broadcasting events.
-- The `event_prefix` option tells Backpex which event prefix to use for the resource when broadcasting events.
+- The `pubsub` option tells Backpex which pubsub options to use for the resource (see the [Listen to PubSub Events](live_resource/listen-to-pubsub-events.md) guide for more information).
 
 In addition to the required options, you pass to the `Backpex.LiveResource` macro, you are required to implement the following callback functions in the module:
 
@@ -155,14 +212,18 @@ After implementing the required callback functions, our `PostLive` module looks 
 ```elixir
 defmodule MyAppWeb.Live.PostLive do
   use Backpex.LiveResource,
+    adapter_config: [
+      schema: MyApp.Blog.Post,
+      repo: MyApp.Repo,
+      update_changeset: &MyApp.Blog.Post.update_changeset/3,
+      create_changeset: &MyApp.Blog.Post.create_changeset/3
+    ],
     layout: {MyAppWeb.Layouts, :admin},
-    schema: MyApp.Blog.Post,
-    repo: MyApp.Repo,
-    update_changeset: &MyApp.Blog.Post.update_changeset/3,
-    create_changeset: &MyApp.Blog.Post.create_changeset/3,
-    pubsub: MyApp.PubSub,
-    topic: "posts",
-    event_prefix: "post_"
+    pubsub: [
+      name: MyApp.PubSub,
+      topic: "posts",
+      event_prefix: "post_"
+    ]
 
   @impl Backpex.LiveResource
   def singular_name, do: "Post"
@@ -264,6 +325,46 @@ end
 
 This macro will add the required routes for the `PostLive` module. You can now access the `PostLive` LiveResource at `/admin/posts`.
 
+### Configure a default route
+
+To make a default route for `/admin` we recommend creating a redirect controller such as the following:
+
+In `my_app_web/controller` create a file named `redirect_controller.ex`:
+
+```elixir
+# redirect_controller.ex
+
+defmodule MyAppWeb.RedirectController do
+  use MyAppWeb, :controller
+
+  def redirect_to_posts(conn, _params) do
+    conn
+    |> Phoenix.Controller.redirect(to: ~p"/admin/posts")
+    |> Plug.Conn.halt()
+  end
+end
+```
+
+And configure in your `router.ex` file:
+
+```elixir
+#router.ex
+
+scope "/admin", MyAppWeb do
+
+  pipe_through :browser
+
+  backpex_routes()
+
+  # add this line
+  get "/", RedirectController, :redirect_to_posts
+
+  live_session :default, on_mount: Backpex.InitAssigns do
+    live_resources "/posts", PostLive
+  end
+end
+```
+
 ## Remove default background color
 
 If you start with a new Phoenix project, you may have a default background color set for your body tag. This conflicts with the background color of the Backpex `app_shell`.
@@ -272,7 +373,7 @@ So if you have this in your `root.html.heex`.
 
 ```html
 <body class="bg-white">
-</body> 
+</body>
 ```
 
 You should remove the `bg-white` class.
@@ -299,10 +400,10 @@ module.exports = {
           'primary-content': 'white',
           secondary: '#f39325',
           'secondary-content': 'white'
-        },
+        }
+      },
         "dark",
         "cyberpunk"
-      }
     ]
   },
   ...

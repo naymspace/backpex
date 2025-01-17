@@ -43,7 +43,7 @@
               query_options={@query_options}
             />
           <% else %>
-            <%= label %>
+            {label}
           <% end %>
         </div>
       </th>
@@ -59,7 +59,7 @@
             active_fields={@active_fields}
             live_resource={@live_resource}
             current_url={@current_url}
-            class="flex justify-end pt-1 pr-4 font-medium bg-base-200/50 normal-case"
+            class="bg-base-200/50 flex justify-end pt-1 pr-4 font-medium normal-case"
             x_style="'width: ' + actionsWidth + 'px !important'"
           />
         </div>
@@ -68,23 +68,25 @@
   </thead>
   <tbody>
     <tr
-      :for={{%{id: id} = item, index} <- Enum.with_index(@items)}
+      :for={{item, index} <- Enum.with_index(@items)}
       x-on:resize.window="setRowHeight()"
       x-init="setRowHeight()"
       x-data="{ rowHeight: null, setRowHeight() { $nextTick( () => {this.rowHeight = $el.getBoundingClientRect().height }) } }"
-      id={"row-item-#{id}"}
+      id={"row-item-#{Map.get(item, @live_resource.config(:primary_key))}"}
       class={index_row_class(assigns, item, selected?(@selected_items, item), index)}
     >
       <td :if={Enum.any?(index_item_actions(@item_actions))} class="relative">
         <div :if={selected?(@selected_items, item)} class="bg-base-content absolute inset-y-0 left-0 w-0.5" />
         <input
-          id={"select-input-#{id}"}
+          id={"select-input-#{Map.get(item, @live_resource.config(:primary_key))}"}
           phx-click="update-selected-items"
-          phx-value-id={id}
+          phx-value-id={Map.get(item, @live_resource.config(:primary_key))}
           type="checkbox"
           class="checkbox checkbox-sm"
           checked={selected?(@selected_items, item)}
-          aria-label={Backpex.translate({"Select item with id: %{id}", %{id: id}})}
+          aria-label={
+            Backpex.translate({"Select item with id: %{id}", %{id: Map.get(item, @live_resource.config(:primary_key))}})
+          }
         />
       </td>
       <td :for={{name, field_options} <- @fields} :if={active?(@active_fields, name)} class="text-base-content/75">
@@ -109,18 +111,18 @@
         >
           <div
             :for={{key, action} <- row_item_actions(@item_actions)}
-            :if={LiveResource.can?(assigns, key, item, @live_resource)}
+            :if={@live_resource.can?(assigns, key, item)}
             class="tooltip hover:z-30"
-            data-tip={action.module.label(assigns)}
+            data-tip={action.module.label(assigns, item)}
           >
             <button
               type="button"
               phx-click="item-action"
               phx-value-action-key={key}
-              phx-value-item-id={item.id}
-              aria-label={action.module.label(assigns)}
+              phx-value-item-id={Map.get(item, @live_resource.config(:primary_key))}
+              aria-label={action.module.label(assigns, item)}
             >
-              <%= action.module.icon(assigns) %>
+              {action.module.icon(assigns, item)}
             </button>
           </div>
         </div>

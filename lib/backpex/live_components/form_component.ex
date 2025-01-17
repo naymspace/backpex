@@ -9,7 +9,6 @@ defmodule Backpex.FormComponent do
   import Backpex.HTML.Resource
 
   alias Backpex.Fields.Upload
-  alias Backpex.LiveResource
   alias Backpex.Resource
   alias Backpex.ResourceAction
 
@@ -18,6 +17,7 @@ defmodule Backpex.FormComponent do
       socket
       |> assign(assigns)
       |> assign_new(:action_type, fn -> nil end)
+      |> assign_new(:continue_label, fn -> nil end)
       |> assign_new(:show_form_errors, fn -> false end)
       |> update_assigns()
       |> assign_form()
@@ -54,6 +54,7 @@ defmodule Backpex.FormComponent do
   defp apply_action(socket, action) when action in [:edit, :new] do
     socket
     |> assign(:save_label, Backpex.translate("Save"))
+    |> assign(:continue_label, Backpex.translate("Save & Continue editing"))
   end
 
   defp apply_action(socket, :resource_action) do
@@ -72,9 +73,9 @@ defmodule Backpex.FormComponent do
   end
 
   def handle_event("validate", %{"change" => change, "_target" => target}, %{assigns: %{action_type: :item}} = socket) do
-    %{
-      assigns: %{item_action_types: item_action_types, changeset_function: changeset_function, fields: fields} = assigns
-    } = socket
+    %{assigns: %{item: item, fields: fields} = assigns} = socket
+
+    changeset_function = &assigns.action_to_confirm.module.changeset/3
 
     target = Enum.at(target, 1)
 
@@ -83,7 +84,13 @@ defmodule Backpex.FormComponent do
       |> drop_readonly_changes(fields, assigns)
       |> put_upload_change(socket, :validate)
 
-    changeset = Resource.change(item_action_types, change, changeset_function, assigns, [], target)
+    metadata = Resource.build_changeset_metadata(socket.assigns, target)
+
+    changeset =
+      item
+      |> changeset_function.(change, metadata)
+      |> Map.put(:action, :validate)
+
     form = Phoenix.Component.to_form(changeset, as: :change)
 
     send(self(), {:update_changeset, changeset})
@@ -97,17 +104,23 @@ defmodule Backpex.FormComponent do
   end
 
   def handle_event("validate", %{"change" => change, "_target" => target}, socket) do
-    %{assigns: %{item: item, changeset_function: changeset_function, fields: fields} = assigns} = socket
+    %{
+      live_resource: live_resource,
+      item: item,
+      fields: fields
+    } = socket.assigns
 
     target = Enum.at(target, 1)
-    assocs = Map.get(assigns, :assocs, [])
+    assocs = Map.get(socket.assigns, :assocs, [])
 
     change =
       change
-      |> drop_readonly_changes(fields, assigns)
+      |> drop_readonly_changes(fields, socket.assigns)
       |> put_upload_change(socket, :validate)
 
-    changeset = Resource.change(item, change, changeset_function, assigns, assocs, target)
+    opts = [target: target, assocs: assocs]
+    changeset = Resource.change(item, change, fields, socket.assigns, live_resource, opts)
+
     form = Phoenix.Component.to_form(changeset, as: :change)
 
     send(self(), {:update_changeset, changeset})
@@ -162,15 +175,16 @@ defmodule Backpex.FormComponent do
     handle_item_action(socket, key, change)
   end
 
-  def handle_event("save", %{"change" => change}, socket) do
+  def handle_event("save", %{"change" => change, "save-type" => save_type}, socket) do
     %{assigns: %{live_action: live_action, fields: fields} = assigns} = socket
 
     change =
       change
       |> put_upload_change(socket, :insert)
       |> drop_readonly_changes(fields, assigns)
+      |> drop_unused_changes()
 
-    handle_save(socket, live_action, change)
+    handle_save(socket, live_action, change, save_type)
   end
 
   def handle_event("save", %{"action-key" => key}, socket) do
@@ -193,16 +207,14 @@ defmodule Backpex.FormComponent do
     {:noreply, socket}
   end
 
-  defp handle_save(socket, :new, params) do
-    %{
-      assigns: %{repo: repo, live_resource: live_resource, changeset_function: changeset_function, item: item} = assigns
-    } = socket
+  defp handle_save(socket, key, params, save_type \\ "save")
+
+  defp handle_save(socket, :new, params, save_type) do
+    %{assigns: %{live_resource: live_resource, fields: fields, item: item} = assigns} = socket
 
     opts = [
-      assigns: assigns,
-      pubsub: assigns[:pubsub],
       assocs: Map.get(assigns, :assocs, []),
-      after_save: fn item ->
+      after_save_fun: fn item ->
         handle_uploads(socket, item)
         live_resource.on_item_created(socket, item)
 
@@ -210,15 +222,15 @@ defmodule Backpex.FormComponent do
       end
     ]
 
-    case Resource.insert(item, params, repo, changeset_function, opts) do
+    case Resource.insert(item, params, fields, socket.assigns, live_resource, opts) do
       {:ok, item} ->
-        return_to = live_resource.return_to(socket, assigns, :new, item)
+        return_to = return_to_path(save_type, live_resource, socket, socket.assigns, item, :new)
 
         socket =
           socket
           |> assign(:show_form_errors, false)
           |> clear_flash()
-          |> put_flash(:info, assigns.resource_created_message)
+          |> put_flash(:info, socket.assigns.resource_created_message)
           |> push_navigate(to: return_to)
 
         {:noreply, socket}
@@ -237,23 +249,12 @@ defmodule Backpex.FormComponent do
     end
   end
 
-  defp handle_save(socket, :edit, params) do
-    %{
-      assigns:
-        %{
-          repo: repo,
-          live_resource: live_resource,
-          singular_name: singular_name,
-          changeset_function: changeset_function,
-          item: item
-        } = assigns
-    } = socket
+  defp handle_save(socket, :edit, params, save_type) do
+    %{live_resource: live_resource, singular_name: singular_name, item: item, fields: fields} = socket.assigns
 
     opts = [
-      assigns: assigns,
-      pubsub: assigns[:pubsub],
-      assocs: Map.get(assigns, :assocs, []),
-      after_save: fn item ->
+      assocs: Map.get(socket.assigns, :assocs, []),
+      after_save_fun: fn item ->
         handle_uploads(socket, item)
         live_resource.on_item_updated(socket, item)
 
@@ -261,9 +262,9 @@ defmodule Backpex.FormComponent do
       end
     ]
 
-    case Resource.update(item, params, repo, changeset_function, opts) do
+    case Resource.update(item, params, fields, socket.assigns, live_resource, opts) do
       {:ok, item} ->
-        return_to = live_resource.return_to(socket, assigns, :edit, item)
+        return_to = return_to_path(save_type, live_resource, socket, socket.assigns, item, :edit)
         info_msg = Backpex.translate({"%{resource} has been edited successfully.", %{resource: singular_name}})
 
         socket =
@@ -289,37 +290,37 @@ defmodule Backpex.FormComponent do
     end
   end
 
-  defp handle_save(socket, :resource_action, params) do
+  defp handle_save(socket, :resource_action, params, _save_type) do
     %{
       assigns:
         %{
+          live_resource: live_resource,
           resource_action: resource_action,
           item: item,
-          changeset_function: changeset_function,
-          return_to: return_to
+          return_to: return_to,
+          fields: fields
         } = assigns
     } = socket
 
     assocs = Map.get(assigns, :assocs, [])
+    params = drop_readonly_changes(params, fields, assigns)
 
     result =
-      Backpex.Resource.change(item, params, changeset_function, assigns, assocs)
+      item
+      |> Resource.change(params, fields, assigns, live_resource, assocs: assocs)
       |> Ecto.Changeset.apply_action(:insert)
 
-    case result do
-      {:ok, data} ->
-        resource_action_result = resource_action.module.handle(socket, data)
+    with {:ok, data} <- result,
+         {:ok, socket} <- resource_action.module.handle(socket, data) do
+      handle_uploads(socket, data)
 
-        if match?({:ok, _msg}, resource_action_result), do: handle_uploads(socket, data)
+      socket =
+        socket
+        |> assign(:show_form_errors, false)
+        |> push_navigate(to: return_to)
 
-        socket =
-          socket
-          |> assign(:show_form_errors, false)
-          |> put_flash_message(resource_action_result)
-          |> push_navigate(to: return_to)
-
-        {:noreply, socket}
-
+      {:noreply, socket}
+    else
       {:error, changeset} ->
         form = Phoenix.Component.to_form(changeset, as: :change)
 
@@ -331,6 +332,16 @@ defmodule Backpex.FormComponent do
         send(self(), {:update_changeset, changeset})
 
         {:noreply, socket}
+
+      unexpected_return ->
+        raise ArgumentError, """
+        Invalid return value from #{inspect(resource_action.module)}.handle/2.
+
+        Expected: {:ok, socket} or {:error, changeset}
+        Got: #{inspect(unexpected_return)}
+
+        Resource Actions must return {:ok, socket} or {:error, changeset}.
+        """
     end
   end
 
@@ -338,34 +349,40 @@ defmodule Backpex.FormComponent do
     %{
       assigns:
         %{
+          live_resource: live_resource,
           selected_items: selected_items,
           action_to_confirm: action_to_confirm,
-          return_to: return_to,
-          item_action_types: item_action_types,
-          changeset_function: changeset_function
+          fields: fields,
+          return_to: return_to
         } = assigns
     } = socket
 
+    params = drop_readonly_changes(params, fields, assigns)
+
     result =
-      Backpex.Resource.change(item_action_types, params, changeset_function, assigns)
-      |> Ecto.Changeset.apply_action(:insert)
+      if Backpex.ItemAction.has_form?(action_to_confirm) do
+        changeset_function = &action_to_confirm.module.changeset/3
 
-    case result do
-      {:ok, data} ->
-        selected_items =
-          Enum.filter(selected_items, fn item ->
-            LiveResource.can?(socket.assigns, action_key, item, socket.assigns.live_resource)
-          end)
+        metadata = Resource.build_changeset_metadata(assigns)
 
-        {message, socket} =
-          socket
-          |> assign(:show_form_errors, false)
-          |> assign(selected_items: [])
-          |> assign(select_all: false)
-          |> action_to_confirm.module.handle(selected_items, data)
+        assigns.item
+        |> changeset_function.(params, metadata)
+        |> Map.put(:action, :insert)
+        |> Ecto.Changeset.apply_action(:insert)
+      else
+        {:ok, %{}}
+      end
 
-        {message, push_patch(socket, to: return_to)}
+    with {:ok, data} <- result,
+         selected_items <- Enum.filter(selected_items, &live_resource.can?(socket.assigns, action_key, &1)),
+         {:ok, socket} <- action_to_confirm.module.handle(socket, selected_items, data) do
+      socket
+      |> assign(:show_form_errors, false)
+      |> assign(:selected_items, [])
+      |> assign(:select_all, false)
 
+      {:noreply, push_patch(socket, to: return_to)}
+    else
       {:error, changeset} ->
         form = Phoenix.Component.to_form(changeset, as: :change)
 
@@ -375,6 +392,16 @@ defmodule Backpex.FormComponent do
           |> assign(:form, form)
 
         {:noreply, socket}
+
+      unexpected_return ->
+        raise ArgumentError, """
+        Invalid return value from #{inspect(action_to_confirm.module)}.handle/2.
+
+        Expected: {:ok, socket} or {:error, changeset}
+        Got: #{inspect(unexpected_return)}
+
+        Item Actions with form fields must return {:ok, socket} or {:error, changeset}.
+        """
     end
   end
 
@@ -387,24 +414,51 @@ defmodule Backpex.FormComponent do
     Map.drop(change, read_only)
   end
 
-  defp put_flash_message(socket, {type, msg}) do
-    socket
-    |> clear_flash()
-    |> put_flash(flash_key(type), msg)
+  defp drop_unused_changes(change) do
+    change
+    |> Enum.reduce(%{}, fn {key, value}, acc ->
+      if String.starts_with?(key, "_unused_"), do: acc, else: Map.put(acc, key, value)
+    end)
   end
 
-  defp flash_key(:ok), do: :info
-  defp flash_key(:error), do: :error
+  defp return_to_path("continue", _live_resource, _socket, %{current_url: url}, item, :new) do
+    url
+    |> URI.parse()
+    |> Map.get(:path)
+    |> Path.dirname()
+    |> Kernel.<>("/#{item.id}/edit")
+  end
+
+  defp return_to_path("continue", _live_resource, _socket, %{current_url: url}, _item, :edit) do
+    URI.parse(url).path
+  end
+
+  defp return_to_path(_save_type, live_resource, socket, assigns, item, type) do
+    live_resource.return_to(socket, assigns, type, item)
+  end
 
   defp put_upload_change(change, socket, action) do
     Enum.reduce(socket.assigns.fields, change, fn
-      {_name, %{upload_key: upload_key} = field_options} = _field, acc ->
+      {name, %{upload_key: upload_key} = field_options} = _field, acc ->
         %{put_upload_change: put_upload_change} = field_options
 
         uploaded_entries = uploaded_entries(socket, upload_key)
         removed_entries = Keyword.get(socket.assigns.removed_uploads, upload_key, [])
 
-        put_upload_change.(socket, acc, socket.assigns.item, uploaded_entries, removed_entries, action)
+        change = put_upload_change.(socket, acc, socket.assigns.item, uploaded_entries, removed_entries, action)
+
+        upload_used_input_data = Map.get(change, "#{to_string(name)}_used_input")
+        used_input? = upload_used_input_data != "false"
+
+        if uploaded_entries != {[], []} or removed_entries != [] or used_input? == true do
+          change
+          |> Map.drop(["_unused_#{to_string(name)}", "_unused_#{to_string(name)}_used_input"])
+          |> Map.put("#{to_string(name)}_used_input", "true")
+        else
+          change
+          |> Map.put("_unused_#{to_string(name)}", "")
+          |> Map.put("#{to_string(name)}_used_input", "false")
+        end
 
       _field, acc ->
         acc

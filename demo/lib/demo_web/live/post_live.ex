@@ -1,13 +1,17 @@
 defmodule DemoWeb.PostLive do
   use Backpex.LiveResource,
+    adapter_config: [
+      schema: Demo.Post,
+      repo: Demo.Repo,
+      update_changeset: &Demo.Post.update_changeset/3,
+      create_changeset: &Demo.Post.create_changeset/3
+    ],
     layout: {DemoWeb.Layouts, :admin},
-    schema: Demo.Post,
-    repo: Demo.Repo,
-    update_changeset: &Demo.Post.update_changeset/3,
-    create_changeset: &Demo.Post.create_changeset/3,
-    pubsub: Demo.PubSub,
-    topic: "posts",
-    event_prefix: "post_",
+    pubsub: [
+      name: Demo.PubSub,
+      topic: "posts",
+      event_prefix: "post_"
+    ],
     fluid?: true
 
   @impl Backpex.LiveResource
@@ -107,6 +111,7 @@ defmodule DemoWeb.PostLive do
       body: %{
         module: Backpex.Fields.Textarea,
         label: "Body",
+        rows: 10,
         except: [:index]
       },
       published: %{
@@ -138,7 +143,12 @@ defmodule DemoWeb.PostLive do
           _assigns ->
             true
         end,
-        searchable: true
+        searchable: true,
+        render: fn assigns ->
+          ~H"""
+          <p>{Number.Delimit.number_to_delimited(@value, precision: 0, delimiter: ".")}</p>
+          """
+        end
       },
       user: %{
         module: Backpex.Fields.BelongsTo,
@@ -185,10 +195,19 @@ defmodule DemoWeb.PostLive do
       total_likes: %{
         module: Backpex.Metrics.Value,
         label: "Total likes",
-        class: "w-1/3",
+        class: "lg:w-1/4",
         select: dynamic([p], sum(p.likes)),
         format: fn value ->
           Integer.to_string(value) <> " likes"
+        end
+      },
+      published_posts: %{
+        module: Backpex.Metrics.Value,
+        label: "Published Posts",
+        class: "lg:w-1/4",
+        select: dynamic([p], count(fragment("CASE WHEN ? = TRUE THEN 1 ELSE NULL END", p.published))),
+        format: fn value ->
+          Integer.to_string(value)
         end
       }
     ]

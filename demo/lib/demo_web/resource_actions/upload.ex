@@ -18,11 +18,11 @@ defmodule DemoWeb.ResourceActions.Upload do
         label: "Upload",
         upload_key: :upload,
         accept: ~w(.jpg .jpeg .png),
-        max_entries: 1,
         put_upload_change: &put_upload_change/6,
         consume_upload: &consume_upload/4,
         remove_uploads: &remove_uploads/3,
         list_existing_files: &list_existing_files/1,
+        max_entries: 1,
         type: :string
       },
       description: %{
@@ -54,7 +54,11 @@ defmodule DemoWeb.ResourceActions.Upload do
   end
 
   @impl Backpex.ResourceAction
-  def handle(_socket, _data), do: {:ok, "File was uploaded successfully."}
+  def handle(socket, _data) do
+    socket = Phoenix.LiveView.put_flash(socket, :info, "File was uploaded successfully.")
+
+    {:ok, socket}
+  end
 
   defp list_existing_files(_item), do: []
 
@@ -102,7 +106,7 @@ defmodule DemoWeb.ResourceActions.Upload do
   end
 
   defp file_name(entry) do
-    [ext | _] = MIME.extensions(entry.client_type)
+    [ext | _tail] = MIME.extensions(entry.client_type)
     "#{entry.uuid}.#{ext}"
   end
 

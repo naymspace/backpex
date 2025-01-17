@@ -1,19 +1,39 @@
 # credo:disable-for-this-file Credo.Check.Design.DuplicatedCode
 defmodule Backpex.Fields.DateTime do
-  @default_format "%Y-%m-%d %I:%M %p"
+  @config_schema [
+    format: [
+      doc: """
+      Format string which will be used to format the date time value or function that formats the date time.
 
-  # credo:disable-for-next-line Credo.Check.Readability.StrictModuleLayout
+      Can also be a function wich receives a `DateTime` and must return a string.
+      """,
+      type: {:or, [:string, {:fun, 1}]},
+      default: "%Y-%m-%d %I:%M %p"
+    ],
+    debounce: [
+      doc: "Timeout value (in milliseconds), \"blur\" or function that receives the assigns.",
+      type: {:or, [:pos_integer, :string, {:fun, 1}]}
+    ],
+    throttle: [
+      doc: "Timeout value (in milliseconds) or function that receives the assigns.",
+      type: {:or, [:pos_integer, {:fun, 1}]}
+    ],
+    readonly: [
+      doc: "Sets the field to readonly. Also see the [panels](/guides/fields/readonly.md) guide.",
+      type: {:or, [:boolean, {:fun, 1}]}
+    ]
+  ]
+
   @moduledoc """
   A field for handling a date time value.
 
-  ## Options
+  ## Field-specific options
 
-    * `:format` - Format string which will be used to format the date time value.
-      Defaults to `#{@default_format}`
-    * `:debounce` - Optional integer timeout value (in milliseconds), "blur" or function that receives the assigns.
-    * `:throttle` - Optional integer timeout value (in milliseconds) or function that receives the assigns.
+  See `Backpex.Field` for general field options.
 
-  ## Example
+  #{NimbleOptions.docs(@config_schema)}
+
+  ## Examples
 
       @impl Backpex.LiveResource
       def fields do
@@ -25,17 +45,46 @@ defmodule Backpex.Fields.DateTime do
           }
         ]
       end
+
+      @impl Backpex.LiveResource
+      def fields do
+        [
+          created_at: %{
+            module: Backpex.Fields.DateTime,
+            label: "Created At",
+            format: fn date_time -> # Takes a `DateTime` and returns a string
+              # Timex should be installed separately, used as a reference for
+              # custom formatting logic.
+              Timex.format!(date_time, "{relative}", :relative)
+            end
+          }
+        ]
+      end
+
+      @impl Backpex.LiveResource
+      def fields do
+        [
+          created_at: %{
+            module: Backpex.Fields.Date,
+            label: "Created At",
+            # If you use the same formatting logic in multiple places
+            format: &MyApp.Formatters.Dates/1
+          }
+        ]
+      end
   """
-  use BackpexWeb, :field
+  use Backpex.Field, config_schema: @config_schema
 
   @impl Backpex.Field
   def render_value(assigns) do
-    format = Map.get(assigns.field_options, :format, @default_format)
+    format = assigns.field_options[:format]
 
     value =
-      if assigns.value,
-        do: Calendar.strftime(assigns.value, format),
-        else: HTML.pretty_value(assigns.value)
+      cond do
+        is_function(format, 1) -> format.(assigns.value)
+        assigns.value -> Calendar.strftime(assigns.value, format)
+        true -> HTML.pretty_value(assigns.value)
+      end
 
     assigns =
       assigns
@@ -43,7 +92,7 @@ defmodule Backpex.Fields.DateTime do
 
     ~H"""
     <p class={@live_action in [:index, :resource_action] && "truncate"}>
-      <%= @value %>
+      {@value}
     </p>
     """
   end
@@ -56,10 +105,10 @@ defmodule Backpex.Fields.DateTime do
         <:label align={Backpex.Field.align_label(@field_options, assigns, :top)}>
           <Layout.input_label text={@field_options[:label]} />
         </:label>
-        <BackpexForm.field_input
+        <BackpexForm.input
           type="datetime-local"
           field={@form[@name]}
-          field_options={@field_options}
+          translate_error_fun={Backpex.Field.translate_error_fun(@field_options, assigns)}
           phx-debounce={Backpex.Field.debounce(@field_options, assigns)}
           phx-throttle={Backpex.Field.throttle(@field_options, assigns)}
         />
@@ -76,10 +125,10 @@ defmodule Backpex.Fields.DateTime do
         <:label align={Backpex.Field.align_label(@field_options, assigns, :top)}>
           <Layout.input_label text={@field_options[:label]} />
         </:label>
-        <BackpexForm.field_input
+        <BackpexForm.input
           type="datetime-local"
           field={@form[@name]}
-          field_options={@field_options}
+          translate_error_fun={Backpex.Field.translate_error_fun(@field_options, assigns)}
           phx-debounce={Backpex.Field.debounce(@field_options, assigns)}
           phx-throttle={Backpex.Field.throttle(@field_options, assigns)}
           readonly
@@ -96,19 +145,19 @@ defmodule Backpex.Fields.DateTime do
 
     assigns =
       assigns
-      |> assign(:form, form)
       |> assign(:valid, Map.get(assigns, :valid, true))
+      |> assign_new(:form, fn -> form end)
 
     ~H"""
     <div>
       <.form for={@form} phx-change="update-field" phx-submit="update-field" phx-target={@myself}>
-        <input
+        <BackpexForm.input
           type="datetime-local"
-          name={@form[:value].name}
-          value={@form[:value].value}
-          class={["input input-sm w-52", @valid && "hover:input-bordered", !@valid && "input-error"]}
+          field={@form[:value]}
+          input_class={["input input-sm w-52", @valid && "hover:input-bordered", !@valid && "input-error"]}
           phx-debounce="100"
           readonly={@readonly}
+          hide_errors
         />
       </.form>
     </div>
@@ -117,6 +166,6 @@ defmodule Backpex.Fields.DateTime do
 
   @impl Phoenix.LiveComponent
   def handle_event("update-field", %{"index_form" => %{"value" => value}}, socket) do
-    Backpex.Field.handle_index_editable(socket, %{} |> Map.put(socket.assigns.name, value))
+    Backpex.Field.handle_index_editable(socket, value, Map.put(%{}, socket.assigns.name, value))
   end
 end

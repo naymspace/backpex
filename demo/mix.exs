@@ -33,42 +33,48 @@ defmodule Demo.MixProject do
 
   defp deps do
     [
+      # development
+      {:ex_doc, "~> 0.36", only: [:dev, :test], runtime: false},
+      {:credo, "~> 1.7.5", only: [:dev, :test], runtime: false},
+      {:sobelow, "~> 0.13", only: [:dev, :test]},
+      {:mix_audit, "~> 2.0", only: [:dev, :test], runtime: false},
+      {:tailwind_formatter, "~> 0.4.0", only: [:dev, :test], runtime: false},
+      {:ex_machina, "~> 2.3"},
+      {:faker, "~> 0.18"},
+      {:phoenix_test, "~> 0.5.1", only: :test, runtime: false},
+
+      # core
       {:libcluster, "~> 3.2"},
-      {:ex_doc, "~> 0.23", only: [:dev, :test], runtime: false},
+      {:telemetry_poller, "~> 1.0"},
+      {:telemetry_metrics, "~> 1.0"},
+      {:gettext, "~> 0.26"},
+      {:sentry, "~> 10.8"},
+      {:hackney, "~> 1.17", override: true},
+      {:circular_buffer, "~> 0.4.0"},
+
+      # phoenix
+      {:bandit, "~> 1.0"},
       {:phoenix, "~> 1.7.6"},
       {:phoenix_pubsub, "~> 2.0"},
+      {:phoenix_live_view, "~> 1.0"},
+      {:phoenix_live_dashboard, "~> 0.8"},
+      {:phoenix_live_reload, "~> 1.2", only: :dev},
+
+      # application
+      {:backpex, path: "../."},
       {:phoenix_ecto, "~> 4.0"},
       {:ecto_sql, "~> 3.1"},
       {:postgrex, ">= 0.0.0"},
-      {:phoenix_live_view, "~> 0.20.0"},
-      {:phoenix_live_dashboard, "~> 0.8"},
-      {:phoenix_live_reload, "~> 1.2", only: :dev},
-      {:esbuild, "~> 0.5", runtime: Mix.env() == :dev},
-      {:tailwind, "~> 0.2.0", runtime: Mix.env() == :dev},
-      {:telemetry_poller, "~> 1.0"},
-      {:telemetry_metrics, "~> 1.0"},
-      {:ecto_psql_extras, "~> 0.2"},
-      {:circular_buffer, "~> 0.4.0"},
-      {:gettext, "~> 0.18"},
-      {:credo, "~> 1.7.5", only: [:dev, :test], runtime: false},
-      {:sobelow, "~> 0.8", only: [:dev, :test]},
-      {:mix_audit, "~> 2.0", only: [:dev, :test], runtime: false},
-      {:sentry, "~> 10.1"},
-      {:ex_machina, "~> 2.3"},
-      {:hackney, "~> 1.17", override: true},
-      {:faker, "~> 0.17"},
-      {:swoosh, "~> 1.0"},
-      {:phoenix_swoosh, "~> 1.0"},
-      {:gen_smtp, "~> 1.1"},
-      {:backpex, path: "../."},
-      {:tailwind_formatter, "~> 0.4.0", only: [:dev, :test], runtime: false},
+      {:ecto_psql_extras, "~> 0.8"},
       {:csv, "~> 3.2.0"},
-      {:tesla, "~> 1.4"},
       {:jason, ">= 1.0.0"},
-      {:bandit, "~> 1.0"},
-      {:heroicons, github: "tailwindlabs/heroicons", tag: "v2.1.5", sparse: "optimized", app: false, compile: false},
-      {:floki, ">= 0.30.0", only: :test},
-      {:phoenix_test, "~> 0.3.1", only: :test, runtime: false}
+      {:ash, "~> 3.0"},
+      {:ash_postgres, "~> 2.4.0"},
+
+      # assets
+      {:esbuild, "~> 0.8", runtime: Mix.env() == :dev},
+      {:tailwind, "~> 0.2.0", runtime: Mix.env() == :dev},
+      {:heroicons, github: "tailwindlabs/heroicons", tag: "v2.2.0", sparse: "optimized", app: false, compile: false}
     ]
   end
 
@@ -79,6 +85,8 @@ defmodule Demo.MixProject do
       "ecto.seed": ["run priv/repo/seeds.exs"],
       "ecto.reset": ["ecto.rollback --all", "ecto.setup"],
       test: ["ecto.create --quiet", "ecto.migrate --quiet", "test --warnings-as-errors"],
+      "assets.setup": ["tailwind.install --if-missing", "esbuild.install --if-missing"],
+      "assets.build": ["tailwind default", "esbuild default"],
       "assets.deploy": ["tailwind default --minify", "esbuild default --minify", "phx.digest"]
     ]
   end

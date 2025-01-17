@@ -1,11 +1,32 @@
 defmodule Backpex.Fields.Select do
+  @config_schema [
+    options: [
+      doc: "List of options or function that receives the assigns.",
+      type: {:or, [{:list, :any}, {:fun, 1}]},
+      required: true
+    ],
+    prompt: [
+      doc: "The text to be displayed when no option is selected or function that receives the assigns.",
+      type: {:or, [:string, {:fun, 1}]}
+    ],
+    debounce: [
+      doc: "Timeout value (in milliseconds), \"blur\" or function that receives the assigns.",
+      type: {:or, [:pos_integer, :string, {:fun, 1}]}
+    ],
+    throttle: [
+      doc: "Timeout value (in milliseconds) or function that receives the assigns.",
+      type: {:or, [:pos_integer, {:fun, 1}]}
+    ]
+  ]
+
   @moduledoc """
   A field for handling a select value.
 
-  ## Options
+  ## Field-specific options
 
-    * `:options` - Required (keyword) list of options or function that receives the assigns.
-    * `:prompt` - The text to be displayed when no option is selected or function that receives the assigns.
+  See `Backpex.Field` for general field options.
+
+  #{NimbleOptions.docs(@config_schema)}
 
   ## Example
 
@@ -20,7 +41,7 @@ defmodule Backpex.Fields.Select do
         ]
       end
   """
-  use BackpexWeb, :field
+  use Backpex.Field, config_schema: @config_schema
 
   @impl Backpex.Field
   def render_value(assigns) do
@@ -31,7 +52,7 @@ defmodule Backpex.Fields.Select do
 
     ~H"""
     <p class={@live_action in [:index, :resource_action] && "truncate"}>
-      <%= HTML.pretty_value(@label) %>
+      {HTML.pretty_value(@label)}
     </p>
     """
   end
@@ -51,12 +72,14 @@ defmodule Backpex.Fields.Select do
         <:label align={Backpex.Field.align_label(@field_options, assigns)}>
           <Layout.input_label text={@field_options[:label]} />
         </:label>
-        <BackpexForm.field_input
+        <BackpexForm.input
           type="select"
           field={@form[@name]}
-          field_options={@field_options}
           options={@options}
           prompt={@prompt}
+          translate_error_fun={Backpex.Field.translate_error_fun(@field_options, assigns)}
+          phx-debounce={Backpex.Field.debounce(@field_options, assigns)}
+          phx-throttle={Backpex.Field.throttle(@field_options, assigns)}
         />
       </Layout.field_container>
     </div>
@@ -70,22 +93,24 @@ defmodule Backpex.Fields.Select do
 
     assigns =
       assigns
-      |> assign(:form, form)
       |> assign(:options, options)
+      |> assign_new(:form, fn -> form end)
       |> assign_new(:valid, fn -> true end)
       |> assign_prompt(assigns.field_options)
 
     ~H"""
     <div>
       <.form for={@form} class="relative" phx-change="update-field" phx-submit="update-field" phx-target={@myself}>
-        <select
-          name={@form[:value].name}
-          class={["select select-sm", if(@valid, do: "hover:input-bordered", else: "select-error")]}
+        <BackpexForm.input
+          type="select"
+          field={@form[:value]}
+          options={@options}
+          prompt={@prompt}
+          input_wrapper_class=""
+          input_class={["select select-sm", if(@valid, do: "hover:input-bordered", else: "select-error")]}
           disabled={@readonly}
-        >
-          <option :if={@prompt} value=""><%= @prompt %></option>
-          <%= Phoenix.HTML.Form.options_for_select(@options, @value) %>
-        </select>
+          hide_errors
+        />
       </.form>
     </div>
     """
@@ -93,7 +118,7 @@ defmodule Backpex.Fields.Select do
 
   @impl Phoenix.LiveComponent
   def handle_event("update-field", %{"index_form" => %{"value" => value}}, socket) do
-    Backpex.Field.handle_index_editable(socket, %{} |> Map.put(socket.assigns.name, value))
+    Backpex.Field.handle_index_editable(socket, value, Map.put(%{}, socket.assigns.name, value))
   end
 
   defp get_label(value, options) do

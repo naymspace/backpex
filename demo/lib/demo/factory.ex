@@ -5,8 +5,10 @@ defmodule Demo.Factory do
 
   alias Demo.Address
   alias Demo.Category
+  alias Demo.Helpdesk.Ticket
   alias Demo.Post
   alias Demo.Product
+  alias Demo.ShortLink
   alias Demo.Supplier
   alias Demo.Tag
   alias Demo.User
@@ -69,7 +71,15 @@ defmodule Demo.Factory do
       quantity: Enum.random(0..1_000),
       manufacturer: "https://example.com/",
       price: Enum.random(50..5_000_000),
-      suppliers: build_list(Enum.random(0..5), :supplier)
+      suppliers: build_list(Enum.random(0..5), :supplier),
+      short_links: build_list(Enum.random(0..5), :short_link)
+    }
+  end
+
+  def short_link_factory do
+    %ShortLink{
+      short_key: ShortLink.generate_unique_short_key(),
+      url: "https://example.com/"
     }
   end
 
@@ -79,6 +89,13 @@ defmodule Demo.Factory do
       zip: Faker.Address.zip(),
       city: Faker.Address.city(),
       country: Enum.random([:de, :ch, :at])
+    }
+  end
+
+  def ticket_factory do
+    %Ticket{
+      subject: Faker.Lorem.sentence(),
+      body: Faker.Lorem.paragraph()
     }
   end
 

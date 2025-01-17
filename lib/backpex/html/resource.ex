@@ -19,16 +19,16 @@ defmodule Backpex.HTML.Resource do
   """
   @doc type: :component
 
-  attr(:socket, :any, required: true)
-  attr(:live_resource, :any, required: true, doc: "module of the live resource")
-  attr(:params, :string, required: true, doc: "query parameters")
-  attr(:query_options, :map, default: %{}, doc: "query options")
-  attr(:fields, :list, required: true, doc: "list of fields to be displayed in the table on index view")
-  attr(:orderable_fields, :list, default: [], doc: "list of orderable fields")
-  attr(:searchable_fields, :list, default: [], doc: "list of searchable fields")
-  attr(:items, :list, default: [], doc: "items that will be displayed in the table")
-  attr(:active_fields, :list, required: true, doc: "list of active fields")
-  attr(:selected_items, :list, required: true, doc: "list of selected items")
+  attr :socket, :any, required: true
+  attr :live_resource, :any, required: true, doc: "module of the live resource"
+  attr :params, :string, required: true, doc: "query parameters"
+  attr :query_options, :map, default: %{}, doc: "query options"
+  attr :fields, :list, required: true, doc: "list of fields to be displayed in the table on index view"
+  attr :orderable_fields, :list, default: [], doc: "list of orderable fields"
+  attr :searchable_fields, :list, default: [], doc: "list of searchable fields"
+  attr :items, :list, default: [], doc: "items that will be displayed in the table"
+  attr :active_fields, :list, required: true, doc: "list of active fields"
+  attr :selected_items, :list, required: true, doc: "list of selected items"
 
   def resource_index_table(assigns)
 
@@ -36,12 +36,13 @@ defmodule Backpex.HTML.Resource do
   Renders a link to change the order direction for a given column.
   """
   @doc type: :component
-  attr(:socket, :map, required: true)
-  attr(:live_resource, :any, required: true, doc: "module of the live resource")
-  attr(:params, :string, required: true, doc: "query parameters")
-  attr(:query_options, :map, required: true, doc: "query options")
-  attr(:label, :string, required: true, doc: "label to be displayed on the link")
-  attr(:name, :atom, required: true, doc: "name of the column the link should change order for")
+
+  attr :socket, :map, required: true
+  attr :live_resource, :any, required: true, doc: "module of the live resource"
+  attr :params, :string, required: true, doc: "query parameters"
+  attr :query_options, :map, required: true, doc: "query options"
+  attr :label, :string, required: true, doc: "label to be displayed on the link"
+  attr :name, :atom, required: true, doc: "name of the column the link should change order for"
 
   def order_link(assigns) do
     order_direction =
@@ -69,9 +70,9 @@ defmodule Backpex.HTML.Resource do
       }
       replace
     >
-      <p><%= @label %></p>
+      <p>{@label}</p>
       <%= if @name == @query_options.order_by do %>
-        <%= order_icon(assigns, @query_options.order_direction) %>
+        {order_icon(assigns, @query_options.order_direction)}
       <% end %>
     </.link>
     """
@@ -93,17 +94,10 @@ defmodule Backpex.HTML.Resource do
   Renders the field of the given resource.
   """
   @doc type: :component
-  attr(:name, :string, required: true, doc: "name / key of the item field")
 
-  attr(:item, :map,
-    required: true,
-    doc: "the item which provides the value to be rendered"
-  )
-
-  attr(:fields, :list,
-    required: true,
-    doc: "list of all fields provided by the resource configuration"
-  )
+  attr :name, :string, required: true, doc: "name / key of the item field"
+  attr :item, :map, required: true, doc: "the item which provides the value to be rendered"
+  attr :fields, :list, required: true, doc: "list of all fields provided by the resource configuration"
 
   def resource_field(assigns) do
     %{name: name, item: item, fields: fields, live_resource: live_resource} = assigns
@@ -111,7 +105,7 @@ defmodule Backpex.HTML.Resource do
     {_name, field_options} = field = Enum.find(fields, fn {field_name, _field_options} -> field_name == name end)
 
     readonly =
-      not LiveResource.can?(assigns, :edit, item, live_resource) or
+      not live_resource.can?(assigns, :edit, item) or
         Backpex.Field.readonly?(field_options, assigns)
 
     assigns =
@@ -121,10 +115,11 @@ defmodule Backpex.HTML.Resource do
       |> assign(:value, Map.get(item, name))
       |> assign(:type, :index)
       |> assign(:readonly, readonly)
+      |> assign(:primary_key, Map.get(item, live_resource.config(:primary_key)))
 
     ~H"""
     <.live_component
-      id={"resource_#{@name}_#{@item.id}"}
+      id={"resource_#{@name}_#{@primary_key}"}
       module={@field_options.module}
       type={@type}
       {Map.drop(assigns, [:socket, :flash, :myself, :uploads])}
@@ -136,15 +131,12 @@ defmodule Backpex.HTML.Resource do
   Renders a resource form field.
   """
   @doc type: :component
-  attr(:name, :string, required: true, doc: "name / key of the item field")
-  attr(:form, :map, required: true, doc: "form that will be used by the form field")
-  attr(:repo, :any, required: false, doc: "ecto repo")
-  attr(:uploads, :map, required: false, default: %{}, doc: "map that contains upload information")
 
-  attr(:fields, :list,
-    required: true,
-    doc: "list of all fields provided by the resource configuration"
-  )
+  attr :name, :string, required: true, doc: "name / key of the item field"
+  attr :form, :map, required: true, doc: "form that will be used by the form field"
+  attr :repo, :any, required: false, doc: "ecto repo"
+  attr :uploads, :map, required: false, default: %{}, doc: "map that contains upload information"
+  attr :fields, :list, required: true, doc: "list of all fields provided by the resource configuration"
 
   def resource_form_field(assigns) do
     %{name: name, fields: fields} = assigns
@@ -172,14 +164,14 @@ defmodule Backpex.HTML.Resource do
   Renders form with a search field. Emits the `simple-search-input` event on change.
   """
   @doc type: :component
-  attr(:searchable_fields, :list,
+
+  attr :searchable_fields, :list,
     default: [],
     doc: "The fields that can be searched. Here only used to hide the component when empty."
-  )
 
-  attr(:full_text_search, :string, default: nil, doc: "full text search column name")
-  attr(:value, :string, required: true, doc: "value binding for the search input")
-  attr(:placeholder, :string, required: true, doc: "placeholder for the search input")
+  attr :full_text_search, :string, default: nil, doc: "full text search column name"
+  attr :value, :string, required: true, doc: "value binding for the search input"
+  attr :placeholder, :string, required: true, doc: "placeholder for the search input"
 
   def index_search_form(assigns) do
     form = to_form(%{"value" => assigns.value}, as: :index_search)
@@ -207,9 +199,10 @@ defmodule Backpex.HTML.Resource do
   Renders the index filters if the `filter/0` callback is defined in the resource.
   """
   @doc type: :component
-  attr(:live_resource, :any, required: true, doc: "module of the live resource")
-  attr(:filter_options, :map, required: true, doc: "filter options")
-  attr(:filters, :list, required: true, doc: "list of active filters")
+
+  attr :live_resource, :any, required: true, doc: "module of the live resource"
+  attr :filter_options, :map, required: true, doc: "filter options"
+  attr :filters, :list, required: true, doc: "list of active filters"
 
   def index_filter(assigns) do
     computed = [
@@ -227,11 +220,11 @@ defmodule Backpex.HTML.Resource do
     <div :if={@filters != []} class="dropdown">
       <div class="indicator">
         <span :if={@filter_count > 0} class="indicator-item badge badge-secondary">
-          <%= @filter_count %>
+          {@filter_count}
         </span>
         <label tabindex="0" class="btn btn-sm btn-outline ring-base-content/10 border-0 ring-1">
-          <Backpex.HTML.CoreComponents.icon name="hero-funnel-solid" class={["h-5 w-5 mr-2", @filter_icon_class]} />
-          <%= Backpex.translate("Filters") %>
+          <Backpex.HTML.CoreComponents.icon name="hero-funnel-solid" class={["mr-2 h-5 w-5", @filter_icon_class]} />
+          {Backpex.translate("Filters")}
         </label>
       </div>
       <div tabindex="0" class="dropdown-content z-[1] menu bg-base-100 rounded-box p-4 shadow">
@@ -244,11 +237,11 @@ defmodule Backpex.HTML.Resource do
       clear_event="clear-filter"
       label={Keyword.get(@filters, String.to_existing_atom(key)).module.label()}
     >
-      <%= component(
+      {component(
         &Keyword.get(@filters, String.to_existing_atom(key)).module.render/1,
         [value: value],
         {__ENV__.module, __ENV__.function, __ENV__.file, __ENV__.line}
-      ) %>
+      )}
     </Backpex.HTML.CoreComponents.filter_badge>
     """
   end
@@ -261,16 +254,16 @@ defmodule Backpex.HTML.Resource do
         <.form :let={f} for={to_form(%{}, as: :filters)} phx-change="change-filter" phx-submit="change-filter">
           <div>
             <div class="relative flex w-full flex-wrap justify-start gap-2">
-              <div class="text-base-content text-sm font-medium"><%= Map.get(filter, :label, filter.module.label()) %></div>
+              <div class="text-base-content text-sm font-medium">{Map.get(filter, :label, filter.module.label())}</div>
               <.maybe_clear_button field={field} value={value} />
             </div>
             <div class="flex gap-4">
               <div class="w-[240px]">
-                <%= component(
+                {component(
                   &filter.module.render_form/1,
                   [field: field, value: value, form: f],
                   {__ENV__.module, __ENV__.function, __ENV__.file, __ENV__.line}
-                ) %>
+                )}
               </div>
               <.filter_presets field={field} presets={Map.get(filter, :presets)} />
             </div>
@@ -293,7 +286,7 @@ defmodule Backpex.HTML.Resource do
         phx-value-preset-index={index}
         class="text-primary mb-1 cursor-pointer truncate text-xs font-medium"
       >
-        <%= preset.label %>
+        {preset.label}
       </div>
     </div>
     """
@@ -313,12 +306,17 @@ defmodule Backpex.HTML.Resource do
     """
   end
 
-  attr(:socket, :any, required: true)
-  attr(:active_fields, :list, required: true, doc: "list of active fields")
-  attr(:live_resource, :atom, required: true, doc: "the live resource")
-  attr(:current_url, :string, required: true, doc: "the current url")
-  attr(:class, :string, default: "", doc: "additional class to be added to the component")
-  attr(:x_style, :string, default: "", doc: "alpine-bound inline styles for the root div")
+  @doc """
+  Renders the toggle columns dropdown.
+  """
+  @doc type: :component
+
+  attr :socket, :any, required: true
+  attr :active_fields, :list, required: true, doc: "list of active fields"
+  attr :live_resource, :atom, required: true, doc: "the live resource"
+  attr :current_url, :string, required: true, doc: "the current url"
+  attr :class, :string, default: "", doc: "additional class to be added to the component"
+  attr :x_style, :string, default: "", doc: "alpine-bound inline styles for the root div"
 
   def toggle_columns(assigns) do
     form =
@@ -332,12 +330,12 @@ defmodule Backpex.HTML.Resource do
     <div class={["dropdown", @class]} x-bind:style={@x_style}>
       <label tabindex="0" class="hover:cursor-pointer">
         <span class="sr-only">
-          <%= Backpex.translate("Toggle columns") %>
+          {Backpex.translate("Toggle columns")}
         </span>
         <Backpex.HTML.CoreComponents.icon
           name="hero-view-columns-solid"
           aria-hidden="true"
-          class="h-5 w-5 text-base-content/50 hover:text-base-content"
+          class="text-base-content/50 h-5 w-5 hover:text-base-content"
         />
       </label>
       <div tabindex="0" class="dropdown-content z-[1] menu bg-base-100 rounded-box min-w-52 max-w-72 p-4 shadow">
@@ -346,7 +344,7 @@ defmodule Backpex.HTML.Resource do
           <input type="hidden" name={@form[:_cookie_redirect_url].name} value={@form[:_cookie_redirect_url].value} />
           <.toggle_columns_inputs active_fields={@active_fields} form={@form} />
           <button class="btn btn-sm btn-primary mt-4">
-            <%= Backpex.translate("Save") %>
+            {Backpex.translate("Save")}
           </button>
         </.form>
       </div>
@@ -354,8 +352,13 @@ defmodule Backpex.HTML.Resource do
     """
   end
 
-  attr(:form, :any, required: true, doc: "the form")
-  attr(:active_fields, :list, required: true, doc: "list of active fields to be displayed")
+  @doc """
+  Renders the toggle columns inputs.
+  """
+  @doc type: :component
+
+  attr :form, :any, required: true, doc: "the form"
+  attr :active_fields, :list, required: true, doc: "list of active fields to be displayed"
 
   def toggle_columns_inputs(assigns) do
     ~H"""
@@ -365,7 +368,7 @@ defmodule Backpex.HTML.Resource do
           <input type="hidden" name={@form[name].name} value="false" />
           <input type="checkbox" name={@form[name].name} class="checkbox checkbox-sm checkbox-primary" checked={active} />
           <span class="label-text truncate pl-2">
-            <%= label %>
+            {label}
           </span>
         </label>
       </div>
@@ -377,8 +380,9 @@ defmodule Backpex.HTML.Resource do
   Renders pagination info about the current page.
   """
   @doc type: :component
-  attr(:total, :integer, required: true, doc: "total number of items")
-  attr(:query_options, :map, required: true, doc: "query options")
+
+  attr :total, :integer, required: true, doc: "total number of items"
+  attr :query_options, :map, required: true, doc: "query options"
 
   def pagination_info(assigns) do
     %{query_options: %{page: page, per_page: per_page}} = assigns
@@ -395,7 +399,7 @@ defmodule Backpex.HTML.Resource do
 
     ~H"""
     <div :if={@total > 0} class="text-base-content pr-2 text-sm">
-      <%= @label %>
+      {@label}
     </div>
     """
   end
@@ -406,9 +410,9 @@ defmodule Backpex.HTML.Resource do
   """
   @doc type: :component
 
-  attr(:current_page, :integer, required: true, doc: "current page number")
-  attr(:total_pages, :integer, required: true, doc: "number of total pages")
-  attr(:path, :string, required: true, doc: "path to be used for page links")
+  attr :current_page, :integer, required: true, doc: "current page number"
+  attr :total_pages, :integer, required: true, doc: "number of total pages"
+  attr :path, :string, required: true, doc: "path to be used for page links"
 
   def pagination(assigns) do
     assigns =
@@ -429,11 +433,11 @@ defmodule Backpex.HTML.Resource do
     """
   end
 
-  attr(:path, :string, required: true)
-  attr(:current_page, :integer, required: true)
-  attr(:type, :atom, required: true)
-  attr(:number, :integer, default: nil, required: false)
-  attr(:class, :string, default: nil)
+  attr :path, :string, required: true
+  attr :current_page, :integer, required: true
+  attr :type, :atom, required: true
+  attr :number, :integer, default: nil, required: false
+  attr :class, :string, default: nil
 
   defp pagination_item(%{type: :number} = assigns) do
     pagination_link = get_pagination_link(assigns.path, assigns.number)
@@ -443,12 +447,12 @@ defmodule Backpex.HTML.Resource do
     ~H"""
     <%= if @current_page == @number do %>
       <button class={["btn btn-active", @class]} aria-disabled="true">
-        <%= Integer.to_string(@number) %>
+        {Integer.to_string(@number)}
       </button>
     <% else %>
       <.link href={@href}>
         <button class={["btn bg-base-100", @class]}>
-          <%= Integer.to_string(@number) %>
+          {Integer.to_string(@number)}
         </button>
       </.link>
     <% end %>
@@ -589,9 +593,10 @@ defmodule Backpex.HTML.Resource do
   Renders a select per page button.
   """
   @doc type: :component
-  attr(:options, :list, required: true, doc: "A list of per page options.")
-  attr(:query_options, :map, default: %{}, doc: "The query options.")
-  attr(:class, :string, default: "", doc: "Extra class to be added to the select.")
+
+  attr :options, :list, required: true, doc: "A list of per page options."
+  attr :query_options, :map, default: %{}, doc: "The query options."
+  attr :class, :string, default: "", doc: "Extra class to be added to the select."
 
   def select_per_page(assigns) do
     form = to_form(%{}, as: :select_per_page)
@@ -604,7 +609,7 @@ defmodule Backpex.HTML.Resource do
     ~H"""
     <.form for={@form} class={@class} phx-change="select-page-size" phx-submit="select-page-size">
       <select name={@form[:value].name} class="select select-sm select-bordered">
-        <%= Phoenix.HTML.Form.options_for_select(@options, @selected) %>
+        {Phoenix.HTML.Form.options_for_select(@options, @selected)}
       </select>
     </.form>
     """
@@ -614,27 +619,20 @@ defmodule Backpex.HTML.Resource do
   Renders a button group with create and resource action buttons.
   """
   @doc type: :component
-  attr(:socket, :any, required: true)
-  attr(:live_resource, :any, required: true, doc: "module of the live resource")
-  attr(:params, :string, required: true, doc: "query parameters")
-  attr(:query_options, :map, default: %{}, doc: "query options")
 
-  attr(:resource_actions, :list,
-    default: [],
-    doc: "list of all resource actions provided by the resource configuration"
-  )
-
-  attr(:singular_name, :string, required: true, doc: "singular name of the resource")
+  attr :socket, :any, required: true
+  attr :live_resource, :any, required: true, doc: "module of the live resource"
+  attr :params, :string, required: true, doc: "query parameters"
+  attr :query_options, :map, default: %{}, doc: "query options"
+  attr :resource_actions, :list, default: [], doc: "list of all resource actions provided by the resource configuration"
+  attr :singular_name, :string, required: true, doc: "singular name of the resource"
 
   def resource_buttons(assigns) do
     ~H"""
     <div class="mb-4 flex space-x-2">
-      <.link
-        :if={LiveResource.can?(assigns, :new, nil, @live_resource)}
-        patch={Router.get_path(@socket, @live_resource, @params, :new)}
-      >
+      <.link :if={@live_resource.can?(assigns, :new, nil)} patch={Router.get_path(@socket, @live_resource, @params, :new)}>
         <button class="btn btn-sm btn-outline btn-primary">
-          <%= @create_button_label %>
+          {@create_button_label}
         </button>
       </.link>
 
@@ -643,7 +641,7 @@ defmodule Backpex.HTML.Resource do
         patch={Router.get_path(@socket, @live_resource, @params, :resource_action, key, @query_options)}
       >
         <button class="btn btn-sm btn-outline btn-primary">
-          <%= ResourceAction.name(action, :label) %>
+          {ResourceAction.name(action, :label)}
         </button>
       </.link>
 
@@ -656,7 +654,7 @@ defmodule Backpex.HTML.Resource do
         phx-click="item-action"
         phx-value-action-key={key}
       >
-        <%= action.module.label(assigns) %>
+        {action.module.label(assigns, nil)}
       </button>
     </div>
     """
@@ -666,16 +664,16 @@ defmodule Backpex.HTML.Resource do
   Renders the input fields for filters and search.
   """
   @doc type: :component
-  attr(:live_resource, :any, required: true, doc: "module of the live resource")
 
-  attr(:searchable_fields, :list,
+  attr :live_resource, :any, required: true, doc: "module of the live resource"
+
+  attr :searchable_fields, :list,
     default: [],
     doc: "The fields that can be searched. Here only used to hide the component when empty."
-  )
 
-  attr(:full_text_search, :string, default: nil, doc: "full text search column name")
-  attr(:query_options, :map, default: %{}, doc: "query options")
-  attr(:search_placeholder, :string, required: true, doc: "placeholder for the search input")
+  attr :full_text_search, :string, default: nil, doc: "full text search column name"
+  attr :query_options, :map, default: %{}, doc: "query options"
+  attr :search_placeholder, :string, required: true, doc: "placeholder for the search input"
 
   def resource_filters(assigns) do
     ~H"""
@@ -689,8 +687,8 @@ defmodule Backpex.HTML.Resource do
       />
       <.index_filter
         live_resource={@live_resource}
-        filter_options={LiveResource.get_filter_options(@live_resource, @query_options)}
-        filters={LiveResource.get_active_filters(@live_resource, assigns)}
+        filter_options={LiveResource.get_filter_options(@query_options)}
+        filters={LiveResource.active_filters(assigns)}
       />
     </div>
     """
@@ -706,7 +704,7 @@ defmodule Backpex.HTML.Resource do
 
   defp resource_actions(assigns, resource_actions) do
     Enum.filter(resource_actions, fn {key, _action} ->
-      LiveResource.can?(assigns, key, nil, assigns.live_resource)
+      assigns.live_resource.can?(assigns, key, nil)
     end)
   end
 
@@ -715,7 +713,7 @@ defmodule Backpex.HTML.Resource do
     resource_actions = resource_actions(assigns, assigns.resource_actions)
 
     Enum.any?(index_item_actions) &&
-      (Enum.any?(resource_actions) || LiveResource.can?(assigns, :new, nil, assigns.live_resource))
+      (Enum.any?(resource_actions) || assigns.live_resource.can?(assigns, :new, nil))
   end
 
   defp index_item_actions(item_actions) do
@@ -732,7 +730,7 @@ defmodule Backpex.HTML.Resource do
 
   defp action_disabled?(assigns, action_key, items) do
     Enum.filter(items, fn item ->
-      LiveResource.can?(assigns, action_key, item, assigns.live_resource)
+      assigns.live_resource.can?(assigns, action_key, item)
     end)
     |> Enum.empty?()
   end
@@ -749,10 +747,11 @@ defmodule Backpex.HTML.Resource do
   Renders an info block to indicate that no items are found.
   """
   @doc type: :component
-  attr(:socket, :any, required: true)
-  attr(:live_resource, :atom, required: true, doc: "live resource module")
-  attr(:params, :map, required: true, doc: "query params")
-  attr(:singular_name, :string, required: true, doc: "singular name of the resource")
+
+  attr :socket, :any, required: true
+  attr :live_resource, :atom, required: true, doc: "live resource module"
+  attr :params, :map, required: true, doc: "query params"
+  attr :singular_name, :string, required: true, doc: "singular name of the resource"
 
   def empty_state(assigns) do
     assigns =
@@ -760,7 +759,7 @@ defmodule Backpex.HTML.Resource do
       |> assign(:search_active?, get_in(assigns, [:query_options, :search]) not in [nil, ""])
       |> assign(:filter_active?, get_in(assigns, [:query_options, :filters]) != %{})
       |> assign(:title, Backpex.translate({"No %{resources} found", %{resources: assigns.plural_name}}))
-      |> assign(:create_allowed, LiveResource.can?(assigns, :new, nil, assigns.live_resource))
+      |> assign(:create_allowed, assigns.live_resource.can?(assigns, :new, nil))
 
     ~H"""
     <div class="flex justify-center py-16">
@@ -779,7 +778,7 @@ defmodule Backpex.HTML.Resource do
           <.empty_state_content :if={not @search_active? and not @filter_active?} title={@title}>
             <.link :if={@create_allowed} patch={Router.get_path(@socket, @live_resource, @params, :new)}>
               <button class="btn btn-sm btn-outline btn-primary mt-6">
-                <%= @create_button_label %>
+                {@create_button_label}
               </button>
             </.link>
           </.empty_state_content>
@@ -789,17 +788,17 @@ defmodule Backpex.HTML.Resource do
     """
   end
 
-  attr(:title, :string, required: true, doc: "main title of the empty state info block")
-  attr(:subtitle, :string, default: nil, doc: "subtitle of the empty state info block")
+  attr :title, :string, required: true, doc: "main title of the empty state info block"
+  attr :subtitle, :string, default: nil, doc: "subtitle of the empty state info block"
 
-  slot(:inner_block)
+  slot :inner_block
 
   defp empty_state_content(assigns) do
     ~H"""
-    <Backpex.HTML.CoreComponents.icon name="hero-folder-plus" class="mb-1 inline-block h-12 w-12 text-base-content/30" />
-    <p class="text-base-content text-lg font-bold"><%= @title %></p>
-    <p :if={@subtitle} class="text-base-content/75"><%= @subtitle %></p>
-    <%= render_slot(@inner_block) %>
+    <Backpex.HTML.CoreComponents.icon name="hero-folder-plus" class="text-base-content/30 mb-1 inline-block h-12 w-12" />
+    <p class="text-base-content text-lg font-bold">{@title}</p>
+    <p :if={@subtitle} class="text-base-content/75">{@subtitle}</p>
+    {render_slot(@inner_block)}
     """
   end
 
@@ -807,26 +806,25 @@ defmodule Backpex.HTML.Resource do
   Renders the main resource index content.
   """
   @doc type: :component
-  attr(:socket, :any, required: true)
-  attr(:live_resource, :any, required: true, doc: "module of the live resource")
-  attr(:params, :string, required: true, doc: "query parameters")
-  attr(:query_options, :map, default: %{}, doc: "query options")
-  attr(:total_pages, :integer, default: 1, doc: "amount of total pages")
 
-  attr(:resource_actions, :list,
+  attr :socket, :any, required: true
+  attr :live_resource, :any, required: true, doc: "module of the live resource"
+  attr :params, :string, required: true, doc: "query parameters"
+  attr :query_options, :map, default: %{}, doc: "query options"
+  attr :total_pages, :integer, default: 1, doc: "amount of total pages"
+
+  attr :resource_actions, :list,
     default: [],
     doc: "list of all resource actions provided by the resource configuration"
-  )
 
-  attr(:singular_name, :string, required: true, doc: "singular name of the resource")
+  attr :singular_name, :string, required: true, doc: "singular name of the resource"
 
-  attr(:orderable_fields, :list, default: [], doc: "list of orderable fields.")
-  attr(:items, :list, default: [], doc: "items that will be displayed in the table")
+  attr :orderable_fields, :list, default: [], doc: "list of orderable fields."
+  attr :items, :list, default: [], doc: "items that will be displayed in the table"
 
-  attr(:fields, :list,
+  attr :fields, :list,
     default: [],
     doc: "list of fields to be displayed in the table on index view"
-  )
 
   def resource_index_main(assigns)
 
@@ -836,26 +834,29 @@ defmodule Backpex.HTML.Resource do
   Renders a show card.
   """
   @doc type: :component
-  attr(:socket, :any, required: true)
-  attr(:live_resource, :any, required: true, doc: "module of the live resource")
-  attr(:params, :string, required: true, doc: "query parameters")
-  attr(:item, :map, required: true, doc: "item that will be rendered on the card")
-  attr(:fields, :list, required: true, doc: "list of fields to be displayed on the card")
+
+  attr :socket, :any, required: true
+  attr :live_resource, :any, required: true, doc: "module of the live resource"
+  attr :params, :string, required: true, doc: "query parameters"
+  attr :item, :map, required: true, doc: "item that will be rendered on the card"
+  attr :fields, :list, required: true, doc: "list of fields to be displayed on the card"
 
   def resource_show_main(assigns)
 
   @doc """
   Renders a show panel.
   """
-  attr(:panel_fields, :list, required: true, doc: "list of fields to be rendered in the panel")
-  attr(:class, :string, default: "", doc: "extra class to be added")
-  attr(:label, :any, default: nil, doc: "optional label for the panel")
+  @doc type: :component
+
+  attr :panel_fields, :list, required: true, doc: "list of fields to be rendered in the panel"
+  attr :class, :string, default: "", doc: "extra class to be added"
+  attr :label, :any, default: nil, doc: "optional label for the panel"
 
   def show_panel(assigns) do
     ~H"""
     <div class={@class}>
       <p :if={@label != nil} class="text-lg font-semibold">
-        <%= @label %>
+        {@label}
       </p>
 
       <div class="card bg-base-100 mt-4">
@@ -879,10 +880,12 @@ defmodule Backpex.HTML.Resource do
   @doc """
   Renders an edit panel.
   """
-  attr(:form, :any)
-  attr(:class, :string, default: "", doc: "extra class to be added")
-  attr(:panel_fields, :list, required: true, doc: "list of fields to be rendered in the panel")
-  attr(:label, :any, default: nil, doc: "optional label for the panel")
+  @doc type: :component
+
+  attr :form, :any
+  attr :class, :string, default: "", doc: "extra class to be added"
+  attr :panel_fields, :list, required: true, doc: "list of fields to be rendered in the panel"
+  attr :label, :any, default: nil, doc: "optional label for the panel"
 
   def edit_panel(assigns) do
     ~H"""
@@ -891,7 +894,7 @@ defmodule Backpex.HTML.Resource do
         <hr class="border-1 border-base-200 mb-8" />
 
         <legend class="mb-4 px-6 text-lg font-semibold">
-          <%= @label %>
+          {@label}
         </legend>
       </div>
 
@@ -903,7 +906,9 @@ defmodule Backpex.HTML.Resource do
   @doc """
   Renders the metrics area for the current resource.
   """
-  attr(:metrics, :list, default: [], doc: "list of metrics to be displayed")
+  @doc type: :component
+
+  attr :metrics, :list, default: [], doc: "list of metrics to be displayed"
 
   def resource_metrics(assigns) do
     %{metric_visibility: metric_visibility, live_resource: live_resource} = assigns
@@ -915,20 +920,15 @@ defmodule Backpex.HTML.Resource do
     ~H"""
     <div :if={length(@metrics) > 0 and @visible} class="items-center gap-4 lg:flex">
       <%= for {_key, metric} <- @metrics do %>
-        <%= component(
+        {component(
           &metric.module.render/1,
           [metric: metric],
           {__ENV__.module, __ENV__.function, __ENV__.file, __ENV__.line}
-        ) %>
+        )}
       <% end %>
     </div>
     """
   end
-
-  @doc """
-  Checks the given module if it has a `confirm/1` function exported or a list with fields.
-  """
-  def has_modal?(module), do: function_exported?(module, :confirm, 1) or module.fields() != []
 
   defp metric_toggle(assigns) do
     visible = Backpex.Metric.metrics_visible?(assigns.metric_visibility, assigns.live_resource)

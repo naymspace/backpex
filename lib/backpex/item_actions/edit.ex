@@ -6,7 +6,7 @@ defmodule Backpex.ItemActions.Edit do
   use BackpexWeb, :item_action
 
   @impl Backpex.ItemAction
-  def icon(assigns) do
+  def icon(assigns, _item) do
     ~H"""
     <Backpex.HTML.CoreComponents.icon
       name="hero-pencil-square"
@@ -16,12 +16,12 @@ defmodule Backpex.ItemActions.Edit do
   end
 
   @impl Backpex.ItemAction
-  def label(_assigns), do: Backpex.translate("Edit")
+  def label(_assigns, _item), do: Backpex.translate("Edit")
 
   @impl Backpex.ItemAction
   def handle(socket, [item | _items], _data) do
     path = Router.get_path(socket, socket.assigns.live_resource, socket.assigns.params, :edit, item)
 
-    {:noreply, Phoenix.LiveView.push_patch(socket, to: path)}
+    {:ok, Phoenix.LiveView.push_patch(socket, to: path)}
   end
 end

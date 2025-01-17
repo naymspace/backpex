@@ -1,8 +1,22 @@
 ########################################################################
+# Versions & Images
+########################################################################
+
+# renovate: datasource=github-tags depName=elixir packageName=elixir-lang/elixir versioning=semver
+ARG ELIXIR_VERSION=1.18.1
+# renovate: datasource=github-tags depName=erlang packageName=erlang/otp versioning=regex:^(?<major>\d+?)\.(?<minor>\d+?)(\.(?<patch>\d+))?$ extractVersion=^OTP-(?<version>\S+)
+ARG OTP_VERSION=27.2
+# renovate: datasource=docker depName=ubuntu packageName=ubuntu versioning=ubuntu
+ARG UBUNTU_VERSION=jammy-20240808
+
+ARG BUILDER_IMAGE="hexpm/elixir:${ELIXIR_VERSION}-erlang-${OTP_VERSION}-ubuntu-${UBUNTU_VERSION}"
+ARG RUNTIME_IMAGE="ubuntu:${UBUNTU_VERSION}"
+
+########################################################################
 # Stage: builder
 ########################################################################
 
-FROM hexpm/elixir:1.17.2-erlang-27.0.1-alpine-3.20.1 as builder
+FROM ${BUILDER_IMAGE} AS builder
 
 ENV MIX_HOME=/opt/mix \
     HEX_HOME=/opt/hex \
@@ -11,16 +25,14 @@ ENV MIX_HOME=/opt/mix \
 
 WORKDIR $APP_HOME
 
-RUN apk --no-cache --update upgrade \
-    && apk add --no-cache bash ca-certificates libstdc++ build-base git inotify-tools nodejs npm yarn \
-    && update-ca-certificates --fresh \
-    && mix do local.hex --force, local.rebar --force
+RUN apt-get update -y \
+    && apt-get install -y build-essential curl git inotify-tools \
+    && apt-get clean && rm -f /var/lib/apt/lists/*_*
 
-SHELL ["/bin/bash", "-c"]
+RUN curl -fsSL https://deb.nodesource.com/setup_lts.x | bash - \
+    && apt-get install -y nodejs \
+    && npm install --global yarn
 
-COPY .docker/etc /etc/
-RUN find /etc/bashrc.d/ -name "*.sh" -exec chmod -v +x {} \;
-COPY .docker/root/.bashrc /root/
 COPY .docker/opt/scripts/ /opt/scripts
 ADD https://github.com/naymspace/env-secrets-expand/raw/main/env-secrets-expand.sh /opt/scripts/
 RUN chmod -R +x /opt/scripts/
@@ -71,30 +83,25 @@ RUN mix do deps.get, deps.compile, assets.deploy, sentry.package_source_code, re
 # Stage: runtime
 ########################################################################
 
-FROM alpine:3.20.2 as runtime
+FROM ${RUNTIME_IMAGE} AS runtime
 
 ENV APP_HOME=/opt/app
 WORKDIR $APP_HOME
 
-RUN apk --no-cache --update upgrade \
-    && apk add --no-cache bash ca-certificates libstdc++ openssl ncurses-libs \
-    && update-ca-certificates --fresh
+RUN apt-get update -y \
+    && apt-get install -y libstdc++6 openssl libncurses5 locales ca-certificates wget \
+    && apt-get clean && rm -f /var/lib/apt/lists/*_*
 
-SHELL ["/bin/bash", "-c"]
-
-COPY --from=builder /etc/bashrc.d /etc/bashrc.d
-COPY --from=builder /etc/bash.bashrc /etc/bash.bashrc
 COPY --from=builder /opt/scripts /opt/scripts
-COPY .docker/root/.bashrc /root/
 
-RUN chown -R nobody:nobody /opt
+RUN chown -R nobody /opt
 
 ENV PATH=/opt/scripts/:/opt/app/bin:$PATH \
     MIX_ENV=prod
 
-COPY --from=release --chown=nobody:nobody /opt/app/demo/_build/${MIX_ENV}/rel/demo .
+COPY --from=release --chown=nobody /opt/app/demo/_build/${MIX_ENV}/rel/demo .
 
-USER nobody:nobody
+USER nobody
 
 ENTRYPOINT ["entrypoint.sh"]
 CMD ["bash", "-c", "demo start"]

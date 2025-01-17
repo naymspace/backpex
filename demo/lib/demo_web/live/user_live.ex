@@ -1,13 +1,19 @@
 defmodule DemoWeb.UserLive do
   use Backpex.LiveResource,
+    adapter_config: [
+      schema: Demo.User,
+      repo: Demo.Repo,
+      update_changeset: &Demo.User.changeset/3,
+      create_changeset: &Demo.User.changeset/3,
+      item_query: &__MODULE__.item_query/3
+    ],
     layout: {DemoWeb.Layouts, :admin},
-    schema: Demo.User,
-    repo: Demo.Repo,
-    update_changeset: &Demo.User.changeset/3,
-    create_changeset: &Demo.User.changeset/3,
-    pubsub: Demo.PubSub,
-    topic: "users",
-    event_prefix: "user_"
+    init_order: &__MODULE__.init_order/1,
+    pubsub: [
+      name: Demo.PubSub,
+      topic: "users",
+      event_prefix: "user_"
+    ]
 
   @impl Backpex.LiveResource
   def singular_name, do: "User"
@@ -21,10 +27,13 @@ defmodule DemoWeb.UserLive do
   @impl Backpex.LiveResource
   def can?(_assigns, _action, _item), do: true
 
-  @impl Backpex.LiveResource
   def item_query(query, live_action, _assigns) when live_action in [:index, :resource_action] do
     from u in query,
       where: is_nil(u.deleted_at)
+  end
+
+  def init_order(_assigns) do
+    %{by: :username, direction: :asc}
   end
 
   @impl Backpex.LiveResource
@@ -55,7 +64,6 @@ defmodule DemoWeb.UserLive do
         label: "Avatar",
         upload_key: :avatar,
         accept: ~w(.jpg .jpeg .png),
-        max_entries: 1,
         max_file_size: 512_000,
         put_upload_change: &put_upload_change/6,
         consume_upload: &consume_upload/4,
@@ -63,7 +71,7 @@ defmodule DemoWeb.UserLive do
         list_existing_files: &list_existing_files/1,
         render: fn
           %{value: value} = assigns when value == "" or is_nil(value) ->
-            ~H"<p><%= Backpex.HTML.pretty_value(@value) %></p>"
+            ~H"<p>{Backpex.HTML.pretty_value(@value)}</p>"
 
           assigns ->
             ~H'<img class="h-10 w-auto" src={file_url(@value)} />'
@@ -268,7 +276,7 @@ defmodule DemoWeb.UserLive do
   end
 
   defp file_name(entry) do
-    [ext | _] = MIME.extensions(entry.client_type)
+    [ext | _tail] = MIME.extensions(entry.client_type)
     "#{entry.uuid}.#{ext}"
   end
 

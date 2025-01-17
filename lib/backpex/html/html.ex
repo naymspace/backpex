@@ -15,7 +15,7 @@ defmodule Backpex.HTML do
       "—"
 
       iex> Backpex.HTML.pretty_value(1_000_000)
-      "1.000.000"
+      1000000
 
       iex> Backpex.HTML.pretty_value(1.11)
       1.11
@@ -23,12 +23,6 @@ defmodule Backpex.HTML do
       iex> Backpex.HTML.pretty_value("Hello, universe")
       "Hello, universe"
   """
-  def pretty_value(input) when is_nil(input), do: "—"
-
-  def pretty_value(""), do: "—"
-
-  def pretty_value(input) when is_integer(input),
-    do: Number.Delimit.number_to_delimited(input, precision: 0, delimiter: ".")
-
+  def pretty_value(input) when is_nil(input) or input == "", do: "—"
   def pretty_value(input), do: input
 end

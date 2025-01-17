@@ -9,7 +9,7 @@ defmodule Backpex.ItemActions.Delete do
   require Logger
 
   @impl Backpex.ItemAction
-  def icon(assigns) do
+  def icon(assigns, _item) do
     ~H"""
     <Backpex.HTML.CoreComponents.icon
       name="hero-trash"
@@ -19,7 +19,7 @@ defmodule Backpex.ItemActions.Delete do
   end
 
   @impl Backpex.ItemAction
-  def label(_assigns), do: Backpex.translate("Delete")
+  def label(_assigns, _item), do: Backpex.translate("Delete")
 
   @impl Backpex.ItemAction
   def confirm(assigns) do
@@ -40,28 +40,26 @@ defmodule Backpex.ItemActions.Delete do
 
   @impl Backpex.ItemAction
   def handle(socket, items, _data) do
+    {:ok, deleted_items} = Resource.delete_all(items, socket.assigns.live_resource)
+
+    Enum.each(deleted_items, fn deleted_item -> socket.assigns.live_resource.on_item_deleted(socket, deleted_item) end)
+
     socket =
-      try do
-        %{assigns: %{repo: repo, schema: schema, pubsub: pubsub}} = socket
-        {:ok, _items} = Resource.delete_all(items, repo, schema, pubsub)
+      socket
+      |> clear_flash()
+      |> put_flash(:info, success_message(socket.assigns, deleted_items))
 
-        for item <- items do
-          socket.assigns.live_resource.on_item_deleted(socket, item)
-        end
+    {:ok, socket}
+  rescue
+    error ->
+      Logger.error("An error occurred while deleting the resource: #{inspect(error)}")
 
+      socket =
         socket
         |> clear_flash()
-        |> put_flash(:info, success_message(socket.assigns, items))
-      rescue
-        error ->
-          Logger.error("An error occurred while deleting the resource: #{inspect(error)}")
+        |> put_flash(:error, error_message(socket.assigns, error, items))
 
-          socket
-          |> clear_flash()
-          |> put_flash(:error, error_message(socket.assigns, error, items))
-      end
-
-    {:noreply, socket}
+      {:ok, socket}
   end
 
   defp success_message(assigns, [_item]) do
