@@ -183,7 +183,7 @@ defmodule Backpex.HTML.Resource do
       |> assign(:form, form)
 
     ~H"""
-    <.form :if={@search_enabled} for={@form} phx-change="index-search" phx-submit="index-search">
+    <.form :if={@search_enabled} id="index-search-form" for={@form} phx-change="index-search" phx-submit="index-search">
       <input
         name={@form[:value].name}
         class="input input-sm input-bordered"
