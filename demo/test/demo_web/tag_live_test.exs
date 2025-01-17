@@ -26,7 +26,7 @@ defmodule DemoWeb.TagLiveTest do
       |> assert_has(".table tbody tr", count: 2)
       |> unwrap(fn view ->
         view
-        |> form("form[phx-change='index-search']", %{"index_search[value]" => "Elixir"})
+        |> form("#index-search-form", index_search: %{value: "Elixir"})
         |> render_change()
       end)
       |> assert_has(".table tbody tr", count: 1)
@@ -75,7 +75,8 @@ defmodule DemoWeb.TagLiveTest do
       |> visit("/admin/tags/#{tag.id}/edit")
       |> unwrap(fn view ->
         view
-        |> form("#resource-form", %{"change[name]" => "Phoenix"})
+        |> form("#resource-form", change: %{name: "Phoenix"})
+        |> put_submitter("button[value=save]")
         |> render_submit()
       end)
       |> assert_has(".table tbody tr", count: 1)
@@ -97,7 +98,8 @@ defmodule DemoWeb.TagLiveTest do
       |> visit("/admin/tags/new")
       |> unwrap(fn view ->
         view
-        |> form("#resource-form", %{"change[name]" => "Phoenix"})
+        |> form("#resource-form", change: %{name: "Phoenix"})
+        |> put_submitter("button[value=save]")
         |> render_submit()
       end)
       |> assert_has(".table tbody tr", count: 1)
