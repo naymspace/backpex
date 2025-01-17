@@ -82,11 +82,7 @@ defmodule Backpex.Adapters.Ecto do
   """
   @impl Backpex.Adapter
   def list(criteria, assigns, live_resource) do
-    config = live_resource.config(:adapter_config)
-    fields = live_resource.validated_fields()
-    item_query = prepare_item_query(config, assigns)
-
-    list_query(fields, criteria, item_query, assigns)
+    list_query(criteria, assigns, live_resource)
     |> assigns.repo.all()
     |> then(fn items -> {:ok, items} end)
   end
@@ -97,10 +93,8 @@ defmodule Backpex.Adapters.Ecto do
   @impl Backpex.Adapter
   def count(criteria, assigns, live_resource) do
     config = live_resource.config(:adapter_config)
-    fields = live_resource.validated_fields()
-    item_query = prepare_item_query(config, assigns)
 
-    list_query(fields, criteria, item_query, assigns)
+    list_query(criteria, assigns, live_resource)
     |> exclude(:preload)
     |> subquery()
     |> config[:repo].aggregate(:count)
@@ -112,8 +106,11 @@ defmodule Backpex.Adapters.Ecto do
 
   TODO: Should be private.
   """
-  def list_query(fields, criteria, item_query, assigns) do
+  def list_query(criteria, assigns, live_resource) do
     %{schema: schema, full_text_search: full_text_search} = assigns
+    config = live_resource.config(:adapter_config)
+    item_query = prepare_item_query(config, assigns)
+    fields = live_resource.validated_fields()
     associations = associations(fields, schema)
 
     schema

@@ -538,7 +538,7 @@ defmodule Backpex.LiveResource do
           filters: filter_options(query_options, filters)
         ]
 
-        query = EctoAdapter.list_query(fields, criteria, & &1, assigns)
+        query = EctoAdapter.list_query(criteria, assigns, live_resource)
 
         case Backpex.Metric.metrics_visible?(metric_visibility, live_resource) do
           true ->
