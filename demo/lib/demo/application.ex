@@ -5,11 +5,9 @@ defmodule Demo.Application do
 
   @impl Application
   def start(_type, _args) do
-    topologies = Application.get_env(:libcluster, :topologies)
-
     children = [
-      {Cluster.Supervisor, [topologies, [name: Sourceboat.ClusterSupervisor]]},
       {Phoenix.PubSub, name: Demo.PubSub},
+      {DNSCluster, query: Application.get_env(:demo, :dns_cluster_query) || :ignore},
       Demo.Repo,
       DemoWeb.Telemetry,
       {DemoWeb.MetricsStorage, DemoWeb.Telemetry.metrics()},

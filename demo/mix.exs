@@ -44,7 +44,7 @@ defmodule Demo.MixProject do
       {:phoenix_test, "~> 0.5.0", only: :test, runtime: false},
 
       # core
-      {:libcluster, "~> 3.2"},
+      {:dns_cluster, "~> 0.1.1"},
       {:telemetry_poller, "~> 1.0"},
       {:telemetry_metrics, "~> 1.0"},
       {:gettext, "~> 0.26"},
