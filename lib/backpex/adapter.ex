@@ -58,7 +58,7 @@ defmodule Backpex.Adapter do
   @doc """
   Applies a change to a given item.
   """
-  @callback change(term(), term(), term(), term(), term(), term()) :: term()
+  @callback change(struct(), map(), term(), list(), module(), keyword()) :: Ecto.Changeset.t()
 
   @doc """
   Deletes multiple items.

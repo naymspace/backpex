@@ -98,7 +98,7 @@ if Code.ensure_loaded?(Ash) do
     Updates given items.
     """
     @impl Backpex.Adapter
-    def update_all(_items, _updates, _config) do
+    def update_all(_items, _updates, _live_resource) do
       raise "not implemented yet"
     end
 
@@ -106,7 +106,7 @@ if Code.ensure_loaded?(Ash) do
     Applies a change to a given item.
     """
     @impl Backpex.Adapter
-    def change(_item, _attrs, _fields, _assigns, _config, _opts) do
+    def change(_item, _attrs, _fields, _assigns, _live_resource, _opts) do
       raise "not implemented yet"
     end
   end

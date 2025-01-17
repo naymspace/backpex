@@ -291,7 +291,8 @@ defmodule Backpex.Adapters.Ecto do
   Applies a change to a given item.
   """
   @impl Backpex.Adapter
-  def change(item, attrs, fields, assigns, config, opts) do
+  def change(item, attrs, fields, assigns, live_resource, opts) do
+    config = live_resource.config(:adapter_config)
     assocs = Keyword.get(opts, :assocs, [])
     target = Keyword.get(opts, :target, nil)
     action = Keyword.get(opts, :action, :validate)

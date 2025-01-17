@@ -173,7 +173,7 @@ defmodule DemoWeb.ItemAction.SoftDelete do
 
         socket =
             try do
-                {:ok, _items} =
+                {:ok, _count_} =
                 Backpex.Resource.update_all(
                     socket.assigns,
                     items,

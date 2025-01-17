@@ -162,7 +162,9 @@ defmodule Backpex.Resource do
 
   * `item`: The initial data structure to be changed.
   * `attrs`: A map of attributes that will be used to modify the item. These attributes are passed to the changeset function.
+  * `fields`: The fields for this change.
   * `assigns`: The assigns that will be passed to the changeset function.
+  * `live_resource`: The `Backpex.LiveResource` to be used.
   * `opts` (keyword list): A list of options for customizing the behavior of the change function. The available options are:
     * `assocs` (optional, default `[]`): A list of associations that should be put into the changeset.
     * `target` (optional, default `nil`): The target to be passed to the changeset function.
@@ -170,9 +172,8 @@ defmodule Backpex.Resource do
   """
   def change(item, attrs, fields, assigns, live_resource, opts \\ []) do
     adapter = live_resource.config(:adapter)
-    adapter_config = live_resource.config(:adapter_config)
 
-    adapter.change(item, attrs, fields, assigns, adapter_config, opts)
+    adapter.change(item, attrs, fields, assigns, live_resource, opts)
   end
 
   @doc """
