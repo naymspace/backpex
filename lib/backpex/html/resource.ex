@@ -183,7 +183,7 @@ defmodule Backpex.HTML.Resource do
       |> assign(:form, form)
 
     ~H"""
-    <.form :if={@search_enabled} for={@form} phx-change="index-search" phx-submit="index-search">
+    <.form :if={@search_enabled} id="index-search-form" for={@form} phx-change="index-search" phx-submit="index-search">
       <input
         name={@form[:value].name}
         class="input input-sm input-bordered"
@@ -387,15 +387,19 @@ defmodule Backpex.HTML.Resource do
   def pagination_info(assigns) do
     %{query_options: %{page: page, per_page: per_page}} = assigns
 
-    assigns =
-      assigns
-      |> assign(:from, (page - 1) * per_page + 1)
-      |> assign(:to, min(page * per_page, assigns.total))
+    from = (page - 1) * per_page + 1
+    to = min(page * per_page, assigns.total)
+
+    from_to_string = Backpex.translate({"Items %{from} to %{to}", %{from: from, to: to}})
+    total_string = "(#{assigns.total} #{Backpex.translate("total")})"
+
+    label = from_to_string <> " " <> total_string
+
+    assigns = assign(assigns, :label, label)
 
     ~H"""
     <div :if={@total > 0} class="text-base-content pr-2 text-sm">
-      {Backpex.translate({"Items %{from} to %{to}", %{from: @from, to: @to}})}
-      {"(#{@total} #{Backpex.translate("total")})"}
+      {@label}
     </div>
     """
   end

@@ -41,6 +41,7 @@ defmodule Demo.MixProject do
       {:tailwind_formatter, "~> 0.4.0", only: [:dev, :test], runtime: false},
       {:ex_machina, "~> 2.3"},
       {:faker, "~> 0.18"},
+      {:phoenix_test, "~> 0.5.1", only: :test, runtime: false},
 
       # core
       {:libcluster, "~> 3.2"},
