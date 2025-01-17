@@ -38,22 +38,22 @@ defmodule Backpex.Adapter do
   Gets the total count of the current live_resource.
   Possibly being constrained the item query and the search- and filter options.
   """
-  @callback count(keyword(), map(), module()) :: {:ok, integer()}
+  @callback count(keyword(), map(), module()) :: {:ok, non_neg_integer()}
 
   @doc """
   Inserts given item.
   """
-  @callback insert(struct(), module()) :: term()
+  @callback insert(struct(), module()) :: {:ok, struct()} | {:error, term()}
 
   @doc """
   Updates given item.
   """
-  @callback update(struct(), module()) :: term()
+  @callback update(struct(), module()) :: {:ok, struct()} | {:error, term()}
 
   @doc """
   Updates given items.
   """
-  @callback update_all(term(), term(), term()) :: term()
+  @callback update_all(list(struct()), keyword(), module()) :: {:ok, non_neg_integer()}
 
   @doc """
   Applies a change to a given item.
@@ -63,5 +63,5 @@ defmodule Backpex.Adapter do
   @doc """
   Deletes multiple items.
   """
-  @callback delete_all(list(), term()) :: {:ok, term()} | {:error, term()}
+  @callback delete_all(list(struct()), module()) :: {:ok, term()} | {:error, term()}
 end
