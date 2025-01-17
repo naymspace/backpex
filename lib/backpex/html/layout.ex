@@ -42,7 +42,7 @@ defmodule Backpex.HTML.Layout do
                 class="rounded-badge ml-1 flex h-10 w-10 items-center justify-center focus:ring-primary-content focus:outline-none focus:ring-2 focus:ring-inset"
                 @click="mobile_menu_open = false"
               >
-                <Backpex.HTML.CoreComponents.icon name="hero-x-mark-solid" class="h-5 w-5 text-primary-content" />
+                <Backpex.HTML.CoreComponents.icon name="hero-x-mark-solid" class="text-primary-content h-5 w-5" />
               </button>
             </div>
 
@@ -50,7 +50,7 @@ defmodule Backpex.HTML.Layout do
               @click.outside="mobile_menu_open = false"
               class={"#{for sidebar <- @sidebar, do: sidebar[:class] || ""} h-0 flex-1 flex-col space-y-1 overflow-y-auto px-2 pt-5 pb-4"}
             >
-              <%= render_slot(@sidebar) %>
+              {render_slot(@sidebar)}
             </div>
           </div>
 
@@ -64,7 +64,7 @@ defmodule Backpex.HTML.Layout do
         <div class="hidden md:fixed md:inset-y-0 md:mt-16 md:flex md:w-64 md:flex-col">
           <div class="flex min-h-0 flex-1 flex-col">
             <div class={"#{sidebar[:class] || ""} flex flex-1 flex-col space-y-1 overflow-y-auto px-2 pt-5 pb-4"}>
-              <%= render_slot(sidebar) %>
+              {render_slot(sidebar)}
             </div>
           </div>
         </div>
@@ -73,7 +73,7 @@ defmodule Backpex.HTML.Layout do
       <div class={"#{if length(@sidebar) > 0, do: "md:pl-64", else: ""} flex flex-1 flex-col"}>
         <div class="fixed top-0 z-30 block w-full md:-ml-64">
           <.topbar class={for topbar <- @topbar, do: topbar[:class] || ""}>
-            <%= render_slot(@topbar) %>
+            {render_slot(@topbar)}
             <%= for _ <- @sidebar do %>
               <button
                 type="button"
@@ -88,10 +88,10 @@ defmodule Backpex.HTML.Layout do
         <main class="h-[calc(100vh-4rem)] mt-[4rem] flex flex-col">
           <div class="flex-1">
             <div class={["mx-auto mt-5 px-4 sm:px-6 md:px-8", if(@fluid, do: "", else: "max-w-7xl")]}>
-              <%= render_slot(@inner_block) %>
+              {render_slot(@inner_block)}
             </div>
 
-            <%= render_slot(@footer) %>
+            {render_slot(@footer)}
             <.footer :if={@footer == []} />
           </div>
         </main>
@@ -112,7 +112,7 @@ defmodule Backpex.HTML.Layout do
   def topbar(assigns) do
     ~H"""
     <header class={"#{@class} border-base-300 bg-base-100 text-base-content flex h-16 w-full items-center border-b px-4"}>
-      <%= render_slot(@inner_block) %>
+      {render_slot(@inner_block)}
     </header>
     """
   end
@@ -133,7 +133,7 @@ defmodule Backpex.HTML.Layout do
     >
       <Backpex.HTML.CoreComponents.icon name="hero-information-circle" class="h-5 w-5" />
       <span>
-        <%= Phoenix.Flash.get(@flash, :info) %>
+        {Phoenix.Flash.get(@flash, :info)}
       </span>
       <div>
         <button
@@ -153,7 +153,7 @@ defmodule Backpex.HTML.Layout do
     >
       <Backpex.HTML.CoreComponents.icon name="hero-x-circle" class="h-5 w-5" />
       <span>
-        <%= Phoenix.Flash.get(@flash, :error) %>
+        {Phoenix.Flash.get(@flash, :error)}
       </span>
       <div>
         <button
@@ -180,11 +180,10 @@ defmodule Backpex.HTML.Layout do
   def footer(assigns) do
     ~H"""
     <footer class={"#{@class} flex justify-center py-8 text-sm"}>
-      <%= render_slot(@inner_block) %>
+      {render_slot(@inner_block)}
       <div :if={@inner_block == []} class="text-base-content flex flex-col items-center">
         <p>
-          powered by
-          <.link href="https://backpex.live" class="font-semibold hover:underline">Backpex <%= version() %></.link>
+          powered by <.link href="https://backpex.live" class="font-semibold hover:underline">Backpex {version()}</.link>
         </p>
         <p>
           made by <.link href="https://naymspace.de" class="font-semibold hover:underline">Naymspace</.link>
@@ -213,10 +212,10 @@ defmodule Backpex.HTML.Layout do
       <%= if @logo === [] do %>
         <.backpex_logo class="w-8" />
       <% else %>
-        <%= render_slot(@logo) %>
+        {render_slot(@logo)}
       <% end %>
       <%= unless @hide_title do %>
-        <p class="font-semibold"><%= @title %></p>
+        <p class="font-semibold">{@title}</p>
       <% end %>
     </div>
     """
@@ -242,7 +241,7 @@ defmodule Backpex.HTML.Layout do
     >
       <div tabindex="0" role="button" class="btn btn-ghost m-1">
         <span class="hidden md:block">
-          <%= Backpex.translate("Theme") %>
+          {Backpex.translate("Theme")}
         </span>
         <Backpex.HTML.CoreComponents.icon name="hero-swatch" class="h-5 w-5 md:hidden" />
         <Backpex.HTML.CoreComponents.icon name="hero-chevron-down" class="h-5 w-5" />
@@ -341,9 +340,9 @@ defmodule Backpex.HTML.Layout do
   def topbar_dropdown(assigns) do
     ~H"""
     <div class="dropdown dropdown-end">
-      <%= render_slot(@label) %>
+      {render_slot(@label)}
       <ul tabindex="0" class="dropdown-content z-[1] menu bg-base-100 rounded-box w-52 p-2 shadow">
-        <%= render_slot(@inner_block) %>
+        {render_slot(@inner_block)}
       </ul>
     </div>
     """
@@ -360,7 +359,7 @@ defmodule Backpex.HTML.Layout do
   def main_container(assigns) do
     ~H"""
     <div class={@class}>
-      <%= render_slot(@inner_block) %>
+      {render_slot(@inner_block)}
     </div>
     """
   end
@@ -377,7 +376,7 @@ defmodule Backpex.HTML.Layout do
   def main_title(assigns) do
     ~H"""
     <h1 class={"#{@class} text-base-content mb-2 text-3xl font-semibold leading-relaxed"}>
-      <%= render_slot(@inner_block) %>
+      {render_slot(@inner_block)}
     </h1>
     """
   end
@@ -412,11 +411,11 @@ defmodule Backpex.HTML.Layout do
           />
         </div>
         <div class="text-base-content flex gap-2 text-sm font-semibold uppercase">
-          <%= render_slot(@label) %>
+          {render_slot(@label)}
         </div>
       </div>
       <div class="flex-col space-y-1" x-show="open" x-transition x-transition.duration.75ms>
-        <%= render_slot(@inner_block) %>
+        {render_slot(@inner_block)}
       </div>
     </div>
     """
@@ -461,7 +460,7 @@ defmodule Backpex.HTML.Layout do
 
     ~H"""
     <.link class={@class} {@extra}>
-      <%= render_slot(@inner_block) %>
+      {render_slot(@inner_block)}
     </.link>
     """
   end
@@ -483,11 +482,11 @@ defmodule Backpex.HTML.Layout do
     ~H"""
     <div class={"#{@class} flex flex-col items-stretch space-y-2 px-6 py-4 sm:flex-row sm:space-y-0 sm:py-3"}>
       <div :for={label <- @label} class={"#{get_align_class(label[:align])} hyphens-auto break-words pr-2 sm:w-1/4"}>
-        <%= render_slot(@label) %>
+        {render_slot(@label)}
       </div>
 
       <div class="w-full sm:w-3/4">
-        <%= render_slot(@inner_block) %>
+        {render_slot(@inner_block)}
       </div>
     </div>
     """
@@ -516,10 +515,7 @@ defmodule Backpex.HTML.Layout do
     <div id="modal">
       <div
         id="modal-overlay"
-        class={[
-          "animate-fade-in bg-neutral fixed inset-0 z-50 bg-opacity-40 transition-opacity",
-          unless(@open, do: "hidden")
-        ]}
+        class={["animate-fade-in bg-neutral fixed inset-0 z-50 bg-opacity-40 transition-opacity", if(!@open, do: "hidden")]}
         aria-hidden="true"
       >
       </div>
@@ -527,7 +523,7 @@ defmodule Backpex.HTML.Layout do
         id="modal-content"
         class={[
           "fixed inset-0 z-50 my-4 flex transform items-center justify-center overflow-hidden px-4 sm:px-6",
-          unless(@open, do: "hidden")
+          if(!@open, do: "hidden")
         ]}
         role="dialog"
         aria-modal="true"
@@ -542,7 +538,7 @@ defmodule Backpex.HTML.Layout do
           <div class="border-base-200 border-b px-5 py-3">
             <div class="flex items-center justify-between">
               <div if={@title} class="0 text-base-content text-2xl font-semibold">
-                <%= @title %>
+                {@title}
               </div>
               <button
                 type="button"
@@ -556,7 +552,7 @@ defmodule Backpex.HTML.Layout do
           </div>
           <!-- Content -->
           <div>
-            <%= render_slot(@inner_block) %>
+            {render_slot(@inner_block)}
           </div>
         </div>
       </div>
@@ -608,7 +604,7 @@ defmodule Backpex.HTML.Layout do
   def input_label(assigns) do
     ~H"""
     <p class="text-content block break-words text-sm font-medium">
-      <%= @text %>
+      {@text}
     </p>
     """
   end

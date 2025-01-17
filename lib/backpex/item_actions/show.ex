@@ -10,7 +10,7 @@ defmodule Backpex.ItemActions.Show do
     ~H"""
     <Backpex.HTML.CoreComponents.icon
       name="hero-eye"
-      class="h-5 w-5 cursor-pointer transition duration-75 hover:scale-110 hover:text-success"
+      class="h-5 w-5 cursor-pointer transition duration-75 hover:text-success hover:scale-110"
     />
     """
   end
@@ -21,6 +21,6 @@ defmodule Backpex.ItemActions.Show do
   @impl Backpex.ItemAction
   def handle(socket, [item | _items], _data) do
     path = Router.get_path(socket, socket.assigns.live_resource, socket.assigns.params, :show, item)
-    {:noreply, Phoenix.LiveView.push_patch(socket, to: path)}
+    {:ok, Phoenix.LiveView.push_patch(socket, to: path)}
   end
 end

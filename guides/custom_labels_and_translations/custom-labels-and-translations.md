@@ -236,4 +236,7 @@ msgstr ""
 
 msgid "To"
 msgstr ""
+
+msgid "Save & Continue editing"
+msgstr ""
 ```

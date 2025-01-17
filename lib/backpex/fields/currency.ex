@@ -1,11 +1,23 @@
 defmodule Backpex.Fields.Currency do
+  @config_schema [
+    debounce: [
+      doc: "Timeout value (in milliseconds), \"blur\" or function that receives the assigns.",
+      type: {:or, [:pos_integer, :string, {:fun, 1}]}
+    ],
+    throttle: [
+      doc: "Timeout value (in milliseconds) or function that receives the assigns.",
+      type: {:or, [:pos_integer, {:fun, 1}]}
+    ]
+  ]
+
   @moduledoc """
   A field for handling a currency value.
 
-  ## Options
+  ## Field-specific options
 
-  * `:debounce` - Optional integer timeout value (in milliseconds), "blur" or function that receives the assigns.
-  * `:throttle` - Optional integer timeout value (in milliseconds) or function that receives the assigns.
+  See `Backpex.Field` for general field options.
+
+  #{NimbleOptions.docs(@config_schema)}
 
   ## Schema
 
@@ -34,10 +46,8 @@ defmodule Backpex.Fields.Currency do
         ]
       end
   """
-  use BackpexWeb, :field
-
+  use Backpex.Field, config_schema: @config_schema
   import Ecto.Query
-
   alias Backpex.Ecto.Amount.Type
 
   @impl Backpex.Field
@@ -46,7 +56,7 @@ defmodule Backpex.Fields.Currency do
 
     ~H"""
     <p class={@live_action in [:index, :resource_action] && "truncate"}>
-      <%= @casted_value %>
+      {@casted_value}
     </p>
     """
   end

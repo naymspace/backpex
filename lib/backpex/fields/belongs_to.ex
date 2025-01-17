@@ -1,15 +1,48 @@
 defmodule Backpex.Fields.BelongsTo do
+  @config_schema [
+    display_field: [
+      doc: "The field of the relation to be used for searching, ordering and displaying values.",
+      type: :atom,
+      required: true
+    ],
+    display_field_form: [
+      doc: "Field to be used to display form values.",
+      type: :atom
+    ],
+    live_resource: [
+      doc: "The live resource of the association. Used to generate links navigating to the association.",
+      type: :atom
+    ],
+    options_query: [
+      doc: """
+      Manipulates the list of available options in the select.
+
+      Defaults to `fn (query, _field) -> query end` which returns all entries.
+      """,
+      type: {:fun, 2}
+    ],
+    prompt: [
+      doc: "The text to be displayed when no option is selected or function that receives the assigns.",
+      type: {:or, [:string, {:fun, 1}]}
+    ],
+    debounce: [
+      doc: "Timeout value (in milliseconds), \"blur\" or function that receives the assigns.",
+      type: {:or, [:pos_integer, :string, {:fun, 1}]}
+    ],
+    throttle: [
+      doc: "Timeout value (in milliseconds) or function that receives the assigns.",
+      type: {:or, [:pos_integer, {:fun, 1}]}
+    ]
+  ]
+
   @moduledoc """
   A field for handling a `belongs_to` relation.
 
-  ## Options
+  ## Field-specific options
 
-    * `:display_field` - The field of the relation to be used for searching, ordering and displaying values.
-    * `:display_field_form` - Optional field to be used to display form values.
-    * `:live_resource` - The live resource of the association. Used to generate links navigating to the association.
-    * `:options_query` - Manipulates the list of available options in the select.
-      Defaults to `fn (query, _field) -> query end` which returns all entries.
-    * `:prompt` - The text to be displayed when no option is selected or function that receives the assigns.
+  See `Backpex.Field` for general field options.
+
+  #{NimbleOptions.docs(@config_schema)}
 
   ## Example
 
@@ -26,10 +59,8 @@ defmodule Backpex.Fields.BelongsTo do
       ]
       end
   """
-  use BackpexWeb, :field
-
+  use Backpex.Field, config_schema: @config_schema
   import Ecto.Query
-
   alias Backpex.Router
 
   @impl Phoenix.LiveComponent
@@ -56,7 +87,7 @@ defmodule Backpex.Fields.BelongsTo do
   def render_value(%{value: value} = assigns) when is_nil(value) do
     ~H"""
     <p class={@live_action in [:index, :resource_action] && "truncate"}>
-      <%= HTML.pretty_value(nil) %>
+      {HTML.pretty_value(nil)}
     </p>
     """
   end
@@ -74,11 +105,11 @@ defmodule Backpex.Fields.BelongsTo do
     <div class={[@live_action in [:index, :resource_action] && "truncate"]}>
       <%= if @link do %>
         <.link navigate={@link} class={[@live_action in [:index, :resource_action] && "truncate", "hover:underline"]}>
-          <%= @display_text %>
+          {@display_text}
         </.link>
       <% else %>
         <p class={@live_action in [:index, :resource_action] && "truncate"}>
-          <%= HTML.pretty_value(@display_text) %>
+          {HTML.pretty_value(@display_text)}
         </p>
       <% end %>
     </div>

@@ -70,7 +70,7 @@ defmodule Backpex.Filters.MultiSelect do
     assigns = assign(assigns, :label, option_value_to_label(assigns.options, assigns.value))
 
     ~H"""
-    <%= @label %>
+    {@label}
     """
   end
 
@@ -88,9 +88,9 @@ defmodule Backpex.Filters.MultiSelect do
     <div class="mt-2" x-data="{ open: false }">
       <div tabindex="0" @click="open = !open" role="button" class="select select-sm select-bordered w-full">
         <%= if @value == [] do %>
-          <%= @prompt %>
+          {@prompt}
         <% else %>
-          <%= "#{Enum.count(@value)} #{Backpex.translate("selected")}" %>
+          {"#{Enum.count(@value)} #{Backpex.translate("selected")}"}
         <% end %>
       </div>
       <ul
@@ -112,7 +112,7 @@ defmodule Backpex.Filters.MultiSelect do
                 checked={to_string(v) in @value}
               />
               <span class="label-text">
-                <%= label %>
+                {label}
               </span>
             </label>
           <% end %>

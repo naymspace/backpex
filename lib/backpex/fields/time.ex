@@ -1,8 +1,14 @@
-defmodule Backpex.Fields.Text do
+# credo:disable-for-this-file Credo.Check.Design.DuplicatedCode
+defmodule Backpex.Fields.Time do
   @config_schema [
-    placeholder: [
-      doc: "Placeholder value or function that receives the assigns.",
-      type: {:or, [:string, {:fun, 1}]}
+    format: [
+      doc: """
+      Format string which will be used to format the date time value or function that formats the date time.
+
+      Can also be a function wich receives a `DateTime` and must return a string.
+      """,
+      type: {:or, [:string, {:fun, 1}]},
+      default: "%I:%M %p"
     ],
     debounce: [
       doc: "Timeout value (in milliseconds), \"blur\" or function that receives the assigns.",
@@ -19,21 +25,47 @@ defmodule Backpex.Fields.Text do
   ]
 
   @moduledoc """
-  A field for handling a text value.
+  A field for handling a time value.
 
   ## Field-specific options
 
   See `Backpex.Field` for general field options.
 
   #{NimbleOptions.docs(@config_schema)}
+
+  ## Examples
+
+      @impl Backpex.LiveResource
+      def fields do
+        [
+          created_at: %{
+            module: Backpex.Fields.Time,
+            label: "Deliver By",
+            format: "%I:%M %p"
+          }
+        ]
+      end
   """
   use Backpex.Field, config_schema: @config_schema
 
   @impl Backpex.Field
   def render_value(assigns) do
+    format = assigns.field_options[:format]
+
+    value =
+      cond do
+        is_function(format, 1) -> format.(assigns.value)
+        assigns.value -> Calendar.strftime(assigns.value, format)
+        true -> HTML.pretty_value(assigns.value)
+      end
+
+    assigns =
+      assigns
+      |> assign(:value, value)
+
     ~H"""
     <p class={@live_action in [:index, :resource_action] && "truncate"}>
-      {HTML.pretty_value(@value)}
+      {@value}
     </p>
     """
   end
@@ -43,13 +75,12 @@ defmodule Backpex.Fields.Text do
     ~H"""
     <div>
       <Layout.field_container>
-        <:label align={Backpex.Field.align_label(@field_options, assigns, :center)}>
+        <:label align={Backpex.Field.align_label(@field_options, assigns, :top)}>
           <Layout.input_label text={@field_options[:label]} />
         </:label>
         <BackpexForm.input
-          type="text"
+          type="time"
           field={@form[@name]}
-          placeholder={@field_options[:placeholder]}
           translate_error_fun={Backpex.Field.translate_error_fun(@field_options, assigns)}
           phx-debounce={Backpex.Field.debounce(@field_options, assigns)}
           phx-throttle={Backpex.Field.throttle(@field_options, assigns)}
@@ -64,13 +95,12 @@ defmodule Backpex.Fields.Text do
     ~H"""
     <div>
       <Layout.field_container>
-        <:label align={Backpex.Field.align_label(@field_options, assigns, :center)}>
+        <:label align={Backpex.Field.align_label(@field_options, assigns, :top)}>
           <Layout.input_label text={@field_options[:label]} />
         </:label>
         <BackpexForm.input
-          type="text"
+          type="time"
           field={@form[@name]}
-          placeholder={@field_options[:placeholder]}
           translate_error_fun={Backpex.Field.translate_error_fun(@field_options, assigns)}
           phx-debounce={Backpex.Field.debounce(@field_options, assigns)}
           phx-throttle={Backpex.Field.throttle(@field_options, assigns)}
@@ -88,17 +118,16 @@ defmodule Backpex.Fields.Text do
 
     assigns =
       assigns
+      |> assign(:valid, Map.get(assigns, :valid, true))
       |> assign_new(:form, fn -> form end)
-      |> assign_new(:valid, fn -> true end)
 
     ~H"""
     <div>
-      <.form for={@form} class="relative" phx-change="update-field" phx-submit="update-field" phx-target={@myself}>
+      <.form for={@form} phx-change="update-field" phx-submit="update-field" phx-target={@myself}>
         <BackpexForm.input
-          type="text"
+          type="time"
           field={@form[:value]}
-          placeholder={@field_options[:placeholder]}
-          input_class={["input input-sm", @valid && "hover:input-bordered", !@valid && "input-error bg-error/10"]}
+          input_class={["input input-sm w-32", @valid && "hover:input-bordered", !@valid && "input-error"]}
           phx-debounce="100"
           readonly={@readonly}
           hide_errors

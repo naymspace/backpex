@@ -1,20 +1,32 @@
 defmodule Backpex.Fields.Boolean do
+  @config_schema [
+    debounce: [
+      doc: "Timeout value (in milliseconds), \"blur\" or function that receives the assigns.",
+      type: {:or, [:pos_integer, :string, {:fun, 1}]}
+    ],
+    throttle: [
+      doc: "Timeout value (in milliseconds) or function that receives the assigns.",
+      type: {:or, [:pos_integer, {:fun, 1}]}
+    ]
+  ]
+
   @moduledoc """
   A field for handling a boolean value.
 
-  ## Options
+  ## Field-specific options
 
-  * `:debounce` - Optional integer timeout value (in milliseconds), "blur" or function that receives the assigns.
-  * `:throttle` - Optional integer timeout value (in milliseconds) or function that receives the assigns.
+  See `Backpex.Field` for general field options.
+
+  #{NimbleOptions.docs(@config_schema)}
   """
-  use BackpexWeb, :field
+  use Backpex.Field, config_schema: @config_schema
 
   @impl Backpex.Field
   def render_value(assigns) do
     ~H"""
     <div>
-      <Backpex.HTML.CoreComponents.icon :if={@value} name="hero-check-solid" class="h-5 w-5 text-success" />
-      <Backpex.HTML.CoreComponents.icon :if={!@value} name="hero-x-mark-solid" class="h-5 w-5 text-error" />
+      <Backpex.HTML.CoreComponents.icon :if={@value} name="hero-check-solid" class="text-success h-5 w-5" />
+      <Backpex.HTML.CoreComponents.icon :if={!@value} name="hero-x-mark-solid" class="text-error h-5 w-5" />
     </div>
     """
   end

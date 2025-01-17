@@ -1,16 +1,32 @@
 defmodule Backpex.Fields.InlineCRUD do
+  @config_schema [
+    type: [
+      doc: "The type of the field.",
+      type: {:in, [:embed, :assoc]},
+      required: true
+    ],
+    child_fields: [
+      doc: """
+      A list of input fields to be used. Currently only support `Backpex.Fields.Text` fields.
+
+      You can add additional classes to child field inputs by setting the class option in the list of `child_fields`.
+      The class can be a string or a function that takes the assigns and must return a string. In addition, you can
+      optionally specify the input type of child field inputs with the `input_type` option. We currently support `:text`
+      and `:textarea`. The `input_type` defaults to `:text`.
+      """,
+      type: :keyword_list,
+      required: true
+    ]
+  ]
+
   @moduledoc """
   A field to handle inline CRUD operations. It can be used with either an `embeds_many` or `has_many` (association) type column.
 
-  ## Options
+  ## Field-specific options
 
-  * `:type` - The type of the field. Either `:embed` or `:assoc`.
-  * `:child_fields` - A list of input fields to be used. Currently only support `Backpex.Fields.Text` fields.
+  See `Backpex.Field` for general field options.
 
-  You can add additional classes to child field inputs by setting the class option in the list of `child_fields`.
-  The class can be a string or a function that takes the assigns and must return a string.
-  In addition, you can optionally specify the input type of child field inputs with the `input_type` option. We currently
-  support `:text` and `:textarea`. The `input_type` defaults to `:text`.
+  #{NimbleOptions.docs(@config_schema)}
 
   > #### Important {: .info}
   >
@@ -69,7 +85,7 @@ defmodule Backpex.Fields.InlineCRUD do
         ]
       end
   """
-  use BackpexWeb, :field
+  use Backpex.Field, config_schema: @config_schema
 
   @impl Phoenix.LiveComponent
   def update(assigns, socket) do
@@ -88,14 +104,14 @@ defmodule Backpex.Fields.InlineCRUD do
         <thead class="bg-base-200/50 text-base-content uppercase">
           <tr>
             <th :for={{_name, %{label: label}} <- @field_options.child_fields} class="font-medium">
-              <%= label %>
+              {label}
             </th>
           </tr>
         </thead>
         <tbody class="text-base-content/75">
           <tr :for={row <- @value} class="border-base-content/10 border-b last:border-b-0">
             <td :for={{name, _field_options} <- @field_options.child_fields}>
-              <%= HTML.pretty_value(Map.get(row, name)) %>
+              {HTML.pretty_value(Map.get(row, name))}
             </td>
           </tr>
         </tbody>
@@ -127,7 +143,7 @@ defmodule Backpex.Fields.InlineCRUD do
                 class={child_field_class(child_field_options, assigns)}
               >
                 <p :if={f_nested.index == 0} class="mb-1 text-xs">
-                  <%= child_field_options.label %>
+                  {child_field_options.label}
                 </p>
                 <BackpexForm.input
                   type={input_type(child_field_options) |> Atom.to_string()}

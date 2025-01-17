@@ -1,24 +1,64 @@
 defmodule Backpex.Fields.HasMany do
+  @config_schema [
+    display_field: [
+      doc: "The field of the relation to be used for searching, ordering and displaying values.",
+      type: :atom,
+      required: true
+    ],
+    display_field_form: [
+      doc: "The field to be used to display form values.",
+      type: :atom
+    ],
+    live_resource: [
+      doc: "The live resource of the association.",
+      type: :atom
+    ],
+    link_assocs: [
+      doc: "Whether to automatically generate links to the association items.",
+      type: :boolean,
+      default: true
+    ],
+    options_query: [
+      doc: """
+      Manipulates the list of available options in the multi select.
+
+      Defaults to `fn (query, _field) -> query end` which returns all entries.
+      """,
+      type: {:fun, 2}
+    ],
+    prompt: [
+      doc: """
+      The text to be displayed when no options are selected or function that receives the assigns.
+
+      The default value is `"Select options..."`.
+      """,
+      type: {:or, [:string, {:fun, 1}]}
+    ],
+    not_found_text: [
+      doc: """
+      The text to be displayed when no options are found.
+
+      The default value is `"No options found"`.
+      """,
+      type: :string
+    ],
+    query_limit: [
+      doc: "Limit passed to the query to fetch new items. Set to `nil` to have no limit.",
+      type: {:or, [:non_neg_integer, nil]},
+      default: 10
+    ]
+  ]
+
   @moduledoc """
   A field for handling a `has_many` or `many_to_many` relation.
 
   This field can not be orderable or searchable.
 
-  ## Options
+  ## Field-specific options
 
-    * `:display_field` - The field of the relation to be used for searching, ordering and displaying values.
-    * `:display_field_form` - Optional field to be used to display form values.
-    * `:live_resource` - The live resource of the association.
-    * `:link_assocs` - Whether to automatically generate links to the association items.
-      Defaults to true.
-    * `:options_query` - Manipulates the list of available options in the multi select.
-      Defaults to `fn (query, _field) -> query end` which returns all entries.
-    * `:prompt` - The text to be displayed when no options are selected or function that receives the assigns.
-      Defaults to "Select options...".
-    * `:not_found_text` - The text to be displayed when no options are found.
-      Defaults to "No options found".
-    * `:query_limit` - Optional limit passed to the query to fetch new items. Set to `nil` to have no limit.
-      Defaults to 10.
+  See `Backpex.Field` for general field options.
+
+  #{NimbleOptions.docs(@config_schema)}
 
   ## Example
 
@@ -35,7 +75,7 @@ defmodule Backpex.Fields.HasMany do
       ]
       end
   """
-  use BackpexWeb, :field
+  use Backpex.Field, config_schema: @config_schema
   import Ecto.Query
   import Backpex.HTML.Form
   alias Backpex.Adapters.Ecto, as: EctoAdapter
@@ -52,7 +92,7 @@ defmodule Backpex.Fields.HasMany do
   end
 
   defp apply_action(socket, :index) do
-    assign_new(socket, :link_assocs, fn -> link_assocs(socket.assigns.field_options) end)
+    assign_new(socket, :link_assocs, fn -> socket.assigns.field_options[:link_assocs] end)
   end
 
   defp apply_action(socket, :form) do
@@ -60,7 +100,7 @@ defmodule Backpex.Fields.HasMany do
 
     socket
     |> assign_new(:prompt, fn -> prompt(assigns, field_options) end)
-    |> assign_new(:not_found_text, fn -> not_found_text(field_options) end)
+    |> assign_new(:not_found_text, fn -> field_options[:not_found_text] || Backpex.translate("No options found") end)
     |> assign_new(:search_input, fn -> "" end)
     |> assign_new(:offset, fn -> 0 end)
     |> assign_new(:options_count, fn -> count_options(assigns) end)
@@ -75,7 +115,7 @@ defmodule Backpex.Fields.HasMany do
   def render_value(assigns) do
     ~H"""
     <div class={[@live_action in [:index, :resource_action] && "truncate"]}>
-      <%= if @value == [], do: raw("&mdash;") %>
+      {if @value == [], do: raw("&mdash;")}
 
       <div class={["flex", @live_action == :show && "flex-wrap"]}>
         <.intersperse :let={item} enum={@value |> Enum.sort_by(&Map.get(&1, display_field(@field)), :asc)}>
@@ -106,23 +146,23 @@ defmodule Backpex.Fields.HasMany do
         <:label align={Backpex.Field.align_label(@field_options, assigns)}>
           <Layout.input_label text={@field_options[:label]} />
         </:label>
-        <div class="dropdown w-full" phx-feedback-for={@form[@name].name}>
+        <div class="dropdown w-full">
           <label
             tabindex="0"
             class={[
-              "input block h-fit w-full p-2 phx-no-feedback:input-bordered phx-no-feedback:bg-transparent",
+              "input block h-fit w-full p-2",
               @errors == [] && "input-bordered bg-transparent",
               @errors != [] && "input-error bg-error/10"
             ]}
           >
             <div class="flex h-full w-full flex-wrap items-center gap-1 px-2">
               <p :if={@selected == []} class="p-0.5 text-sm">
-                <%= @prompt %>
+                {@prompt}
               </p>
 
               <div :for={{label, value} <- @selected} class="badge badge-primary p-[11px]">
                 <p class="mr-1">
-                  <%= label %>
+                  {label}
                 </p>
 
                 <label
@@ -130,12 +170,12 @@ defmodule Backpex.Fields.HasMany do
                   for={"has-many-#{@name}-checkbox-value-#{value}"}
                   aria-label={Backpex.translate({"Unselect %{label}", %{label: label}})}
                 >
-                  <Backpex.HTML.CoreComponents.icon name="hero-x-mark" class="ml-1 h-4 w-4 text-base-100" />
+                  <Backpex.HTML.CoreComponents.icon name="hero-x-mark" class="text-base-100 ml-1 h-4 w-4" />
                 </label>
               </div>
             </div>
           </label>
-          <.error :for={msg <- @errors}><%= msg %></.error>
+          <.error :for={msg <- @errors}>{msg}</.error>
           <div tabindex="0" class="dropdown-content z-[1] menu bg-base-100 rounded-box w-full overflow-y-auto shadow">
             <div class="max-h-72 p-2">
               <input
@@ -148,7 +188,7 @@ defmodule Backpex.Fields.HasMany do
                 value={@search_input}
               />
               <p :if={@options == []} class="w-full">
-                <%= @not_found_text %>
+                {@not_found_text}
               </p>
 
               <label :if={Enum.any?(@options)}>
@@ -160,14 +200,14 @@ defmodule Backpex.Fields.HasMany do
                 />
                 <span role="button" class="text-primary my-2 cursor-pointer text-sm underline">
                   <%= if @all_selected do %>
-                    <%= Backpex.translate("Deselect all") %>
+                    {Backpex.translate("Deselect all")}
                   <% else %>
-                    <%= Backpex.translate("Select all") %>
+                    {Backpex.translate("Select all")}
                   <% end %>
                 </span>
               </label>
 
-              <input type="hidden" id={"has-many-#{@name}-hidden-input"} name={@form[@name].name} value="" />
+              <input type="hidden" id={"has-many-#{@name}-hidden-input"} name={"#{@form[@name].name}[]"} value="" />
 
               <input
                 :for={value <- @selected_ids}
@@ -191,7 +231,7 @@ defmodule Backpex.Fields.HasMany do
                     class="checkbox checkbox-sm checkbox-primary"
                   />
                   <span class="label-text">
-                    <%= label %>
+                    {label}
                   </span>
                 </label>
               </div>
@@ -203,7 +243,7 @@ defmodule Backpex.Fields.HasMany do
                 phx-click="show-more"
                 phx-target={@myself}
               >
-                <%= Backpex.translate("Show more") %>
+                {Backpex.translate("Show more")}
               </button>
             </div>
           </div>
@@ -232,7 +272,7 @@ defmodule Backpex.Fields.HasMany do
 
     socket =
       socket
-      |> assign(:offset, query_limit(field_options) + offset)
+      |> assign(:offset, field_options[:query_limit] + offset)
       |> assign_options(options)
 
     {:noreply, socket}
@@ -269,7 +309,7 @@ defmodule Backpex.Fields.HasMany do
   end
 
   defp validate_live_resource(field_name, field_options) do
-    unless Map.has_key?(field_options, :live_resource) do
+    if !Map.has_key?(field_options, :live_resource) do
       raise "The field #{field_name} does not have the required key :live_resource defined."
     end
   end
@@ -296,8 +336,10 @@ defmodule Backpex.Fields.HasMany do
   defp get_assocs_by_ids(assoc_ids, schema, repo, field_options, assigns) do
     case assoc_ids do
       ids when is_list(ids) and ids != [] ->
+        filtered_ids = Enum.reject(ids, &(&1 == ""))
+
         schema
-        |> where([x], x.id in ^ids)
+        |> where([x], x.id in ^filtered_ids)
         |> maybe_options_query(field_options, assigns)
         |> repo.all()
 
@@ -320,11 +362,11 @@ defmodule Backpex.Fields.HasMany do
     ~H"""
     <%= if is_nil(@link) do %>
       <span>
-        <%= HTML.pretty_value(@display_text) %>
+        {HTML.pretty_value(@display_text)}
       </span>
     <% else %>
       <.link navigate={@link} class="hover:underline">
-        <%= @display_text %>
+        {@display_text}
       </.link>
     <% end %>
     """
@@ -355,8 +397,7 @@ defmodule Backpex.Fields.HasMany do
 
   defp assign_options(socket, other_options \\ []) do
     %{assigns: %{field_options: field_options, search_input: search_input, offset: offset} = assigns} = socket
-
-    limit = query_limit(field_options)
+    limit = field_options[:query_limit]
 
     options = other_options ++ options(assigns, offset: offset, limit: limit, search: search_input)
 
@@ -499,12 +540,11 @@ defmodule Backpex.Fields.HasMany do
   defp assign_form_errors(socket) do
     %{assigns: %{form: form, name: name, field_options: field_options}} = socket
 
+    errors = if Phoenix.Component.used_input?(form[name]), do: form[name].errors, else: []
     translate_error_fun = Map.get(field_options, :translate_error, &Function.identity/1)
 
-    assign(socket, :errors, translate_form_errors(form[name], translate_error_fun))
+    assign(socket, :errors, translate_form_errors(errors, translate_error_fun))
   end
-
-  defp query_limit(field_options), do: Map.get(field_options, :query_limit, 10)
 
   defp display_field_form({_name, field_options} = field),
     do: Map.get(field_options, :display_field_form, display_field(field))
@@ -516,10 +556,4 @@ defmodule Backpex.Fields.HasMany do
       prompt -> prompt
     end
   end
-
-  defp not_found_text(%{not_found_text: not_found_text} = _field_options), do: not_found_text
-  defp not_found_text(_field_options), do: Backpex.translate("No options found")
-
-  defp link_assocs(%{link_assocs: link_assocs} = _field_options) when is_boolean(link_assocs), do: link_assocs
-  defp link_assocs(_field_options), do: true
 end

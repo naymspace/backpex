@@ -231,9 +231,19 @@ defmodule Backpex.Adapters.Ecto do
     config = live_resource.config(:adapter_config)
     primary_key = live_resource.config(:primary_key)
 
-    config[:schema]
-    |> where([i], field(i, ^primary_key) in ^Enum.map(items, &Map.get(&1, primary_key)))
-    |> config[:repo].delete_all()
+    result =
+      config[:schema]
+      |> where([item], field(item, ^primary_key) in ^Enum.map(items, &Map.get(&1, primary_key)))
+      |> select([item], item)
+      |> config[:repo].delete_all()
+
+    case result do
+      {_count, deleted_items} when is_list(deleted_items) ->
+        {:ok, deleted_items}
+
+      {_count, _deleted_items} ->
+        {:ok, []}
+    end
   end
 
   @doc """
@@ -328,7 +338,7 @@ defmodule Backpex.Adapters.Ecto do
   end
 
   defp record_query(id, schema, item_query, live_resource) do
-    fields = live_resource.fields()
+    fields = live_resource.validated_fields()
     schema_name = name_by_schema(schema)
     primary_key = live_resource.config(:primary_key)
     primary_type = schema.__schema__(:type, primary_key)

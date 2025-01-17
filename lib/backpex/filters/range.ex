@@ -70,9 +70,9 @@ defmodule Backpex.Filters.Range do
       |> assign(:max, assigns.value["end"])
 
     ~H"""
-    <span :if={@max == ""}>&gt; <%= @min %></span>
-    <span :if={@min == ""}>&lt; <%= @max %></span>
-    <span :if={@min != "" and @max != ""}><%= @min %> &mdash; <%= @max %></span>
+    <span :if={@max == ""}>&gt; {@min}</span>
+    <span :if={@min == ""}>&lt; {@max}</span>
+    <span :if={@min != "" and @max != ""}>{@min} &mdash; {@max}</span>
     """
   end
 
@@ -97,12 +97,12 @@ defmodule Backpex.Filters.Range do
     ~H"""
     <div class="mt-2">
       <label class="input input-sm input-bordered mb-2 flex w-full items-center">
-        <span class="text-base-content/50 w-10 "><%= Backpex.translate("From") %></span>
+        <span class="text-base-content/50 w-10 ">{Backpex.translate("From")}</span>
         <input type="date" name={@form[:start].name} class="grow" value={@value["start"]} />
       </label>
 
       <label class="input input-sm input-bordered flex w-full items-center">
-        <span class="text-base-content/50 w-10 "><%= Backpex.translate("To") %></span>
+        <span class="text-base-content/50 w-10 ">{Backpex.translate("To")}</span>
         <input type="date" name={@form[:end].name} class="grow" value={@value["end"]} />
       </label>
     </div>
@@ -113,12 +113,12 @@ defmodule Backpex.Filters.Range do
     ~H"""
     <div class="mt-2">
       <label class="input input-sm input-bordered mb-2 flex w-full items-center">
-        <span class="text-base-content/50 w-10"><%= Backpex.translate("From") %></span>
+        <span class="text-base-content/50 w-10">{Backpex.translate("From")}</span>
         <input type="number" name={@form[:start].name} class="grow" value={@value["start"]} />
       </label>
 
       <label class="input input-sm input-bordered flex w-full items-center">
-        <span class="text-base-content/50 w-10 "><%= Backpex.translate("To") %></span>
+        <span class="text-base-content/50 w-10 ">{Backpex.translate("To")}</span>
         <input type="number" name={@form[:end].name} class="grow" value={@value["end"]} />
       </label>
     </div>
@@ -180,7 +180,7 @@ defmodule Backpex.Filters.Range do
 
   def date?(date) do
     case Date.from_iso8601(date) do
-      {:ok, _} -> true
+      {:ok, _date} -> true
       _err -> false
     end
   end
