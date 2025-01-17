@@ -44,22 +44,18 @@ defmodule Backpex.ItemActions.Delete do
 
     Enum.each(deleted_items, fn deleted_item -> socket.assigns.live_resource.on_item_deleted(socket, deleted_item) end)
 
-    socket =
-      socket
-      |> clear_flash()
-      |> put_flash(:info, success_message(socket.assigns, deleted_items))
-
-    {:ok, socket}
+    socket
+    |> clear_flash()
+    |> put_flash(:info, success_message(socket.assigns, deleted_items))
+    |> ok()
   rescue
     error ->
       Logger.error("An error occurred while deleting the resource: #{inspect(error)}")
 
-      socket =
-        socket
-        |> clear_flash()
-        |> put_flash(:error, error_message(socket.assigns, error, items))
-
-      {:ok, socket}
+      socket
+      |> clear_flash()
+      |> put_flash(:error, error_message(socket.assigns, error, items))
+      |> ok()
   end
 
   defp success_message(assigns, [_item]) do

@@ -72,15 +72,13 @@ defmodule Backpex.Fields.BelongsTo do
     display_field = display_field(field)
     display_field_form = display_field_form(field, display_field)
 
-    socket =
-      socket
-      |> assign(assigns)
-      |> assign(queryable: queryable)
-      |> assign(owner_key: owner_key)
-      |> assign(display_field: display_field)
-      |> assign(display_field_form: display_field_form)
-
-    {:ok, socket}
+    socket
+    |> assign(assigns)
+    |> assign(queryable: queryable)
+    |> assign(owner_key: owner_key)
+    |> assign(display_field: display_field)
+    |> assign(display_field_form: display_field_form)
+    |> ok()
   end
 
   @impl Backpex.Field
