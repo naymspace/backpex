@@ -93,12 +93,13 @@ defmodule Backpex.Resource do
   * `attrs` (map): A map of parameters that will be passed to the `changeset_function`.
   * TODO: docs
   """
-  def insert(item, attrs, fields, assigns, live_resource, opts) do
+  def insert(item, attrs, assigns, live_resource, opts) do
     {after_save_fun, opts} = Keyword.pop(opts, :after_save_fun, &{:ok, &1})
 
     adapter = live_resource.config(:adapter)
     adapter_config = live_resource.config(:adapter_config)
     pubsub = live_resource.config(:pubsub)
+    fields = live_resource.validated_fields()
 
     item
     |> change(attrs, fields, assigns, live_resource, Keyword.put(opts, :action, :insert))
