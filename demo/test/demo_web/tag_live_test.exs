@@ -1,5 +1,5 @@
 defmodule DemoWeb.TagLiveTest do
-  use DemoWeb.ConnCase, async: true
+  use DemoWeb.ConnCase
 
   import Demo.Factory
   import Phoenix.LiveViewTest
