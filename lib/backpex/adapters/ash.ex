@@ -84,7 +84,7 @@ if Code.ensure_loaded?(Ash) do
     Inserts given item.
     """
     @impl Backpex.Adapter
-    def insert(_item, _config) do
+    def insert(_item, _live_resource) do
       raise "not implemented yet"
     end
 
@@ -92,7 +92,7 @@ if Code.ensure_loaded?(Ash) do
     Updates given item.
     """
     @impl Backpex.Adapter
-    def update(_item, _config) do
+    def update(_item, _live_resource) do
       raise "not implemented yet"
     end
 

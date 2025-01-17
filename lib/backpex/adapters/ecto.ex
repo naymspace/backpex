@@ -254,7 +254,9 @@ defmodule Backpex.Adapters.Ecto do
   Inserts given item.
   """
   @impl Backpex.Adapter
-  def insert(item, config) do
+  def insert(item, live_resource) do
+    config = live_resource.config(:adapter_config)
+
     item
     |> config[:repo].insert()
   end
@@ -263,7 +265,9 @@ defmodule Backpex.Adapters.Ecto do
   Updates given item.
   """
   @impl Backpex.Adapter
-  def update(item, config) do
+  def update(item, live_resource) do
+    config = live_resource.config(:adapter_config)
+
     item
     |> config[:repo].update()
   end

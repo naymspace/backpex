@@ -97,13 +97,12 @@ defmodule Backpex.Resource do
     {after_save_fun, opts} = Keyword.pop(opts, :after_save_fun, &{:ok, &1})
 
     adapter = live_resource.config(:adapter)
-    adapter_config = live_resource.config(:adapter_config)
     pubsub = live_resource.config(:pubsub)
     fields = live_resource.validated_fields()
 
     item
     |> change(attrs, fields, assigns, live_resource, Keyword.put(opts, :action, :insert))
-    |> adapter.insert(adapter_config)
+    |> adapter.insert(live_resource)
     |> after_save(after_save_fun)
     |> broadcast("created", pubsub)
   end
@@ -121,12 +120,11 @@ defmodule Backpex.Resource do
     {after_save_fun, opts} = Keyword.pop(opts, :after_save_fun, &{:ok, &1})
 
     adapter = live_resource.config(:adapter)
-    adapter_config = live_resource.config(:adapter_config)
     pubsub = live_resource.config(:pubsub)
 
     item
     |> change(attrs, fields, assigns, live_resource, Keyword.put(opts, :action, :update))
-    |> adapter.update(adapter_config)
+    |> adapter.update(live_resource)
     |> after_save(after_save_fun)
     |> broadcast("updated", pubsub)
   end

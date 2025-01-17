@@ -43,12 +43,12 @@ defmodule Backpex.Adapter do
   @doc """
   Inserts given item.
   """
-  @callback insert(term(), term()) :: term()
+  @callback insert(struct(), module()) :: term()
 
   @doc """
   Updates given item.
   """
-  @callback update(term(), term()) :: term()
+  @callback update(struct(), module()) :: term()
 
   @doc """
   Updates given items.
