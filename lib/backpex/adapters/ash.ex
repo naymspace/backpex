@@ -47,7 +47,6 @@ if Code.ensure_loaded?(Ash) do
 
       config[:resource]
       |> Ash.read()
-      |> then(fn {:ok, results} -> results end)
     end
 
     @doc """
@@ -59,7 +58,6 @@ if Code.ensure_loaded?(Ash) do
 
       config[:resource]
       |> Ash.count()
-      |> then(fn {:ok, count} -> count end)
     end
 
     @doc """

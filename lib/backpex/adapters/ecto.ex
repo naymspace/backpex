@@ -88,6 +88,7 @@ defmodule Backpex.Adapters.Ecto do
 
     list_query(fields, criteria, item_query, assigns)
     |> assigns.repo.all()
+    |> then(fn items -> {:ok, items} end)
   end
 
   @doc """
@@ -103,6 +104,7 @@ defmodule Backpex.Adapters.Ecto do
     |> exclude(:preload)
     |> subquery()
     |> config[:repo].aggregate(:count)
+    |> then(fn count -> {:ok, count} end)
   end
 
   @doc """
