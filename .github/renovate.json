@@ -43,10 +43,7 @@
       "rangeStrategy": "update-lockfile"
     },
     {
-      "description": "Automatically merge mix patch updates in demo application",
-      "matchManagers": [
-        "mix"
-      ],
+      "description": "Automatically merge patch updates in demo application",
       "matchFileNames": [
         "demo/**"
       ],
