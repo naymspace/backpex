@@ -77,8 +77,8 @@ defmodule Backpex.Fields.HasMany do
   """
   use Backpex.Field, config_schema: @config_schema
   import Ecto.Query
-  alias Backpex.HTML.Form
   alias Backpex.Adapters.Ecto, as: EctoAdapter
+  alias Backpex.HTML.Form
   alias Backpex.Router
 
   @impl Phoenix.LiveComponent
