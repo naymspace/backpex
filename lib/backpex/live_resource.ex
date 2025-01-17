@@ -146,15 +146,6 @@ defmodule Backpex.LiveResource do
   @callback can?(assigns :: map(), action :: atom(), item :: map() | nil) :: boolean()
 
   @doc """
-  The function that can be used to inject an ecto query. The query will be used when resources are being fetched. This happens on `index`, `edit`
-  and `show` view. In most cases this function will be used to filter items on `index` view based on certain criteria, but it may also be used
-  to join other tables on `edit` or `show` view.
-
-  The function has to return an `Ecto.Query`. It is recommended to build your `item_query` on top of the incoming query. Otherwise you will likely get binding errors.
-  """
-  @callback item_query(query :: Ecto.Query.t(), live_action :: atom(), assigns :: map()) :: Ecto.Query.t()
-
-  @doc """
   The function that can be used to add content to certain positions on Backpex views. It may also be used to overwrite content.
 
   The following actions are supported: `:index`, `:show`
@@ -327,9 +318,6 @@ defmodule Backpex.LiveResource do
 
       @impl Backpex.LiveResource
       def search_placeholder, do: Backpex.translate("Search")
-
-      @impl Backpex.LiveResource
-      def item_query(query, _live_action, _assigns), do: query
 
       @impl Backpex.LiveResource
       def on_item_created(socket, _item), do: socket
@@ -533,7 +521,6 @@ defmodule Backpex.LiveResource do
         %{
           repo: repo,
           schema: schema,
-          live_action: live_action,
           live_resource: live_resource,
           fields: fields,
           query_options: query_options,
@@ -551,8 +538,7 @@ defmodule Backpex.LiveResource do
           filters: filter_options(query_options, filters)
         ]
 
-        item_query = &socket.assigns.live_resource.item_query(&1, live_action, assigns)
-        query = EctoAdapter.list_query(fields, criteria, item_query, assigns)
+        query = EctoAdapter.list_query(fields, criteria, & &1, assigns)
 
         case Backpex.Metric.metrics_visible?(metric_visibility, live_resource) do
           true ->
