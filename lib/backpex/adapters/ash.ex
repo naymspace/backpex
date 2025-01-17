@@ -42,7 +42,9 @@ if Code.ensure_loaded?(Ash) do
     Returns a list of items by given criteria.
     """
     @impl Backpex.Adapter
-    def list(_fields, _assigns, config, _criteria \\ []) do
+    def list(_fields, _criteria, _assigns, live_resource) do
+      config = live_resource.config(:adapter_config)
+
       config[:resource]
       |> Ash.read()
       |> then(fn {:ok, results} -> results end)
@@ -52,7 +54,9 @@ if Code.ensure_loaded?(Ash) do
     Returns the number of items matching the given criteria.
     """
     @impl Backpex.Adapter
-    def count(_fields, _assigns, config, _criteria \\ []) do
+    def count(_fields, _criteria, _assigns, live_resource) do
+      config = live_resource.config(:adapter_config)
+
       config[:resource]
       |> Ash.count()
       |> then(fn {:ok, count} -> count end)

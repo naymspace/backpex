@@ -548,14 +548,13 @@ defmodule Backpex.LiveResource do
     metrics =
       socket.assigns.live_resource.metrics()
       |> Enum.map(fn {key, metric} ->
-        query =
-          EctoAdapter.list_query(
-            assigns,
-            &socket.assigns.live_resource.item_query(&1, live_action, assigns),
-            fields,
-            search: search_options(query_options, fields, schema),
-            filters: filter_options(query_options, filters)
-          )
+        criteria = [
+          search: search_options(query_options, fields, schema),
+          filters: filter_options(query_options, filters)
+        ]
+
+        item_query = &socket.assigns.live_resource.item_query(&1, live_action, assigns)
+        query = EctoAdapter.list_query(fields, criteria, item_query, assigns)
 
         case Backpex.Metric.metrics_visible?(metric_visibility, live_resource) do
           true ->

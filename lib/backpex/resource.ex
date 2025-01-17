@@ -21,9 +21,8 @@ defmodule Backpex.Resource do
   """
   def list(fields, assigns, live_resource, criteria \\ []) do
     adapter = live_resource.config(:adapter)
-    adapter_config = live_resource.config(:adapter_config)
 
-    adapter.list(fields, assigns, adapter_config, criteria)
+    adapter.list(fields, criteria, assigns, live_resource)
   end
 
   @doc """
@@ -32,9 +31,8 @@ defmodule Backpex.Resource do
   """
   def count(fields, assigns, live_resource, criteria \\ []) do
     adapter = live_resource.config(:adapter)
-    adapter_config = live_resource.config(:adapter_config)
 
-    adapter.count(fields, assigns, adapter_config, criteria)
+    adapter.count(fields, criteria, assigns, live_resource)
   end
 
   @doc """
