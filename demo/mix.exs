@@ -43,7 +43,7 @@ defmodule Demo.MixProject do
       {:faker, "~> 0.18"},
 
       # core
-      {:libcluster, "~> 3.2"},
+      {:dns_cluster, "~> 0.1.1"},
       {:telemetry_poller, "~> 1.0"},
       {:telemetry_metrics, "~> 1.0"},
       {:gettext, "~> 0.26"},
