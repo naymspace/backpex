@@ -77,18 +77,16 @@ defmodule Backpex.Fields.HasMany do
   """
   use Backpex.Field, config_schema: @config_schema
   import Ecto.Query
-  import Backpex.HTML.Form
   alias Backpex.Adapters.Ecto, as: EctoAdapter
+  alias Backpex.HTML.Form
   alias Backpex.Router
 
   @impl Phoenix.LiveComponent
   def update(assigns, socket) do
-    socket =
-      socket
-      |> assign(assigns)
-      |> apply_action(assigns.type)
-
-    {:ok, socket}
+    socket
+    |> assign(assigns)
+    |> apply_action(assigns.type)
+    |> ok()
   end
 
   defp apply_action(socket, :index) do
@@ -175,7 +173,7 @@ defmodule Backpex.Fields.HasMany do
               </div>
             </div>
           </label>
-          <.error :for={msg <- @errors}>{msg}</.error>
+          <Form.error :for={msg <- @errors}>{msg}</Form.error>
           <div tabindex="0" class="dropdown-content z-[1] menu bg-base-100 rounded-box w-full overflow-y-auto shadow">
             <div class="max-h-72 p-2">
               <input
@@ -257,25 +255,21 @@ defmodule Backpex.Fields.HasMany do
   def handle_event("search", params, socket) do
     search_input = Map.get(params, to_string(socket.assigns.name) <> "_search", "")
 
-    socket =
-      socket
-      |> assign(:offset, 0)
-      |> assign(:search_input, search_input)
-      |> assign_options()
-
-    {:noreply, socket}
+    socket
+    |> assign(:offset, 0)
+    |> assign(:search_input, search_input)
+    |> assign_options()
+    |> noreply()
   end
 
   @impl Phoenix.LiveComponent
   def handle_event("show-more", _params, socket) do
     %{assigns: %{field_options: field_options, offset: offset, options: options}} = socket
 
-    socket =
-      socket
-      |> assign(:offset, field_options[:query_limit] + offset)
-      |> assign_options(options)
-
-    {:noreply, socket}
+    socket
+    |> assign(:offset, field_options[:query_limit] + offset)
+    |> assign_options(options)
+    |> noreply()
   end
 
   @impl Backpex.Field
@@ -543,7 +537,7 @@ defmodule Backpex.Fields.HasMany do
     errors = if Phoenix.Component.used_input?(form[name]), do: form[name].errors, else: []
     translate_error_fun = Map.get(field_options, :translate_error, &Function.identity/1)
 
-    assign(socket, :errors, translate_form_errors(errors, translate_error_fun))
+    assign(socket, :errors, Form.translate_form_errors(errors, translate_error_fun))
   end
 
   defp display_field_form({_name, field_options} = field),
