@@ -42,6 +42,7 @@ defmodule Demo.MixProject do
       {:ex_machina, "~> 2.3"},
       {:faker, "~> 0.18"},
       {:phoenix_test, "~> 0.5.0", only: :test, runtime: false},
+      {:sourceror, "~> 1.7", only: [:dev, :test]},
 
       # core
       {:dns_cluster, "~> 0.1.1"},
