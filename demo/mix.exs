@@ -70,7 +70,7 @@ defmodule Demo.MixProject do
       {:csv, "~> 3.2.0"},
       {:jason, ">= 1.0.0"},
       {:ash, "~> 3.0"},
-      {:ash_postgres, "~> 2.4.0"},
+      {:ash_postgres, "~> 2.5.0"},
 
       # assets
       {:esbuild, "~> 0.8", runtime: Mix.env() == :dev},
