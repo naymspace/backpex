@@ -89,7 +89,7 @@ ENV APP_HOME=/opt/app
 WORKDIR $APP_HOME
 
 RUN apt-get update -y \
-    && apt-get install -y libstdc++6 openssl libncurses5 locales ca-certificates wget \
+    && apt-get install -y libstdc++6 openssl libncurses6 locales ca-certificates wget \
     && apt-get clean && rm -f /var/lib/apt/lists/*_*
 
 COPY --from=builder /opt/scripts /opt/scripts
