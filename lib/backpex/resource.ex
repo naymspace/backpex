@@ -19,45 +19,26 @@ defmodule Backpex.Resource do
     search: {"hello", [:title, :description]}
   ]
   """
-  def list(fields, assigns, live_resource, criteria \\ []) do
+  def list(criteria, assigns, live_resource) do
     adapter = live_resource.config(:adapter)
-    adapter_config = live_resource.config(:adapter_config)
 
-    adapter.list(fields, assigns, adapter_config, criteria)
+    adapter.list(criteria, assigns, live_resource)
   end
 
   @doc """
   Gets the total count of the current live_resource.
   Possibly being constrained the item query and the search- and filter options.
   """
-  def count(fields, assigns, live_resource, criteria \\ []) do
+  def count(criteria, assigns, live_resource) do
     adapter = live_resource.config(:adapter)
-    adapter_config = live_resource.config(:adapter_config)
 
-    adapter.count(fields, assigns, adapter_config, criteria)
+    adapter.count(criteria, assigns, live_resource)
   end
 
   @doc """
   Gets a database record with the given `fields` by the given  `primary_value`.
 
-  Raises `Ecto.NoResultsError` if no record was found.
-
-  ## Parameters
-
-  * `primary_value`: The identifier for the specific item to be fetched.
-  * `assigns` (map): The current assigns of the socket.
-  * `live_resource` (module): The `Backpex.LiveResource` module.
-  """
-  def get!(primary_value, assigns, live_resource) do
-    adapter = live_resource.config(:adapter)
-
-    adapter.get!(primary_value, assigns, live_resource)
-  end
-
-  @doc """
-  Gets a database record with the given `fields` by the given  `primary_value`.
-
-  Returns `nil` if no result was found.
+  Returns `{:ok, nil}` if no result was found.
 
   ## Parameters
 
@@ -68,7 +49,18 @@ defmodule Backpex.Resource do
   def get(primary_value, assigns, live_resource) do
     adapter = live_resource.config(:adapter)
 
-    adapter.get!(primary_value, assigns, live_resource)
+    adapter.get(primary_value, assigns, live_resource)
+  end
+
+  @doc """
+  Same as `get/3` but returns the result or raises an error.
+  """
+  def get!(primary_value, assigns, live_resource) do
+    case get(primary_value, assigns, live_resource) do
+      {:ok, nil} -> raise Backpex.NoResultsError
+      {:ok, result} -> result
+      {:error, _error} -> raise Backpex.NoResultsError
+    end
   end
 
   @doc """
@@ -101,16 +93,16 @@ defmodule Backpex.Resource do
   * `attrs` (map): A map of parameters that will be passed to the `changeset_function`.
   * TODO: docs
   """
-  def insert(item, attrs, fields, assigns, live_resource, opts) do
+  def insert(item, attrs, assigns, live_resource, opts) do
     {after_save_fun, opts} = Keyword.pop(opts, :after_save_fun, &{:ok, &1})
 
     adapter = live_resource.config(:adapter)
-    adapter_config = live_resource.config(:adapter_config)
     pubsub = live_resource.config(:pubsub)
+    fields = live_resource.validated_fields()
 
     item
     |> change(attrs, fields, assigns, live_resource, Keyword.put(opts, :action, :insert))
-    |> adapter.insert(adapter_config)
+    |> adapter.insert(live_resource)
     |> after_save(after_save_fun)
     |> broadcast("created", pubsub)
   end
@@ -128,12 +120,11 @@ defmodule Backpex.Resource do
     {after_save_fun, opts} = Keyword.pop(opts, :after_save_fun, &{:ok, &1})
 
     adapter = live_resource.config(:adapter)
-    adapter_config = live_resource.config(:adapter_config)
     pubsub = live_resource.config(:pubsub)
 
     item
     |> change(attrs, fields, assigns, live_resource, Keyword.put(opts, :action, :update))
-    |> adapter.update(adapter_config)
+    |> adapter.update(live_resource)
     |> after_save(after_save_fun)
     |> broadcast("updated", pubsub)
   end
@@ -171,7 +162,9 @@ defmodule Backpex.Resource do
 
   * `item`: The initial data structure to be changed.
   * `attrs`: A map of attributes that will be used to modify the item. These attributes are passed to the changeset function.
+  * `fields`: The fields for this change.
   * `assigns`: The assigns that will be passed to the changeset function.
+  * `live_resource`: The `Backpex.LiveResource` to be used.
   * `opts` (keyword list): A list of options for customizing the behavior of the change function. The available options are:
     * `assocs` (optional, default `[]`): A list of associations that should be put into the changeset.
     * `target` (optional, default `nil`): The target to be passed to the changeset function.
@@ -179,9 +172,8 @@ defmodule Backpex.Resource do
   """
   def change(item, attrs, fields, assigns, live_resource, opts \\ []) do
     adapter = live_resource.config(:adapter)
-    adapter_config = live_resource.config(:adapter_config)
 
-    adapter.change(item, attrs, fields, assigns, adapter_config, opts)
+    adapter.change(item, attrs, fields, assigns, live_resource, opts)
   end
 
   @doc """

@@ -32,6 +32,10 @@ defmodule DemoWeb.UserLive do
       where: is_nil(u.deleted_at)
   end
 
+  def item_query(query, _live_action, _assigns) do
+    query
+  end
+
   def init_order(_assigns) do
     %{by: :username, direction: :asc}
   end
