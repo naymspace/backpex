@@ -201,4 +201,4 @@ The `c:Backpex.ItemAction.handle/3` function is called when the item action is t
 
 By default an item action is triggered immediately when the user clicks on the corresponding icon in the resource table or in the show view, but an item actions also supports a confirmation dialog. To enable the confirmation dialog you need to implement the `c:Backpex.ItemAction.confirm/1` function and return a string that will be displayed in the confirmation dialog. The confirmation dialog will be displayed when the user clicks on the icon in the resource table.
 
-You might want to use the `c:Backpex.ItemAction.cancel_label/0` (defaults to "Cancel") and `c:Backpex.ItemAction.confirm_label/0` (defaults to "Apply") functions to set the labels of the buttons in the dialog.
+You might want to use the `c:Backpex.ItemAction.cancel_label/1` (defaults to "Cancel") and `c:Backpex.ItemAction.confirm_label/1` (defaults to "Apply") functions to set the labels of the buttons in the dialog.
