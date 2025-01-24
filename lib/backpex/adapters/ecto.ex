@@ -66,54 +66,38 @@ defmodule Backpex.Adapters.Ecto do
 
   @doc """
   Gets a database record with the given primary key value.
-
-  Returns `nil` if no result was found.
   """
   @impl Backpex.Adapter
   def get(primary_value, assigns, live_resource) do
     config = live_resource.config(:adapter_config)
-    item_query = prepare_item_query(config, assigns)
 
-    record_query(primary_value, config[:schema], item_query, live_resource)
+    record_query(primary_value, assigns, live_resource)
     |> config[:repo].one()
-  end
-
-  @doc """
-  Gets a database record with the given primary key value.
-
-  Raises `Ecto.NoResultsError` if no record was found.
-  """
-  @impl Backpex.Adapter
-  def get!(primary_value, assigns, live_resource) do
-    config = live_resource.config(:adapter_config)
-    item_query = prepare_item_query(config, assigns)
-
-    record_query(primary_value, config[:schema], item_query, live_resource)
-    |> config[:repo].one!()
+    |> then(fn result -> {:ok, result} end)
   end
 
   @doc """
   Returns a list of items by given criteria.
   """
   @impl Backpex.Adapter
-  def list(fields, assigns, config, criteria \\ []) do
-    item_query = prepare_item_query(config, assigns)
-
-    list_query(assigns, item_query, fields, criteria)
+  def list(criteria, assigns, live_resource) do
+    list_query(criteria, assigns, live_resource)
     |> assigns.repo.all()
+    |> then(fn items -> {:ok, items} end)
   end
 
   @doc """
   Returns the number of items matching the given criteria.
   """
   @impl Backpex.Adapter
-  def count(fields, assigns, config, criteria \\ []) do
-    item_query = prepare_item_query(config, assigns)
+  def count(criteria, assigns, live_resource) do
+    config = live_resource.config(:adapter_config)
 
-    list_query(assigns, item_query, fields, criteria)
+    list_query(criteria, assigns, live_resource)
     |> exclude(:preload)
     |> subquery()
     |> config[:repo].aggregate(:count)
+    |> then(fn count -> {:ok, count} end)
   end
 
   @doc """
@@ -121,8 +105,11 @@ defmodule Backpex.Adapters.Ecto do
 
   TODO: Should be private.
   """
-  def list_query(assigns, item_query, fields, criteria \\ []) do
+  def list_query(criteria, assigns, live_resource) do
     %{schema: schema, full_text_search: full_text_search} = assigns
+    config = live_resource.config(:adapter_config)
+    item_query = prepare_item_query(config, assigns)
+    fields = live_resource.validated_fields()
     associations = associations(fields, schema)
 
     schema
@@ -265,7 +252,9 @@ defmodule Backpex.Adapters.Ecto do
   Inserts given item.
   """
   @impl Backpex.Adapter
-  def insert(item, config) do
+  def insert(item, live_resource) do
+    config = live_resource.config(:adapter_config)
+
     item
     |> config[:repo].insert()
   end
@@ -274,7 +263,9 @@ defmodule Backpex.Adapters.Ecto do
   Updates given item.
   """
   @impl Backpex.Adapter
-  def update(item, config) do
+  def update(item, live_resource) do
+    config = live_resource.config(:adapter_config)
+
     item
     |> config[:repo].update()
   end
@@ -296,7 +287,8 @@ defmodule Backpex.Adapters.Ecto do
   Applies a change to a given item.
   """
   @impl Backpex.Adapter
-  def change(item, attrs, fields, assigns, config, opts) do
+  def change(item, attrs, fields, assigns, live_resource, opts) do
+    config = live_resource.config(:adapter_config)
     assocs = Keyword.get(opts, :assocs, [])
     target = Keyword.get(opts, :target, nil)
     action = Keyword.get(opts, :action, :validate)
@@ -352,19 +344,22 @@ defmodule Backpex.Adapters.Ecto do
     &query_fun.(&1, assigns.live_action, assigns)
   end
 
-  defp record_query(id, schema, item_query, live_resource) do
-    fields = live_resource.validated_fields()
-    schema_name = name_by_schema(schema)
-    primary_key = live_resource.config(:primary_key)
-    primary_type = schema.__schema__(:type, primary_key)
-    associations = associations(fields, schema)
+  defp record_query(primary_value, assigns, live_resource) do
+    config = live_resource.config(:adapter_config)
+    item_query = prepare_item_query(config, assigns)
 
-    from(item in schema, as: ^schema_name, distinct: field(item, ^primary_key))
+    fields = live_resource.validated_fields()
+    schema_name = name_by_schema(config[:schema])
+    primary_key = live_resource.config(:primary_key)
+    primary_type = config[:schema].__schema__(:type, primary_key)
+    associations = associations(fields, config[:schema])
+
+    from(item in config[:schema], as: ^schema_name, distinct: field(item, ^primary_key))
     |> item_query.()
     |> maybe_join(associations)
     |> maybe_preload(associations, fields)
     |> maybe_merge_dynamic_fields(fields)
-    |> where_id(schema_name, primary_key, primary_type, id)
+    |> where_id(schema_name, primary_key, primary_type, primary_value)
   end
 
   defp where_id(query, schema_name, id_field, :id, id) do

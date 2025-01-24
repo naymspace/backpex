@@ -39,36 +39,25 @@ if Code.ensure_loaded?(Ash) do
     end
 
     @doc """
-    Gets a database record with the given primary key value.
-
-    Raises an error if no record was found.
-    """
-    @impl Backpex.Adapter
-    def get!(primary_value, _assigns, live_resource) do
-      config = live_resource.config(:adapter_config)
-      primary_key = live_resource.config(:primary_key)
-
-      config[:resource]
-      |> Ash.Query.filter(^Ash.Expr.ref(primary_key) == ^primary_value)
-      |> Ash.read_one!()
-    end
-
-    @doc """
     Returns a list of items by given criteria.
     """
     @impl Backpex.Adapter
-    def list(_fields, _assigns, config, _criteria \\ []) do
+    def list(_criteria, _assigns, live_resource) do
+      config = live_resource.config(:adapter_config)
+
       config[:resource]
-      |> Ash.read!()
+      |> Ash.read()
     end
 
     @doc """
     Returns the number of items matching the given criteria.
     """
     @impl Backpex.Adapter
-    def count(_fields, _assigns, config, _criteria \\ []) do
+    def count(_criteria, _assigns, live_resource) do
+      config = live_resource.config(:adapter_config)
+
       config[:resource]
-      |> Ash.count!()
+      |> Ash.count()
     end
 
     @doc """
@@ -93,7 +82,7 @@ if Code.ensure_loaded?(Ash) do
     Inserts given item.
     """
     @impl Backpex.Adapter
-    def insert(_item, _config) do
+    def insert(_item, _live_resource) do
       raise "not implemented yet"
     end
 
@@ -101,7 +90,7 @@ if Code.ensure_loaded?(Ash) do
     Updates given item.
     """
     @impl Backpex.Adapter
-    def update(_item, _config) do
+    def update(_item, _live_resource) do
       raise "not implemented yet"
     end
 
@@ -109,7 +98,7 @@ if Code.ensure_loaded?(Ash) do
     Updates given items.
     """
     @impl Backpex.Adapter
-    def update_all(_items, _updates, _config) do
+    def update_all(_items, _updates, _live_resource) do
       raise "not implemented yet"
     end
 
@@ -117,7 +106,7 @@ if Code.ensure_loaded?(Ash) do
     Applies a change to a given item.
     """
     @impl Backpex.Adapter
-    def change(_item, _attrs, _fields, _assigns, _config, _opts) do
+    def change(_item, _attrs, _fields, _assigns, _live_resource, _opts) do
       raise "not implemented yet"
     end
   end
