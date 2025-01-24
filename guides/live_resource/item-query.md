@@ -25,9 +25,15 @@ use Backpex.LiveResource,
     query
     |> where([post], post.published)
   end
+
+  def item_query(query, _live_action, _assigns) do
+    query
+  end
 ```
 
 The example above will filter all posts by a published boolean on `index` view. We also made use of the named binding. It's always the name of the provided schema in `snake_case`. It is recommended to build your `item_query` on top of the incoming query. Otherwise you will likely get binding errors.
+
+Make sure to always cover all possible cases or add a fallback `item_query/3` function that just returns the query.
 
 > #### Important {: .info}
 >
