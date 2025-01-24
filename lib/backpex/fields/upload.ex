@@ -138,6 +138,24 @@ defmodule Backpex.Fields.Upload do
       """,
       type: {:fun, 3},
       required: true
+    ],
+    external: [
+      doc: """
+      A 2-arity function that allows the server to generate metadata for each upload entry.
+
+      **Parameters**
+
+      * `:entry` - The upload entry.
+      * `:socket` - The socket.
+
+      **Examples**
+
+      This function have the same format as the ones available at the Phoenix Liveview
+      documentation for [External Uploads](https://hexdocs.pm/phoenix_live_view/external-uploads.html).
+
+      """,
+      type: {:fun, 2},
+      required: false
     ]
   ]
 
@@ -582,6 +600,20 @@ defmodule Backpex.Fields.Upload do
   end
 
   defp allow_field_uploads(socket, _field_options, 0, _max_file_size), do: socket
+
+  defp allow_field_uploads(
+         socket,
+         %{external: presign_upload} = field_options,
+         max_entries,
+         max_file_size
+       ) do
+    Phoenix.LiveView.allow_upload(socket, field_options.upload_key,
+      accept: field_options.accept,
+      max_entries: max_entries,
+      max_file_size: max_file_size,
+      external: presign_upload
+    )
+  end
 
   defp allow_field_uploads(socket, field_options, max_entries, max_file_size) do
     Phoenix.LiveView.allow_upload(socket, field_options.upload_key,
