@@ -67,6 +67,9 @@ jobs:
       - name: Compile with warnings as errors
         run: mix compile --warnings-as-errors --force
 
+      - name: Build docs with warnings as errors
+        run: mix docs -o /dev/null --warnings-as-errors
+
       - name: Credo
         run: mix credo
 
