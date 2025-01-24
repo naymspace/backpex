@@ -72,7 +72,7 @@ EXPOSE 4000
 # Stage: release
 ########################################################################
 
-FROM builder as release
+FROM builder AS release
 
 ENV MIX_ENV=prod
 
