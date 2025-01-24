@@ -150,7 +150,7 @@ defmodule Backpex.Fields.Upload do
 
       **Examples**
 
-      This function have the same format as the ones available at the Phoenix Liveview
+      This function has the same format as those available in the Phoenix LiveView
       documentation for [External Uploads](https://hexdocs.pm/phoenix_live_view/external-uploads.html).
 
       """,
