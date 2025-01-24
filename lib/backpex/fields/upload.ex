@@ -153,7 +153,7 @@ defmodule Backpex.Fields.Upload do
       This is an example for S3-Compatible object storage, for more examples check the Phoenix LiveView
       documentation for [External Uploads](https://hexdocs.pm/phoenix_live_view/external-uploads.html).
 
-          defp remove_uploads(_socket, _item, removed_entries) do
+          defp presign_upload(entry, socket) do
             config = ExAws.Config.new(:s3)
             key = "uploads/example/" <> entry.client_name
 
