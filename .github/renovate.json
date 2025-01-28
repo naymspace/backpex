@@ -64,6 +64,7 @@
         "compose.yml"
       ],
       "labels": [
+        "ignore-for-release",
         "demo",
         "dependencies",
         "{{categories}}"
