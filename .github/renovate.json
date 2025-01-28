@@ -38,6 +38,13 @@
       "enabled": false
     },
     {
+      "description": "Disable automerge for docker data source",
+      "matchDatasources": [
+        "docker"
+      ],
+      "automerge": false
+    },
+    {
       "matchManagers": [
         "mix"
       ],
