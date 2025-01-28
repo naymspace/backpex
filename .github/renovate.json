@@ -37,6 +37,13 @@
       "enabled": false
     },
     {
+      "description": "Disable automerge for Docker images",
+      "matchDatasources": [
+        "docker"
+      ],
+      "automerge": false
+    },
+    {
       "matchManagers": [
         "mix"
       ],
