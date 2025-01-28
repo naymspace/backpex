@@ -9,6 +9,7 @@
     "github>pehbehbeh/renovate-config//customManagers/hexEsbuild",
     "github>pehbehbeh/renovate-config//customManagers/hexTailwind",
     ":reviewer(krns)",
+    ":automergePatch",
     "helpers:pinGitHubActionDigestsToSemver"
   ],
   "packageRules": [
@@ -41,16 +42,6 @@
         "mix"
       ],
       "rangeStrategy": "update-lockfile"
-    },
-    {
-      "description": "Automatically merge patch updates in demo application",
-      "matchFileNames": [
-        "demo/**"
-      ],
-      "matchUpdateTypes": [
-        "patch"
-      ],
-      "automerge": true
     },
     {
       "description": "Automatically merge github actions updates",
