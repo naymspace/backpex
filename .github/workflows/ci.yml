@@ -259,7 +259,7 @@ jobs:
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME_RUNTIME }}:buildcache
-          cache-to: type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME_RUNTIME }}:buildcache,mode=max
+          cache-to: ${{ env.PUSH_IMAGE && 'type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME_RUNTIME }}:buildcache,mode=max' || '' }}
           target: runtime
           build-args: |
             MIX_ENV=prod
