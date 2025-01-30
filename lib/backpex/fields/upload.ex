@@ -463,7 +463,7 @@ defmodule Backpex.Fields.Upload do
         }
       }"
       id={@id}
-      phx-hook="FieldUpload"
+      phx-hook="BackpexFieldUpload"
       >
       <Layout.field_container>
         <:label align={Backpex.Field.align_label(@field_options, assigns, :top)}>
