@@ -1,0 +1,6 @@
+{
+  "name": "backpex",
+  "version": "0.10.0",
+  "license": "MIT",
+  "main": "assets/js/backpex.js"
+}

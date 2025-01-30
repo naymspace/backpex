@@ -4,6 +4,7 @@ import * as Sentry from '@sentry/browser'
 import topbar from 'topbar'
 import { Socket } from 'phoenix'
 import { LiveSocket } from 'phoenix_live_view'
+import { Hooks as BackpexHooks } from 'backpex';
 
 /**
  * Alpine
@@ -104,7 +105,10 @@ const liveSocket = new LiveSocket('/live', Socket, {
   params: {
     _csrf_token: csrfToken
   },
-  hooks: Hooks
+  hooks: {
+    ...Hooks,
+    ...BackpexHooks
+  }
 })
 
 liveSocket.connect()

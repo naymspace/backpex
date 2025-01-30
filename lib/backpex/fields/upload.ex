@@ -461,26 +461,21 @@ defmodule Backpex.Fields.Upload do
             }
           )
         }
-      }">
+      }"
+      id={@id}
+      phx-hook="FieldUpload"
+      >
       <Layout.field_container>
         <:label align={Backpex.Field.align_label(@field_options, assigns, :top)}>
           <Layout.input_label text={@field_options[:label]} />
         </:label>
-        <div
-          x-data="{dragging: 0}"
-          x-on:dragenter="dragging++"
-          x-on:dragleave="dragging--"
-          x-on:drop="dragging = 0"
-          class="w-full max-w-lg"
-          phx-drop-target={if @uploads_allowed, do: @field_uploads.ref}
-        >
+        <div class="w-full max-w-lg" phx-drop-target={if @uploads_allowed, do: @field_uploads.ref}>
           <div
             class={[
               "rounded-btn flex justify-center border-2 border-dashed px-6 pt-5 pb-6",
               @errors == [] && "border-base-content/25",
               @errors != [] && "border-error bg-error/10"
             ]}
-            x-bind:class="dragging > 0 ? 'border-primary' : 'border-base-content/25'"
           >
             <div class="flex flex-col items-center space-y-1 text-center">
               <Backpex.HTML.CoreComponents.icon name="hero-document-arrow-up" class="text-base-content/50 h-8 w-8" />
