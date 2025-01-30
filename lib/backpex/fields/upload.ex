@@ -452,7 +452,8 @@ defmodule Backpex.Fields.Upload do
       |> assign(:form_errors, form_errors)
 
     ~H"""
-    <div x-data="{
+    <div
+      x-data="{
         dispatchChangeEvent(el) {
           $nextTick(
             () => {
@@ -464,19 +465,17 @@ defmodule Backpex.Fields.Upload do
       }"
       id={@id}
       phx-hook="BackpexFieldUpload"
-      >
+    >
       <Layout.field_container>
         <:label align={Backpex.Field.align_label(@field_options, assigns, :top)}>
           <Layout.input_label text={@field_options[:label]} />
         </:label>
         <div class="w-full max-w-lg" phx-drop-target={if @uploads_allowed, do: @field_uploads.ref}>
-          <div
-            class={[
-              "rounded-btn flex justify-center border-2 border-dashed px-6 pt-5 pb-6",
-              @errors == [] && "border-base-content/25",
-              @errors != [] && "border-error bg-error/10"
-            ]}
-          >
+          <div class={[
+            "rounded-btn flex justify-center border-2 border-dashed px-6 pt-5 pb-6",
+            @errors == [] && "border-base-content/25",
+            @errors != [] && "border-error bg-error/10"
+          ]}>
             <div class="flex flex-col items-center space-y-1 text-center">
               <Backpex.HTML.CoreComponents.icon name="hero-document-arrow-up" class="text-base-content/50 h-8 w-8" />
               <div class="flex text-sm">
