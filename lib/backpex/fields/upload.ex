@@ -710,7 +710,6 @@ defmodule Backpex.Fields.Upload do
             <%= if @uploads_allowed do %>
               <div :for={entry <- @field_uploads.entries} class="break-all">
                 <p class="inline">{Map.get(entry, :client_name)}</p>
-
                 <button
                   type="button"
                   phx-click="cancel-entry"
@@ -721,7 +720,7 @@ defmodule Backpex.Fields.Upload do
                 >
                   &times;
                 </button>
-
+                <progress :if={entry.progress > 0} class="progress ml-4 w-32" value={entry.progress} max="100"></progress>
                 <p :for={err <- upload_errors(@field_uploads, entry)} class="text-xs italic text-red-500">
                   {error_to_string(err)}
                 </p>
