@@ -452,12 +452,17 @@ defmodule Backpex.Fields.Upload do
       |> assign(:form_errors, form_errors)
 
     ~H"""
-    <div id={"form-field-#{@name}"} phx-hook="BackpexFieldUpload" data-upload-key={@upload_key}>
+    <div>
       <Layout.field_container>
         <:label align={Backpex.Field.align_label(@field_options, assigns, :top)}>
           <Layout.input_label text={@field_options[:label]} />
         </:label>
-        <div class="w-full max-w-lg" phx-drop-target={if @uploads_allowed, do: @field_uploads.ref}>
+        <div
+          id={"#{@name}-drop-target"}
+          class="w-full max-w-lg"
+          phx-hook="BackpexDragHover"
+          phx-drop-target={if @uploads_allowed, do: @field_uploads.ref}
+        >
           <div class={[
             "rounded-btn flex justify-center border-2 border-dashed px-6 pt-5 pb-6",
             @errors == [] && "border-base-content/25",
@@ -482,6 +487,8 @@ defmodule Backpex.Fields.Upload do
                   name={"change[#{@hidden_field_name}_used_input]"}
                   id={"change_#{@hidden_field_name}_used_input"}
                   value={@used_input?}
+                  data-upload-key={@upload_key}
+                  phx-hook="BackpexCancelEntry"
                 />
                 <p class="pl-1">{Backpex.translate("or drag and drop")}</p>
               </div>
