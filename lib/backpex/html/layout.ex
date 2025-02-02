@@ -29,18 +29,15 @@ defmodule Backpex.HTML.Layout do
   def app_shell(assigns) do
     ~H"""
     <div class="drawer">
-      <input id="menu-drawer" type="checkbox" class="drawer-toggle" />
+      <input id="menu-drawer" type="checkbox" class="drawer-toggle" phx-hook="BackpexSidebarSections" />
       <div class="drawer-content">
         <div class="bg-base-200 fixed inset-0 -z-10 h-full w-full"></div>
-        <%= for sidebar <- @sidebar do %>
-          <div class="hidden md:fixed md:inset-y-0 md:mt-16 md:flex md:w-64 md:flex-col">
-            <div class="flex min-h-0 flex-1 flex-col">
-              <div class={"#{sidebar[:class] || ""} flex flex-1 flex-col space-y-1 overflow-y-auto px-2 pt-5 pb-4"}>
-                {render_slot(sidebar)}
-              </div>
-            </div>
-          </div>
-        <% end %>
+        <div class={[
+          "hidden space-y-1 overflow-y-scroll px-2 pt-5 pb-4 md:fixed md:inset-y-0 md:mt-16 md:block md:w-64",
+          sidebar_class(@sidebar)
+        ]}>
+          {render_slot(@sidebar)}
+        </div>
 
         <div class={"#{if length(@sidebar) > 0, do: "md:pl-64", else: ""} flex flex-1 flex-col"}>
           <div class="fixed top-0 z-30 block w-full md:-ml-64">
@@ -64,12 +61,20 @@ defmodule Backpex.HTML.Layout do
       </div>
       <div class="drawer-side z-40">
         <label for="menu-drawer" class="drawer-overlay"></label>
-        <div class={"#{for sidebar <- @sidebar, do: sidebar[:class] || ""} bg-base-100 min-h-full w-64 flex-1 flex-col space-y-1 overflow-y-auto px-2 pt-5 pb-4"}>
+        <div class={[
+          "bg-base-100 min-h-full w-64 flex-1 flex-col space-y-1 overflow-y-auto px-2 pt-5 pb-4",
+          sidebar_class(@sidebar)
+        ]}>
           {render_slot(@sidebar)}
         </div>
       </div>
     </div>
     """
+  end
+
+  defp sidebar_class(sidebar) do
+    sidebar
+    |> Enum.map(fn s -> s[:class] || "" end)
   end
 
   @doc """
@@ -370,23 +375,12 @@ defmodule Backpex.HTML.Layout do
 
   def sidebar_section(assigns) do
     ~H"""
-    <div
-      x-data={"{open: localStorage.getItem('section-opened-#{@id}')  === 'true'}"}
-      x-init={"$watch('open', val => localStorage.setItem('section-opened-#{@id}', val))"}
-    >
-      <div @click="open = !open" class={"#{@class} group mt-2 flex cursor-pointer items-center space-x-1 p-2"}>
-        <div class="pr-1">
-          <Backpex.HTML.CoreComponents.icon
-            name="hero-chevron-down-solid"
-            class="h-5 w-5 transition duration-75"
-            x-bind:class="open ? '' : '-rotate-90'"
-          />
-        </div>
-        <div class="text-base-content flex gap-2 text-sm font-semibold uppercase">
-          {render_slot(@label)}
-        </div>
+    <div phx-mounted={JS.dispatch("backpex:sidebar-section-mounted")} class="collapse collapse-arrow" data-id={@id}>
+      <input type="checkbox" checked phx-change={JS.dispatch("backpex:sidebar-section-toggled")} />
+      <div class={["collapse-title text-sm font-semibold uppercase", @class]}>
+        {render_slot(@label)}
       </div>
-      <div class="flex-col space-y-1" x-show="open" x-transition x-transition.duration.75ms>
+      <div class="collapse-content flex-col space-y-1 px-0">
         {render_slot(@inner_block)}
       </div>
     </div>
