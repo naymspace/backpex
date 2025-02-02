@@ -123,12 +123,10 @@ defmodule Backpex.Filters.MultiSelect do
   defp open_content(js \\ %JS{}) do
     js
     |> JS.remove_class("hidden", to: {:inner, ".dropdown-content"})
-    |> JS.add_class("modal-open", to: {:inner, ".dropdown-content"})
   end
 
   defp close_content(js \\ %JS{}) do
     js
-    |> JS.remove_class("modal-open", to: {:inner, ".dropdown-content"})
     |> JS.add_class("hidden", to: {:inner, ".dropdown-content"})
   end
 
