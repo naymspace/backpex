@@ -28,73 +28,45 @@ defmodule Backpex.HTML.Layout do
 
   def app_shell(assigns) do
     ~H"""
-    <div class="bg-base-200 fixed inset-0 -z-10 h-full w-full"></div>
-
-    <div x-data="{ mobile_menu_open: false }">
-      <div class="relative z-40 md:hidden" role="dialog" aria-modal="true" x-show="mobile_menu_open">
-        <div class="bg-neutral fixed inset-0 bg-opacity-75"></div>
-
-        <div class="fixed inset-0 z-40 flex">
-          <div class="bg-base-100 relative flex w-full max-w-xs flex-1 flex-col">
-            <div class="absolute top-0 right-0 -mr-12 pt-2">
-              <button
-                type="button"
-                class="rounded-badge ml-1 flex h-10 w-10 items-center justify-center focus:ring-primary-content focus:outline-none focus:ring-2 focus:ring-inset"
-                @click="mobile_menu_open = false"
-              >
-                <Backpex.HTML.CoreComponents.icon name="hero-x-mark-solid" class="text-primary-content h-5 w-5" />
-              </button>
-            </div>
-
-            <div
-              @click.outside="mobile_menu_open = false"
-              class={"#{for sidebar <- @sidebar, do: sidebar[:class] || ""} h-0 flex-1 flex-col space-y-1 overflow-y-auto px-2 pt-5 pb-4"}
-            >
-              {render_slot(@sidebar)}
+    <div class="drawer">
+      <input id="menu-drawer" type="checkbox" class="drawer-toggle" />
+      <div class="drawer-content">
+        <div class="bg-base-200 fixed inset-0 -z-10 h-full w-full"></div>
+        <%= for sidebar <- @sidebar do %>
+          <div class="hidden md:fixed md:inset-y-0 md:mt-16 md:flex md:w-64 md:flex-col">
+            <div class="flex min-h-0 flex-1 flex-col">
+              <div class={"#{sidebar[:class] || ""} flex flex-1 flex-col space-y-1 overflow-y-auto px-2 pt-5 pb-4"}>
+                {render_slot(sidebar)}
+              </div>
             </div>
           </div>
+        <% end %>
 
-          <div class="w-14 flex-shrink-0">
-            <!-- Force sidebar to shrink to fit close icon -->
+        <div class={"#{if length(@sidebar) > 0, do: "md:pl-64", else: ""} flex flex-1 flex-col"}>
+          <div class="fixed top-0 z-30 block w-full md:-ml-64">
+            <.topbar class={for topbar <- @topbar, do: topbar[:class] || ""}>
+              {render_slot(@topbar)}
+              <%= for _ <- @sidebar do %>
+                <label for="menu-drawer" class="btn drawer-button btn-ghost ml-1 md:hidden">
+                  <Backpex.HTML.CoreComponents.icon name="hero-bars-3-solid" class="h-8 w-8" />
+                </label>
+              <% end %>
+            </.topbar>
           </div>
-        </div>
-      </div>
-
-      <%= for sidebar <- @sidebar do %>
-        <div class="hidden md:fixed md:inset-y-0 md:mt-16 md:flex md:w-64 md:flex-col">
-          <div class="flex min-h-0 flex-1 flex-col">
-            <div class={"#{sidebar[:class] || ""} flex flex-1 flex-col space-y-1 overflow-y-auto px-2 pt-5 pb-4"}>
-              {render_slot(sidebar)}
-            </div>
-          </div>
-        </div>
-      <% end %>
-
-      <div class={"#{if length(@sidebar) > 0, do: "md:pl-64", else: ""} flex flex-1 flex-col"}>
-        <div class="fixed top-0 z-30 block w-full md:-ml-64">
-          <.topbar class={for topbar <- @topbar, do: topbar[:class] || ""}>
-            {render_slot(@topbar)}
-            <%= for _ <- @sidebar do %>
-              <button
-                type="button"
-                class="text-base-content rounded-btn -mt-0.5 -ml-0.5 inline-flex h-12 w-12 items-center justify-center focus:ring-base-content focus:outline-none focus:ring-2 focus:ring-inset md:hidden"
-                @click="mobile_menu_open = !mobile_menu_open"
-              >
-                <Backpex.HTML.CoreComponents.icon name="hero-bars-3-solid" class="h-8 w-8" />
-              </button>
-            <% end %>
-          </.topbar>
-        </div>
-        <main class="h-[calc(100vh-4rem)] mt-[4rem] flex flex-col">
-          <div class="flex-1">
+          <main class="h-[calc(100vh-4rem)] mt-[4rem]">
             <div class={["mx-auto mt-5 px-4 sm:px-6 md:px-8", if(@fluid, do: "", else: "max-w-7xl")]}>
               {render_slot(@inner_block)}
             </div>
-
             {render_slot(@footer)}
             <.footer :if={@footer == []} />
-          </div>
-        </main>
+          </main>
+        </div>
+      </div>
+      <div class="drawer-side z-40">
+        <label for="menu-drawer" class="drawer-overlay"></label>
+        <div class={"#{for sidebar <- @sidebar, do: sidebar[:class] || ""} bg-base-100 min-h-full w-64 flex-1 flex-col space-y-1 overflow-y-auto px-2 pt-5 pb-4"}>
+          {render_slot(@sidebar)}
+        </div>
       </div>
     </div>
     """
