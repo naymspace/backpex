@@ -452,20 +452,7 @@ defmodule Backpex.Fields.Upload do
       |> assign(:form_errors, form_errors)
 
     ~H"""
-    <div
-      x-data="{
-        dispatchChangeEvent(el) {
-          $nextTick(
-            () => {
-              form = document.getElementById('resource-form');
-              if (form) el.dispatchEvent(new Event('input', { bubbles: true }));
-            }
-          )
-        }
-      }"
-      id={@id}
-      phx-hook="BackpexFieldUpload"
-    >
+    <div id={"form-field-#{@name}"} phx-hook="BackpexFieldUpload" data-upload-key={@upload_key}>
       <Layout.field_container>
         <:label align={Backpex.Field.align_label(@field_options, assigns, :top)}>
           <Layout.input_label text={@field_options[:label]} />
@@ -514,7 +501,6 @@ defmodule Backpex.Fields.Upload do
                   phx-value-ref={entry.ref}
                   phx-value-id={@upload_key}
                   phx-target="#form-component"
-                  @click="() => dispatchChangeEvent($el)"
                 >
                   &times;
                 </button>
@@ -534,7 +520,6 @@ defmodule Backpex.Fields.Upload do
                   phx-value-ref={file_key}
                   phx-value-id={@upload_key}
                   phx-target="#form-component"
-                  @click="() => dispatchChangeEvent($el)"
                 >
                   &times;
                 </button>
