@@ -51,6 +51,7 @@ defmodule BackpexWeb do
     quote do
       use Phoenix.Component, global_prefixes: ~w(x-)
       import Ecto.Query, warn: false
+      unquote(html_helpers())
     end
   end
 
