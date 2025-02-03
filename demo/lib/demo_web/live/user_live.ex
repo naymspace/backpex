@@ -15,6 +15,8 @@ defmodule DemoWeb.UserLive do
       event_prefix: "user_"
     ]
 
+  import Ecto.Query, warn: false
+
   @impl Backpex.LiveResource
   def singular_name, do: "User"
 

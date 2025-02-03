@@ -13,6 +13,8 @@ defmodule DemoWeb.ProductLive do
       event_prefix: "product_"
     ]
 
+  import Ecto.Query, warn: false
+
   @impl Backpex.LiveResource
   def singular_name, do: "Product"
 

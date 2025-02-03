@@ -238,7 +238,6 @@ defmodule Backpex.LiveResource do
 
       import Backpex.LiveResource
       import Phoenix.LiveView.Helpers
-      import Ecto.Query
 
       alias Backpex.LiveResource
 
