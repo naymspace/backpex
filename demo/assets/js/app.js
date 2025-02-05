@@ -77,19 +77,6 @@ Hooks.BackpexThemeSelector = {
 const csrfToken = document.querySelector("meta[name='csrf-token']").getAttribute('content')
 
 const liveSocket = new LiveSocket('/live', Socket, {
-  dom: {
-    onNodeAdded (node) {
-      // Mimic autofocus for dynamically inserted elements
-      if (node.nodeType === window.Node.ELEMENT_NODE && node.hasAttribute('autofocus')) {
-        node.focus()
-
-        if (node.setSelectionRange && node.value) {
-          const lastIndex = node.value.length
-          node.setSelectionRange(lastIndex, lastIndex)
-        }
-      }
-    }
-  },
   params: {
     _csrf_token: csrfToken
   },
