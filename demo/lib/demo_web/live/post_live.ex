@@ -14,6 +14,8 @@ defmodule DemoWeb.PostLive do
     ],
     fluid?: true
 
+  import Ecto.Query, warn: false
+
   @impl Backpex.LiveResource
   def singular_name, do: "Post"
 
