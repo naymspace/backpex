@@ -316,7 +316,6 @@ defmodule Backpex.HTML.Resource do
   attr :live_resource, :atom, required: true, doc: "the live resource"
   attr :current_url, :string, required: true, doc: "the current url"
   attr :class, :string, default: "", doc: "additional class to be added to the component"
-  attr :x_style, :string, default: "", doc: "alpine-bound inline styles for the root div"
 
   def toggle_columns(assigns) do
     form =
@@ -327,7 +326,7 @@ defmodule Backpex.HTML.Resource do
     assigns = assign(assigns, :form, form)
 
     ~H"""
-    <div class={["dropdown", @class]} x-bind:style={@x_style}>
+    <div class={["dropdown", @class]}>
       <label tabindex="0" class="hover:cursor-pointer">
         <span class="sr-only">
           {Backpex.translate("Toggle columns")}
@@ -338,7 +337,7 @@ defmodule Backpex.HTML.Resource do
           class="text-base-content/50 h-5 w-5 hover:text-base-content"
         />
       </label>
-      <div tabindex="0" class="dropdown-content z-[1] menu bg-base-100 rounded-box min-w-52 max-w-72 p-4 shadow">
+      <div tabindex="0" class="dropdown-content menu bg-base-100 rounded-box min-w-52 max-w-72 p-4 shadow">
         <.form class="w-full" method="POST" for={@form} action={Router.cookie_path(@socket)}>
           <input type="hidden" name={@form[:_resource].name} value={@form[:_resource].value} />
           <input type="hidden" name={@form[:_cookie_redirect_url].name} value={@form[:_cookie_redirect_url].value} />
@@ -996,6 +995,4 @@ defmodule Backpex.HTML.Resource do
 
   defp toggle_order_direction(:asc), do: :desc
   defp toggle_order_direction(:desc), do: :asc
-
-  defp shadow_sm_left, do: "box-shadow: -1px 0 2px 0 rgba(0,0,0,0.05)"
 end
