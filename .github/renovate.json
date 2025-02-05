@@ -12,7 +12,7 @@
     ":automergePatch",
     "helpers:pinGitHubActionDigestsToSemver"
   ],
-  "additionalBranchPrefix": "{{parentDir}}-",
+  "additionalBranchPrefix": "{{baseDir}}-",
   "packageRules": [
     {
       "description": "Group dependency updates to the Elixir base image",
