@@ -31,8 +31,8 @@ BackpexHooks.BackpexThemeSelector.setStoredTheme()
 const csrfToken = document.querySelector("meta[name='csrf-token']").getAttribute('content')
 
 const liveSocket = new LiveSocket('/live', Socket, {
-  params: {_csrf_token: csrfToken},
-  hooks: {...BackpexHooks}
+  params: { _csrf_token: csrfToken },
+  hooks: { ...BackpexHooks }
 })
 
 liveSocket.connect()
