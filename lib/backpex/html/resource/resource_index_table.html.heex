@@ -61,22 +61,18 @@
         "text-base-content/75 !bg-base-100 border-base-200 z-10 w-0 px-6"
       ]}>
         <div class={["flex items-center justify-end space-x-2"]}>
-          <div
+          <button
             :for={{key, action} <- row_item_actions(@item_actions)}
             :if={@live_resource.can?(assigns, key, item)}
-            data-tip={action.module.label(assigns, item)}
-            class="tooltip"
+            type="button"
+            phx-click="item-action"
+            phx-value-action-key={key}
+            phx-value-item-id={Map.get(item, @live_resource.config(:primary_key))}
+            aria-label={action.module.label(assigns, item)}
+            title={action.module.label(assigns, item)}
           >
-            <button
-              type="button"
-              phx-click="item-action"
-              phx-value-action-key={key}
-              phx-value-item-id={Map.get(item, @live_resource.config(:primary_key))}
-              aria-label={action.module.label(assigns, item)}
-            >
-              {action.module.icon(assigns, item)}
-            </button>
-          </div>
+            {action.module.icon(assigns, item)}
+          </button>
         </div>
       </td>
     </tr>
