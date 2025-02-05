@@ -472,75 +472,17 @@ You can add a theme selector to your layout to allow users to change the theme. 
 </Backpex.HTML.Layout.app_shell>
 ```
 
-**5. Add a hook to persist the selected theme**
+**5. Set selected theme**
 
-To persist the selected theme, you can add a hook to your `app.js` file. This hook will listen for the `backpex:theme-change` event and store the selected theme in the session and in the local storage. The hook will also send a request to the server to store the selected theme in the session.
+To set the selected theme as soon as possible, you can run this function inside your `app.js`:
 
 ```js
-// app.js
-// We want this to run as soon as possible to minimize
-// flashes with the old theme in some situations
-const storedTheme = window.localStorage.getItem('backpexTheme')
-if (storedTheme != null) {
-  document.documentElement.setAttribute('data-theme', storedTheme)
-}
-
-const Hooks = {}
-
-Hooks.BackpexThemeSelector = {
-  mounted () {
-    const form = document.querySelector('#backpex-theme-selector-form')
-    const storedTheme = window.localStorage.getItem('backpexTheme')
-
-    // Marking current theme as active
-    if (storedTheme != null) {
-      const activeThemeRadio = form.querySelector(
-        `input[name='theme-selector'][value='${storedTheme}']`
-      )
-      activeThemeRadio.checked = true
-    }
-
-    // Event listener that handles the theme changes and store
-    // the selected theme in the session and also in localStorage
-    window.addEventListener('backpex:theme-change', async (event) => {
-      const cookiePath = form.dataset.cookiePath
-      const selectedTheme = form.querySelector(
-        'input[name="theme-selector"]:checked'
-      )
-      if (selectedTheme) {
-        window.localStorage.setItem('backpexTheme', selectedTheme.value)
-        document.documentElement.setAttribute(
-          'data-theme',
-          selectedTheme.value
-        )
-        await fetch(cookiePath, {
-          body: `select_theme=${selectedTheme.value}`,
-          method: 'POST',
-          headers: {
-            'Content-type': 'application/x-www-form-urlencoded',
-            'x-csrf-token': csrfToken
-          }
-        })
-      }
-    })
-  }
-}
-
-let liveSocket = new LiveSocket("/live", Socket, {
-  dom: {
-    onBeforeElUpdated (from, to) {
-      if (from._x_dataStack) {
-        window.Alpine.clone(from, to);
-      }
-    },
-  },
-  params: { _csrf_token: csrfToken },
-  hooks: {
-    ...Hooks,
-    ...BackpexHooks
-  }
-});
+import { Hooks as BackpexHooks } from 'backpex';
+// ...
+BackpexHooks.BackpexThemeSelector.setStoredTheme()
 ```
+
+This will minimize flashes with the old theme in some situations.
 
 ## Remove `@tailwindcss/forms` plugin
 
