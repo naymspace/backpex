@@ -1,6 +1,6 @@
 <table class="table">
   <thead class="bg-base-300 text-base-content uppercase">
-    <tr>
+    <tr id="row-headers" phx-hook="BackpexStickyActions">
       <th :if={Enum.any?(index_item_actions(@item_actions))}>
         <input
           phx-click="toggle-item-selection"
@@ -26,11 +26,7 @@
           <% end %>
         </div>
       </th>
-      <th class={[
-        "bg-base-300 sticky right-0",
-        "after:border-base-200 after:absolute after:inset-y-0 after:left-0 after:border-l"
-      ]}>
-      </th>
+      <th class={["bg-base-300", sticky_col_class(), "after:border-base-200"]}></th>
     </tr>
   </thead>
   <tbody>
@@ -38,6 +34,7 @@
       :for={{item, index} <- Enum.with_index(@items)}
       id={"row-item-#{Map.get(item, @live_resource.config(:primary_key))}"}
       class={index_row_class(assigns, item, selected?(@selected_items, item), index)}
+      phx-hook="BackpexStickyActions"
     >
       <td :if={Enum.any?(index_item_actions(@item_actions))} class="relative">
         <div :if={selected?(@selected_items, item)} class="bg-base-content absolute inset-y-0 left-0 w-0.5" />
@@ -60,8 +57,8 @@
       </td>
       <td class={[
         index_row_class(assigns, item, selected?(@selected_items, item), index),
-        "text-base-content/75 !bg-base-100 border-base-200 sticky right-0 z-10 w-0 px-6",
-        "after:border-base-200 after:absolute after:inset-y-0 after:left-0 after:border-l"
+        sticky_col_class(),
+        "text-base-content/75 !bg-base-100 border-base-200 z-10 w-0 px-6"
       ]}>
         <div class={["flex items-center justify-end space-x-2"]}>
           <div
