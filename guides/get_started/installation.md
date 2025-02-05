@@ -10,45 +10,18 @@ Backpex integrates seamlessly with your existing Phoenix LiveView application, b
 
 Backpex is built on top of Phoenix LiveView, so you need to have Phoenix LiveView installed in your application. If you generate a new Phoenix application using the latest version of the `mix phx.new` generator, Phoenix LiveView is included by default.
 
-### Alpine.js & Backpex Hooks
+### Backpex Hooks
 
-Backpex uses [Alpine.js](https://alpinejs.dev/) for some interactivity. Make sure you have Alpine.js installed in your application. You also need to import some our custom hooks.
-
-> ### Work in progress {: .info}
->
-> We are currently working on removing Alpine.js completely with our own custom hooks. Until then you need both.
-
-You can install Alpine.js by installing it via npm:
-
-```bash
-cd assets && npm install alpinejs
-```
-
-Then, import Alpine.js and the Backpex hooks in your `app.js` file, start it and adjust your LiveView configuration:
+Backpex comes with a few JS hooks which need to be included in your `app.js`.
 
 ```javascript
-import Alpine from "alpinejs";
 import { Hooks as BackpexHooks } from 'backpex';
-
-window.Alpine = Alpine;
-Alpine.start();
 
 const Hooks = [] // your application hooks (optional)
 
 const liveSocket = new LiveSocket('/live', Socket, {
-  // add this
-  dom: {
-    onBeforeElUpdated (from, to) {
-      if (from._x_dataStack) {
-        window.Alpine.clone(from, to)
-      }
-    },
-  },
   params: { _csrf_token: csrfToken },
-  hooks: {
-    ...Hooks,
-    ...BackpexHooks
-  }
+  hooks: {...Hooks, ...BackpexHooks }
 })
 ```
 
