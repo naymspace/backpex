@@ -5,16 +5,25 @@
  */
 export default {
   mounted() {
-    const sticky = this.el.querySelector('.sticky')
+    this.sticky = this.el.querySelector('.sticky')
 
     this.observer = new IntersectionObserver(
-      ([entry]) => { sticky.toggleAttribute('stuck', entry.intersectionRatio < 1)},
+      ([entry]) => {
+        this.stuck = entry.intersectionRatio < 1
+        this.toggleStuckAttribute()
+      },
       { threshold: [1], root: this.el.closest(".overflow-x-auto") }
     )
 
     this.observer.observe(this.el)
   },
+  updated() {
+    this.toggleStuckAttribute()
+  },
   destroyed() {
     this.observer.disconnect()
+  },
+  toggleStuckAttribute() {
+    this.sticky.toggleAttribute('stuck', this.stuck)
   }
 }
