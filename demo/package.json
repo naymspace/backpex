@@ -20,7 +20,6 @@
   },
   "devDependencies": {
     "@sentry/browser": "8.52.0",
-    "alpinejs": "3.14.8",
     "npm-run-all2": "7.0.2",
     "postcss": "8.5.1",
     "standard": "17.1.2",

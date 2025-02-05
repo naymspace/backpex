@@ -1,16 +1,9 @@
-import Alpine from 'alpinejs'
 import 'phoenix_html'
 import * as Sentry from '@sentry/browser'
 import topbar from 'topbar'
 import { Socket } from 'phoenix'
 import { LiveSocket } from 'phoenix_live_view'
 import { Hooks as BackpexHooks } from 'backpex'
-
-/**
- * Alpine
- */
-window.Alpine = Alpine
-Alpine.start()
 
 /**
  * Sentry
@@ -85,11 +78,6 @@ const csrfToken = document.querySelector("meta[name='csrf-token']").getAttribute
 
 const liveSocket = new LiveSocket('/live', Socket, {
   dom: {
-    onBeforeElUpdated (from, to) {
-      if (from._x_dataStack) {
-        window.Alpine.clone(from, to)
-      }
-    },
     onNodeAdded (node) {
       // Mimic autofocus for dynamically inserted elements
       if (node.nodeType === window.Node.ELEMENT_NODE && node.hasAttribute('autofocus')) {
