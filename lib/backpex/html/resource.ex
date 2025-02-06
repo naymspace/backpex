@@ -988,7 +988,7 @@ defmodule Backpex.HTML.Resource do
     [base_class, extra_class]
   end
 
-  defp sticky_col_class() do
+  defp sticky_col_class do
     [
       "sticky right-0",
       "after:[&[stuck]]:block after:absolute after:inset-y-0 after:left-0 after:hidden",
