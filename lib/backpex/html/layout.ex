@@ -39,7 +39,7 @@ defmodule Backpex.HTML.Layout do
           {render_slot(@sidebar)}
         </div>
 
-        <div class={"#{if length(@sidebar) > 0, do: "md:pl-64", else: ""} flex flex-1 flex-col"}>
+        <div class={["flex flex-1 flex-col", length(@sidebar) > 0 && "md:pl-64"]}>
           <div class="fixed top-0 z-30 block w-full md:-ml-64">
             <.topbar class={for topbar <- @topbar, do: topbar[:class] || ""}>
               {render_slot(@topbar)}
