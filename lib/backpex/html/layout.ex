@@ -34,24 +34,22 @@ defmodule Backpex.HTML.Layout do
         <div class="bg-base-200 fixed inset-0 -z-10 h-full w-full"></div>
         <div class={[
           "hidden space-y-1 overflow-y-scroll px-2 pt-5 pb-4 md:fixed md:inset-y-0 md:mt-16 md:block md:w-64",
-          sidebar_class(@sidebar)
+          build_slot_class(@sidebar)
         ]}>
           {render_slot(@sidebar)}
         </div>
 
         <div class={["flex flex-1 flex-col", length(@sidebar) > 0 && "md:pl-64"]}>
           <div class="fixed top-0 z-30 block w-full md:-ml-64">
-            <.topbar class={for topbar <- @topbar, do: topbar[:class] || ""}>
+            <.topbar class={build_slot_class(@topbar)}>
               {render_slot(@topbar)}
-              <%= for _ <- @sidebar do %>
-                <label for="menu-drawer" class="btn drawer-button btn-ghost ml-1 md:hidden">
-                  <Backpex.HTML.CoreComponents.icon name="hero-bars-3-solid" class="h-8 w-8" />
-                </label>
-              <% end %>
+              <label :if={@sidebar != []} for="menu-drawer" class="btn drawer-button btn-ghost ml-1 md:hidden">
+                <Backpex.HTML.CoreComponents.icon name="hero-bars-3-solid" class="h-8 w-8" />
+              </label>
             </.topbar>
           </div>
           <main class="h-[calc(100vh-4rem)] mt-[4rem]">
-            <div class={["mx-auto mt-5 px-4 sm:px-6 md:px-8", if(@fluid, do: "", else: "max-w-7xl")]}>
+            <div class={["mx-auto mt-5 px-4 sm:px-6 md:px-8", @fluid && "max-w-7xl"]}>
               {render_slot(@inner_block)}
             </div>
             {render_slot(@footer)}
@@ -63,7 +61,7 @@ defmodule Backpex.HTML.Layout do
         <label for="menu-drawer" class="drawer-overlay"></label>
         <div class={[
           "bg-base-100 min-h-full w-64 flex-1 flex-col space-y-1 overflow-y-auto px-2 pt-5 pb-4",
-          sidebar_class(@sidebar)
+          build_slot_class(@sidebar)
         ]}>
           {render_slot(@sidebar)}
         </div>
@@ -72,10 +70,7 @@ defmodule Backpex.HTML.Layout do
     """
   end
 
-  defp sidebar_class(sidebar) do
-    sidebar
-    |> Enum.map(fn s -> s[:class] || "" end)
-  end
+  defp build_slot_class(slot), do: Enum.map(slot, &Map.get(&1, :class))
 
   @doc """
   Renders a topbar.
@@ -88,7 +83,7 @@ defmodule Backpex.HTML.Layout do
 
   def topbar(assigns) do
     ~H"""
-    <header class={"#{@class} border-base-300 bg-base-100 text-base-content flex h-16 w-full items-center border-b px-4"}>
+    <header class={["border-base-300 bg-base-100 text-base-content flex h-16 w-full items-center border-b px-4", @class]}>
       {render_slot(@inner_block)}
     </header>
     """
