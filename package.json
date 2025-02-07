@@ -2,5 +2,17 @@
   "name": "backpex",
   "version": "0.10.0",
   "license": "MIT",
-  "main": "assets/js/backpex.js"
+  "main": "assets/js/backpex.js",
+  "scripts": {
+    "lint:standard": "standard"
+  },
+  "standard": {
+    "globals": [
+      "localStorage",
+      "IntersectionObserver"
+    ]
+  },
+  "devDependencies": {
+    "standard": "17.1.2"
+  }
 }
