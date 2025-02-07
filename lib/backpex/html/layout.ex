@@ -33,7 +33,7 @@ defmodule Backpex.HTML.Layout do
       <div class="drawer-content">
         <div class="bg-base-200 fixed inset-0 -z-10 h-full w-full"></div>
         <div class={[
-          "hidden overflow-y-scroll px-2 pt-5 pb-4 md:fixed md:inset-y-0 md:mt-16 md:block md:w-64 menu",
+          "menu hidden overflow-y-scroll px-2 pt-5 pb-4 md:fixed md:inset-y-0 md:mt-16 md:block md:w-64",
           build_slot_class(@sidebar)
         ]}>
           {render_slot(@sidebar)}
@@ -60,7 +60,7 @@ defmodule Backpex.HTML.Layout do
       <div class="drawer-side z-40">
         <label for="menu-drawer" class="drawer-overlay"></label>
         <div class={[
-          "bg-base-100 min-h-full w-64 flex-1 flex-col overflow-y-auto px-2 pt-5 pb-4 menu",
+          "bg-base-100 menu min-h-full w-64 flex-1 flex-col overflow-y-auto px-2 pt-5 pb-4",
           build_slot_class(@sidebar)
         ]}>
           {render_slot(@sidebar)}
@@ -413,7 +413,6 @@ defmodule Backpex.HTML.Layout do
         {render_slot(@inner_block)}
       </.link>
     </li>
-
     """
   end
 
