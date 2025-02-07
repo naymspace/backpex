@@ -982,7 +982,7 @@ defmodule Backpex.HTML.Resource do
   end
 
   defp index_row_class(assigns, item, selected, index) do
-    base_class = if selected, do: "bg-base-200/50", else: "bg-base-100"
+    base_class = if selected, do: "bg-base-200", else: "bg-base-100"
     extra_class = assigns.live_resource.index_row_class(assigns, item, selected, index)
 
     [base_class, extra_class]

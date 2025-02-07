@@ -26,7 +26,7 @@
           <% end %>
         </div>
       </th>
-      <th class={["bg-base-300", sticky_col_class(), "after:border-base-200"]}></th>
+      <th class={["bg-base-300 after:border-base-300", sticky_col_class()]}></th>
     </tr>
   </thead>
   <tbody>
@@ -58,7 +58,7 @@
       <td class={[
         index_row_class(assigns, item, selected?(@selected_items, item), index),
         sticky_col_class(),
-        "text-base-content/75 !bg-base-100 border-base-200 z-10 w-0 px-6"
+        "text-base-content/75 border-base-200 z-10 w-0 px-6"
       ]}>
         <div class={["flex items-center justify-end space-x-2"]}>
           <button
