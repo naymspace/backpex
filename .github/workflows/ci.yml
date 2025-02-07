@@ -65,17 +65,17 @@ jobs:
         if: steps.restore-cache.outputs.cache-hit != 'true'
         run: mix deps.compile
 
-      - name: Run tests
-        run: mix test
+      - name: Compile with warnings as errors
+        run: mix compile --warnings-as-errors --force
+
+      - name: Install node dependencies
+        run: yarn install --pure-lockfile
 
       - name: Check formatting
         run: mix format --check-formatted
 
       - name: JavaScript Standard
         run: yarn run lint:standard
-
-      - name: Compile with warnings as errors
-        run: mix compile --warnings-as-errors --force
 
       - name: Build docs with warnings as errors
         run: mix docs --warnings-as-errors
@@ -88,6 +88,9 @@ jobs:
 
       - name: Deps Unused
         run: mix deps.unlock --check-unused
+
+      - name: Run tests
+        run: mix test
 
       - name: Deps Audit
         continue-on-error: true
