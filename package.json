@@ -4,7 +4,7 @@
   "license": "MIT",
   "main": "assets/js/backpex.js",
   "scripts": {
-    "lint:standard": "standard"
+    "lint:standard": "standard assets/js"
   },
   "standard": {
     "globals": [
