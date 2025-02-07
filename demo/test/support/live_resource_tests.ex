@@ -1,4 +1,4 @@
-defmodule DemoWeb.LiveResourceTests do
+defmodule Demo.Support.LiveResourceTests do
   @moduledoc """
   Defines macros that can be used to include basic live resource tests.
   """
