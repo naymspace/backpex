@@ -3,27 +3,48 @@
  */
 export default {
   mounted () {
-    window.addEventListener('backpex:sidebar-section-mounted', this.onSidebarSectionMounted)
-    window.addEventListener('backpex:sidebar-section-toggled', this.onSidebarSectionToggled)
+    this.initializeSections()
+  },
+  updated () {
+    this.initializeSections()
   },
   destroyed () {
-    window.removeEventListener('backpex:sidebar-section-mounted', this.onSidebarSectionMounted)
-    window.removeEventListener('backpex:sidebar-section-toggled', this.onSidebarSectionToggled)
-  },
-  onSidebarSectionMounted (e) {
-    const open = localStorage.getItem(`section-opened-${e.target.dataset.id}`) === 'true'
-    const checkbox = e.target.querySelector("input[type='checkbox']")
+    const sections = this.el.querySelectorAll('[data-section-id]')
 
-    if (open) {
-      checkbox.setAttribute('checked', true)
-    } else {
-      checkbox.removeAttribute('checked')
-    }
+    sections.forEach(section => {
+      const toggle = section.querySelector('[data-menu-dropdown-toggle]')
+      toggle.removeEventListener('click', this.handleToggle.bind(this))
+    })
   },
-  onSidebarSectionToggled (e) {
-    const container = e.target.closest('.collapse')
-    const checkbox = container.querySelector("input[type='checkbox']")
+  initializeSections () {
+    const sections = this.el.querySelectorAll('[data-section-id]')
 
-    localStorage.setItem(`section-opened-${container.dataset.id}`, checkbox.checked)
+    sections.forEach(section => {
+      const sectionId = section.dataset.sectionId
+      const toggle = section.querySelector('[data-menu-dropdown-toggle]')
+      const content = section.querySelector('[data-menu-dropdown-content]')
+
+      const isOpen = localStorage.getItem(`sidebar-section-${sectionId}`) === 'true'
+      if (!isOpen) {
+        toggle.classList.remove('menu-dropdown-show')
+        content.style.display = 'none'
+      }
+
+      section.classList.remove('hidden')
+
+      toggle.addEventListener('click', this.handleToggle.bind(this))
+    })
+  },
+  handleToggle (event) {
+    const section = event.currentTarget.closest('[data-section-id]')
+    const sectionId = section.dataset.sectionId
+    const toggle = section.querySelector('[data-menu-dropdown-toggle]')
+    const content = section.querySelector('[data-menu-dropdown-content]')
+
+    toggle.classList.toggle('menu-dropdown-show')
+    content.style.display = content.style.display === 'none' ? 'block' : 'none'
+
+    const isNowOpen = toggle.classList.contains('menu-dropdown-show')
+    localStorage.setItem(`sidebar-section-${sectionId}`, isNowOpen)
   }
 }

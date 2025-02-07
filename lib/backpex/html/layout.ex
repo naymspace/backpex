@@ -28,12 +28,12 @@ defmodule Backpex.HTML.Layout do
 
   def app_shell(assigns) do
     ~H"""
-    <div class="drawer">
-      <input id="menu-drawer" type="checkbox" class="drawer-toggle" phx-hook="BackpexSidebarSections" />
+    <div id="backpex-app-shell" class="drawer" phx-hook="BackpexSidebarSections">
+      <input id="menu-drawer" type="checkbox" class="drawer-toggle" />
       <div class="drawer-content">
         <div class="bg-base-200 fixed inset-0 -z-10 h-full w-full"></div>
         <div class={[
-          "hidden space-y-1 overflow-y-scroll px-2 pt-5 pb-4 md:fixed md:inset-y-0 md:mt-16 md:block md:w-64",
+          "hidden overflow-y-scroll px-2 pt-5 pb-4 md:fixed md:inset-y-0 md:mt-16 md:block md:w-64 menu",
           build_slot_class(@sidebar)
         ]}>
           {render_slot(@sidebar)}
@@ -49,7 +49,7 @@ defmodule Backpex.HTML.Layout do
             </.topbar>
           </div>
           <main class="h-[calc(100vh-4rem)] mt-[4rem]">
-            <div class={["mx-auto mt-5 px-4 sm:px-6 md:px-8", @fluid && "max-w-7xl"]}>
+            <div class={["mx-auto mt-5 px-4 sm:px-6 md:px-8", !@fluid && "max-w-7xl"]}>
               {render_slot(@inner_block)}
             </div>
             {render_slot(@footer)}
@@ -60,7 +60,7 @@ defmodule Backpex.HTML.Layout do
       <div class="drawer-side z-40">
         <label for="menu-drawer" class="drawer-overlay"></label>
         <div class={[
-          "bg-base-100 min-h-full w-64 flex-1 flex-col space-y-1 overflow-y-auto px-2 pt-5 pb-4",
+          "bg-base-100 min-h-full w-64 flex-1 flex-col overflow-y-auto px-2 pt-5 pb-4 menu",
           build_slot_class(@sidebar)
         ]}>
           {render_slot(@sidebar)}
@@ -358,7 +358,7 @@ defmodule Backpex.HTML.Layout do
   """
   @doc type: :component
 
-  attr :class, :string, default: "", doc: "additional class that will be added to the component"
+  attr :class, :string, default: nil, doc: "additional class that will be added to the component"
 
   attr :id, :string,
     default: "section",
@@ -370,15 +370,14 @@ defmodule Backpex.HTML.Layout do
 
   def sidebar_section(assigns) do
     ~H"""
-    <div phx-mounted={JS.dispatch("backpex:sidebar-section-mounted")} class="collapse collapse-arrow" data-id={@id}>
-      <input type="checkbox" checked phx-change={JS.dispatch("backpex:sidebar-section-toggled")} />
-      <div class={["collapse-title text-sm font-semibold uppercase", @class]}>
+    <li data-section-id={@id} class={["hidden", @class]}>
+      <span data-menu-dropdown-toggle class="menu-dropdown-toggle menu-dropdown-show">
         {render_slot(@label)}
-      </div>
-      <div class="collapse-content flex-col space-y-1 px-0">
+      </span>
+      <ul data-menu-dropdown-content class="menu-dropdown menu-dropdown-show">
         {render_slot(@inner_block)}
-      </div>
-    </div>
+      </ul>
+    </li>
     """
   end
 
@@ -403,26 +402,18 @@ defmodule Backpex.HTML.Layout do
         %{href: href} -> href
       end
 
-    highlight =
-      if Router.active?(assigns.current_url, path) do
-        "bg-base-300 text-base-content"
-      else
-        "text-base-content/95 hover:bg-base-100"
-      end
-
-    base_class = "group flex items-center gap-2 rounded-btn px-2 py-2 space-x-2 hover:cursor-pointer"
-
-    extra = assigns_to_attributes(assigns)
-
     assigns =
       assigns
-      |> assign(:class, [base_class, highlight, assigns.class])
-      |> assign(:extra, extra)
+      |> assign(:active, Router.active?(assigns.current_url, path))
+      |> assign(:extra, assigns_to_attributes(assigns))
 
     ~H"""
-    <.link class={@class} {@extra}>
-      {render_slot(@inner_block)}
-    </.link>
+    <li>
+      <.link class={[@class, @active && "active"]} {@extra}>
+        {render_slot(@inner_block)}
+      </.link>
+    </li>
+
     """
   end
 
