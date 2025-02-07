@@ -11,7 +11,8 @@ defmodule DemoWeb.CategoryLive do
       name: Demo.PubSub,
       topic: "categories",
       event_prefix: "category_"
-    ]
+    ],
+    init_order: %{by: :name, direction: :asc}
 
   @impl Backpex.LiveResource
   def singular_name, do: "Category"
