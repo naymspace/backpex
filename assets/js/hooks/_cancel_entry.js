@@ -10,7 +10,7 @@ export default {
     this.handleEvent(`cancel-entry:${uploadKey}`, (e) => { this.dispatchChangeEvent() })
     this.handleEvent(`cancel-existing-entry:${uploadKey}`, (e) => { this.dispatchChangeEvent() })
   },
-  dispatchChangeEvent() {
+  dispatchChangeEvent () {
     if (this.form) {
       this.el.dispatchEvent(new Event('input', { bubbles: true }))
     }
