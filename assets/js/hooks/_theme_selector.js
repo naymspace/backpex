@@ -18,7 +18,7 @@ export default {
   },
   // Event listener that handles the theme changes and store
   // the selected theme in the session and also in localStorage
-  async handleThemeChange() {
+  async handleThemeChange () {
     const form = document.querySelector('#backpex-theme-selector-form')
     const csrfToken = document.querySelector("meta[name='csrf-token']").getAttribute('content')
     const cookiePath = form.dataset.cookiePath
@@ -43,14 +43,14 @@ export default {
     }
   },
   // Call this from your app.js as soon as possible to minimize flashes with the old theme in some situations.
-  setStoredTheme() {
+  setStoredTheme () {
     const storedTheme = window.localStorage.getItem('backpexTheme')
 
     if (storedTheme != null) {
       document.documentElement.setAttribute('data-theme', storedTheme)
     }
   },
-  destroyed() {
+  destroyed () {
     window.removeEventListener('backpex:theme-change', this.handleThemeChange.bind(this))
   }
 }
