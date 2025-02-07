@@ -1,11 +1,10 @@
-defmodule Demo.Factory do
+defmodule Demo.EctoFactory do
   @moduledoc false
 
   use ExMachina.Ecto, repo: Demo.Repo
 
   alias Demo.Address
   alias Demo.Category
-  alias Demo.Helpdesk.Ticket
   alias Demo.Post
   alias Demo.Product
   alias Demo.ShortLink
@@ -89,13 +88,6 @@ defmodule Demo.Factory do
       zip: Faker.Address.zip(),
       city: Faker.Address.city(),
       country: Enum.random([:de, :ch, :at])
-    }
-  end
-
-  def ticket_factory do
-    %Ticket{
-      subject: Faker.Lorem.sentence(),
-      body: Faker.Lorem.paragraph()
     }
   end
 
