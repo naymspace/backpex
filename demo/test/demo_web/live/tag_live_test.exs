@@ -1,7 +1,7 @@
 defmodule DemoWeb.Live.TagLiveTest do
   use DemoWeb.ConnCase, async: false
 
-  import Demo.Factory
+  import Demo.EctoFactory
   import Phoenix.LiveViewTest
   import Demo.Support.LiveResourceTests
 
