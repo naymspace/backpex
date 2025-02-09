@@ -148,12 +148,21 @@ defmodule Backpex.LiveResource do
   @doc """
   The function that can be used to add content to certain positions on Backpex views. It may also be used to overwrite content.
 
-  The following actions are supported: `:index`, `:show`
+  See the following list for the available positions and the corresponding actions:
 
-  The following positions are supported for the `:index` action: `:page_title`, `:actions`, `:filters`, `:metrics` and `:main`.
-  The following positions are supported for the `:show` action: `:page_title` and `:main`.
-
-  In addition to this, content can be inserted between the main positions via the following extra spots: `:before_page_title`, `:before_actions`, `:before_filters`, `:before_metrics` and `:before_main`.
+  - all actions
+    - `:before_page_title`
+    - `:page_title`
+    - `:before_main`
+    - `:main`
+    - `:after_main`
+  - `:index` action
+    - `:before_actions`
+    - `:actions`
+    - `:before_filters`
+    - `:filters`
+    - `:before_metrics`
+    - `:metrics`
   """
   @callback render_resource_slot(assigns :: map(), action :: atom(), position :: atom()) ::
               %Phoenix.LiveView.Rendered{}
