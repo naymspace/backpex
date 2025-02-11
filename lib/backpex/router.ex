@@ -185,7 +185,7 @@ defmodule Backpex.Router do
       "/events"
       iex> Backpex.Router.put_route_params("/events", %{})
       "/events"
-      iex> put_route_params("/:id/users", %{})
+      iex> Backpex.Router.put_route_params("/:id/users", %{})
       ** (ArgumentError) Cannot build route '/:id/users' because required parameter 'id' is missing in the list of params.
   """
   def put_route_params(route, params) do
