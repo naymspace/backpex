@@ -338,7 +338,7 @@ defmodule Backpex.LiveResource do
 
       @impl Backpex.LiveResource
       def return_to(socket, assigns, _action, _item) do
-        Map.get(assigns, :return_to, Router.get_path(socket, assigns.live_resource, %{}, :index))
+        Map.get(assigns, :return_to, Router.get_path(socket, assigns.live_resource, assigns.params, :index))
       end
 
       @impl Backpex.LiveResource
