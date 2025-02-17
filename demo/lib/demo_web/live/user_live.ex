@@ -143,8 +143,7 @@ defmodule DemoWeb.UserLive do
           },
           primary: %{
             module: Backpex.Fields.Boolean,
-            label: "Primary",
-            index_editable: true
+            label: "Primary"
           }
         ],
         options_query: fn query, _assigns ->
