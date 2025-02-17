@@ -38,6 +38,7 @@ defmodule Backpex.Fields.Boolean do
     </div>
     """
   end
+
   @impl Backpex.Field
   def render_index_form(assigns) do
     form = to_form(%{"value" => assigns.value}, as: :index_form)
@@ -50,8 +51,7 @@ defmodule Backpex.Fields.Boolean do
     ~H"""
     <div>
       <.form for={@form} class="relative" phx-change="update-field" phx-submit="update-field" phx-target={@myself}>
-
-      <BackpexForm.input
+        <BackpexForm.input
           type="toggle"
           field={@form[:value]}
           input_class={["toggle toggle-sm  toggle-success", "hover:input-bordered"]}
