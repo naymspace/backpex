@@ -38,4 +38,35 @@ defmodule Backpex.Fields.Boolean do
     </div>
     """
   end
+  @impl Backpex.Field
+  def render_index_form(assigns) do
+    form = to_form(%{"value" => assigns.value}, as: :index_form)
+
+    assigns =
+      assigns
+      |> assign_new(:form, fn -> form end)
+      |> assign_new(:valid, fn -> true end)
+
+    ~H"""
+    <div>
+      <.form for={@form} class="relative" phx-change="update-field" phx-submit="update-field" phx-target={@myself}>
+
+      <BackpexForm.input
+          type="toggle"
+          field={@form[:value]}
+          input_class={["toggle toggle-sm  toggle-success", "hover:input-bordered"]}
+          phx-debounce={Backpex.Field.debounce(@field_options, assigns)}
+          phx-throttle={Backpex.Field.throttle(@field_options, assigns)}
+          readonly={@readonly}
+          hide_errors
+        />
+      </.form>
+    </div>
+    """
+  end
+
+  @impl Phoenix.LiveComponent
+  def handle_event("update-field", %{"index_form" => %{"value" => value}}, socket) do
+    Backpex.Field.handle_index_editable(socket, value, Map.put(%{}, socket.assigns.name, value))
+  end
 end
