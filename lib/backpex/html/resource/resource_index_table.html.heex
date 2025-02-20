@@ -64,12 +64,14 @@
           <button
             :for={{key, action} <- row_item_actions(@item_actions)}
             :if={@live_resource.can?(assigns, key, item)}
+            id={"item-action-#{key}-#{item.id}"}
             type="button"
             phx-click="item-action"
             phx-value-action-key={key}
             phx-value-item-id={Map.get(item, @live_resource.config(:primary_key))}
             aria-label={action.module.label(assigns, item)}
-            title={action.module.label(assigns, item)}
+            phx-hook="BackpexTooltip"
+            data-tooltip={action.module.label(assigns, item)}
           >
             {action.module.icon(assigns, item)}
           </button>
