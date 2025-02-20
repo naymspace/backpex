@@ -32,22 +32,20 @@
   <tbody>
     <tr
       :for={{item, index} <- Enum.with_index(@items)}
-      id={"row-item-#{Map.get(item, @live_resource.config(:primary_key))}"}
+      id={"row-item-#{primary_value(item, @live_resource)}"}
       class={index_row_class(assigns, item, selected?(@selected_items, item), index)}
       phx-hook="BackpexStickyActions"
     >
       <td :if={Enum.any?(index_item_actions(@item_actions))} class="relative">
         <div :if={selected?(@selected_items, item)} class="bg-base-content absolute inset-y-0 left-0 w-0.5" />
         <input
-          id={"select-input-#{Map.get(item, @live_resource.config(:primary_key))}"}
+          id={"select-input-#{primary_value(item, @live_resource)}"}
           phx-click="update-selected-items"
-          phx-value-id={Map.get(item, @live_resource.config(:primary_key))}
+          phx-value-id={primary_value(item, @live_resource)}
           type="checkbox"
           class="checkbox checkbox-sm"
           checked={selected?(@selected_items, item)}
-          aria-label={
-            Backpex.translate({"Select item with id: %{id}", %{id: Map.get(item, @live_resource.config(:primary_key))}})
-          }
+          aria-label={Backpex.translate({"Select item with id: %{id}", %{id: primary_value(item, @live_resource)}})}
         />
       </td>
       <td :for={{name, field_options} <- @fields} :if={active?(@active_fields, name)} class="text-base-content/75">
@@ -64,11 +62,11 @@
           <button
             :for={{key, action} <- row_item_actions(@item_actions)}
             :if={@live_resource.can?(assigns, key, item)}
-            id={"item-action-#{key}-#{Map.get(item, @live_resource.config(:primary_key))}"}
+            id={"item-action-#{key}-#{primary_value(item, @live_resource)}"}
             type="button"
             phx-click="item-action"
             phx-value-action-key={key}
-            phx-value-item-id={Map.get(item, @live_resource.config(:primary_key))}
+            phx-value-item-id={primary_value(item, @live_resource)}
             aria-label={action.module.label(assigns, item)}
             phx-hook="BackpexTooltip"
             data-tooltip={action.module.label(assigns, item)}
