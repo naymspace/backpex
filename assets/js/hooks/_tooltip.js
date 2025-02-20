@@ -2,7 +2,7 @@
  * This hooks displays a statically positioned tooltip which is not affected by parent elements and their overflow.
  */
 export default {
-  mounted() {
+  mounted () {
     this.tooltip = null
 
     this.handleMouseEnter = () => {
@@ -40,8 +40,8 @@ export default {
     this.el.addEventListener('mouseenter', this.handleMouseEnter)
     this.el.addEventListener('mouseleave', this.handleMouseLeave)
     window.addEventListener('scroll', this.updateTooltipPosition)
-},
-destroyed() {
+  },
+  destroyed () {
     this.el.removeEventListener('mouseenter', this.handleMouseEnter)
     this.el.removeEventListener('mouseleave', this.handleMouseLeave)
     window.removeEventListener('scroll', this.updateTooltipPosition)
