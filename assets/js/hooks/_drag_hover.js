@@ -4,22 +4,18 @@
 export default {
   mounted () {
     this.dragging = 0
+    this.controller = new AbortController()
+    const signal = this.controller.signal
 
-    this.dragenterHandler = () => this.dragChange(this.dragging + 1)
-    this.dragleaveHandler = () => this.dragChange(this.dragging - 1)
-    this.dropHandler = () => this.dragChange(0)
-
-    this.el.addEventListener('dragenter', this.dragenterHandler)
-    this.el.addEventListener('dragleave', this.dragleaveHandler)
-    this.el.addEventListener('drop', this.dropHandler)
+    this.el.addEventListener('dragenter', () => this.dragChange(this.dragging + 1), { signal })
+    this.el.addEventListener('dragleave', () => this.dragChange(this.dragging - 1), { signal })
+    this.el.addEventListener('drop', () => this.dragChange(0), { signal })
+  },
+  destroyed () {
+    this.controller.abort()
   },
   dragChange (value) {
     this.dragging = value
     this.el.firstElementChild.classList.toggle('border-primary', this.dragging > 0)
-  },
-  destroyed () {
-    this.el.removeEventListener('dragenter', this.dragenterHandler)
-    this.el.removeEventListener('dragleave', this.dragleaveHandler)
-    this.el.removeEventListener('drop', this.dropHandler)
   }
 }

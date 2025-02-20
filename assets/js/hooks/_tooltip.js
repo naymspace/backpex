@@ -4,8 +4,10 @@
 export default {
   mounted () {
     this.tooltip = null
+    this.controller = new AbortController()
+    const signal = this.controller.signal
 
-    this.handleMouseEnter = () => {
+    this.el.addEventListener('mouseenter', () => {
       const text = this.el.getAttribute('data-tooltip')
       if (!text) return
 
@@ -21,33 +23,29 @@ export default {
 
       document.body.appendChild(this.tooltip)
       this.updateTooltipPosition()
-    }
+    }, { signal })
 
-    this.handleMouseLeave = () => {
+    this.el.addEventListener('mouseleave', () => {
       if (this.tooltip) {
         this.tooltip.remove()
         this.tooltip = null
       }
-    }
+    }, { signal })
 
-    this.updateTooltipPosition = () => {
-      if (!this.tooltip) return
-      const rect = this.el.getBoundingClientRect()
-      this.tooltip.style.left = `${rect.left + rect.width / 2}px`
-      this.tooltip.style.top = `${rect.top - this.tooltip.offsetHeight - 6}px`
-    }
-
-    this.el.addEventListener('mouseenter', this.handleMouseEnter)
-    this.el.addEventListener('mouseleave', this.handleMouseLeave)
-    window.addEventListener('scroll', this.updateTooltipPosition)
+    window.addEventListener('scroll', this.updateTooltipPosition, { signal })
   },
   destroyed () {
-    this.el.removeEventListener('mouseenter', this.handleMouseEnter)
-    this.el.removeEventListener('mouseleave', this.handleMouseLeave)
-    window.removeEventListener('scroll', this.updateTooltipPosition)
+    this.controller.abort()
 
     if (this.tooltip) {
       this.tooltip.remove()
     }
+  },
+  updateTooltipPosition () {
+    if (!this.tooltip) return
+
+    const rect = this.el.getBoundingClientRect()
+    this.tooltip.style.left = `${rect.left + rect.width / 2}px`
+    this.tooltip.style.top = `${rect.top - this.tooltip.offsetHeight - 6}px`
   }
 }
