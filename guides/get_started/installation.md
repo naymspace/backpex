@@ -6,6 +6,16 @@ The following guide will help you to install Backpex in your Phoenix application
 
 Backpex integrates seamlessly with your existing Phoenix LiveView application, but there are a few prerequisites you need to meet before you can start using it.
 
+## Global configuration
+
+Set the PubSub server of your application in your `config.exs`:
+
+```elixir
+config :backpex, :pubsub_server, MyApp.PubSub
+```
+
+Otherwise you need to configure it for each `LiveResource` individually.
+
 ### Phoenix LiveView
 
 Backpex is built on top of Phoenix LiveView, so you need to have Phoenix LiveView installed in your application. If you generate a new Phoenix application using the latest version of the `mix phx.new` generator, Phoenix LiveView is included by default.
