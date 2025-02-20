@@ -40,8 +40,8 @@ defmodule Backpex.LiveResource do
       type: :keyword_list,
       required: false,
       keys: [
-        name: [
-          doc: "PubSub name of the project.",
+        server: [
+          doc: "PubSub server of the project.",
           required: false,
           type: :atom
         ],
@@ -1222,7 +1222,7 @@ defmodule Backpex.LiveResource do
   """
   def pubsub(live_resource) do
     [
-      name: live_resource.config(:pubsub)[:name] || Application.fetch_env!(:backpex, :pubsub_server),
+      server: live_resource.config(:pubsub)[:server] || Application.fetch_env!(:backpex, :pubsub_server),
       topic: live_resource.config(:pubsub)[:topic] || fallback_pubsub_topic(live_resource),
       event_prefix: live_resource.config(:pubsub)[:event_prefix] || fallback_pubsub_event_prefix(live_resource)
     ]
@@ -1251,9 +1251,9 @@ defmodule Backpex.LiveResource do
   @doc """
   Subscribes to pubsub topic.
   """
-  def subscribe_to_topic(socket, name: name, topic: topic, event_prefix: _event_prefix) do
+  def subscribe_to_topic(socket, server: server, topic: topic, event_prefix: _event_prefix) do
     if Phoenix.LiveView.connected?(socket) do
-      Phoenix.PubSub.subscribe(name, topic)
+      Phoenix.PubSub.subscribe(server, topic)
     end
   end
 
