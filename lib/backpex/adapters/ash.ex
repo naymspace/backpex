@@ -87,14 +87,6 @@ if Code.ensure_loaded?(Ash) do
     end
 
     @doc """
-    Updates given item.
-    """
-    @impl Backpex.Adapter
-    def update(_item, _live_resource) do
-      raise "not implemented yet"
-    end
-
-    @doc """
     Updates given items.
     """
     @impl Backpex.Adapter

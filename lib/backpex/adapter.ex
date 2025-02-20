@@ -46,11 +46,6 @@ defmodule Backpex.Adapter do
   @callback insert(struct(), module()) :: {:ok, struct()} | {:error, term()}
 
   @doc """
-  Updates given item.
-  """
-  @callback update(struct(), module()) :: {:ok, struct()} | {:error, term()}
-
-  @doc """
   Updates given items.
   """
   @callback update_all(list(struct()), keyword(), module()) :: {:ok, non_neg_integer()}

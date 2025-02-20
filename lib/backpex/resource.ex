@@ -119,14 +119,17 @@ defmodule Backpex.Resource do
   def update(item, attrs, fields, assigns, live_resource, opts \\ []) do
     {after_save_fun, opts} = Keyword.pop(opts, :after_save_fun, &{:ok, &1})
 
-    adapter = live_resource.config(:adapter)
-    pubsub = live_resource.config(:pubsub)
+    updates =
+      item
+      |> change(attrs, fields, assigns, live_resource, Keyword.put(opts, :action, :update))
+      |> Map.get(:changes)
+      |> Map.put(:updated_at, DateTime.utc_now())
+      |> Map.to_list()
 
-    item
-    |> change(attrs, fields, assigns, live_resource, Keyword.put(opts, :action, :update))
-    |> adapter.update(live_resource)
-    |> after_save(after_save_fun)
-    |> broadcast("updated", pubsub)
+    case update_all([item], updates, "updated", live_resource) do
+      {:ok, [updated_item]} -> after_save_fun.(updated_item)
+      _error -> :error
+    end
   end
 
   @doc """
