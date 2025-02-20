@@ -32,7 +32,7 @@ export default {
       }
     }, { signal })
 
-    window.addEventListener('scroll', this.updateTooltipPosition, { signal })
+    window.addEventListener('scroll', () => { this.updateTooltipPosition() }, { signal })
   },
   destroyed () {
     this.controller.abort()
