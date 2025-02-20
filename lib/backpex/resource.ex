@@ -198,7 +198,7 @@ defmodule Backpex.Resource do
 
   defp after_save(error, _func), do: error
 
-  defp broadcast({:ok, item}, event, name: pubsub, topic: topic, event_prefix: event_prefix) do
+  defp broadcast({:ok, item}, event, server: pubsub, topic: topic, event_prefix: event_prefix) do
     Phoenix.PubSub.broadcast(pubsub, topic, {event_name(event_prefix, event), item})
     Phoenix.PubSub.broadcast(pubsub, topic, {"backpex:" <> event_name(event_prefix, event), item})
 
