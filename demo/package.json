@@ -19,9 +19,9 @@
     "gettext": "mix gettext.extract --merge"
   },
   "devDependencies": {
-    "@sentry/browser": "8.54.0",
+    "@sentry/browser": "9.0.1",
     "npm-run-all2": "7.0.2",
-    "postcss": "8.5.1",
+    "postcss": "8.5.3",
     "standard": "17.1.2",
     "stylelint": "16.14.1",
     "stylelint-config-standard": "37.0.0",

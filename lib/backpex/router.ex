@@ -185,14 +185,30 @@ defmodule Backpex.Router do
       "/events"
       iex> Backpex.Router.put_route_params("/events", %{})
       "/events"
+      iex> Backpex.Router.put_route_params("/:id/users", %{})
+      ** (ArgumentError) Cannot build route '/:id/users' because required parameter 'id' is missing in the list of params.
   """
   def put_route_params(route, params) do
     route
     |> String.split("/")
     |> Enum.reduce("", fn
-      "", acc -> acc
-      ":" <> param, acc -> acc <> "/#{URI.encode_www_form(params[param])}"
-      path, acc -> acc <> "/#{path}"
+      "", acc ->
+        acc
+
+      ":" <> param, acc ->
+        case Map.fetch(params, param) do
+          {:ok, value} ->
+            acc <> "/#{URI.encode_www_form(value)}"
+
+          :error ->
+            raise ArgumentError,
+                  "Cannot build route '#{route}' because required parameter '#{param}' is missing in the list of params."
+        end
+
+        acc <> "/#{URI.encode_www_form(params[param])}"
+
+      path, acc ->
+        acc <> "/#{path}"
     end)
   end
 
