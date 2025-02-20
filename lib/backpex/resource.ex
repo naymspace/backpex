@@ -145,9 +145,9 @@ defmodule Backpex.Resource do
     pubsub = live_resource.config(:pubsub)
 
     case adapter.update_all(items, updates, live_resource) do
-      {_count_, nil} ->
-        Enum.each(items, fn item -> broadcast({:ok, item}, event_name, pubsub) end)
-        {:ok, items}
+      {_count, updated_items} ->
+        Enum.each(updated_items, fn item -> broadcast({:ok, item}, event_name, pubsub) end)
+        {:ok, updated_items}
 
       _error ->
         :error

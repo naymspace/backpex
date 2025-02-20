@@ -279,6 +279,7 @@ defmodule Backpex.Adapters.Ecto do
     primary_key = live_resource.config(:primary_key)
 
     config[:schema]
+    |> select([i], i)
     |> where([i], field(i, ^primary_key) in ^Enum.map(items, &Map.get(&1, primary_key)))
     |> config[:repo].update_all(updates)
   end
