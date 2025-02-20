@@ -281,7 +281,7 @@ defmodule Backpex.Adapters.Ecto do
     config[:schema]
     |> select([i], i)
     |> where([i], field(i, ^primary_key) in ^Enum.map(items, &Map.get(&1, primary_key)))
-    |> config[:repo].update_all(updates)
+    |> config[:repo].update_all(set: updates)
   end
 
   @doc """

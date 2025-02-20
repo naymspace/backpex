@@ -177,7 +177,7 @@ defmodule DemoWeb.ItemAction.SoftDelete do
                 Backpex.Resource.update_all(
                     socket.assigns,
                     items,
-                    [set: [deleted_at: datetime, reason: data.reason]],
+                    [deleted_at: datetime, reason: data.reason],
                     "deleted"
                 )
 
