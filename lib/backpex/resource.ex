@@ -74,7 +74,7 @@ defmodule Backpex.Resource do
   """
   def delete_all(items, live_resource) do
     adapter = live_resource.config(:adapter)
-    pubsub = live_resource.config(:pubsub)
+    pubsub = live_resource.pubsub()
 
     adapter.delete_all(items, live_resource)
     |> tap(fn {:ok, delete_items} ->
@@ -97,7 +97,7 @@ defmodule Backpex.Resource do
     {after_save_fun, opts} = Keyword.pop(opts, :after_save_fun, &{:ok, &1})
 
     adapter = live_resource.config(:adapter)
-    pubsub = live_resource.config(:pubsub)
+    pubsub = live_resource.pubsub()
     fields = live_resource.validated_fields()
 
     item
@@ -120,7 +120,7 @@ defmodule Backpex.Resource do
     {after_save_fun, opts} = Keyword.pop(opts, :after_save_fun, &{:ok, &1})
 
     adapter = live_resource.config(:adapter)
-    pubsub = live_resource.config(:pubsub)
+    pubsub = live_resource.pubsub()
 
     item
     |> change(attrs, fields, assigns, live_resource, Keyword.put(opts, :action, :update))
@@ -142,7 +142,7 @@ defmodule Backpex.Resource do
   """
   def update_all(items, updates, event_name \\ "updated", live_resource) do
     adapter = live_resource.config(:adapter)
-    pubsub = live_resource.config(:pubsub)
+    pubsub = live_resource.pubsub()
 
     case adapter.update_all(items, updates, live_resource) do
       {_count_, nil} ->

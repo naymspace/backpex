@@ -182,12 +182,7 @@ defmodule MyAppWeb.Live.PostLive do
       update_changeset: &MyApp.Blog.Post.update_changeset/3,
       create_changeset: &MyApp.Blog.Post.create_changeset/3
     ],
-    layout: {MyAppWeb.Layouts, :admin},
-    pubsub: [
-      name: MyApp.PubSub,
-      topic: "posts",
-      event_prefix: "post_"
-    ]
+    layout: {MyAppWeb.Layouts, :admin}
 end
 ```
 
@@ -218,12 +213,7 @@ defmodule MyAppWeb.Live.PostLive do
       update_changeset: &MyApp.Blog.Post.update_changeset/3,
       create_changeset: &MyApp.Blog.Post.create_changeset/3
     ],
-    layout: {MyAppWeb.Layouts, :admin},
-    pubsub: [
-      name: MyApp.PubSub,
-      topic: "posts",
-      event_prefix: "post_"
-    ]
+    layout: {MyAppWeb.Layouts, :admin}
 
   @impl Backpex.LiveResource
   def singular_name, do: "Post"

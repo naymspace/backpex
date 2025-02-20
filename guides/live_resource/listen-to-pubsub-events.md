@@ -6,7 +6,7 @@ As mentioned in the [installation guide](get_started/installation.md) you need t
 
 You can listen for Backpex PubSub events by implementing the Phoenix.LiveView [`handle_info/2`](Phoenix.LiveView.html#c:handle_info/2) callback in your *LiveResource* module.
 
-We assume you configured PubSub for your Posts *LiveResource* like this:
+You may overwrite the PubSub configuration for your Posts *LiveResource* like this:
 
 ```elixir
 use Backpex.LiveResource,

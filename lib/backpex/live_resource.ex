@@ -38,22 +38,22 @@ defmodule Backpex.LiveResource do
     pubsub: [
       doc: "PubSub configuration.",
       type: :keyword_list,
-      required: true,
+      required: false,
       keys: [
         name: [
           doc: "PubSub name of the project.",
-          required: true,
+          required: false,
           type: :atom
         ],
         event_prefix: [
           doc:
             "The event prefix for Pubsub, to differentiate between events of different resources when subscribed to multiple resources.",
-          required: true,
+          required: false,
           type: :string
         ],
         topic: [
           doc: "The topic for PubSub.",
-          required: true,
+          required: false,
           type: :string
         ]
       ]
@@ -250,7 +250,9 @@ defmodule Backpex.LiveResource do
 
       alias Backpex.LiveResource
 
-      def config(key), do: Keyword.fetch!(@resource_opts, key)
+      def config(key), do: Keyword.get(@resource_opts, key)
+
+      def pubsub, do: LiveResource.pubsub(__MODULE__)
 
       def validated_fields, do: LiveResource.validated_fields(__MODULE__)
 
@@ -446,7 +448,7 @@ defmodule Backpex.LiveResource do
   @impl Phoenix.LiveView
   def mount(params, session, socket) do
     live_resource = socket.view
-    pubsub = live_resource.config(:pubsub)
+    pubsub = live_resource.pubsub()
     subscribe_to_topic(socket, pubsub)
 
     # TODO: move these "config assigns" (and other global assigns) to where they are needed
@@ -1070,7 +1072,7 @@ defmodule Backpex.LiveResource do
 
   @impl Phoenix.LiveView
   def handle_info({"backpex:" <> event, item}, socket) do
-    event_prefix = socket.assigns.live_resource.config(:pubsub)[:event_prefix]
+    event_prefix = socket.assigns.live_resource.pubsub()[:event_prefix]
     ^event_prefix <> event_type = event
 
     handle_backpex_info({event_type, item}, socket)
@@ -1213,6 +1215,37 @@ defmodule Backpex.LiveResource do
     primary_key = socket.assigns.live_resource.config(:primary_key)
 
     Map.get(item, primary_key)
+  end
+
+  @doc """
+  Returns the pubsub settings for the current LiveResource.
+  """
+  def pubsub(live_resource) do
+    [
+      name: live_resource.config(:pubsub)[:name] || Application.fetch_env!(:backpex, :pubsub_server),
+      topic: live_resource.config(:pubsub)[:topic] || fallback_pubsub_topic(live_resource),
+      event_prefix: live_resource.config(:pubsub)[:event_prefix] || fallback_pubsub_event_prefix(live_resource)
+    ]
+  end
+
+  defp fallback_pubsub_topic(live_resource) do
+    live_resource
+    |> resource_name()
+    |> Kernel.<>("s")
+  end
+
+  defp fallback_pubsub_event_prefix(live_resource) do
+    live_resource
+    |> resource_name()
+    |> Kernel.<>("_")
+  end
+
+  defp resource_name(live_resource) do
+    live_resource
+    |> Module.split()
+    |> List.last()
+    |> String.trim_trailing("Live")
+    |> String.downcase()
   end
 
   @doc """
