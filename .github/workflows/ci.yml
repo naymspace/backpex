@@ -119,7 +119,7 @@ jobs:
 
     services:
       postgres:
-        image: postgres:16.7@sha256:4b73d95cd1c7c886c4a0633e153a49c6aa01e1164905c349de398bb56ec4ff71
+        image: postgres:16.8@sha256:361c84f2bbe0f91135990841eb4eb4d2fe491f6e950686d9c746415dd1ffc65e
         env:
           POSTGRES_PASSWORD: postgres
         options: >-
