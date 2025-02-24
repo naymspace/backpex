@@ -94,7 +94,7 @@ defmodule Backpex.HTML.Form do
           />
         <% end %>
       </div>
-      <.error :for={msg <- @errors} :if={not @hide_errors}>{msg}</.error>
+      <.error :for={msg <- @errors} :if={not @hide_errors} class="mt-1">{msg}</.error>
     </div>
     """
   end
@@ -132,7 +132,7 @@ defmodule Backpex.HTML.Form do
           />
         <% end %>
       </div>
-      <.error :for={msg <- @errors} :if={not @hide_errors}>{msg}</.error>
+      <.error :for={msg <- @errors} :if={not @hide_errors} class="mt-1">{msg}</.error>
     </div>
     """
   end
@@ -157,7 +157,7 @@ defmodule Backpex.HTML.Form do
           </select>
         </div>
       </div>
-      <.error :for={msg <- @errors} :if={not @hide_errors}>{msg}</.error>
+      <.error :for={msg <- @errors} :if={not @hide_errors} class="mt-1">{msg}</.error>
     </div>
     """
   end
@@ -179,7 +179,7 @@ defmodule Backpex.HTML.Form do
           {@rest}
         ><%= Phoenix.HTML.Form.normalize_value("textarea", @value) %></textarea>
       </div>
-      <.error :for={msg <- @errors} :if={not @hide_errors}>{msg}</.error>
+      <.error :for={msg <- @errors} :if={not @hide_errors} class="mt-1">{msg}</.error>
     </div>
     """
   end
@@ -203,7 +203,7 @@ defmodule Backpex.HTML.Form do
           {@rest}
         />
       </div>
-      <.error :for={msg <- @errors} :if={not @hide_errors}>{msg}</.error>
+      <.error :for={msg <- @errors} :if={not @hide_errors} class="mt-1">{msg}</.error>
     </div>
     """
   end
@@ -213,11 +213,13 @@ defmodule Backpex.HTML.Form do
   """
   @doc type: :component
 
+  attr :class, :string, default: nil
+
   slot :inner_block, required: true
 
   def error(assigns) do
     ~H"""
-    <p class="text-error mt-1 text-xs italic">
+    <p class={["text-error text-xs italic", @class]}>
       {render_slot(@inner_block)}
     </p>
     """
@@ -271,7 +273,7 @@ defmodule Backpex.HTML.Form do
           </div>
         </div>
       </label>
-      <.error :for={msg <- @errors} :if={not @hide_errors}>{msg}</.error>
+      <.error :for={msg <- @errors} :if={not @hide_errors} class="mt-1">{msg}</.error>
       <div tabindex="0" class="dropdown-content z-[1] menu bg-base-100 rounded-box w-full overflow-y-auto shadow">
         <div class="max-h-72 p-2">
           <input

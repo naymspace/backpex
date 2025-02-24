@@ -61,7 +61,12 @@ defmodule Backpex.Fields.MultiSelect do
   defp assign_options(socket) do
     %{assigns: %{field_options: field_options} = assigns} = socket
 
-    options = field_options.options.(assigns)
+    options =
+      assigns
+      |> field_options.options.()
+      |> Enum.map(fn {label, value} ->
+        {to_string(label), to_string(value)}
+      end)
 
     assign(socket, :options, options)
   end
