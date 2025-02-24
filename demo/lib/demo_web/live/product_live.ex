@@ -6,12 +6,7 @@ defmodule DemoWeb.ProductLive do
       update_changeset: &Demo.Product.changeset/3,
       create_changeset: &Demo.Product.changeset/3
     ],
-    layout: {DemoWeb.Layouts, :admin},
-    pubsub: [
-      name: Demo.PubSub,
-      topic: "products",
-      event_prefix: "product_"
-    ]
+    layout: {DemoWeb.Layouts, :admin}
 
   import Ecto.Query, warn: false
 

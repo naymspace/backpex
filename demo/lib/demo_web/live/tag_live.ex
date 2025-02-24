@@ -7,11 +7,6 @@ defmodule DemoWeb.TagLive do
       create_changeset: &Demo.Tag.create_changeset/3
     ],
     layout: {DemoWeb.Layouts, :admin},
-    pubsub: [
-      name: Demo.PubSub,
-      topic: "tags",
-      event_prefix: "tag_"
-    ],
     init_order: %{by: :name, direction: :desc}
 
   @impl Backpex.LiveResource

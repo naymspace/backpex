@@ -6,12 +6,7 @@ defmodule DemoWeb.InvoiceLive do
       update_changeset: &Demo.Invoice.update_changeset/3,
       create_changeset: &Demo.Invoice.create_changeset/3
     ],
-    layout: {DemoWeb.Layouts, :admin},
-    pubsub: [
-      name: Demo.PubSub,
-      topic: "invoices",
-      event_prefix: "invoice_"
-    ]
+    layout: {DemoWeb.Layouts, :admin}
 
   @impl Backpex.LiveResource
   def singular_name, do: "Invoice"

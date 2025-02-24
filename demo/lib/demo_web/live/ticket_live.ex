@@ -4,12 +4,7 @@ defmodule DemoWeb.TicketLive do
     adapter_config: [
       resource: Demo.Helpdesk.Ticket
     ],
-    layout: {DemoWeb.Layouts, :admin},
-    pubsub: [
-      name: Demo.PubSub,
-      topic: "tickets",
-      event_prefix: "ticket_"
-    ]
+    layout: {DemoWeb.Layouts, :admin}
 
   @impl Backpex.LiveResource
   def singular_name, do: "Ticket"

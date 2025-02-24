@@ -78,8 +78,9 @@ config :ash, include_embedded_source_by_default?: false, default_page_type: :key
 
 config :ash, :policies, no_filter_static_forbidden_reads?: false
 
-config :backpex, :translator_function, {DemoWeb.CoreComponents, :translate_backpex}
-
-config :backpex, :error_translator_function, {DemoWeb.CoreComponents, :translate_error}
+config :backpex,
+  pubsub_server: Demo.PubSub,
+  translator_function: {DemoWeb.CoreComponents, :translate_backpex},
+  error_translator_function: {DemoWeb.CoreComponents, :translate_error}
 
 import_config "#{config_env()}.exs"
