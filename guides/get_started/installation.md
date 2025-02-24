@@ -68,7 +68,7 @@ In your `tailwind.config.js`:
 ..,
 content: [
   ...,
-  // add this line
+  // add this lines
   '../deps/backpex/**/*.*ex'
   '../deps/backpex/assets/js/**/*.*js'
 ]
