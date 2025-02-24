@@ -54,7 +54,7 @@ defmodule Backpex.Fields.Boolean do
         <BackpexForm.input
           type="toggle"
           field={@form[:value]}
-          input_class={["toggle toggle-sm  toggle-success", "hover:input-bordered"]}
+          input_class={["toggle toggle-sm toggle-success", "hover:input-bordered"]}
           phx-debounce={Backpex.Field.debounce(@field_options, assigns)}
           phx-throttle={Backpex.Field.throttle(@field_options, assigns)}
           readonly={@readonly}
