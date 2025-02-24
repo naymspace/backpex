@@ -946,11 +946,7 @@ defmodule Backpex.HTML.Resource do
       <.form method="POST" for={@form} action={Router.cookie_path(@socket)}>
         <input type="hidden" name={@form[:_resource].name} value={@form[:_resource].value} />
         <input type="hidden" name={@form[:_cookie_redirect_url].name} value={@form[:_cookie_redirect_url].value} />
-        <div
-          id="toggle-metrics-button"
-          phx-hook="BackpexTooltip"
-          data-tooltip={Backpex.translate("Toggle metrics")}
-        >
+        <div id="toggle-metrics-button" phx-hook="BackpexTooltip" data-tooltip={Backpex.translate("Toggle metrics")}>
           <button
             type="submit"
             class={["btn btn-sm", @visible && "btn-primary", !@visible && "btn-neutral"]}
