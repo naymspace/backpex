@@ -878,28 +878,56 @@ defmodule Backpex.HTML.Resource do
   end
 
   @doc """
-  Renders an edit panel.
+  Renders an card for wrapping form fields. May be used to recreate the look of an Backpex edit view.
+
+  ## Examples
+
+      <.form :let={f} for={@form} phx-change="validate" phx-submit="submit">
+        <.edit_card>
+          <:panel label="Names">
+            <.input field={f[:first_name]} type="text" />
+            <.input field={f[:last_name]} type="text" />
+          </:panel>
+
+          <:actions>
+            <button>Save</button>
+          </:action>
+        </.edit_card>
+      </.form>
   """
   @doc type: :component
 
-  attr :form, :any
-  attr :class, :string, default: "", doc: "extra class to be added"
-  attr :panel_fields, :list, required: true, doc: "list of fields to be rendered in the panel"
-  attr :label, :any, default: nil, doc: "optional label for the panel"
+  slot :panel, doc: "a panel section" do
+    attr :class, :string, doc: "optional class to be added to the wrapping panel element"
+    attr :label, :string, doc: "optional label to be displayed as a headline for the panel"
+  end
 
-  def edit_panel(assigns) do
+  slot :actions, doc: "actions like a save or cancel button"
+
+  def edit_card(assigns) do
     ~H"""
-    <fieldset class={["contents", @class]}>
-      <div :if={@label != nil}>
-        <hr class="border-1 border-base-200 mb-8" />
+    <div class="card bg-base-100 shadow-sm">
+      <div class="card-body p-0">
+        <%!-- Card Body --%>
+        <div class="first:pt-3 last:pb-3">
+          <fieldset :for={{panel, i} <- Enum.with_index(@panel)} class={Map.get(panel, :class)}>
+            <div :if={panel[:label]}>
+              <hr :if={i != 0} class="border-1 border-base-200 mb-8" />
 
-        <legend class="mb-4 px-6 text-lg font-semibold">
-          {@label}
-        </legend>
+              <legend class="mb-4 px-6 text-lg font-semibold">
+                {panel[:label]}
+              </legend>
+            </div>
+            {render_slot(panel)}
+          </fieldset>
+        </div>
+
+        <%!-- Action Buttons --%>
+        <div class="bg-base-200/50 rounded-b-box flex items-center justify-end space-x-4 px-6 py-3">
+          {render_slot(@actions)}
+        </div>
       </div>
-
-      <.resource_form_field :for={{name, _field_options} <- @panel_fields} name={name} form={@form} {assigns} />
-    </fieldset>
+    </div>
     """
   end
 
