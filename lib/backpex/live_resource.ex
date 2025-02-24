@@ -389,7 +389,6 @@ defmodule Backpex.LiveResource do
             phx-hook="BackpexTooltip"
             data-tooltip={Backpex.translate("Edit")}
             aria-label={Backpex.translate("Edit")}
-            class="tooltip hover:z-30"
             patch={Router.get_path(@socket, @live_resource, @params, :edit, @item)}
           >
             <Backpex.HTML.CoreComponents.icon

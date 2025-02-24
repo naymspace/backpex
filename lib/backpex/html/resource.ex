@@ -949,7 +949,6 @@ defmodule Backpex.HTML.Resource do
         <div
           id="toggle-metrics-button"
           phx-hook="BackpexTooltip"
-          class="tooltip hover:z-30"
           data-tooltip={Backpex.translate("Toggle metrics")}
         >
           <button
