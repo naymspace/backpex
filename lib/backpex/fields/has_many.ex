@@ -149,8 +149,8 @@ defmodule Backpex.Fields.HasMany do
             tabindex="0"
             class={[
               "input block h-fit w-full p-2",
-              @errors == [] && "input-bordered bg-transparent",
-              @errors != [] && "input-error bg-error/10"
+              @errors == [] && "bg-transparent",
+              @errors != [] && "input-error bg-error/10 input-ghost"
             ]}
           >
             <div class="flex h-full w-full flex-wrap items-center gap-1 px-2">
@@ -179,7 +179,7 @@ defmodule Backpex.Fields.HasMany do
               <input
                 type="search"
                 name={"#{@name}_search"}
-                class="input input-sm input-bordered mb-2 w-full"
+                class="input input-sm mb-2 w-full"
                 phx-change="search"
                 phx-target={@myself}
                 placeholder={Backpex.translate("Search")}

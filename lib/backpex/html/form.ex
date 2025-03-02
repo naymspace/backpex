@@ -196,10 +196,7 @@ defmodule Backpex.HTML.Form do
           name={@name}
           id={@id}
           value={Phoenix.HTML.Form.normalize_value(@type, @value)}
-          class={
-            @input_class ||
-              ["input", @input_class, @errors == [] && "input-bordered", @errors != [] && "input-error bg-error/10"]
-          }
+          class={@input_class || ["input", @input_class, @errors != [] && "input-error bg-error/10 input-ghost"]}
           {@rest}
         />
       </div>
@@ -250,7 +247,7 @@ defmodule Backpex.HTML.Form do
 
     ~H"""
     <div class="dropdown w-full">
-      <label tabindex="0" class="input input-bordered block h-fit w-full p-2">
+      <label tabindex="0" class="input block h-fit w-full p-2">
         <div class="flex h-full w-full flex-wrap items-center gap-1 px-2">
           <p :if={@selected == []} class="text-base-content p-0.5 text-sm">
             {@prompt}
@@ -279,7 +276,7 @@ defmodule Backpex.HTML.Form do
           <input
             type="search"
             name={@field.name <> "_search"}
-            class="input input-sm input-bordered mb-2 w-full"
+            class="input input-sm mb-2 w-full"
             placeholder={Backpex.translate("Search")}
             value={@search_input}
             phx-change={@search_event}
