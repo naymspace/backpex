@@ -227,7 +227,7 @@ defmodule Backpex.HTML.Resource do
           {Backpex.translate("Filters")}
         </label>
       </div>
-      <div tabindex="0" class="dropdown-content z-[1] menu bg-base-100 rounded-box p-4 shadow">
+      <div tabindex="0" class="dropdown-content z-[1] menu bg-base-100 rounded-box w-full p-4 shadow">
         <.index_filter_forms filters={@filters} filter_options={@filter_options} />
       </div>
     </div>
@@ -607,7 +607,7 @@ defmodule Backpex.HTML.Resource do
 
     ~H"""
     <.form for={@form} class={@class} phx-change="select-page-size" phx-submit="select-page-size">
-      <select name={@form[:value].name} class="select select-sm select-bordered">
+      <select name={@form[:value].name} class="select select-sm">
         {Phoenix.HTML.Form.options_for_select(@options, @selected)}
       </select>
     </.form>

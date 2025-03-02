@@ -147,7 +147,7 @@ defmodule Backpex.HTML.Form do
         <div class={
           @input_wrapper_class ||
             [
-              @errors == [] && "[&>*]:select [&>*]:select-bordered [&>*]:text-base-content",
+              @errors == [] && "[&>*]:select [&>*]:text-base-content",
               @errors != [] && "[&>*]:select [&>*]:select-error [&>*]:bg-error/10 [&>*]:text-error-content"
             ]
         }>
