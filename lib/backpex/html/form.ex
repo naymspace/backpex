@@ -60,7 +60,7 @@ defmodule Backpex.HTML.Form do
 
     ~H"""
     <div class={@class}>
-      <div class="form-control w-full">
+      <fieldset class="fieldset w-full">
         <%= if @label do %>
           <label class="label cursor-pointer">
             <input type="hidden" name={@name} value="false" />
@@ -93,7 +93,7 @@ defmodule Backpex.HTML.Form do
             {@rest}
           />
         <% end %>
-      </div>
+      </fieldset>
       <.error :for={msg <- @errors} :if={not @hide_errors} class="mt-1">{msg}</.error>
     </div>
     """
@@ -104,7 +104,7 @@ defmodule Backpex.HTML.Form do
 
     ~H"""
     <div class={@class}>
-      <div class="form-control w-full">
+      <fieldset class="fieldset w-full">
         <%= if @label do %>
           <label class="label cursor-pointer">
             <input type="hidden" name={@name} value="false" />
@@ -131,7 +131,7 @@ defmodule Backpex.HTML.Form do
             {@rest}
           />
         <% end %>
-      </div>
+      </fieldset>
       <.error :for={msg <- @errors} :if={not @hide_errors} class="mt-1">{msg}</.error>
     </div>
     """
@@ -140,7 +140,7 @@ defmodule Backpex.HTML.Form do
   def input(%{type: "select"} = assigns) do
     ~H"""
     <div class={@class}>
-      <div class="form-control">
+      <fieldset class="fieldset">
         <label :if={@label} class="label">
           <span class="label-text">{@label}</span>
         </label>
@@ -156,7 +156,7 @@ defmodule Backpex.HTML.Form do
             {Phoenix.HTML.Form.options_for_select(@options, @value)}
           </select>
         </div>
-      </div>
+      </fieldset>
       <.error :for={msg <- @errors} :if={not @hide_errors} class="mt-1">{msg}</.error>
     </div>
     """
@@ -165,7 +165,7 @@ defmodule Backpex.HTML.Form do
   def input(%{type: "textarea"} = assigns) do
     ~H"""
     <div class={@class}>
-      <div class="form-control">
+      <fieldset class="fieldset">
         <label :if={@label} class="label">
           <span class="label-text">{@label}</span>
         </label>
@@ -178,7 +178,7 @@ defmodule Backpex.HTML.Form do
           }
           {@rest}
         ><%= Phoenix.HTML.Form.normalize_value("textarea", @value) %></textarea>
-      </div>
+      </fieldset>
       <.error :for={msg <- @errors} :if={not @hide_errors} class="mt-1">{msg}</.error>
     </div>
     """
@@ -187,7 +187,7 @@ defmodule Backpex.HTML.Form do
   def input(assigns) do
     ~H"""
     <div class={@class}>
-      <div class="form-control">
+      <fieldset class="fieldset">
         <label :if={@label} class="label">
           <span class="label-text">{@label}</span>
         </label>
@@ -199,7 +199,7 @@ defmodule Backpex.HTML.Form do
           class={@input_class || ["input", @input_class, @errors != [] && "input-error bg-error/10 input-ghost"]}
           {@rest}
         />
-      </div>
+      </fieldset>
       <.error :for={msg <- @errors} :if={not @hide_errors} class="mt-1">{msg}</.error>
     </div>
     """
