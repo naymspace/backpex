@@ -2,12 +2,12 @@ module.exports = {
   theme: {
     container: {
       center: true,
-      padding: "g2rem",
+      padding: '2rem',
     },
     extend: {
       colors: {
-        transparent: "transparent",
-        current: "currentColor",
+        transparent: 'transparent',
+        current: 'currentColor',
       },
     },
   },
