@@ -1,8 +1,19 @@
 @import 'tailwindcss';
 @config "../tailwind.config.js";
-@plugin "daisyui";
+@plugin "../tailwind_heroicons.js";
+@plugin "daisyui" {
+  themes: dark, cupcake, bumblebee, emerald, corporate, synthwave, retro, cyberpunk, valentine, halloween, garden, forest, aqua, lofi, pastel, fantasy, wireframe, black, luxury, dracula, cmyk, autumn, business, acid, lemonade, night, coffee, winter, dim, nord, sunset;
+}
+@plugin "daisyui/theme" {
+  name: "light";
+  --color-primary: blue;
+  --color-secondary: teal;
+  --color-primary: #1d4ed8;
+  --color-primary-content : white;
+  --color-secondary: #f39325;
+  --color-secondary-content: white;
+}
 @plugin "@tailwindcss/typography";
-
 @source "../../../lib/**/*.*ex";
 
 @layer base {
