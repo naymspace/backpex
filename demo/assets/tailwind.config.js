@@ -2,7 +2,7 @@ module.exports = {
   theme: {
     container: {
       center: true,
-      padding: "2rem",
+      padding: "g2rem",
     },
     extend: {
       colors: {
