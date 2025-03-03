@@ -16,16 +16,6 @@
 @plugin "@tailwindcss/typography";
 @source "../../../lib/**/*.*ex";
 
-@layer base {
-  *,
-  ::after,
-  ::before,
-  ::backdrop,
-  ::file-selector-button {
-    border-color: var(--color-gray-200, currentColor);
-  }
-}
-
 @utility phx-click-loading {
   opacity: 0.5;
   transition: opacity 1s ease-out;
