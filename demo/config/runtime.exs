@@ -7,7 +7,7 @@ config :demo,
   analytics: get_env("ANALYTICS", "false") |> to_existing_atom()
 
 config :demo, Demo.Repo,
-  hostname: get_env("DB_HOSTNAME", "postgres"),
+  hostname: get_env("DB_HOSTNAME", "localhost"),
   username: get_env("DB_USERNAME", "postgres"),
   password: get_env("DB_PASSWORD", "postgres"),
   database: get_env("DB_DATABASE", "postgres"),
@@ -23,9 +23,9 @@ config :demo, DemoWeb.Endpoint,
     host: get_env("HOST", "localhost"),
     port: get_env("URL_PORT", "4000")
   ],
-  secret_key_base: fetch_env!("SECRET_KEY_BASE"),
+  secret_key_base: "np5uHqUApBqAqesURR/sUlc0HJadx/4eBidnQ/w1bH/L1EiCdNlw1id9M/TrziRq",
   live_view: [
-    signing_salt: fetch_env!("LIVE_VIEW_SIGNING_SALT")
+    signing_salt: "eYlXHghV/uji6ZNUhq+fb63bNVcps7CC"
   ]
 
 config :demo, DemoWeb.DashboardAuthPlug,
