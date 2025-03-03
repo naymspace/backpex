@@ -180,7 +180,7 @@ defmodule Backpex.HTML.Layout do
 
   def topbar_branding(assigns) do
     ~H"""
-    <div class={"#{@class} text-base-content flex flex-shrink-0 flex-grow items-center space-x-2"}>
+    <div class={"#{@class} text-base-content flex shrink-0 flex-grow items-center space-x-2"}>
       <%= if @logo === [] do %>
         <.backpex_logo class="w-8" />
       <% else %>
@@ -466,7 +466,7 @@ defmodule Backpex.HTML.Layout do
     <div id="modal">
       <div
         id="modal-overlay"
-        class={["animate-fade-in bg-neutral fixed inset-0 z-50 bg-opacity-40 transition-opacity", if(!@open, do: "hidden")]}
+        class={["animate-fade-in bg-neutral/40 fixed inset-0 z-50 transition-opacity", if(!@open, do: "hidden")]}
         aria-hidden="true"
       >
       </div>

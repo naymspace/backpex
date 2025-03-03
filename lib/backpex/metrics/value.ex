@@ -47,7 +47,7 @@ defmodule Backpex.Metrics.Value do
       |> assign(:class, Map.get(assigns.metric, :class))
 
     ~H"""
-    <div class={["card bg-base-100 mb-4 shadow-sm", @class]}>
+    <div class={["card bg-base-100 shadow-xs mb-4", @class]}>
       <div class="card-body p-4">
         <p class="card-title text-base-content/60 text-sm font-normal">
           {@label}
