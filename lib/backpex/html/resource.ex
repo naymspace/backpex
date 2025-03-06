@@ -153,7 +153,7 @@ defmodule Backpex.HTML.Resource do
     <.live_component
       id={"resource_#{@name}"}
       module={@field_options.module}
-      field_uploads={get_in(assigns, [:uploads, @name])}
+      lv_uploads={assigns[:uploads]}
       type={@type}
       {Map.drop(assigns, [:socket, :flash, :myself, :uploads])}
     />
@@ -183,7 +183,7 @@ defmodule Backpex.HTML.Resource do
       |> assign(:form, form)
 
     ~H"""
-    <.form :if={@search_enabled} for={@form} phx-change="index-search" phx-submit="index-search">
+    <.form :if={@search_enabled} id="index-search-form" for={@form} phx-change="index-search" phx-submit="index-search">
       <input
         name={@form[:value].name}
         class="input input-sm input-bordered"
@@ -316,7 +316,6 @@ defmodule Backpex.HTML.Resource do
   attr :live_resource, :atom, required: true, doc: "the live resource"
   attr :current_url, :string, required: true, doc: "the current url"
   attr :class, :string, default: "", doc: "additional class to be added to the component"
-  attr :x_style, :string, default: "", doc: "alpine-bound inline styles for the root div"
 
   def toggle_columns(assigns) do
     form =
@@ -327,7 +326,7 @@ defmodule Backpex.HTML.Resource do
     assigns = assign(assigns, :form, form)
 
     ~H"""
-    <div class={["dropdown", @class]} x-bind:style={@x_style}>
+    <div class={["dropdown", @class]}>
       <label tabindex="0" class="hover:cursor-pointer">
         <span class="sr-only">
           {Backpex.translate("Toggle columns")}
@@ -338,7 +337,7 @@ defmodule Backpex.HTML.Resource do
           class="text-base-content/50 h-5 w-5 hover:text-base-content"
         />
       </label>
-      <div tabindex="0" class="dropdown-content z-[1] menu bg-base-100 rounded-box min-w-52 max-w-72 p-4 shadow">
+      <div tabindex="0" class="dropdown-content menu bg-base-100 rounded-box min-w-52 max-w-72 p-4 shadow">
         <.form class="w-full" method="POST" for={@form} action={Router.cookie_path(@socket)}>
           <input type="hidden" name={@form[:_resource].name} value={@form[:_resource].value} />
           <input type="hidden" name={@form[:_cookie_redirect_url].name} value={@form[:_cookie_redirect_url].value} />
@@ -387,15 +386,19 @@ defmodule Backpex.HTML.Resource do
   def pagination_info(assigns) do
     %{query_options: %{page: page, per_page: per_page}} = assigns
 
-    assigns =
-      assigns
-      |> assign(:from, (page - 1) * per_page + 1)
-      |> assign(:to, min(page * per_page, assigns.total))
+    from = (page - 1) * per_page + 1
+    to = min(page * per_page, assigns.total)
+
+    from_to_string = Backpex.translate({"Items %{from} to %{to}", %{from: from, to: to}})
+    total_string = "(#{assigns.total} #{Backpex.translate("total")})"
+
+    label = from_to_string <> " " <> total_string
+
+    assigns = assign(assigns, :label, label)
 
     ~H"""
     <div :if={@total > 0} class="text-base-content pr-2 text-sm">
-      {Backpex.translate({"Items %{from} to %{to}", %{from: @from, to: @to}})}
-      {"(#{@total} #{Backpex.translate("total")})"}
+      {@label}
     </div>
     """
   end
@@ -874,28 +877,56 @@ defmodule Backpex.HTML.Resource do
   end
 
   @doc """
-  Renders an edit panel.
+  Renders an card for wrapping form fields. May be used to recreate the look of an Backpex edit view.
+
+  ## Examples
+
+      <.form :let={f} for={@form} phx-change="validate" phx-submit="submit">
+        <.edit_card>
+          <:panel label="Names">
+            <.input field={f[:first_name]} type="text" />
+            <.input field={f[:last_name]} type="text" />
+          </:panel>
+
+          <:actions>
+            <button>Save</button>
+          </:action>
+        </.edit_card>
+      </.form>
   """
   @doc type: :component
 
-  attr :form, :any
-  attr :class, :string, default: "", doc: "extra class to be added"
-  attr :panel_fields, :list, required: true, doc: "list of fields to be rendered in the panel"
-  attr :label, :any, default: nil, doc: "optional label for the panel"
+  slot :panel, doc: "a panel section" do
+    attr :class, :string, doc: "optional class to be added to the wrapping panel element"
+    attr :label, :string, doc: "optional label to be displayed as a headline for the panel"
+  end
 
-  def edit_panel(assigns) do
+  slot :actions, doc: "actions like a save or cancel button"
+
+  def edit_card(assigns) do
     ~H"""
-    <fieldset class={["contents", @class]}>
-      <div :if={@label != nil}>
-        <hr class="border-1 border-base-200 mb-8" />
+    <div class="card bg-base-100 shadow-sm">
+      <div class="card-body p-0">
+        <%!-- Card Body --%>
+        <div class="first:pt-3 last:pb-3">
+          <fieldset :for={{panel, i} <- Enum.with_index(@panel)} class={Map.get(panel, :class)}>
+            <div :if={panel[:label]}>
+              <hr :if={i != 0} class="border-1 border-base-200 mb-8" />
 
-        <legend class="mb-4 px-6 text-lg font-semibold">
-          {@label}
-        </legend>
+              <legend class="mb-4 px-6 text-lg font-semibold">
+                {panel[:label]}
+              </legend>
+            </div>
+            {render_slot(panel)}
+          </fieldset>
+        </div>
+
+        <%!-- Action Buttons --%>
+        <div class="bg-base-200/50 rounded-b-box flex items-center justify-end space-x-4 px-6 py-3">
+          {render_slot(@actions)}
+        </div>
       </div>
-
-      <.resource_form_field :for={{name, _field_options} <- @panel_fields} name={name} form={@form} {assigns} />
-    </fieldset>
+    </div>
     """
   end
 
@@ -943,7 +974,7 @@ defmodule Backpex.HTML.Resource do
       <.form method="POST" for={@form} action={Router.cookie_path(@socket)}>
         <input type="hidden" name={@form[:_resource].name} value={@form[:_resource].value} />
         <input type="hidden" name={@form[:_cookie_redirect_url].name} value={@form[:_cookie_redirect_url].value} />
-        <div class="tooltip hover:z-30" data-tip={Backpex.translate("Toggle metrics")}>
+        <div id="toggle-metrics-button" phx-hook="BackpexTooltip" data-tooltip={Backpex.translate("Toggle metrics")}>
           <button
             type="submit"
             class={["btn btn-sm", @visible && "btn-primary", !@visible && "btn-neutral"]}
@@ -979,10 +1010,18 @@ defmodule Backpex.HTML.Resource do
   end
 
   defp index_row_class(assigns, item, selected, index) do
-    base_class = if selected, do: "bg-base-200/50", else: "bg-base-100"
+    base_class = if selected, do: "bg-base-200", else: "bg-base-100"
     extra_class = assigns.live_resource.index_row_class(assigns, item, selected, index)
 
     [base_class, extra_class]
+  end
+
+  defp sticky_col_class do
+    [
+      "sticky right-0",
+      "after:[&[stuck]]:block after:absolute after:inset-y-0 after:left-0 after:hidden",
+      "after:border-r after:border-base-200 after:shadow-[-1px_0_2px_0_rgba(0,0,0,0.05)]"
+    ]
   end
 
   defp align_class(:left), do: "justify-start text-left"
@@ -993,5 +1032,8 @@ defmodule Backpex.HTML.Resource do
   defp toggle_order_direction(:asc), do: :desc
   defp toggle_order_direction(:desc), do: :asc
 
-  defp shadow_sm_left, do: "box-shadow: -1px 0 2px 0 rgba(0,0,0,0.05)"
+  defp primary_value(item, live_resource) do
+    item
+    |> Map.get(live_resource.config(:primary_key))
+  end
 end

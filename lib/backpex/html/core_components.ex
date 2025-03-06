@@ -4,6 +4,11 @@ defmodule Backpex.HTML.CoreComponents do
   """
   use BackpexWeb, :html
 
+  @doc """
+  Renders a Heroicons icon.
+  """
+  @doc type: :component
+
   attr :name, :string, required: true
   attr :class, :any, default: nil
   attr :rest, :global, default: %{"aria-hidden": "true", viewBox: "0 0 24 24", fill: "currentColor"}
@@ -17,6 +22,8 @@ defmodule Backpex.HTML.CoreComponents do
   @doc """
   Renders a filter_badge component.
   """
+  @doc type: :component
+
   attr :clear_event, :string, default: "clear-filter", doc: "event name for removing the badge"
   attr :filter_name, :string, required: true
   attr :label, :string, required: true

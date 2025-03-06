@@ -146,23 +146,23 @@ defmodule Backpex.LiveResource do
   @callback can?(assigns :: map(), action :: atom(), item :: map() | nil) :: boolean()
 
   @doc """
-  The function that can be used to inject an ecto query. The query will be used when resources are being fetched. This happens on `index`, `edit`
-  and `show` view. In most cases this function will be used to filter items on `index` view based on certain criteria, but it may also be used
-  to join other tables on `edit` or `show` view.
-
-  The function has to return an `Ecto.Query`. It is recommended to build your `item_query` on top of the incoming query. Otherwise you will likely get binding errors.
-  """
-  @callback item_query(query :: Ecto.Query.t(), live_action :: atom(), assigns :: map()) :: Ecto.Query.t()
-
-  @doc """
   The function that can be used to add content to certain positions on Backpex views. It may also be used to overwrite content.
 
-  The following actions are supported: `:index`, `:show`
+  See the following list for the available positions and the corresponding actions:
 
-  The following positions are supported for the `:index` action: `:page_title`, `:actions`, `:filters`, `:metrics` and `:main`.
-  The following positions are supported for the `:show` action: `:page_title` and `:main`.
-
-  In addition to this, content can be inserted between the main positions via the following extra spots: `:before_page_title`, `:before_actions`, `:before_filters`, `:before_metrics` and `:before_main`.
+  - all actions
+    - `:before_page_title`
+    - `:page_title`
+    - `:before_main`
+    - `:main`
+    - `:after_main`
+  - `:index` action
+    - `:before_actions`
+    - `:actions`
+    - `:before_filters`
+    - `:filters`
+    - `:before_metrics`
+    - `:metrics`
   """
   @callback render_resource_slot(assigns :: map(), action :: atom(), position :: atom()) ::
               %Phoenix.LiveView.Rendered{}
@@ -247,7 +247,6 @@ defmodule Backpex.LiveResource do
 
       import Backpex.LiveResource
       import Phoenix.LiveView.Helpers
-      import Ecto.Query
 
       alias Backpex.LiveResource
 
@@ -329,9 +328,6 @@ defmodule Backpex.LiveResource do
       def search_placeholder, do: Backpex.translate("Search")
 
       @impl Backpex.LiveResource
-      def item_query(query, _live_action, _assigns), do: query
-
-      @impl Backpex.LiveResource
       def on_item_created(socket, _item), do: socket
 
       @impl Backpex.LiveResource
@@ -342,7 +338,7 @@ defmodule Backpex.LiveResource do
 
       @impl Backpex.LiveResource
       def return_to(socket, assigns, _action, _item) do
-        Map.get(assigns, :return_to, Router.get_path(socket, assigns.live_resource, %{}, :index))
+        Map.get(assigns, :return_to, Router.get_path(socket, assigns.live_resource, assigns.params, :index))
       end
 
       @impl Backpex.LiveResource
@@ -389,8 +385,9 @@ defmodule Backpex.LiveResource do
           {@singular_name}
           <.link
             :if={@live_resource.can?(assigns, :edit, @item)}
-            class="tooltip hover:z-30"
-            data-tip={Backpex.translate("Edit")}
+            id={"#{@singular_name}-edit-link"}
+            phx-hook="BackpexTooltip"
+            data-tooltip={Backpex.translate("Edit")}
             aria-label={Backpex.translate("Edit")}
             patch={Router.get_path(@socket, @live_resource, @params, :edit, @item)}
           >
@@ -458,24 +455,22 @@ defmodule Backpex.LiveResource do
     fluid? = live_resource.config(:fluid?)
     full_text_search = live_resource.config(:full_text_search)
 
-    socket =
-      socket
-      |> assign(:live_resource, live_resource)
-      |> assign(:schema, adapter_config[:schema])
-      |> assign(:repo, adapter_config[:repo])
-      |> assign(:singular_name, live_resource.singular_name())
-      |> assign(:plural_name, live_resource.plural_name())
-      |> assign(:create_button_label, live_resource.create_button_label())
-      |> assign(:resource_created_message, live_resource.resource_created_message())
-      |> assign(:search_placeholder, live_resource.search_placeholder())
-      |> assign(:panels, live_resource.panels())
-      |> assign(:fluid?, fluid?)
-      |> assign(:full_text_search, full_text_search)
-      |> assign_active_fields(session)
-      |> assign_metrics_visibility(session)
-      |> assign_filters_changed_status(params)
-
-    {:ok, socket}
+    socket
+    |> assign(:live_resource, live_resource)
+    |> assign(:schema, adapter_config[:schema])
+    |> assign(:repo, adapter_config[:repo])
+    |> assign(:singular_name, live_resource.singular_name())
+    |> assign(:plural_name, live_resource.plural_name())
+    |> assign(:create_button_label, live_resource.create_button_label())
+    |> assign(:resource_created_message, live_resource.resource_created_message())
+    |> assign(:search_placeholder, live_resource.search_placeholder())
+    |> assign(:panels, live_resource.panels())
+    |> assign(:fluid?, fluid?)
+    |> assign(:full_text_search, full_text_search)
+    |> assign_active_fields(session)
+    |> assign_metrics_visibility(session)
+    |> assign_filters_changed_status(params)
+    |> ok()
   end
 
   defp assign_active_fields(socket, session) do
@@ -521,10 +516,8 @@ defmodule Backpex.LiveResource do
   end
 
   def assign_items(socket) do
-    %{live_resource: live_resource, fields: fields} = socket.assigns
-
     criteria = build_criteria(socket.assigns)
-    items = Resource.list(fields, socket.assigns, live_resource, criteria)
+    {:ok, items} = Resource.list(criteria, socket.assigns, socket.assigns.live_resource)
 
     assign(socket, :items, items)
   end
@@ -535,7 +528,6 @@ defmodule Backpex.LiveResource do
         %{
           repo: repo,
           schema: schema,
-          live_action: live_action,
           live_resource: live_resource,
           fields: fields,
           query_options: query_options,
@@ -548,14 +540,12 @@ defmodule Backpex.LiveResource do
     metrics =
       socket.assigns.live_resource.metrics()
       |> Enum.map(fn {key, metric} ->
-        query =
-          EctoAdapter.list_query(
-            assigns,
-            &socket.assigns.live_resource.item_query(&1, live_action, assigns),
-            fields,
-            search: search_options(query_options, fields, schema),
-            filters: filter_options(query_options, filters)
-          )
+        criteria = [
+          search: search_options(query_options, fields, schema),
+          filters: filter_options(query_options, filters)
+        ]
+
+        query = EctoAdapter.list_query(criteria, assigns, live_resource)
 
         case Backpex.Metric.metrics_visible?(metric_visibility, live_resource) do
           true ->
@@ -594,13 +584,11 @@ defmodule Backpex.LiveResource do
 
   @impl Phoenix.LiveView
   def handle_params(params, _url, socket) do
-    socket =
-      socket
-      |> assign(:params, params)
-      |> apply_item_actions(socket.assigns.live_action)
-      |> apply_action(socket.assigns.live_action)
-
-    {:noreply, socket}
+    socket
+    |> assign(:params, params)
+    |> apply_item_actions(socket.assigns.live_action)
+    |> apply_action(socket.assigns.live_action)
+    |> noreply()
   end
 
   @doc """
@@ -747,7 +735,7 @@ defmodule Backpex.LiveResource do
       filters: filter_options(valid_filter_params, filters)
     ]
 
-    item_count = Resource.count(fields, socket.assigns, live_resource, count_criteria)
+    {:ok, item_count} = Resource.count(count_criteria, socket.assigns, live_resource)
 
     per_page =
       params
@@ -867,11 +855,9 @@ defmodule Backpex.LiveResource do
 
   @impl Phoenix.LiveView
   def handle_event("close-modal", _params, socket) do
-    socket =
-      socket
-      |> push_patch(to: socket.assigns.return_to)
-
-    {:noreply, socket}
+    socket
+    |> push_patch(to: socket.assigns.return_to)
+    |> noreply()
   end
 
   @impl Phoenix.LiveView
@@ -906,9 +892,9 @@ defmodule Backpex.LiveResource do
         Map.merge(query_options, %{per_page: per_page})
       )
 
-    socket = push_patch(socket, to: to, replace: true)
-
-    {:noreply, socket}
+    socket
+    |> push_patch(to: to, replace: true)
+    |> noreply()
   end
 
   @impl Phoenix.LiveView
@@ -924,9 +910,9 @@ defmodule Backpex.LiveResource do
         Map.merge(query_options, %{search: search_input})
       )
 
-    socket = push_patch(socket, to: to, replace: true)
-
-    {:noreply, socket}
+    socket
+    |> push_patch(to: to, replace: true)
+    |> noreply()
   end
 
   @impl Phoenix.LiveView
@@ -955,12 +941,10 @@ defmodule Backpex.LiveResource do
         Map.put(query_options, :filters, filters)
       )
 
-    socket =
-      socket
-      |> assign(filters_changed: true)
-      |> push_patch(to: to)
-
-    {:noreply, socket}
+    socket
+    |> assign(filters_changed: true)
+    |> push_patch(to: to)
+    |> noreply()
   end
 
   @impl Phoenix.LiveView
@@ -978,13 +962,12 @@ defmodule Backpex.LiveResource do
 
     to = Router.get_path(socket, live_resource, params, :index, new_query_options)
 
-    socket =
-      push_patch(socket, to: to)
-      |> assign(params: Map.merge(params, new_query_options))
-      |> assign(query_options: new_query_options)
-      |> assign(filters_changed: true)
-
-    {:noreply, socket}
+    socket
+    |> push_patch(to: to)
+    |> assign(params: Map.merge(params, new_query_options))
+    |> assign(query_options: new_query_options)
+    |> assign(filters_changed: true)
+    |> noreply()
   end
 
   @impl Phoenix.LiveView
@@ -1013,12 +996,10 @@ defmodule Backpex.LiveResource do
         Map.put(query_options, :filters, filters)
       )
 
-    socket =
-      socket
-      |> assign(filters_changed: true)
-      |> push_patch(to: to)
-
-    {:noreply, socket}
+    socket
+    |> assign(filters_changed: true)
+    |> push_patch(to: to)
+    |> noreply()
   end
 
   @impl Phoenix.LiveView
@@ -1036,12 +1017,10 @@ defmodule Backpex.LiveResource do
 
     select_all = length(updated_selected_items) == length(socket.assigns.items)
 
-    socket =
-      socket
-      |> assign(:selected_items, updated_selected_items)
-      |> assign(:select_all, select_all)
-
-    {:noreply, socket}
+    socket
+    |> assign(:selected_items, updated_selected_items)
+    |> assign(:select_all, select_all)
+    |> noreply()
   end
 
   @impl Phoenix.LiveView
@@ -1055,12 +1034,10 @@ defmodule Backpex.LiveResource do
         []
       end
 
-    socket =
-      socket
-      |> assign(:select_all, select_all)
-      |> assign(:selected_items, selected_items)
-
-    {:noreply, socket}
+    socket
+    |> assign(:select_all, select_all)
+    |> assign(:selected_items, selected_items)
+    |> noreply()
   end
 
   @impl Phoenix.LiveView
@@ -1068,12 +1045,10 @@ defmodule Backpex.LiveResource do
     changeset = Ecto.Changeset.put_assoc(socket.assigns.changeset, key, value)
     assocs = Map.get(socket.assigns, :assocs, []) |> Keyword.put(key, value)
 
-    socket =
-      socket
-      |> assign(:assocs, assocs)
-      |> assign(:changeset, changeset)
-
-    {:noreply, socket}
+    socket
+    |> assign(:assocs, assocs)
+    |> assign(:changeset, changeset)
+    |> noreply()
   end
 
   @impl Phoenix.LiveView
@@ -1081,17 +1056,17 @@ defmodule Backpex.LiveResource do
     changeset = Ecto.Changeset.put_embed(socket.assigns.changeset, key, value)
     embeds = Map.get(socket.assigns, :embeds, []) |> Keyword.put(key, value)
 
-    socket =
-      socket
-      |> assign(:embeds, embeds)
-      |> assign(:changeset, changeset)
-
-    {:noreply, socket}
+    socket
+    |> assign(:embeds, embeds)
+    |> assign(:changeset, changeset)
+    |> noreply()
   end
 
   @impl Phoenix.LiveView
   def handle_info({:update_changeset, changeset}, socket) do
-    {:noreply, assign(socket, :changeset, changeset)}
+    socket
+    |> assign(:changeset, changeset)
+    |> noreply()
   end
 
   @impl Phoenix.LiveView
@@ -1143,7 +1118,7 @@ defmodule Backpex.LiveResource do
       filters: filter_options(valid_filter_params, filters)
     ]
 
-    item_count = Resource.count(fields, socket.assigns, live_resource, count_criteria)
+    {:ok, item_count} = Resource.count(count_criteria, socket.assigns, live_resource)
     %{page: page, per_page: per_page} = query_options
     total_pages = calculate_total_pages(item_count, per_page)
     new_query_options = Map.put(query_options, :page, validate_page(page, total_pages))
@@ -1160,7 +1135,7 @@ defmodule Backpex.LiveResource do
     %{live_resource: live_resource, live_action: live_action} = socket.assigns
 
     item_primary_value = primary_value(socket, item)
-    item = Resource.get(item_primary_value, socket.assigns, live_resource)
+    {:ok, item} = Resource.get(item_primary_value, socket.assigns, live_resource)
 
     socket =
       cond do
@@ -1193,24 +1168,22 @@ defmodule Backpex.LiveResource do
   end
 
   defp open_action_confirm_modal(socket, action, key) do
-    socket =
-      if Backpex.ItemAction.has_form?(action) do
-        changeset_function = &action.module.changeset/3
-        base_schema = action.module.base_schema(socket.assigns)
+    if Backpex.ItemAction.has_form?(action) do
+      changeset_function = &action.module.changeset/3
+      base_schema = action.module.base_schema(socket.assigns)
 
-        metadata = Resource.build_changeset_metadata(socket.assigns)
-        changeset = changeset_function.(base_schema, %{}, metadata)
+      metadata = Resource.build_changeset_metadata(socket.assigns)
+      changeset = changeset_function.(base_schema, %{}, metadata)
 
-        socket
-        |> assign(:item, base_schema)
-        |> assign(:changeset, changeset)
-      else
-        socket
-        |> assign(:changeset, %{})
-      end
-      |> assign(:action_to_confirm, Map.put(action, :key, key))
-
-    {:noreply, socket}
+      socket
+      |> assign(:item, base_schema)
+      |> assign(:changeset, changeset)
+    else
+      socket
+      |> assign(:changeset, %{})
+    end
+    |> assign(:action_to_confirm, Map.put(action, :key, key))
+    |> noreply()
   end
 
   defp handle_item_action(socket, action, key, items) do
@@ -1223,8 +1196,7 @@ defmodule Backpex.LiveResource do
         |> assign(action_to_confirm: nil)
         |> assign(selected_items: [])
         |> assign(select_all: false)
-
-        {:noreply, socket}
+        |> noreply()
 
       unexpected_return ->
         raise ArgumentError, """

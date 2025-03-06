@@ -89,11 +89,9 @@ defmodule Backpex.Fields.InlineCRUD do
 
   @impl Phoenix.LiveComponent
   def update(assigns, socket) do
-    socket =
-      socket
-      |> assign(assigns)
-
-    {:ok, socket}
+    socket
+    |> assign(assigns)
+    |> ok()
   end
 
   @impl Backpex.Field

@@ -14,6 +14,8 @@ defmodule DemoWeb.PostLive do
     ],
     fluid?: true
 
+  import Ecto.Query, warn: false
+
   @impl Backpex.LiveResource
   def singular_name, do: "Post"
 
@@ -117,7 +119,8 @@ defmodule DemoWeb.PostLive do
       published: %{
         module: Backpex.Fields.Boolean,
         label: "Published",
-        align: :center
+        align: :center,
+        index_editable: true
       },
       show_likes: %{
         module: Backpex.Fields.Boolean,

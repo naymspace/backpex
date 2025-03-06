@@ -85,12 +85,10 @@ defmodule Backpex.Fields.HasManyThrough do
 
   @impl Phoenix.LiveComponent
   def update(assigns, socket) do
-    socket =
-      socket
-      |> assign(assigns)
-      |> apply_action(assigns.type)
-
-    {:ok, socket}
+    socket
+    |> assign(assigns)
+    |> apply_action(assigns.type)
+    |> ok()
   end
 
   defp apply_action(socket, :form) do
@@ -329,7 +327,7 @@ defmodule Backpex.Fields.HasManyThrough do
           max_width="xl"
         >
           <div class="py-3">
-            <div :for={e <- @editables} class={[unless(e.index == @edit_relational, do: "hidden")]}>
+            <div :for={e <- @editables} class={[if(e.index != @edit_relational, do: "hidden")]}>
               {hidden_inputs_for(e)}
               <.select_relational_field
                 form={e}
@@ -370,12 +368,10 @@ defmodule Backpex.Fields.HasManyThrough do
 
     put_assoc(association.pivot.field, all_assocs)
 
-    socket =
-      socket
-      |> assign(return_to_change: change)
-      |> assign(edit_relational: Enum.count(existing))
-
-    {:noreply, socket}
+    socket
+    |> assign(return_to_change: change)
+    |> assign(edit_relational: Enum.count(existing))
+    |> noreply()
   end
 
   @impl Phoenix.LiveComponent
@@ -413,21 +409,17 @@ defmodule Backpex.Fields.HasManyThrough do
     index = String.to_integer(index)
     change = Changeset.get_change(changeset, association.pivot.field, existing)
 
-    socket =
-      socket
-      |> assign(edit_relational: index)
-      |> assign(return_to_change: change)
-
-    {:noreply, socket}
+    socket
+    |> assign(edit_relational: index)
+    |> assign(return_to_change: change)
+    |> noreply()
   end
 
   @impl Phoenix.LiveComponent
   def handle_event("complete-relational", _params, socket) do
-    socket =
-      socket
-      |> assign(edit_relational: nil)
-
-    {:noreply, socket}
+    socket
+    |> assign(edit_relational: nil)
+    |> noreply()
   end
 
   @impl Phoenix.LiveComponent
@@ -436,11 +428,9 @@ defmodule Backpex.Fields.HasManyThrough do
 
     put_assoc(association.pivot.field, return_to_change)
 
-    socket =
-      socket
-      |> assign(edit_relational: nil)
-
-    {:noreply, socket}
+    socket
+    |> assign(edit_relational: nil)
+    |> noreply()
   end
 
   defp action_fields(fields, assigns, action), do: LiveResource.filtered_fields_by_action(fields, assigns, action)
@@ -487,7 +477,7 @@ defmodule Backpex.Fields.HasManyThrough do
     <.live_component
       id={"pivot_modal_#{@name}_#{@form.index}"}
       module={@field_options.module}
-      field_uploads={get_in(assigns, [:uploads, @name])}
+      lv_uploads={assigns[:uploads]}
       type={:form}
       {assigns}
     />

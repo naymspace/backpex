@@ -34,16 +34,18 @@ defmodule Demo.MixProject do
   defp deps do
     [
       # development
-      {:ex_doc, "~> 0.36", only: [:dev, :test], runtime: false},
+      {:ex_doc, "~> 0.37", only: [:dev, :test], runtime: false},
       {:credo, "~> 1.7.5", only: [:dev, :test], runtime: false},
       {:sobelow, "~> 0.13", only: [:dev, :test]},
       {:mix_audit, "~> 2.0", only: [:dev, :test], runtime: false},
       {:tailwind_formatter, "~> 0.4.0", only: [:dev, :test], runtime: false},
       {:ex_machina, "~> 2.3"},
       {:faker, "~> 0.18"},
+      {:phoenix_test, "~> 0.5.0", only: :test, runtime: false},
+      {:sourceror, "~> 1.7", only: [:dev, :test]},
 
       # core
-      {:libcluster, "~> 3.2"},
+      {:dns_cluster, "~> 0.2.0"},
       {:telemetry_poller, "~> 1.0"},
       {:telemetry_metrics, "~> 1.0"},
       {:gettext, "~> 0.26"},
@@ -68,10 +70,10 @@ defmodule Demo.MixProject do
       {:csv, "~> 3.2.0"},
       {:jason, ">= 1.0.0"},
       {:ash, "~> 3.0"},
-      {:ash_postgres, "~> 2.4.0"},
+      {:ash_postgres, "~> 2.5.0"},
 
       # assets
-      {:esbuild, "~> 0.8", runtime: Mix.env() == :dev},
+      {:esbuild, "~> 0.9", runtime: Mix.env() == :dev},
       {:tailwind, "~> 0.2.0", runtime: Mix.env() == :dev},
       {:heroicons, github: "tailwindlabs/heroicons", tag: "v2.2.0", sparse: "optimized", app: false, compile: false}
     ]

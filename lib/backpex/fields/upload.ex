@@ -67,16 +67,16 @@ defmodule Backpex.Fields.Upload do
 
       **Example**
 
-        defp consume_upload(_socket, _item, %{path: path} = _meta, entry) do
-          file_name = ...
-          file_url = ...
-          static_dir = ...
-          dest = Path.join([:code.priv_dir(:demo), "static", static_dir, file_name])
+          defp consume_upload(_socket, _item, %{path: path} = _meta, entry) do
+            file_name = ...
+            file_url = ...
+            static_dir = ...
+            dest = Path.join([:code.priv_dir(:demo), "static", static_dir, file_name])
 
-          File.cp!(path, dest)
+            File.cp!(path, dest)
 
-          {:ok, file_url}
-        end
+            {:ok, file_url}
+          end
       """,
       type: {:fun, 4},
       required: true
@@ -138,6 +138,38 @@ defmodule Backpex.Fields.Upload do
       """,
       type: {:fun, 3},
       required: true
+    ],
+    external: [
+      doc: """
+      A 2-arity function that allows the server to generate metadata for each upload entry.
+
+      **Parameters**
+
+      * `:entry` - The upload entry.
+      * `:socket` - The socket.
+
+      **Examples**
+
+      This is an example for S3-Compatible object storage, for more examples check the Phoenix LiveView
+      documentation for [External Uploads](https://hexdocs.pm/phoenix_live_view/external-uploads.html).
+
+          defp presign_upload(entry, socket) do
+            config = ExAws.Config.new(:s3)
+            key = "uploads/example/" <> entry.client_name
+
+            {:ok, url} =
+              ExAws.S3.presigned_url(config, :put, @bucket, key,
+                expires_in: 3600,
+                query_params: [{"Content-Type", entry.client_type}]
+              )
+
+            meta = %{uploader: "S3", key: key, url: url}
+            {:ok, meta, socket}
+          end
+
+      """,
+      type: {:fun, 2},
+      required: false
     ]
   ]
 
@@ -146,7 +178,7 @@ defmodule Backpex.Fields.Upload do
 
   > #### Warning {: .warning}
   >
-  > This field does **not** currently support `Phoenix.LiveView.UploadWriter` and direct / external uploads.
+  > This field does **not** currently support using a custom `Phoenix.LiveView.UploadWriter`.
 
   ## Field-specific options
 
@@ -159,8 +191,8 @@ defmodule Backpex.Fields.Upload do
 
   > #### Info {: .info}
   >
-  > The following examples copy uploads to a static folder in the application. In a production environment, you should
-  consider uploading files to an appropriate object store.
+  > The first two examples copy uploads to a static folder in the application. In a production environment,
+  you should consider uploading files to an appropriate object store.
 
   ## Full Single File Example
 
@@ -401,6 +433,171 @@ defmodule Backpex.Fields.Upload do
 
         defp upload_dir, do: Path.join(["uploads", "product", "images"])
       end
+
+  ## Full External File Example
+
+  In this example we are adding an avatar upload for a user and storing it in an external object storage like S3 or R2
+  This example works with Cloudflare R2 and assumes that you configured `ExAws` and `ExAws.S3` correctly and that you're
+  serving the images from a CDN in front of your object storage.
+
+  For more details check the Phoenix LiveView documentation for [External Uploads](https://hexdocs.pm/phoenix_live_view/external-uploads.html).
+
+      defmodule Demo.Repo.Migrations.AddAvatarToUsers do
+        use Ecto.Migration
+
+        def change do
+          alter table(:users) do
+            add(:avatar, :string)
+          end
+        end
+      end
+
+      defmodule Demo.User do
+        use Ecto.Schema
+
+        schema "users" do
+          field(:avatar, :string)
+          ...
+        end
+
+        def changeset(user, attrs, _metadata \\ []) do
+          user
+          |> cast(attrs, [:avatar])
+          |> validate_change(:avatar, fn
+            :avatar, "too_many_files" ->
+              [avatar: "has to be exactly one"]
+
+            :avatar, "" ->
+              [avatar: "can't be blank"]
+
+            :avatar, _avatar ->
+              []
+          end)
+        end
+      end
+
+      defmodule DemoWeb.UserLive do
+        use Backpex.LiveResource,
+          ...
+
+        @base_cdn_path "https://cdn.example.com/"
+        @upload_path "uploads/backpex/"
+        @bucket "example"
+        @base_r2_host "https://my_host.r2.cloudflarestorage.com/"
+
+        @impl Backpex.LiveResource
+        def fields do
+          [
+            avatar: %{
+              module: Backpex.Fields.Upload,
+              label: "Avatar",
+              upload_key: :avatar,
+              accept: ~w(.jpg .jpeg .png),
+              max_file_size: 512_000,
+              put_upload_change: &put_upload_change/6,
+              consume_upload: &consume_upload/4,
+              remove_uploads: &remove_uploads/3,
+              list_existing_files: &list_existing_files/1,
+              external: &presign_upload/2,
+              render: fn
+                %{value: value} = assigns when value == "" or is_nil(value) ->
+                  ~H"<p>{Backpex.HTML.pretty_value(@value)}</p>"
+
+                assigns ->
+                  ~H'<img class="h-10 w-auto" src={@value} />'
+              end
+            },
+            ...
+          ]
+        end
+
+        defp list_existing_files(%{avatar: avatar} = _item) when avatar != "" and not is_nil(avatar), do: [avatar]
+        defp list_existing_files(_item), do: []
+
+        defp presign_upload(entry, socket) do
+          config = ExAws.Config.new(:s3)
+          key = @upload_path <> entry.client_name
+
+          {:ok, url} =
+            ExAws.S3.presigned_url(config, :put, @bucket, key,
+              expires_in: 3600,
+              query_params: [{"Content-Type", entry.client_type}]
+          )
+
+          meta = %{uploader: "S3", key: key, url: url}
+
+          {:ok, meta, socket}
+        end
+
+        def put_upload_change(_socket, params, item, uploaded_entries, removed_entries, action) do
+          existing_files = list_existing_files(item) -- removed_entries
+
+          new_entries =
+            case action do
+              :validate ->
+                elem(uploaded_entries, 1)
+
+              :insert ->
+                elem(uploaded_entries, 0)
+            end
+
+          files = existing_files ++ Enum.map(new_entries, fn entry -> entry.client_name end)
+
+          case files do
+            [file] ->
+              file_path = @base_cdn_path <> @upload_path <> file
+              Map.put(params, "avatar", file_path)
+
+            [_file | _other_files] ->
+              Map.put(params, "avatar", "too_many_files")
+
+            [] ->
+              Map.put(params, "avatar", "")
+          end
+        end
+
+        defp consume_upload(_socket, _item, _meta, _entry) do
+          {:ok, :external}
+        end
+
+        defp remove_uploads(_socket, _item, removed_entries) do
+          for file <- removed_entries do
+            object = String.replace_prefix(file, @base_cdn_path, "")
+            ExAws.S3.delete_object(@bucket, object) |> ExAws.request!()
+          end
+        end
+      end
+
+  You also need to create an `Uploader` in the `app.js` file to handle the actual upload
+
+      let Uploaders = {}
+
+      Uploaders.S3 = function (entries, onViewError) {
+        entries.forEach(entry => {
+          let xhr = new XMLHttpRequest()
+          onViewError(() => xhr.abort())
+          xhr.onload = () => xhr.status === 200 ? entry.progress(100) : entry.error()
+          xhr.onerror = () => entry.error()
+
+          xhr.upload.addEventListener("progress", (event) => {
+            if(event.lengthComputable){
+              let percent = Math.round((event.loaded / event.total) * 100)
+              if(percent < 100){ entry.progress(percent) }
+            }
+          })
+
+          let url = entry.meta.url
+          xhr.open("PUT", url, true)
+          xhr.send(entry.file)
+        })
+      }
+
+      let csrfToken = document.querySelector("meta[name='csrf-token']").getAttribute("content")
+      let liveSocket = new LiveSocket("/live", Socket, {
+        uploaders: Uploaders,
+        ...
+      })
+
   """
   use Backpex.Field, config_schema: @config_schema
   alias Backpex.HTML.Form, as: BackpexForm
@@ -425,14 +622,19 @@ defmodule Backpex.Fields.Upload do
   @impl Backpex.Field
   def render_form(assigns) do
     upload_key = assigns.field_options.upload_key
-    uploads_allowed = not is_nil(assigns.field_uploads)
+    uploads_allowed = not is_nil(assigns.lv_uploads[upload_key])
     translate_error_fun = Map.get(assigns.field_options, :translate_error, &Function.identity/1)
 
     hidden_field_name = to_string(assigns.name)
     upload_used_input = Map.get(assigns.form.params, hidden_field_name <> "_used_input")
     used_input? = upload_used_input not in [nil, "false"]
 
-    errors = if used_input?, do: assigns.form[assigns.name].errors, else: []
+    errors =
+      if used_input? do
+        assigns.form[assigns.name].errors
+      else
+        if Phoenix.Component.used_input?(assigns.form[assigns.name]), do: assigns.form[assigns.name].errors, else: []
+      end
 
     form_errors = BackpexForm.translate_form_errors(errors, translate_error_fun)
 
@@ -440,38 +642,30 @@ defmodule Backpex.Fields.Upload do
       assigns
       |> assign(:used_input?, to_string(used_input?))
       |> assign(:hidden_field_name, hidden_field_name)
+      |> assign(:upload, assigns.lv_uploads[upload_key])
       |> assign(:upload_key, upload_key)
       |> assign(:uploads_allowed, uploads_allowed)
       |> assign(:uploaded_files, Keyword.get(assigns.uploaded_files, upload_key))
+      |> assign(:errors, errors)
       |> assign(:form_errors, form_errors)
 
     ~H"""
-    <div x-data="{
-        dispatchChangeEvent(el) {
-          $nextTick(
-            () => {
-              form = document.getElementById('resource-form');
-              if (form) el.dispatchEvent(new Event('input', { bubbles: true }));
-            }
-          )
-        }
-      }">
+    <div>
       <Layout.field_container>
         <:label align={Backpex.Field.align_label(@field_options, assigns, :top)}>
           <Layout.input_label text={@field_options[:label]} />
         </:label>
         <div
-          x-data="{dragging: 0}"
-          x-on:dragenter="dragging++"
-          x-on:dragleave="dragging--"
-          x-on:drop="dragging = 0"
+          id={"#{@name}-drop-target"}
           class="w-full max-w-lg"
-          phx-drop-target={if @uploads_allowed, do: @field_uploads.ref}
+          phx-hook="BackpexDragHover"
+          phx-drop-target={if @uploads_allowed, do: @upload.ref}
         >
-          <div
-            class="rounded-btn flex justify-center border-2 border-dashed px-6 pt-5 pb-6"
-            x-bind:class="dragging > 0 ? 'border-primary' : 'border-base-content/25'"
-          >
+          <div class={[
+            "rounded-btn flex justify-center border-2 border-dashed px-6 pt-5 pb-6",
+            @errors == [] && "border-base-content/25",
+            @errors != [] && "border-error bg-error/10"
+          ]}>
             <div class="flex flex-col items-center space-y-1 text-center">
               <Backpex.HTML.CoreComponents.icon name="hero-document-arrow-up" class="text-base-content/50 h-8 w-8" />
               <div class="flex text-sm">
@@ -479,18 +673,15 @@ defmodule Backpex.Fields.Upload do
                   <a class="link link-hover link-primary font-medium">
                     {Backpex.translate("Upload a file")}
                   </a>
-                  <.live_file_input
-                    :if={@uploads_allowed}
-                    upload={@field_uploads}
-                    phx-target="#form-component"
-                    class="hidden"
-                  />
+                  <.live_file_input :if={@uploads_allowed} upload={@upload} phx-target="#form-component" class="hidden" />
                 </label>
                 <input
                   type="hidden"
                   name={"change[#{@hidden_field_name}_used_input]"}
                   id={"change_#{@hidden_field_name}_used_input"}
                   value={@used_input?}
+                  data-upload-key={@upload_key}
+                  phx-hook="BackpexCancelEntry"
                 />
                 <p class="pl-1">{Backpex.translate("or drag and drop")}</p>
               </div>
@@ -501,21 +692,19 @@ defmodule Backpex.Fields.Upload do
         <section class="mt-2">
           <article>
             <%= if @uploads_allowed do %>
-              <div :for={entry <- @field_uploads.entries} class="break-all">
+              <div :for={entry <- @upload.entries} class="break-all">
                 <p class="inline">{Map.get(entry, :client_name)}</p>
-
                 <button
                   type="button"
                   phx-click="cancel-entry"
                   phx-value-ref={entry.ref}
                   phx-value-id={@upload_key}
                   phx-target="#form-component"
-                  @click="() => dispatchChangeEvent($el)"
                 >
                   &times;
                 </button>
-
-                <p :for={err <- upload_errors(@field_uploads, entry)} class="text-xs italic text-red-500">
+                <progress :if={entry.progress > 0} class="progress ml-4 w-32" value={entry.progress} max="100"></progress>
+                <p :for={err <- upload_errors(@upload, entry)} class="text-xs italic text-red-500">
                   {error_to_string(err)}
                 </p>
               </div>
@@ -530,7 +719,6 @@ defmodule Backpex.Fields.Upload do
                   phx-value-ref={file_key}
                   phx-value-id={@upload_key}
                   phx-target="#form-component"
-                  @click="() => dispatchChangeEvent($el)"
                 >
                   &times;
                 </button>
@@ -539,7 +727,7 @@ defmodule Backpex.Fields.Upload do
           </article>
 
           <%= if @uploads_allowed do %>
-            <p :for={err <- upload_errors(@field_uploads)} class="text-xs italic text-red-500">
+            <p :for={err <- upload_errors(@upload)} class="text-xs italic text-red-500">
               {error_to_string(err)}
             </p>
           <% end %>
@@ -572,6 +760,20 @@ defmodule Backpex.Fields.Upload do
   end
 
   defp allow_field_uploads(socket, _field_options, 0, _max_file_size), do: socket
+
+  defp allow_field_uploads(
+         socket,
+         %{external: presign_upload} = field_options,
+         max_entries,
+         max_file_size
+       ) do
+    Phoenix.LiveView.allow_upload(socket, field_options.upload_key,
+      accept: field_options.accept,
+      max_entries: max_entries,
+      max_file_size: max_file_size,
+      external: presign_upload
+    )
+  end
 
   defp allow_field_uploads(socket, field_options, max_entries, max_file_size) do
     Phoenix.LiveView.allow_upload(socket, field_options.upload_key,

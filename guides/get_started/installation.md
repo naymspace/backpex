@@ -10,34 +10,18 @@ Backpex integrates seamlessly with your existing Phoenix LiveView application, b
 
 Backpex is built on top of Phoenix LiveView, so you need to have Phoenix LiveView installed in your application. If you generate a new Phoenix application using the latest version of the `mix phx.new` generator, Phoenix LiveView is included by default.
 
-### Alpine.js
+### Backpex Hooks
 
-Backpex uses [Alpine.js](https://alpinejs.dev/) for some interactivity. Make sure you have Alpine.js installed in your application.
-
-You can install Alpine.js by installing it via npm:
-
-```bash
-cd assets && npm install alpinejs
-```
-
-Then, import Alpine.js in your `app.js` file, start it and adjust your LiveView configuration:
+Backpex comes with a few JS hooks which need to be included in your `app.js`.
 
 ```javascript
-import Alpine from "alpinejs";
+import { Hooks as BackpexHooks } from 'backpex';
 
-window.Alpine = Alpine;
-Alpine.start();
+const Hooks = [] // your application hooks (optional)
 
 const liveSocket = new LiveSocket('/live', Socket, {
-  // add this
-  dom: {
-    onBeforeElUpdated (from, to) {
-      if (from._x_dataStack) {
-        window.Alpine.clone(from, to)
-      }
-    },
-  },
   params: { _csrf_token: csrfToken },
+  hooks: {...Hooks, ...BackpexHooks }
 })
 ```
 
@@ -67,7 +51,7 @@ In your `mix.exs`:
 defp deps do
   [
     ...
-    {:backpex, "~> 0.8.0"}
+    {:backpex, "~> 0.10.0"}
   ]
 end
 ```
@@ -80,12 +64,13 @@ Backpex uses Tailwind CSS and daisyUI. Make sure to add the Backpex files to you
 
 In your `tailwind.config.js`:
 
-```js
+```javascript
 ..,
 content: [
   ...,
-  // add this line
+  // add this lines
   '../deps/backpex/**/*.*ex'
+  '../deps/backpex/assets/js/**/*.*js'
 ]
 ```
 
@@ -116,8 +101,8 @@ The example resource will be a `Post` resource with the following fields:
 Run the following commands:
 
 ```bash
-mix phx.gen.schema Blog.Post blog_posts title:string views:integer
-mix ecto.migrate
+$ mix phx.gen.schema Blog.Post blog_posts title:string views:integer
+$ mix ecto.migrate
 ```
 
 These commands will generate a `Post` schema and a migration file. The migration file will create a `blog_posts` table in your database.
@@ -130,7 +115,7 @@ Backpex does not ship with a predefined layout by default to give you the freedo
 
 See the following example that uses the `Backpex.HTML.Layout.app_shell/1` component and some other Backpex Layout components to create a simple layout:
 
-```elixir
+```heex
 <Backpex.HTML.Layout.app_shell fluid={@fluid?}>
   <:topbar>
     <Backpex.HTML.Layout.topbar_branding />
@@ -388,7 +373,7 @@ Backpex supports daisyUI themes. The following steps will guide you through sett
 
 First, you need to add the themes to your `tailwind.config.js` file. You can add the themes to the `daisyui` key in the configuration file. The following example shows how to add the `light`, `dark`, and `cyberpunk` themes to your application.
 
-```js
+```javascript
 // tailwind.config.js
 module.exports = {
   daisyui: {
@@ -416,7 +401,7 @@ The full list of themes can be found at the [daisyUI website](https://daisyui.co
 
 We fetch the theme from the assigns and set the `data-theme` attribute on the `html` tag. If no theme is set, we default to the `light` theme.
 
-```elixir
+```heex
 # root.html.heex
 <html data-theme={assigns[:theme] || "light"}>
   ...
@@ -425,7 +410,7 @@ We fetch the theme from the assigns and set the `data-theme` attribute on the `h
 
 If you just want to use a single theme, you can set the `data-theme` attribute to the theme name. You can skip the next steps and are done with the theme setup.
 
-```elixir
+```heex
 # root.html.heex
 <html data-theme="light">
   ...
@@ -449,7 +434,7 @@ To add the saved theme to the assigns, you can add the `Backpex.ThemeSelectorPlu
 
 You can add a theme selector to your layout to allow users to change the theme. The following example shows how to add a theme selector to the `admin.html.heex` layout. The list of themes should match the themes you added to your `tailwind.config.js` file.
 
-```elixir
+```heex
 # admin.html.heex
 <Backpex.HTML.Layout.app_shell fluid={@fluid?}>
   <:topbar>
@@ -487,78 +472,23 @@ You can add a theme selector to your layout to allow users to change the theme. 
 </Backpex.HTML.Layout.app_shell>
 ```
 
-**5. Add a hook to persist the selected theme**
+**5. Set selected theme**
 
-To persist the selected theme, you can add a hook to your `app.js` file. This hook will listen for the `backpex:theme-change` event and store the selected theme in the session and in the local storage. The hook will also send a request to the server to store the selected theme in the session.
+To set the selected theme as soon as possible, you can run this function inside your `app.js`:
 
-```js
-// app.js
-// We want this to run as soon as possible to minimize
-// flashes with the old theme in some situations
-const storedTheme = window.localStorage.getItem('backpexTheme')
-if (storedTheme != null) {
-  document.documentElement.setAttribute('data-theme', storedTheme)
-}
-
-const Hooks = {}
-
-Hooks.BackpexThemeSelector = {
-  mounted () {
-    const form = document.querySelector('#backpex-theme-selector-form')
-    const storedTheme = window.localStorage.getItem('backpexTheme')
-
-    // Marking current theme as active
-    if (storedTheme != null) {
-      const activeThemeRadio = form.querySelector(
-        `input[name='theme-selector'][value='${storedTheme}']`
-      )
-      activeThemeRadio.checked = true
-    }
-
-    // Event listener that handles the theme changes and store
-    // the selected theme in the session and also in localStorage
-    window.addEventListener('backpex:theme-change', async (event) => {
-      const cookiePath = form.dataset.cookiePath
-      const selectedTheme = form.querySelector(
-        'input[name="theme-selector"]:checked'
-      )
-      if (selectedTheme) {
-        window.localStorage.setItem('backpexTheme', selectedTheme.value)
-        document.documentElement.setAttribute(
-          'data-theme',
-          selectedTheme.value
-        )
-        await fetch(cookiePath, {
-          body: `select_theme=${selectedTheme.value}`,
-          method: 'POST',
-          headers: {
-            'Content-type': 'application/x-www-form-urlencoded',
-            'x-csrf-token': csrfToken
-          }
-        })
-      }
-    })
-  }
-}
-
-let liveSocket = new LiveSocket("/live", Socket, {
-  hooks: Hooks,
-  dom: {
-    onBeforeElUpdated (from, to) {
-      if (from._x_dataStack) {
-        window.Alpine.clone(from, to);
-      }
-    },
-  },
-  params: { _csrf_token: csrfToken },
-});
+```javascript
+import { Hooks as BackpexHooks } from 'backpex';
+// ...
+BackpexHooks.BackpexThemeSelector.setStoredTheme()
 ```
+
+This will minimize flashes with the old theme in some situations.
 
 ## Remove `@tailwindcss/forms` plugin
 
 There is a conflict between the `@tailwindcss/forms` plugin and daisyUI. You should remove the `@tailwindcss/forms` plugin from your `tailwind.config.js` to prevent styling issues.
 
-```js
+```javascript
 // tailwind.config.js
 module.exports = {
   ...
@@ -601,7 +531,7 @@ This will add the heroicons repository as a dependency to your project. You can 
 
 Add the following plugin to your `tailwind.config.js` to generate the necessary styles to display the icons.
 
-```js
+```javascript
 // add fs and path to the top of the file
 const fs = require('fs')
 const path = require('path')
@@ -657,6 +587,6 @@ This plugin will generate the necessary styles to display the heroicons in your 
 
 For example, to render the `user` icon, you can use the following code:
 
-```elixir
+```heex
 <Backpex.HTML.CoreComponents.icon name="hero-user" class="h-5 w-5" />
 ```

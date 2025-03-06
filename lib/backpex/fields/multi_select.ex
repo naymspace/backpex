@@ -43,28 +43,30 @@ defmodule Backpex.Fields.MultiSelect do
         ]
   """
   use Backpex.Field, config_schema: @config_schema
-
-  import Backpex.HTML.Form
+  alias Backpex.HTML.Form
 
   @impl Phoenix.LiveComponent
   def update(assigns, socket) do
-    socket =
-      socket
-      |> assign(assigns)
-      |> assign(:not_found_text, assigns.field_options[:not_found_text] || Backpex.translate("No options found"))
-      |> assign(:prompt, prompt(assigns, assigns.field_options))
-      |> assign(:search_input, "")
-      |> assign_options()
-      |> assign_selected()
-      |> maybe_assign_form()
-
-    {:ok, socket}
+    socket
+    |> assign(assigns)
+    |> assign(:not_found_text, assigns.field_options[:not_found_text] || Backpex.translate("No options found"))
+    |> assign(:prompt, prompt(assigns, assigns.field_options))
+    |> assign(:search_input, "")
+    |> assign_options()
+    |> assign_selected()
+    |> maybe_assign_form()
+    |> ok()
   end
 
   defp assign_options(socket) do
     %{assigns: %{field_options: field_options} = assigns} = socket
 
-    options = field_options.options.(assigns)
+    options =
+      assigns
+      |> field_options.options.()
+      |> Enum.map(fn {label, value} ->
+        {to_string(label), to_string(value)}
+      end)
 
     assign(socket, :options, options)
   end
@@ -145,7 +147,7 @@ defmodule Backpex.Fields.MultiSelect do
         <:label align={Backpex.Field.align_label(@field_options, assigns)}>
           <Layout.input_label text={@field_options[:label]} />
         </:label>
-        <.multi_select
+        <Form.multi_select
           field={@form[@name]}
           prompt={@prompt}
           not_found_text={@not_found_text}
@@ -181,12 +183,10 @@ defmodule Backpex.Fields.MultiSelect do
 
     show_select_all = length(new_selected) != length(field_options.options.(socket.assigns))
 
-    socket =
-      socket
-      |> assign(:selected, new_selected)
-      |> assign(:show_select_all, show_select_all)
-
-    {:noreply, socket}
+    socket
+    |> assign(:selected, new_selected)
+    |> assign(:show_select_all, show_select_all)
+    |> noreply()
   end
 
   @impl Phoenix.LiveComponent
@@ -199,12 +199,10 @@ defmodule Backpex.Fields.MultiSelect do
       field_options.options.(assigns)
       |> maybe_apply_search(search_input)
 
-    socket =
-      socket
-      |> assign(:options, options)
-      |> assign(:search_input, search_input)
-
-    {:noreply, socket}
+    socket
+    |> assign(:options, options)
+    |> assign(:search_input, search_input)
+    |> noreply()
   end
 
   @impl Phoenix.LiveComponent
@@ -213,12 +211,10 @@ defmodule Backpex.Fields.MultiSelect do
 
     new_selected = if show_select_all, do: field_options.options.(assigns), else: []
 
-    socket =
-      socket
-      |> assign(:selected, new_selected)
-      |> assign(:show_select_all, not show_select_all)
-
-    {:noreply, socket}
+    socket
+    |> assign(:selected, new_selected)
+    |> assign(:show_select_all, not show_select_all)
+    |> noreply()
   end
 
   defp maybe_apply_search(options, search_input) do

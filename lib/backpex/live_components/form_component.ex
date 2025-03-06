@@ -2,27 +2,21 @@ defmodule Backpex.FormComponent do
   @moduledoc """
   The form live component.
   """
-
   use BackpexWeb, :html
   use Phoenix.LiveComponent
-
-  import Backpex.HTML.Resource
-
   alias Backpex.Fields.Upload
   alias Backpex.Resource
   alias Backpex.ResourceAction
 
   def update(assigns, socket) do
-    socket =
-      socket
-      |> assign(assigns)
-      |> assign_new(:action_type, fn -> nil end)
-      |> assign_new(:continue_label, fn -> nil end)
-      |> assign_new(:show_form_errors, fn -> false end)
-      |> update_assigns()
-      |> assign_form()
-
-    {:ok, socket}
+    socket
+    |> assign(assigns)
+    |> assign_new(:action_type, fn -> nil end)
+    |> assign_new(:continue_label, fn -> nil end)
+    |> assign_new(:show_form_errors, fn -> false end)
+    |> update_assigns()
+    |> assign_form()
+    |> ok()
   end
 
   defp update_assigns(%{assigns: %{action_type: :item}} = socket) do
@@ -95,12 +89,10 @@ defmodule Backpex.FormComponent do
 
     send(self(), {:update_changeset, changeset})
 
-    socket =
-      socket
-      |> assign(:form, form)
-      |> assign(:show_form_errors, false)
-
-    {:noreply, socket}
+    socket
+    |> assign(:form, form)
+    |> assign(:show_form_errors, false)
+    |> noreply()
   end
 
   def handle_event("validate", %{"change" => change, "_target" => target}, socket) do
@@ -125,24 +117,23 @@ defmodule Backpex.FormComponent do
 
     send(self(), {:update_changeset, changeset})
 
-    socket =
-      socket
-      |> assign(:form, form)
-      |> assign(:show_form_errors, false)
-
-    {:noreply, socket}
+    socket
+    |> assign(:form, form)
+    |> assign(:show_form_errors, false)
+    |> noreply()
   end
 
   def handle_event("validate", _params, socket) do
-    socket = assign(socket, :show_form_errors, false)
-
-    {:noreply, socket}
+    socket
+    |> assign(:show_form_errors, false)
+    |> noreply()
   end
 
-  def handle_event("cancel-entry", %{"ref" => ref, "id" => id}, socket) do
-    socket = cancel_upload(socket, String.to_existing_atom(id), ref)
-
-    {:noreply, socket}
+  def handle_event("cancel-entry", %{"ref" => ref, "id" => upload_key}, socket) do
+    socket
+    |> cancel_upload(String.to_existing_atom(upload_key), ref)
+    |> push_event("cancel-entry:#{upload_key}", %{})
+    |> noreply()
   end
 
   def handle_event("cancel-existing-entry", %{"ref" => file_key, "id" => upload_key}, socket) do
@@ -162,12 +153,11 @@ defmodule Backpex.FormComponent do
     files = Upload.existing_file_paths(field, socket.assigns.item, Keyword.get(removed_uploads, upload_key, []))
     uploaded_files = Keyword.put(socket.assigns[:uploaded_files], upload_key, files)
 
-    socket =
-      socket
-      |> assign(:removed_uploads, removed_uploads)
-      |> assign(:uploaded_files, uploaded_files)
-
-    {:noreply, socket}
+    socket
+    |> assign(:removed_uploads, removed_uploads)
+    |> assign(:uploaded_files, uploaded_files)
+    |> push_event("cancel-existing-entry:#{upload_key}", %{})
+    |> noreply()
   end
 
   def handle_event("save", %{"action-key" => key, "change" => change}, %{assigns: %{action_type: :item}} = socket) do
@@ -182,6 +172,7 @@ defmodule Backpex.FormComponent do
       change
       |> put_upload_change(socket, :insert)
       |> drop_readonly_changes(fields, assigns)
+      |> drop_unused_changes()
 
     handle_save(socket, live_action, change, save_type)
   end
@@ -198,18 +189,16 @@ defmodule Backpex.FormComponent do
   end
 
   def handle_event(msg, params, socket) do
-    socket =
-      Enum.reduce(socket.assigns.fields, socket, fn el, acc ->
-        el.module.handle_form_event(el, msg, params, acc)
-      end)
-
-    {:noreply, socket}
+    Enum.reduce(socket.assigns.fields, socket, fn el, acc ->
+      el.module.handle_form_event(el, msg, params, acc)
+    end)
+    |> noreply()
   end
 
   defp handle_save(socket, key, params, save_type \\ "save")
 
   defp handle_save(socket, :new, params, save_type) do
-    %{assigns: %{live_resource: live_resource, fields: fields, item: item} = assigns} = socket
+    %{assigns: %{live_resource: live_resource, item: item} = assigns} = socket
 
     opts = [
       assocs: Map.get(assigns, :assocs, []),
@@ -221,30 +210,26 @@ defmodule Backpex.FormComponent do
       end
     ]
 
-    case Resource.insert(item, params, fields, socket.assigns, live_resource, opts) do
+    case Resource.insert(item, params, socket.assigns, live_resource, opts) do
       {:ok, item} ->
         return_to = return_to_path(save_type, live_resource, socket, socket.assigns, item, :new)
 
-        socket =
-          socket
-          |> assign(:show_form_errors, false)
-          |> clear_flash()
-          |> put_flash(:info, socket.assigns.resource_created_message)
-          |> push_navigate(to: return_to)
-
-        {:noreply, socket}
+        socket
+        |> assign(:show_form_errors, false)
+        |> clear_flash()
+        |> put_flash(:info, socket.assigns.resource_created_message)
+        |> push_navigate(to: return_to)
+        |> noreply()
 
       {:error, %Ecto.Changeset{} = changeset} ->
         form = Phoenix.Component.to_form(changeset, as: :change)
 
-        socket =
-          socket
-          |> assign(:show_form_errors, true)
-          |> assign(:form, form)
-
         send(self(), {:update_changeset, changeset})
 
-        {:noreply, socket}
+        socket
+        |> assign(:show_form_errors, true)
+        |> assign(:form, form)
+        |> noreply()
     end
   end
 
@@ -266,26 +251,22 @@ defmodule Backpex.FormComponent do
         return_to = return_to_path(save_type, live_resource, socket, socket.assigns, item, :edit)
         info_msg = Backpex.translate({"%{resource} has been edited successfully.", %{resource: singular_name}})
 
-        socket =
-          socket
-          |> assign(:show_form_errors, false)
-          |> clear_flash()
-          |> put_flash(:info, info_msg)
-          |> push_navigate(to: return_to)
-
-        {:noreply, socket}
+        socket
+        |> assign(:show_form_errors, false)
+        |> clear_flash()
+        |> put_flash(:info, info_msg)
+        |> push_navigate(to: return_to)
+        |> noreply()
 
       {:error, %Ecto.Changeset{} = changeset} ->
         form = Phoenix.Component.to_form(changeset, as: :change)
 
-        socket =
-          socket
-          |> assign(:show_form_errors, true)
-          |> assign(:form, form)
-
         send(self(), {:update_changeset, changeset})
 
-        {:noreply, socket}
+        socket
+        |> assign(:show_form_errors, true)
+        |> assign(:form, form)
+        |> noreply()
     end
   end
 
@@ -313,24 +294,20 @@ defmodule Backpex.FormComponent do
          {:ok, socket} <- resource_action.module.handle(socket, data) do
       handle_uploads(socket, data)
 
-      socket =
-        socket
-        |> assign(:show_form_errors, false)
-        |> push_navigate(to: return_to)
-
-      {:noreply, socket}
+      socket
+      |> assign(:show_form_errors, false)
+      |> push_navigate(to: return_to)
+      |> noreply()
     else
       {:error, changeset} ->
         form = Phoenix.Component.to_form(changeset, as: :change)
 
-        socket =
-          socket
-          |> assign(:show_form_errors, true)
-          |> assign(:form, form)
-
         send(self(), {:update_changeset, changeset})
 
-        {:noreply, socket}
+        socket
+        |> assign(:show_form_errors, true)
+        |> assign(:form, form)
+        |> noreply()
 
       unexpected_return ->
         raise ArgumentError, """
@@ -379,18 +356,16 @@ defmodule Backpex.FormComponent do
       |> assign(:show_form_errors, false)
       |> assign(:selected_items, [])
       |> assign(:select_all, false)
-
-      {:noreply, push_patch(socket, to: return_to)}
+      |> push_patch(to: return_to)
+      |> noreply()
     else
       {:error, changeset} ->
         form = Phoenix.Component.to_form(changeset, as: :change)
 
-        socket =
-          socket
-          |> assign(:show_form_errors, true)
-          |> assign(:form, form)
-
-        {:noreply, socket}
+        socket
+        |> assign(:show_form_errors, true)
+        |> assign(:form, form)
+        |> noreply()
 
       unexpected_return ->
         raise ArgumentError, """
@@ -411,6 +386,13 @@ defmodule Backpex.FormComponent do
       |> Enum.map(&Atom.to_string(&1.name))
 
     Map.drop(change, read_only)
+  end
+
+  defp drop_unused_changes(change) do
+    change
+    |> Enum.reduce(%{}, fn {key, value}, acc ->
+      if String.starts_with?(key, "_unused_"), do: acc, else: Map.put(acc, key, value)
+    end)
   end
 
   defp return_to_path("continue", _live_resource, _socket, %{current_url: url}, item, :new) do
@@ -442,13 +424,10 @@ defmodule Backpex.FormComponent do
         upload_used_input_data = Map.get(change, "#{to_string(name)}_used_input")
         used_input? = upload_used_input_data != "false"
 
-        # Changed
         if uploaded_entries != {[], []} or removed_entries != [] or used_input? == true do
           change
           |> Map.drop(["_unused_#{to_string(name)}", "_unused_#{to_string(name)}_used_input"])
           |> Map.put("#{to_string(name)}_used_input", "true")
-
-          # Unchanged
         else
           change
           |> Map.put("_unused_#{to_string(name)}", "")
@@ -478,6 +457,6 @@ defmodule Backpex.FormComponent do
   defp handle_uploads(_socket, _item), do: :ok
 
   def render(assigns) do
-    form_component(assigns)
+    Backpex.HTML.Resource.form_component(assigns)
   end
 end

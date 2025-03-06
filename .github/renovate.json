@@ -9,8 +9,10 @@
     "github>pehbehbeh/renovate-config//customManagers/hexEsbuild",
     "github>pehbehbeh/renovate-config//customManagers/hexTailwind",
     ":reviewer(krns)",
+    ":automergePatch",
     "helpers:pinGitHubActionDigestsToSemver"
   ],
+  "additionalBranchPrefix": "{{packageFileDir}}-",
   "packageRules": [
     {
       "description": "Group dependency updates to the Elixir base image",
@@ -37,12 +39,20 @@
       "enabled": false
     },
     {
+      "description": "Disable automerge for docker data source",
+      "matchDatasources": [
+        "docker"
+      ],
+      "automerge": false
+    },
+    {
       "matchManagers": [
         "mix"
       ],
       "rangeStrategy": "update-lockfile"
     },
     {
+      "description": "Automatically merge github actions updates",
       "matchManagers": [
         "github-actions"
       ],
@@ -57,9 +67,12 @@
     {
       "description": "Label dependency updates in demo directory",
       "matchFileNames": [
-        "demo/**"
+        "demo/**",
+        "Dockerfile",
+        "compose.yml"
       ],
       "labels": [
+        "ignore-for-release",
         "demo",
         "dependencies",
         "{{categories}}"

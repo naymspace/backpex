@@ -2,7 +2,9 @@ import Config
 import System, only: [get_env: 1, get_env: 2, fetch_env!: 1]
 import String, only: [to_integer: 1, to_atom: 1, to_existing_atom: 1]
 
-config :demo, analytics: get_env("ANALYTICS", "false") |> to_existing_atom()
+config :demo,
+  dns_cluster_query: get_env("DNS_CLUSTER_QUERY"),
+  analytics: get_env("ANALYTICS", "false") |> to_existing_atom()
 
 config :demo, Demo.Repo,
   hostname: get_env("DB_HOSTNAME", "postgres"),
@@ -36,16 +38,3 @@ config :logger, level: get_env("LOGGER_LEVEL", "debug") |> to_atom()
 config :sentry,
   dsn: get_env("SENTRY_DSN"),
   environment_name: get_env("SENTRY_ENV", "local")
-
-if config_env() == :prod do
-  config :libcluster,
-    topologies: [
-      app: [
-        strategy: Elixir.Cluster.Strategy.DNSPoll,
-        config: [
-          query: "tasks.#{fetch_env!("DOCKER_SERVICE_NAME")}",
-          node_basename: fetch_env!("RELEASE_NAME")
-        ]
-      ]
-    ]
-end

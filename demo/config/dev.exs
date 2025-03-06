@@ -1,15 +1,5 @@
 import Config
 
-config :libcluster,
-  topologies: [
-    app: [
-      strategy: Elixir.Cluster.Strategy.Epmd,
-      config: [
-        hosts: [:nonode@nohost]
-      ]
-    ]
-  ]
-
 config :demo, Demo.Repo,
   show_sensitive_data_on_connection_error: true,
   migration_timestamps: [type: :utc_datetime]

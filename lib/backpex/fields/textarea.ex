@@ -59,7 +59,7 @@ defmodule Backpex.Fields.Textarea do
           type="textarea"
           field={@form[@name]}
           placeholder={@field_options[:placeholder]}
-          rows={@field_options[:rows] || 2}
+          rows={@field_options[:rows]}
           translate_error_fun={Backpex.Field.translate_error_fun(@field_options, assigns)}
           phx-debounce={Backpex.Field.debounce(@field_options, assigns)}
           phx-throttle={Backpex.Field.throttle(@field_options, assigns)}
@@ -81,6 +81,7 @@ defmodule Backpex.Fields.Textarea do
           type="textarea"
           field={@form[@name]}
           placeholder={@field_options[:placeholder]}
+          rows={@field_options[:rows]}
           translate_error_fun={Backpex.Field.translate_error_fun(@field_options, assigns)}
           phx-debounce={Backpex.Field.debounce(@field_options, assigns)}
           phx-throttle={Backpex.Field.throttle(@field_options, assigns)}

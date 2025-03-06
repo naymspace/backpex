@@ -15,6 +15,8 @@ defmodule DemoWeb.UserLive do
       event_prefix: "user_"
     ]
 
+  import Ecto.Query, warn: false
+
   @impl Backpex.LiveResource
   def singular_name, do: "User"
 
@@ -30,6 +32,10 @@ defmodule DemoWeb.UserLive do
   def item_query(query, live_action, _assigns) when live_action in [:index, :resource_action] do
     from u in query,
       where: is_nil(u.deleted_at)
+  end
+
+  def item_query(query, _live_action, _assigns) do
+    query
   end
 
   def init_order(_assigns) do

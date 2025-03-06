@@ -51,7 +51,8 @@ module.exports = {
     'assets/js/**/*.js',
     'lib/*_web.ex',
     'lib/*_web/**/*.{ex,heex}',
-    '../lib/**/*.*ex'
+    '../lib/**/*.*ex',
+    '../assets/js/**/*.js'
   ],
   safelist: [
     'input'
