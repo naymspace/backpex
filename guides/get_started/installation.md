@@ -14,7 +14,8 @@ Set the PubSub server of your application in your `config.exs`:
 config :backpex, :pubsub_server, MyApp.PubSub
 ```
 
-Otherwise you need to configure it for each `LiveResource` individually.
+See the [Listen to PubSub Events](live_resource/listen-to-pubsub-events.md) guide for more info on how use and customize
+your PubSub configuration.
 
 ### Phoenix LiveView
 

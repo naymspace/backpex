@@ -46,7 +46,11 @@ defmodule Backpex.LiveResource do
           type: :atom
         ],
         topic: [
-          doc: "The topic for PubSub.",
+          doc: """
+          The topic for PubSub.
+
+          By default a stringified version of the live resource module name is used.
+          """,
           required: false,
           type: :string
         ]
