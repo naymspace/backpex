@@ -153,7 +153,7 @@ defmodule Backpex.HTML.Resource do
     <.live_component
       id={"resource_#{@name}"}
       module={@field_options.module}
-      field_uploads={get_in(assigns, [:uploads, @name])}
+      lv_uploads={assigns[:uploads]}
       type={@type}
       {Map.drop(assigns, [:socket, :flash, :myself, :uploads])}
     />

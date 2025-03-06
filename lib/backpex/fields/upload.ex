@@ -622,7 +622,7 @@ defmodule Backpex.Fields.Upload do
   @impl Backpex.Field
   def render_form(assigns) do
     upload_key = assigns.field_options.upload_key
-    uploads_allowed = not is_nil(assigns.field_uploads)
+    uploads_allowed = not is_nil(assigns.lv_uploads[upload_key])
     translate_error_fun = Map.get(assigns.field_options, :translate_error, &Function.identity/1)
 
     hidden_field_name = to_string(assigns.name)
@@ -642,6 +642,7 @@ defmodule Backpex.Fields.Upload do
       assigns
       |> assign(:used_input?, to_string(used_input?))
       |> assign(:hidden_field_name, hidden_field_name)
+      |> assign(:upload, assigns.lv_uploads[upload_key])
       |> assign(:upload_key, upload_key)
       |> assign(:uploads_allowed, uploads_allowed)
       |> assign(:uploaded_files, Keyword.get(assigns.uploaded_files, upload_key))
@@ -669,7 +670,7 @@ defmodule Backpex.Fields.Upload do
           x-on:dragleave="dragging--"
           x-on:drop="dragging = 0"
           class="w-full max-w-lg"
-          phx-drop-target={if @uploads_allowed, do: @field_uploads.ref}
+          phx-drop-target={if @uploads_allowed, do: @upload.ref}
         >
           <div
             class={[
@@ -686,12 +687,7 @@ defmodule Backpex.Fields.Upload do
                   <a class="link link-hover link-primary font-medium">
                     {Backpex.translate("Upload a file")}
                   </a>
-                  <.live_file_input
-                    :if={@uploads_allowed}
-                    upload={@field_uploads}
-                    phx-target="#form-component"
-                    class="hidden"
-                  />
+                  <.live_file_input :if={@uploads_allowed} upload={@upload} phx-target="#form-component" class="hidden" />
                 </label>
                 <input
                   type="hidden"
@@ -708,7 +704,7 @@ defmodule Backpex.Fields.Upload do
         <section class="mt-2">
           <article>
             <%= if @uploads_allowed do %>
-              <div :for={entry <- @field_uploads.entries} class="break-all">
+              <div :for={entry <- @upload.entries} class="break-all">
                 <p class="inline">{Map.get(entry, :client_name)}</p>
                 <button
                   type="button"
@@ -721,7 +717,7 @@ defmodule Backpex.Fields.Upload do
                   &times;
                 </button>
                 <progress :if={entry.progress > 0} class="progress ml-4 w-32" value={entry.progress} max="100"></progress>
-                <p :for={err <- upload_errors(@field_uploads, entry)} class="text-xs italic text-red-500">
+                <p :for={err <- upload_errors(@upload, entry)} class="text-xs italic text-red-500">
                   {error_to_string(err)}
                 </p>
               </div>
@@ -745,7 +741,7 @@ defmodule Backpex.Fields.Upload do
           </article>
 
           <%= if @uploads_allowed do %>
-            <p :for={err <- upload_errors(@field_uploads)} class="text-xs italic text-red-500">
+            <p :for={err <- upload_errors(@upload)} class="text-xs italic text-red-500">
               {error_to_string(err)}
             </p>
           <% end %>
