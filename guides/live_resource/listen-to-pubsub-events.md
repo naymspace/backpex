@@ -13,8 +13,7 @@ use Backpex.LiveResource,
     ...,
     pubsub: [
         name: Demo.PubSub
-        topic: "posts",
-        event_prefix: "post_"
+        topic: "posts"
     ]
 ```
 

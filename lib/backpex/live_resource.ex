@@ -45,12 +45,6 @@ defmodule Backpex.LiveResource do
           required: false,
           type: :atom
         ],
-        event_prefix: [
-          doc:
-            "The event prefix for Pubsub, to differentiate between events of different resources when subscribed to multiple resources.",
-          required: false,
-          type: :string
-        ],
         topic: [
           doc: "The topic for PubSub.",
           required: false,
@@ -1072,10 +1066,7 @@ defmodule Backpex.LiveResource do
 
   @impl Phoenix.LiveView
   def handle_info({"backpex:" <> event, item}, socket) do
-    event_prefix = socket.assigns.live_resource.pubsub()[:event_prefix]
-    ^event_prefix <> event_type = event
-
-    handle_backpex_info({event_type, item}, socket)
+    handle_backpex_info({event, item}, socket)
   end
 
   @impl Phoenix.LiveView
@@ -1223,8 +1214,7 @@ defmodule Backpex.LiveResource do
   def pubsub(live_resource) do
     [
       server: live_resource.config(:pubsub)[:server] || Application.fetch_env!(:backpex, :pubsub_server),
-      topic: live_resource.config(:pubsub)[:topic] || fallback_pubsub_topic(live_resource),
-      event_prefix: live_resource.config(:pubsub)[:event_prefix] || fallback_pubsub_event_prefix(live_resource)
+      topic: live_resource.config(:pubsub)[:topic] || fallback_pubsub_topic(live_resource)
     ]
   end
 
@@ -1232,12 +1222,6 @@ defmodule Backpex.LiveResource do
     live_resource
     |> resource_name()
     |> Kernel.<>("s")
-  end
-
-  defp fallback_pubsub_event_prefix(live_resource) do
-    live_resource
-    |> resource_name()
-    |> Kernel.<>("_")
   end
 
   defp resource_name(live_resource) do
@@ -1251,7 +1235,7 @@ defmodule Backpex.LiveResource do
   @doc """
   Subscribes to pubsub topic.
   """
-  def subscribe_to_topic(socket, server: server, topic: topic, event_prefix: _event_prefix) do
+  def subscribe_to_topic(socket, server: server, topic: topic) do
     if Phoenix.LiveView.connected?(socket) do
       Phoenix.PubSub.subscribe(server, topic)
     end
