@@ -194,14 +194,17 @@ defmodule Backpex.Resource do
 
   defp after_save(error, _func), do: error
 
-  defp broadcast({:ok, item}, event, live_resource) do
+  @doc """
+  Broadcasts `event` on the `live_resource` topic in case `result` contains `{:ok, item}`.
+  """
+  def broadcast({:ok, item} = result, event, live_resource) do
     [server: pubsub, topic: topic] = live_resource.pubsub()
 
     Phoenix.PubSub.broadcast(pubsub, topic, {event, item})
     Phoenix.PubSub.broadcast(pubsub, topic, {"backpex:" <> event, item})
 
-    {:ok, item}
+    result
   end
 
-  defp broadcast(result, _event, _opts), do: result
+  def broadcast(result, _event, _opts), do: result
 end
