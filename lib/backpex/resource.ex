@@ -74,12 +74,11 @@ defmodule Backpex.Resource do
   """
   def delete_all(items, live_resource) do
     adapter = live_resource.config(:adapter)
-    pubsub = live_resource.pubsub()
 
     adapter.delete_all(items, live_resource)
     |> tap(fn {:ok, delete_items} ->
       Enum.each(delete_items, fn deleted_item ->
-        broadcast({:ok, deleted_item}, "deleted", pubsub)
+        broadcast({:ok, deleted_item}, "deleted", live_resource)
       end)
     end)
   end
@@ -97,14 +96,13 @@ defmodule Backpex.Resource do
     {after_save_fun, opts} = Keyword.pop(opts, :after_save_fun, &{:ok, &1})
 
     adapter = live_resource.config(:adapter)
-    pubsub = live_resource.pubsub()
     fields = live_resource.validated_fields()
 
     item
     |> change(attrs, fields, assigns, live_resource, Keyword.put(opts, :action, :insert))
     |> adapter.insert(live_resource)
     |> after_save(after_save_fun)
-    |> broadcast("created", pubsub)
+    |> broadcast("created", live_resource)
   end
 
   @doc """
@@ -120,13 +118,12 @@ defmodule Backpex.Resource do
     {after_save_fun, opts} = Keyword.pop(opts, :after_save_fun, &{:ok, &1})
 
     adapter = live_resource.config(:adapter)
-    pubsub = live_resource.pubsub()
 
     item
     |> change(attrs, fields, assigns, live_resource, Keyword.put(opts, :action, :update))
     |> adapter.update(live_resource)
     |> after_save(after_save_fun)
-    |> broadcast("updated", pubsub)
+    |> broadcast("updated", live_resource)
   end
 
   @doc """
@@ -142,11 +139,10 @@ defmodule Backpex.Resource do
   """
   def update_all(items, updates, event_name \\ "updated", live_resource) do
     adapter = live_resource.config(:adapter)
-    pubsub = live_resource.pubsub()
 
     case adapter.update_all(items, updates, live_resource) do
       {_count_, nil} ->
-        Enum.each(items, fn item -> broadcast({:ok, item}, event_name, pubsub) end)
+        Enum.each(items, fn item -> broadcast({:ok, item}, event_name, live_resource) end)
         {:ok, items}
 
       _error ->
@@ -198,7 +194,9 @@ defmodule Backpex.Resource do
 
   defp after_save(error, _func), do: error
 
-  defp broadcast({:ok, item}, event, server: pubsub, topic: topic, event_prefix: event_prefix) do
+  defp broadcast({:ok, item}, event, live_resource) do
+    [server: pubsub, topic: topic, event_prefix: event_prefix] = live_resource.pubsub()
+
     Phoenix.PubSub.broadcast(pubsub, topic, {event_name(event_prefix, event), item})
     Phoenix.PubSub.broadcast(pubsub, topic, {"backpex:" <> event_name(event_prefix, event), item})
 
