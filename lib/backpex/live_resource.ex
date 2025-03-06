@@ -1214,22 +1214,8 @@ defmodule Backpex.LiveResource do
   def pubsub(live_resource) do
     [
       server: live_resource.config(:pubsub)[:server] || Application.fetch_env!(:backpex, :pubsub_server),
-      topic: live_resource.config(:pubsub)[:topic] || fallback_pubsub_topic(live_resource)
+      topic: live_resource.config(:pubsub)[:topic] || to_string(live_resource)
     ]
-  end
-
-  defp fallback_pubsub_topic(live_resource) do
-    live_resource
-    |> resource_name()
-    |> Kernel.<>("s")
-  end
-
-  defp resource_name(live_resource) do
-    live_resource
-    |> Module.split()
-    |> List.last()
-    |> String.trim_trailing("Live")
-    |> String.downcase()
   end
 
   @doc """
