@@ -38,6 +38,13 @@ jobs:
           otp-version: ${{ matrix.erlang }}
           elixir-version: ${{ matrix.elixir }}
 
+      - name: Setup node
+        uses: actions/setup-node@1d0ff469b7ec7b3cb9d8673fde0c81c44821de2a # v4.2.0
+        with:
+          node-version: 20
+          cache: 'yarn'
+          cache-dependency-path: yarn.lock
+
       - name: Restore the deps and _build cache
         uses: actions/cache@d4323d4df104b026a6aa633fdb11d772146be0bf # v4.2.2
         id: restore-cache
@@ -58,14 +65,17 @@ jobs:
         if: steps.restore-cache.outputs.cache-hit != 'true'
         run: mix deps.compile
 
-      - name: Run tests
-        run: mix test
+      - name: Compile with warnings as errors
+        run: mix compile --warnings-as-errors --force
+
+      - name: Install node dependencies
+        run: yarn install --pure-lockfile
 
       - name: Check formatting
         run: mix format --check-formatted
 
-      - name: Compile with warnings as errors
-        run: mix compile --warnings-as-errors --force
+      - name: JavaScript Standard
+        run: yarn run lint:standard
 
       - name: Build docs with warnings as errors
         run: mix docs --warnings-as-errors
@@ -78,6 +88,9 @@ jobs:
 
       - name: Deps Unused
         run: mix deps.unlock --check-unused
+
+      - name: Run tests
+        run: mix test
 
       - name: Deps Audit
         continue-on-error: true

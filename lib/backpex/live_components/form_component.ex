@@ -129,9 +129,10 @@ defmodule Backpex.FormComponent do
     |> noreply()
   end
 
-  def handle_event("cancel-entry", %{"ref" => ref, "id" => id}, socket) do
+  def handle_event("cancel-entry", %{"ref" => ref, "id" => upload_key}, socket) do
     socket
-    |> cancel_upload(String.to_existing_atom(id), ref)
+    |> cancel_upload(String.to_existing_atom(upload_key), ref)
+    |> push_event("cancel-entry:#{upload_key}", %{})
     |> noreply()
   end
 
@@ -155,6 +156,7 @@ defmodule Backpex.FormComponent do
     socket
     |> assign(:removed_uploads, removed_uploads)
     |> assign(:uploaded_files, uploaded_files)
+    |> push_event("cancel-existing-entry:#{upload_key}", %{})
     |> noreply()
   end
 

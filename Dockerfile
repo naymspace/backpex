@@ -59,6 +59,8 @@ COPY demo/package.json demo/yarn.lock demo/.stylelintrc.json ./
 RUN yarn install --pure-lockfile
 COPY demo/assets assets/
 COPY demo/lib lib/
+COPY assets ../assets/
+COPY package.json ../
 RUN mix assets.deploy
 
 # Copy the rest of the application files

@@ -316,7 +316,6 @@ defmodule Backpex.HTML.Resource do
   attr :live_resource, :atom, required: true, doc: "the live resource"
   attr :current_url, :string, required: true, doc: "the current url"
   attr :class, :string, default: "", doc: "additional class to be added to the component"
-  attr :x_style, :string, default: "", doc: "alpine-bound inline styles for the root div"
 
   def toggle_columns(assigns) do
     form =
@@ -327,7 +326,7 @@ defmodule Backpex.HTML.Resource do
     assigns = assign(assigns, :form, form)
 
     ~H"""
-    <div class={["dropdown", @class]} x-bind:style={@x_style}>
+    <div class={["dropdown", @class]}>
       <label tabindex="0" class="hover:cursor-pointer">
         <span class="sr-only">
           {Backpex.translate("Toggle columns")}
@@ -338,7 +337,7 @@ defmodule Backpex.HTML.Resource do
           class="text-base-content/50 h-5 w-5 hover:text-base-content"
         />
       </label>
-      <div tabindex="0" class="dropdown-content z-[1] menu bg-base-100 rounded-box min-w-52 max-w-72 p-4 shadow">
+      <div tabindex="0" class="dropdown-content menu bg-base-100 rounded-box min-w-52 max-w-72 p-4 shadow">
         <.form class="w-full" method="POST" for={@form} action={Router.cookie_path(@socket)}>
           <input type="hidden" name={@form[:_resource].name} value={@form[:_resource].value} />
           <input type="hidden" name={@form[:_cookie_redirect_url].name} value={@form[:_cookie_redirect_url].value} />
@@ -975,7 +974,7 @@ defmodule Backpex.HTML.Resource do
       <.form method="POST" for={@form} action={Router.cookie_path(@socket)}>
         <input type="hidden" name={@form[:_resource].name} value={@form[:_resource].value} />
         <input type="hidden" name={@form[:_cookie_redirect_url].name} value={@form[:_cookie_redirect_url].value} />
-        <div class="tooltip hover:z-30" data-tip={Backpex.translate("Toggle metrics")}>
+        <div id="toggle-metrics-button" phx-hook="BackpexTooltip" data-tooltip={Backpex.translate("Toggle metrics")}>
           <button
             type="submit"
             class={["btn btn-sm", @visible && "btn-primary", !@visible && "btn-neutral"]}
@@ -1011,10 +1010,18 @@ defmodule Backpex.HTML.Resource do
   end
 
   defp index_row_class(assigns, item, selected, index) do
-    base_class = if selected, do: "bg-base-200/50", else: "bg-base-100"
+    base_class = if selected, do: "bg-base-200", else: "bg-base-100"
     extra_class = assigns.live_resource.index_row_class(assigns, item, selected, index)
 
     [base_class, extra_class]
+  end
+
+  defp sticky_col_class do
+    [
+      "sticky right-0",
+      "after:[&[stuck]]:block after:absolute after:inset-y-0 after:left-0 after:hidden",
+      "after:border-r after:border-base-200 after:shadow-[-1px_0_2px_0_rgba(0,0,0,0.05)]"
+    ]
   end
 
   defp align_class(:left), do: "justify-start text-left"
@@ -1025,5 +1032,8 @@ defmodule Backpex.HTML.Resource do
   defp toggle_order_direction(:asc), do: :desc
   defp toggle_order_direction(:desc), do: :asc
 
-  defp shadow_sm_left, do: "box-shadow: -1px 0 2px 0 rgba(0,0,0,0.05)"
+  defp primary_value(item, live_resource) do
+    item
+    |> Map.get(live_resource.config(:primary_key))
+  end
 end

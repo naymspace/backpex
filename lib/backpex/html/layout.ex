@@ -28,77 +28,49 @@ defmodule Backpex.HTML.Layout do
 
   def app_shell(assigns) do
     ~H"""
-    <div class="bg-base-200 fixed inset-0 -z-10 h-full w-full"></div>
-
-    <div x-data="{ mobile_menu_open: false }">
-      <div class="relative z-40 md:hidden" role="dialog" aria-modal="true" x-show="mobile_menu_open">
-        <div class="bg-neutral fixed inset-0 bg-opacity-75"></div>
-
-        <div class="fixed inset-0 z-40 flex">
-          <div class="bg-base-100 relative flex w-full max-w-xs flex-1 flex-col">
-            <div class="absolute top-0 right-0 -mr-12 pt-2">
-              <button
-                type="button"
-                class="rounded-badge ml-1 flex h-10 w-10 items-center justify-center focus:ring-primary-content focus:outline-none focus:ring-2 focus:ring-inset"
-                @click="mobile_menu_open = false"
-              >
-                <Backpex.HTML.CoreComponents.icon name="hero-x-mark-solid" class="text-primary-content h-5 w-5" />
-              </button>
-            </div>
-
-            <div
-              @click.outside="mobile_menu_open = false"
-              class={"#{for sidebar <- @sidebar, do: sidebar[:class] || ""} h-0 flex-1 flex-col space-y-1 overflow-y-auto px-2 pt-5 pb-4"}
-            >
-              {render_slot(@sidebar)}
-            </div>
-          </div>
-
-          <div class="w-14 flex-shrink-0">
-            <!-- Force sidebar to shrink to fit close icon -->
-          </div>
+    <div id="backpex-app-shell" class="drawer" phx-hook="BackpexSidebarSections">
+      <input id="menu-drawer" type="checkbox" class="drawer-toggle" />
+      <div class="drawer-content">
+        <div class="bg-base-200 fixed inset-0 -z-10 h-full w-full"></div>
+        <div class={[
+          "menu hidden overflow-y-scroll px-2 pt-5 pb-4 md:fixed md:inset-y-0 md:mt-16 md:block md:w-64",
+          build_slot_class(@sidebar)
+        ]}>
+          {render_slot(@sidebar)}
         </div>
-      </div>
 
-      <%= for sidebar <- @sidebar do %>
-        <div class="hidden md:fixed md:inset-y-0 md:mt-16 md:flex md:w-64 md:flex-col">
-          <div class="flex min-h-0 flex-1 flex-col">
-            <div class={"#{sidebar[:class] || ""} flex flex-1 flex-col space-y-1 overflow-y-auto px-2 pt-5 pb-4"}>
-              {render_slot(sidebar)}
-            </div>
-          </div>
-        </div>
-      <% end %>
-
-      <div class={"#{if length(@sidebar) > 0, do: "md:pl-64", else: ""} flex flex-1 flex-col"}>
-        <div class="fixed top-0 z-30 block w-full md:-ml-64">
-          <.topbar class={for topbar <- @topbar, do: topbar[:class] || ""}>
-            {render_slot(@topbar)}
-            <%= for _ <- @sidebar do %>
-              <button
-                type="button"
-                class="text-base-content rounded-btn -mt-0.5 -ml-0.5 inline-flex h-12 w-12 items-center justify-center focus:ring-base-content focus:outline-none focus:ring-2 focus:ring-inset md:hidden"
-                @click="mobile_menu_open = !mobile_menu_open"
-              >
+        <div class={["flex flex-1 flex-col", length(@sidebar) > 0 && "md:pl-64"]}>
+          <div class="fixed top-0 z-30 block w-full md:-ml-64">
+            <.topbar class={build_slot_class(@topbar)}>
+              {render_slot(@topbar)}
+              <label :if={@sidebar != []} for="menu-drawer" class="btn drawer-button btn-ghost ml-1 md:hidden">
                 <Backpex.HTML.CoreComponents.icon name="hero-bars-3-solid" class="h-8 w-8" />
-              </button>
-            <% end %>
-          </.topbar>
-        </div>
-        <main class="h-[calc(100vh-4rem)] mt-[4rem] flex flex-col">
-          <div class="flex-1">
-            <div class={["mx-auto mt-5 px-4 sm:px-6 md:px-8", if(@fluid, do: "", else: "max-w-7xl")]}>
+              </label>
+            </.topbar>
+          </div>
+          <main class="h-[calc(100vh-4rem)] mt-[4rem]">
+            <div class={["mx-auto mt-5 px-4 sm:px-6 md:px-8", !@fluid && "max-w-7xl"]}>
               {render_slot(@inner_block)}
             </div>
-
             {render_slot(@footer)}
             <.footer :if={@footer == []} />
-          </div>
-        </main>
+          </main>
+        </div>
+      </div>
+      <div class="drawer-side z-40">
+        <label for="menu-drawer" class="drawer-overlay"></label>
+        <div class={[
+          "bg-base-100 menu min-h-full w-64 flex-1 flex-col overflow-y-auto px-2 pt-5 pb-4",
+          build_slot_class(@sidebar)
+        ]}>
+          {render_slot(@sidebar)}
+        </div>
       </div>
     </div>
     """
   end
+
+  defp build_slot_class(slot), do: Enum.map(slot, &Map.get(&1, :class))
 
   @doc """
   Renders a topbar.
@@ -111,7 +83,7 @@ defmodule Backpex.HTML.Layout do
 
   def topbar(assigns) do
     ~H"""
-    <header class={"#{@class} border-base-300 bg-base-100 text-base-content flex h-16 w-full items-center border-b px-4"}>
+    <header class={["border-base-300 bg-base-100 text-base-content flex h-16 w-full items-center border-b px-4", @class]}>
       {render_slot(@inner_block)}
     </header>
     """
@@ -386,7 +358,7 @@ defmodule Backpex.HTML.Layout do
   """
   @doc type: :component
 
-  attr :class, :string, default: "", doc: "additional class that will be added to the component"
+  attr :class, :string, default: nil, doc: "additional class that will be added to the component"
 
   attr :id, :string,
     default: "section",
@@ -398,26 +370,14 @@ defmodule Backpex.HTML.Layout do
 
   def sidebar_section(assigns) do
     ~H"""
-    <div
-      x-data={"{open: localStorage.getItem('section-opened-#{@id}')  === 'true'}"}
-      x-init={"$watch('open', val => localStorage.setItem('section-opened-#{@id}', val))"}
-    >
-      <div @click="open = !open" class={"#{@class} group mt-2 flex cursor-pointer items-center space-x-1 p-2"}>
-        <div class="pr-1">
-          <Backpex.HTML.CoreComponents.icon
-            name="hero-chevron-down-solid"
-            class="h-5 w-5 transition duration-75"
-            x-bind:class="open ? '' : '-rotate-90'"
-          />
-        </div>
-        <div class="text-base-content flex gap-2 text-sm font-semibold uppercase">
-          {render_slot(@label)}
-        </div>
-      </div>
-      <div class="flex-col space-y-1" x-show="open" x-transition x-transition.duration.75ms>
+    <li data-section-id={@id} class={["hidden", @class]}>
+      <span data-menu-dropdown-toggle class="menu-dropdown-toggle menu-dropdown-show">
+        {render_slot(@label)}
+      </span>
+      <ul data-menu-dropdown-content class="menu-dropdown menu-dropdown-show">
         {render_slot(@inner_block)}
-      </div>
-    </div>
+      </ul>
+    </li>
     """
   end
 
@@ -442,26 +402,17 @@ defmodule Backpex.HTML.Layout do
         %{href: href} -> href
       end
 
-    highlight =
-      if Router.active?(assigns.current_url, path) do
-        "bg-base-300 text-base-content"
-      else
-        "text-base-content/95 hover:bg-base-100"
-      end
-
-    base_class = "group flex items-center gap-2 rounded-btn px-2 py-2 space-x-2 hover:cursor-pointer"
-
-    extra = assigns_to_attributes(assigns)
-
     assigns =
       assigns
-      |> assign(:class, [base_class, highlight, assigns.class])
-      |> assign(:extra, extra)
+      |> assign(:active, Router.active?(assigns.current_url, path))
+      |> assign(:extra, assigns_to_attributes(assigns))
 
     ~H"""
-    <.link class={@class} {@extra}>
-      {render_slot(@inner_block)}
-    </.link>
+    <li>
+      <.link class={[@class, @active && "active"]} {@extra}>
+        {render_slot(@inner_block)}
+      </.link>
+    </li>
     """
   end
 

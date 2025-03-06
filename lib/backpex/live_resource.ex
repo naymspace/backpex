@@ -385,8 +385,9 @@ defmodule Backpex.LiveResource do
           {@singular_name}
           <.link
             :if={@live_resource.can?(assigns, :edit, @item)}
-            class="tooltip hover:z-30"
-            data-tip={Backpex.translate("Edit")}
+            id={"#{@singular_name}-edit-link"}
+            phx-hook="BackpexTooltip"
+            data-tooltip={Backpex.translate("Edit")}
             aria-label={Backpex.translate("Edit")}
             patch={Router.get_path(@socket, @live_resource, @params, :edit, @item)}
           >

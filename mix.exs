@@ -67,7 +67,7 @@ defmodule Backpex.MixProject do
 
   defp package do
     [
-      files: ~w(lib priv .formatter.exs mix.exs README.md LICENSE.md),
+      files: ~w(assets/js package.json lib priv .formatter.exs mix.exs README.md LICENSE.md),
       maintainers: ["Florian Arens", "Phil-Bastian Berndt", "Simon Hansen"],
       licenses: ["MIT"],
       links: %{

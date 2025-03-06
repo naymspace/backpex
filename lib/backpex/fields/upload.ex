@@ -650,36 +650,22 @@ defmodule Backpex.Fields.Upload do
       |> assign(:form_errors, form_errors)
 
     ~H"""
-    <div x-data="{
-        dispatchChangeEvent(el) {
-          $nextTick(
-            () => {
-              form = document.getElementById('resource-form');
-              if (form) el.dispatchEvent(new Event('input', { bubbles: true }));
-            }
-          )
-        }
-      }">
+    <div>
       <Layout.field_container>
         <:label align={Backpex.Field.align_label(@field_options, assigns, :top)}>
           <Layout.input_label text={@field_options[:label]} />
         </:label>
         <div
-          x-data="{dragging: 0}"
-          x-on:dragenter="dragging++"
-          x-on:dragleave="dragging--"
-          x-on:drop="dragging = 0"
+          id={"#{@name}-drop-target"}
           class="w-full max-w-lg"
+          phx-hook="BackpexDragHover"
           phx-drop-target={if @uploads_allowed, do: @upload.ref}
         >
-          <div
-            class={[
-              "rounded-btn flex justify-center border-2 border-dashed px-6 pt-5 pb-6",
-              @errors == [] && "border-base-content/25",
-              @errors != [] && "border-error bg-error/10"
-            ]}
-            x-bind:class="dragging > 0 ? 'border-primary' : 'border-base-content/25'"
-          >
+          <div class={[
+            "rounded-btn flex justify-center border-2 border-dashed px-6 pt-5 pb-6",
+            @errors == [] && "border-base-content/25",
+            @errors != [] && "border-error bg-error/10"
+          ]}>
             <div class="flex flex-col items-center space-y-1 text-center">
               <Backpex.HTML.CoreComponents.icon name="hero-document-arrow-up" class="text-base-content/50 h-8 w-8" />
               <div class="flex text-sm">
@@ -694,6 +680,8 @@ defmodule Backpex.Fields.Upload do
                   name={"change[#{@hidden_field_name}_used_input]"}
                   id={"change_#{@hidden_field_name}_used_input"}
                   value={@used_input?}
+                  data-upload-key={@upload_key}
+                  phx-hook="BackpexCancelEntry"
                 />
                 <p class="pl-1">{Backpex.translate("or drag and drop")}</p>
               </div>
@@ -712,7 +700,6 @@ defmodule Backpex.Fields.Upload do
                   phx-value-ref={entry.ref}
                   phx-value-id={@upload_key}
                   phx-target="#form-component"
-                  @click="() => dispatchChangeEvent($el)"
                 >
                   &times;
                 </button>
@@ -732,7 +719,6 @@ defmodule Backpex.Fields.Upload do
                   phx-value-ref={file_key}
                   phx-value-id={@upload_key}
                   phx-target="#form-component"
-                  @click="() => dispatchChangeEvent($el)"
                 >
                   &times;
                 </button>
