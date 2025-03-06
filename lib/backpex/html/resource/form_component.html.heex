@@ -16,17 +16,29 @@
     multipart
   >
     <.edit_card>
+      <%!-- Default panel --%>
       <:panel>
-        <%= for {name, _field_options} <- visible_fields_by_panel(@fields, :default, assigns) do %>
-          <.resource_form_field name={name} form={f} {assigns} />
-        <% end %>
+        <.resource_form_field
+          :for={{name, _field_options} <- visible_fields_by_panel(@fields, :default, assigns)}
+          name={name}
+          form={f}
+          {assigns}
+        />
       </:panel>
 
       <%!-- Custom panels --%>
-      <:panel :for={{name, label} <- @panels} label={label} class="mt-4">
-        <%= for {name, _field_options} <- visible_fields_by_panel(@fields, name, assigns) do %>
-          <.resource_form_field name={name} form={f} {assigns} />
-        <% end %>
+      <:panel
+        :for={{name, label} <- @panels}
+        :if={visible_fields_by_panel(@fields, name, assigns) != []}
+        label={label}
+        class="mt-4"
+      >
+        <.resource_form_field
+          :for={{name, _field_options} <- visible_fields_by_panel(@fields, name, assigns)}
+          name={name}
+          form={f}
+          {assigns}
+        />
       </:panel>
 
       <:actions>

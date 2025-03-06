@@ -477,7 +477,7 @@ defmodule Backpex.Fields.HasManyThrough do
     <.live_component
       id={"pivot_modal_#{@name}_#{@form.index}"}
       module={@field_options.module}
-      field_uploads={get_in(assigns, [:uploads, @name])}
+      lv_uploads={assigns[:uploads]}
       type={:form}
       {assigns}
     />
