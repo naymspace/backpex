@@ -125,11 +125,26 @@ defmodule Backpex.Router do
   def member?([], _item, default), do: default
   def member?(list, item, _default), do: Enum.member?(list, item)
 
+  defp update_params(params, socket) do
+    cond do
+      Map.has_key?(socket.assigns, :__assigns__) ->
+        Map.merge(params, socket.assigns.__assigns__.params)
+
+      Map.has_key?(socket.assigns, :changed) ->
+        Map.merge(params, socket.assigns.changed)
+
+      true ->
+        Map.merge(params, socket.assigns.params)
+    end
+  end
+
   @doc """
   Finds the raw path by the given socket and module and puts the path params into the raw path.
   """
   def get_path(socket, module, params, action, params_or_item \\ %{}) do
     route_path = get_route_path(socket, module, action)
+
+    params = update_params(params, socket)
 
     id_field = module.config(:primary_key)
 
@@ -145,6 +160,8 @@ defmodule Backpex.Router do
 
   def get_path(socket, module, params, action, id_or_instance, query_params) do
     id_field = module.config(:primary_key)
+
+    params = update_params(params, socket)
 
     id_serializable =
       if is_map(id_or_instance) and Map.has_key?(id_or_instance, id_field),
