@@ -16,7 +16,12 @@
                 "ignoreAtRules": [
                     "extends",
                     "tailwind",
-                    "layer"
+                    "layer",
+                    "plugin", 
+                    "source",
+                    "variant",
+                    "custom-variant", 
+                    "utility"
                 ]
             }
         ]
