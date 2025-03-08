@@ -1,5 +1,4 @@
 @import 'tailwindcss';
-@config "../tailwind.config.js";
 @plugin "../tailwind_heroicons.js";
 @plugin "daisyui" {
   themes: dark, cupcake, bumblebee, emerald, corporate, synthwave, retro, cyberpunk, valentine, halloween, garden, forest, aqua, lofi, pastel, fantasy, wireframe, black, luxury, dracula, cmyk, autumn, business, acid, lemonade, night, coffee, winter, dim, nord, sunset;
@@ -20,7 +19,14 @@
   opacity: 0.5;
   transition: opacity 1s ease-out;
 }
-
 @utility phx-loading {
   cursor: wait;
 }
+@utility container {
+  margin-inline: auto;
+  padding-inline: 2rem;
+}
+
+@custom-variant phx-click-loading (.phx-click-loading&, .phx-click-loading &);
+@custom-variant phx-submit-loading (.phx-submit-loading&, .phx-submit-loading &);
+@custom-variant phx-change-loading (.phx-change-loading&, .phx-change-loading &);
