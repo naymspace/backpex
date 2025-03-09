@@ -154,7 +154,7 @@ defmodule Backpex.Fields.Date do
         <BackpexForm.input
           type="date"
           field={@form[:value]}
-          input_class={["input input-sm w-52", @valid && "hover:input-bordered", !@valid && "input-error"]}
+          input_class={["input input-sm w-52", @valid && "[:not(:hover)]:input-ghost", !@valid && "input-error"]}
           phx-debounce="100"
           readonly={@readonly}
           hide_errors

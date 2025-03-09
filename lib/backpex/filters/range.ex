@@ -96,12 +96,12 @@ defmodule Backpex.Filters.Range do
   def range_input_set(%{type: :date} = assigns) do
     ~H"""
     <div class="mt-2">
-      <label class="input input-sm input-bordered mb-2 flex w-full items-center">
+      <label class="input input-sm mb-2 flex w-full items-center">
         <span class="text-base-content/50 w-10 ">{Backpex.translate("From")}</span>
         <input type="date" name={@form[:start].name} class="grow" value={@value["start"]} />
       </label>
 
-      <label class="input input-sm input-bordered flex w-full items-center">
+      <label class="input input-sm flex w-full items-center">
         <span class="text-base-content/50 w-10 ">{Backpex.translate("To")}</span>
         <input type="date" name={@form[:end].name} class="grow" value={@value["end"]} />
       </label>
@@ -112,12 +112,12 @@ defmodule Backpex.Filters.Range do
   def range_input_set(%{type: :number} = assigns) do
     ~H"""
     <div class="mt-2">
-      <label class="input input-sm input-bordered mb-2 flex w-full items-center">
+      <label class="input input-sm mb-2 flex w-full items-center">
         <span class="text-base-content/50 w-10">{Backpex.translate("From")}</span>
         <input type="number" name={@form[:start].name} class="grow" value={@value["start"]} />
       </label>
 
-      <label class="input input-sm input-bordered flex w-full items-center">
+      <label class="input input-sm flex w-full items-center">
         <span class="text-base-content/50 w-10 ">{Backpex.translate("To")}</span>
         <input type="number" name={@form[:end].name} class="grow" value={@value["end"]} />
       </label>
