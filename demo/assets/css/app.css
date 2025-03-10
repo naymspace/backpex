@@ -28,10 +28,6 @@
   transition: opacity 1s ease-out;
 }
 
-@utility phx-loading {
-  cursor: wait;
-}
-
 @utility container {
   margin-inline: auto;
   padding-inline: 2rem;
@@ -40,3 +36,7 @@
 @custom-variant phx-click-loading (.phx-click-loading&, .phx-click-loading &);
 @custom-variant phx-submit-loading (.phx-submit-loading&, .phx-submit-loading &);
 @custom-variant phx-change-loading (.phx-change-loading&, .phx-change-loading &);
+
+.phx-loading {
+  cursor: wait;
+}
