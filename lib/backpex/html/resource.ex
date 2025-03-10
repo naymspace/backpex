@@ -186,7 +186,7 @@ defmodule Backpex.HTML.Resource do
     <.form :if={@search_enabled} id="index-search-form" for={@form} phx-change="index-search" phx-submit="index-search">
       <input
         name={@form[:value].name}
-        class="input input-sm input-bordered"
+        class="input input-sm"
         placeholder={@placeholder}
         phx-debounce="200"
         value={@form[:value].value}
@@ -607,7 +607,7 @@ defmodule Backpex.HTML.Resource do
 
     ~H"""
     <.form for={@form} class={@class} phx-change="select-page-size" phx-submit="select-page-size">
-      <select name={@form[:value].name} class="select select-sm select-bordered">
+      <select name={@form[:value].name} class="select select-sm">
         {Phoenix.HTML.Form.options_for_select(@options, @selected)}
       </select>
     </.form>

@@ -127,7 +127,7 @@ defmodule Backpex.Fields.Time do
         <BackpexForm.input
           type="time"
           field={@form[:value]}
-          input_class={["input input-sm w-32", @valid && "hover:input-bordered", !@valid && "input-error"]}
+          input_class={["input input-sm w-32", @valid && "[:not(:hover)]:input-ghost", !@valid && "input-error"]}
           phx-debounce="100"
           readonly={@readonly}
           hide_errors

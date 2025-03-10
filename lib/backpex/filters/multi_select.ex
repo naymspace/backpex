@@ -86,7 +86,7 @@ defmodule Backpex.Filters.MultiSelect do
 
     ~H"""
     <div class="dropdown mt-2 w-full" phx-click={open_content()} phx-click-away={close_content()}>
-      <div tabindex="0" role="button" class="select select-sm select-bordered w-full">
+      <div tabindex="0" role="button" class="select select-sm">
         <%= if @value == [] do %>
           {@prompt}
         <% else %>
