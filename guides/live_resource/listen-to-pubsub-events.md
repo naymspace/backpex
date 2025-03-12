@@ -1,6 +1,6 @@
 # Listen to PubSub Events
 
-As mentioned in the [installation guide](get_started/installation.md) are able to configure PubSub events for your each
+As mentioned in the [installation guide](get_started/installation.md) you are able to configure PubSub events for each
 *LiveResources* individually. Backpex will use the configuration to publish `deleted`, `updated` and `created` events.
 Backpex will listen to these events and update the UI accordingly. Sometimes you may want to listen to these events and 
 perform some custom actions. For example you want to show a toast to all users currently on the resource that a post has
@@ -14,7 +14,7 @@ You may overwrite the PubSub configuration for your Posts *LiveResource* like th
 use Backpex.LiveResource,
     ...,
     pubsub: [
-        name: Demo.PubSub
+        server: Demo.PubSub
         topic: "posts"
     ]
 ```
