@@ -7,11 +7,6 @@ defmodule DemoWeb.CategoryLive do
       create_changeset: &Demo.Category.create_changeset/3
     ],
     layout: {DemoWeb.Layouts, :admin},
-    pubsub: [
-      name: Demo.PubSub,
-      topic: "categories",
-      event_prefix: "category_"
-    ],
     init_order: %{by: :name, direction: :asc}
 
   @impl Backpex.LiveResource

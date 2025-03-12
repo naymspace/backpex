@@ -38,22 +38,20 @@ defmodule Backpex.LiveResource do
     pubsub: [
       doc: "PubSub configuration.",
       type: :keyword_list,
-      required: true,
+      required: false,
       keys: [
-        name: [
-          doc: "PubSub name of the project.",
-          required: true,
+        server: [
+          doc: "PubSub server of the project.",
+          required: false,
           type: :atom
         ],
-        event_prefix: [
-          doc:
-            "The event prefix for Pubsub, to differentiate between events of different resources when subscribed to multiple resources.",
-          required: true,
-          type: :string
-        ],
         topic: [
-          doc: "The topic for PubSub.",
-          required: true,
+          doc: """
+          The topic for PubSub.
+
+          By default a stringified version of the live resource module name is used.
+          """,
+          required: false,
           type: :string
         ]
       ]
@@ -250,7 +248,9 @@ defmodule Backpex.LiveResource do
 
       alias Backpex.LiveResource
 
-      def config(key), do: Keyword.fetch!(@resource_opts, key)
+      def config(key), do: Keyword.get(@resource_opts, key)
+
+      def pubsub, do: LiveResource.pubsub(__MODULE__)
 
       def validated_fields, do: LiveResource.validated_fields(__MODULE__)
 
@@ -447,7 +447,7 @@ defmodule Backpex.LiveResource do
   @impl Phoenix.LiveView
   def mount(params, session, socket) do
     live_resource = socket.view
-    pubsub = live_resource.config(:pubsub)
+    pubsub = live_resource.pubsub()
     subscribe_to_topic(socket, pubsub)
 
     # TODO: move these "config assigns" (and other global assigns) to where they are needed
@@ -1071,10 +1071,7 @@ defmodule Backpex.LiveResource do
 
   @impl Phoenix.LiveView
   def handle_info({"backpex:" <> event, item}, socket) do
-    event_prefix = socket.assigns.live_resource.config(:pubsub)[:event_prefix]
-    ^event_prefix <> event_type = event
-
-    handle_backpex_info({event_type, item}, socket)
+    handle_backpex_info({event, item}, socket)
   end
 
   @impl Phoenix.LiveView
@@ -1217,11 +1214,21 @@ defmodule Backpex.LiveResource do
   end
 
   @doc """
+  Returns the pubsub settings for the current LiveResource.
+  """
+  def pubsub(live_resource) do
+    [
+      server: live_resource.config(:pubsub)[:server] || Application.fetch_env!(:backpex, :pubsub_server),
+      topic: live_resource.config(:pubsub)[:topic] || to_string(live_resource)
+    ]
+  end
+
+  @doc """
   Subscribes to pubsub topic.
   """
-  def subscribe_to_topic(socket, name: name, topic: topic, event_prefix: _event_prefix) do
+  def subscribe_to_topic(socket, server: server, topic: topic) do
     if Phoenix.LiveView.connected?(socket) do
-      Phoenix.PubSub.subscribe(name, topic)
+      Phoenix.PubSub.subscribe(server, topic)
     end
   end
 

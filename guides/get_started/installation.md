@@ -6,6 +6,17 @@ The following guide will help you to install Backpex in your Phoenix application
 
 Backpex integrates seamlessly with your existing Phoenix LiveView application, but there are a few prerequisites you need to meet before you can start using it.
 
+## Global configuration
+
+Set the PubSub server of your application in your `config.exs`:
+
+```elixir
+config :backpex, :pubsub_server, MyApp.PubSub
+```
+
+See the [Listen to PubSub Events](live_resource/listen-to-pubsub-events.md) guide for more info on how use and customize
+your PubSub configuration.
+
 ### Phoenix LiveView
 
 Backpex is built on top of Phoenix LiveView, so you need to have Phoenix LiveView installed in your application. If you generate a new Phoenix application using the latest version of the `mix phx.new` generator, Phoenix LiveView is included by default.
@@ -167,12 +178,7 @@ defmodule MyAppWeb.Live.PostLive do
       update_changeset: &MyApp.Blog.Post.update_changeset/3,
       create_changeset: &MyApp.Blog.Post.create_changeset/3
     ],
-    layout: {MyAppWeb.Layouts, :admin},
-    pubsub: [
-      name: MyApp.PubSub,
-      topic: "posts",
-      event_prefix: "post_"
-    ]
+    layout: {MyAppWeb.Layouts, :admin}
 end
 ```
 
@@ -203,12 +209,7 @@ defmodule MyAppWeb.Live.PostLive do
       update_changeset: &MyApp.Blog.Post.update_changeset/3,
       create_changeset: &MyApp.Blog.Post.create_changeset/3
     ],
-    layout: {MyAppWeb.Layouts, :admin},
-    pubsub: [
-      name: MyApp.PubSub,
-      topic: "posts",
-      event_prefix: "post_"
-    ]
+    layout: {MyAppWeb.Layouts, :admin}
 
   @impl Backpex.LiveResource
   def singular_name, do: "Post"
