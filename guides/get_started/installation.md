@@ -60,18 +60,12 @@ See the [hex.pm page](https://hex.pm/packages/backpex) for the latest version.
 
 ## Add files to Tailwind content
 
-Backpex uses Tailwind CSS and daisyUI. Make sure to add the Backpex files to your tailwind content in order to include the Backpex styles.
+Backpex uses Tailwind CSS and daisyUI. Make sure to add Backpex files as a tailwind source in order to include the Backpex styles.
 
-In your `tailwind.config.js`:
+In your stylesheet:
 
-```javascript
-..,
-content: [
-  ...,
-  // add this lines
-  '../deps/backpex/**/*.*ex'
-  '../deps/backpex/assets/js/**/*.*js'
-]
+```css
+@source "../../deps/backpex/**/*.*ex";
 ```
 
 > #### Info {: .info}
@@ -371,27 +365,20 @@ Backpex supports daisyUI themes. The following steps will guide you through sett
 
 **1. Add the themes to your application.**
 
-First, you need to add the themes to your `tailwind.config.js` file. You can add the themes to the `daisyui` key in the configuration file. The following example shows how to add the `light`, `dark`, and `cyberpunk` themes to your application.
+First, you need to add the themes to your stylesheet. You can add the themes to the `daisyui` plugin options. The following example shows how to add the `light`, `dark`, and `cyberpunk` themes to your application.
 
-```javascript
-// tailwind.config.js
-module.exports = {
-  daisyui: {
-    themes: [
-      {
-        light: {
-          ...require('daisyui/src/theming/themes').light,
-          primary: '#1d4ed8',
-          'primary-content': 'white',
-          secondary: '#f39325',
-          'secondary-content': 'white'
-        }
-      },
-        "dark",
-        "cyberpunk"
-    ]
-  },
-  ...
+```css
+@plugin "daisyui" {
+  themes: dark, cyberpunk;
+}
+
+@plugin "daisyui/theme" {
+  name: "light";
+
+  --color-primary: #1d4ed8;
+  --color-primary-content: white;
+  --color-secondary: #f39325;
+  --color-secondary-content: white;
 }
 ```
 
@@ -432,7 +419,7 @@ To add the saved theme to the assigns, you can add the `Backpex.ThemeSelectorPlu
 
 **4. Add the theme selector component to the app shell**
 
-You can add a theme selector to your layout to allow users to change the theme. The following example shows how to add a theme selector to the `admin.html.heex` layout. The list of themes should match the themes you added to your `tailwind.config.js` file.
+You can add a theme selector to your layout to allow users to change the theme. The following example shows how to add a theme selector to the `admin.html.heex` layout. The list of themes should match the themes you added to your stylesheet.
 
 ```heex
 # admin.html.heex
@@ -486,18 +473,11 @@ This will minimize flashes with the old theme in some situations.
 
 ## Remove `@tailwindcss/forms` plugin
 
-There is a conflict between the `@tailwindcss/forms` plugin and daisyUI. You should remove the `@tailwindcss/forms` plugin from your `tailwind.config.js` to prevent styling issues.
+There is a conflict between the `@tailwindcss/forms` plugin and daisyUI. You should remove the `@tailwindcss/forms` plugin to prevent styling issues.
 
-```javascript
-// tailwind.config.js
-module.exports = {
-  ...
-  plugins: [
-    ...
-    // remove this line
-    // require('@tailwindcss/forms'),
-  ],
-}
+```css
+// remove this line
+@plugin "tailwindcss/forms;
 ```
 
 If your application depends on the `@tailwindcss/forms` plugin, you can keep the plugin and [change the strategy to `'class'`](https://github.com/tailwindlabs/tailwindcss-forms?tab=readme-ov-file#using-only-global-styles-or-only-classes). This will prevent the plugin from conflicting with daisyUI. Note that you then have to add the form classes provided by the `@tailwindcss/forms` plugin to your inputs manually.
@@ -529,58 +509,65 @@ This will add the heroicons repository as a dependency to your project. You can 
 
 ### Add the Tailwind CSS plugin
 
-Add the following plugin to your `tailwind.config.js` to generate the necessary styles to display the icons.
+Define the following plugin and import it into your stylesheet to generate the necessary styles to display the icons.
 
 ```javascript
-// add fs and path to the top of the file
+// tailwind.heroicons.js
+
+// add fs, plugin and path to the top of the file
+const plugin = require('tailwindcss/plugin')
 const fs = require('fs')
 const path = require('path')
 
-module.exports = {
-  ...
-  plugins: [
-    ...
-    // add this plugin
-    plugin(function ({ matchComponents, theme }) {
-      let iconsDir = path.join(__dirname, "../deps/heroicons/optimized")
-      let values = {}
-      let icons = [
-        ["", "/24/outline"],
-        ["-solid", "/24/solid"],
-        ["-mini", "/20/solid"],
-        ["-micro", "/16/solid"]
-      ]
-      icons.forEach(([suffix, dir]) => {
-        fs.readdirSync(path.join(iconsDir, dir)).forEach(file => {
-          let name = path.basename(file, ".svg") + suffix
-          values[name] = { name, fullPath: path.join(iconsDir, dir, file) }
-        })
-      })
-      matchComponents({
-        "hero": ({ name, fullPath }) => {
-          let content = fs.readFileSync(fullPath).toString().replace(/\r?\n|\r/g, "")
-          let size = theme("spacing.6")
-          if (name.endsWith("-mini")) {
-            size = theme("spacing.5")
-          } else if (name.endsWith("-micro")) {
-            size = theme("spacing.4")
-          }
-          return {
-            [`--hero-${name}`]: `url('data:image/svg+xml;utf8,${content}')`,
-            "-webkit-mask": `var(--hero-${name})`,
-            "mask": `var(--hero-${name})`,
-            "mask-repeat": "no-repeat",
-            "background-color": "currentColor",
-            "vertical-align": "middle",
-            "display": "inline-block",
-            "width": size,
-            "height": size
-          }
-        }
-      }, { values })
+module.exports = plugin(function ({ matchComponents, theme }) {
+  const iconsDir = path.join(__dirname, '../../deps/heroicons/optimized')
+  const values = {}
+  const icons = [
+    ['', '/24/outline'],
+    ['-solid', '/24/solid'],
+    ['-mini', '/20/solid'],
+    ['-micro', '/16/solid']
+  ]
+  icons.forEach(([suffix, dir]) => {
+    fs.readdirSync(path.join(iconsDir, dir)).forEach((file) => {
+      const name = path.basename(file, '.svg') + suffix
+      values[name] = { name, fullPath: path.join(iconsDir, dir, file) }
     })
-  ],
-}
+  })
+  matchComponents(
+    {
+      hero: ({ name, fullPath }) => {
+        let content = fs
+          .readFileSync(fullPath)
+          .toString()
+          .replace(/\r?\n|\r/g, '')
+        content = encodeURIComponent(content)
+        let size = theme('spacing.6')
+        if (name.endsWith('-mini')) {
+          size = theme('spacing.5')
+        } else if (name.endsWith('-micro')) {
+          size = theme('spacing.4')
+        }
+        return {
+          [`--hero-${name}`]: `url('data:image/svg+xml;utf8,${content}')`,
+          '-webkit-mask': `var(--hero-${name})`,
+          mask: `var(--hero-${name})`,
+          'mask-repeat': 'no-repeat',
+          'background-color': 'currentColor',
+          'vertical-align': 'middle',
+          display: 'inline-block',
+          width: size,
+          height: size
+        }
+      }
+    },
+    { values }
+  )
+})
+```
+
+```css
+@plugin "./tailwind_heroicons.js";
 ```
 
 This plugin will generate the necessary styles to display the heroicons in your application. You can now use the `Backpex.HTML.CoreComponents.icon/1` component to render the icons in your application.
