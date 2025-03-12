@@ -1,0 +1,19 @@
+{
+  "name": "backpex",
+  "version": "0.10.0",
+  "license": "MIT",
+  "main": "assets/js/backpex.js",
+  "scripts": {
+    "format:standard": "standard assets/js --fix",
+    "lint:standard": "standard assets/js"
+  },
+  "standard": {
+    "globals": [
+      "localStorage",
+      "IntersectionObserver"
+    ]
+  },
+  "devDependencies": {
+    "standard": "17.1.2"
+  }
+}
