@@ -174,7 +174,7 @@ defmodule Backpex.HTML.Form do
           name={@name}
           class={
             @input_class ||
-              ["textarea", @errors == [] && "textarea-bordered", @errors != [] && "textarea-error bg-error/10"]
+              ["textarea w-full", @errors == [] && "textarea-bordered", @errors != [] && "textarea-error bg-error/10"]
           }
           {@rest}
         ><%= Phoenix.HTML.Form.normalize_value("textarea", @value) %></textarea>
@@ -196,8 +196,8 @@ defmodule Backpex.HTML.Form do
           name={@name}
           id={@id}
           value={Phoenix.HTML.Form.normalize_value(@type, @value)}
-          class={@input_class || ["input", @input_class, @errors != [] && "input-error bg-error/10 input-ghost"]}
-          {@rest}
+          class={@input_class || ["input w-full", @input_class, @errors != [] && "input-error bg-error/10 input-ghost"]}
+              {@rest}
         />
       </fieldset>
       <.error :for={msg <- @errors} :if={not @hide_errors} class="mt-1">{msg}</.error>
