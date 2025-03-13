@@ -409,7 +409,7 @@ defmodule Backpex.HTML.Layout do
 
     ~H"""
     <li>
-      <.link class={[@class, @active && "active"]} {@extra}>
+      <.link class={[@class, @active && "menu-active"]} {@extra}>
         {render_slot(@inner_block)}
       </.link>
     </li>
