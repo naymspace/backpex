@@ -9,19 +9,183 @@
     night, coffee, winter, dim, nord, sunset;
 }
 
+@theme {
+  --radius-badge: var(--rounded-badge, 1.9rem);
+  --rounded-box: (1rem, var(--rounded-box));
+  --rounded-btn: (0.5rem, var(--rounded-btn));
+  --rounded-badge: (1.9rem, var(--rounded-badge));
+  --animation-btn: (0.25s, var(--animation-btn));
+  --animation-input: (0.2s, var(--animation-input));
+  --btn-focus-scale: (0.95, var(--btn-focus-scale));
+  --border-btn: (1px, var(--border-btn));
+  --tab-border: (1px, var(--tab-border));
+  --tab-radius: (0.5rem, var(--tab-radius));
+  --depth: 0;
+}
+
 @plugin "daisyui/theme" {
   name: "light";
 
+  --color-primary: "oklch(49.12% 0.3096 275.75)";
+  --color-secondary: "oklch(69.71% 0.329 342.55)";
+  --color-secondary-content: "oklch(98.71% 0.0106 342.55)";
+  --color-accent: "oklch(76.76% 0.184 183.61)";
+  --color-neutral: "#2B3440";
+  --color-neutral-content: "#D7DDE4";
+  --color-base-100: "oklch(100% 0 0)";
+  --color-base-200: "#F2F2F2";
+  --color-base-300: "#E5E6E6";
+  --color-base-content: "#1f2937";
   --color-primary: #1d4ed8;
   --color-primary-content: white;
   --color-secondary: #f39325;
   --color-secondary-content: white;
 }
 
+@plugin "daisyui/theme" {
+  name: "cyberpunk";
+
+  font-family: "ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,Liberation Mono,Courier New,monospace";
+  --rounded-box: 0;
+  --rounded-btn: 0;
+  --rounded-badge: 0;
+  --tab-radius: 0;
+}
+
+@plugin "daisyui/theme" {
+  name: "black";
+
+  --rounded-box: 0;
+  --rounded-btn: 0;
+  --rounded-badge: 0;
+  --animation-btn: 0;
+  --animation-input: 0;
+  --btn-focus-scale: 1;
+  --tab-radius: 0;
+}
+
+@plugin "daisyui/theme" {
+  name: "corporate";
+
+  --rounded-box: 0.25rem;
+  --rounded-btn: 0.125rem;
+  --rounded-badge: 0.125rem;
+  --tab-radius: 0.25rem;
+  --animation-btn: 0;
+  --animation-input: 0;
+  --btn-focus-scale: 1;
+}
+
+@plugin "daisyui/theme" {
+  name: "cupcake";
+
+  --rounded-btn: 1.9rem;
+  --tab-border: 2px;
+  --tab-radius: 0.7rem;
+}
+
+@plugin "daisyui/theme" {
+  name: "emerald";
+
+  --animation-btn: 0;
+  --animation-input: 0;
+  --btn-focus-scale: 1;
+}
+
+@plugin "daisyui/theme" {
+  name: "forest";
+
+  --rounded-btn: 1.9rem;
+}
+
+@plugin "daisyui/theme" {
+  name: "lofi";
+
+  --rounded-box: 0.25rem;
+  --rounded-btn: 0.125rem;
+  --rounded-badge: 0.125rem;
+  --tab-radius: 0.125rem;
+  --animation-btn: 0;
+  --animation-input: 0;
+  --btn-focus-scale: 1;
+}
+
+@plugin "daisyui/theme" {
+  name: "pastel";
+
+  --rounded-btn: 1.9rem;
+  --tab-radius: 0.7rem;
+}
+
+@plugin "daisyui/theme" {
+  name: "retro";
+
+  --rounded-box: 0.4rem;
+  --rounded-btn: 0.4rem;
+  --rounded-badge: 0.4rem;
+  --tab-radius: 0.4rem;
+}
+
+@plugin "daisyui/theme" {
+  name: "valentine";
+
+  --rounded-btn: 1.9rem;
+  --tab-radius: 0.7rem;
+}
+
+@plugin "daisyui/theme" {
+  name: "wireframe";
+
+  --rounded-box: 0.2rem;
+  --rounded-btn: 0.2rem;
+  --rounded-badge: 0.2rem;
+  --tab-radius: 0.2rem;
+}
+
+@plugin "daisyui/theme" {
+  name: "business";
+
+  --rounded-box: 0.25rem;
+  --rounded-btn: 0.125rem;
+  --rounded-badge: 0.125rem;
+}
+
+@plugin "daisyui/theme" {
+  name: "acid";
+
+  --rounded-box: 1.25rem;
+  --rounded-btn: 1rem;
+  --rounded-badge: 1rem;
+  --tab-radius: 0.7rem;
+}
+
+@plugin "daisyui/theme" {
+  name: "nord";
+
+  --rounded-box: 0.4rem;
+  --rounded-btn: 0.2rem;
+  --rounded-badge: 0.4rem;
+  --tab-radius: 0.2rem;
+}
+
+@plugin "daisyui/theme" {
+  name: "suneset";
+  --rounded-box: 1.2rem;
+  --rounded-btn: 0.8rem;
+  --rounded-badge: 0.4rem;
+  --tab-radius: 0.7rem;
+}
+
 @plugin "@tailwindcss/typography";
 
 @source "../../../lib/**/*.*ex";
 @source "../../../assets/js/hooks/**/*.*js";
+
+@layer base {
+  button {
+    cursor: pointer;
+  }
+}
 
 @utility phx-click-loading {
   opacity: 0.5;
@@ -39,4 +203,86 @@
 
 .phx-loading {
   cursor: wait;
+}
+
+/* radio input and checkbox as button */
+.btn:is(input[type="checkbox"]:checked),
+.btn:is(input[type="radio"]:checked) {
+  @apply border-primary bg-primary text-primary-content;
+  @media (hover: hover) {
+    &:hover {
+      @supports (color: color-mix(in oklab, black, black)) {
+        background-color: color-mix(in oklab, var(--color-primary) 90%, black);
+        border-color: color-mix(in oklab, var(--color-primary) 90%, black);
+      }
+    }
+  }
+  &:focus-visible {
+    @apply outline-primary;
+  }
+}
+
+/* btn variants */
+.btn-ghost {
+  @media (hover: hover) {
+    &:hover {
+      @supports (color: oklch(0% 0 0)) {
+        @apply bg-base-content/20;
+      }
+    }
+  }
+}
+
+/* menu item hover  */
+:where(.menu li:not(.menu-title, .disabled) > *:not(ul, details, .menu-title)),
+:where(
+    .menu li:not(.menu-title, .disabled) > details > summary:not(.menu-title)
+  ) {
+  &:not(summary, .active, .btn).focus,
+  &:not(summary, .active, .btn):focus,
+  &:is(summary):not(.active, .btn):focus-visible {
+    @apply bg-base-content/10 text-base-content cursor-pointer outline-none;
+  }
+  @media (hover: hover) {
+    &:not(.menu-active, .btn):hover {
+      @apply cursor-pointer outline-none;
+      @supports (color: oklch(0% 0 0)) {
+        @apply bg-base-content/10;
+      }
+    }
+  }
+}
+
+.join {
+  border-radius: var(--radius-field);
+}
+
+.textarea {
+  &:focus {
+    box-shadow: none;
+    @apply border-base-content/20 outline-base-content/20;
+  }
+}
+
+.input {
+  font-size: 1rem;
+  &:focus {
+    @apply outline-none;
+  }
+
+  &:focus,
+  &:focus-within {
+    box-shadow: none;
+    @apply border-base-content/20 outline-base-content/20;
+  }
+}
+
+.table {
+  :where(thead, tfoot) {
+    @apply text-xs;
+  }
+}
+
+.alert {
+  @apply shadow-none;
 }
