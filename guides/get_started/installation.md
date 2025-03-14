@@ -27,13 +27,15 @@ const liveSocket = new LiveSocket('/live', Socket, {
 
 ### Tailwind CSS
 
-Backpex uses Tailwind CSS for styling. Make sure you have Tailwind CSS installed in your application. You can install Tailwind CSS by following the [official installation guide](https://tailwindcss.com/docs/installation). If you generate a new Phoenix application using the latest version of the `mix phx.new` generator, Tailwind CSS is included by default.
+Backpex uses Tailwind CSS for styling. Make sure you have Tailwind CSS installed in your application. You can install Tailwind CSS by following the [official installation guide](https://v3.tailwindcss.com/docs/guides/phoenix). If you generate a new Phoenix application using the latest version of the `mix phx.new` generator, Tailwind CSS is included by default.
+
+*Note that the current version of Backpex requires Tailwind CSS version 3*
 
 ### daisyUI
 
 Backpex is styled using daisyUI. Make sure you have daisyUI installed in your application. You can install daisyUI by following the [official installation guide](https://v4.daisyui.com/docs/install/).
 
-*Note that the current version of Backpex requires daisyUI 4.*
+*Note that the current version of Backpex requires daisyUI version 4.*
 
 ### Ecto
 
