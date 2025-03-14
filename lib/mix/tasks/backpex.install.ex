@@ -39,32 +39,10 @@ if Code.ensure_loaded?(Igniter) do
     @impl Igniter.Mix.Task
     def info(_argv, _composing_task) do
       %Igniter.Mix.Task.Info{
-        # Groups allow for overlapping arguments for tasks by the same author
-        # See the generators guide for more.
-        group: :backpex,
-        # *other* dependencies to add
-        # i.e `{:foo, "~> 2.0"}`
-        adds_deps: [],
-        # *other* dependencies to add and call their associated installers, if they exist
-        # i.e `{:foo, "~> 2.0"}`
-        installs: [],
-        # An example invocation
+        adds_deps: [{:igniter_js, "~> 0.4.6", only: [:dev, :test]}],
         example: __MODULE__.Docs.example(),
-        # A list of environments that this should be installed in.
-        only: nil,
-        # a list of positional arguments, i.e `[:file]`
-        positional: [],
-        # Other tasks your task composes using `Igniter.compose_task`, passing in the CLI argv
-        # This ensures your option schema includes options from nested tasks
-        composes: [],
-        # `OptionParser` schema
-        schema: [],
-        # Default values for the options in the `schema`
-        defaults: [],
-        # CLI aliases
-        aliases: [],
-        # A list of options in the schema that are required
-        required: []
+        schema: [app_js_path: :string, yes: :boolean],
+        defaults: [app_js_path: @default_app_js_path]
       }
     end
 
