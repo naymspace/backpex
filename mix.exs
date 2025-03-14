@@ -43,6 +43,7 @@ defmodule Backpex.MixProject do
       {:tailwind_formatter, "~> 0.4", only: [:dev, :test], runtime: false},
       {:sobelow, ">= 0.0.0", only: [:dev, :test]},
       {:igniter, "~> 0.5.36", optional: true},
+      {:igniter_js, "~> 0.4.6", only: [:dev, :test]},
 
       # core
       {:nimble_options, "~> 1.1"},
