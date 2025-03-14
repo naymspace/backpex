@@ -192,6 +192,16 @@ All options you can see in the above example are required:
 - The `update_changeset` and `create_changeset` options tell Backpex which changesets to use for updating and creating the resource.
 - The `pubsub` option tells Backpex which pubsub options to use for the resource (see the [Listen to PubSub Events](live_resource/listen-to-pubsub-events.md) guide for more information).
 
+If your primary key is not named "id", you are also required to set the `primary_key` option:
+
+```elixir
+use Backpex.LiveResource,
+  adapter_config: [
+    ...
+  ],
+  primary_key: :code
+```
+
 In addition to the required options, you pass to the `Backpex.LiveResource` macro, you are required to implement the following callback functions in the module:
 
 - [`singular_name/0`](Backpex.LiveResource.html#c:singular_name/0) - This function should return the singular name of the resource.
