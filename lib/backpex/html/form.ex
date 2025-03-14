@@ -197,7 +197,7 @@ defmodule Backpex.HTML.Form do
           id={@id}
           value={Phoenix.HTML.Form.normalize_value(@type, @value)}
           class={@input_class || ["input w-full", @input_class, @errors != [] && "input-error bg-error/10 input-ghost"]}
-              {@rest}
+          {@rest}
         />
       </fieldset>
       <.error :for={msg <- @errors} :if={not @hide_errors} class="mt-1">{msg}</.error>
