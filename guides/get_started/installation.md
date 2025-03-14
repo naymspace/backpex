@@ -42,7 +42,9 @@ Backpex uses Tailwind CSS for styling. Make sure you have Tailwind CSS installed
 
 ### daisyUI
 
-Backpex is styled using daisyUI. Make sure you have daisyUI installed in your application. You can install daisyUI by following the [official installation guide](https://daisyui.com/docs/install/).
+Backpex is styled using daisyUI. Make sure you have daisyUI installed in your application. You can install daisyUI by following the [official installation guide](https://v4.daisyui.com/docs/install/).
+
+*Note that the current version of Backpex requires daisyUI 4.*
 
 ### Ecto
 
