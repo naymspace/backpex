@@ -23,7 +23,7 @@
     "npm-run-all2": "7.0.2",
     "postcss": "8.5.3",
     "standard": "17.1.2",
-    "stylelint": "16.15.0",
+    "stylelint": "16.16.0",
     "stylelint-config-standard": "37.0.0",
     "topbar": "3.0.0"
   },
