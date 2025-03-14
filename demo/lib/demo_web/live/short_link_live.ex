@@ -9,12 +9,7 @@ defmodule DemoWeb.ShortLinkLive do
       create_changeset: &Demo.ShortLink.changeset/3
     ],
     primary_key: :short_key,
-    layout: {DemoWeb.Layouts, :admin},
-    pubsub: [
-      name: Demo.PubSub,
-      topic: "short_links",
-      event_prefix: "short_link_"
-    ]
+    layout: {DemoWeb.Layouts, :admin}
 
   @impl Backpex.LiveResource
   def singular_name, do: "Short Link"

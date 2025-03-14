@@ -6,6 +6,17 @@ The following guide will help you to install Backpex in your Phoenix application
 
 Backpex integrates seamlessly with your existing Phoenix LiveView application, but there are a few prerequisites you need to meet before you can start using it.
 
+## Global configuration
+
+Set the PubSub server of your application in your `config.exs`:
+
+```elixir
+config :backpex, :pubsub_server, MyApp.PubSub
+```
+
+See the [Listen to PubSub Events](live_resource/listen-to-pubsub-events.md) guide for more info on how use and customize
+your PubSub configuration.
+
 ### Phoenix LiveView
 
 Backpex is built on top of Phoenix LiveView, so you need to have Phoenix LiveView installed in your application. If you generate a new Phoenix application using the latest version of the `mix phx.new` generator, Phoenix LiveView is included by default.
@@ -27,11 +38,15 @@ const liveSocket = new LiveSocket('/live', Socket, {
 
 ### Tailwind CSS
 
-Backpex uses Tailwind CSS for styling. Make sure you have Tailwind CSS installed in your application. You can install Tailwind CSS by following the [official installation guide](https://tailwindcss.com/docs/installation). If you generate a new Phoenix application using the latest version of the `mix phx.new` generator, Tailwind CSS is included by default.
+Backpex uses Tailwind CSS for styling. Make sure you have Tailwind CSS installed in your application. You can install Tailwind CSS by following the [official installation guide](https://v3.tailwindcss.com/docs/guides/phoenix). If you generate a new Phoenix application using the latest version of the `mix phx.new` generator, Tailwind CSS is included by default.
+
+*Note that the current version of Backpex requires Tailwind CSS version 3*
 
 ### daisyUI
 
-Backpex is styled using daisyUI. Make sure you have daisyUI installed in your application. You can install daisyUI by following the [official installation guide](https://daisyui.com/docs/install/).
+Backpex is styled using daisyUI. Make sure you have daisyUI installed in your application. You can install daisyUI by following the [official installation guide](https://v4.daisyui.com/docs/install/).
+
+*Note that the current version of Backpex requires daisyUI version 4.*
 
 ### Ecto
 
@@ -51,7 +66,7 @@ In your `mix.exs`:
 defp deps do
   [
     ...
-    {:backpex, "~> 0.10.0"}
+    {:backpex, "~> 0.11.0"}
   ]
 end
 ```
@@ -161,12 +176,7 @@ defmodule MyAppWeb.Live.PostLive do
       update_changeset: &MyApp.Blog.Post.update_changeset/3,
       create_changeset: &MyApp.Blog.Post.create_changeset/3
     ],
-    layout: {MyAppWeb.Layouts, :admin},
-    pubsub: [
-      name: MyApp.PubSub,
-      topic: "posts",
-      event_prefix: "post_"
-    ]
+    layout: {MyAppWeb.Layouts, :admin}
 end
 ```
 
@@ -179,6 +189,16 @@ All options you can see in the above example are required:
 - The `repo` option tells Backpex which repo to use for the resource.
 - The `update_changeset` and `create_changeset` options tell Backpex which changesets to use for updating and creating the resource.
 - The `pubsub` option tells Backpex which pubsub options to use for the resource (see the [Listen to PubSub Events](live_resource/listen-to-pubsub-events.md) guide for more information).
+
+If your primary key is not named "id", you are also required to set the `primary_key` option:
+
+```elixir
+use Backpex.LiveResource,
+  adapter_config: [
+    ...
+  ],
+  primary_key: :code
+```
 
 In addition to the required options, you pass to the `Backpex.LiveResource` macro, you are required to implement the following callback functions in the module:
 
@@ -197,12 +217,7 @@ defmodule MyAppWeb.Live.PostLive do
       update_changeset: &MyApp.Blog.Post.update_changeset/3,
       create_changeset: &MyApp.Blog.Post.create_changeset/3
     ],
-    layout: {MyAppWeb.Layouts, :admin},
-    pubsub: [
-      name: MyApp.PubSub,
-      topic: "posts",
-      event_prefix: "post_"
-    ]
+    layout: {MyAppWeb.Layouts, :admin}
 
   @impl Backpex.LiveResource
   def singular_name, do: "Post"
