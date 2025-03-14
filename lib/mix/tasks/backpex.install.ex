@@ -34,6 +34,10 @@ if Code.ensure_loaded?(Igniter) do
 
     @moduledoc __MODULE__.Docs.long_doc()
 
+    @default_app_js_path Path.join(["assets", "js", "app.js"])
+    @hooks "...BackpexHooks"
+    @imports "import { Hooks as BackpexHooks } from 'backpex';"
+
     use Igniter.Mix.Task
 
     @impl Igniter.Mix.Task
@@ -48,9 +52,11 @@ if Code.ensure_loaded?(Igniter) do
 
     @impl Igniter.Mix.Task
     def igniter(igniter) do
-      # Do your work here and return an updated igniter
       igniter
       |> Igniter.add_warning("mix backpex.install is not yet implemented")
+      |> Igniter.Project.Deps.add_dep({:igniter_js, "~> 0.4.6", only: [:dev, :test]})
+      |> Igniter.Project.Formatter.import_dep(:backpex)
+      |> install_backpex_hooks()
 
       # TODO: Install Hooks in app.js
       # TODO: Add Backpex to dependencies in mix.exs
@@ -62,6 +68,19 @@ if Code.ensure_loaded?(Igniter) do
       # TODO: Add ThemeSelectorPlug to pipeline
       # TODO: Remove @tailwindcss/forms plugin or switch to 'class' strategy
       # TODO: Set up Heroicons and Tailwind plugin for icons
+    end
+
+    defp install_backpex_hooks(igniter) do
+      app_js_path = igniter.args.options[:app_js_path]
+
+      with {:ok, content} <- IgniterJs.Helpers.read_and_validate_file(app_js_path),
+           {:ok, _, content} <- IgniterJs.Parsers.Javascript.Parser.insert_imports(content, @imports, :content),
+           {:ok, _, content} <- IgniterJs.Parsers.Javascript.Parser.extend_hook_object(content, @hooks, :content) do
+        Igniter.create_new_file(igniter, app_js_path, content, on_exists: :overwrite)
+      else
+        {:error, _function, error} -> Mix.raise("Failed to modify app.js: #{error}")
+        {:error, error} -> Mix.raise("Could not read app.js: #{error}")
+      end
     end
   end
 else
