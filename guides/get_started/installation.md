@@ -27,11 +27,15 @@ const liveSocket = new LiveSocket('/live', Socket, {
 
 ### Tailwind CSS
 
-Backpex uses Tailwind CSS for styling. Make sure you have Tailwind CSS installed in your application. You can install Tailwind CSS by following the [official installation guide](https://tailwindcss.com/docs/installation). If you generate a new Phoenix application using the latest version of the `mix phx.new` generator, Tailwind CSS is included by default.
+Backpex uses Tailwind CSS for styling. Make sure you have Tailwind CSS installed in your application. You can install Tailwind CSS by following the [official installation guide](https://v3.tailwindcss.com/docs/guides/phoenix). If you generate a new Phoenix application using the latest version of the `mix phx.new` generator, Tailwind CSS is included by default.
+
+*Note that the current version of Backpex requires Tailwind CSS version 3*
 
 ### daisyUI
 
-Backpex is styled using daisyUI. Make sure you have daisyUI installed in your application. You can install daisyUI by following the [official installation guide](https://daisyui.com/docs/install/).
+Backpex is styled using daisyUI. Make sure you have daisyUI installed in your application. You can install daisyUI by following the [official installation guide](https://v4.daisyui.com/docs/install/).
+
+*Note that the current version of Backpex requires daisyUI version 4.*
 
 ### Ecto
 
@@ -51,7 +55,7 @@ In your `mix.exs`:
 defp deps do
   [
     ...
-    {:backpex, "~> 0.10.0"}
+    {:backpex, "~> 0.11.0"}
   ]
 end
 ```
@@ -185,6 +189,16 @@ All options you can see in the above example are required:
 - The `repo` option tells Backpex which repo to use for the resource.
 - The `update_changeset` and `create_changeset` options tell Backpex which changesets to use for updating and creating the resource.
 - The `pubsub` option tells Backpex which pubsub options to use for the resource (see the [Listen to PubSub Events](live_resource/listen-to-pubsub-events.md) guide for more information).
+
+If your primary key is not named "id", you are also required to set the `primary_key` option:
+
+```elixir
+use Backpex.LiveResource,
+  adapter_config: [
+    ...
+  ],
+  primary_key: :code
+```
 
 In addition to the required options, you pass to the `Backpex.LiveResource` macro, you are required to implement the following callback functions in the module:
 
