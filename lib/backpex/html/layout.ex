@@ -12,6 +12,7 @@ defmodule Backpex.HTML.Layout do
   """
   @doc type: :component
 
+  attr :class, :string, default: nil, doc: "class added to the app shell container"
   attr :fluid, :boolean, default: false, doc: "toggles fluid layout"
 
   slot :inner_block
@@ -28,7 +29,7 @@ defmodule Backpex.HTML.Layout do
 
   def app_shell(assigns) do
     ~H"""
-    <div id="backpex-app-shell" class="drawer" phx-hook="BackpexSidebarSections">
+    <div id="backpex-app-shell" class={["drawer", @class]} phx-hook="BackpexSidebarSections">
       <input id="menu-drawer" type="checkbox" class="drawer-toggle" />
       <div class="drawer-content">
         <div class="bg-base-200 fixed inset-0 -z-10 h-full w-full"></div>
