@@ -150,7 +150,7 @@ defmodule Backpex.Fields.HasMany do
             class={[
               "input block h-fit w-full p-2",
               @errors == [] && "bg-transparent",
-              @errors != [] && "input-error bg-error/10 input-ghost"
+              @errors != [] && "input-error bg-error/10"
             ]}
           >
             <div class="flex h-full w-full flex-wrap items-center gap-1 px-2">
