@@ -135,6 +135,6 @@
   }
 }
 
-.alert {
+@utility alert {
   @apply shadow-none;
 }
