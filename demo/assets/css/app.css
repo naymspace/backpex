@@ -55,7 +55,9 @@
 @source "../../../assets/js/hooks/**/*.*js";
 
 @layer base {
-  button {
+  button,
+  select,
+  [role="button"] {
     cursor: pointer;
   }
 }
