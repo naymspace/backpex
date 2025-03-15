@@ -11,169 +11,42 @@
 
 @theme {
   --radius-badge: var(--rounded-badge, 1.9rem);
-  --rounded-box: (1rem, var(--rounded-box));
-  --rounded-btn: (0.5rem, var(--rounded-btn));
-  --rounded-badge: (1.9rem, var(--rounded-badge));
-  --animation-btn: (0.25s, var(--animation-btn));
-  --animation-input: (0.2s, var(--animation-input));
-  --btn-focus-scale: (0.95, var(--btn-focus-scale));
-  --border-btn: (1px, var(--border-btn));
-  --tab-border: (1px, var(--tab-border));
-  --tab-radius: (0.5rem, var(--tab-radius));
+  --radius-box: var(--rounded-box, 1rem);
+}
+
+@plugin "daisyui/theme" {
+  name: "backpex";
+  default: true;
+  prefersdark: false;
+  color-scheme: "light";
+  --color-base-100: oklch(100% 0 0);
+  --color-base-200: oklch(96.115% 0 0);
+  --color-base-300: oklch(92.4169% 0.00108 197.137559/1);
+  --color-base-content: oklch(21% 0.006 285.885);
+  --color-primary: oklch(53.68% 0.224 259.92);
+  --color-primary-content: oklch(100% 0 0);
+  --color-secondary: oklch(74.94% 0.182 67.69);
+  --color-secondary-content: oklch(100% 0 0);
+  --color-accent: oklch(77% 0.152 181.912);
+  --color-accent-content: oklch(38% 0.063 188.416);
+  --color-neutral: oklch(35.97% 0.031 257.68);
+  --color-neutral-content: oklch(100% 0 0);
+  --color-info: oklch(74% 0.16 232.661);
+  --color-info-content: oklch(29% 0.066 243.157);
+  --color-success: oklch(76% 0.177 163.223);
+  --color-success-content: oklch(37% 0.077 168.94);
+  --color-warning: oklch(82% 0.189 84.429);
+  --color-warning-content: oklch(41% 0.112 45.904);
+  --color-error: oklch(71% 0.194 13.428);
+  --color-error-content: oklch(27% 0.105 12.094);
+  --radius-selector: 2rem;
+  --radius-field: 0.5rem;
+  --radius-box: 0.5rem;
+  --size-selector: 0.25rem;
+  --size-field: 0.25rem;
+  --border: 1px;
   --depth: 0;
-}
-
-@plugin "daisyui/theme" {
-  name: "light";
-
-  --color-primary: "oklch(49.12% 0.3096 275.75)";
-  --color-secondary: "oklch(69.71% 0.329 342.55)";
-  --color-secondary-content: "oklch(98.71% 0.0106 342.55)";
-  --color-accent: "oklch(76.76% 0.184 183.61)";
-  --color-neutral: "#2B3440";
-  --color-neutral-content: "#D7DDE4";
-  --color-base-100: "oklch(100% 0 0)";
-  --color-base-200: "#F2F2F2";
-  --color-base-300: "#E5E6E6";
-  --color-base-content: "#1f2937";
-  --color-primary: #1d4ed8;
-  --color-primary-content: white;
-  --color-secondary: #f39325;
-  --color-secondary-content: white;
-}
-
-@plugin "daisyui/theme" {
-  name: "cyberpunk";
-
-  font-family: "ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,Liberation Mono,Courier New,monospace";
-  --rounded-box: 0;
-  --rounded-btn: 0;
-  --rounded-badge: 0;
-  --tab-radius: 0;
-}
-
-@plugin "daisyui/theme" {
-  name: "black";
-
-  --rounded-box: 0;
-  --rounded-btn: 0;
-  --rounded-badge: 0;
-  --animation-btn: 0;
-  --animation-input: 0;
-  --btn-focus-scale: 1;
-  --tab-radius: 0;
-}
-
-@plugin "daisyui/theme" {
-  name: "corporate";
-
-  --rounded-box: 0.25rem;
-  --rounded-btn: 0.125rem;
-  --rounded-badge: 0.125rem;
-  --tab-radius: 0.25rem;
-  --animation-btn: 0;
-  --animation-input: 0;
-  --btn-focus-scale: 1;
-}
-
-@plugin "daisyui/theme" {
-  name: "cupcake";
-
-  --rounded-btn: 1.9rem;
-  --tab-border: 2px;
-  --tab-radius: 0.7rem;
-}
-
-@plugin "daisyui/theme" {
-  name: "emerald";
-
-  --animation-btn: 0;
-  --animation-input: 0;
-  --btn-focus-scale: 1;
-}
-
-@plugin "daisyui/theme" {
-  name: "forest";
-
-  --rounded-btn: 1.9rem;
-}
-
-@plugin "daisyui/theme" {
-  name: "lofi";
-
-  --rounded-box: 0.25rem;
-  --rounded-btn: 0.125rem;
-  --rounded-badge: 0.125rem;
-  --tab-radius: 0.125rem;
-  --animation-btn: 0;
-  --animation-input: 0;
-  --btn-focus-scale: 1;
-}
-
-@plugin "daisyui/theme" {
-  name: "pastel";
-
-  --rounded-btn: 1.9rem;
-  --tab-radius: 0.7rem;
-}
-
-@plugin "daisyui/theme" {
-  name: "retro";
-
-  --rounded-box: 0.4rem;
-  --rounded-btn: 0.4rem;
-  --rounded-badge: 0.4rem;
-  --tab-radius: 0.4rem;
-}
-
-@plugin "daisyui/theme" {
-  name: "valentine";
-
-  --rounded-btn: 1.9rem;
-  --tab-radius: 0.7rem;
-}
-
-@plugin "daisyui/theme" {
-  name: "wireframe";
-
-  --rounded-box: 0.2rem;
-  --rounded-btn: 0.2rem;
-  --rounded-badge: 0.2rem;
-  --tab-radius: 0.2rem;
-}
-
-@plugin "daisyui/theme" {
-  name: "business";
-
-  --rounded-box: 0.25rem;
-  --rounded-btn: 0.125rem;
-  --rounded-badge: 0.125rem;
-}
-
-@plugin "daisyui/theme" {
-  name: "acid";
-
-  --rounded-box: 1.25rem;
-  --rounded-btn: 1rem;
-  --rounded-badge: 1rem;
-  --tab-radius: 0.7rem;
-}
-
-@plugin "daisyui/theme" {
-  name: "nord";
-
-  --rounded-box: 0.4rem;
-  --rounded-btn: 0.2rem;
-  --rounded-badge: 0.4rem;
-  --tab-radius: 0.2rem;
-}
-
-@plugin "daisyui/theme" {
-  name: "suneset";
-  --rounded-box: 1.2rem;
-  --rounded-btn: 0.8rem;
-  --rounded-badge: 0.4rem;
-  --tab-radius: 0.7rem;
+  --noise: 0;
 }
 
 @plugin "@tailwindcss/typography";
