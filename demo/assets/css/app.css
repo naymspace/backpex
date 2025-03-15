@@ -128,23 +128,33 @@
   border-radius: var(--radius-field);
 }
 
-.textarea {
+@utility textarea {
   &:focus {
-    box-shadow: none;
     @apply border-base-content/20 outline-base-content/20;
   }
 }
 
-.input {
-  font-size: 1rem;
-  &:focus {
-    @apply outline-none;
-  }
-
+@utility select {
+  @apply text-sm h-[3rem];
   &:focus,
   &:focus-within {
-    box-shadow: none;
-    @apply border-base-content/20 outline-base-content/20;
+    --input-color: color-mix(
+      in oklab,
+      var(--color-base-content) 20%,
+      transparent
+    );
+  }
+}
+
+@utility input {
+  @apply text-base h-[3rem];
+  &:focus,
+  &:focus-within {
+    --input-color: color-mix(
+      in oklab,
+      var(--color-base-content) 20%,
+      transparent
+    );
   }
 }
 
