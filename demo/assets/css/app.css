@@ -144,7 +144,3 @@
 @utility alert {
   @apply shadow-none;
 }
-
-@utility badge {
-  @apply leading-[0.875rem];
-}

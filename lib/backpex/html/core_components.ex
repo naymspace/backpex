@@ -33,7 +33,7 @@ defmodule Backpex.HTML.CoreComponents do
   def filter_badge(assigns) do
     ~H"""
     <div class="join indicator ring-base-content/10 relative ring-1">
-      <div class="badge badge-outline join-item bg-base-300 h-auto border-0 px-4 py-1.5 font-semibold">
+      <div class="badge badge-outline leading-[0.875rem] join-item bg-base-300 h-auto border-0 px-4 py-1.5 font-semibold">
         {@label}
       </div>
       <div class="badge badge-outline join-item h-auto border-0 px-4 py-1.5">
