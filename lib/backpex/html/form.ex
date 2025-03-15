@@ -147,7 +147,7 @@ defmodule Backpex.HTML.Form do
         <div class={
           @input_wrapper_class ||
             [
-              "[&>*]:w-full",
+              "[&>*]:w-full [&>*]:h-[3rem] text-sm",
               @errors == [] && "[&>*]:select [&>*]:text-base-content",
               @errors != [] && "[&>*]:select [&>*]:select-error [&>*]:bg-error/10 [&>*]:text-error-content"
             ]
@@ -197,7 +197,7 @@ defmodule Backpex.HTML.Form do
           name={@name}
           id={@id}
           value={Phoenix.HTML.Form.normalize_value(@type, @value)}
-          class={@input_class || ["input w-full", @input_class, @errors != [] && "input-error bg-error/10"]}
+          class={@input_class || ["input w-full input-lg text-base", @input_class, @errors != [] && "input-error bg-error/10"]}
           {@rest}
         />
       </fieldset>

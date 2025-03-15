@@ -114,7 +114,6 @@
 }
 
 @utility select {
-  @apply text-sm h-[3rem];
   &:focus,
   &:focus-within {
     --input-color: color-mix(
@@ -126,7 +125,6 @@
 }
 
 @utility input {
-  @apply text-base h-[3rem];
   &:focus,
   &:focus-within {
     --input-color: color-mix(
