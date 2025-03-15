@@ -48,7 +48,7 @@
           </p>
         </div>
         <%= if @action_type == :item do %>
-          <button type="button" class="btn" phx-click="close-modal">
+          <button type="button" class="btn" phx-click={JS.exec("data-cancel", to: {:closest, "dialog"})}>
             {@action_to_confirm.module.cancel_label(assigns)}
           </button>
 

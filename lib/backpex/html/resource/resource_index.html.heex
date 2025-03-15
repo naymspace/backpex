@@ -1,32 +1,40 @@
 <div>
-  <%= if @live_action == :resource_action do %>
-    <.modal title={ResourceAction.name(@resource_action, :title)}>
+  <.modal
+    :if={@live_action == :resource_action}
+    id="resource-action-modal"
+    on_cancel={JS.navigate(@return_to)}
+    title={ResourceAction.name(@resource_action, :title)}
+    open={true}
+  >
+    <.live_component
+      module={Backpex.FormComponent}
+      id={:modal}
+      live_resource={@live_resource}
+      action_type={:resource}
+      {Map.drop(assigns, [:socket, :flash])}
+    />
+  </.modal>
+
+  <.modal
+    :if={@action_to_confirm}
+    id="action-confirm-modal"
+    title={@action_to_confirm.module.label(assigns, nil)}
+    on_cancel={JS.push("cancel-action-confirm")}
+    open={true}
+  >
+    <div class="px-5 py-3">
+      {@action_to_confirm.module.confirm(assigns)}
+    </div>
+    <div>
       <.live_component
         module={Backpex.FormComponent}
-        id={:modal}
+        id={:item_action_modal}
         live_resource={@live_resource}
-        action_type={:resource}
-        {Map.drop(assigns, [:socket, :flash])}
+        action_type={:item}
+        {Map.drop(assigns, [:socket, :flash, :fields])}
       />
-    </.modal>
-  <% end %>
-
-  <%= if @action_to_confirm do %>
-    <.modal title={@action_to_confirm.module.label(assigns, nil)}>
-      <div class="px-5 py-3">
-        {@action_to_confirm.module.confirm(assigns)}
-      </div>
-      <div>
-        <.live_component
-          module={Backpex.FormComponent}
-          id={:item_action_modal}
-          live_resource={@live_resource}
-          action_type={:item}
-          {Map.drop(assigns, [:socket, :flash, :fields])}
-        />
-      </div>
-    </.modal>
-  <% end %>
+    </div>
+  </.modal>
 
   {@live_resource.render_resource_slot(assigns, :index, :before_page_title)}
   {@live_resource.render_resource_slot(assigns, :index, :page_title)}
