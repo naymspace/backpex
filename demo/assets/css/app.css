@@ -114,8 +114,13 @@
 }
 
 @utility textarea {
-  &:focus {
-    @apply border-base-content/20 outline-base-content/20;
+  &:focus,
+  &:focus-within {
+    --input-color: color-mix(
+      in oklab,
+      var(--color-base-content) 20%,
+      transparent
+    );
   }
 }
 
