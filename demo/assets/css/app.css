@@ -129,8 +129,8 @@
   }
 }
 
-.table {
-  :where(thead, tfoot) {
+@utility table {
+  & :where(thead, tfoot) {
     @apply text-xs;
   }
 }
