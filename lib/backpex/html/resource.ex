@@ -444,17 +444,12 @@ defmodule Backpex.HTML.Resource do
     assigns = assign(assigns, :href, pagination_link)
 
     ~H"""
-    <%= if @current_page == @number do %>
-      <button class={["btn btn-active", @class]} aria-disabled="true">
-        {Integer.to_string(@number)}
-      </button>
-    <% else %>
-      <.link href={@href}>
-        <button class={["btn bg-base-100", @class]}>
-          {Integer.to_string(@number)}
-        </button>
-      </.link>
-    <% end %>
+    <button :if={@current_page == @number} class={["btn btn-active", @class]} aria-disabled="true">
+      {Integer.to_string(@number)}
+    </button>
+    <.link :if={@current_page != @number} href={@href} class={["btn bg-base-100", @class]}>
+      {Integer.to_string(@number)}
+    </.link>
     """
   end
 
@@ -464,10 +459,8 @@ defmodule Backpex.HTML.Resource do
     assigns = assign(assigns, :href, pagination_link)
 
     ~H"""
-    <.link href={@href}>
-      <button class={["btn bg-base-100", @class]} aria-label={Backpex.translate("Previous page")}>
-        <Backpex.HTML.CoreComponents.icon name="hero-chevron-left" class="h-4 w-4" />
-      </button>
+    <.link href={@href} class={["btn bg-base-100", @class]} aria-label={Backpex.translate("Previous page")}>
+      <Backpex.HTML.CoreComponents.icon name="hero-chevron-left" class="h-4 w-4" />
     </.link>
     """
   end
@@ -478,10 +471,8 @@ defmodule Backpex.HTML.Resource do
     assigns = assign(assigns, :href, pagination_link)
 
     ~H"""
-    <.link href={@href}>
-      <button class={["btn bg-base-100", @class]} aria-label={Backpex.translate("Next page")}>
-        <Backpex.HTML.CoreComponents.icon name="hero-chevron-right" class="h-4 w-4" />
-      </button>
+    <.link href={@href} class={["btn bg-base-100", @class]} aria-label={Backpex.translate("Next page")}>
+      <Backpex.HTML.CoreComponents.icon name="hero-chevron-right" class="h-4 w-4" />
     </.link>
     """
   end
