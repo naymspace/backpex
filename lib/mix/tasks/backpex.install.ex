@@ -58,7 +58,40 @@ if Code.ensure_loaded?(Igniter) do
       |> Igniter.Project.Deps.add_dep({:igniter_js, "~> 0.4.6", only: [:dev, :test]})
       |> Igniter.Project.Formatter.import_dep(:backpex)
       |> Igniter.Project.Config.configure_new("config.exs", :backpex, [:pubsub_server], pubsub_module)
+      |> add_backpex_routes()
       |> install_backpex_hooks()
+    end
+
+    defp add_backpex_routes(igniter) do
+      web_module = Igniter.Libs.Phoenix.web_module(igniter)
+
+      case Igniter.Libs.Phoenix.select_router(igniter) do
+        {igniter, nil} ->
+          Mix.shell().error("Could not find router")
+          igniter
+
+        {igniter, router} ->
+          igniter
+          |> add_import_after_use(router, web_module, Backpex.Router)
+          |> Igniter.Libs.Phoenix.add_scope("/", "backpex_routes()", arg2: web_module)
+      end
+    end
+
+    defp add_import_after_use(igniter, target_module, use_module, import_module) do
+      Igniter.Project.Module.find_and_update_module!(
+        igniter,
+        target_module,
+        fn zipper ->
+          case Igniter.Code.Module.move_to_use(zipper, use_module) do
+            {:ok, use_zipper} ->
+              {:ok, Igniter.Code.Common.add_code(use_zipper, "import #{inspect(import_module)}")}
+
+            _ ->
+              Mix.shell().error("Could not find use module #{inspect(use_module)} in #{inspect(target_module)}")
+              {:ok, zipper}
+          end
+        end
+      )
     end
 
     defp install_backpex_hooks(igniter) do
