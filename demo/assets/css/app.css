@@ -81,6 +81,7 @@
 }
 
 @utility btn {
+  @apply shadow-none;
   &:where(input[type="checkbox"], input[type="radio"]) {
     &:checked {
       @apply border-primary bg-primary text-primary-content;
