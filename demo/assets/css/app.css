@@ -98,13 +98,9 @@
 }
 
 /* btn variants */
-.btn-ghost {
-  @media (hover: hover) {
-    &:hover {
-      @supports (color: oklch(0% 0 0)) {
-        @apply bg-base-content/20;
-      }
-    }
+@utility btn-ghost {
+  &:hover {
+    @apply bg-base-content/20;
   }
 }
 
