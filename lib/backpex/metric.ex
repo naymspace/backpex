@@ -30,7 +30,7 @@ defmodule Backpex.Metric do
   Builds string of css classes for basic metric box
   """
   def metric_box_class(metric) do
-    class = "mb-4 w-full rounded-btn bg-base-100 p-4 px-5 shadow-sm ring-1 ring-base-100"
+    class = "mb-4 w-full rounded-btn bg-base-100 p-4 px-5 shadow-xs ring-1 ring-base-100"
 
     case Map.get(metric, :class) do
       nil -> class

@@ -186,7 +186,7 @@ defmodule Backpex.HTML.Resource do
     <.form :if={@search_enabled} id="index-search-form" for={@form} phx-change="index-search" phx-submit="index-search">
       <input
         name={@form[:value].name}
-        class="input input-sm input-bordered"
+        class="input input-sm"
         placeholder={@placeholder}
         phx-debounce="200"
         value={@form[:value].value}
@@ -444,17 +444,12 @@ defmodule Backpex.HTML.Resource do
     assigns = assign(assigns, :href, pagination_link)
 
     ~H"""
-    <%= if @current_page == @number do %>
-      <button class={["btn btn-active", @class]} aria-disabled="true">
-        {Integer.to_string(@number)}
-      </button>
-    <% else %>
-      <.link href={@href}>
-        <button class={["btn bg-base-100", @class]}>
-          {Integer.to_string(@number)}
-        </button>
-      </.link>
-    <% end %>
+    <button :if={@current_page == @number} class={["btn btn-active", @class]} aria-disabled="true">
+      {Integer.to_string(@number)}
+    </button>
+    <.link :if={@current_page != @number} href={@href} class={["btn bg-base-100", @class]}>
+      {Integer.to_string(@number)}
+    </.link>
     """
   end
 
@@ -464,10 +459,8 @@ defmodule Backpex.HTML.Resource do
     assigns = assign(assigns, :href, pagination_link)
 
     ~H"""
-    <.link href={@href}>
-      <button class={["btn bg-base-100", @class]} aria-label={Backpex.translate("Previous page")}>
-        <Backpex.HTML.CoreComponents.icon name="hero-chevron-left" class="h-4 w-4" />
-      </button>
+    <.link href={@href} class={["btn bg-base-100", @class]} aria-label={Backpex.translate("Previous page")}>
+      <Backpex.HTML.CoreComponents.icon name="hero-chevron-left" class="h-4 w-4" />
     </.link>
     """
   end
@@ -478,10 +471,8 @@ defmodule Backpex.HTML.Resource do
     assigns = assign(assigns, :href, pagination_link)
 
     ~H"""
-    <.link href={@href}>
-      <button class={["btn bg-base-100", @class]} aria-label={Backpex.translate("Next page")}>
-        <Backpex.HTML.CoreComponents.icon name="hero-chevron-right" class="h-4 w-4" />
-      </button>
+    <.link href={@href} class={["btn bg-base-100", @class]} aria-label={Backpex.translate("Next page")}>
+      <Backpex.HTML.CoreComponents.icon name="hero-chevron-right" class="h-4 w-4" />
     </.link>
     """
   end
@@ -607,7 +598,7 @@ defmodule Backpex.HTML.Resource do
 
     ~H"""
     <.form for={@form} class={@class} phx-change="select-page-size" phx-submit="select-page-size">
-      <select name={@form[:value].name} class="select select-sm select-bordered">
+      <select name={@form[:value].name} class="select select-sm">
         {Phoenix.HTML.Form.options_for_select(@options, @selected)}
       </select>
     </.form>

@@ -43,7 +43,7 @@ defmodule Backpex.HTML.CoreComponents do
         type="button"
         phx-click={@clear_event}
         phx-value-field={@filter_name}
-        class="indicator-item bg-base-300 rounded-badge grid place-items-center p-1 shadow transition duration-75 hover:text-secondary hover:scale-110"
+        class="indicator-item bg-base-300 rounded-badge grid place-items-center p-1 shadow-sm transition duration-75 hover:text-secondary hover:scale-110"
         aria-label={Backpex.translate({"Clear %{name} filter", %{name: @label}})}
       >
         <.icon name="hero-x-mark" class="h-3 w-3" />
