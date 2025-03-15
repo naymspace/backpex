@@ -95,7 +95,7 @@
   }
 }
 
-.join {
+@utility join {
   border-radius: var(--radius-field);
 }
 
