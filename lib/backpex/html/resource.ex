@@ -219,7 +219,7 @@ defmodule Backpex.HTML.Resource do
     ~H"""
     <div :if={@filters != []} class="dropdown">
       <div class="indicator">
-        <span :if={@filter_count > 0} class="indicator-item badge badge-secondary">
+        <span :if={@filter_count > 0} class="indicator-item badge badge-secondary rounded-badge">
           {@filter_count}
         </span>
         <label tabindex="0" class="btn btn-sm btn-outline ring-base-content/10 border-0 ring-1">
