@@ -147,11 +147,12 @@ defmodule Backpex.HTML.Form do
         <div class={
           @input_wrapper_class ||
             [
+              "[&>*]:w-full",
               @errors == [] && "[&>*]:select [&>*]:text-base-content",
               @errors != [] && "[&>*]:select [&>*]:select-error [&>*]:bg-error/10 [&>*]:text-error-content"
             ]
         }>
-          <select class={@input_class || "w-full"} name={@name} {@rest}>
+          <select class={@input_class} name={@name} {@rest}>
             <option :if={@prompt} value="">{@prompt}</option>
             {Phoenix.HTML.Form.options_for_select(@options, @value)}
           </select>
