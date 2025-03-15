@@ -52,10 +52,12 @@ if Code.ensure_loaded?(Igniter) do
 
     @impl Igniter.Mix.Task
     def igniter(igniter) do
+      pubsub_module = Igniter.Project.Module.module_name(igniter, "PubSub")
+
       igniter
-      |> Igniter.add_warning("mix backpex.install is not yet implemented")
       |> Igniter.Project.Deps.add_dep({:igniter_js, "~> 0.4.6", only: [:dev, :test]})
       |> Igniter.Project.Formatter.import_dep(:backpex)
+      |> Igniter.Project.Config.configure_new("config.exs", :backpex, [:pubsub_server], pubsub_module)
       |> install_backpex_hooks()
 
       # TODO: Install Hooks in app.js
