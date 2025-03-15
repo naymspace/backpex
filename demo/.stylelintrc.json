@@ -21,9 +21,11 @@
                     "source",
                     "variant",
                     "custom-variant", 
-                    "utility"
+                    "utility", 
+                    "theme"
                 ]
             }
-        ]
+        ], 
+        "at-rule-no-deprecated": [true, {"ignoreAtRules": ["apply"]}]
     }
 }
