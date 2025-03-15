@@ -59,17 +59,6 @@ if Code.ensure_loaded?(Igniter) do
       |> Igniter.Project.Formatter.import_dep(:backpex)
       |> Igniter.Project.Config.configure_new("config.exs", :backpex, [:pubsub_server], pubsub_module)
       |> install_backpex_hooks()
-
-      # TODO: Install Hooks in app.js
-      # TODO: Add Backpex to dependencies in mix.exs
-      # TODO: Add Backpex files to Tailwind content
-      # TODO: Update formatter configuration
-      # TODO: Create layout file
-      # TODO: Remove background color from body tag
-      # TODO: Configure daisyUI theme
-      # TODO: Add ThemeSelectorPlug to pipeline
-      # TODO: Remove @tailwindcss/forms plugin or switch to 'class' strategy
-      # TODO: Set up Heroicons and Tailwind plugin for icons
     end
 
     defp install_backpex_hooks(igniter) do
