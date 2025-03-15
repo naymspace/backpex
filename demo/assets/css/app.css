@@ -20,26 +20,27 @@
   default: true;
   prefersdark: false;
   color-scheme: "light";
-  --color-base-100: oklch(100% 0 0);
-  --color-base-200: oklch(96.115% 0 0);
-  --color-base-300: oklch(92.4169% 0.00108 197.137559/1);
-  --color-base-content: oklch(21% 0.006 285.885);
-  --color-primary: oklch(53.68% 0.224 259.92);
-  --color-primary-content: oklch(100% 0 0);
-  --color-secondary: oklch(74.94% 0.182 67.69);
-  --color-secondary-content: oklch(100% 0 0);
-  --color-accent: oklch(77% 0.152 181.912);
-  --color-accent-content: oklch(38% 0.063 188.416);
-  --color-neutral: oklch(35.97% 0.031 257.68);
-  --color-neutral-content: oklch(100% 0 0);
-  --color-info: oklch(74% 0.16 232.661);
-  --color-info-content: oklch(29% 0.066 243.157);
-  --color-success: oklch(76% 0.177 163.223);
-  --color-success-content: oklch(37% 0.077 168.94);
-  --color-warning: oklch(82% 0.189 84.429);
-  --color-warning-content: oklch(41% 0.112 45.904);
-  --color-error: oklch(71% 0.194 13.428);
-  --color-error-content: oklch(27% 0.105 12.094);
+
+  --color-base-100: oklch(100% 0 0deg);
+  --color-base-200: oklch(96.115% 0 0deg);
+  --color-base-300: oklch(92.4169% 0.0011 197.1376deg/100%);
+  --color-base-content: oklch(21% 0.006 285.885deg);
+  --color-primary: oklch(53.68% 0.224 259.92deg);
+  --color-primary-content: oklch(100% 0 0deg);
+  --color-secondary: oklch(74.94% 0.182 67.69deg);
+  --color-secondary-content: oklch(100% 0 0deg);
+  --color-accent: oklch(77% 0.152 181.912deg);
+  --color-accent-content: oklch(38% 0.063 188.416deg);
+  --color-neutral: oklch(35.97% 0.031 257.68deg);
+  --color-neutral-content: oklch(100% 0 0deg);
+  --color-info: oklch(74% 0.16 232.661deg);
+  --color-info-content: oklch(29% 0.066 243.157deg);
+  --color-success: oklch(76% 0.177 163.223deg);
+  --color-success-content: oklch(37% 0.077 168.94deg);
+  --color-warning: oklch(82% 0.189 84.429deg);
+  --color-warning-content: oklch(41% 0.112 45.904deg);
+  --color-error: oklch(71% 0.194 13.428deg);
+  --color-error-content: oklch(27% 0.105 12.094deg);
   --radius-selector: 2rem;
   --radius-field: 0.5rem;
   --radius-box: 0.5rem;
@@ -83,9 +84,11 @@
 
 @utility btn {
   @apply shadow-none;
+
   &:where(input[type="checkbox"], input[type="radio"]) {
     &:checked {
       @apply border-primary bg-primary text-primary-content;
+
       @media (hover: hover) {
         &:hover {
           @supports (color: color-mix(in oklab, black, black)) {
@@ -99,6 +102,7 @@
         }
       }
     }
+
     &:hover {
       @apply bg-base-content/10;
     }
