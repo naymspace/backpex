@@ -72,54 +72,25 @@
   padding-inline: 2rem;
 }
 
-@custom-variant phx-click-loading (.phx-click-loading&, .phx-click-loading &);
-@custom-variant phx-submit-loading (.phx-submit-loading&, .phx-submit-loading &);
-@custom-variant phx-change-loading (.phx-change-loading&, .phx-change-loading &);
-
-.phx-loading {
-  cursor: wait;
-}
-
-/* radio input and checkbox as button */
-.btn:is(input[type="checkbox"]:checked),
-.btn:is(input[type="radio"]:checked) {
-  @apply border-primary bg-primary text-primary-content;
-  @media (hover: hover) {
-    &:hover {
-      @supports (color: color-mix(in oklab, black, black)) {
-        background-color: color-mix(in oklab, var(--color-primary) 90%, black);
-        border-color: color-mix(in oklab, var(--color-primary) 90%, black);
+@utility btn {
+  &:where(input[type="checkbox"], input[type="radio"]) {
+    &:checked {
+      @apply border-primary bg-primary text-primary-content;
+      @media (hover: hover) {
+        &:hover {
+          @supports (color: color-mix(in oklab, black, black)) {
+            background-color: color-mix(
+              in oklab,
+              var(--color-primary) 90%,
+              black
+            );
+            border-color: color-mix(in oklab, var(--color-primary) 90%, black);
+          }
+        }
       }
     }
-  }
-  &:focus-visible {
-    @apply outline-primary;
-  }
-}
-
-/* btn variants */
-@utility btn-ghost {
-  &:hover {
-    @apply bg-base-content/20;
-  }
-}
-
-/* menu item hover  */
-:where(.menu li:not(.menu-title, .disabled) > *:not(ul, details, .menu-title)),
-:where(
-    .menu li:not(.menu-title, .disabled) > details > summary:not(.menu-title)
-  ) {
-  &:not(summary, .active, .btn).focus,
-  &:not(summary, .active, .btn):focus,
-  &:is(summary):not(.active, .btn):focus-visible {
-    @apply bg-base-content/10 text-base-content cursor-pointer outline-none;
-  }
-  @media (hover: hover) {
-    &:not(.menu-active, .btn):hover {
-      @apply cursor-pointer outline-none;
-      @supports (color: oklch(0% 0 0)) {
-        @apply bg-base-content/10;
-      }
+    &:hover {
+      @apply bg-base-content/10;
     }
   }
 }
