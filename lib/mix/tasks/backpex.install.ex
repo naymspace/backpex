@@ -35,6 +35,7 @@ if Code.ensure_loaded?(Igniter) do
     @moduledoc __MODULE__.Docs.long_doc()
 
     @default_app_js_path Path.join(["assets", "js", "app.js"])
+    @default_app_css_path Path.join(["assets", "css", "app.css"])
     @hooks "...BackpexHooks"
     @imports "import { Hooks as BackpexHooks } from 'backpex';"
 
@@ -43,10 +44,10 @@ if Code.ensure_loaded?(Igniter) do
     @impl Igniter.Mix.Task
     def info(_argv, _composing_task) do
       %Igniter.Mix.Task.Info{
-        adds_deps: [igniter_js: "~> 0.4.6"],
+        installs: [igniter_js: "~> 0.4.6"],
         example: __MODULE__.Docs.example(),
-        schema: [app_js_path: :string, yes: :boolean],
-        defaults: [app_js_path: @default_app_js_path]
+        schema: [app_js_path: :string, app_css_path: :string, yes: :boolean],
+        defaults: [app_js_path: @default_app_js_path, app_css_path: @default_app_css_path]
       }
     end
 
@@ -55,11 +56,12 @@ if Code.ensure_loaded?(Igniter) do
       pubsub_module = Igniter.Project.Module.module_name(igniter, "PubSub")
 
       igniter
-      |> Igniter.Project.Deps.add_dep({:igniter_js, "~> 0.4.6", only: [:dev, :test]})
+      # |> Igniter.Project.Deps.add_dep({:igniter_js, "~> 0.4.6", only: [:dev, :test]})
       |> Igniter.Project.Formatter.import_dep(:backpex)
       |> Igniter.Project.Config.configure_new("config.exs", :backpex, [:pubsub_server], pubsub_module)
       |> add_backpex_routes()
       |> install_backpex_hooks()
+      |> install_daisyui()
     end
 
     defp add_backpex_routes(igniter) do
@@ -104,6 +106,58 @@ if Code.ensure_loaded?(Igniter) do
       else
         {:error, _function, error} -> Mix.raise("Failed to modify app.js: #{error}")
         {:error, error} -> Mix.raise("Could not read app.js: #{error}")
+      end
+    end
+
+    defp install_daisyui(igniter) do
+      with :ok <- install_daisyui_via_npm(),
+           {:ok, igniter} <- add_daisyui_plugin_to_app_css(igniter) do
+        Igniter.add_notice(igniter, "Installed daisyUI via npm.")
+      else
+        {:error, error} ->
+          Igniter.Util.Warning.warn_with_code_sample(
+            igniter,
+            "Error installing daisyUI: #{inspect(error)}, please install daisyUI manually and add the following plugin to the app.css file:",
+            "@plugin \"daisyui\";"
+          )
+      end
+    end
+
+    defp install_daisyui_via_npm do
+      with true <- install_daisyui?(),
+           {_version, 0} <- System.cmd("npm", ["--version"], stderr_to_stdout: true),
+           {_output, 0} <- System.cmd("npm", ["i", "-D", "daisyui@latest"], stderr_to_stdout: true) do
+        :ok
+      else
+        {error, _} -> {:error, error}
+      end
+    end
+
+    defp install_daisyui? do
+      Igniter.Util.IO.yes?(
+        "The following npm package needs to be installed: `daisyui`. Do you want to install `daisyui@latest` via npm?"
+      )
+    end
+
+    defp add_daisyui_plugin_to_app_css(igniter) do
+      app_css_path = igniter.args.options[:app_css_path]
+
+      if Igniter.exists?(igniter, app_css_path) do
+        igniter =
+          Igniter.update_file(igniter, app_css_path, fn source ->
+            content = Rewrite.Source.get(source, :content)
+
+            if String.contains?(content, "@plugin \"daisyui\";") do
+              Mix.shell().info("daisyUI plugin already configured in app.css.")
+              source
+            else
+              Rewrite.Source.update(source, :content, content <> "\n@plugin \"daisyui\";\n")
+            end
+          end)
+
+        {:ok, igniter}
+      else
+        {:error, "app.css not found at #{app_css_path}."}
       end
     end
   end
