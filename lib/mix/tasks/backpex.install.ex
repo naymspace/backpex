@@ -46,8 +46,8 @@ if Code.ensure_loaded?(Igniter) do
       %Igniter.Mix.Task.Info{
         installs: [igniter_js: "~> 0.4.6"],
         example: __MODULE__.Docs.example(),
-        schema: [app_js_path: :string, app_css_path: :string, yes: :boolean],
-        defaults: [app_js_path: @default_app_js_path, app_css_path: @default_app_css_path]
+        schema: [app_js_path: :string, app_css_path: :string, no_layout: :boolean, yes: :boolean],
+        defaults: [app_js_path: @default_app_js_path, app_css_path: @default_app_css_path, no_layout: false]
       }
     end
 
@@ -62,7 +62,10 @@ if Code.ensure_loaded?(Igniter) do
       |> add_backpex_routes()
       |> install_backpex_hooks()
       |> install_daisyui()
+      |> generate_layout()
     end
+
+    # backpex hooks installation
 
     defp add_backpex_routes(igniter) do
       web_module = Igniter.Libs.Phoenix.web_module(igniter)
@@ -108,6 +111,8 @@ if Code.ensure_loaded?(Igniter) do
         {:error, error} -> Mix.raise("Could not read app.js: #{error}")
       end
     end
+
+    # daisyui installation
 
     defp install_daisyui(igniter) do
       with :ok <- install_daisyui_via_npm(),
@@ -159,6 +164,28 @@ if Code.ensure_loaded?(Igniter) do
       else
         {:error, "app.css not found at #{app_css_path}."}
       end
+    end
+
+    # admin layout generation
+
+    defp generate_layout(igniter) do
+      if igniter.args.options[:no_layout] do
+        Mix.shell().info("Skipping layout generation.")
+        igniter
+      else
+        backpex_path = Application.app_dir(:backpex)
+        web_folder_path = web_folder_path(igniter)
+        target_path = Path.join([web_folder_path, "components", "layouts", "admin.html.heex"])
+        template_path = Path.join([backpex_path, "priv", "templates", "layouts", "admin.html.heex"])
+
+        Igniter.copy_template(igniter, template_path, target_path, [], on_exists: :warning)
+      end
+    end
+
+    defp web_folder_path(igniter) do
+      igniter
+      |> Igniter.Project.Application.app_name()
+      |> Mix.Phoenix.web_path()
     end
   end
 else
