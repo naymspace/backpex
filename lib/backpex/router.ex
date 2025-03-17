@@ -7,12 +7,12 @@ defmodule Backpex.Router do
 
   @live_resources_options [
     only: [
-      type: {:list, :atom},
+      type: {:or, [nil, {:list, :atom}]},
       doc: "Only generate routes for these actions, e.g. `[:index, :show]`",
       default: nil
     ],
     except: [
-      type: {:list, :atom},
+      type: {:or, [nil, {:list, :atom}]},
       doc: "Generate routes for all actions except these, e.g. `[:edit]`",
       default: nil
     ],
@@ -22,17 +22,17 @@ defmodule Backpex.Router do
       default: nil
     ],
     as: [
-      type: :atom,
+      type: {:or, [nil, :atom]},
       doc: "Optionally configures the named helper",
       default: nil
     ],
     metadata: [
-      type: :map,
+      type: {:or, [nil, :map]},
       doc: "A map to optional feed metadata used on telemetry events and route info",
       default: nil
     ],
     private: [
-      type: :map,
+      type: {:or, [nil, :map]},
       doc: "An optional map of private data to put in the plug connection",
       default: nil
     ]
@@ -63,19 +63,22 @@ defmodule Backpex.Router do
   defmacro live_resources(path, live_resource, options \\ []) do
     alias Backpex.Router
 
-    only = Keyword.get(options, :only)
-    except = Keyword.get(options, :except)
+    quote bind_quoted: [
+            path: path,
+            live_resource: live_resource,
+            options: options,
+            live_resources_options: @live_resources_options
+          ] do
+      validated_options = NimbleOptions.validate!(options, live_resources_options)
 
-    live_options = Keyword.take(options, [:container, :as, :metadata, :private])
+      only = Keyword.get(options, :only)
+      except = Keyword.get(options, :except)
 
-    quote do
+      live_options = Keyword.take(options, [:container, :as, :metadata, :private])
+
       actions =
         [:index, :new, :edit, :show]
-        |> Router.filter_actions(unquote(only), unquote(except))
-
-      path = unquote(path)
-      live_resource = unquote(live_resource)
-      live_options = unquote(live_options)
+        |> Router.filter_actions(only, except)
 
       if Enum.member?(actions, :index), do: live("#{path}/", live_resource, :index, live_options)
       if Enum.member?(actions, :new), do: live("#{path}/new", live_resource, :new, live_options)
@@ -91,7 +94,9 @@ defmodule Backpex.Router do
 
   def has_resource_actions?(module, live_resource) do
     resource_module = Phoenix.Router.scoped_alias(module, live_resource)
-    Enum.count(resource_module.resource_actions()) > 0
+
+    Kernel.function_exported?(resource_module, :resource_actions, 0) &&
+      Enum.count(resource_module.resource_actions()) > 0
   end
 
   defmacro backpex_routes do
