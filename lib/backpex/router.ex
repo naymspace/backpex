@@ -5,13 +5,45 @@ defmodule Backpex.Router do
 
   alias Plug.Conn.Query
 
+  @live_resources_options [
+    only: [
+      type: {:list, :atom},
+      doc: "Only generate routes for these actions, e.g. `[:index, :show]`",
+      default: nil
+    ],
+    except: [
+      type: {:list, :atom},
+      doc: "Generate routes for all actions except these, e.g. `[:edit]`",
+      default: nil
+    ],
+    container: [
+      type: :any,
+      doc: "An optional tuple for the HTML tag and DOM attributes for the LiveView container",
+      default: nil
+    ],
+    as: [
+      type: :atom,
+      doc: "Optionally configures the named helper",
+      default: nil
+    ],
+    metadata: [
+      type: :map,
+      doc: "A map to optional feed metadata used on telemetry events and route info",
+      default: nil
+    ],
+    private: [
+      type: :map,
+      doc: "An optional map of private data to put in the plug connection",
+      default: nil
+    ]
+  ]
+
   @doc """
   Defines "RESTful" routes for a Backpex resource.
 
   ## Options
 
-    * `:only` - List of actions to generate routes for, for example: `[:index, :show]`.
-    * `:except` - List of actions to exclude generated routes from, for example: `[:edit]`.
+  #{NimbleOptions.docs(@live_resources_options)}
 
   ## Example
 
@@ -23,6 +55,7 @@ defmodule Backpex.Router do
 
           live_session :default, on_mount: Backpex.InitAssigns do
             live_resources("/users", UserLive, only: [:index])
+            live_resources("/users", UserLive, only: [:index], metadata: %{route_name: :foo, access: :user}
           end
         end
       end
@@ -33,6 +66,8 @@ defmodule Backpex.Router do
     only = Keyword.get(options, :only)
     except = Keyword.get(options, :except)
 
+    live_options = Keyword.take(options, [:container, :as, :metadata, :private])
+
     quote do
       actions =
         [:index, :new, :edit, :show]
@@ -40,16 +75,17 @@ defmodule Backpex.Router do
 
       path = unquote(path)
       live_resource = unquote(live_resource)
+      live_options = unquote(live_options)
 
-      if Enum.member?(actions, :index), do: live("#{path}/", live_resource, :index)
-      if Enum.member?(actions, :new), do: live("#{path}/new", live_resource, :new)
-      if Enum.member?(actions, :edit), do: live("#{path}/:backpex_id/edit", live_resource, :edit)
-      if Enum.member?(actions, :show), do: live("#{path}/:backpex_id/show", live_resource, :show)
+      if Enum.member?(actions, :index), do: live("#{path}/", live_resource, :index, live_options)
+      if Enum.member?(actions, :new), do: live("#{path}/new", live_resource, :new, live_options)
+      if Enum.member?(actions, :edit), do: live("#{path}/:backpex_id/edit", live_resource, :edit, live_options)
+      if Enum.member?(actions, :show), do: live("#{path}/:backpex_id/show", live_resource, :show, live_options)
 
       resource_module = Phoenix.Router.scoped_alias(__MODULE__, live_resource)
 
       if Router.has_resource_actions?(__MODULE__, live_resource),
-        do: live("#{path}/:backpex_id/resource-action", live_resource, :resource_action)
+        do: live("#{path}/:backpex_id/resource-action", live_resource, :resource_action, live_options)
     end
   end
 
