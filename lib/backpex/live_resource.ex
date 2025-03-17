@@ -1094,7 +1094,7 @@ defmodule Backpex.LiveResource do
   end
 
   defp handle_backpex_info({"updated", item}, socket)
-       when socket.assigns.live_action in [:index, :resource_action, :show] do
+       when socket.assigns.live_action in [:index, :resource_action, :show, :edit] do
     {:noreply, update_item(socket, item)}
   end
 
