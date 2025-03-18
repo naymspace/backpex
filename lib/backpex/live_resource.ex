@@ -199,9 +199,15 @@ defmodule Backpex.LiveResource do
               Phoenix.LiveView.Socket.t()
 
   @doc """
-  This function navigates to the specified path when an item has been created or updated. Defaults to the previous resource path (index or edit).
+  This function navigates to the specified path when an item has been created or updated. Defaults to the previous resource path (index or show).
   """
-  @callback return_to(socket :: Phoenix.LiveView.Socket.t(), assigns :: map(), action :: atom(), item :: map()) ::
+  @callback return_to(
+              socket :: Phoenix.LiveView.Socket.t(),
+              assigns :: map(),
+              live_action :: atom(),
+              form_action :: atom(),
+              item :: map()
+            ) ::
               binary()
 
   @doc """
@@ -337,7 +343,7 @@ defmodule Backpex.LiveResource do
       def on_item_deleted(socket, _item), do: socket
 
       @impl Backpex.LiveResource
-      def return_to(socket, assigns, _action, _item) do
+      def return_to(socket, assigns, _live_action, _form_action, _item) do
         Map.get(assigns, :return_to, Router.get_path(socket, assigns.live_resource, assigns.params, :index))
       end
 
