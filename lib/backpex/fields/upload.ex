@@ -622,7 +622,7 @@ defmodule Backpex.Fields.Upload do
   @impl Backpex.Field
   def render_form(assigns) do
     upload_key = assigns.field_options.upload_key
-    uploads_allowed = not is_nil(assigns.field_uploads)
+    uploads_allowed = not is_nil(assigns.lv_uploads[upload_key])
     translate_error_fun = Map.get(assigns.field_options, :translate_error, &Function.identity/1)
 
     hidden_field_name = to_string(assigns.name)
@@ -642,6 +642,7 @@ defmodule Backpex.Fields.Upload do
       assigns
       |> assign(:used_input?, to_string(used_input?))
       |> assign(:hidden_field_name, hidden_field_name)
+      |> assign(:upload, assigns.lv_uploads[upload_key])
       |> assign(:upload_key, upload_key)
       |> assign(:uploads_allowed, uploads_allowed)
       |> assign(:uploaded_files, Keyword.get(assigns.uploaded_files, upload_key))
@@ -649,36 +650,22 @@ defmodule Backpex.Fields.Upload do
       |> assign(:form_errors, form_errors)
 
     ~H"""
-    <div x-data="{
-        dispatchChangeEvent(el) {
-          $nextTick(
-            () => {
-              form = document.getElementById('resource-form');
-              if (form) el.dispatchEvent(new Event('input', { bubbles: true }));
-            }
-          )
-        }
-      }">
+    <div>
       <Layout.field_container>
         <:label align={Backpex.Field.align_label(@field_options, assigns, :top)}>
           <Layout.input_label text={@field_options[:label]} />
         </:label>
         <div
-          x-data="{dragging: 0}"
-          x-on:dragenter="dragging++"
-          x-on:dragleave="dragging--"
-          x-on:drop="dragging = 0"
+          id={"#{@name}-drop-target"}
           class="w-full max-w-lg"
-          phx-drop-target={if @uploads_allowed, do: @field_uploads.ref}
+          phx-hook="BackpexDragHover"
+          phx-drop-target={if @uploads_allowed, do: @upload.ref}
         >
-          <div
-            class={[
-              "rounded-btn flex justify-center border-2 border-dashed px-6 pt-5 pb-6",
-              @errors == [] && "border-base-content/25",
-              @errors != [] && "border-error bg-error/10"
-            ]}
-            x-bind:class="dragging > 0 ? 'border-primary' : 'border-base-content/25'"
-          >
+          <div class={[
+            "rounded-btn flex justify-center border-2 border-dashed px-6 pt-5 pb-6",
+            @errors == [] && "border-base-content/25",
+            @errors != [] && "border-error bg-error/10"
+          ]}>
             <div class="flex flex-col items-center space-y-1 text-center">
               <Backpex.HTML.CoreComponents.icon name="hero-document-arrow-up" class="text-base-content/50 h-8 w-8" />
               <div class="flex text-sm">
@@ -686,18 +673,15 @@ defmodule Backpex.Fields.Upload do
                   <a class="link link-hover link-primary font-medium">
                     {Backpex.translate("Upload a file")}
                   </a>
-                  <.live_file_input
-                    :if={@uploads_allowed}
-                    upload={@field_uploads}
-                    phx-target="#form-component"
-                    class="hidden"
-                  />
+                  <.live_file_input :if={@uploads_allowed} upload={@upload} phx-target="#form-component" class="hidden" />
                 </label>
                 <input
                   type="hidden"
                   name={"change[#{@hidden_field_name}_used_input]"}
                   id={"change_#{@hidden_field_name}_used_input"}
                   value={@used_input?}
+                  data-upload-key={@upload_key}
+                  phx-hook="BackpexCancelEntry"
                 />
                 <p class="pl-1">{Backpex.translate("or drag and drop")}</p>
               </div>
@@ -708,7 +692,7 @@ defmodule Backpex.Fields.Upload do
         <section class="mt-2">
           <article>
             <%= if @uploads_allowed do %>
-              <div :for={entry <- @field_uploads.entries} class="break-all">
+              <div :for={entry <- @upload.entries} class="break-all">
                 <p class="inline">{Map.get(entry, :client_name)}</p>
                 <button
                   type="button"
@@ -716,12 +700,11 @@ defmodule Backpex.Fields.Upload do
                   phx-value-ref={entry.ref}
                   phx-value-id={@upload_key}
                   phx-target="#form-component"
-                  @click="() => dispatchChangeEvent($el)"
                 >
                   &times;
                 </button>
                 <progress :if={entry.progress > 0} class="progress ml-4 w-32" value={entry.progress} max="100"></progress>
-                <p :for={err <- upload_errors(@field_uploads, entry)} class="text-xs italic text-red-500">
+                <p :for={err <- upload_errors(@upload, entry)} class="text-xs italic text-red-500">
                   {error_to_string(err)}
                 </p>
               </div>
@@ -736,7 +719,6 @@ defmodule Backpex.Fields.Upload do
                   phx-value-ref={file_key}
                   phx-value-id={@upload_key}
                   phx-target="#form-component"
-                  @click="() => dispatchChangeEvent($el)"
                 >
                   &times;
                 </button>
@@ -745,7 +727,7 @@ defmodule Backpex.Fields.Upload do
           </article>
 
           <%= if @uploads_allowed do %>
-            <p :for={err <- upload_errors(@field_uploads)} class="text-xs italic text-red-500">
+            <p :for={err <- upload_errors(@upload)} class="text-xs italic text-red-500">
               {error_to_string(err)}
             </p>
           <% end %>

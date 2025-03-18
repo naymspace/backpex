@@ -46,7 +46,7 @@ defmodule Demo.MixProject do
       {:sourceror, "~> 1.7", only: [:dev, :test]},
 
       # core
-      {:dns_cluster, "~> 0.1.1"},
+      {:dns_cluster, "~> 0.2.0"},
       {:telemetry_poller, "~> 1.0"},
       {:telemetry_metrics, "~> 1.0"},
       {:gettext, "~> 0.26"},
@@ -74,7 +74,7 @@ defmodule Demo.MixProject do
       {:ash_postgres, "~> 2.5.0"},
 
       # assets
-      {:esbuild, "~> 0.8", runtime: Mix.env() == :dev},
+      {:esbuild, "~> 0.9", runtime: Mix.env() == :dev},
       {:tailwind, "~> 0.2.0", runtime: Mix.env() == :dev},
       {:heroicons, github: "tailwindlabs/heroicons", tag: "v2.2.0", sparse: "optimized", app: false, compile: false}
     ]

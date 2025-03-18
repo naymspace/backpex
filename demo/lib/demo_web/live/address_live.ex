@@ -7,11 +7,6 @@ defmodule DemoWeb.AddressLive do
       create_changeset: &Demo.Address.create_changeset/3
     ],
     layout: {DemoWeb.Layouts, :admin},
-    pubsub: [
-      name: Demo.PubSub,
-      topic: "addresses",
-      event_prefix: "address_"
-    ],
     fluid?: true
 
   @impl Backpex.LiveResource

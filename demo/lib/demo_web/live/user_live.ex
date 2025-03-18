@@ -8,12 +8,7 @@ defmodule DemoWeb.UserLive do
       item_query: &__MODULE__.item_query/3
     ],
     layout: {DemoWeb.Layouts, :admin},
-    init_order: &__MODULE__.init_order/1,
-    pubsub: [
-      name: Demo.PubSub,
-      topic: "users",
-      event_prefix: "user_"
-    ]
+    init_order: &__MODULE__.init_order/1
 
   import Ecto.Query, warn: false
 

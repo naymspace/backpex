@@ -38,22 +38,20 @@ defmodule Backpex.LiveResource do
     pubsub: [
       doc: "PubSub configuration.",
       type: :keyword_list,
-      required: true,
+      required: false,
       keys: [
-        name: [
-          doc: "PubSub name of the project.",
-          required: true,
+        server: [
+          doc: "PubSub server of the project.",
+          required: false,
           type: :atom
         ],
-        event_prefix: [
-          doc:
-            "The event prefix for Pubsub, to differentiate between events of different resources when subscribed to multiple resources.",
-          required: true,
-          type: :string
-        ],
         topic: [
-          doc: "The topic for PubSub.",
-          required: true,
+          doc: """
+          The topic for PubSub.
+
+          By default a stringified version of the live resource module name is used.
+          """,
+          required: false,
           type: :string
         ]
       ]
@@ -148,12 +146,21 @@ defmodule Backpex.LiveResource do
   @doc """
   The function that can be used to add content to certain positions on Backpex views. It may also be used to overwrite content.
 
-  The following actions are supported: `:index`, `:show`
+  See the following list for the available positions and the corresponding actions:
 
-  The following positions are supported for the `:index` action: `:page_title`, `:actions`, `:filters`, `:metrics` and `:main`.
-  The following positions are supported for the `:show` action: `:page_title` and `:main`.
-
-  In addition to this, content can be inserted between the main positions via the following extra spots: `:before_page_title`, `:before_actions`, `:before_filters`, `:before_metrics` and `:before_main`.
+  - all actions
+    - `:before_page_title`
+    - `:page_title`
+    - `:before_main`
+    - `:main`
+    - `:after_main`
+  - `:index` action
+    - `:before_actions`
+    - `:actions`
+    - `:before_filters`
+    - `:filters`
+    - `:before_metrics`
+    - `:metrics`
   """
   @callback render_resource_slot(assigns :: map(), action :: atom(), position :: atom()) ::
               %Phoenix.LiveView.Rendered{}
@@ -241,7 +248,9 @@ defmodule Backpex.LiveResource do
 
       alias Backpex.LiveResource
 
-      def config(key), do: Keyword.fetch!(@resource_opts, key)
+      def config(key), do: Keyword.get(@resource_opts, key)
+
+      def pubsub, do: LiveResource.pubsub(__MODULE__)
 
       def validated_fields, do: LiveResource.validated_fields(__MODULE__)
 
@@ -329,7 +338,7 @@ defmodule Backpex.LiveResource do
 
       @impl Backpex.LiveResource
       def return_to(socket, assigns, _action, _item) do
-        Map.get(assigns, :return_to, Router.get_path(socket, assigns.live_resource, %{}, :index))
+        Map.get(assigns, :return_to, Router.get_path(socket, assigns.live_resource, assigns.params, :index))
       end
 
       @impl Backpex.LiveResource
@@ -376,8 +385,9 @@ defmodule Backpex.LiveResource do
           {@singular_name}
           <.link
             :if={@live_resource.can?(assigns, :edit, @item)}
-            class="tooltip hover:z-30"
-            data-tip={Backpex.translate("Edit")}
+            id={"#{@singular_name}-edit-link"}
+            phx-hook="BackpexTooltip"
+            data-tooltip={Backpex.translate("Edit")}
             aria-label={Backpex.translate("Edit")}
             patch={Router.get_path(@socket, @live_resource, @params, :edit, @item)}
           >
@@ -437,7 +447,7 @@ defmodule Backpex.LiveResource do
   @impl Phoenix.LiveView
   def mount(params, session, socket) do
     live_resource = socket.view
-    pubsub = live_resource.config(:pubsub)
+    pubsub = live_resource.pubsub()
     subscribe_to_topic(socket, pubsub)
 
     # TODO: move these "config assigns" (and other global assigns) to where they are needed
@@ -1061,10 +1071,7 @@ defmodule Backpex.LiveResource do
 
   @impl Phoenix.LiveView
   def handle_info({"backpex:" <> event, item}, socket) do
-    event_prefix = socket.assigns.live_resource.config(:pubsub)[:event_prefix]
-    ^event_prefix <> event_type = event
-
-    handle_backpex_info({event_type, item}, socket)
+    handle_backpex_info({event, item}, socket)
   end
 
   @impl Phoenix.LiveView
@@ -1207,11 +1214,21 @@ defmodule Backpex.LiveResource do
   end
 
   @doc """
+  Returns the pubsub settings for the current LiveResource.
+  """
+  def pubsub(live_resource) do
+    [
+      server: live_resource.config(:pubsub)[:server] || Application.fetch_env!(:backpex, :pubsub_server),
+      topic: live_resource.config(:pubsub)[:topic] || to_string(live_resource)
+    ]
+  end
+
+  @doc """
   Subscribes to pubsub topic.
   """
-  def subscribe_to_topic(socket, name: name, topic: topic, event_prefix: _event_prefix) do
+  def subscribe_to_topic(socket, server: server, topic: topic) do
     if Phoenix.LiveView.connected?(socket) do
-      Phoenix.PubSub.subscribe(name, topic)
+      Phoenix.PubSub.subscribe(server, topic)
     end
   end
 

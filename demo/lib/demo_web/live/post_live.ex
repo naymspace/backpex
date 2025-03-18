@@ -7,11 +7,6 @@ defmodule DemoWeb.PostLive do
       create_changeset: &Demo.Post.create_changeset/3
     ],
     layout: {DemoWeb.Layouts, :admin},
-    pubsub: [
-      name: Demo.PubSub,
-      topic: "posts",
-      event_prefix: "post_"
-    ],
     fluid?: true
 
   import Ecto.Query, warn: false
@@ -119,7 +114,8 @@ defmodule DemoWeb.PostLive do
       published: %{
         module: Backpex.Fields.Boolean,
         label: "Published",
-        align: :center
+        align: :center,
+        index_editable: true
       },
       show_likes: %{
         module: Backpex.Fields.Boolean,
