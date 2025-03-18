@@ -875,10 +875,9 @@ defmodule Backpex.LiveResource do
 
   @impl Phoenix.LiveView
   def handle_event("item-action", %{"action-key" => key, "item-id" => item_id}, socket) do
-    item =
-      Enum.find(socket.assigns.items, fn item ->
-        to_string(primary_value(socket, item)) == to_string(item_id)
-      end)
+    %{items: items, live_resource: live_resource} = socket.assigns
+
+    item = Enum.find(items, fn item -> to_string(primary_value(item, live_resource)) == to_string(item_id) end)
 
     socket
     |> assign(selected_items: [item])
@@ -1017,9 +1016,10 @@ defmodule Backpex.LiveResource do
 
   @impl Phoenix.LiveView
   def handle_event("update-selected-items", %{"id" => id}, socket) do
-    selected_items = socket.assigns.selected_items
+    %{selected_items: selected_items, live_resource: live_resource} = socket.assigns
 
-    item = Enum.find(socket.assigns.items, fn item -> to_string(primary_value(socket, item)) == to_string(id) end)
+    item =
+      Enum.find(socket.assigns.items, fn item -> to_string(primary_value(item, live_resource)) == to_string(id) end)
 
     updated_selected_items =
       if Enum.member?(selected_items, item) do
@@ -1097,9 +1097,12 @@ defmodule Backpex.LiveResource do
   end
 
   defp handle_backpex_info({"deleted", item}, socket) when socket.assigns.live_action in [:index, :resource_action] do
-    %{items: items} = socket.assigns
+    %{items: items, live_resource: live_resource} = socket.assigns
 
-    if Enum.filter(items, &(to_string(primary_value(socket, &1)) == to_string(primary_value(socket, item)))) != [] do
+    if Enum.filter(
+         items,
+         &(to_string(primary_value(&1, live_resource)) == to_string(primary_value(item, live_resource)))
+       ) != [] do
       {:noreply, refresh_items(socket)}
     else
       {:noreply, socket}
@@ -1142,16 +1145,15 @@ defmodule Backpex.LiveResource do
   end
 
   defp update_item(socket, item) do
-    %{live_resource: live_resource, live_action: live_action} = socket.assigns
+    %{live_resource: live_resource, live_action: live_action, items: items} = socket.assigns
 
-    item_primary_value = primary_value(socket, item)
+    item_primary_value = primary_value(item, live_resource)
     {:ok, item} = Resource.get(item_primary_value, socket.assigns, live_resource)
 
     socket =
       cond do
         live_action in [:index, :resource_action] and item ->
-          items =
-            Enum.map(socket.assigns.items, &if(primary_value(socket, &1) == item_primary_value, do: item, else: &1))
+          items = Enum.map(items, &if(primary_value(&1, live_resource) == item_primary_value, do: item, else: &1))
 
           assign(socket, :items, items)
 
@@ -1220,10 +1222,8 @@ defmodule Backpex.LiveResource do
     end
   end
 
-  defp primary_value(socket, item) do
-    primary_key = socket.assigns.live_resource.config(:primary_key)
-
-    Map.get(item, primary_key)
+  def primary_value(item, live_resource) do
+    Map.get(item, live_resource.config(:primary_key))
   end
 
   @doc """

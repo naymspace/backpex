@@ -1031,8 +1031,4 @@ defmodule Backpex.HTML.Resource do
 
   defp toggle_order_direction(:asc), do: :desc
   defp toggle_order_direction(:desc), do: :asc
-
-  defp primary_value(item, live_resource) do
-    Map.get(item, live_resource.config(:primary_key))
-  end
 end

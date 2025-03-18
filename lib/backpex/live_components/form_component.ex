@@ -219,7 +219,7 @@ defmodule Backpex.FormComponent do
 
     case Resource.insert(item, params, socket.assigns, live_resource, opts) do
       {:ok, item} ->
-        return_to = return_to_path(save_type, live_resource, socket, socket.assigns, item, live_action)
+        return_to = return_to_path(save_type, live_resource, socket, socket.assigns, live_action, item)
 
         socket
         |> assign(:show_form_errors, false)
@@ -408,9 +408,9 @@ defmodule Backpex.FormComponent do
     end)
   end
 
-  defp return_to_path("continue", _live_resource, _socket, %{current_url: url}, :new, item) do
-    primary_value = Map.get(item, live_resource.config(:primary_key))
-    
+  defp return_to_path("continue", live_resource, _socket, %{current_url: url}, :new, item) do
+    primary_value = Backpex.LiveResource.primary_value(item, live_resource)
+
     url
     |> URI.parse()
     |> Map.get(:path)
