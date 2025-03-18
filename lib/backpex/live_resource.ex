@@ -87,12 +87,19 @@ defmodule Backpex.LiveResource do
       default: Macro.escape(%{by: :id, direction: :asc})
     ],
     fluid?: [
+      doc: "If the layout fills out the entire width.",
       type: :boolean,
       default: false
     ],
     full_text_search: [
+      doc: "The name of the generated column used for full text search.",
       type: :atom,
       default: nil
+    ],
+    save_and_continue_button?: [
+      doc: "If the \"Save & Continue editing\" button is shown on form views.",
+      type: :boolean,
+      default: false
     ]
   ]
 
@@ -205,11 +212,6 @@ defmodule Backpex.LiveResource do
               binary()
 
   @doc """
-  Toggle the "Save & Continue editing" button.
-  """
-  @callback save_and_continue_button(assigns :: map()) :: boolean()
-
-  @doc """
   Customizes the label of the button for creating a new item. Defaults to "New %{resource}".
   """
   @callback create_button_label() :: binary()
@@ -293,9 +295,6 @@ defmodule Backpex.LiveResource do
       def create_button_label, do: Backpex.translate({"New %{resource}", %{resource: singular_name()}})
 
       @impl Backpex.LiveResource
-      def save_and_continue_button(_assigns), do: true
-
-      @impl Backpex.LiveResource
       def resource_created_message,
         do: Backpex.translate({"New %{resource} has been created successfully.", %{resource: singular_name()}})
 
@@ -307,8 +306,7 @@ defmodule Backpex.LiveResource do
                      item_actions: 1,
                      index_row_class: 4,
                      create_button_label: 0,
-                     resource_created_message: 0,
-                     save_and_continue_button: 1
+                     resource_created_message: 0
     end
   end
 
