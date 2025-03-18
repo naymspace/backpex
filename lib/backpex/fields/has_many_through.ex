@@ -107,7 +107,10 @@ defmodule Backpex.Fields.HasManyThrough do
   defp assign_options(%{assigns: %{options: _options, items: _items}} = socket), do: socket
 
   defp assign_options(socket) do
-    %{assigns: %{repo: repo, field_options: field_options, association: association} = assigns} = socket
+    %{
+      assigns:
+        %{repo: repo, field_options: field_options, association: association, live_resource: live_resource} = assigns
+    } = socket
 
     display_field = Map.get(field_options, :display_field_form, Map.get(field_options, :display_field))
 
@@ -119,7 +122,10 @@ defmodule Backpex.Fields.HasManyThrough do
     options = Enum.map(all_items, &{Map.get(&1, display_field), Map.get(&1, :id)})
 
     prompt =
-      {Backpex.translate({"Choose %{resource} ...", %{resource: field_options.live_resource.singular_name()}}), nil}
+      {Backpex.translate(
+         live_resource,
+         {"Choose %{resource} ...", %{resource: field_options.live_resource.singular_name()}}
+       ), nil}
 
     socket
     |> assign(:all_items, all_items)
@@ -202,7 +208,7 @@ defmodule Backpex.Fields.HasManyThrough do
 
   @impl Backpex.Field
   def render_form(assigns) do
-    %{field: assoc_field} = assigns = assign_fallback_child_fields(assigns)
+    %{field: assoc_field, live_resource: live_resource} = assigns = assign_fallback_child_fields(assigns)
     %{form: form, changeset: changeset, association: association, all_items: all_items} = assigns
     {_assoc_field_name, assoc_field_options} = assoc_field
     primary_key = assoc_field_options.live_resource.config(:primary_key)
@@ -225,7 +231,10 @@ defmodule Backpex.Fields.HasManyThrough do
       |> maybe_sort_by(assigns)
 
     relational_title =
-      Backpex.translate({"Attach %{resource}", %{resource: assoc_field_options.live_resource.singular_name()}})
+      Backpex.translate(
+        live_resource,
+        {"Attach %{resource}", %{resource: assoc_field_options.live_resource.singular_name()}}
+      )
 
     assigns =
       assigns
@@ -293,7 +302,7 @@ defmodule Backpex.Fields.HasManyThrough do
                       phx-click="edit-relational"
                       phx-target={@myself}
                       phx-value-index={listable.index}
-                      aria-label={Backpex.translate({"Edit relation with index %{index}", %{index: listable.index}})}
+                      aria-label={Backpex.translate(@live_resource, {"Edit relation with index %{index}", %{index: listable.index}})}
                     >
                       <Backpex.HTML.CoreComponents.icon name="hero-pencil-square" class="h-5 w-5" />
                     </button>
@@ -302,13 +311,13 @@ defmodule Backpex.Fields.HasManyThrough do
                       phx-click="detach-relational"
                       phx-target={@myself}
                       phx-value-index={listable.index}
-                      aria-label={Backpex.translate({"Detach relation with index %{index}", %{index: listable.index}})}
+                      aria-label={Backpex.translate(@live_resource, {"Detach relation with index %{index}", %{index: listable.index}})}
                     >
                       <Backpex.HTML.CoreComponents.icon name="hero-trash" class="h-5 w-5" />
                     </button>
                     <div
                       :if={has_error?(@editables, index)}
-                      aria-label={Backpex.translate({"Error in relation with index %{index}", %{index: listable.index}})}
+                      aria-label={Backpex.translate(@live_resource, {"Error in relation with index %{index}", %{index: listable.index}})}
                     >
                       <Backpex.HTML.CoreComponents.icon name="hero-exclamation-triangle" class="text-error h-5 w-5" />
                     </div>
@@ -341,11 +350,11 @@ defmodule Backpex.Fields.HasManyThrough do
           </div>
           <div class="bg-base-200 flex justify-end space-x-4 px-6 py-3">
             <button type="button" class="btn" phx-click="cancel-relational" phx-target={@myself}>
-              {Backpex.translate("Cancel")}
+              {Backpex.translate(@live_resource, "Cancel")}
             </button>
 
             <button type="button" class="btn btn-primary" phx-click="complete-relational" phx-target={@myself}>
-              {Backpex.translate("Apply")}
+              {Backpex.translate(@live_resource, "Apply")}
             </button>
           </div>
         </.modal>

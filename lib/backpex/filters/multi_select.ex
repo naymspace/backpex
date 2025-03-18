@@ -74,6 +74,7 @@ defmodule Backpex.Filters.MultiSelect do
     """
   end
 
+  attr :live_resource, :atom, required: true
   attr :form, :any, required: true
   attr :field, :atom, required: true
   attr :value, :any, required: true
@@ -90,7 +91,7 @@ defmodule Backpex.Filters.MultiSelect do
         <%= if @value == [] do %>
           {@prompt}
         <% else %>
-          {"#{Enum.count(@value)} #{Backpex.translate("selected")}"}
+          {"#{Enum.count(@value)} #{Backpex.translate(@live_resource, "selected")}"}
         <% end %>
       </div>
       <ul

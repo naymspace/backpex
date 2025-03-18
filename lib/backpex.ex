@@ -8,17 +8,15 @@ defmodule Backpex do
 
   The type must be `:general` or `:error`.
   """
-  def translate(msg, type \\ :general)
+  def translate(live_resource, msg, type \\ :general)
 
-  def translate({msg, opts}, type) do
-    translate_func = translator_from_config(type) || (&default_translate/1)
-
-    translate_func.({msg, opts})
+  def translate(live_resource, {msg, opts}, type) do
+    live_resource.translate({msg, opts}, type)
   end
 
-  def translate(msg, type), do: translate({msg, %{}}, type)
+  def translate(live_resource, msg, type), do: translate(live_resource, {msg, %{}}, type)
 
-  defp translator_from_config(type) do
+  def translator_from_config(type) do
     key =
       case type do
         :error -> :error_translator_function
@@ -34,7 +32,7 @@ defmodule Backpex do
     end
   end
 
-  defp default_translate({msg, opts}) do
+  def default_translate({msg, opts}) do
     Enum.reduce(opts, msg, fn {key, value}, acc ->
       try do
         String.replace(acc, "%{#{key}}", to_string(value))

@@ -230,6 +230,7 @@ defmodule Backpex.HTML.Form do
   """
   @doc type: :component
 
+  attr :live_resource, :atom, required: true, doc: "the live resource module"
   attr :prompt, :string, required: true, doc: "string that will be shown when no option is selected"
   attr :not_found_text, :string, required: true, doc: "string that will be shown when there are no options"
   attr :options, :list, required: true, doc: "a list of options for the select"
@@ -266,7 +267,7 @@ defmodule Backpex.HTML.Form do
               phx-click="toggle-option"
               phx-value-id={value}
               phx-target={@event_target}
-              aria-label={Backpex.translate({"Unselect %{label}", %{label: label}})}
+              aria-label={Backpex.translate(@live_resource, {"Unselect %{label}", %{label: label}})}
             >
               <Backpex.HTML.CoreComponents.icon name="hero-x-mark" class="text-base-100 ml-1 h-4 w-4" />
             </div>
@@ -280,7 +281,7 @@ defmodule Backpex.HTML.Form do
             type="search"
             name={@field.name <> "_search"}
             class="input input-sm input-bordered mb-2 w-full"
-            placeholder={Backpex.translate("Search")}
+            placeholder={Backpex.translate(@live_resource, "Search")}
             value={@search_input}
             phx-change={@search_event}
             phx-target={@event_target}
@@ -298,9 +299,9 @@ defmodule Backpex.HTML.Form do
             phx-target={@event_target}
           >
             <%= if @show_select_all do %>
-              {Backpex.translate("Select all")}
+              {Backpex.translate(@live_resource, "Select all")}
             <% else %>
-              {Backpex.translate("Deselect all")}
+              {Backpex.translate(@live_resource, "Deselect all")}
             <% end %>
           </button>
 
@@ -335,7 +336,7 @@ defmodule Backpex.HTML.Form do
             phx-click="show-more"
             phx-target={@event_target}
           >
-            {Backpex.translate("Show more")}
+            {Backpex.translate(@live_resource, "Show more")}
           </button>
         </div>
       </div>
@@ -346,13 +347,15 @@ defmodule Backpex.HTML.Form do
   def form_errors?(false, _form), do: false
   def form_errors?(true = _show_errors, form), do: form.errors != []
 
-  def translate_form_errors(errors, translate_error_fun)
+  def translate_form_errors(errors, live_resource, translate_error_fun)
       when is_function(translate_error_fun, 1) do
     errors
     |> Enum.map(fn error ->
       error
       |> translate_error_fun.()
-      |> Backpex.translate(:error)
+      |> then(fn res ->
+        Backpex.translate(live_resource, res, :error)
+      end)
     end)
   end
 

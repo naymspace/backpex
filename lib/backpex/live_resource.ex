@@ -127,11 +127,6 @@ defmodule Backpex.LiveResource do
   @callback plural_name() :: binary()
 
   @doc """
-  Replaces the default placeholder for the index search.
-  """
-  @callback search_placeholder() :: binary()
-
-  @doc """
   An extra class to be added to table rows on the index view.
   """
   @callback index_row_class(assigns :: map(), item :: map(), selected :: boolean(), index :: integer()) ::
@@ -204,15 +199,7 @@ defmodule Backpex.LiveResource do
   @callback return_to(socket :: Phoenix.LiveView.Socket.t(), assigns :: map(), action :: atom(), item :: map()) ::
               binary()
 
-  @doc """
-  Customizes the label of the button for creating a new item. Defaults to "New %{resource}".
-  """
-  @callback create_button_label() :: binary()
-
-  @doc """
-  Customizes the message in the flash message when a resource has been created successfully. Defaults to "New %{resource} has been created successfully".
-  """
-  @callback resource_created_message() :: binary()
+  @callback translate(msg :: tuple(), type :: atom()) :: binary() | tuple()
 
   @doc """
   Uses LiveResource in the current module to make it a LiveResource.
@@ -284,22 +271,13 @@ defmodule Backpex.LiveResource do
       @impl Backpex.LiveResource
       def item_actions(default_actions), do: default_actions
 
-      @impl Backpex.LiveResource
-      def create_button_label, do: Backpex.translate({"New %{resource}", %{resource: singular_name()}})
-
-      @impl Backpex.LiveResource
-      def resource_created_message,
-        do: Backpex.translate({"New %{resource} has been created successfully.", %{resource: singular_name()}})
-
       defoverridable can?: 3,
                      fields: 0,
                      filters: 0,
                      filters: 1,
                      resource_actions: 0,
                      item_actions: 1,
-                     index_row_class: 4,
-                     create_button_label: 0,
-                     resource_created_message: 0
+                     index_row_class: 4
     end
   end
 
@@ -325,9 +303,6 @@ defmodule Backpex.LiveResource do
       def metrics, do: []
 
       @impl Backpex.LiveResource
-      def search_placeholder, do: Backpex.translate("Search")
-
-      @impl Backpex.LiveResource
       def on_item_created(socket, _item), do: socket
 
       @impl Backpex.LiveResource
@@ -339,6 +314,12 @@ defmodule Backpex.LiveResource do
       @impl Backpex.LiveResource
       def return_to(socket, assigns, _action, _item) do
         Map.get(assigns, :return_to, Router.get_path(socket, assigns.live_resource, assigns.params, :index))
+      end
+
+      @impl Backpex.LiveResource
+      def translate({msg, opts}, type) do
+        translate_func = Backpex.translator_from_config(type) || (&Backpex.default_translate/1)
+        translate_func.({msg, opts})
       end
 
       @impl Backpex.LiveResource
@@ -387,8 +368,8 @@ defmodule Backpex.LiveResource do
             :if={@live_resource.can?(assigns, :edit, @item)}
             id={"#{@singular_name}-edit-link"}
             phx-hook="BackpexTooltip"
-            data-tooltip={Backpex.translate("Edit")}
-            aria-label={Backpex.translate("Edit")}
+            data-tooltip={Backpex.translate(@live_resource, "Edit")}
+            aria-label={Backpex.translate(@live_resource, "Edit")}
             patch={Router.get_path(@socket, @live_resource, @params, :edit, @item)}
           >
             <Backpex.HTML.CoreComponents.icon
@@ -411,7 +392,7 @@ defmodule Backpex.LiveResource do
       def render_resource_slot(var!(assigns), :edit, :page_title) do
         ~H"""
         <.main_title class="mb-4">
-          {Backpex.translate({"Edit %{resource}", %{resource: @singular_name}})}
+          {Backpex.translate(@live_resource, {"Edit %{resource}", %{resource: @singular_name}})}
         </.main_title>
         """
       end
@@ -461,9 +442,11 @@ defmodule Backpex.LiveResource do
     |> assign(:repo, adapter_config[:repo])
     |> assign(:singular_name, live_resource.singular_name())
     |> assign(:plural_name, live_resource.plural_name())
-    |> assign(:create_button_label, live_resource.create_button_label())
-    |> assign(:resource_created_message, live_resource.resource_created_message())
-    |> assign(:search_placeholder, live_resource.search_placeholder())
+    # TODO: call where needed
+    |> assign(
+      :create_button_label,
+      Backpex.translate(live_resource, {"New %{resource}", %{resource: live_resource.singular_name()}})
+    )
     |> assign(:panels, live_resource.panels())
     |> assign(:fluid?, fluid?)
     |> assign(:full_text_search, full_text_search)
@@ -624,7 +607,7 @@ defmodule Backpex.LiveResource do
     socket
     |> assign(:fields, fields)
     |> assign(:changeset_function, changeset_function)
-    |> assign(:page_title, Backpex.translate({"Edit %{resource}", %{resource: singular_name}}))
+    |> assign(:page_title, Backpex.translate(live_resource, {"Edit %{resource}", %{resource: singular_name}}))
     |> assign(:item, item)
     |> assign_changeset(changeset_function, item, fields, :edit)
   end

@@ -47,7 +47,7 @@ defmodule Backpex.FormComponent do
 
   defp apply_action(socket, action) when action in [:edit, :new] do
     socket
-    |> assign(:save_label, Backpex.translate("Save"))
+    |> assign(:save_label, Backpex.translate(socket.assigns.live_resource, {"Save", %{}}, :general))
     |> assign(:continue_label, Backpex.translate("Save & Continue editing"))
   end
 
@@ -217,7 +217,13 @@ defmodule Backpex.FormComponent do
         socket
         |> assign(:show_form_errors, false)
         |> clear_flash()
-        |> put_flash(:info, socket.assigns.resource_created_message)
+        |> put_flash(
+          :info,
+          Backpex.translate(
+            live_resource,
+            {"New %{resource} has been created successfully.", %{resource: live_resource.singular_name()}}
+          )
+        )
         |> push_navigate(to: return_to)
         |> noreply()
 

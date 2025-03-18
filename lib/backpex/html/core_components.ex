@@ -24,6 +24,7 @@ defmodule Backpex.HTML.CoreComponents do
   """
   @doc type: :component
 
+  attr :live_resource, :atom, required: true
   attr :clear_event, :string, default: "clear-filter", doc: "event name for removing the badge"
   attr :filter_name, :string, required: true
   attr :label, :string, required: true
@@ -44,7 +45,7 @@ defmodule Backpex.HTML.CoreComponents do
         phx-click={@clear_event}
         phx-value-field={@filter_name}
         class="indicator-item bg-base-300 rounded-badge grid place-items-center p-1 shadow transition duration-75 hover:text-secondary hover:scale-110"
-        aria-label={Backpex.translate({"Clear %{name} filter", %{name: @label}})}
+        aria-label={Backpex.translate(@live_resource, {"Clear %{name} filter", %{name: @label}})}
       >
         <.icon name="hero-x-mark" class="h-3 w-3" />
       </button>

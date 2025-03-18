@@ -672,7 +672,6 @@ defmodule Backpex.HTML.Resource do
 
   attr :full_text_search, :string, default: nil, doc: "full text search column name"
   attr :query_options, :map, default: %{}, doc: "query options"
-  attr :search_placeholder, :string, required: true, doc: "placeholder for the search input"
 
   def resource_filters(assigns) do
     ~H"""
@@ -682,7 +681,7 @@ defmodule Backpex.HTML.Resource do
         searchable_fields={@searchable_fields}
         full_text_search={@full_text_search}
         value={Map.get(@query_options, :search, "")}
-        placeholder={@search_placeholder}
+        placeholder={Backpex.translate(@live_resource, "Search")}
       />
       <.index_filter
         live_resource={@live_resource}

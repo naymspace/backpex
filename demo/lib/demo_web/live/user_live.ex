@@ -24,6 +24,10 @@ defmodule DemoWeb.UserLive do
   @impl Backpex.LiveResource
   def can?(_assigns, _action, _item), do: true
 
+  def translate({"Save", opts}, type) do
+    "Weiter"
+  end
+
   def item_query(query, live_action, _assigns) when live_action in [:index, :resource_action] do
     from u in query,
       where: is_nil(u.deleted_at)

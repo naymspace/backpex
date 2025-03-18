@@ -89,6 +89,7 @@ defmodule Backpex.Filters.Range do
     """
   end
 
+  attr :live_resource, :atom, required: true
   attr :form, :any, required: true
   attr :type, :atom, required: true
   attr :value, :any, required: true
@@ -97,12 +98,12 @@ defmodule Backpex.Filters.Range do
     ~H"""
     <div class="mt-2">
       <label class="input input-sm input-bordered mb-2 flex w-full items-center">
-        <span class="text-base-content/50 w-10 ">{Backpex.translate("From")}</span>
+        <span class="text-base-content/50 w-10 ">{Backpex.translate(@live_resource, "From")}</span>
         <input type="date" name={@form[:start].name} class="grow" value={@value["start"]} />
       </label>
 
       <label class="input input-sm input-bordered flex w-full items-center">
-        <span class="text-base-content/50 w-10 ">{Backpex.translate("To")}</span>
+        <span class="text-base-content/50 w-10 ">{Backpex.translate(@live_resource, "To")}</span>
         <input type="date" name={@form[:end].name} class="grow" value={@value["end"]} />
       </label>
     </div>
@@ -113,12 +114,12 @@ defmodule Backpex.Filters.Range do
     ~H"""
     <div class="mt-2">
       <label class="input input-sm input-bordered mb-2 flex w-full items-center">
-        <span class="text-base-content/50 w-10">{Backpex.translate("From")}</span>
+        <span class="text-base-content/50 w-10">{Backpex.translate(@live_resource, "From")}</span>
         <input type="number" name={@form[:start].name} class="grow" value={@value["start"]} />
       </label>
 
       <label class="input input-sm input-bordered flex w-full items-center">
-        <span class="text-base-content/50 w-10 ">{Backpex.translate("To")}</span>
+        <span class="text-base-content/50 w-10 ">{Backpex.translate(@live_resource, "To")}</span>
         <input type="number" name={@form[:end].name} class="grow" value={@value["end"]} />
       </label>
     </div>
