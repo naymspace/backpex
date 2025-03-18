@@ -87,12 +87,19 @@ defmodule Backpex.LiveResource do
       default: Macro.escape(%{by: :id, direction: :asc})
     ],
     fluid?: [
+      doc: "If the layout fills out the entire width.",
       type: :boolean,
       default: false
     ],
     full_text_search: [
+      doc: "The name of the generated column used for full text search.",
       type: :atom,
       default: nil
+    ],
+    save_and_continue_button?: [
+      doc: "If the \"Save & Continue editing\" button is shown on form views.",
+      type: :boolean,
+      default: false
     ]
   ]
 
