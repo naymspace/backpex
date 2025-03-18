@@ -205,6 +205,11 @@ defmodule Backpex.LiveResource do
               binary()
 
   @doc """
+  Toggle the "Save & Continue editing" button.
+  """
+  @callback save_and_continue_button(assigns :: map()) :: boolean()
+
+  @doc """
   Customizes the label of the button for creating a new item. Defaults to "New %{resource}".
   """
   @callback create_button_label() :: binary()
@@ -288,6 +293,9 @@ defmodule Backpex.LiveResource do
       def create_button_label, do: Backpex.translate({"New %{resource}", %{resource: singular_name()}})
 
       @impl Backpex.LiveResource
+      def save_and_continue_button(_assigns), do: true
+
+      @impl Backpex.LiveResource
       def resource_created_message,
         do: Backpex.translate({"New %{resource} has been created successfully.", %{resource: singular_name()}})
 
@@ -299,7 +307,8 @@ defmodule Backpex.LiveResource do
                      item_actions: 1,
                      index_row_class: 4,
                      create_button_label: 0,
-                     resource_created_message: 0
+                     resource_created_message: 0,
+                     save_and_continue_button: 1
     end
   end
 
