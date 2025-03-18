@@ -234,8 +234,13 @@ defmodule Backpex.FormComponent do
   end
 
   defp handle_save(socket, :edit, params, save_type) do
-    %{live_resource: live_resource, singular_name: singular_name, item: item, fields: fields, live_action: live_action} =
-      socket.assigns
+    %{
+      live_resource: live_resource,
+      singular_name: singular_name,
+      item: item,
+      fields: fields,
+      live_action: live_action
+    } = socket.assigns
 
     opts = [
       assocs: Map.get(socket.assigns, :assocs, []),
