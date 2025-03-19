@@ -47,7 +47,7 @@ defmodule Backpex.FormComponent do
 
   defp apply_action(socket, action) when action in [:edit, :new] do
     socket
-    |> assign(:save_label, Backpex.translate("Save"))
+    |> assign(:save_label, Backpex.Translations.translate("form.save", live_resource: socket.assigns.live_resource))
     |> maybe_assign_continue_label()
   end
 
@@ -61,8 +61,14 @@ defmodule Backpex.FormComponent do
 
   defp maybe_assign_continue_label(socket) do
     case socket.assigns.live_resource.config(:save_and_continue_button?) do
-      true -> assign(socket, :continue_label, Backpex.translate("Save & Continue editing"))
-      false -> socket
+      true ->
+        continue_label =
+          Backpex.Translations.translate("form.save_and_continue", live_resource: socket.assigns.live_resource)
+
+        assign(socket, :continue_label, continue_label)
+
+      false ->
+        socket
     end
   end
 

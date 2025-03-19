@@ -1,4 +1,6 @@
 defmodule DemoWeb.UserLive do
+  use Gettext, backend: DemoWeb.Gettext
+
   use Backpex.LiveResource,
     adapter_config: [
       schema: Demo.User,
@@ -23,6 +25,17 @@ defmodule DemoWeb.UserLive do
 
   @impl Backpex.LiveResource
   def can?(_assigns, _action, _item), do: true
+
+  @impl Backpex.LiveResource
+  def text_overrides do
+    %{
+      "form.save" => "Weiter",
+      "form.cancel" => "Abbrechen",
+      "index.create_resource" => fn bindings ->
+        gettext("%{resource} erstellen", bindings)
+      end
+    }
+  end
 
   def item_query(query, live_action, _assigns) when live_action in [:index, :resource_action] do
     from u in query,

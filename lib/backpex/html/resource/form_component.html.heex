@@ -62,7 +62,7 @@
         <% else %>
           <.link navigate={@live_resource.return_to(@socket, assigns, @live_action, :cancel, @item)}>
             <button type="button" class="btn btn-ghost">
-              {Backpex.translate("Cancel")}
+              {Backpex.Translations.translate("form.cancel", live_resource: @live_resource)}
             </button>
           </.link>
           <button

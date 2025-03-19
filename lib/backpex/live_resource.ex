@@ -228,6 +228,11 @@ defmodule Backpex.LiveResource do
   @callback resource_created_message() :: binary()
 
   @doc """
+  TODO: Write doc
+  """
+  @callback text_overrides() :: map()
+
+  @doc """
   Uses LiveResource in the current module to make it a LiveResource.
 
       use Backpex.LiveResource,
@@ -298,6 +303,9 @@ defmodule Backpex.LiveResource do
       def item_actions(default_actions), do: default_actions
 
       @impl Backpex.LiveResource
+      def text_overrides, do: %{}
+
+      @impl Backpex.LiveResource
       def create_button_label, do: Backpex.translate({"New %{resource}", %{resource: singular_name()}})
 
       @impl Backpex.LiveResource
@@ -312,7 +320,8 @@ defmodule Backpex.LiveResource do
                      item_actions: 1,
                      index_row_class: 4,
                      create_button_label: 0,
-                     resource_created_message: 0
+                     resource_created_message: 0,
+                     text_overrides: 0
     end
   end
 
@@ -468,13 +477,19 @@ defmodule Backpex.LiveResource do
     fluid? = live_resource.config(:fluid?)
     full_text_search = live_resource.config(:full_text_search)
 
+    create_button_label =
+      Backpex.Translations.translate("index.create_resource",
+        bindings: %{resource: live_resource.singular_name()},
+        live_resource: live_resource
+      )
+
     socket
     |> assign(:live_resource, live_resource)
     |> assign(:schema, adapter_config[:schema])
     |> assign(:repo, adapter_config[:repo])
     |> assign(:singular_name, live_resource.singular_name())
     |> assign(:plural_name, live_resource.plural_name())
-    |> assign(:create_button_label, live_resource.create_button_label())
+    |> assign(:create_button_label, create_button_label)
     |> assign(:resource_created_message, live_resource.resource_created_message())
     |> assign(:search_placeholder, live_resource.search_placeholder())
     |> assign(:panels, live_resource.panels())
