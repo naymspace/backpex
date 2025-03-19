@@ -219,7 +219,7 @@ defmodule Backpex.FormComponent do
 
     case Resource.insert(item, params, socket.assigns, live_resource, opts) do
       {:ok, item} ->
-        return_to = return_to_path(save_type, live_resource, socket, socket.assigns, item, live_action)
+        return_to = return_to_path(save_type, live_resource, socket, socket.assigns, live_action, item)
 
         socket
         |> assign(:show_form_errors, false)
