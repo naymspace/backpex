@@ -408,12 +408,14 @@ defmodule Backpex.FormComponent do
     end)
   end
 
-  defp return_to_path("continue", _live_resource, _socket, %{current_url: url}, :new, item) do
+  defp return_to_path("continue", live_resource, _socket, %{current_url: url}, :new, item) do
+    primary_value = Backpex.LiveResource.primary_value(item, live_resource)
+
     url
     |> URI.parse()
     |> Map.get(:path)
     |> Path.dirname()
-    |> Kernel.<>("/#{item.id}/edit")
+    |> Kernel.<>("/#{primary_value}/edit")
   end
 
   defp return_to_path("continue", _live_resource, _socket, %{current_url: url}, :edit, _item) do
