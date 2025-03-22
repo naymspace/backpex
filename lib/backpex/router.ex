@@ -162,12 +162,20 @@ defmodule Backpex.Router do
   defp maybe_put_query_params(path, encoded_query_params), do: path <> "?" <> encoded_query_params
 
   defp get_route_path(socket, module, action) do
-    %{path: path} =
+    route =
       Enum.find(Map.get(socket, :router).__routes__(), fn element ->
         element[:metadata][:log_module] == module and element[:plug_opts] == action
       end)
 
-    path
+    case route do
+      %{path: path} ->
+        path
+
+      nil ->
+        raise ArgumentError,
+              "Could not find route for #{inspect(module)} with action #{inspect(action)}. " <>
+                "Make sure you have defined the route in your router."
+    end
   end
 
   @doc """
@@ -216,12 +224,21 @@ defmodule Backpex.Router do
   Finds the cookie path by the given socket.
   """
   def cookie_path(socket) do
-    %{path: path} =
+    route =
       Enum.find(Map.get(socket, :router).__routes__(), fn element ->
         element[:plug] == Backpex.CookieController and element[:plug_opts] == :update
       end)
 
-    path
+    case route do
+      %{path: path} ->
+        path
+
+      nil ->
+        raise ArgumentError,
+              "Could not find backpex_cookies route. " <>
+                "Make sure you have added backpex_routes to your router. " <>
+                "See: https://hexdocs.pm/backpex/0.11.0/installation.html#add-backpex-routes"
+    end
   end
 
   defp maybe_to_string(value) when is_atom(value), do: Atom.to_string(value)
