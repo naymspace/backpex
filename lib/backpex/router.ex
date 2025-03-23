@@ -172,9 +172,10 @@ defmodule Backpex.Router do
         path
 
       nil ->
-        raise ArgumentError,
-              "Could not find route for #{inspect(module)} with action #{inspect(action)}. " <>
-                "Make sure you have defined the route in your router."
+        raise ArgumentError, """
+        Could not find route for #{inspect(module)} with action #{inspect(action)}.
+        Make sure you have defined the route in your router.
+        """
     end
   end
 
@@ -234,10 +235,11 @@ defmodule Backpex.Router do
         path
 
       nil ->
-        raise ArgumentError,
-              "Could not find backpex_cookies route. " <>
-                "Make sure you have added backpex_routes to your router. " <>
-                "See: https://hexdocs.pm/backpex/0.11.0/installation.html#add-backpex-routes"
+        raise ArgumentError, """
+        Could not find backpex_cookies route. Make sure you have added backpex_routes to your router.
+
+        See: https://hexdocs.pm/backpex/installation.html#add-backpex-routes
+        """
     end
   end
 
