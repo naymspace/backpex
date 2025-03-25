@@ -1114,6 +1114,10 @@ defmodule Backpex.LiveResource do
     {:noreply, update_item(socket, item)}
   end
 
+  defp handle_backpex_info({_event, _item}, socket) do
+    {:noreply, socket}
+  end
+
   defp refresh_items(socket) do
     %{
       live_resource: live_resource,
