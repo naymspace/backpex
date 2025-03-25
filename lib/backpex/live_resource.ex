@@ -228,6 +228,11 @@ defmodule Backpex.LiveResource do
   @callback resource_created_message() :: binary()
 
   @doc """
+  This function can be used to provide custom translations for texts.
+  """
+  @callback translate(msg :: tuple()) :: binary()
+
+  @doc """
   Uses LiveResource in the current module to make it a LiveResource.
 
       use Backpex.LiveResource,
@@ -454,6 +459,11 @@ defmodule Backpex.LiveResource do
 
       @impl Backpex.LiveResource
       def render_resource_slot(var!(assigns), _action, _position), do: ~H""
+
+      @impl Backpex.LiveResource
+      def translate({msg, opts}) do
+        Backpex.translate({msg, opts}, :general)
+      end
     end
   end
 

@@ -12,6 +12,8 @@ defmodule Backpex.HTML.Resource do
   alias Backpex.ResourceAction
   alias Backpex.Router
 
+  require Backpex
+
   embed_templates("resource/*")
 
   @doc """

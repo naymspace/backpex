@@ -8,6 +8,8 @@ defmodule Backpex.FormComponent do
   alias Backpex.Resource
   alias Backpex.ResourceAction
 
+  require Backpex
+
   def update(assigns, socket) do
     socket
     |> assign(assigns)
@@ -47,7 +49,7 @@ defmodule Backpex.FormComponent do
 
   defp apply_action(socket, action) when action in [:edit, :new] do
     socket
-    |> assign(:save_label, Backpex.translate("Save"))
+    |> assign(:save_label, Backpex.t("Save", %{}, socket.assigns.live_resource))
     |> maybe_assign_continue_label()
   end
 
