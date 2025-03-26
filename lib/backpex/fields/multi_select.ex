@@ -163,6 +163,7 @@ defmodule Backpex.Fields.MultiSelect do
           show_more={false}
           event_target={@myself}
           search_event="search"
+          live_resource={@live_resource}
         />
       </Layout.field_container>
     </div>

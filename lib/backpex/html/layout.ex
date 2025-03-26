@@ -193,6 +193,7 @@ defmodule Backpex.HTML.Layout do
   @doc type: :component
 
   attr :socket, :any, required: true
+  attr :label, :string, default: "Theme"
 
   attr :themes, :list,
     doc: "A list of tuples with {theme_label, theme_name} format",
@@ -207,7 +208,7 @@ defmodule Backpex.HTML.Layout do
     >
       <div tabindex="0" role="button" class="btn btn-ghost m-1">
         <span class="hidden md:block">
-          {Backpex.translate("Theme")}
+          {@label}
         </span>
         <Backpex.HTML.CoreComponents.icon name="hero-swatch" class="h-5 w-5 md:hidden" />
         <Backpex.HTML.CoreComponents.icon name="hero-chevron-down" class="h-5 w-5" />
@@ -445,6 +446,7 @@ defmodule Backpex.HTML.Layout do
   attr :title, :string, default: nil, doc: "modal title"
   attr :target, :string, default: nil, doc: "live component for the close event to go to"
   attr :close_event_name, :string, default: "close-modal", doc: "close event name"
+  attr :close_aria_label, :string, default: "Close modal"
   attr :max_width, :string, default: "md", values: ["sm", "md", "lg", "xl", "2xl", "full"], doc: "modal max width"
   attr :open, :boolean, default: true, doc: "modal open"
   attr :rest, :global
@@ -489,7 +491,7 @@ defmodule Backpex.HTML.Layout do
                 type="button"
                 phx-click={hide_modal(@target, @close_event_name)}
                 class="text-base-content/50 hover:text-base-content"
-                aria-label={Backpex.translate("Close modal")}
+                aria-label={@close_aria_label}
               >
                 <Backpex.HTML.CoreComponents.icon name="hero-x-mark" class="h-5 w-5" />
               </button>

@@ -82,11 +82,12 @@ defmodule Backpex.Filters.Range do
   attr :field, :atom, required: true
   attr :value, :any, required: true
   attr :type, :atom, required: true
+  attr :live_resource, :atom, required: true
 
   def render_form(assigns) do
     ~H"""
     <.inputs_for :let={f} field={@form[@field]}>
-      <.range_input_set form={f} type={@type} value={@value} />
+      <.range_input_set form={f} type={@type} value={@value} live_resource={@live_resource} />
     </.inputs_for>
     """
   end
@@ -94,6 +95,7 @@ defmodule Backpex.Filters.Range do
   attr :form, :any, required: true
   attr :type, :atom, required: true
   attr :value, :any, required: true
+  attr :live_resource, :atom, required: true
 
   def range_input_set(%{type: :date} = assigns) do
     ~H"""

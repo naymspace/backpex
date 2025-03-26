@@ -24,6 +24,10 @@ msgid "%{resource} has been edited successfully."
 msgstr ""
 
 #, elixir-autogen, elixir-format
+msgid "(%{count} total)"
+msgstr ""
+
+#, elixir-autogen, elixir-format
 msgid "Add entry"
 msgstr ""
 
@@ -60,6 +64,18 @@ msgid "Choose %{resource} ..."
 msgstr ""
 
 #, elixir-autogen, elixir-format
+msgid "clear"
+msgstr ""
+
+#, elixir-autogen, elixir-format
+msgid "Clear %{name} filter"
+msgstr ""
+
+#, elixir-autogen, elixir-format
+msgid "Close modal"
+msgstr ""
+
+#, elixir-autogen, elixir-format
 msgid "Delete"
 msgstr ""
 
@@ -88,7 +104,15 @@ msgid "Error in relation with index %{index}"
 msgstr ""
 
 #, elixir-autogen, elixir-format
+msgid "Filters"
+msgstr ""
+
+#, elixir-autogen, elixir-format
 msgid "From"
+msgstr ""
+
+#, elixir-autogen, elixir-format
+msgid "Items %{from} to %{to}"
 msgstr ""
 
 #, elixir-autogen, elixir-format
@@ -100,11 +124,23 @@ msgid "New %{resource} has been created successfully."
 msgstr ""
 
 #, elixir-autogen, elixir-format
+msgid "Next Page"
+msgstr ""
+
+#, elixir-autogen, elixir-format
+msgid "No %{resources} found"
+msgstr ""
+
+#, elixir-autogen, elixir-format
 msgid "No options found"
 msgstr ""
 
 #, elixir-autogen, elixir-format
 msgid "or drag and drop"
+msgstr ""
+
+#, elixir-autogen, elixir-format
+msgid "Previous Page"
 msgstr ""
 
 #, elixir-autogen, elixir-format
@@ -164,11 +200,27 @@ msgid "To"
 msgstr ""
 
 #, elixir-autogen, elixir-format
+msgid "Toggle columns"
+msgstr ""
+
+#, elixir-autogen, elixir-format
+msgid "Toggle metrics"
+msgstr ""
+
+#, elixir-autogen, elixir-format
 msgid "too large"
 msgstr ""
 
 #, elixir-autogen, elixir-format
 msgid "too many files"
+msgstr ""
+
+#, elixir-autogen, elixir-format
+msgid "Try a different filter setting or clear all filters."
+msgstr ""
+
+#, elixir-autogen, elixir-format
+msgid "Try a different search term."
 msgstr ""
 
 #, elixir-autogen, elixir-format
