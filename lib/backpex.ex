@@ -3,15 +3,17 @@ defmodule Backpex do
   Backpex provides an easy way to manage existing resources in your application.
   """
 
-  @doc """
-  Marks the given message for extraction and translates it.
-  """
-  defmacro t(msg, opts \\ %{}, live_resource \\ nil) do
+  @doc false
+  defmacro t(msg, live_resource \\ nil) do
+    {msg, opts} =
+      case msg do
+        {msg, opts} -> {msg, opts}
+        msg -> {msg, Macro.escape(%{})}
+      end
+
     quote do
       use Gettext, backend: Backpex.Gettext
       require Gettext.Macros
-
-      opts = unquote(opts)
 
       # mark translation for extraction
       Gettext.Macros.dgettext_noop("backpex", unquote(msg))
@@ -21,10 +23,10 @@ defmodule Backpex do
       # TODO: extract to function
       case live_resource do
         nil ->
-          Backpex.translate({unquote(msg), opts})
+          Backpex.translate({unquote(msg), unquote(opts)})
 
         live_resource ->
-          live_resource.translate({unquote(msg), opts})
+          live_resource.translate({unquote(msg), unquote(opts)})
       end
     end
   end
