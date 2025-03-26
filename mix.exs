@@ -177,7 +177,7 @@ defmodule Backpex.MixProject do
       "guides/searching/full-text-search.md",
 
       # Translations
-      "guides/custom_labels_and_translations/custom-labels-and-translations.md",
+      "guides/translations/translations.md",
 
       # Upgrade Guides
       "guides/upgrading/v0.12.md",
