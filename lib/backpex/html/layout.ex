@@ -110,11 +110,7 @@ defmodule Backpex.HTML.Layout do
         {Phoenix.Flash.get(@flash, :info)}
       </span>
       <div>
-        <button
-          class="btn btn-square btn-sm btn-ghost"
-          phx-click="lv:clear-flash"
-          aria-label={@close_aria_label}
-        >
+        <button class="btn btn-square btn-sm btn-ghost" phx-click="lv:clear-flash" aria-label={@close_aria_label}>
           <Backpex.HTML.CoreComponents.icon name="hero-x-mark" class="h-5 w-5" />
         </button>
       </div>
@@ -130,11 +126,7 @@ defmodule Backpex.HTML.Layout do
         {Phoenix.Flash.get(@flash, :error)}
       </span>
       <div>
-        <button
-          class="btn btn-square btn-sm btn-ghost"
-          phx-click="lv:clear-flash"
-          aria-label={@close_aria_label}
-        >
+        <button class="btn btn-square btn-sm btn-ghost" phx-click="lv:clear-flash" aria-label={@close_aria_label}>
           <Backpex.HTML.CoreComponents.icon name="hero-x-mark" class="h-5 w-5" />
         </button>
       </div>
