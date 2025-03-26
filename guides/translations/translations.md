@@ -40,11 +40,10 @@ end
 
 You can place the functions in a module of your choice. In this example, we use `MyAppWeb.CoreComponents`. Don't forget to use the correct module in your config as well.
 
-In addition, you need to create a Gettext template file in your application. You may use the following template. It contains all translations used by Backpex.
+You will also need to create a Gettext template file in your application. You can use the [this](https://github.com/naymspace/backpex/blob/main/priv/gettext/backpex.pot) template from our GitHub repository as it contains all the translations used by Backpex. Note that this file may contain unreleased translations, so be sure to select the tag that matches your version in the branch selection input in the top left corner.
 
 ## Modify strings
 
 In addition to translating texts, Backpex provides a way of modifying texts per LiveResource. 
 
 TODO
-
