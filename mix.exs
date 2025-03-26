@@ -16,6 +16,7 @@ defmodule Backpex.MixProject do
       start_permanent: Mix.env() == :prod,
       deps: deps(),
       aliases: aliases(),
+      gettext: gettext(),
 
       # Hex.pm
       package: package(),
@@ -216,6 +217,13 @@ defmodule Backpex.MixProject do
       Actions: ~r/Backpex\.(ItemAction|ResourceAction).?/,
       Filters: ~r/Backpex\.Filter.?/,
       Metrics: ~r/Backpex\.Metric.?/
+    ]
+  end
+
+  defp gettext() do
+    [
+      write_reference_comments: false,
+      sort_by_msgid: :case_insensitive
     ]
   end
 end
