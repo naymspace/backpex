@@ -44,12 +44,16 @@ defmodule Backpex.Fields.MultiSelect do
   """
   use Backpex.Field, config_schema: @config_schema
   alias Backpex.HTML.Form
+  require Backpex
 
   @impl Phoenix.LiveComponent
   def update(assigns, socket) do
     socket
     |> assign(assigns)
-    |> assign(:not_found_text, assigns.field_options[:not_found_text] || Backpex.translate("No options found"))
+    |> assign(
+      :not_found_text,
+      assigns.field_options[:not_found_text] || Backpex.t("No options found", assigns.live_resource)
+    )
     |> assign(:prompt, prompt(assigns, assigns.field_options))
     |> assign(:search_input, "")
     |> assign_options()
@@ -232,7 +236,7 @@ defmodule Backpex.Fields.MultiSelect do
 
   defp prompt(assigns, field_options) do
     case Map.get(field_options, :prompt) do
-      nil -> Backpex.translate("Select options...")
+      nil -> Backpex.t("Select options...", assigns.live_resource)
       prompt when is_function(prompt) -> prompt.(assigns)
       prompt -> prompt
     end

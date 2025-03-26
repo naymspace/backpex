@@ -11,12 +11,174 @@
 msgid ""
 msgstr ""
 
-#: lib/backpex/live_components/form_component.ex:52
+#, elixir-autogen, elixir-format
+msgid "%{count} %{resources} have been deleted successfully."
+msgstr ""
+
+#, elixir-autogen, elixir-format
+msgid "%{resource} has been deleted successfully."
+msgstr ""
+
+#, elixir-autogen, elixir-format
+msgid "%{resource} has been edited successfully."
+msgstr ""
+
+#, elixir-autogen, elixir-format
+msgid "Add entry"
+msgstr ""
+
+#, elixir-autogen, elixir-format
+msgid "An error occurred while deleting %{count} %{resources}!"
+msgstr ""
+
+#, elixir-autogen, elixir-format
+msgid "An error occurred while deleting the %{resource}!"
+msgstr ""
+
+#, elixir-autogen, elixir-format
+msgid "Apply"
+msgstr ""
+
+#, elixir-autogen, elixir-format
+msgid "Are you sure you want to delete %{count} items?"
+msgstr ""
+
+#, elixir-autogen, elixir-format
+msgid "Are you sure you want to delete the item?"
+msgstr ""
+
+#, elixir-autogen, elixir-format
+msgid "Attach %{resource}"
+msgstr ""
+
+#, elixir-autogen, elixir-format
+msgid "Cancel"
+msgstr ""
+
+#, elixir-autogen, elixir-format
+msgid "Choose %{resource} ..."
+msgstr ""
+
+#, elixir-autogen, elixir-format
+msgid "Delete"
+msgstr ""
+
+#, elixir-autogen, elixir-format
+msgid "Deselect all"
+msgstr ""
+
+#, elixir-autogen, elixir-format
+msgid "Detach relation with index %{index}"
+msgstr ""
+
+#, elixir-autogen, elixir-format
+msgid "Edit"
+msgstr ""
+
+#, elixir-autogen, elixir-format
+msgid "Edit %{resource}"
+msgstr ""
+
+#, elixir-autogen, elixir-format
+msgid "Edit relation with index %{index}"
+msgstr ""
+
+#, elixir-autogen, elixir-format
+msgid "Error in relation with index %{index}"
+msgstr ""
+
+#, elixir-autogen, elixir-format
+msgid "From"
+msgstr ""
+
+#, elixir-autogen, elixir-format
+msgid "New %{resource}"
+msgstr ""
+
+#, elixir-autogen, elixir-format
+msgid "New %{resource} has been created successfully."
+msgstr ""
+
+#, elixir-autogen, elixir-format
+msgid "No options found"
+msgstr ""
+
+#, elixir-autogen, elixir-format
+msgid "or drag and drop"
+msgstr ""
+
 #, elixir-autogen, elixir-format
 msgid "Save"
 msgstr ""
 
-#: lib/backpex/html/resource/form_component.html.heex:65
 #, elixir-autogen, elixir-format
-msgid "Cancel"
+msgid "Save & Continue editing"
+msgstr ""
+
+#, elixir-autogen, elixir-format
+msgid "Search"
+msgstr ""
+
+#, elixir-autogen, elixir-format
+msgid "Select all"
+msgstr ""
+
+#, elixir-autogen, elixir-format
+msgid "Select all items"
+msgstr ""
+
+#, elixir-autogen, elixir-format
+msgid "Select item with id: %{id}"
+msgstr ""
+
+#, elixir-autogen, elixir-format
+msgid "Select options..."
+msgstr ""
+
+#, elixir-autogen, elixir-format
+msgid "selected"
+msgstr ""
+
+#, elixir-autogen, elixir-format
+msgid "Show"
+msgstr ""
+
+#, elixir-autogen, elixir-format
+msgid "Show more"
+msgstr ""
+
+#, elixir-autogen, elixir-format
+msgid "The item is used elsewhere."
+msgstr ""
+
+#, elixir-autogen, elixir-format
+msgid "The items are used elsewhere."
+msgstr ""
+
+#, elixir-autogen, elixir-format
+msgid "There are errors in the form."
+msgstr ""
+
+#, elixir-autogen, elixir-format
+msgid "To"
+msgstr ""
+
+#, elixir-autogen, elixir-format
+msgid "too large"
+msgstr ""
+
+#, elixir-autogen, elixir-format
+msgid "too many files"
+msgstr ""
+
+#, elixir-autogen, elixir-format
+msgid "unacceptable file type"
+msgstr ""
+
+#, elixir-autogen, elixir-format
+msgid "Unselect %{label}"
+msgstr ""
+
+#, elixir-autogen, elixir-format
+msgid "Upload a file"
 msgstr ""

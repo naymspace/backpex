@@ -49,7 +49,7 @@ defmodule Backpex.FormComponent do
 
   defp apply_action(socket, action) when action in [:edit, :new] do
     socket
-    |> assign(:save_label, Backpex.t("Save", %{}, socket.assigns.live_resource))
+    |> assign(:save_label, Backpex.t("Save", socket.assigns.live_resource))
     |> maybe_assign_continue_label()
   end
 
@@ -63,7 +63,7 @@ defmodule Backpex.FormComponent do
 
   defp maybe_assign_continue_label(socket) do
     case socket.assigns.live_resource.config(:save_and_continue_button?) do
-      true -> assign(socket, :continue_label, Backpex.translate("Save & Continue editing"))
+      true -> assign(socket, :continue_label, Backpex.t("Save & Continue editing", socket.assigns.live_resource))
       false -> socket
     end
   end
@@ -226,7 +226,13 @@ defmodule Backpex.FormComponent do
         socket
         |> assign(:show_form_errors, false)
         |> clear_flash()
-        |> put_flash(:info, socket.assigns.resource_created_message)
+        |> put_flash(
+          :info,
+          Backpex.t(
+            {"New %{resource} has been created successfully.", %{resource: assigns.singular_name}},
+            live_resource
+          )
+        )
         |> push_navigate(to: return_to)
         |> noreply()
 
@@ -264,7 +270,7 @@ defmodule Backpex.FormComponent do
     case Resource.update(item, params, fields, socket.assigns, live_resource, opts) do
       {:ok, item} ->
         return_to = return_to_path(save_type, live_resource, socket, socket.assigns, live_action, item)
-        info_msg = Backpex.translate({"%{resource} has been edited successfully.", %{resource: singular_name}})
+        info_msg = Backpex.t({"%{resource} has been edited successfully.", %{resource: singular_name}}, live_resource)
 
         socket
         |> assign(:show_form_errors, false)

@@ -1,33 +1,5 @@
 # Custom Labels and Translations
 
-## Custom Labels
-
-You can customize the label of the buttons and messages that are displayed in the Live Resource. This is useful if you want to display a different label than the default one.
-
-We currently support customizing the label of the create button and the message of the flash message when a resource has been created successfully.
-
-### Configuration for the create button label
-
-```elixir
-# in your resource configuration file
-
-@impl Backpex.LiveResource
-def create_button_label, do: "Create a new user"
-```
-
-The create button will now display the label "Create a new user" instead of the default "Create %{resource}".
-
-### Configuration for the resource created message
-
-```elixir
-# in your resource configuration file
-
-@impl Backpex.LiveResource
-def resource_created_message, do: "A User has been added."
-```
-
-The message will no display the label "A User has been added." instead of the default "New %{resource} has been created successfully.".
-
 ## Translations
 
 You are able to translate all strings used by Backpex. This includes general strings like "New", "Edit", "Delete", etc., as well as error messages.

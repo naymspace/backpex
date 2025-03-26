@@ -5,6 +5,8 @@ defmodule Backpex.ItemActions.Show do
 
   use BackpexWeb, :item_action
 
+  require Backpex
+
   @impl Backpex.ItemAction
   def icon(assigns, _item) do
     ~H"""
@@ -16,7 +18,7 @@ defmodule Backpex.ItemActions.Show do
   end
 
   @impl Backpex.ItemAction
-  def label(_assigns, _item), do: Backpex.translate("Show")
+  def label(assigns, _item), do: Backpex.t("Show", assigns.live_resource)
 
   @impl Backpex.ItemAction
   def handle(socket, [item | _items], _data) do

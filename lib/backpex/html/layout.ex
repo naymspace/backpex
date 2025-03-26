@@ -96,6 +96,7 @@ defmodule Backpex.HTML.Layout do
   @doc type: :component
 
   attr :flash, :map, required: true, doc: "flash map that will be passed to `Phoenix.Flash.get/2`"
+  attr :close_aria_label, :string, default: "Close alert"
 
   def flash_messages(assigns) do
     ~H"""
@@ -112,7 +113,7 @@ defmodule Backpex.HTML.Layout do
         <button
           class="btn btn-square btn-sm btn-ghost"
           phx-click="lv:clear-flash"
-          aria-label={Backpex.translate("Close alert")}
+          aria-label={@close_aria_label}
         >
           <Backpex.HTML.CoreComponents.icon name="hero-x-mark" class="h-5 w-5" />
         </button>
@@ -132,7 +133,7 @@ defmodule Backpex.HTML.Layout do
         <button
           class="btn btn-square btn-sm btn-ghost"
           phx-click="lv:clear-flash"
-          aria-label={Backpex.translate("Close alert")}
+          aria-label={@close_aria_label}
         >
           <Backpex.HTML.CoreComponents.icon name="hero-x-mark" class="h-5 w-5" />
         </button>
