@@ -51,9 +51,9 @@ defmodule DemoWeb.ItemActions.SoftDelete do
     count = Enum.count(assigns.selected_items)
 
     if count > 1 do
-      Backpex.translate({"Why do you want to delete these %{count} items?", %{count: count}})
+      "Why do you want to delete these #{count} items?"
     else
-      Backpex.translate("Why do you want to delete this item?")
+      "Why do you want to delete this item?"
     end
   end
 
@@ -86,36 +86,30 @@ defmodule DemoWeb.ItemActions.SoftDelete do
   end
 
   defp success_message(assigns, items) do
-    Backpex.translate(
-      {"%{count} %{resources} have been deleted successfully.",
-       %{resources: assigns.plural_name, count: Enum.count(items)}}
-    )
+    "#{Enum.count(items)} #{assigns.plural_name} have been deleted successfully."
   end
 
   defp error_message(assigns, %Postgrex.Error{postgres: %{code: :foreign_key_violation}}, [_item] = items) do
-    "#{error_message(assigns, :error, items)} #{Backpex.translate("The item is used elsewhere.")}"
+    "#{error_message(assigns, :error, items)} The item is used elsewhere."
   end
 
   defp error_message(assigns, %Ecto.ConstraintError{type: :foreign_key}, [_item] = items) do
-    "#{error_message(assigns, :error, items)} #{Backpex.translate("The item is used elsewhere.")}"
+    "#{error_message(assigns, :error, items)} The item is used elsewhere."
   end
 
   defp error_message(assigns, %Postgrex.Error{postgres: %{code: :foreign_key_violation}}, items) do
-    "#{error_message(assigns, :error, items)} #{Backpex.translate("The items are used elsewhere.")}"
+    "#{error_message(assigns, :error, items)} The items are used elsewhere.}"
   end
 
   defp error_message(assigns, %Ecto.ConstraintError{type: :foreign_key}, items) do
-    "#{error_message(assigns, :error, items)} #{Backpex.translate("The items are used elsewhere.")}"
+    "#{error_message(assigns, :error, items)} The items are used elsewhere.}"
   end
 
   defp error_message(assigns, _error, [_item]) do
-    Backpex.translate({"An error occurred while deleting the %{resource}!", %{resource: assigns.singular_name}})
+    "An error occurred while deleting the #{assigns.singular_name}!"
   end
 
   defp error_message(assigns, _error, items) do
-    Backpex.translate(
-      {"An error occurred while deleting %{count} %{resources}!",
-       %{resources: assigns.plural_name, count: Enum.count(items)}}
-    )
+    "An error occurred while deleting #{Enum.count(items)} #{assigns.plural_name}!"
   end
 end
