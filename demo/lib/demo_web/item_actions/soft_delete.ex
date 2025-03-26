@@ -82,7 +82,7 @@ defmodule DemoWeb.ItemActions.SoftDelete do
   end
 
   defp success_message(assigns, [_item]) do
-    Backpex.translate({"%{resource} has been deleted successfully.", %{resource: assigns.singular_name}})
+    "#{assigns.singular_name} has been deleted successfully."
   end
 
   defp success_message(assigns, items) do
