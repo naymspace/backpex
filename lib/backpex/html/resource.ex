@@ -1006,7 +1006,7 @@ defmodule Backpex.HTML.Resource do
   defp sticky_col_class do
     [
       "sticky right-0",
-      "after:[&[stuck]]:block after:absolute after:inset-y-0 after:left-0 after:hidden",
+      "[&[stuck]]:after:block after:absolute after:inset-y-0 after:left-0 after:hidden",
       "after:border-r after:border-base-200 after:shadow-[-1px_0_2px_0_rgba(0,0,0,0.05)]"
     ]
   end
