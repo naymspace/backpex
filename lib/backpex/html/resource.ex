@@ -849,7 +849,7 @@ defmodule Backpex.HTML.Resource do
         {@label}
       </p>
 
-      <div class="card bg-base-100 mt-4">
+      <div class="card bg-base-100 mt-4 shadow-sm">
         <div class="card-body p-0">
           <div class="flex flex-col sm:divide-base-200 sm:divide-y">
             <div :for={{name, %{label: label}} <- @panel_fields}>
