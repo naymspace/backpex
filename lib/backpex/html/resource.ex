@@ -422,7 +422,7 @@ defmodule Backpex.HTML.Resource do
     <div class="join">
       <.pagination_item
         :for={%{type: type, number: number} <- @pagination_items}
-        class="join-item text-xs"
+        class="join-item"
         type={type}
         number={number}
         current_page={@current_page}
@@ -440,14 +440,10 @@ defmodule Backpex.HTML.Resource do
 
   defp pagination_item(%{type: :number} = assigns) do
     pagination_link = get_pagination_link(assigns.path, assigns.number)
-
     assigns = assign(assigns, :href, pagination_link)
 
     ~H"""
-    <button :if={@current_page == @number} class={["btn btn-active", @class]} aria-disabled="true">
-      {Integer.to_string(@number)}
-    </button>
-    <.link :if={@current_page != @number} href={@href} class={["btn bg-base-100", @class]}>
+    <.link href={@href} class={[pagination_btn_class(), @current_page == @number && "bg-base-300", @class]}>
       {Integer.to_string(@number)}
     </.link>
     """
@@ -455,11 +451,10 @@ defmodule Backpex.HTML.Resource do
 
   defp pagination_item(%{type: :prev} = assigns) do
     pagination_link = get_pagination_link(assigns.path, assigns.current_page - 1)
-
     assigns = assign(assigns, :href, pagination_link)
 
     ~H"""
-    <.link href={@href} class={["btn bg-base-100", @class]} aria-label={Backpex.translate("Previous page")}>
+    <.link href={@href} class={[pagination_btn_class(), @class]} aria-label={Backpex.translate("Previous page")}>
       <Backpex.HTML.CoreComponents.icon name="hero-chevron-left" class="h-4 w-4" />
     </.link>
     """
@@ -467,11 +462,10 @@ defmodule Backpex.HTML.Resource do
 
   defp pagination_item(%{type: :next} = assigns) do
     pagination_link = get_pagination_link(assigns.path, assigns.current_page + 1)
-
     assigns = assign(assigns, :href, pagination_link)
 
     ~H"""
-    <.link href={@href} class={["btn bg-base-100", @class]} aria-label={Backpex.translate("Next page")}>
+    <.link href={@href} class={[pagination_btn_class(), @class]} aria-label={Backpex.translate("Next page")}>
       <Backpex.HTML.CoreComponents.icon name="hero-chevron-right" class="h-4 w-4" />
     </.link>
     """
@@ -479,11 +473,13 @@ defmodule Backpex.HTML.Resource do
 
   defp pagination_item(%{type: :placeholder} = assigns) do
     ~H"""
-    <button class={["btn bg-base-100", @class]} aria-disable="true">
+    <button class={[pagination_btn_class(), @class]} aria-disable="true">
       ...
     </button>
     """
   end
+
+  defp pagination_btn_class, do: ["btn bg-base-100 hover:bg-[var(--btn-border)]"]
 
   defp get_pagination_link(path, page), do: String.replace(path, ":page", page |> Integer.to_string())
 
