@@ -77,11 +77,6 @@
   transition: opacity 1s ease-out;
 }
 
-@utility container {
-  margin-inline: auto;
-  padding-inline: 2rem;
-}
-
 @utility btn {
   @apply shadow-none;
 
