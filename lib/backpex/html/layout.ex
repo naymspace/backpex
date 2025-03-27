@@ -218,20 +218,23 @@ defmodule Backpex.HTML.Layout do
         <Backpex.HTML.CoreComponents.icon name="hero-swatch" class="h-5 w-5 md:hidden" />
         <Backpex.HTML.CoreComponents.icon name="hero-chevron-down" class="h-5 w-5" />
       </div>
-      <form id="backpex-theme-selector-form" data-cookie-path={Router.cookie_path(@socket)}>
-        <ul
-          tabindex="0"
-          class="dropdown-content bg-base-300 rounded-box z-[1] max-h-96 w-52 overflow-y-scroll p-2 shadow-2xl"
-        >
-          <li :for={{label, theme_name} <- @themes}>
-            <input
-              type="radio"
-              name="theme-selector"
-              class="theme-controller btn btn-sm btn-block btn-ghost justify-start"
-              aria-label={label}
-              phx-click={JS.dispatch("backpex:theme-change")}
-              value={theme_name}
-            />
+      <form
+        id="backpex-theme-selector-form"
+        class="dropdown-content rounded-box max-h-96 overflow-y-scroll"
+        data-cookie-path={Router.cookie_path(@socket)}
+      >
+        <ul tabindex="0" class="bg-base-300 rounded-box z-1 menu w-48">
+          <li :for={{label, theme_name} <- @themes} class="w-full">
+            <label class="has-checked:bg-neutral has-checked:text-neutral-content">
+              <input
+                type="radio"
+                name="theme-selector"
+                class="theme-controller hidden"
+                phx-click={JS.dispatch("backpex:theme-change")}
+                value={theme_name}
+              />
+              {label}
+            </label>
           </li>
         </ul>
       </form>
@@ -409,7 +412,7 @@ defmodule Backpex.HTML.Layout do
 
     ~H"""
     <li>
-      <.link class={[@class, @active && "menu-active"]} {@extra}>
+      <.link class={[@class, @active && "bg-neutral text-neutral-content"]} {@extra}>
         {render_slot(@inner_block)}
       </.link>
     </li>
