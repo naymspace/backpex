@@ -17,41 +17,53 @@ defmodule Backpex do
       # mark translation for extraction
       Gettext.Macros.dgettext_noop("backpex", unquote(msg))
 
-      Backpex.translate({unquote(msg), unquote(opts)}, :general, unquote(live_resource))
+      Backpex.translate({unquote(msg), unquote(opts)}, unquote(live_resource))
     end
   end
 
   @doc """
-  Translates a text with the configured translator function. If a live_resource is given, it calls the LiveResource's translate callback.
+  Translates a text with the configured translator_function. If a live_resource is given, it calls the LiveResource's translate callback.
 
   ## Examples
 
-      # Using the configured general translator (translator_function)
-      translate("Hello")
+      Backpex.translate("Hello")
 
-      # Using the configured error translator (error_translator_function)
-      translate("can't be blank", :error)
+      Backpex.translate({"Hello %{name}", %{name: "World"}})
 
-      # Passing options to the translator
-      translate({"Hello %{name}", %{name: "World"}})
-
-      # Using a LiveResource for translation
-      translate("Welcome", :general, MyApp.LiveResource)
+      Backpex.translate("Welcome", MyApp.LiveResource)
   """
-  def translate(msg, type \\ :general, live_resource \\ nil)
+  def translate(msg, live_resource \\ nil)
 
-  def translate({msg, opts}, type, live_resource) when type in [:general, :error] do
-    case live_resource do
-      nil ->
-        translate_func = translate_func(type)
-        translate_func.({msg, opts})
-
-      live_resource ->
-        live_resource.translate({msg, opts})
-    end
+  def translate(msg, live_resource) when is_binary(msg) do
+    translate({msg, %{}}, live_resource)
   end
 
-  def translate(msg, type, live_resource), do: translate({msg, %{}}, type, live_resource)
+  def translate({msg, opts}, nil = _live_resource) do
+    translate_func = translate_func(:general)
+    translate_func.({msg, opts})
+  end
+
+  def translate({msg, opts}, live_resource) do
+    live_resource.translate({msg, opts})
+  end
+
+  @doc """
+  Translates an error text with the configured error_translator_function.
+
+  ## Examples
+
+      Backpex.translate_error("can't be blank")
+
+      Backpex.translate_error({"must be greater than %{number}", %{number: 0}})
+  """
+  def translate_error(msg) when is_binary(msg) do
+    translate_error({msg, %{}})
+  end
+
+  def translate_error({msg, opts}) do
+    translate_func = translate_func(:error)
+    translate_func.({msg, opts})
+  end
 
   defp translate_func(type) when type in [:general, :error] do
     key =

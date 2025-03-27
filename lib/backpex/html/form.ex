@@ -355,7 +355,7 @@ defmodule Backpex.HTML.Form do
     |> Enum.map(fn error ->
       error
       |> translate_error_fun.()
-      |> Backpex.translate(:error)
+      |> Backpex.translate_error()
     end)
   end
 

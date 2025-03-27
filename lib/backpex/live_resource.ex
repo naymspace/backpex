@@ -446,9 +446,7 @@ defmodule Backpex.LiveResource do
       def render_resource_slot(var!(assigns), _action, _position), do: ~H""
 
       @impl Backpex.LiveResource
-      def translate({msg, opts}) do
-        Backpex.translate({msg, opts}, :general)
-      end
+      def translate({msg, opts}), do: Backpex.translate({msg, opts})
     end
   end
 
