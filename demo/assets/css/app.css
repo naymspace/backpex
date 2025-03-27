@@ -3,7 +3,7 @@
 @plugin "./tailwind_heroicons.js";
 
 @plugin "daisyui" {
-  themes: dark, cupcake, bumblebee, emerald, corporate, synthwave, retro,
+  themes: light, dark, cupcake, bumblebee, emerald, corporate, synthwave, retro,
     cyberpunk, valentine, halloween, garden, forest, aqua, lofi, pastel, fantasy,
     wireframe, black, luxury, dracula, cmyk, autumn, business, acid, lemonade,
     night, coffee, winter, dim, nord, sunset;
@@ -13,42 +13,6 @@
   --radius-badge: var(--rounded-badge, 1.9rem);
   --radius-box: var(--rounded-box, 1rem);
   --radius-btn: var(--rounded-btn, 0.5rem);
-}
-
-@plugin "daisyui/theme" {
-  name: "backpex";
-  default: true;
-  prefersdark: false;
-  color-scheme: "light";
-
-  --color-base-100: oklch(100% 0 0deg);
-  --color-base-200: oklch(96.115% 0 0deg);
-  --color-base-300: oklch(92.4169% 0.0011 197.1376deg/100%);
-  --color-base-content: oklch(21% 0.006 285.885deg);
-  --color-primary: oklch(53.68% 0.224 259.92deg);
-  --color-primary-content: oklch(100% 0 0deg);
-  --color-secondary: oklch(74.94% 0.182 67.69deg);
-  --color-secondary-content: oklch(100% 0 0deg);
-  --color-accent: oklch(77% 0.152 181.912deg);
-  --color-accent-content: oklch(38% 0.063 188.416deg);
-  --color-neutral: oklch(35.97% 0.031 257.68deg);
-  --color-neutral-content: oklch(100% 0 0deg);
-  --color-info: oklch(74% 0.16 232.661deg);
-  --color-info-content: oklch(29% 0.066 243.157deg);
-  --color-success: oklch(76% 0.177 163.223deg);
-  --color-success-content: oklch(37% 0.077 168.94deg);
-  --color-warning: oklch(82% 0.189 84.429deg);
-  --color-warning-content: oklch(41% 0.112 45.904deg);
-  --color-error: oklch(71% 0.194 13.428deg);
-  --color-error-content: oklch(27% 0.105 12.094deg);
-  --radius-selector: 2rem;
-  --radius-field: 0.5rem;
-  --radius-box: 0.5rem;
-  --size-selector: 0.25rem;
-  --size-field: 0.25rem;
-  --border: 1px;
-  --depth: 0;
-  --noise: 0;
 }
 
 @plugin "@tailwindcss/typography";
