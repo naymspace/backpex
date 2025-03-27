@@ -152,7 +152,7 @@ defmodule Backpex.Fields.InlineCRUD do
                 />
               </div>
 
-              <div class={if f_nested.index == 0, do: "mt-6", else: "mt-1"}>
+              <div class={if f_nested.index == 0, do: "mt-5", else: nil}>
                 <label for={"#{@name}-checkbox-delete-#{f_nested.index}"}>
                   <input
                     id={"#{@name}-checkbox-delete-#{f_nested.index}"}
