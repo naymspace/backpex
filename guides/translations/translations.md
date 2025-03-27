@@ -59,3 +59,8 @@ def translate({"Cancel", _opts}), do: gettext("Go back")
 def translate({"Save", _opts}), do: gettext("Continue")
 def translate({"New %{resource}", opts}), do: gettext("Create %{resource}", opts)
 ```
+
+> #### Info {: .info}
+>
+> Note that you cannot change form errors with the `translate/1` callback as you can already define a custom `translate_error` function
+> per field. See [error customization guide](guides/fields/error-customization.md) for detailed information.
