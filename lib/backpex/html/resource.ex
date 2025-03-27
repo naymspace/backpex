@@ -301,7 +301,7 @@ defmodule Backpex.HTML.Resource do
   defp maybe_clear_button(assigns) do
     ~H"""
     <input
-      value={Backpex.t("clear", @live_resource)}
+      value={Backpex.__("clear", @live_resource)}
       type="button"
       phx-click="clear-filter"
       phx-value-field={@field}
@@ -333,7 +333,7 @@ defmodule Backpex.HTML.Resource do
     <div class={["dropdown", @class]}>
       <label tabindex="0" class="hover:cursor-pointer">
         <span class="sr-only">
-          {Backpex.t("Toggle columns", @live_resource)}
+          {Backpex.__("Toggle columns", @live_resource)}
         </span>
         <Backpex.HTML.CoreComponents.icon
           name="hero-view-columns-solid"
@@ -347,7 +347,7 @@ defmodule Backpex.HTML.Resource do
           <input type="hidden" name={@form[:_cookie_redirect_url].name} value={@form[:_cookie_redirect_url].value} />
           <.toggle_columns_inputs active_fields={@active_fields} form={@form} />
           <button class="btn btn-sm btn-primary mt-4">
-            {Backpex.t("Save", @live_resource)}
+            {Backpex.__("Save", @live_resource)}
           </button>
         </.form>
       </div>
@@ -394,8 +394,8 @@ defmodule Backpex.HTML.Resource do
     from = (page - 1) * per_page + 1
     to = min(page * per_page, assigns.total)
 
-    from_to_string = Backpex.t({"Items %{from} to %{to}", %{from: from, to: to}}, assigns.live_resource)
-    total_string = Backpex.t({"(%{count} total)", %{count: assigns.total}}, assigns.live_resource)
+    from_to_string = Backpex.__({"Items %{from} to %{to}", %{from: from, to: to}}, assigns.live_resource)
+    total_string = Backpex.__({"(%{count} total)", %{count: assigns.total}}, assigns.live_resource)
 
     label = from_to_string <> " " <> total_string
 
@@ -697,7 +697,7 @@ defmodule Backpex.HTML.Resource do
         live_resource={@live_resource}
         filter_options={LiveResource.get_filter_options(@query_options)}
         filters={LiveResource.active_filters(assigns)}
-        label={Backpex.t("Filters", @live_resource)}
+        label={Backpex.__("Filters", @live_resource)}
       />
     </div>
     """
@@ -767,7 +767,7 @@ defmodule Backpex.HTML.Resource do
       assigns
       |> assign(:search_active?, get_in(assigns, [:query_options, :search]) not in [nil, ""])
       |> assign(:filter_active?, get_in(assigns, [:query_options, :filters]) != %{})
-      |> assign(:title, Backpex.t({"No %{resources} found", %{resources: assigns.plural_name}}, assigns.live_resource))
+      |> assign(:title, Backpex.__({"No %{resources} found", %{resources: assigns.plural_name}}, assigns.live_resource))
       |> assign(:create_allowed, assigns.live_resource.can?(assigns, :new, nil))
 
     ~H"""
@@ -777,12 +777,12 @@ defmodule Backpex.HTML.Resource do
           <.empty_state_content
             :if={@search_active?}
             title={@title}
-            subtitle={Backpex.t("Try a different search term.", @live_resource)}
+            subtitle={Backpex.__("Try a different search term.", @live_resource)}
           />
           <.empty_state_content
             :if={not @search_active? and @filter_active?}
             title={@title}
-            subtitle={Backpex.t("Try a different filter setting or clear all filters.", @live_resource)}
+            subtitle={Backpex.__("Try a different filter setting or clear all filters.", @live_resource)}
           />
           <.empty_state_content :if={not @search_active? and not @filter_active?} title={@title}>
             <.link :if={@create_allowed} patch={Router.get_path(@socket, @live_resource, @params, :new)}>
@@ -984,11 +984,11 @@ defmodule Backpex.HTML.Resource do
       <.form method="POST" for={@form} action={Router.cookie_path(@socket)}>
         <input type="hidden" name={@form[:_resource].name} value={@form[:_resource].value} />
         <input type="hidden" name={@form[:_cookie_redirect_url].name} value={@form[:_cookie_redirect_url].value} />
-        <div id="toggle-metrics-button" phx-hook="BackpexTooltip" data-tooltip={Backpex.t("Toggle metrics", @live_resource)}>
+        <div id="toggle-metrics-button" phx-hook="BackpexTooltip" data-tooltip={Backpex.__("Toggle metrics", @live_resource)}>
           <button
             type="submit"
             class={["btn btn-sm", @visible && "btn-primary", !@visible && "btn-neutral"]}
-            aria-label={Backpex.t("Toggle metrics", @live_resource)}
+            aria-label={Backpex.__("Toggle metrics", @live_resource)}
           >
             <Backpex.HTML.CoreComponents.icon name="hero-chart-bar-square" class="h-5 w-5" />
           </button>

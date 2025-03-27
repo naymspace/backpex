@@ -4,7 +4,7 @@ defmodule Backpex do
   """
 
   @doc false
-  defmacro t(msg, live_resource \\ nil) do
+  defmacro __(msg, live_resource \\ nil) do
     {msg, opts} =
       case msg do
         {msg, opts} -> {msg, opts}

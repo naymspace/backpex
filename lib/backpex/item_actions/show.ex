@@ -18,7 +18,7 @@ defmodule Backpex.ItemActions.Show do
   end
 
   @impl Backpex.ItemAction
-  def label(assigns, _item), do: Backpex.t("Show", assigns.live_resource)
+  def label(assigns, _item), do: Backpex.__("Show", assigns.live_resource)
 
   @impl Backpex.ItemAction
   def handle(socket, [item | _items], _data) do

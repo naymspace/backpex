@@ -269,7 +269,7 @@ defmodule Backpex.HTML.Form do
               phx-click="toggle-option"
               phx-value-id={value}
               phx-target={@event_target}
-              aria-label={Backpex.t({"Unselect %{label}", %{label: label}}, @live_resource)}
+              aria-label={Backpex.__({"Unselect %{label}", %{label: label}}, @live_resource)}
             >
               <Backpex.HTML.CoreComponents.icon name="hero-x-mark" class="text-base-100 ml-1 h-4 w-4" />
             </div>
@@ -283,7 +283,7 @@ defmodule Backpex.HTML.Form do
             type="search"
             name={@field.name <> "_search"}
             class="input input-sm input-bordered mb-2 w-full"
-            placeholder={Backpex.t("Search", @live_resource)}
+            placeholder={Backpex.__("Search", @live_resource)}
             value={@search_input}
             phx-change={@search_event}
             phx-target={@event_target}
@@ -301,9 +301,9 @@ defmodule Backpex.HTML.Form do
             phx-target={@event_target}
           >
             <%= if @show_select_all do %>
-              {Backpex.t("Select all", @live_resource)}
+              {Backpex.__("Select all", @live_resource)}
             <% else %>
-              {Backpex.t("Deselect all", @live_resource)}
+              {Backpex.__("Deselect all", @live_resource)}
             <% end %>
           </button>
 
@@ -338,7 +338,7 @@ defmodule Backpex.HTML.Form do
             phx-click="show-more"
             phx-target={@event_target}
           >
-            {Backpex.t("Show more", @live_resource)}
+            {Backpex.__("Show more", @live_resource)}
           </button>
         </div>
       </div>

@@ -106,10 +106,10 @@ defmodule Backpex.ItemAction do
   defmacro __before_compile__(_env) do
     quote do
       @impl Backpex.ItemAction
-      def confirm_label(assigns), do: Backpex.t("Apply", assigns.live_resource)
+      def confirm_label(assigns), do: Backpex.__("Apply", assigns.live_resource)
 
       @impl Backpex.ItemAction
-      def cancel_label(assigns), do: Backpex.t("Cancel", assigns.live_resource)
+      def cancel_label(assigns), do: Backpex.__("Cancel", assigns.live_resource)
 
       @impl Backpex.ItemAction
       def fields, do: []

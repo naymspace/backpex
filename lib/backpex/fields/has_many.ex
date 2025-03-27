@@ -100,7 +100,7 @@ defmodule Backpex.Fields.HasMany do
     socket
     |> assign_new(:prompt, fn -> prompt(assigns, field_options) end)
     |> assign_new(:not_found_text, fn ->
-      field_options[:not_found_text] || Backpex.t("No options found", socket.assigns.live_resource)
+      field_options[:not_found_text] || Backpex.__("No options found", socket.assigns.live_resource)
     end)
     |> assign_new(:search_input, fn -> "" end)
     |> assign_new(:offset, fn -> 0 end)
@@ -169,7 +169,7 @@ defmodule Backpex.Fields.HasMany do
                 <label
                   role="button"
                   for={"has-many-#{@name}-checkbox-value-#{value}"}
-                  aria-label={Backpex.t({"Unselect %{label}", %{label: label}}, @live_resource)}
+                  aria-label={Backpex.__({"Unselect %{label}", %{label: label}}, @live_resource)}
                 >
                   <Backpex.HTML.CoreComponents.icon name="hero-x-mark" class="text-base-100 ml-1 h-4 w-4" />
                 </label>
@@ -185,7 +185,7 @@ defmodule Backpex.Fields.HasMany do
                 class="input input-sm input-bordered mb-2 w-full"
                 phx-change="search"
                 phx-target={@myself}
-                placeholder={Backpex.t("Search", @live_resource)}
+                placeholder={Backpex.__("Search", @live_resource)}
                 value={@search_input}
               />
               <p :if={@options == []} class="w-full">
@@ -201,9 +201,9 @@ defmodule Backpex.Fields.HasMany do
                 />
                 <span role="button" class="text-primary my-2 cursor-pointer text-sm underline">
                   <%= if @all_selected do %>
-                    {Backpex.t("Deselect all", @live_resource)}
+                    {Backpex.__("Deselect all", @live_resource)}
                   <% else %>
-                    {Backpex.t("Select all", @live_resource)}
+                    {Backpex.__("Select all", @live_resource)}
                   <% end %>
                 </span>
               </label>
@@ -244,7 +244,7 @@ defmodule Backpex.Fields.HasMany do
                 phx-click="show-more"
                 phx-target={@myself}
               >
-                {Backpex.t("Show more", @live_resource)}
+                {Backpex.__("Show more", @live_resource)}
               </button>
             </div>
           </div>
@@ -548,7 +548,7 @@ defmodule Backpex.Fields.HasMany do
 
   defp prompt(assigns, field_options) do
     case Map.get(field_options, :prompt) do
-      nil -> Backpex.t("Select options...", assigns.live_resource)
+      nil -> Backpex.__("Select options...", assigns.live_resource)
       prompt when is_function(prompt) -> prompt.(assigns)
       prompt -> prompt
     end

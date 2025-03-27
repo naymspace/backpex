@@ -7,7 +7,7 @@
           type="checkbox"
           class="checkbox checkbox-sm"
           checked={@select_all}
-          aria-label={Backpex.t("Select all items", @live_resource)}
+          aria-label={Backpex.__("Select all items", @live_resource)}
         />
       </th>
       <th :for={{name, %{label: label} = field_options} <- @fields} :if={active?(@active_fields, name)} class="h-12">
@@ -46,7 +46,7 @@
           class="checkbox checkbox-sm"
           checked={selected?(@selected_items, item)}
           aria-label={
-            Backpex.t(
+            Backpex.__(
               {"Select item with id: %{id}", %{id: LiveResource.primary_value(item, @live_resource)}},
               @live_resource
             )

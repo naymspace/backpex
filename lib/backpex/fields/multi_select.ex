@@ -52,7 +52,7 @@ defmodule Backpex.Fields.MultiSelect do
     |> assign(assigns)
     |> assign(
       :not_found_text,
-      assigns.field_options[:not_found_text] || Backpex.t("No options found", assigns.live_resource)
+      assigns.field_options[:not_found_text] || Backpex.__("No options found", assigns.live_resource)
     )
     |> assign(:prompt, prompt(assigns, assigns.field_options))
     |> assign(:search_input, "")
@@ -237,7 +237,7 @@ defmodule Backpex.Fields.MultiSelect do
 
   defp prompt(assigns, field_options) do
     case Map.get(field_options, :prompt) do
-      nil -> Backpex.t("Select options...", assigns.live_resource)
+      nil -> Backpex.__("Select options...", assigns.live_resource)
       prompt when is_function(prompt) -> prompt.(assigns)
       prompt -> prompt
     end

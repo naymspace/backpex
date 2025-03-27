@@ -21,24 +21,24 @@ defmodule Backpex.ItemActions.Delete do
   end
 
   @impl Backpex.ItemAction
-  def label(assigns, _item), do: Backpex.t("Delete", assigns.live_resource)
+  def label(assigns, _item), do: Backpex.__("Delete", assigns.live_resource)
 
   @impl Backpex.ItemAction
   def confirm(assigns) do
     count = Enum.count(assigns.selected_items)
 
     if count > 1 do
-      Backpex.t({"Are you sure you want to delete %{count} items?", %{count: count}}, assigns.live_resource)
+      Backpex.__({"Are you sure you want to delete %{count} items?", %{count: count}}, assigns.live_resource)
     else
-      Backpex.t("Are you sure you want to delete the item?", assigns.live_resource)
+      Backpex.__("Are you sure you want to delete the item?", assigns.live_resource)
     end
   end
 
   @impl Backpex.ItemAction
-  def confirm_label(assigns), do: Backpex.t("Delete", assigns.live_resource)
+  def confirm_label(assigns), do: Backpex.__("Delete", assigns.live_resource)
 
   @impl Backpex.ItemAction
-  def cancel_label(assigns), do: Backpex.t("Cancel", assigns.live_resource)
+  def cancel_label(assigns), do: Backpex.__("Cancel", assigns.live_resource)
 
   @impl Backpex.ItemAction
   def handle(socket, items, _data) do
@@ -61,11 +61,14 @@ defmodule Backpex.ItemActions.Delete do
   end
 
   defp success_message(assigns, [_item]) do
-    Backpex.t({"%{resource} has been deleted successfully.", %{resource: assigns.singular_name}}, assigns.live_resource)
+    Backpex.__(
+      {"%{resource} has been deleted successfully.", %{resource: assigns.singular_name}},
+      assigns.live_resource
+    )
   end
 
   defp success_message(assigns, items) do
-    Backpex.t(
+    Backpex.__(
       {"%{count} %{resources} have been deleted successfully.",
        %{resources: assigns.plural_name, count: Enum.count(items)}},
       assigns.live_resource
@@ -77,30 +80,30 @@ defmodule Backpex.ItemActions.Delete do
          %Postgrex.Error{postgres: %{code: :foreign_key_violation}},
          [_item] = items
        ) do
-    "#{error_message(assigns, :error, items)} #{Backpex.t("The item is used elsewhere.", assigns.live_resource)}"
+    "#{error_message(assigns, :error, items)} #{Backpex.__("The item is used elsewhere.", assigns.live_resource)}"
   end
 
   defp error_message(assigns, %Ecto.ConstraintError{type: :foreign_key}, [_item] = items) do
-    "#{error_message(assigns, :error, items)} #{Backpex.t("The item is used elsewhere.", assigns.live_resource)}"
+    "#{error_message(assigns, :error, items)} #{Backpex.__("The item is used elsewhere.", assigns.live_resource)}"
   end
 
   defp error_message(assigns, %Postgrex.Error{postgres: %{code: :foreign_key_violation}}, items) do
-    "#{error_message(assigns, :error, items)} #{Backpex.t("The items are used elsewhere.", assigns.live_resource)}"
+    "#{error_message(assigns, :error, items)} #{Backpex.__("The items are used elsewhere.", assigns.live_resource)}"
   end
 
   defp error_message(assigns, %Ecto.ConstraintError{type: :foreign_key}, items) do
-    "#{error_message(assigns, :error, items)} #{Backpex.t("The items are used elsewhere.", assigns.live_resource)}"
+    "#{error_message(assigns, :error, items)} #{Backpex.__("The items are used elsewhere.", assigns.live_resource)}"
   end
 
   defp error_message(assigns, _error, [_item]) do
-    Backpex.t(
+    Backpex.__(
       {"An error occurred while deleting the %{resource}!", %{resource: assigns.singular_name}},
       assigns.live_resource
     )
   end
 
   defp error_message(assigns, _error, items) do
-    Backpex.t(
+    Backpex.__(
       {"An error occurred while deleting %{count} %{resources}!",
        %{resources: assigns.plural_name, count: Enum.count(items)}},
       assigns.live_resource

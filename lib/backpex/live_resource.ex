@@ -363,7 +363,7 @@ defmodule Backpex.LiveResource do
       @impl Backpex.LiveResource
       def render_resource_slot(var!(assigns), :index, :filters) do
         ~H"""
-        <.resource_filters search_placeholder={Backpex.t("Search", @live_resource)} {assigns} />
+        <.resource_filters search_placeholder={Backpex.__("Search", @live_resource)} {assigns} />
         """
       end
 
@@ -390,8 +390,8 @@ defmodule Backpex.LiveResource do
             :if={@live_resource.can?(assigns, :edit, @item)}
             id={"#{@singular_name}-edit-link"}
             phx-hook="BackpexTooltip"
-            data-tooltip={Backpex.t("Edit", @live_resource)}
-            aria-label={Backpex.t("Edit", @live_resource)}
+            data-tooltip={Backpex.__("Edit", @live_resource)}
+            aria-label={Backpex.__("Edit", @live_resource)}
             patch={Router.get_path(@socket, @live_resource, @params, :edit, @item)}
           >
             <Backpex.HTML.CoreComponents.icon
@@ -414,7 +414,7 @@ defmodule Backpex.LiveResource do
       def render_resource_slot(var!(assigns), :edit, :page_title) do
         ~H"""
         <.main_title class="mb-4">
-          {Backpex.t({"Edit %{resource}", %{resource: @singular_name}}, @live_resource)}
+          {Backpex.__({"Edit %{resource}", %{resource: @singular_name}}, @live_resource)}
         </.main_title>
         """
       end
@@ -469,7 +469,7 @@ defmodule Backpex.LiveResource do
     |> assign(:plural_name, live_resource.plural_name())
     |> assign(
       :create_button_label,
-      Backpex.t({"New %{resource}", %{resource: live_resource.singular_name()}}, live_resource)
+      Backpex.__({"New %{resource}", %{resource: live_resource.singular_name()}}, live_resource)
     )
     |> assign(:panels, live_resource.panels())
     |> assign(:fluid?, fluid?)
@@ -631,7 +631,7 @@ defmodule Backpex.LiveResource do
     socket
     |> assign(:fields, fields)
     |> assign(:changeset_function, changeset_function)
-    |> assign(:page_title, Backpex.t({"Edit %{resource}", %{resource: singular_name}}, live_resource))
+    |> assign(:page_title, Backpex.__({"Edit %{resource}", %{resource: singular_name}}, live_resource))
     |> assign(:item, item)
     |> assign_changeset(changeset_function, item, fields, :edit)
   end

@@ -672,7 +672,7 @@ defmodule Backpex.Fields.Upload do
               <div class="flex text-sm">
                 <label>
                   <a class="link link-hover link-primary font-medium">
-                    {Backpex.t("Upload a file", @live_resource)}
+                    {Backpex.__("Upload a file", @live_resource)}
                   </a>
                   <.live_file_input :if={@uploads_allowed} upload={@upload} phx-target="#form-component" class="hidden" />
                 </label>
@@ -684,7 +684,7 @@ defmodule Backpex.Fields.Upload do
                   data-upload-key={@upload_key}
                   phx-hook="BackpexCancelEntry"
                 />
-                <p class="pl-1">{Backpex.t("or drag and drop", @live_resource)}</p>
+                <p class="pl-1">{Backpex.__("or drag and drop", @live_resource)}</p>
               </div>
             </div>
           </div>
@@ -823,7 +823,7 @@ defmodule Backpex.Fields.Upload do
   def label_from_file(%{file_label: file_label} = _field_options, file), do: file_label.(file)
   def label_from_file(_field_options, file), do: file
 
-  defp error_to_string(:too_large, live_resource), do: Backpex.t("too large", live_resource)
-  defp error_to_string(:too_many_files, live_resource), do: Backpex.t("too many files", live_resource)
-  defp error_to_string(:not_accepted, live_resource), do: Backpex.t("unacceptable file type", live_resource)
+  defp error_to_string(:too_large, live_resource), do: Backpex.__("too large", live_resource)
+  defp error_to_string(:too_many_files, live_resource), do: Backpex.__("too many files", live_resource)
+  defp error_to_string(:not_accepted, live_resource), do: Backpex.__("unacceptable file type", live_resource)
 end

@@ -44,7 +44,7 @@
       <:actions>
         <div :if={form_errors?(@show_form_errors, f)}>
           <p class="text-error text-sm italic">
-            {Backpex.t("There are errors in the form.", @live_resource)}
+            {Backpex.__("There are errors in the form.", @live_resource)}
           </p>
         </div>
         <%= if @action_type == :item do %>
@@ -62,7 +62,7 @@
         <% else %>
           <.link navigate={@live_resource.return_to(@socket, assigns, @live_action, :cancel, @item)}>
             <button type="button" class="btn btn-ghost">
-              {Backpex.t("Cancel", @live_resource)}
+              {Backpex.__("Cancel", @live_resource)}
             </button>
           </.link>
           <button

@@ -163,7 +163,7 @@ defmodule Backpex.Fields.InlineCRUD do
                     class="hidden"
                   />
 
-                  <div class="btn btn-outline btn-error" aria-label={Backpex.t("Delete", @live_resource)}>
+                  <div class="btn btn-outline btn-error" aria-label={Backpex.__("Delete", @live_resource)}>
                     <Backpex.HTML.CoreComponents.icon name="hero-trash" class="h-5 w-5" />
                   </div>
                 </label>
@@ -176,7 +176,7 @@ defmodule Backpex.Fields.InlineCRUD do
         <input
           name={"change[#{@name}_order][]"}
           type="checkbox"
-          aria-label={Backpex.t("Add entry", @live_resource)}
+          aria-label={Backpex.__("Add entry", @live_resource)}
           class="btn btn-sm btn-outline btn-primary"
         />
       </Layout.field_container>

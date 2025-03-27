@@ -91,7 +91,7 @@ defmodule Backpex.Filters.MultiSelect do
         <%= if @value == [] do %>
           {@prompt}
         <% else %>
-          {"#{Enum.count(@value)} #{Backpex.t("selected", assigns.live_resource)}"}
+          {"#{Enum.count(@value)} #{Backpex.__("selected", assigns.live_resource)}"}
         <% end %>
       </div>
       <ul

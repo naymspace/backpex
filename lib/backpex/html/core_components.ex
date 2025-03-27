@@ -47,7 +47,7 @@ defmodule Backpex.HTML.CoreComponents do
         phx-click={@clear_event}
         phx-value-field={@filter_name}
         class="indicator-item bg-base-300 rounded-badge grid place-items-center p-1 shadow transition duration-75 hover:text-secondary hover:scale-110"
-        aria-label={Backpex.t({"Clear %{name} filter", %{name: @label}}, @live_resource)}
+        aria-label={Backpex.__({"Clear %{name} filter", %{name: @label}}, @live_resource)}
       >
         <.icon name="hero-x-mark" class="h-3 w-3" />
       </button>

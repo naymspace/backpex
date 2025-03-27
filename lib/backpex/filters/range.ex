@@ -101,12 +101,12 @@ defmodule Backpex.Filters.Range do
     ~H"""
     <div class="mt-2">
       <label class="input input-sm input-bordered mb-2 flex w-full items-center">
-        <span class="text-base-content/50 w-10 ">{Backpex.t("From", @live_resource)}</span>
+        <span class="text-base-content/50 w-10 ">{Backpex.__("From", @live_resource)}</span>
         <input type="date" name={@form[:start].name} class="grow" value={@value["start"]} />
       </label>
 
       <label class="input input-sm input-bordered flex w-full items-center">
-        <span class="text-base-content/50 w-10 ">{Backpex.t("To", @live_resource)}</span>
+        <span class="text-base-content/50 w-10 ">{Backpex.__("To", @live_resource)}</span>
         <input type="date" name={@form[:end].name} class="grow" value={@value["end"]} />
       </label>
     </div>
@@ -117,12 +117,12 @@ defmodule Backpex.Filters.Range do
     ~H"""
     <div class="mt-2">
       <label class="input input-sm input-bordered mb-2 flex w-full items-center">
-        <span class="text-base-content/50 w-10">{Backpex.t("From", @live_resource)}</span>
+        <span class="text-base-content/50 w-10">{Backpex.__("From", @live_resource)}</span>
         <input type="number" name={@form[:start].name} class="grow" value={@value["start"]} />
       </label>
 
       <label class="input input-sm input-bordered flex w-full items-center">
-        <span class="text-base-content/50 w-10 ">{Backpex.t("To", @live_resource)}</span>
+        <span class="text-base-content/50 w-10 ">{Backpex.__("To", @live_resource)}</span>
         <input type="number" name={@form[:end].name} class="grow" value={@value["end"]} />
       </label>
     </div>
