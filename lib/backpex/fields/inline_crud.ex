@@ -86,6 +86,7 @@ defmodule Backpex.Fields.InlineCRUD do
       end
   """
   use Backpex.Field, config_schema: @config_schema
+  require Backpex
 
   @impl Phoenix.LiveComponent
   def update(assigns, socket) do
@@ -162,7 +163,7 @@ defmodule Backpex.Fields.InlineCRUD do
                     class="hidden"
                   />
 
-                  <div class="btn btn-outline btn-error" aria-label={Backpex.translate("Delete")}>
+                  <div class="btn btn-outline btn-error" aria-label={Backpex.__("Delete", @live_resource)}>
                     <Backpex.HTML.CoreComponents.icon name="hero-trash" class="h-5 w-5" />
                   </div>
                 </label>
@@ -175,7 +176,7 @@ defmodule Backpex.Fields.InlineCRUD do
         <input
           name={"change[#{@name}_order][]"}
           type="checkbox"
-          aria-label={Backpex.translate("Add entry")}
+          aria-label={Backpex.__("Add entry", @live_resource)}
           class="btn btn-sm btn-outline btn-primary"
         />
       </Layout.field_container>

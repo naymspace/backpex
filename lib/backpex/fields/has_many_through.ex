@@ -82,6 +82,7 @@ defmodule Backpex.Fields.HasManyThrough do
   import PhoenixHTMLHelpers.Form, only: [hidden_inputs_for: 1]
   alias Backpex.LiveResource
   alias Ecto.Changeset
+  require Backpex
 
   @impl Phoenix.LiveComponent
   def update(assigns, socket) do
@@ -118,8 +119,10 @@ defmodule Backpex.Fields.HasManyThrough do
 
     options = Enum.map(all_items, &{Map.get(&1, display_field), Map.get(&1, :id)})
 
-    prompt =
-      {Backpex.translate({"Choose %{resource} ...", %{resource: field_options.live_resource.singular_name()}}), nil}
+    live_resource = field_options.live_resource
+    singular_name = live_resource.singular_name()
+
+    prompt = {Backpex.__({"Choose %{resource} ...", %{resource: singular_name}}, live_resource), nil}
 
     socket
     |> assign(:all_items, all_items)
@@ -224,8 +227,10 @@ defmodule Backpex.Fields.HasManyThrough do
       end)
       |> maybe_sort_by(assigns)
 
-    relational_title =
-      Backpex.translate({"Attach %{resource}", %{resource: assoc_field_options.live_resource.singular_name()}})
+    live_resource = assoc_field_options.live_resource
+    singular_name = live_resource.singular_name()
+
+    relational_title = Backpex.__({"Attach %{resource}", %{resource: singular_name}}, live_resource)
 
     assigns =
       assigns
@@ -293,7 +298,9 @@ defmodule Backpex.Fields.HasManyThrough do
                       phx-click="edit-relational"
                       phx-target={@myself}
                       phx-value-index={listable.index}
-                      aria-label={Backpex.translate({"Edit relation with index %{index}", %{index: listable.index}})}
+                      aria-label={
+                        Backpex.__({"Edit relation with index %{index}", %{index: listable.index}}, @live_resource)
+                      }
                     >
                       <Backpex.HTML.CoreComponents.icon name="hero-pencil-square" class="h-5 w-5" />
                     </button>
@@ -302,13 +309,17 @@ defmodule Backpex.Fields.HasManyThrough do
                       phx-click="detach-relational"
                       phx-target={@myself}
                       phx-value-index={listable.index}
-                      aria-label={Backpex.translate({"Detach relation with index %{index}", %{index: listable.index}})}
+                      aria-label={
+                        Backpex.__({"Detach relation with index %{index}", %{index: listable.index}}, @live_resource)
+                      }
                     >
                       <Backpex.HTML.CoreComponents.icon name="hero-trash" class="h-5 w-5" />
                     </button>
                     <div
                       :if={has_error?(@editables, index)}
-                      aria-label={Backpex.translate({"Error in relation with index %{index}", %{index: listable.index}})}
+                      aria-label={
+                        Backpex.__({"Error in relation with index %{index}", %{index: listable.index}}, @live_resource)
+                      }
                     >
                       <Backpex.HTML.CoreComponents.icon name="hero-exclamation-triangle" class="text-error h-5 w-5" />
                     </div>
@@ -323,6 +334,7 @@ defmodule Backpex.Fields.HasManyThrough do
           open={@edit_relational != nil}
           title={@relational_title}
           close_event_name="cancel-relational"
+          close_label={Backpex.__("Close modal", @live_resource)}
           target={@myself}
           max_width="xl"
         >
@@ -341,11 +353,11 @@ defmodule Backpex.Fields.HasManyThrough do
           </div>
           <div class="bg-base-200 flex justify-end space-x-4 px-6 py-3">
             <button type="button" class="btn" phx-click="cancel-relational" phx-target={@myself}>
-              {Backpex.translate("Cancel")}
+              {Backpex.__("Cancel", @live_resource)}
             </button>
 
             <button type="button" class="btn btn-primary" phx-click="complete-relational" phx-target={@myself}>
-              {Backpex.translate("Apply")}
+              {Backpex.__("Apply", @live_resource)}
             </button>
           </div>
         </.modal>

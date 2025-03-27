@@ -80,6 +80,7 @@ defmodule Backpex.Fields.HasMany do
   alias Backpex.Adapters.Ecto, as: EctoAdapter
   alias Backpex.HTML.Form
   alias Backpex.Router
+  require Backpex
 
   @impl Phoenix.LiveComponent
   def update(assigns, socket) do
@@ -98,7 +99,9 @@ defmodule Backpex.Fields.HasMany do
 
     socket
     |> assign_new(:prompt, fn -> prompt(assigns, field_options) end)
-    |> assign_new(:not_found_text, fn -> field_options[:not_found_text] || Backpex.translate("No options found") end)
+    |> assign_new(:not_found_text, fn ->
+      field_options[:not_found_text] || Backpex.__("No options found", socket.assigns.live_resource)
+    end)
     |> assign_new(:search_input, fn -> "" end)
     |> assign_new(:offset, fn -> 0 end)
     |> assign_new(:options_count, fn -> count_options(assigns) end)
@@ -166,7 +169,7 @@ defmodule Backpex.Fields.HasMany do
                 <label
                   role="button"
                   for={"has-many-#{@name}-checkbox-value-#{value}"}
-                  aria-label={Backpex.translate({"Unselect %{label}", %{label: label}})}
+                  aria-label={Backpex.__({"Unselect %{label}", %{label: label}}, @live_resource)}
                 >
                   <Backpex.HTML.CoreComponents.icon name="hero-x-mark" class="text-base-100 ml-1 h-4 w-4" />
                 </label>
@@ -182,7 +185,7 @@ defmodule Backpex.Fields.HasMany do
                 class="input input-sm input-bordered mb-2 w-full"
                 phx-change="search"
                 phx-target={@myself}
-                placeholder={Backpex.translate("Search")}
+                placeholder={Backpex.__("Search", @live_resource)}
                 value={@search_input}
               />
               <p :if={@options == []} class="w-full">
@@ -198,9 +201,9 @@ defmodule Backpex.Fields.HasMany do
                 />
                 <span role="button" class="text-primary my-2 cursor-pointer text-sm underline">
                   <%= if @all_selected do %>
-                    {Backpex.translate("Deselect all")}
+                    {Backpex.__("Deselect all", @live_resource)}
                   <% else %>
-                    {Backpex.translate("Select all")}
+                    {Backpex.__("Select all", @live_resource)}
                   <% end %>
                 </span>
               </label>
@@ -241,7 +244,7 @@ defmodule Backpex.Fields.HasMany do
                 phx-click="show-more"
                 phx-target={@myself}
               >
-                {Backpex.translate("Show more")}
+                {Backpex.__("Show more", @live_resource)}
               </button>
             </div>
           </div>
@@ -545,7 +548,7 @@ defmodule Backpex.Fields.HasMany do
 
   defp prompt(assigns, field_options) do
     case Map.get(field_options, :prompt) do
-      nil -> Backpex.translate("Select options...")
+      nil -> Backpex.__("Select options...", assigns.live_resource)
       prompt when is_function(prompt) -> prompt.(assigns)
       prompt -> prompt
     end
