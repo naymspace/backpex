@@ -13,32 +13,45 @@ defmodule Backpex do
 
     quote do
       use Gettext, backend: Backpex.Gettext
-      require Gettext.Macros
 
       # mark translation for extraction
       Gettext.Macros.dgettext_noop("backpex", unquote(msg))
 
-      live_resource = unquote(live_resource)
-
-      # TODO: extract to function
-      case live_resource do
-        nil ->
-          Backpex.translate({unquote(msg), unquote(opts)})
-
-        live_resource ->
-          live_resource.translate({unquote(msg), unquote(opts)})
-      end
+      Backpex.translate({unquote(msg), unquote(opts)}, :general, unquote(live_resource))
     end
   end
 
-  def translate(msg, type \\ :general)
+  @doc """
+  Translates a text with the configured translator function. If a live_resource is given, it calls the LiveResource's translate callback.
 
-  def translate({msg, opts}, type) when type in [:general, :error] do
-    translate_func = translate_func(type)
-    translate_func.({msg, opts})
+  ## Examples
+
+      # Using the configured general translator (translator_function)
+      translate("Hello")
+
+      # Using the configured error translator (error_translator_function)
+      translate("can't be blank", :error)
+
+      # Passing options to the translator
+      translate({"Hello %{name}", %{name: "World"}})
+
+      # Using a LiveResource for translation
+      translate("Welcome", :general, MyApp.LiveResource)
+  """
+  def translate(msg, type \\ :general, live_resource \\ nil)
+
+  def translate({msg, opts}, type, live_resource) when type in [:general, :error] do
+    case live_resource do
+      nil ->
+        translate_func = translate_func(type)
+        translate_func.({msg, opts})
+
+      live_resource ->
+        live_resource.translate({msg, opts})
+    end
   end
 
-  def translate(msg, type), do: translate({msg, %{}}, type)
+  def translate(msg, type, live_resource), do: translate({msg, %{}}, type, live_resource)
 
   defp translate_func(type) when type in [:general, :error] do
     key =
