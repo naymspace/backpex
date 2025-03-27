@@ -32,12 +32,14 @@ defmodule Backpex.HTML.CoreComponents do
 
   def filter_badge(assigns) do
     ~H"""
-    <div class="join indicator ring-base-content/10 relative ring-1">
-      <div class="badge leading-[0.875rem] join-item bg-base-300 h-auto border-0 px-4 py-1.5 font-semibold">
-        {@label}
-      </div>
-      <div class="badge badge-outline join-item h-auto border-0 px-4 py-1.5">
-        {render_slot(@inner_block)}
+    <div class="indicator">
+      <div class="join">
+        <div class="btn btn-sm join-item bg-base-300 border-base-content/10 pointer-events-none font-semibold">
+          {@label}
+        </div>
+        <div class="btn btn-sm btn-outline join-item border-base-content/10 pointer-events-none border-l-transparent">
+          {render_slot(@inner_block)}
+        </div>
       </div>
       <button
         type="button"
