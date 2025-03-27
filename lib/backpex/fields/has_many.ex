@@ -158,7 +158,7 @@ defmodule Backpex.Fields.HasMany do
                 {@prompt}
               </p>
 
-              <div :for={{label, value} <- @selected} class="badge badge-primary pr-0">
+              <div :for={{label, value} <- @selected} class="badge badge-primary pointer-events-auto pr-0">
                 {label}
                 <label
                   class="cursor-pointer pr-2"
