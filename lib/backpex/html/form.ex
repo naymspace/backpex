@@ -256,19 +256,17 @@ defmodule Backpex.HTML.Form do
             {@prompt}
           </p>
 
-          <div :for={{label, value} <- @selected} class="badge badge-primary p-[11px]">
-            <p class="mr-1">
-              {label}
-            </p>
-
+          <div :for={{label, value} <- @selected} class="badge badge-primary pointer-events-auto pr-0">
+            {label}
             <div
+              class="cursor-pointer pr-2"
               role="button"
               phx-click="toggle-option"
               phx-value-id={value}
               phx-target={@event_target}
               aria-label={Backpex.translate({"Unselect %{label}", %{label: label}})}
             >
-              <Backpex.HTML.CoreComponents.icon name="hero-x-mark" class="text-base-100 ml-1 h-4 w-4" />
+              <Backpex.HTML.CoreComponents.icon name="hero-x-mark" class="text-primary-content size-4 scale-110" />
             </div>
           </div>
         </div>
