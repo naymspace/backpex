@@ -158,17 +158,15 @@ defmodule Backpex.Fields.HasMany do
                 {@prompt}
               </p>
 
-              <div :for={{label, value} <- @selected} class="badge badge-primary p-[11px]">
-                <p class="mr-1">
-                  {label}
-                </p>
-
+              <div :for={{label, value} <- @selected} class="badge badge-primary pr-0">
+                {label}
                 <label
+                  class="cursor-pointer pr-2"
                   role="button"
                   for={"has-many-#{@name}-checkbox-value-#{value}"}
                   aria-label={Backpex.translate({"Unselect %{label}", %{label: label}})}
                 >
-                  <Backpex.HTML.CoreComponents.icon name="hero-x-mark" class="text-base-100 ml-1 h-4 w-4" />
+                  <Backpex.HTML.CoreComponents.icon name="hero-x-mark" class="text-primary-content size-4 scale-110" />
                 </label>
               </div>
             </div>
