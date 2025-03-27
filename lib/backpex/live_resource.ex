@@ -214,7 +214,16 @@ defmodule Backpex.LiveResource do
               binary()
 
   @doc """
-  This function can be used to provide custom translations for texts.
+  This function can be used to provide custom translations for texts. See the [translations guide](/guides/translations/translations.md#modify-strings) for detailed information.
+
+  ## Examples
+
+      # in your LiveResource
+
+      @impl Backpex.LiveResource
+      def translate({"Cancel", _opts}), do: gettext("Go back")
+      def translate({"Save", _opts}), do: gettext("Continue")
+      def translate({"New %{resource}", opts}), do: gettext("Create %{resource}", opts)
   """
   @callback translate(msg :: tuple()) :: binary()
 

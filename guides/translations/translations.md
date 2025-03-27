@@ -44,6 +44,18 @@ You will also need to create a Gettext template file in your application. You ca
 
 ## Modify strings
 
-In addition to translating texts, Backpex provides a way of modifying texts per LiveResource. 
+In addition to translating texts, Backpex provides a way to modify texts per LiveResource with the `c:Backpex.LiveResource.translate/1` callback.
 
-TODO
+You can use it to match on any text and either translate or modify it.
+
+See the [the backpex.pot file](https://github.com/naymspace/backpex/blob/main/priv/gettext/backpex.pot) in our GitHub repository for all available translations to match on.
+
+The `opts` param (map) contains all the bindings you might need to construct a text. You can find the bindings inside the texts, e.g. the text "New %{resource}" will get at least one binding named `resource` (e.g. `%{resource: "User"}`).
+
+```elixir
+# in your LiveResource
+@impl Backpex.LiveResource
+def translate({"Cancel", _opts}), do: gettext("Go back")
+def translate({"Save", _opts}), do: gettext("Continue")
+def translate({"New %{resource}", opts}), do: gettext("Create %{resource}", opts)
+```
