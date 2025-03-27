@@ -60,7 +60,7 @@ defmodule Backpex.HTML.Form do
 
     ~H"""
     <div class={@class}>
-      <fieldset class="fieldset w-full">
+      <fieldset class="fieldset py-0">
         <%= if @label do %>
           <label class="label cursor-pointer">
             <input type="hidden" name={@name} value="false" />
@@ -104,7 +104,7 @@ defmodule Backpex.HTML.Form do
 
     ~H"""
     <div class={@class}>
-      <fieldset class="fieldset w-full">
+      <fieldset class="fieldset py-0">
         <%= if @label do %>
           <label class="label cursor-pointer">
             <input type="hidden" name={@name} value="false" />
@@ -140,7 +140,7 @@ defmodule Backpex.HTML.Form do
   def input(%{type: "select"} = assigns) do
     ~H"""
     <div class={@class}>
-      <fieldset class="fieldset">
+      <fieldset class="fieldset py-0">
         <label :if={@label} class="label">
           <span class="label-text">{@label}</span>
         </label>
@@ -166,7 +166,7 @@ defmodule Backpex.HTML.Form do
   def input(%{type: "textarea"} = assigns) do
     ~H"""
     <div class={@class}>
-      <fieldset class="fieldset">
+      <fieldset class="fieldset py-0">
         <label :if={@label} class="label">
           <span class="label-text">{@label}</span>
         </label>
@@ -188,7 +188,7 @@ defmodule Backpex.HTML.Form do
   def input(assigns) do
     ~H"""
     <div class={@class}>
-      <fieldset class="fieldset">
+      <fieldset class="fieldset py-0">
         <label :if={@label} class="label">
           <span class="label-text">{@label}</span>
         </label>
@@ -197,7 +197,9 @@ defmodule Backpex.HTML.Form do
           name={@name}
           id={@id}
           value={Phoenix.HTML.Form.normalize_value(@type, @value)}
-          class={@input_class || ["input w-full input-lg text-base", @input_class, @errors != [] && "input-error bg-error/10"]}
+          class={
+            @input_class || ["input input-lg w-full text-base", @input_class, @errors != [] && "input-error bg-error/10"]
+          }
           {@rest}
         />
       </fieldset>
