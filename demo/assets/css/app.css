@@ -55,45 +55,9 @@
   border-radius: var(--radius-field);
 }
 
-@utility textarea {
-  &:focus,
-  &:focus-within {
-    --input-color: color-mix(
-      in oklab,
-      var(--color-base-content) 20%,
-      transparent
-    );
-  }
-}
-
-@utility select {
-  &:focus,
-  &:focus-within {
-    --input-color: color-mix(
-      in oklab,
-      var(--color-base-content) 20%,
-      transparent
-    );
-  }
-}
-
-@utility input {
-  &:focus,
-  &:focus-within {
-    --input-color: color-mix(
-      in oklab,
-      var(--color-base-content) 20%,
-      transparent
-    );
-  }
-}
-
 @utility table {
   & :where(thead, tfoot) {
     @apply text-xs;
   }
 }
 
-@utility alert {
-  @apply shadow-none;
-}

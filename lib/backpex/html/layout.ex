@@ -100,7 +100,7 @@ defmodule Backpex.HTML.Layout do
     ~H"""
     <div
       :if={Phoenix.Flash.get(@flash, :info) && Phoenix.Flash.get(@flash, :info) != ""}
-      class="alert bg-info text-info-content my-4 text-sm"
+      class="alert alert-info my-4"
       phx-value-key="info"
     >
       <Backpex.HTML.CoreComponents.icon name="hero-information-circle" class="h-5 w-5" />
@@ -109,7 +109,7 @@ defmodule Backpex.HTML.Layout do
       </span>
       <div>
         <button
-          class="btn btn-square btn-sm btn-ghost"
+          class="btn btn-info btn-square btn-sm btn-ghost"
           phx-click="lv:clear-flash"
           aria-label={Backpex.translate("Close alert")}
         >
