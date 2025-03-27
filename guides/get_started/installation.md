@@ -121,9 +121,12 @@ You are now prepared to set up the Backpex layout and a LiveResource for the `Po
 
 ## Create layout
 
-Backpex does not ship with a predefined layout by default to give you the freedom to create your own layout. Instead, it provides components that you can use to build your own layout. You can find all Backpex components in the `lib/backpex/components` directory. Layout components are placed in the `lib/backpex/components/layout` directory. To start quickly, Backpex provides an `Backpex.HTML.Layout.app_shell/1` component. You can use this component to add an app shell layout to your application easily.
+Although Backpex does not ship with a predefined layout, it does provide components that you can use to build your own layout. You can find all Backpex components in the [`lib/backpex/html`](https://github.com/naymspace/backpex/tree/main/lib/backpex/html) directory of our GitHub repository (see the snippet below for a pre-built layout that you can copy & paste into your application). 
 
-See the following example that uses the `Backpex.HTML.Layout.app_shell/1` component and some other Backpex Layout components to create a simple layout:
+> #### Warning {: .warning}
+> Note that some components are tied to Backpex and therefore might not be used outside of it. Our goal is to make them more generic in the future so all Backpex components can easily be used in custom views, too.
+
+To get you started quickly, we provide a layout you can copy & paste into your application. Place it as a file in your `lib/myapp_web/templates/layout` directory. You can name it whatever you like, but we recommend using `admin.html.heex`. You can also use this layout as the only layout in your application if your application consists of only an admin interface. This layout uses the `Backpex.HTML.Layout.app_shell/1` component, which can be used to easily add an app shell layout to your application.
 
 ```heex
 <Backpex.HTML.Layout.app_shell fluid={@fluid?}>
@@ -154,11 +157,9 @@ See the following example that uses the `Backpex.HTML.Layout.app_shell/1` compon
 </Backpex.HTML.Layout.app_shell>
 ```
 
-Make sure to add the `Backpex.HTML.Layout.flash_messages` component to display flash messages in your layout and do not forget to add the `@inner_content` variable to render the content of the LiveView.
+Make sure to always add the `Backpex.HTML.Layout.flash_messages` component to display flash messages in your layout and do not forget to add the `@inner_content` variable to render the content of the LiveView.
 
-Place the layout file in your `lib/myapp_web/templates/layout` directory. You can name it like you want, but we recommend to use `admin.html.heex`. You can also use this layout as the only layout in your application if your application consists of only an admin interface.
-
-We use the `icon/1` component to render icons in the layout. This component is part of the `core_components` module that ships with new Phoenix projects. See [`core_components.ex`](https://github.com/phoenixframework/phoenix/blob/main/priv/templates/phx.gen.live/core_components.ex). Feel free to use your own icon component or library.
+We use the `icon/1` component to render icons in the layout. This component is part of the `core_components` module that ships with new Phoenix projects. See (`core_components.ex`)(https://github.com/phoenixframework/phoenix/blob/main/priv/templates/phx.gen.live/core_components.ex). Feel free to use your own icon component or library.
 
 > #### Information {: .info}
 >

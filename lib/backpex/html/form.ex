@@ -6,6 +6,8 @@ defmodule Backpex.HTML.Form do
 
   alias Phoenix.HTML.Form
 
+  require Backpex
+
   @doc """
   Renders an input.
   """
@@ -242,6 +244,7 @@ defmodule Backpex.HTML.Form do
   attr :show_more, :boolean, required: true, doc: "whether there are more options to show"
   attr :search_event, :string, default: "search", doc: "the event that will be sent when the search input changes"
   attr :hide_errors, :boolean, default: false, doc: "if errors should be hidden"
+  attr :live_resource, :atom, default: nil, doc: "the live resource module"
 
   def multi_select(assigns) do
     errors = if Phoenix.Component.used_input?(assigns.field), do: assigns.field.errors, else: []
@@ -264,7 +267,7 @@ defmodule Backpex.HTML.Form do
               phx-click="toggle-option"
               phx-value-id={value}
               phx-target={@event_target}
-              aria-label={Backpex.translate({"Unselect %{label}", %{label: label}})}
+              aria-label={Backpex.__({"Unselect %{label}", %{label: label}}, @live_resource)}
             >
               <Backpex.HTML.CoreComponents.icon name="hero-x-mark" class="text-primary-content size-4 scale-110" />
             </div>
@@ -278,7 +281,7 @@ defmodule Backpex.HTML.Form do
             type="search"
             name={@field.name <> "_search"}
             class="input input-sm mb-2 w-full"
-            placeholder={Backpex.translate("Search")}
+            placeholder={Backpex.__("Search", @live_resource)}
             value={@search_input}
             phx-change={@search_event}
             phx-target={@event_target}
@@ -296,9 +299,9 @@ defmodule Backpex.HTML.Form do
             phx-target={@event_target}
           >
             <%= if @show_select_all do %>
-              {Backpex.translate("Select all")}
+              {Backpex.__("Select all", @live_resource)}
             <% else %>
-              {Backpex.translate("Deselect all")}
+              {Backpex.__("Deselect all", @live_resource)}
             <% end %>
           </button>
 
@@ -333,7 +336,7 @@ defmodule Backpex.HTML.Form do
             phx-click="show-more"
             phx-target={@event_target}
           >
-            {Backpex.translate("Show more")}
+            {Backpex.__("Show more", @live_resource)}
           </button>
         </div>
       </div>
@@ -350,7 +353,7 @@ defmodule Backpex.HTML.Form do
     |> Enum.map(fn error ->
       error
       |> translate_error_fun.()
-      |> Backpex.translate(:error)
+      |> Backpex.translate_error()
     end)
   end
 

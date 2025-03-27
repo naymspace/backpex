@@ -39,14 +39,14 @@ jobs:
           elixir-version: ${{ matrix.elixir }}
 
       - name: Setup node
-        uses: actions/setup-node@1d0ff469b7ec7b3cb9d8673fde0c81c44821de2a # v4.2.0
+        uses: actions/setup-node@cdca7365b2dadb8aad0a33bc7601856ffabcc48e # v4.3.0
         with:
           node-version: 20
           cache: 'yarn'
           cache-dependency-path: yarn.lock
 
       - name: Restore the deps and _build cache
-        uses: actions/cache@d4323d4df104b026a6aa633fdb11d772146be0bf # v4.2.2
+        uses: actions/cache@5a3ec84eff668545956fd18022155c47e93e2684 # v4.2.3
         id: restore-cache
         env:
           MIX_LOCK_HASH: ${{ hashFiles(format('{0}{1}', github.workspace, '/mix.lock')) }}
@@ -132,7 +132,7 @@ jobs:
 
     services:
       postgres:
-        image: postgres:16.8@sha256:e38a7fe2234174d0eb69b5467d346e1bb193c09f98adc229fc9df30fe364dd4a
+        image: postgres:16.8@sha256:e95b0cb95f719e0ce156c2bc5545c89fbd98a1a692845a5331ddc79ea61f1b1e
         env:
           POSTGRES_PASSWORD: postgres
         options: >-
@@ -155,14 +155,14 @@ jobs:
           version-type: strict
 
       - name: Setup node
-        uses: actions/setup-node@1d0ff469b7ec7b3cb9d8673fde0c81c44821de2a # v4.2.0
+        uses: actions/setup-node@cdca7365b2dadb8aad0a33bc7601856ffabcc48e # v4.3.0
         with:
           node-version: 20
           cache: 'yarn'
           cache-dependency-path: demo/yarn.lock
 
       - name: Restore the deps and _build cache
-        uses: actions/cache@d4323d4df104b026a6aa633fdb11d772146be0bf # v4.2.2
+        uses: actions/cache@5a3ec84eff668545956fd18022155c47e93e2684 # v4.2.3
         id: restore-cache
         env:
           OTP_VERSION: ${{ steps.beam.outputs.otp-version }}
@@ -256,7 +256,7 @@ jobs:
 
       - name: Log in to the container registry
         if: env.PUSH_IMAGE == 'true'
-        uses: docker/login-action@9780b0c442fbb1117ed29e0efdff1e18412f7567 # v3.3.0
+        uses: docker/login-action@74a5d142397b4f367a81961eba4e8cd7edddf772 # v3.4.0
         with:
           registry: ${{ env.REGISTRY }}
           username: ${{ github.actor }}

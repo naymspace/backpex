@@ -12,6 +12,7 @@ defmodule Backpex.HTML.Layout do
   """
   @doc type: :component
 
+  attr :class, :string, default: nil, doc: "class added to the app shell container"
   attr :fluid, :boolean, default: false, doc: "toggles fluid layout"
 
   slot :inner_block
@@ -28,7 +29,7 @@ defmodule Backpex.HTML.Layout do
 
   def app_shell(assigns) do
     ~H"""
-    <div id="backpex-app-shell" class="drawer" phx-hook="BackpexSidebarSections">
+    <div id="backpex-app-shell" class={["drawer", @class]} phx-hook="BackpexSidebarSections">
       <input id="menu-drawer" type="checkbox" class="drawer-toggle" />
       <div class="drawer-content">
         <div class="bg-base-200 fixed inset-0 -z-10 h-full w-full"></div>
@@ -95,6 +96,7 @@ defmodule Backpex.HTML.Layout do
   @doc type: :component
 
   attr :flash, :map, required: true, doc: "flash map that will be passed to `Phoenix.Flash.get/2`"
+  attr :close_label, :string, default: "Close alert"
 
   def flash_messages(assigns) do
     ~H"""
@@ -108,11 +110,7 @@ defmodule Backpex.HTML.Layout do
         {Phoenix.Flash.get(@flash, :info)}
       </span>
       <div>
-        <button
-          class="btn btn-info btn-square btn-sm btn-ghost"
-          phx-click="lv:clear-flash"
-          aria-label={Backpex.translate("Close alert")}
-        >
+        <button class="btn btn-info btn-square btn-sm btn-ghost" phx-click="lv:clear-flash" aria-label={@close_label}>
           <Backpex.HTML.CoreComponents.icon name="hero-x-mark" class="h-5 w-5" />
         </button>
       </div>
@@ -128,11 +126,7 @@ defmodule Backpex.HTML.Layout do
         {Phoenix.Flash.get(@flash, :error)}
       </span>
       <div>
-        <button
-          class="btn btn-square btn-sm btn-ghost"
-          phx-click="lv:clear-flash"
-          aria-label={Backpex.translate("Close alert")}
-        >
+        <button class="btn btn-square btn-sm btn-ghost" phx-click="lv:clear-flash" aria-label={@close_label}>
           <Backpex.HTML.CoreComponents.icon name="hero-x-mark" class="h-5 w-5" />
         </button>
       </div>
@@ -199,6 +193,7 @@ defmodule Backpex.HTML.Layout do
   @doc type: :component
 
   attr :socket, :any, required: true
+  attr :label, :string, default: "Theme"
 
   attr :themes, :list,
     doc: "A list of tuples with {theme_label, theme_name} format",
@@ -213,7 +208,7 @@ defmodule Backpex.HTML.Layout do
     >
       <div tabindex="0" role="button" class="btn btn-ghost m-1">
         <span class="hidden md:block">
-          {Backpex.translate("Theme")}
+          {@label}
         </span>
         <Backpex.HTML.CoreComponents.icon name="hero-swatch" class="h-5 w-5 md:hidden" />
         <Backpex.HTML.CoreComponents.icon name="hero-chevron-down" class="h-5 w-5" />
@@ -454,6 +449,7 @@ defmodule Backpex.HTML.Layout do
   attr :title, :string, default: nil, doc: "modal title"
   attr :target, :string, default: nil, doc: "live component for the close event to go to"
   attr :close_event_name, :string, default: "close-modal", doc: "close event name"
+  attr :close_label, :string, default: "Close modal"
   attr :max_width, :string, default: "md", values: ["sm", "md", "lg", "xl", "2xl", "full"], doc: "modal max width"
   attr :open, :boolean, default: true, doc: "modal open"
   attr :rest, :global
@@ -499,7 +495,7 @@ defmodule Backpex.HTML.Layout do
                 type="button"
                 phx-click={hide_modal(@target, @close_event_name)}
                 class="text-base-content/50 hover:text-base-content"
-                aria-label={Backpex.translate("Close modal")}
+                aria-label={@close_label}
               >
                 <Backpex.HTML.CoreComponents.icon name="hero-x-mark" class="h-5 w-5" />
               </button>
