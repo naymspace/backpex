@@ -968,10 +968,10 @@ defmodule Backpex.HTML.Resource do
         <div id="toggle-metrics-button" phx-hook="BackpexTooltip" data-tooltip={Backpex.translate("Toggle metrics")}>
           <button
             type="submit"
-            class={["btn btn-sm", @visible && "btn-primary", !@visible && "btn-neutral"]}
+            class={["btn btn-sm", @visible && "btn-active"]}
             aria-label={Backpex.translate("Toggle metrics")}
           >
-            <Backpex.HTML.CoreComponents.icon name="hero-chart-bar-square" class="h-5 w-5" />
+            <Backpex.HTML.CoreComponents.icon name="hero-chart-bar-square" class="size-6" />
           </button>
         </div>
       </.form>
