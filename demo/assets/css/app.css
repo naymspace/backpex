@@ -54,10 +54,3 @@
 @utility join {
   border-radius: var(--radius-field);
 }
-
-@utility table {
-  & :where(thead, tfoot) {
-    @apply text-xs;
-  }
-}
-

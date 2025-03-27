@@ -11,7 +11,7 @@
         />
       </th>
       <th :for={{name, %{label: label} = field_options} <- @fields} :if={active?(@active_fields, name)} class="h-12">
-        <div class={["font-medium", align(field_options), index_column_class(assigns, field_options)]}>
+        <div class={["text-xs font-medium", align(field_options), index_column_class(assigns, field_options)]}>
           <%= if Enum.member?(@orderable_fields, name) do %>
             <.order_link
               live_resource={@live_resource}
