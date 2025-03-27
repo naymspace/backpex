@@ -662,7 +662,7 @@ defmodule Backpex.Fields.Upload do
           phx-drop-target={if @uploads_allowed, do: @upload.ref}
         >
           <div class={[
-            "rounded-btn flex justify-center border-2 border-dashed px-6 pt-5 pb-6",
+            "rounded-field flex justify-center border-2 border-dashed px-6 pt-5 pb-6",
             @errors == [] && "border-base-content/25",
             @errors != [] && "border-error bg-error/10"
           ]}>

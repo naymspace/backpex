@@ -6,12 +6,6 @@
   themes: all;
 }
 
-@theme {
-  --radius-badge: var(--rounded-badge, 1.9rem);
-  --radius-box: var(--rounded-box, 1rem);
-  --radius-btn: var(--rounded-btn, 0.5rem);
-}
-
 @plugin "@tailwindcss/typography";
 
 @source "../../../lib/**/*.*ex";
