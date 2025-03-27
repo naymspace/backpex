@@ -495,6 +495,7 @@ defmodule Backpex.HTML.Layout do
                 {@title}
               </div>
               <button
+                class="cursor-pointer"
                 type="button"
                 phx-click={hide_modal(@target, @close_event_name)}
                 class="text-base-content/50 hover:text-base-content"
