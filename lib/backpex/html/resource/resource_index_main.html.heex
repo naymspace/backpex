@@ -32,8 +32,8 @@
       }
       current_page={@query_options.page}
       total_pages={@total_pages}
-      next_page_aria_label={Backpex.t("Next Page", @live_resource)}
-      previous_page_aria_label={Backpex.t("Previous Page", @live_resource)}
+      next_page_label={Backpex.t("Next Page", @live_resource)}
+      previous_page_label={Backpex.t("Previous Page", @live_resource)}
     />
     <div class="flex items-center">
       <.pagination_info total={@item_count} query_options={@query_options} live_resource={@live_resource} />

@@ -96,7 +96,7 @@ defmodule Backpex.HTML.Layout do
   @doc type: :component
 
   attr :flash, :map, required: true, doc: "flash map that will be passed to `Phoenix.Flash.get/2`"
-  attr :close_aria_label, :string, default: "Close alert"
+  attr :close_label, :string, default: "Close alert"
 
   def flash_messages(assigns) do
     ~H"""
@@ -110,7 +110,7 @@ defmodule Backpex.HTML.Layout do
         {Phoenix.Flash.get(@flash, :info)}
       </span>
       <div>
-        <button class="btn btn-square btn-sm btn-ghost" phx-click="lv:clear-flash" aria-label={@close_aria_label}>
+        <button class="btn btn-square btn-sm btn-ghost" phx-click="lv:clear-flash" aria-label={@close_label}>
           <Backpex.HTML.CoreComponents.icon name="hero-x-mark" class="h-5 w-5" />
         </button>
       </div>
@@ -126,7 +126,7 @@ defmodule Backpex.HTML.Layout do
         {Phoenix.Flash.get(@flash, :error)}
       </span>
       <div>
-        <button class="btn btn-square btn-sm btn-ghost" phx-click="lv:clear-flash" aria-label={@close_aria_label}>
+        <button class="btn btn-square btn-sm btn-ghost" phx-click="lv:clear-flash" aria-label={@close_label}>
           <Backpex.HTML.CoreComponents.icon name="hero-x-mark" class="h-5 w-5" />
         </button>
       </div>
@@ -446,7 +446,7 @@ defmodule Backpex.HTML.Layout do
   attr :title, :string, default: nil, doc: "modal title"
   attr :target, :string, default: nil, doc: "live component for the close event to go to"
   attr :close_event_name, :string, default: "close-modal", doc: "close event name"
-  attr :close_aria_label, :string, default: "Close modal"
+  attr :close_label, :string, default: "Close modal"
   attr :max_width, :string, default: "md", values: ["sm", "md", "lg", "xl", "2xl", "full"], doc: "modal max width"
   attr :open, :boolean, default: true, doc: "modal open"
   attr :rest, :global
@@ -491,7 +491,7 @@ defmodule Backpex.HTML.Layout do
                 type="button"
                 phx-click={hide_modal(@target, @close_event_name)}
                 class="text-base-content/50 hover:text-base-content"
-                aria-label={@close_aria_label}
+                aria-label={@close_label}
               >
                 <Backpex.HTML.CoreComponents.icon name="hero-x-mark" class="h-5 w-5" />
               </button>

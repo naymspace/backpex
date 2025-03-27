@@ -2,7 +2,7 @@
   <%= if @live_action == :resource_action do %>
     <.modal
       title={ResourceAction.name(@resource_action, :title)}
-      close_aria_label={Backpex.t("Close modal", @live_resource)}
+      close_label={Backpex.t("Close modal", @live_resource)}
     >
       <.live_component
         module={Backpex.FormComponent}
@@ -17,7 +17,7 @@
   <%= if @action_to_confirm do %>
     <.modal
       title={@action_to_confirm.module.label(assigns, nil)}
-      close_aria_label={Backpex.t("Close modal", @live_resource)}
+      close_label={Backpex.t("Close modal", @live_resource)}
     >
       <div class="px-5 py-3">
         {@action_to_confirm.module.confirm(assigns)}

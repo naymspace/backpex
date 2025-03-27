@@ -417,8 +417,8 @@ defmodule Backpex.HTML.Resource do
   attr :current_page, :integer, required: true, doc: "current page number"
   attr :total_pages, :integer, required: true, doc: "number of total pages"
   attr :path, :string, required: true, doc: "path to be used for page links"
-  attr :next_page_aria_label, :string, default: "Next page"
-  attr :previous_page_aria_label, :string, default: "Previous page"
+  attr :next_page_label, :string, default: "Next page"
+  attr :previous_page_label, :string, default: "Previous page"
 
   def pagination(assigns) do
     assigns = assign(assigns, :pagination_items, pagination_items(assigns.current_page, assigns.total_pages))
@@ -432,8 +432,8 @@ defmodule Backpex.HTML.Resource do
         number={number}
         current_page={@current_page}
         path={@path}
-        next_page_aria_label={@next_page_aria_label}
-        previous_page_aria_label={@previous_page_aria_label}
+        next_page_label={@next_page_label}
+        previous_page_label={@previous_page_label}
       />
     </div>
     """
@@ -444,8 +444,8 @@ defmodule Backpex.HTML.Resource do
   attr :type, :atom, required: true
   attr :number, :integer, default: nil, required: false
   attr :class, :string, default: nil
-  attr :next_page_aria_label, :string, default: "Next page"
-  attr :previous_page_aria_label, :string, default: "Previous page"
+  attr :next_page_label, :string, default: "Next page"
+  attr :previous_page_label, :string, default: "Previous page"
 
   defp pagination_item(%{type: :number} = assigns) do
     pagination_link = get_pagination_link(assigns.path, assigns.number)
@@ -474,7 +474,7 @@ defmodule Backpex.HTML.Resource do
 
     ~H"""
     <.link href={@href}>
-      <button class={["btn bg-base-100", @class]} aria-label={@previous_page_aria_label}>
+      <button class={["btn bg-base-100", @class]} aria-label={@previous_page_label}>
         <Backpex.HTML.CoreComponents.icon name="hero-chevron-left" class="h-4 w-4" />
       </button>
     </.link>
@@ -488,7 +488,7 @@ defmodule Backpex.HTML.Resource do
 
     ~H"""
     <.link href={@href}>
-      <button class={["btn bg-base-100", @class]} aria-label={@next_page_aria_label}>
+      <button class={["btn bg-base-100", @class]} aria-label={@next_page_label}>
         <Backpex.HTML.CoreComponents.icon name="hero-chevron-right" class="h-4 w-4" />
       </button>
     </.link>

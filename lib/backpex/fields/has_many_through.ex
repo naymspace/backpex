@@ -334,7 +334,7 @@ defmodule Backpex.Fields.HasManyThrough do
           open={@edit_relational != nil}
           title={@relational_title}
           close_event_name="cancel-relational"
-          close_aria_label={Backpex.t("Close modal", @live_resource)}
+          close_label={Backpex.t("Close modal", @live_resource)}
           target={@myself}
           max_width="xl"
         >
