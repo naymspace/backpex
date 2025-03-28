@@ -601,6 +601,7 @@ defmodule Backpex.Fields.Upload do
   """
   use Backpex.Field, config_schema: @config_schema
   alias Backpex.HTML.Form, as: BackpexForm
+  require Backpex
 
   @impl Backpex.Field
   def render_value(assigns) do
@@ -662,7 +663,7 @@ defmodule Backpex.Fields.Upload do
           phx-drop-target={if @uploads_allowed, do: @upload.ref}
         >
           <div class={[
-            "rounded-btn flex justify-center border-2 border-dashed px-6 pt-5 pb-6",
+            "rounded-field flex justify-center border-2 border-dashed px-6 pt-5 pb-6",
             @errors == [] && "border-base-content/25",
             @errors != [] && "border-error bg-error/10"
           ]}>
@@ -671,7 +672,7 @@ defmodule Backpex.Fields.Upload do
               <div class="flex text-sm">
                 <label>
                   <a class="link link-hover link-primary font-medium">
-                    {Backpex.translate("Upload a file")}
+                    {Backpex.__("Upload a file", @live_resource)}
                   </a>
                   <.live_file_input :if={@uploads_allowed} upload={@upload} phx-target="#form-component" class="hidden" />
                 </label>
@@ -683,7 +684,7 @@ defmodule Backpex.Fields.Upload do
                   data-upload-key={@upload_key}
                   phx-hook="BackpexCancelEntry"
                 />
-                <p class="pl-1">{Backpex.translate("or drag and drop")}</p>
+                <p class="pl-1">{Backpex.__("or drag and drop", @live_resource)}</p>
               </div>
             </div>
           </div>
@@ -700,12 +701,13 @@ defmodule Backpex.Fields.Upload do
                   phx-value-ref={entry.ref}
                   phx-value-id={@upload_key}
                   phx-target="#form-component"
+                  class="cursor-pointer"
                 >
                   &times;
                 </button>
                 <progress :if={entry.progress > 0} class="progress ml-4 w-32" value={entry.progress} max="100"></progress>
                 <p :for={err <- upload_errors(@upload, entry)} class="text-xs italic text-red-500">
-                  {error_to_string(err)}
+                  {error_to_string(err, @live_resource)}
                 </p>
               </div>
             <% end %>
@@ -719,6 +721,7 @@ defmodule Backpex.Fields.Upload do
                   phx-value-ref={file_key}
                   phx-value-id={@upload_key}
                   phx-target="#form-component"
+                  class="cursor-pointer"
                 >
                   &times;
                 </button>
@@ -728,7 +731,7 @@ defmodule Backpex.Fields.Upload do
 
           <%= if @uploads_allowed do %>
             <p :for={err <- upload_errors(@upload)} class="text-xs italic text-red-500">
-              {error_to_string(err)}
+              {error_to_string(err, @live_resource)}
             </p>
           <% end %>
           <BackpexForm.error :for={msg <- @form_errors}>{msg}</BackpexForm.error>
@@ -822,7 +825,7 @@ defmodule Backpex.Fields.Upload do
   def label_from_file(%{file_label: file_label} = _field_options, file), do: file_label.(file)
   def label_from_file(_field_options, file), do: file
 
-  defp error_to_string(:too_large), do: Backpex.translate("too large")
-  defp error_to_string(:too_many_files), do: Backpex.translate("too many files")
-  defp error_to_string(:not_accepted), do: Backpex.translate("unacceptable file type")
+  defp error_to_string(:too_large, live_resource), do: Backpex.__("too large", live_resource)
+  defp error_to_string(:too_many_files, live_resource), do: Backpex.__("too many files", live_resource)
+  defp error_to_string(:not_accepted, live_resource), do: Backpex.__("unacceptable file type", live_resource)
 end

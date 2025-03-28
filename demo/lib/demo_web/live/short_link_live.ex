@@ -9,12 +9,7 @@ defmodule DemoWeb.ShortLinkLive do
       create_changeset: &Demo.ShortLink.changeset/3
     ],
     primary_key: :short_key,
-    layout: {DemoWeb.Layouts, :admin},
-    pubsub: [
-      name: Demo.PubSub,
-      topic: "short_links",
-      event_prefix: "short_link_"
-    ]
+    layout: {DemoWeb.Layouts, :admin}
 
   @impl Backpex.LiveResource
   def singular_name, do: "Short Link"
@@ -27,7 +22,7 @@ defmodule DemoWeb.ShortLinkLive do
   def can?(_assigns, :delete, _item), do: false
   def can?(_assigns, _action, _item), do: true
 
-  def return_to(_socket, _assigns, :edit, _item) do
+  def return_to(_socket, _assigns, :edit, _form_action, _item) do
     # since the primary key might be updated, we go to the index page
     ~p"/admin/short-links"
   end

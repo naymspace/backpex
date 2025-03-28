@@ -1,4 +1,5 @@
-import Demo.Factory
+import Demo.EctoFactory
+import Demo.AshFactory, only: [insert!: 2]
 
 category_names = ["Tech", "Misc", "Crew", "News"]
 
@@ -22,7 +23,7 @@ insert_list(10, :product)
 
 insert_list(10, :address)
 
-insert_list(10, :ticket)
+insert!(Demo.Helpdesk.Ticket, count: 10)
 
 :code.priv_dir(:demo)
 |> Path.join("repo/film_reviews.csv")

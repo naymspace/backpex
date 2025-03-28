@@ -14,7 +14,7 @@ export default {
       this.tooltip = document.createElement('div')
       this.tooltip.innerText = text
       this.tooltip.className = `
-        fixed z-50 -translate-x-1/2 px-2 py-1 bg-neutral  rounded-btn
+        fixed z-50 -translate-x-1/2 px-2 py-1 bg-neutral rounded-field
         text-neutral-content text-sm shadow-sm whitespace-nowrap
         before:content-['']
         before:absolute before:w-0 before:h-0 before:left-1/2 before:-translate-x-1/2 before:top-full
