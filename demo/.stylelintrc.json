@@ -2,30 +2,15 @@
     "extends": "stylelint-config-standard",
     "rules": {
         "import-notation": "string",
-        "no-invalid-position-at-import-rule": [
-            true,
-            {
-                "ignoreAtRules": [
-                    "tailwind"
-                ]
-            }
-        ],
         "at-rule-no-unknown": [
             true,
             {
                 "ignoreAtRules": [
-                    "extends",
-                    "tailwind",
-                    "layer",
-                    "plugin", 
+                    "plugin",
                     "source",
-                    "variant",
-                    "custom-variant", 
-                    "utility", 
-                    "theme"
+                    "custom-variant"
                 ]
             }
-        ], 
-        "at-rule-no-deprecated": [true, {"ignoreAtRules": ["apply"]}]
+        ]
     }
 }
