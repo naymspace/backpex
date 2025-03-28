@@ -701,6 +701,7 @@ defmodule Backpex.Fields.Upload do
                   phx-value-ref={entry.ref}
                   phx-value-id={@upload_key}
                   phx-target="#form-component"
+                  class="cursor-pointer"
                 >
                   &times;
                 </button>
@@ -720,6 +721,7 @@ defmodule Backpex.Fields.Upload do
                   phx-value-ref={file_key}
                   phx-value-id={@upload_key}
                   phx-target="#form-component"
+                  class="cursor-pointer"
                 >
                   &times;
                 </button>
