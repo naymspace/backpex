@@ -193,6 +193,7 @@ defmodule Backpex.HTML.Layout do
   @doc type: :component
 
   attr :socket, :any, required: true
+  attr :class, :string, default: nil
   attr :label, :string, default: "Theme"
 
   attr :themes, :list,
@@ -204,14 +205,16 @@ defmodule Backpex.HTML.Layout do
     <div
       id="backpex-theme-selector"
       phx-hook="BackpexThemeSelector"
-      class="dropdown dropdown-bottom dropdown-end no-animation"
+      class={["dropdown dropdown-bottom dropdown-end", @class]}
     >
-      <div tabindex="0" role="button" class="btn btn-ghost m-1">
-        <span class="hidden md:block">
-          {@label}
-        </span>
-        <Backpex.HTML.CoreComponents.icon name="hero-swatch" class="h-5 w-5 md:hidden" />
-        <Backpex.HTML.CoreComponents.icon name="hero-chevron-down" class="h-5 w-5" />
+      <%!-- Desktop Icon --%>
+      <div tabindex="0" role="button" class="btn btn-ghost hidden md:flex">
+        {@label}
+        <Backpex.HTML.CoreComponents.icon name="hero-chevron-down" class="h-3 w-3" />
+      </div>
+      <%!-- Mobile Icon --%>
+      <div tabindex="0" role="button" class="md:hidden btn btn-square btn-ghost">
+        <Backpex.HTML.CoreComponents.icon name="hero-swatch" class="size-6 md:hidden" />
       </div>
       <form
         id="backpex-theme-selector-form"
