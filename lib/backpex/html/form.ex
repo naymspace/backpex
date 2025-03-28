@@ -199,9 +199,7 @@ defmodule Backpex.HTML.Form do
           name={@name}
           id={@id}
           value={Phoenix.HTML.Form.normalize_value(@type, @value)}
-          class={
-            @input_class || ["input w-full text-base", @input_class, @errors != [] && "input-error bg-error/10"]
-          }
+          class={@input_class || ["input w-full text-base", @input_class, @errors != [] && "input-error bg-error/10"]}
           {@rest}
         />
       </fieldset>
@@ -262,7 +260,7 @@ defmodule Backpex.HTML.Form do
           <div :for={{label, value} <- @selected} class="badge badge-sm badge-primary pointer-events-auto pr-0">
             {label}
             <div
-              class="cursor-pointer pr-2 flex items-center"
+              class="flex cursor-pointer items-center pr-2"
               role="button"
               phx-click="toggle-option"
               phx-value-id={value}

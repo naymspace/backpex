@@ -213,7 +213,7 @@ defmodule Backpex.HTML.Layout do
         <Backpex.HTML.CoreComponents.icon name="hero-chevron-down" class="h-3 w-3" />
       </div>
       <%!-- Mobile Icon --%>
-      <div tabindex="0" role="button" class="md:hidden btn btn-square btn-ghost">
+      <div tabindex="0" role="button" class="btn btn-square btn-ghost md:hidden">
         <Backpex.HTML.CoreComponents.icon name="hero-swatch" class="size-6 md:hidden" />
       </div>
       <form

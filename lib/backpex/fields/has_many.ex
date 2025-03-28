@@ -164,7 +164,7 @@ defmodule Backpex.Fields.HasMany do
               <div :for={{label, value} <- @selected} class="badge badge-sm badge-primary pointer-events-auto pr-0">
                 <span>{label}</span>
                 <label
-                  class="cursor-pointer pr-2 flex items-center"
+                  class="flex cursor-pointer items-center pr-2"
                   role="button"
                   for={"has-many-#{@name}-checkbox-value-#{value}"}
                   aria-label={Backpex.__({"Unselect %{label}", %{label: label}}, @live_resource)}
