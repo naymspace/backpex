@@ -61,7 +61,7 @@
           </button>
         <% else %>
           <.link navigate={@live_resource.return_to(@socket, assigns, @live_action, :cancel, @item)}>
-            <button type="button" class="btn btn-ghost">
+            <button type="button" class="btn">
               {Backpex.__("Cancel", @live_resource)}
             </button>
           </.link>
@@ -70,7 +70,7 @@
             type="submit"
             name="save-type"
             value="continue"
-            class={["btn", if(form_errors?(@show_form_errors, f), do: "btn-error", else: "btn-neutral btn-outline")]}
+            class={["btn btn-soft", if(form_errors?(@show_form_errors, f), do: "btn-error", else: "btn-primary")]}
             phx-disable-with={@continue_label <> "..."}
           >
             {@continue_label}

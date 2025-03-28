@@ -44,8 +44,8 @@ defmodule Backpex.HTML.Layout do
           <div class="fixed top-0 z-30 block w-full md:-ml-64">
             <.topbar class={build_slot_class(@topbar)}>
               {render_slot(@topbar)}
-              <label :if={@sidebar != []} for="menu-drawer" class="btn drawer-button btn-ghost ml-1 md:hidden">
-                <Backpex.HTML.CoreComponents.icon name="hero-bars-3-solid" class="h-8 w-8" />
+              <label :if={@sidebar != []} for="menu-drawer" class="btn btn-square drawer-button btn-ghost md:hidden">
+                <Backpex.HTML.CoreComponents.icon name="hero-bars-3-solid" class="h-6" />
               </label>
             </.topbar>
           </div>
@@ -102,7 +102,7 @@ defmodule Backpex.HTML.Layout do
     ~H"""
     <div
       :if={Phoenix.Flash.get(@flash, :info) && Phoenix.Flash.get(@flash, :info) != ""}
-      class="alert bg-info text-info-content my-4 text-sm"
+      class="alert alert-info my-4"
       phx-value-key="info"
     >
       <Backpex.HTML.CoreComponents.icon name="hero-information-circle" class="h-5 w-5" />
@@ -110,7 +110,7 @@ defmodule Backpex.HTML.Layout do
         {Phoenix.Flash.get(@flash, :info)}
       </span>
       <div>
-        <button class="btn btn-square btn-sm btn-ghost" phx-click="lv:clear-flash" aria-label={@close_label}>
+        <button class="btn btn-info btn-square btn-sm btn-ghost" phx-click="lv:clear-flash" aria-label={@close_label}>
           <Backpex.HTML.CoreComponents.icon name="hero-x-mark" class="h-5 w-5" />
         </button>
       </div>
@@ -174,7 +174,7 @@ defmodule Backpex.HTML.Layout do
 
   def topbar_branding(assigns) do
     ~H"""
-    <div class={"#{@class} text-base-content flex flex-shrink-0 flex-grow items-center space-x-2"}>
+    <div class={"#{@class} text-base-content flex shrink-0 flex-grow items-center space-x-2"}>
       <%= if @logo === [] do %>
         <.backpex_logo class="w-8" />
       <% else %>
@@ -193,6 +193,7 @@ defmodule Backpex.HTML.Layout do
   @doc type: :component
 
   attr :socket, :any, required: true
+  attr :class, :string, default: nil
   attr :label, :string, default: "Theme"
 
   attr :themes, :list,
@@ -204,29 +205,34 @@ defmodule Backpex.HTML.Layout do
     <div
       id="backpex-theme-selector"
       phx-hook="BackpexThemeSelector"
-      class="dropdown dropdown-bottom dropdown-end no-animation"
+      class={["dropdown dropdown-bottom dropdown-end", @class]}
     >
-      <div tabindex="0" role="button" class="btn btn-ghost m-1">
-        <span class="hidden md:block">
-          {@label}
-        </span>
-        <Backpex.HTML.CoreComponents.icon name="hero-swatch" class="h-5 w-5 md:hidden" />
-        <Backpex.HTML.CoreComponents.icon name="hero-chevron-down" class="h-5 w-5" />
+      <%!-- Desktop Icon --%>
+      <div tabindex="0" role="button" class="btn btn-ghost hidden md:flex">
+        {@label}
+        <Backpex.HTML.CoreComponents.icon name="hero-chevron-down" class="h-3 w-3" />
       </div>
-      <form id="backpex-theme-selector-form" data-cookie-path={Router.cookie_path(@socket)}>
-        <ul
-          tabindex="0"
-          class="dropdown-content bg-base-300 rounded-box z-[1] max-h-96 w-52 overflow-y-scroll p-2 shadow-2xl"
-        >
-          <li :for={{label, theme_name} <- @themes}>
-            <input
-              type="radio"
-              name="theme-selector"
-              class="theme-controller btn btn-sm btn-block btn-ghost justify-start"
-              aria-label={label}
-              phx-click={JS.dispatch("backpex:theme-change")}
-              value={theme_name}
-            />
+      <%!-- Mobile Icon --%>
+      <div tabindex="0" role="button" class="btn btn-square btn-ghost md:hidden">
+        <Backpex.HTML.CoreComponents.icon name="hero-swatch" class="size-6 md:hidden" />
+      </div>
+      <form
+        id="backpex-theme-selector-form"
+        class="dropdown-content bg-base-300 rounded-box max-h-96 overflow-y-scroll"
+        data-cookie-path={Router.cookie_path(@socket)}
+      >
+        <ul tabindex="0" class="rounded-box z-1 menu w-48 outline-hidden">
+          <li :for={{label, theme_name} <- @themes} class="w-full">
+            <label class="has-checked:bg-neutral has-checked:text-neutral-content">
+              <input
+                type="radio"
+                name="theme-selector"
+                class="theme-controller hidden"
+                phx-click={JS.dispatch("backpex:theme-change")}
+                value={theme_name}
+              />
+              {label}
+            </label>
           </li>
         </ul>
       </form>
@@ -300,13 +306,13 @@ defmodule Backpex.HTML.Layout do
   """
   @doc type: :component
 
-  attr :class, :string, required: false, default: "", doc: "additional class that will be added to the component"
+  attr :class, :string, required: false, default: nil, doc: "additional class that will be added to the component"
 
   slot :label, required: true, doc: "label of the dropdown"
 
   def topbar_dropdown(assigns) do
     ~H"""
-    <div class="dropdown dropdown-end">
+    <div class={["dropdown dropdown-end", @class]}>
       {render_slot(@label)}
       <ul tabindex="0" class="dropdown-content z-[1] menu bg-base-100 rounded-box w-52 p-2 shadow">
         {render_slot(@inner_block)}
@@ -404,7 +410,7 @@ defmodule Backpex.HTML.Layout do
 
     ~H"""
     <li>
-      <.link class={[@class, @active && "active"]} {@extra}>
+      <.link class={[@class, @active && "bg-neutral text-neutral-content"]} {@extra}>
         {render_slot(@inner_block)}
       </.link>
     </li>
@@ -462,7 +468,7 @@ defmodule Backpex.HTML.Layout do
     <div id="modal">
       <div
         id="modal-overlay"
-        class={["animate-fade-in bg-neutral fixed inset-0 z-50 bg-opacity-40 transition-opacity", if(!@open, do: "hidden")]}
+        class={["animate-fade-in bg-neutral/40 fixed inset-0 z-50 transition-opacity", if(!@open, do: "hidden")]}
         aria-hidden="true"
       >
       </div>
@@ -488,6 +494,7 @@ defmodule Backpex.HTML.Layout do
                 {@title}
               </div>
               <button
+                class="cursor-pointer"
                 type="button"
                 phx-click={hide_modal(@target, @close_event_name)}
                 class="text-base-content/50 hover:text-base-content"

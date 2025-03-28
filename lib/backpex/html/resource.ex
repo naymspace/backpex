@@ -188,7 +188,7 @@ defmodule Backpex.HTML.Resource do
     <.form :if={@search_enabled} id="index-search-form" for={@form} phx-change="index-search" phx-submit="index-search">
       <input
         name={@form[:value].name}
-        class="input input-sm input-bordered"
+        class="input input-sm"
         placeholder={@placeholder}
         phx-debounce="200"
         value={@form[:value].value}
@@ -222,7 +222,7 @@ defmodule Backpex.HTML.Resource do
     ~H"""
     <div :if={@filters != []} class="dropdown">
       <div class="indicator">
-        <span :if={@filter_count > 0} class="indicator-item badge badge-secondary">
+        <span :if={@filter_count > 0} class="indicator-item badge badge-sm badge-secondary rounded-selector">
           {@filter_count}
         </span>
         <label tabindex="0" class="btn btn-sm btn-outline ring-base-content/10 border-0 ring-1">
@@ -427,7 +427,7 @@ defmodule Backpex.HTML.Resource do
     <div class="join">
       <.pagination_item
         :for={%{type: type, number: number} <- @pagination_items}
-        class="join-item text-xs"
+        class="join-item"
         type={type}
         number={number}
         current_page={@current_page}
@@ -449,59 +449,46 @@ defmodule Backpex.HTML.Resource do
 
   defp pagination_item(%{type: :number} = assigns) do
     pagination_link = get_pagination_link(assigns.path, assigns.number)
-
     assigns = assign(assigns, :href, pagination_link)
 
     ~H"""
-    <%= if @current_page == @number do %>
-      <button class={["btn btn-active", @class]} aria-disabled="true">
-        {Integer.to_string(@number)}
-      </button>
-    <% else %>
-      <.link href={@href}>
-        <button class={["btn bg-base-100", @class]}>
-          {Integer.to_string(@number)}
-        </button>
-      </.link>
-    <% end %>
+    <.link href={@href} class={[pagination_btn_class(), @current_page == @number && "bg-base-300", @class]}>
+      {Integer.to_string(@number)}
+    </.link>
     """
   end
 
   defp pagination_item(%{type: :prev} = assigns) do
     pagination_link = get_pagination_link(assigns.path, assigns.current_page - 1)
-
     assigns = assign(assigns, :href, pagination_link)
 
     ~H"""
-    <.link href={@href}>
-      <button class={["btn bg-base-100", @class]} aria-label={@previous_page_label}>
-        <Backpex.HTML.CoreComponents.icon name="hero-chevron-left" class="h-4 w-4" />
-      </button>
+    <.link href={@href} class={[pagination_btn_class(), @class]} aria-label={@previous_page_label}>
+      <Backpex.HTML.CoreComponents.icon name="hero-chevron-left" class="h-4 w-4" />
     </.link>
     """
   end
 
   defp pagination_item(%{type: :next} = assigns) do
     pagination_link = get_pagination_link(assigns.path, assigns.current_page + 1)
-
     assigns = assign(assigns, :href, pagination_link)
 
     ~H"""
-    <.link href={@href}>
-      <button class={["btn bg-base-100", @class]} aria-label={@next_page_label}>
-        <Backpex.HTML.CoreComponents.icon name="hero-chevron-right" class="h-4 w-4" />
-      </button>
+    <.link href={@href} class={[pagination_btn_class(), @class]} aria-label={@next_page_label}>
+      <Backpex.HTML.CoreComponents.icon name="hero-chevron-right" class="h-4 w-4" />
     </.link>
     """
   end
 
   defp pagination_item(%{type: :placeholder} = assigns) do
     ~H"""
-    <button class={["btn bg-base-100", @class]} aria-disable="true">
+    <button class={[pagination_btn_class(), @class]} aria-disable="true">
       ...
     </button>
     """
   end
+
+  defp pagination_btn_class, do: ["btn btn-sm bg-base-100 hover:bg-[var(--btn-border)]"]
 
   defp get_pagination_link(path, page), do: String.replace(path, ":page", page |> Integer.to_string())
 
@@ -616,7 +603,7 @@ defmodule Backpex.HTML.Resource do
 
     ~H"""
     <.form for={@form} class={@class} phx-change="select-page-size" phx-submit="select-page-size">
-      <select name={@form[:value].name} class="select select-sm select-bordered">
+      <select name={@form[:value].name} class="select select-sm">
         {Phoenix.HTML.Form.options_for_select(@options, @selected)}
       </select>
     </.form>
@@ -868,7 +855,7 @@ defmodule Backpex.HTML.Resource do
         {@label}
       </p>
 
-      <div class="card bg-base-100 mt-4">
+      <div class="card bg-base-100 mt-4 shadow-sm">
         <div class="card-body p-0">
           <div class="flex flex-col sm:divide-base-200 sm:divide-y">
             <div :for={{name, %{label: label}} <- @panel_fields}>
@@ -991,10 +978,10 @@ defmodule Backpex.HTML.Resource do
         >
           <button
             type="submit"
-            class={["btn btn-sm", @visible && "btn-primary", !@visible && "btn-neutral"]}
+            class={["btn btn-sm", @visible && "btn-active"]}
             aria-label={Backpex.__("Toggle metrics", @live_resource)}
           >
-            <Backpex.HTML.CoreComponents.icon name="hero-chart-bar-square" class="h-5 w-5" />
+            <Backpex.HTML.CoreComponents.icon name="hero-chart-bar-square" class="size-6" />
           </button>
         </div>
       </.form>
@@ -1033,7 +1020,7 @@ defmodule Backpex.HTML.Resource do
   defp sticky_col_class do
     [
       "sticky right-0",
-      "after:[&[stuck]]:block after:absolute after:inset-y-0 after:left-0 after:hidden",
+      "[&[stuck]]:after:block after:absolute after:inset-y-0 after:left-0 after:hidden",
       "after:border-r after:border-base-200 after:shadow-[-1px_0_2px_0_rgba(0,0,0,0.05)]"
     ]
   end

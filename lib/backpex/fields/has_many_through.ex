@@ -294,6 +294,7 @@ defmodule Backpex.Fields.HasManyThrough do
                 <td>
                   <div class="flex items-center space-x-2">
                     <button
+                      class="cursor-pointer"
                       type="button"
                       phx-click="edit-relational"
                       phx-target={@myself}
@@ -305,6 +306,7 @@ defmodule Backpex.Fields.HasManyThrough do
                       <Backpex.HTML.CoreComponents.icon name="hero-pencil-square" class="h-5 w-5" />
                     </button>
                     <button
+                      class="cursor-pointer"
                       type="button"
                       phx-click="detach-relational"
                       phx-target={@myself}

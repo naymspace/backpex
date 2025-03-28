@@ -152,7 +152,7 @@ defmodule Backpex.Fields.HasMany do
             tabindex="0"
             class={[
               "input block h-fit w-full p-2",
-              @errors == [] && "input-bordered bg-transparent",
+              @errors == [] && "bg-transparent",
               @errors != [] && "input-error bg-error/10"
             ]}
           >
@@ -161,17 +161,15 @@ defmodule Backpex.Fields.HasMany do
                 {@prompt}
               </p>
 
-              <div :for={{label, value} <- @selected} class="badge badge-primary p-[11px]">
-                <p class="mr-1">
-                  {label}
-                </p>
-
+              <div :for={{label, value} <- @selected} class="badge badge-sm badge-primary pointer-events-auto pr-0">
+                <span>{label}</span>
                 <label
+                  class="flex cursor-pointer items-center pr-2"
                   role="button"
                   for={"has-many-#{@name}-checkbox-value-#{value}"}
                   aria-label={Backpex.__({"Unselect %{label}", %{label: label}}, @live_resource)}
                 >
-                  <Backpex.HTML.CoreComponents.icon name="hero-x-mark" class="text-base-100 ml-1 h-4 w-4" />
+                  <Backpex.HTML.CoreComponents.icon name="hero-x-mark" class="text-primary-content size-4" />
                 </label>
               </div>
             </div>
@@ -182,7 +180,7 @@ defmodule Backpex.Fields.HasMany do
               <input
                 type="search"
                 name={"#{@name}_search"}
-                class="input input-sm input-bordered mb-2 w-full"
+                class="input input-sm mb-2 w-full"
                 phx-change="search"
                 phx-target={@myself}
                 placeholder={Backpex.__("Search", @live_resource)}

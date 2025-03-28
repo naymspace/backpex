@@ -1,5 +1,5 @@
 import Demo.EctoFactory
-import Demo.AshFactory
+import Demo.AshFactory, only: [insert!: 2]
 
 category_names = ["Tech", "Misc", "Crew", "News"]
 

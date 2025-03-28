@@ -99,7 +99,7 @@ defmodule Backpex.Fields.Number do
           type="text"
           field={@form[:value]}
           placeholder={@field_options[:placeholder]}
-          input_class={["input input-sm", @valid && "hover:input-bordered", !@valid && "input-error bg-error/10"]}
+          input_class={["input input-sm", @valid && "[:not(:hover)]:input-ghost", !@valid && "input-error bg-error/10"]}
           phx-debounce="100"
           readonly={@readonly}
           hide_errors

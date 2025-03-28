@@ -26,7 +26,7 @@ ENV MIX_HOME=/opt/mix \
 WORKDIR $APP_HOME
 
 RUN apt-get update -y \
-    && apt-get install -y build-essential curl git inotify-tools \
+    && apt-get install -y build-essential curl git inotify-tools watchman \
     && apt-get clean && rm -f /var/lib/apt/lists/*_*
 
 RUN curl -fsSL https://deb.nodesource.com/setup_lts.x | bash - \

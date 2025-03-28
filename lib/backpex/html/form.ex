@@ -62,7 +62,7 @@ defmodule Backpex.HTML.Form do
 
     ~H"""
     <div class={@class}>
-      <div class="form-control w-full">
+      <fieldset class="fieldset py-0">
         <%= if @label do %>
           <label class="label cursor-pointer">
             <input type="hidden" name={@name} value="false" />
@@ -95,7 +95,7 @@ defmodule Backpex.HTML.Form do
             {@rest}
           />
         <% end %>
-      </div>
+      </fieldset>
       <.error :for={msg <- @errors} :if={not @hide_errors} class="mt-1">{msg}</.error>
     </div>
     """
@@ -106,7 +106,7 @@ defmodule Backpex.HTML.Form do
 
     ~H"""
     <div class={@class}>
-      <div class="form-control w-full">
+      <fieldset class="fieldset py-0">
         <%= if @label do %>
           <label class="label cursor-pointer">
             <input type="hidden" name={@name} value="false" />
@@ -133,7 +133,7 @@ defmodule Backpex.HTML.Form do
             {@rest}
           />
         <% end %>
-      </div>
+      </fieldset>
       <.error :for={msg <- @errors} :if={not @hide_errors} class="mt-1">{msg}</.error>
     </div>
     """
@@ -142,23 +142,24 @@ defmodule Backpex.HTML.Form do
   def input(%{type: "select"} = assigns) do
     ~H"""
     <div class={@class}>
-      <div class="form-control">
+      <fieldset class="fieldset py-0">
         <label :if={@label} class="label">
           <span class="label-text">{@label}</span>
         </label>
         <div class={
           @input_wrapper_class ||
             [
-              @errors == [] && "[&>*]:select [&>*]:select-bordered [&>*]:text-base-content",
-              @errors != [] && "[&>*]:select [&>*]:select-error [&>*]:bg-error/10 [&>*]:text-error-content"
+              "[&>*]:w-full [&>*]:select",
+              @errors == [] && "[&>*]:text-base-content",
+              @errors != [] && "[&>*]:select-error [&>*]:bg-error/10 [&>*]:text-error-content"
             ]
         }>
-          <select class={@input_class || "w-full"} name={@name} {@rest}>
+          <select class={@input_class} name={@name} {@rest}>
             <option :if={@prompt} value="">{@prompt}</option>
             {Phoenix.HTML.Form.options_for_select(@options, @value)}
           </select>
         </div>
-      </div>
+      </fieldset>
       <.error :for={msg <- @errors} :if={not @hide_errors} class="mt-1">{msg}</.error>
     </div>
     """
@@ -167,7 +168,7 @@ defmodule Backpex.HTML.Form do
   def input(%{type: "textarea"} = assigns) do
     ~H"""
     <div class={@class}>
-      <div class="form-control">
+      <fieldset class="fieldset py-0">
         <label :if={@label} class="label">
           <span class="label-text">{@label}</span>
         </label>
@@ -176,11 +177,11 @@ defmodule Backpex.HTML.Form do
           name={@name}
           class={
             @input_class ||
-              ["textarea", @errors == [] && "textarea-bordered", @errors != [] && "textarea-error bg-error/10"]
+              ["textarea w-full", @errors == [] && "textarea-bordered", @errors != [] && "textarea-error bg-error/10"]
           }
           {@rest}
         ><%= Phoenix.HTML.Form.normalize_value("textarea", @value) %></textarea>
-      </div>
+      </fieldset>
       <.error :for={msg <- @errors} :if={not @hide_errors} class="mt-1">{msg}</.error>
     </div>
     """
@@ -189,7 +190,7 @@ defmodule Backpex.HTML.Form do
   def input(assigns) do
     ~H"""
     <div class={@class}>
-      <div class="form-control">
+      <fieldset class="fieldset py-0">
         <label :if={@label} class="label">
           <span class="label-text">{@label}</span>
         </label>
@@ -198,13 +199,10 @@ defmodule Backpex.HTML.Form do
           name={@name}
           id={@id}
           value={Phoenix.HTML.Form.normalize_value(@type, @value)}
-          class={
-            @input_class ||
-              ["input", @input_class, @errors == [] && "input-bordered", @errors != [] && "input-error bg-error/10"]
-          }
+          class={@input_class || ["input w-full text-base", @input_class, @errors != [] && "input-error bg-error/10"]}
           {@rest}
         />
-      </div>
+      </fieldset>
       <.error :for={msg <- @errors} :if={not @hide_errors} class="mt-1">{msg}</.error>
     </div>
     """
@@ -253,25 +251,23 @@ defmodule Backpex.HTML.Form do
 
     ~H"""
     <div class="dropdown w-full">
-      <label tabindex="0" class="input input-bordered block h-fit w-full p-2">
+      <label tabindex="0" class="input block h-fit w-full p-2">
         <div class="flex h-full w-full flex-wrap items-center gap-1 px-2">
           <p :if={@selected == []} class="text-base-content p-0.5 text-sm">
             {@prompt}
           </p>
 
-          <div :for={{label, value} <- @selected} class="badge badge-primary p-[11px]">
-            <p class="mr-1">
-              {label}
-            </p>
-
+          <div :for={{label, value} <- @selected} class="badge badge-sm badge-primary pointer-events-auto pr-0">
+            {label}
             <div
+              class="flex cursor-pointer items-center pr-2"
               role="button"
               phx-click="toggle-option"
               phx-value-id={value}
               phx-target={@event_target}
               aria-label={Backpex.__({"Unselect %{label}", %{label: label}}, @live_resource)}
             >
-              <Backpex.HTML.CoreComponents.icon name="hero-x-mark" class="text-base-100 ml-1 h-4 w-4" />
+              <Backpex.HTML.CoreComponents.icon name="hero-x-mark" class="text-primary-content size-4 scale-110" />
             </div>
           </div>
         </div>
@@ -282,7 +278,7 @@ defmodule Backpex.HTML.Form do
           <input
             type="search"
             name={@field.name <> "_search"}
-            class="input input-sm input-bordered mb-2 w-full"
+            class="input input-sm mb-2 w-full"
             placeholder={Backpex.__("Search", @live_resource)}
             value={@search_input}
             phx-change={@search_event}

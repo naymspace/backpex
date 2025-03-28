@@ -177,7 +177,7 @@ defmodule Backpex.Fields.InlineCRUD do
           name={"change[#{@name}_order][]"}
           type="checkbox"
           aria-label={Backpex.__("Add entry", @live_resource)}
-          class="btn btn-sm btn-outline btn-primary"
+          class="btn btn-outline btn-sm btn-primary"
         />
       </Layout.field_container>
     </div>
