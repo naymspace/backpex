@@ -133,23 +133,23 @@ To get you started quickly, we provide a layout you can copy & paste into your a
   <:topbar>
     <Backpex.HTML.Layout.topbar_branding />
 
-    <Backpex.HTML.Layout.topbar_dropdown>
+    <Backpex.HTML.Layout.topbar_dropdown class="mr-2 md:mr-0">
       <:label>
         <label tabindex="0" class="btn btn-square btn-ghost">
-          <.icon name="hero-user" class="h-8 w-8" />
+          <.icon name="hero-user" class="size-6" />
         </label>
       </:label>
       <li>
-        <.link navigate={~p"/"} class="flex justify-between text-red-600 hover:bg-gray-100">
+        <.link navigate={~p"/"} class="text-error flex justify-between hover:bg-base-200">
           <p>Logout</p>
-          <.icon name="hero-arrow-right-on-rectangle" class="h-5 w-5" />
+          <.icon name="hero-arrow-right-on-rectangle" class="size-5" />
         </.link>
       </li>
     </Backpex.HTML.Layout.topbar_dropdown>
   </:topbar>
   <:sidebar>
     <Backpex.HTML.Layout.sidebar_item current_url={@current_url} navigate={~p"/admin/posts"}>
-      <.icon name="hero-book-open" class="h-5 w-5" /> Posts
+      <.icon name="hero-book-open" class="size-5" /> Posts
     </Backpex.HTML.Layout.sidebar_item>
   </:sidebar>
   <Backpex.HTML.Layout.flash_messages flash={@flash} />
