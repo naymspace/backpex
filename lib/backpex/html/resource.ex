@@ -488,7 +488,7 @@ defmodule Backpex.HTML.Resource do
     """
   end
 
-  defp pagination_btn_class, do: ["btn bg-base-100 hover:bg-[var(--btn-border)]"]
+  defp pagination_btn_class, do: ["btn btn-sm bg-base-100 hover:bg-[var(--btn-border)]"]
 
   defp get_pagination_link(path, page), do: String.replace(path, ":page", page |> Integer.to_string())
 
@@ -603,7 +603,7 @@ defmodule Backpex.HTML.Resource do
 
     ~H"""
     <.form for={@form} class={@class} phx-change="select-page-size" phx-submit="select-page-size">
-      <select name={@form[:value].name} class="select">
+      <select name={@form[:value].name} class="select select-sm">
         {Phoenix.HTML.Form.options_for_select(@options, @selected)}
       </select>
     </.form>
