@@ -1,9 +1,11 @@
 <Backpex.HTML.Layout.app_shell fluid={@fluid?}>
   <:topbar>
+
     <Backpex.HTML.Layout.topbar_branding />
 
     <Backpex.HTML.Layout.theme_selector
       socket={@socket}
+      class="mr-2"
       themes={[
         {"Light", "light"},
         {"Dark", "dark"},
@@ -39,10 +41,10 @@
         {"Sunset", "sunset"}
       ]}
     />
-    <Backpex.HTML.Layout.topbar_dropdown>
+    <Backpex.HTML.Layout.topbar_dropdown class="mr-2">
       <:label>
         <label tabindex="0" class="btn btn-square btn-ghost">
-          <Backpex.HTML.CoreComponents.icon name="hero-user" class="h-8 w-8" />
+          <Backpex.HTML.CoreComponents.icon name="hero-user" class="size-6" />
         </label>
       </:label>
       <li>
