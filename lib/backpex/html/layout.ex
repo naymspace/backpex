@@ -215,10 +215,10 @@ defmodule Backpex.HTML.Layout do
       </div>
       <form
         id="backpex-theme-selector-form"
-        class="dropdown-content rounded-box max-h-96 overflow-y-scroll"
+        class="dropdown-content bg-base-300 rounded-box max-h-96 overflow-y-scroll"
         data-cookie-path={Router.cookie_path(@socket)}
       >
-        <ul tabindex="0" class="bg-base-300 rounded-box z-1 menu w-48">
+        <ul tabindex="0" class="rounded-box z-1 menu w-48 outline-hidden">
           <li :for={{label, theme_name} <- @themes} class="w-full">
             <label class="has-checked:bg-neutral has-checked:text-neutral-content">
               <input
