@@ -163,7 +163,7 @@ defmodule Backpex.Fields.InlineCRUD do
                     class="hidden"
                   />
 
-                  <div class="btn btn-outline btn-error btn-lg" aria-label={Backpex.__("Delete", @live_resource)}>
+                  <div class="btn btn-outline btn-error" aria-label={Backpex.__("Delete", @live_resource)}>
                     <Backpex.HTML.CoreComponents.icon name="hero-trash" class="h-5 w-5" />
                   </div>
                 </label>

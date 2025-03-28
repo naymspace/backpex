@@ -149,9 +149,9 @@ defmodule Backpex.HTML.Form do
         <div class={
           @input_wrapper_class ||
             [
-              "[&>*]:w-full [&>*]:h-[3rem] text-sm",
-              @errors == [] && "[&>*]:select [&>*]:text-base-content",
-              @errors != [] && "[&>*]:select [&>*]:select-error [&>*]:bg-error/10 [&>*]:text-error-content"
+              "[&>*]:w-full [&>*]:select",
+              @errors == [] && "[&>*]:text-base-content",
+              @errors != [] && "[&>*]:select-error [&>*]:bg-error/10 [&>*]:text-error-content"
             ]
         }>
           <select class={@input_class} name={@name} {@rest}>
@@ -200,7 +200,7 @@ defmodule Backpex.HTML.Form do
           id={@id}
           value={Phoenix.HTML.Form.normalize_value(@type, @value)}
           class={
-            @input_class || ["input input-lg w-full text-base", @input_class, @errors != [] && "input-error bg-error/10"]
+            @input_class || ["input w-full text-base", @input_class, @errors != [] && "input-error bg-error/10"]
           }
           {@rest}
         />
@@ -259,10 +259,10 @@ defmodule Backpex.HTML.Form do
             {@prompt}
           </p>
 
-          <div :for={{label, value} <- @selected} class="badge badge-primary pointer-events-auto pr-0">
+          <div :for={{label, value} <- @selected} class="badge badge-sm badge-primary pointer-events-auto pr-0">
             {label}
             <div
-              class="cursor-pointer pr-2"
+              class="cursor-pointer pr-2 flex items-center"
               role="button"
               phx-click="toggle-option"
               phx-value-id={value}
