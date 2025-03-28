@@ -44,8 +44,8 @@ defmodule Backpex.HTML.Layout do
           <div class="fixed top-0 z-30 block w-full md:-ml-64">
             <.topbar class={build_slot_class(@topbar)}>
               {render_slot(@topbar)}
-              <label :if={@sidebar != []} for="menu-drawer" class="btn drawer-button btn-ghost ml-1 md:hidden">
-                <Backpex.HTML.CoreComponents.icon name="hero-bars-3-solid" class="h-8 w-8" />
+              <label :if={@sidebar != []} for="menu-drawer" class="btn btn-square drawer-button btn-ghost md:hidden">
+                <Backpex.HTML.CoreComponents.icon name="hero-bars-3-solid" class="h-6" />
               </label>
             </.topbar>
           </div>
