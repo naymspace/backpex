@@ -7,11 +7,11 @@
           type="checkbox"
           class="checkbox checkbox-sm"
           checked={@select_all}
-          aria-label={Backpex.translate("Select all items")}
+          aria-label={Backpex.__("Select all items", @live_resource)}
         />
       </th>
       <th :for={{name, %{label: label} = field_options} <- @fields} :if={active?(@active_fields, name)} class="h-12">
-        <div class={["font-medium", align(field_options), index_column_class(assigns, field_options)]}>
+        <div class={["text-xs font-medium", align(field_options), index_column_class(assigns, field_options)]}>
           <%= if Enum.member?(@orderable_fields, name) do %>
             <.order_link
               live_resource={@live_resource}
@@ -32,20 +32,25 @@
   <tbody>
     <tr
       :for={{item, index} <- Enum.with_index(@items)}
-      id={"row-item-#{primary_value(item, @live_resource)}"}
+      id={"row-item-#{LiveResource.primary_value(item, @live_resource)}"}
       class={index_row_class(assigns, item, selected?(@selected_items, item), index)}
       phx-hook="BackpexStickyActions"
     >
       <td :if={Enum.any?(index_item_actions(@item_actions))} class="relative">
         <div :if={selected?(@selected_items, item)} class="bg-base-content absolute inset-y-0 left-0 w-0.5" />
         <input
-          id={"select-input-#{primary_value(item, @live_resource)}"}
+          id={"select-input-#{LiveResource.primary_value(item, @live_resource)}"}
           phx-click="update-selected-items"
-          phx-value-id={primary_value(item, @live_resource)}
+          phx-value-id={LiveResource.primary_value(item, @live_resource)}
           type="checkbox"
           class="checkbox checkbox-sm"
           checked={selected?(@selected_items, item)}
-          aria-label={Backpex.translate({"Select item with id: %{id}", %{id: primary_value(item, @live_resource)}})}
+          aria-label={
+            Backpex.__(
+              {"Select item with id: %{id}", %{id: LiveResource.primary_value(item, @live_resource)}},
+              @live_resource
+            )
+          }
         />
       </td>
       <td :for={{name, field_options} <- @fields} :if={active?(@active_fields, name)} class="text-base-content/75">
@@ -62,11 +67,11 @@
           <button
             :for={{key, action} <- row_item_actions(@item_actions)}
             :if={@live_resource.can?(assigns, key, item)}
-            id={"item-action-#{key}-#{primary_value(item, @live_resource)}"}
+            id={"item-action-#{key}-#{LiveResource.primary_value(item, @live_resource)}"}
             type="button"
             phx-click="item-action"
             phx-value-action-key={key}
-            phx-value-item-id={primary_value(item, @live_resource)}
+            phx-value-item-id={LiveResource.primary_value(item, @live_resource)}
             aria-label={action.module.label(assigns, item)}
             phx-hook="BackpexTooltip"
             data-tooltip={action.module.label(assigns, item)}

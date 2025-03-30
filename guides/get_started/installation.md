@@ -38,11 +38,15 @@ const liveSocket = new LiveSocket('/live', Socket, {
 
 ### Tailwind CSS
 
-Backpex uses Tailwind CSS for styling. Make sure you have Tailwind CSS installed in your application. You can install Tailwind CSS by following the [official installation guide](https://tailwindcss.com/docs/installation). If you generate a new Phoenix application using the latest version of the `mix phx.new` generator, Tailwind CSS is included by default.
+Backpex uses Tailwind CSS for styling. Make sure you have Tailwind CSS installed in your application. You can install Tailwind CSS by following the [official installation guide](https://tailwindcss.com/docs/installation/framework-guides/phoenix). If you generate a new Phoenix application using the latest version of the `mix phx.new` generator, Tailwind CSS is included by default.
+
+*Note that the current version of Backpex requires Tailwind CSS version 4*
 
 ### daisyUI
 
 Backpex is styled using daisyUI. Make sure you have daisyUI installed in your application. You can install daisyUI by following the [official installation guide](https://daisyui.com/docs/install/).
+
+*Note that the current version of Backpex requires daisyUI version 5.*
 
 ### Ecto
 
@@ -62,7 +66,7 @@ In your `mix.exs`:
 defp deps do
   [
     ...
-    {:backpex, "~> 0.10.0"}
+    {:backpex, "~> 0.11.0"}
   ]
 end
 ```
@@ -71,18 +75,13 @@ See the [hex.pm page](https://hex.pm/packages/backpex) for the latest version.
 
 ## Add files to Tailwind content
 
-Backpex uses Tailwind CSS and daisyUI. Make sure to add the Backpex files to your tailwind content in order to include the Backpex styles.
+Backpex uses Tailwind CSS and daisyUI. Make sure to add Backpex files as a tailwind source in order to include the Backpex styles.
 
-In your `tailwind.config.js`:
+In your stylesheet:
 
-```javascript
-..,
-content: [
-  ...,
-  // add this lines
-  '../deps/backpex/**/*.*ex'
-  '../deps/backpex/assets/js/**/*.*js'
-]
+```css
+@source "../../deps/backpex/**/*.*ex";
+@source '../../deps/backpex/assets/js/**/*.*js'
 ```
 
 > #### Info {: .info}
@@ -122,32 +121,35 @@ You are now prepared to set up the Backpex layout and a LiveResource for the `Po
 
 ## Create layout
 
-Backpex does not ship with a predefined layout by default to give you the freedom to create your own layout. Instead, it provides components that you can use to build your own layout. You can find all Backpex components in the `lib/backpex/components` directory. Layout components are placed in the `lib/backpex/components/layout` directory. To start quickly, Backpex provides an `Backpex.HTML.Layout.app_shell/1` component. You can use this component to add an app shell layout to your application easily.
+Although Backpex does not ship with a predefined layout, it does provide components that you can use to build your own layout. You can find all Backpex components in the [`lib/backpex/html`](https://github.com/naymspace/backpex/tree/main/lib/backpex/html) directory of our GitHub repository (see the snippet below for a pre-built layout that you can copy & paste into your application). 
 
-See the following example that uses the `Backpex.HTML.Layout.app_shell/1` component and some other Backpex Layout components to create a simple layout:
+> #### Warning {: .warning}
+> Note that some components are tied to Backpex and therefore might not be used outside of it. Our goal is to make them more generic in the future so all Backpex components can easily be used in custom views, too.
+
+To get you started quickly, we provide a layout you can copy & paste into your application. Place it as a file in your `lib/myapp_web/templates/layout` directory. You can name it whatever you like, but we recommend using `admin.html.heex`. You can also use this layout as the only layout in your application if your application consists of only an admin interface. This layout uses the `Backpex.HTML.Layout.app_shell/1` component, which can be used to easily add an app shell layout to your application.
 
 ```heex
 <Backpex.HTML.Layout.app_shell fluid={@fluid?}>
   <:topbar>
     <Backpex.HTML.Layout.topbar_branding />
 
-    <Backpex.HTML.Layout.topbar_dropdown>
+    <Backpex.HTML.Layout.topbar_dropdown class="mr-2 md:mr-0">
       <:label>
         <label tabindex="0" class="btn btn-square btn-ghost">
-          <.icon name="hero-user" class="h-8 w-8" />
+          <.icon name="hero-user" class="size-6" />
         </label>
       </:label>
       <li>
-        <.link navigate={~p"/"} class="flex justify-between text-red-600 hover:bg-gray-100">
+        <.link navigate={~p"/"} class="text-error flex justify-between hover:bg-base-200">
           <p>Logout</p>
-          <.icon name="hero-arrow-right-on-rectangle" class="h-5 w-5" />
+          <.icon name="hero-arrow-right-on-rectangle" class="size-5" />
         </.link>
       </li>
     </Backpex.HTML.Layout.topbar_dropdown>
   </:topbar>
   <:sidebar>
     <Backpex.HTML.Layout.sidebar_item current_url={@current_url} navigate={~p"/admin/posts"}>
-      <.icon name="hero-book-open" class="h-5 w-5" /> Posts
+      <.icon name="hero-book-open" class="size-5" /> Posts
     </Backpex.HTML.Layout.sidebar_item>
   </:sidebar>
   <Backpex.HTML.Layout.flash_messages flash={@flash} />
@@ -155,11 +157,9 @@ See the following example that uses the `Backpex.HTML.Layout.app_shell/1` compon
 </Backpex.HTML.Layout.app_shell>
 ```
 
-Make sure to add the `Backpex.HTML.Layout.flash_messages` component to display flash messages in your layout and do not forget to add the `@inner_content` variable to render the content of the LiveView.
+Make sure to always add the `Backpex.HTML.Layout.flash_messages` component to display flash messages in your layout and do not forget to add the `@inner_content` variable to render the content of the LiveView.
 
-Place the layout file in your `lib/myapp_web/templates/layout` directory. You can name it like you want, but we recommend to use `admin.html.heex`. You can also use this layout as the only layout in your application if your application consists of only an admin interface.
-
-We use the `icon/1` component to render icons in the layout. This component is part of the `core_components` module that ships with new Phoenix projects. See [`core_components.ex`](https://github.com/phoenixframework/phoenix/blob/main/priv/templates/phx.gen.live/core_components.ex). Feel free to use your own icon component or library.
+We use the `icon/1` component to render icons in the layout. This component is part of the `core_components` module that ships with new Phoenix projects. See (`core_components.ex`)(https://github.com/phoenixframework/phoenix/blob/main/priv/templates/phx.gen.live/core_components.ex). Feel free to use your own icon component or library.
 
 > #### Information {: .info}
 >
@@ -191,6 +191,16 @@ All options you can see in the above example are required:
 - The `repo` option tells Backpex which repo to use for the resource.
 - The `update_changeset` and `create_changeset` options tell Backpex which changesets to use for updating and creating the resource.
 - The `pubsub` option tells Backpex which pubsub options to use for the resource (see the [Listen to PubSub Events](live_resource/listen-to-pubsub-events.md) guide for more information).
+
+If your primary key is not named "id", you are also required to set the `primary_key` option:
+
+```elixir
+use Backpex.LiveResource,
+  adapter_config: [
+    ...
+  ],
+  primary_key: :code
+```
 
 In addition to the required options, you pass to the `Backpex.LiveResource` macro, you are required to implement the following callback functions in the module:
 
@@ -372,27 +382,20 @@ Backpex supports daisyUI themes. The following steps will guide you through sett
 
 **1. Add the themes to your application.**
 
-First, you need to add the themes to your `tailwind.config.js` file. You can add the themes to the `daisyui` key in the configuration file. The following example shows how to add the `light`, `dark`, and `cyberpunk` themes to your application.
+First, you need to add the themes to your stylesheet. You can add the themes to the `daisyui` plugin options. The following example shows how to add the `light`, `dark`, and `cyberpunk` themes to your application.
 
-```javascript
-// tailwind.config.js
-module.exports = {
-  daisyui: {
-    themes: [
-      {
-        light: {
-          ...require('daisyui/src/theming/themes').light,
-          primary: '#1d4ed8',
-          'primary-content': 'white',
-          secondary: '#f39325',
-          'secondary-content': 'white'
-        }
-      },
-        "dark",
-        "cyberpunk"
-    ]
-  },
-  ...
+```css
+@plugin "daisyui" {
+  themes: dark, cyberpunk;
+}
+
+@plugin "daisyui/theme" {
+  name: "light";
+
+  --color-primary: #1d4ed8;
+  --color-primary-content: white;
+  --color-secondary: #f39325;
+  --color-secondary-content: white;
 }
 ```
 
@@ -433,7 +436,7 @@ To add the saved theme to the assigns, you can add the `Backpex.ThemeSelectorPlu
 
 **4. Add the theme selector component to the app shell**
 
-You can add a theme selector to your layout to allow users to change the theme. The following example shows how to add a theme selector to the `admin.html.heex` layout. The list of themes should match the themes you added to your `tailwind.config.js` file.
+You can add a theme selector to your layout to allow users to change the theme. The following example shows how to add a theme selector to the `admin.html.heex` layout. The list of themes should match the themes you added to your stylesheet.
 
 ```heex
 # admin.html.heex
@@ -487,18 +490,11 @@ This will minimize flashes with the old theme in some situations.
 
 ## Remove `@tailwindcss/forms` plugin
 
-There is a conflict between the `@tailwindcss/forms` plugin and daisyUI. You should remove the `@tailwindcss/forms` plugin from your `tailwind.config.js` to prevent styling issues.
+There is a conflict between the `@tailwindcss/forms` plugin and daisyUI. You should remove the `@tailwindcss/forms` plugin to prevent styling issues.
 
-```javascript
-// tailwind.config.js
-module.exports = {
-  ...
-  plugins: [
-    ...
-    // remove this line
-    // require('@tailwindcss/forms'),
-  ],
-}
+```css
+// remove this line
+@plugin "tailwindcss/forms;
 ```
 
 If your application depends on the `@tailwindcss/forms` plugin, you can keep the plugin and [change the strategy to `'class'`](https://github.com/tailwindlabs/tailwindcss-forms?tab=readme-ov-file#using-only-global-styles-or-only-classes). This will prevent the plugin from conflicting with daisyUI. Note that you then have to add the form classes provided by the `@tailwindcss/forms` plugin to your inputs manually.
@@ -530,58 +526,65 @@ This will add the heroicons repository as a dependency to your project. You can 
 
 ### Add the Tailwind CSS plugin
 
-Add the following plugin to your `tailwind.config.js` to generate the necessary styles to display the icons.
+Define the following plugin and import it into your stylesheet to generate the necessary styles to display the icons.
 
 ```javascript
-// add fs and path to the top of the file
+// tailwind.heroicons.js
+
+// add fs, plugin and path to the top of the file
+const plugin = require('tailwindcss/plugin')
 const fs = require('fs')
 const path = require('path')
 
-module.exports = {
-  ...
-  plugins: [
-    ...
-    // add this plugin
-    plugin(function ({ matchComponents, theme }) {
-      let iconsDir = path.join(__dirname, "../deps/heroicons/optimized")
-      let values = {}
-      let icons = [
-        ["", "/24/outline"],
-        ["-solid", "/24/solid"],
-        ["-mini", "/20/solid"],
-        ["-micro", "/16/solid"]
-      ]
-      icons.forEach(([suffix, dir]) => {
-        fs.readdirSync(path.join(iconsDir, dir)).forEach(file => {
-          let name = path.basename(file, ".svg") + suffix
-          values[name] = { name, fullPath: path.join(iconsDir, dir, file) }
-        })
-      })
-      matchComponents({
-        "hero": ({ name, fullPath }) => {
-          let content = fs.readFileSync(fullPath).toString().replace(/\r?\n|\r/g, "")
-          let size = theme("spacing.6")
-          if (name.endsWith("-mini")) {
-            size = theme("spacing.5")
-          } else if (name.endsWith("-micro")) {
-            size = theme("spacing.4")
-          }
-          return {
-            [`--hero-${name}`]: `url('data:image/svg+xml;utf8,${content}')`,
-            "-webkit-mask": `var(--hero-${name})`,
-            "mask": `var(--hero-${name})`,
-            "mask-repeat": "no-repeat",
-            "background-color": "currentColor",
-            "vertical-align": "middle",
-            "display": "inline-block",
-            "width": size,
-            "height": size
-          }
-        }
-      }, { values })
+module.exports = plugin(function ({ matchComponents, theme }) {
+  const iconsDir = path.join(__dirname, '../../deps/heroicons/optimized')
+  const values = {}
+  const icons = [
+    ['', '/24/outline'],
+    ['-solid', '/24/solid'],
+    ['-mini', '/20/solid'],
+    ['-micro', '/16/solid']
+  ]
+  icons.forEach(([suffix, dir]) => {
+    fs.readdirSync(path.join(iconsDir, dir)).forEach((file) => {
+      const name = path.basename(file, '.svg') + suffix
+      values[name] = { name, fullPath: path.join(iconsDir, dir, file) }
     })
-  ],
-}
+  })
+  matchComponents(
+    {
+      hero: ({ name, fullPath }) => {
+        let content = fs
+          .readFileSync(fullPath)
+          .toString()
+          .replace(/\r?\n|\r/g, '')
+        content = encodeURIComponent(content)
+        let size = theme('spacing.6')
+        if (name.endsWith('-mini')) {
+          size = theme('spacing.5')
+        } else if (name.endsWith('-micro')) {
+          size = theme('spacing.4')
+        }
+        return {
+          [`--hero-${name}`]: `url('data:image/svg+xml;utf8,${content}')`,
+          '-webkit-mask': `var(--hero-${name})`,
+          mask: `var(--hero-${name})`,
+          'mask-repeat': 'no-repeat',
+          'background-color': 'currentColor',
+          'vertical-align': 'middle',
+          display: 'inline-block',
+          width: size,
+          height: size
+        }
+      }
+    },
+    { values }
+  )
+})
+```
+
+```css
+@plugin "./tailwind_heroicons.js";
 ```
 
 This plugin will generate the necessary styles to display the heroicons in your application. You can now use the `Backpex.HTML.CoreComponents.icon/1` component to render the icons in your application.

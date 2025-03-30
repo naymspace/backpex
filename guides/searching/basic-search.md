@@ -25,14 +25,4 @@ end
 
 A search input will appear automatically on the resource index view.
 
-## Custom Placeholder
-
-You can provide a custom placeholder for the search input by implementing the `search_placeholder/0` callback in your resource configuration file.
-
-```elixir
-# in your resource configuration file
-@impl Backpex.LiveResource
-def search_placeholder, do: "This will be shown in the search input."
-```
-
 In addition to basic searching, Backpex allows you to perform full-text searches on resources (see [Full-Text Search Guide](full-text-search.md)).

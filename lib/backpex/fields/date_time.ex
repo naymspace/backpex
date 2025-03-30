@@ -154,7 +154,7 @@ defmodule Backpex.Fields.DateTime do
         <BackpexForm.input
           type="datetime-local"
           field={@form[:value]}
-          input_class={["input input-sm w-52", @valid && "hover:input-bordered", !@valid && "input-error"]}
+          input_class={["input input-sm w-52 [:not(:hover)]:input-ghost", !@valid && "input-error"]}
           phx-debounce="100"
           readonly={@readonly}
           hide_errors

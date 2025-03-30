@@ -1,7 +1,7 @@
 defmodule Backpex.MixProject do
   use Mix.Project
 
-  @version "0.11.0"
+  @version "0.12.0"
 
   @source_url "https://github.com/naymspace/backpex"
   @changelog_url "https://github.com/naymspace/backpex/releases"
@@ -16,6 +16,7 @@ defmodule Backpex.MixProject do
       start_permanent: Mix.env() == :prod,
       deps: deps(),
       aliases: aliases(),
+      gettext: gettext(),
 
       # Hex.pm
       package: package(),
@@ -178,9 +179,10 @@ defmodule Backpex.MixProject do
       "guides/searching/full-text-search.md",
 
       # Translations
-      "guides/custom_labels_and_translations/custom-labels-and-translations.md",
+      "guides/translations/translations.md",
 
       # Upgrade Guides
+      "guides/upgrading/v0.12.md",
       "guides/upgrading/v0.11.md",
       "guides/upgrading/v0.10.md",
       "guides/upgrading/v0.9.md",
@@ -217,6 +219,13 @@ defmodule Backpex.MixProject do
       Actions: ~r/Backpex\.(ItemAction|ResourceAction).?/,
       Filters: ~r/Backpex\.Filter.?/,
       Metrics: ~r/Backpex\.Metric.?/
+    ]
+  end
+
+  defp gettext() do
+    [
+      write_reference_comments: false,
+      sort_by_msgid: :case_insensitive
     ]
   end
 end
