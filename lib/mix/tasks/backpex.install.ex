@@ -63,6 +63,7 @@ if Code.ensure_loaded?(Igniter) do
       |> install_backpex_hooks()
       |> install_daisyui()
       |> add_files_to_tailwind_content()
+      |> check_for_tailwind_forms_plugin()
       |> generate_layout()
     end
 
@@ -135,6 +136,7 @@ if Code.ensure_loaded?(Igniter) do
            {_output, 0} <- System.cmd("npm", ["i", "-D", "daisyui@latest"], stderr_to_stdout: true) do
         :ok
       else
+        false -> {:error, "Denied by user"}
         {error, _} -> {:error, error}
       end
     end
@@ -176,6 +178,41 @@ if Code.ensure_loaded?(Igniter) do
       else
         Rewrite.Source.update(source, :content, app_css_content <> "\n#{line}")
       end
+    end
+
+    # check for tailwind forms plugin
+
+    defp check_for_tailwind_forms_plugin(igniter) do
+      app_css_path = igniter.args.options[:app_css_path]
+      line = "@plugin \"tailwindcss/forms\";"
+
+      if Igniter.exists?(igniter, app_css_path) do
+        Igniter.update_file(igniter, app_css_path, &maybe_remove_tailwind_forms_plugin(&1, line))
+      else
+        Igniter.Util.Warning.warn_with_code_sample(
+          igniter,
+          """
+          app.css not found at #{app_css_path}.
+          You may remove the following line from your app.css file because it can cause issues with daisyUI:
+          """,
+          line
+        )
+      end
+    end
+
+    defp maybe_remove_tailwind_forms_plugin(source, line) do
+      app_css_content = Rewrite.Source.get(source, :content)
+
+      with true <- String.contains?(app_css_content, line),
+           true <- remove_tailwind_forms_plugin?(line) do
+        Rewrite.Source.update(source, :content, &String.replace(&1, line, ""))
+      else
+        _ -> source
+      end
+    end
+
+    defp remove_tailwind_forms_plugin?(line) do
+      Mix.shell().yes?("The following line could cause issues with daisyUI: #{line}. Do you want to remove it?")
     end
 
     # admin layout generation
