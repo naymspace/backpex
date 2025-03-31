@@ -241,6 +241,7 @@ defmodule Backpex.HTML.Form do
   attr :show_select_all, :boolean, required: true, doc: "whether to display the select all button"
   attr :show_more, :boolean, required: true, doc: "whether there are more options to show"
   attr :search_event, :string, default: "search", doc: "the event that will be sent when the search input changes"
+  attr :hide_search, :boolean, default: false, doc: "if search should be hidden"
   attr :hide_errors, :boolean, default: false, doc: "if errors should be hidden"
   attr :live_resource, :atom, default: nil, doc: "the live resource module"
 
@@ -276,6 +277,7 @@ defmodule Backpex.HTML.Form do
       <div tabindex="0" class="dropdown-content z-[1] menu bg-base-100 rounded-box w-full overflow-y-auto shadow">
         <div class="max-h-72 p-2">
           <input
+            :if={not @hide_search}
             type="search"
             name={@field.name <> "_search"}
             class="input input-sm mb-2 w-full"
