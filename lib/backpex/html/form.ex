@@ -308,7 +308,7 @@ defmodule Backpex.HTML.Form do
           <input type="hidden" name={@field.name} value="" />
 
           <div class="my-2 w-full">
-            <div
+            <label
               :for={{label, value} <- @options}
               class="mt-2 flex space-x-2"
               phx-click="toggle-option"
@@ -323,10 +323,10 @@ defmodule Backpex.HTML.Form do
                 checked_value={value}
                 value={value}
               />
-              <p class="text-md cursor-pointer">
+              <span class="text-md cursor-pointer">
                 {label}
-              </p>
-            </div>
+              </span>
+            </label>
           </div>
 
           <button
