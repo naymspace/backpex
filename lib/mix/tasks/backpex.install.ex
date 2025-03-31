@@ -62,6 +62,7 @@ if Code.ensure_loaded?(Igniter) do
       |> add_backpex_routes()
       |> install_backpex_hooks()
       |> install_daisyui()
+      |> add_files_to_tailwind_content()
       |> generate_layout()
     end
 
@@ -116,7 +117,7 @@ if Code.ensure_loaded?(Igniter) do
 
     defp install_daisyui(igniter) do
       with :ok <- install_daisyui_via_npm(),
-           {:ok, igniter} <- add_daisyui_plugin_to_app_css(igniter) do
+           igniter <- update_app_css(igniter, "@plugin \"daisyui\";") do
         Igniter.add_notice(igniter, "Installed daisyUI via npm.")
       else
         {:error, error} ->
@@ -144,25 +145,36 @@ if Code.ensure_loaded?(Igniter) do
       )
     end
 
-    defp add_daisyui_plugin_to_app_css(igniter) do
+    # add backpex paths to app.css
+
+    defp add_files_to_tailwind_content(igniter) do
+      igniter
+      |> update_app_css("@source \"../../deps/backpex/**/*.*ex\";")
+      |> update_app_css("@source \"../../deps/backpex/assets/js/**/*.*js\";")
+    end
+
+    defp update_app_css(igniter, new_line) do
       app_css_path = igniter.args.options[:app_css_path]
 
       if Igniter.exists?(igniter, app_css_path) do
-        igniter =
-          Igniter.update_file(igniter, app_css_path, fn source ->
-            content = Rewrite.Source.get(source, :content)
-
-            if String.contains?(content, "@plugin \"daisyui\";") do
-              Mix.shell().info("daisyUI plugin already configured in app.css.")
-              source
-            else
-              Rewrite.Source.update(source, :content, content <> "\n@plugin \"daisyui\";\n")
-            end
-          end)
-
-        {:ok, igniter}
+        Igniter.update_file(igniter, app_css_path, &add_line(&1, new_line))
       else
-        {:error, "app.css not found at #{app_css_path}."}
+        Igniter.Util.Warning.warn_with_code_sample(
+          igniter,
+          "app.css not found at #{app_css_path}. Please manually add the following line to your app.css file:",
+          new_line
+        )
+      end
+    end
+
+    defp add_line(source, line) do
+      app_css_content = Rewrite.Source.get(source, :content)
+
+      if String.contains?(app_css_content, line) do
+        Mix.shell().info("#{line} already exists in app.css.")
+        source
+      else
+        Rewrite.Source.update(source, :content, app_css_content <> "\n#{line}")
       end
     end
 
