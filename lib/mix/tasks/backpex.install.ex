@@ -2,18 +2,33 @@ defmodule Mix.Tasks.Backpex.Install.Docs do
   @moduledoc false
 
   def short_doc do
-    "A short description of your task"
+    "Installs and sets up Backpex according to the installation guide"
   end
 
   def example do
-    "mix backpex.install --example arg"
+    "mix backpex.install"
   end
 
   def long_doc do
     """
     #{short_doc()}
 
-    Longer explanation of your task
+    This task automates the steps from the [Backpex installation guide](installation.html) to quickly set up Backpex in your Phoenix application.
+
+    You can run it with `mix backpex.install` after adding Backpex to your dependencies,
+    or with `mix igniter.install backpex` to add the dependency and run the installer in one step.
+
+    ## What this installer does:
+
+    - Sets up [Global Configuration](installation.html#global-configuration) by configuring the PubSub server
+    - Adds [Backpex Hooks](installation.html#backpex-hooks) to your app.js file
+    - Installs [daisyUI](installation.html#daisyui) via npm (with your permission)
+    - Sets up the [formatter configuration](installation.html#setup-formatter)
+    - Adds [Backpex files to Tailwind content](installation.html#add-files-to-tailwind-content)
+    - Adds routes to your router
+    - Creates a default admin layout
+    - Checks for and offers to remove the [default background color](installation.html#remove-default-background-color)
+    - Checks for and offers to remove the [@tailwindcss/forms plugin](installation.html#remove-tailwindcssforms-plugin)
 
     ## Example
 
@@ -23,7 +38,9 @@ defmodule Mix.Tasks.Backpex.Install.Docs do
 
     ## Options
 
-    * `--example-option` or `-e` - Docs for your option
+    * `--app-js-path` - Path to your app.js file (default: "assets/js/app.js")
+    * `--app-css-path` - Path to your app.css file (default: "assets/css/app.css")
+    * `--no-layout` - Skip generating the admin layout
     """
   end
 end
@@ -46,7 +63,7 @@ if Code.ensure_loaded?(Igniter) do
       %Igniter.Mix.Task.Info{
         installs: [igniter_js: "~> 0.4.6"],
         example: __MODULE__.Docs.example(),
-        schema: [app_js_path: :string, app_css_path: :string, no_layout: :boolean, yes: :boolean],
+        schema: [app_js_path: :string, app_css_path: :string, no_layout: :boolean],
         defaults: [app_js_path: @default_app_js_path, app_css_path: @default_app_css_path, no_layout: false]
       }
     end
@@ -56,16 +73,15 @@ if Code.ensure_loaded?(Igniter) do
       pubsub_module = Igniter.Project.Module.module_name(igniter, "PubSub")
 
       igniter
-      # |> Igniter.Project.Deps.add_dep({:igniter_js, "~> 0.4.6", only: [:dev, :test]})
-      |> Igniter.Project.Formatter.import_dep(:backpex)
       |> Igniter.Project.Config.configure_new("config.exs", :backpex, [:pubsub_server], pubsub_module)
-      |> add_backpex_routes()
       |> install_backpex_hooks()
       |> install_daisyui()
+      |> Igniter.Project.Formatter.import_dep(:backpex)
       |> add_files_to_tailwind_content()
-      |> check_for_tailwind_forms_plugin()
-      |> check_for_bg_white()
+      |> add_backpex_routes()
       |> generate_layout()
+      |> check_for_bg_white()
+      |> check_for_tailwind_forms_plugin()
     end
 
     # backpex hooks installation
