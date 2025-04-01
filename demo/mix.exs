@@ -43,7 +43,7 @@ defmodule Demo.MixProject do
       {:smokestack, "~> 0.9.2"},
       {:faker, "~> 0.18"},
       {:phoenix_test, "~> 0.6.0", only: :test, runtime: false},
-      {:sourceror, "~> 1.7", only: [:dev, :test]},
+      {:sourceror, "~> 1.7"},
 
       # core
       {:dns_cluster, "~> 0.2.0"},
