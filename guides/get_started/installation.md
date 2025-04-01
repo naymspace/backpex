@@ -1,6 +1,10 @@
 # Installation
 
-The following guide will help you to install Backpex in your Phoenix application. We will guide you through the installation process and show you how to create a simple resource.
+The following guide will help you to install Backpex in your Phoenix application. We will guide you through the installation process and show you how to create a simple resource. 
+
+> #### Info {: .info}
+>
+> We have added an initial version of the [Backpex installer task](Mix.Tasks.Backpex.Install.html) which runs with the help of the [Igniter](https://github.com/ash-project/igniter) framework. This installer automates most of the steps in this guide. Feedback is welcome!
 
 ## Prerequisites
 
