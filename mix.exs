@@ -43,8 +43,6 @@ defmodule Backpex.MixProject do
       {:mix_audit, "~> 2.0", only: [:dev, :test], runtime: false},
       {:tailwind_formatter, "~> 0.4", only: [:dev, :test], runtime: false},
       {:sobelow, ">= 0.0.0", only: [:dev, :test]},
-      {:igniter, "~> 0.5.41", optional: true},
-      {:igniter_js, "~> 0.4.6", only: [:dev, :test]},
 
       # core
       {:nimble_options, "~> 1.1"},
@@ -64,7 +62,12 @@ defmodule Backpex.MixProject do
       {:postgrex, ">= 0.0.0"},
       {:phoenix_ecto, "~> 4.4"},
       {:ash, "~> 3.0", optional: true},
-      {:ash_postgres, "~> 2.0", optional: true}
+      {:ash_postgres, "~> 2.0", optional: true},
+
+      # generators
+      {:igniter, "~> 0.5.41", optional: true},
+      {:igniter_js, "~> 0.4.6", optional: true},
+      {:floki, "~> 0.37.1", optional: true}
     ]
   end
 
