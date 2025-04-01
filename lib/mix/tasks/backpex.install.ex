@@ -64,6 +64,7 @@ if Code.ensure_loaded?(Igniter) do
       |> install_daisyui()
       |> add_files_to_tailwind_content()
       |> check_for_tailwind_forms_plugin()
+      |> check_for_bg_white()
       |> generate_layout()
     end
 
@@ -213,6 +214,40 @@ if Code.ensure_loaded?(Igniter) do
 
     defp remove_tailwind_forms_plugin?(line) do
       Mix.shell().yes?("The following line could cause issues with daisyUI: #{line}. Do you want to remove it?")
+    end
+
+    # check for "bg-white"
+
+    defp check_for_bg_white(igniter) do
+      root_layout_path = Path.join([web_folder_path(igniter), "components", "layouts", "root.html.heex"])
+
+      if Igniter.exists?(igniter, root_layout_path) do
+        Igniter.update_file(igniter, root_layout_path, &maybe_remove_bg_white/1)
+      else
+        Igniter.add_warning(igniter, "root.html.heex not found at #{root_layout_path}")
+      end
+    end
+
+    defp maybe_remove_bg_white(source) do
+      root_layout_content = Rewrite.Source.get(source, :content)
+      body_tag_with_bg_white = "<body class=\"h-full bg-white\">"
+
+      if String.contains?(root_layout_content, body_tag_with_bg_white) do
+        if remove_bg_white?() do
+          new_content = String.replace(root_layout_content, body_tag_with_bg_white, "<body class=\"h-full\">")
+          Rewrite.Source.update(source, :content, new_content)
+        else
+          source
+        end
+      else
+        source
+      end
+    end
+
+    defp remove_bg_white? do
+      Mix.shell().yes?(
+        "A background color at the body could cause issues with the backpex app_shell. Do you want to remove it? See: https://hexdocs.pm/backpex/installation.html#remove-default-background-color"
+      )
     end
 
     # admin layout generation
