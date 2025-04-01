@@ -71,12 +71,8 @@ defmodule DemoWeb.ItemActions.SoftDelete do
         # nullify the user_id in the posts owned by the users
         items
         |> Enum.map(fn item ->
-          posts = item.posts
-
-          posts
-          |> Enum.map(fn post ->
-            {:ok, _count} = Backpex.Resource.update_all(posts, [set: [user_id: nil]], "updated", DemoWeb.PostLive)
-          end)
+          {:ok, _count} =
+            Backpex.Resource.update_all(item.posts, [set: [user_id: nil]], "updated", DemoWeb.PostLive)
         end)
 
         socket
