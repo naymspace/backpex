@@ -100,7 +100,7 @@ defmodule Backpex.Fields.Text do
           placeholder={@field_options[:placeholder]}
           input_class={[
             "input w-46 !h-8",
-            @valid && "[:not(:hover)]:input-ghost",
+            @valid && "not-hover:input-ghost",
             !@valid && "input-error bg-error/10"
           ]}
           phx-debounce="100"
