@@ -1,4 +1,4 @@
-defmodule DemoWeb.ItemActions.SoftDelete do
+defmodule DemoWeb.ItemActions.UserSoftDelete do
   @moduledoc false
 
   use BackpexWeb, :item_action
