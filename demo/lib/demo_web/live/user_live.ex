@@ -24,13 +24,9 @@ defmodule DemoWeb.UserLive do
   @impl Backpex.LiveResource
   def can?(_assigns, _action, _item), do: true
 
-  def item_query(query, live_action, _assigns) when live_action in [:index, :show, :edit, :resource_action] do
+  def item_query(query, _live_action, _assigns) do
     from u in query,
       where: is_nil(u.deleted_at)
-  end
-
-  def item_query(query, _live_action, _assigns) do
-    query
   end
 
   def init_order(_assigns) do
