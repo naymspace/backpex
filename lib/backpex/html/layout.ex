@@ -453,10 +453,7 @@ defmodule Backpex.HTML.Layout do
   attr :class, :string, default: nil, doc: "class for the modal wrapper"
   attr :box_class, :string, default: "max-w-xl", doc: "class for the modal box"
   attr :title, :string, default: nil, doc: "modal title"
-  attr :target, :string, default: nil, doc: "live component for the close event to go to"
-  attr :close_event_name, :string, default: "close-modal", doc: "close event name"
   attr :close_label, :string, default: "Close modal"
-  attr :max_width, :string, default: "md", values: ["sm", "md", "lg", "xl", "2xl", "full"], doc: "modal max width"
   attr :open, :boolean, default: true, doc: "modal open"
   attr :on_cancel, JS, default: %JS{}, doc: "event triggered on modal close"
   attr :rest, :global
