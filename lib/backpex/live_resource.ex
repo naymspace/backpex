@@ -347,8 +347,8 @@ defmodule Backpex.LiveResource do
       @impl Backpex.LiveResource
       def render_resource_slot(var!(assigns), :index, :page_title) do
         ~H"""
-        <.main_title class="flex items-center justify-between">
-          {@live_resource.plural_name()}
+        <.main_title>
+          {@page_title}
         </.main_title>
         """
       end
@@ -385,7 +385,7 @@ defmodule Backpex.LiveResource do
       def render_resource_slot(var!(assigns), :show, :page_title) do
         ~H"""
         <.main_title class="flex items-center justify-between">
-          {@live_resource.singular_name()}
+          {@page_title}
           <.link
             :if={@live_resource.can?(assigns, :edit, @item)}
             id={"#{@live_resource.singular_name()}-edit-link"}
@@ -414,7 +414,7 @@ defmodule Backpex.LiveResource do
       def render_resource_slot(var!(assigns), :edit, :page_title) do
         ~H"""
         <.main_title class="mb-4">
-          {Backpex.__({"Edit %{resource}", %{resource: @live_resource.singular_name()}}, @live_resource)}
+          {@page_title}
         </.main_title>
         """
       end
