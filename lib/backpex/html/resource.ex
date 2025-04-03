@@ -666,7 +666,6 @@ defmodule Backpex.HTML.Resource do
     default: [],
     doc: "The fields that can be searched. Here only used to hide the component when empty."
 
-  attr :full_text_search, :string, default: nil, doc: "full text search column name"
   attr :query_options, :map, default: %{}, doc: "query options"
   attr :search_placeholder, :string, required: true, doc: "placeholder for the search input"
 
@@ -676,7 +675,7 @@ defmodule Backpex.HTML.Resource do
       <.metric_toggle {assigns} />
       <.index_search_form
         searchable_fields={@searchable_fields}
-        full_text_search={@full_text_search}
+        full_text_search={@live_resource.config(:full_text_search)}
         value={Map.get(@query_options, :search, "")}
         placeholder={@search_placeholder}
       />

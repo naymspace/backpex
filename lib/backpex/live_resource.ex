@@ -459,7 +459,6 @@ defmodule Backpex.LiveResource do
     # TODO: move these "config assigns" (and other global assigns) to where they are needed
     adapter_config = live_resource.config(:adapter_config)
     fluid? = live_resource.config(:fluid?)
-    full_text_search = live_resource.config(:full_text_search)
 
     socket
     |> assign(:live_resource, live_resource)
@@ -473,7 +472,6 @@ defmodule Backpex.LiveResource do
     )
     |> assign(:panels, live_resource.panels())
     |> assign(:fluid?, fluid?)
-    |> assign(:full_text_search, full_text_search)
     |> assign_active_fields(session)
     |> assign_metrics_visibility(session)
     |> assign_filters_changed_status(params)

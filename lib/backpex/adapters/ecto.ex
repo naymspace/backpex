@@ -107,8 +107,9 @@ defmodule Backpex.Adapters.Ecto do
   TODO: Should be private.
   """
   def list_query(criteria, assigns, live_resource) do
-    %{schema: schema, full_text_search: full_text_search} = assigns
+    %{schema: schema} = assigns
     config = live_resource.config(:adapter_config)
+    full_text_search = live_resource.config(:full_text_search)
     item_query = prepare_item_query(config, assigns)
     fields = live_resource.validated_fields()
     associations = associations(fields, schema)
