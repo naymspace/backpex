@@ -189,7 +189,7 @@ defmodule Backpex.Resource do
   end
 
   defp after_save({:ok, item}, func) do
-    {:ok, _item} = func.(item)
+    func.(item)
   end
 
   defp after_save(error, _func), do: error

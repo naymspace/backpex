@@ -262,20 +262,32 @@ defmodule Backpex.FormComponent do
       after_save_fun: fn item ->
         handle_uploads(socket, item)
         live_resource.on_item_updated(socket, item)
-
-        {:ok, item}
       end
     ]
 
+    return_to = return_to_path(save_type, live_resource, socket, socket.assigns, live_action, item)
+
     case Resource.update(item, params, fields, socket.assigns, live_resource, opts) do
-      {:ok, item} ->
-        return_to = return_to_path(save_type, live_resource, socket, socket.assigns, live_action, item)
+      {:ok, _item} ->
         info_msg = Backpex.__({"%{resource} has been edited successfully.", %{resource: singular_name}}, live_resource)
 
         socket
         |> assign(:show_form_errors, false)
         |> clear_flash()
         |> put_flash(:info, info_msg)
+        |> push_navigate(to: return_to)
+        |> noreply()
+
+      {:error, %Ecto.Changeset{errors: [base: {error_msg, _}]} = changeset} ->
+        form = Phoenix.Component.to_form(changeset, as: :change)
+
+        send(self(), {:update_changeset, changeset})
+
+        socket
+        |> assign(:show_form_errors, true)
+        |> assign(:form, form)
+        |> clear_flash()
+        |> put_flash(:error, error_msg)
         |> push_navigate(to: return_to)
         |> noreply()
 
