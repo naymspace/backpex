@@ -9,4 +9,5 @@ defmodule DocTest do
   doctest Backpex.HTML
   doctest Backpex.HTML.Layout
   doctest Backpex.HTML.Resource
+  doctest Backpex.Utils
 end

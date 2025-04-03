@@ -306,6 +306,16 @@ defmodule Backpex.LiveResource do
                      resource_actions: 0,
                      item_actions: 1,
                      index_row_class: 4
+
+      defmodule Index do
+        @resource_opts NimbleOptions.validate!(opts, options_schema)
+
+        alias Backpex.LiveResource.Index
+        use Phoenix.LiveView, layout: @resource_opts[:layout]
+
+        def mount(params, session, socket), do: Index.mount(params, session, socket, __MODULE__)
+        def render(assigns), do: Index.render(assigns)
+      end
     end
   end
 

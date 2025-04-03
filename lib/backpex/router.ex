@@ -41,7 +41,7 @@ defmodule Backpex.Router do
       path = unquote(path)
       live_resource = unquote(live_resource)
 
-      if Enum.member?(actions, :index), do: live("#{path}/", live_resource, :index)
+      if Enum.member?(actions, :index), do: live("#{path}/", :"#{live_resource}.Index", :index)
       if Enum.member?(actions, :new), do: live("#{path}/new", live_resource, :new)
       if Enum.member?(actions, :edit), do: live("#{path}/:backpex_id/edit", live_resource, :edit)
       if Enum.member?(actions, :show), do: live("#{path}/:backpex_id/show", live_resource, :show)
