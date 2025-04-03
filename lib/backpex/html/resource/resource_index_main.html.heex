@@ -1,16 +1,15 @@
 <.main_container>
   <div class="relative">
     <div class="bg-base-100 rounded-box mb-4 overflow-hidden shadow-sm">
-      <div
-        class="overflow-x-auto"
-        x-data="{
-          hasOverflow: false,
-          setHasOverflow() { this.hasOverflow = $el.clientWidth < $el.scrollWidth }
-        }"
-        x-init="$nextTick(() => setHasOverflow())"
-        x-on:resize.window="setHasOverflow()"
-      >
+      <div class="overflow-x-auto">
         <%= if assigns.item_count > 0 do %>
+          <.toggle_columns
+            socket={@socket}
+            active_fields={@active_fields}
+            live_resource={@live_resource}
+            current_url={@current_url}
+            class="absolute top-2 right-6 z-20 flex justify-end pt-1 font-medium normal-case"
+          />
           <.resource_index_table {assigns} />
         <% else %>
           <.empty_state {assigns} />
@@ -33,9 +32,11 @@
       }
       current_page={@query_options.page}
       total_pages={@total_pages}
+      next_page_label={Backpex.__("Next Page", @live_resource)}
+      previous_page_label={Backpex.__("Previous Page", @live_resource)}
     />
     <div class="flex items-center">
-      <.pagination_info total={@item_count} query_options={@query_options} />
+      <.pagination_info total={@item_count} query_options={@query_options} live_resource={@live_resource} />
       <.select_per_page options={@per_page_options} query_options={@query_options} />
     </div>
   </div>

@@ -177,7 +177,7 @@ defmodule Backpex.Fields.BelongsTo do
           prompt={@prompt}
           value={@value && Map.get(@value, :id)}
           input_wrapper_class=""
-          input_class={["select select-sm", if(@valid, do: "hover:input-bordered", else: "select-error")]}
+          input_class={["select select-sm", if(@valid, do: "not-hover:select-ghost", else: "select-error")]}
           disabled={@readonly}
           hide_errors
         />

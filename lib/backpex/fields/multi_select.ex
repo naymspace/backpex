@@ -44,12 +44,16 @@ defmodule Backpex.Fields.MultiSelect do
   """
   use Backpex.Field, config_schema: @config_schema
   alias Backpex.HTML.Form
+  require Backpex
 
   @impl Phoenix.LiveComponent
   def update(assigns, socket) do
     socket
     |> assign(assigns)
-    |> assign(:not_found_text, assigns.field_options[:not_found_text] || Backpex.translate("No options found"))
+    |> assign(
+      :not_found_text,
+      assigns.field_options[:not_found_text] || Backpex.__("No options found", assigns.live_resource)
+    )
     |> assign(:prompt, prompt(assigns, assigns.field_options))
     |> assign(:search_input, "")
     |> assign_options()
@@ -61,7 +65,12 @@ defmodule Backpex.Fields.MultiSelect do
   defp assign_options(socket) do
     %{assigns: %{field_options: field_options} = assigns} = socket
 
-    options = field_options.options.(assigns)
+    options =
+      assigns
+      |> field_options.options.()
+      |> Enum.map(fn {label, value} ->
+        {to_string(label), to_string(value)}
+      end)
 
     assign(socket, :options, options)
   end
@@ -154,6 +163,7 @@ defmodule Backpex.Fields.MultiSelect do
           show_more={false}
           event_target={@myself}
           search_event="search"
+          live_resource={@live_resource}
         />
       </Layout.field_container>
     </div>
@@ -227,7 +237,7 @@ defmodule Backpex.Fields.MultiSelect do
 
   defp prompt(assigns, field_options) do
     case Map.get(field_options, :prompt) do
-      nil -> Backpex.translate("Select options...")
+      nil -> Backpex.__("Select options...", assigns.live_resource)
       prompt when is_function(prompt) -> prompt.(assigns)
       prompt -> prompt
     end

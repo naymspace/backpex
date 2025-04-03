@@ -12,6 +12,7 @@ defmodule Backpex.HTML.Layout do
   """
   @doc type: :component
 
+  attr :class, :string, default: nil, doc: "class added to the app shell container"
   attr :fluid, :boolean, default: false, doc: "toggles fluid layout"
 
   slot :inner_block
@@ -28,77 +29,49 @@ defmodule Backpex.HTML.Layout do
 
   def app_shell(assigns) do
     ~H"""
-    <div class="bg-base-200 fixed inset-0 -z-10 h-full w-full"></div>
-
-    <div x-data="{ mobile_menu_open: false }">
-      <div class="relative z-40 md:hidden" role="dialog" aria-modal="true" x-show="mobile_menu_open">
-        <div class="bg-neutral fixed inset-0 bg-opacity-75"></div>
-
-        <div class="fixed inset-0 z-40 flex">
-          <div class="bg-base-100 relative flex w-full max-w-xs flex-1 flex-col">
-            <div class="absolute top-0 right-0 -mr-12 pt-2">
-              <button
-                type="button"
-                class="rounded-badge ml-1 flex h-10 w-10 items-center justify-center focus:ring-primary-content focus:outline-none focus:ring-2 focus:ring-inset"
-                @click="mobile_menu_open = false"
-              >
-                <Backpex.HTML.CoreComponents.icon name="hero-x-mark-solid" class="text-primary-content h-5 w-5" />
-              </button>
-            </div>
-
-            <div
-              @click.outside="mobile_menu_open = false"
-              class={"#{for sidebar <- @sidebar, do: sidebar[:class] || ""} h-0 flex-1 flex-col space-y-1 overflow-y-auto px-2 pt-5 pb-4"}
-            >
-              {render_slot(@sidebar)}
-            </div>
-          </div>
-
-          <div class="w-14 flex-shrink-0">
-            <!-- Force sidebar to shrink to fit close icon -->
-          </div>
+    <div id="backpex-app-shell" class={["drawer", @class]} phx-hook="BackpexSidebarSections">
+      <input id="menu-drawer" type="checkbox" class="drawer-toggle" />
+      <div class="drawer-content">
+        <div class="bg-base-200 fixed inset-0 -z-10 h-full w-full"></div>
+        <div class={[
+          "menu hidden overflow-y-scroll px-2 pt-5 pb-4 md:fixed md:inset-y-0 md:mt-16 md:block md:w-64",
+          build_slot_class(@sidebar)
+        ]}>
+          {render_slot(@sidebar)}
         </div>
-      </div>
 
-      <%= for sidebar <- @sidebar do %>
-        <div class="hidden md:fixed md:inset-y-0 md:mt-16 md:flex md:w-64 md:flex-col">
-          <div class="flex min-h-0 flex-1 flex-col">
-            <div class={"#{sidebar[:class] || ""} flex flex-1 flex-col space-y-1 overflow-y-auto px-2 pt-5 pb-4"}>
-              {render_slot(sidebar)}
-            </div>
+        <div class={["flex flex-1 flex-col", length(@sidebar) > 0 && "md:pl-64"]}>
+          <div class="fixed top-0 z-30 block w-full md:-ml-64">
+            <.topbar class={build_slot_class(@topbar)}>
+              {render_slot(@topbar)}
+              <label :if={@sidebar != []} for="menu-drawer" class="btn btn-square drawer-button btn-ghost md:hidden">
+                <Backpex.HTML.CoreComponents.icon name="hero-bars-3-solid" class="h-6" />
+              </label>
+            </.topbar>
           </div>
-        </div>
-      <% end %>
-
-      <div class={"#{if length(@sidebar) > 0, do: "md:pl-64", else: ""} flex flex-1 flex-col"}>
-        <div class="fixed top-0 z-30 block w-full md:-ml-64">
-          <.topbar class={for topbar <- @topbar, do: topbar[:class] || ""}>
-            {render_slot(@topbar)}
-            <%= for _ <- @sidebar do %>
-              <button
-                type="button"
-                class="text-base-content rounded-btn -mt-0.5 -ml-0.5 inline-flex h-12 w-12 items-center justify-center focus:ring-base-content focus:outline-none focus:ring-2 focus:ring-inset md:hidden"
-                @click="mobile_menu_open = !mobile_menu_open"
-              >
-                <Backpex.HTML.CoreComponents.icon name="hero-bars-3-solid" class="h-8 w-8" />
-              </button>
-            <% end %>
-          </.topbar>
-        </div>
-        <main class="h-[calc(100vh-4rem)] mt-[4rem] flex flex-col">
-          <div class="flex-1">
-            <div class={["mx-auto mt-5 px-4 sm:px-6 md:px-8", if(@fluid, do: "", else: "max-w-7xl")]}>
+          <main class="h-[calc(100vh-4rem)] mt-[4rem]">
+            <div class={["mx-auto mt-5 px-4 sm:px-6 md:px-8", !@fluid && "max-w-7xl"]}>
               {render_slot(@inner_block)}
             </div>
-
             {render_slot(@footer)}
             <.footer :if={@footer == []} />
-          </div>
-        </main>
+          </main>
+        </div>
+      </div>
+      <div class="drawer-side z-40">
+        <label for="menu-drawer" class="drawer-overlay"></label>
+        <div class={[
+          "bg-base-100 menu min-h-full w-64 flex-1 flex-col overflow-y-auto px-2 pt-5 pb-4",
+          build_slot_class(@sidebar)
+        ]}>
+          {render_slot(@sidebar)}
+        </div>
       </div>
     </div>
     """
   end
+
+  defp build_slot_class(slot), do: Enum.map(slot, &Map.get(&1, :class))
 
   @doc """
   Renders a topbar.
@@ -111,7 +84,7 @@ defmodule Backpex.HTML.Layout do
 
   def topbar(assigns) do
     ~H"""
-    <header class={"#{@class} border-base-300 bg-base-100 text-base-content flex h-16 w-full items-center border-b px-4"}>
+    <header class={["border-base-300 bg-base-100 text-base-content flex h-16 w-full items-center border-b px-4", @class]}>
       {render_slot(@inner_block)}
     </header>
     """
@@ -123,12 +96,13 @@ defmodule Backpex.HTML.Layout do
   @doc type: :component
 
   attr :flash, :map, required: true, doc: "flash map that will be passed to `Phoenix.Flash.get/2`"
+  attr :close_label, :string, default: "Close alert"
 
   def flash_messages(assigns) do
     ~H"""
     <div
       :if={Phoenix.Flash.get(@flash, :info) && Phoenix.Flash.get(@flash, :info) != ""}
-      class="alert bg-info text-info-content my-4 text-sm"
+      class="alert alert-info my-4"
       phx-value-key="info"
     >
       <Backpex.HTML.CoreComponents.icon name="hero-information-circle" class="h-5 w-5" />
@@ -136,11 +110,7 @@ defmodule Backpex.HTML.Layout do
         {Phoenix.Flash.get(@flash, :info)}
       </span>
       <div>
-        <button
-          class="btn btn-square btn-sm btn-ghost"
-          phx-click="lv:clear-flash"
-          aria-label={Backpex.translate("Close alert")}
-        >
+        <button class="btn btn-info btn-square btn-sm btn-ghost" phx-click="lv:clear-flash" aria-label={@close_label}>
           <Backpex.HTML.CoreComponents.icon name="hero-x-mark" class="h-5 w-5" />
         </button>
       </div>
@@ -156,11 +126,7 @@ defmodule Backpex.HTML.Layout do
         {Phoenix.Flash.get(@flash, :error)}
       </span>
       <div>
-        <button
-          class="btn btn-square btn-sm btn-ghost"
-          phx-click="lv:clear-flash"
-          aria-label={Backpex.translate("Close alert")}
-        >
+        <button class="btn btn-square btn-sm btn-ghost" phx-click="lv:clear-flash" aria-label={@close_label}>
           <Backpex.HTML.CoreComponents.icon name="hero-x-mark" class="h-5 w-5" />
         </button>
       </div>
@@ -208,7 +174,7 @@ defmodule Backpex.HTML.Layout do
 
   def topbar_branding(assigns) do
     ~H"""
-    <div class={"#{@class} text-base-content flex flex-shrink-0 flex-grow items-center space-x-2"}>
+    <div class={"#{@class} text-base-content flex shrink-0 flex-grow items-center space-x-2"}>
       <%= if @logo === [] do %>
         <.backpex_logo class="w-8" />
       <% else %>
@@ -227,6 +193,8 @@ defmodule Backpex.HTML.Layout do
   @doc type: :component
 
   attr :socket, :any, required: true
+  attr :class, :string, default: nil
+  attr :label, :string, default: "Theme"
 
   attr :themes, :list,
     doc: "A list of tuples with {theme_label, theme_name} format",
@@ -237,29 +205,34 @@ defmodule Backpex.HTML.Layout do
     <div
       id="backpex-theme-selector"
       phx-hook="BackpexThemeSelector"
-      class="dropdown dropdown-bottom dropdown-end no-animation"
+      class={["dropdown dropdown-bottom dropdown-end", @class]}
     >
-      <div tabindex="0" role="button" class="btn btn-ghost m-1">
-        <span class="hidden md:block">
-          {Backpex.translate("Theme")}
-        </span>
-        <Backpex.HTML.CoreComponents.icon name="hero-swatch" class="h-5 w-5 md:hidden" />
-        <Backpex.HTML.CoreComponents.icon name="hero-chevron-down" class="h-5 w-5" />
+      <%!-- Desktop Icon --%>
+      <div tabindex="0" role="button" class="btn btn-ghost hidden md:flex">
+        {@label}
+        <Backpex.HTML.CoreComponents.icon name="hero-chevron-down" class="h-3 w-3" />
       </div>
-      <form id="backpex-theme-selector-form" data-cookie-path={Router.cookie_path(@socket)}>
-        <ul
-          tabindex="0"
-          class="dropdown-content bg-base-300 rounded-box z-[1] max-h-96 w-52 overflow-y-scroll p-2 shadow-2xl"
-        >
-          <li :for={{label, theme_name} <- @themes}>
-            <input
-              type="radio"
-              name="theme-selector"
-              class="theme-controller btn btn-sm btn-block btn-ghost justify-start"
-              aria-label={label}
-              phx-click={JS.dispatch("backpex:theme-change")}
-              value={theme_name}
-            />
+      <%!-- Mobile Icon --%>
+      <div tabindex="0" role="button" class="btn btn-square btn-ghost md:hidden">
+        <Backpex.HTML.CoreComponents.icon name="hero-swatch" class="size-6 md:hidden" />
+      </div>
+      <form
+        id="backpex-theme-selector-form"
+        class="dropdown-content bg-base-300 rounded-box max-h-96 overflow-y-scroll"
+        data-cookie-path={Router.cookie_path(@socket)}
+      >
+        <ul tabindex="0" class="rounded-box z-1 menu w-48 outline-hidden">
+          <li :for={{label, theme_name} <- @themes} class="w-full">
+            <label class="has-checked:bg-neutral has-checked:text-neutral-content">
+              <input
+                type="radio"
+                name="theme-selector"
+                class="theme-controller hidden"
+                phx-click={JS.dispatch("backpex:theme-change")}
+                value={theme_name}
+              />
+              {label}
+            </label>
           </li>
         </ul>
       </form>
@@ -333,13 +306,13 @@ defmodule Backpex.HTML.Layout do
   """
   @doc type: :component
 
-  attr :class, :string, required: false, default: "", doc: "additional class that will be added to the component"
+  attr :class, :string, required: false, default: nil, doc: "additional class that will be added to the component"
 
   slot :label, required: true, doc: "label of the dropdown"
 
   def topbar_dropdown(assigns) do
     ~H"""
-    <div class="dropdown dropdown-end">
+    <div class={["dropdown dropdown-end", @class]}>
       {render_slot(@label)}
       <ul tabindex="0" class="dropdown-content z-[1] menu bg-base-100 rounded-box w-52 p-2 shadow">
         {render_slot(@inner_block)}
@@ -386,7 +359,7 @@ defmodule Backpex.HTML.Layout do
   """
   @doc type: :component
 
-  attr :class, :string, default: "", doc: "additional class that will be added to the component"
+  attr :class, :string, default: nil, doc: "additional class that will be added to the component"
 
   attr :id, :string,
     default: "section",
@@ -398,26 +371,14 @@ defmodule Backpex.HTML.Layout do
 
   def sidebar_section(assigns) do
     ~H"""
-    <div
-      x-data={"{open: localStorage.getItem('section-opened-#{@id}')  === 'true'}"}
-      x-init={"$watch('open', val => localStorage.setItem('section-opened-#{@id}', val))"}
-    >
-      <div @click="open = !open" class={"#{@class} group mt-2 flex cursor-pointer items-center space-x-1 p-2"}>
-        <div class="pr-1">
-          <Backpex.HTML.CoreComponents.icon
-            name="hero-chevron-down-solid"
-            class="h-5 w-5 transition duration-75"
-            x-bind:class="open ? '' : '-rotate-90'"
-          />
-        </div>
-        <div class="text-base-content flex gap-2 text-sm font-semibold uppercase">
-          {render_slot(@label)}
-        </div>
-      </div>
-      <div class="flex-col space-y-1" x-show="open" x-transition x-transition.duration.75ms>
+    <li data-section-id={@id} class={["hidden", @class]}>
+      <span data-menu-dropdown-toggle class="menu-dropdown-toggle menu-dropdown-show">
+        {render_slot(@label)}
+      </span>
+      <ul data-menu-dropdown-content class="menu-dropdown menu-dropdown-show">
         {render_slot(@inner_block)}
-      </div>
-    </div>
+      </ul>
+    </li>
     """
   end
 
@@ -442,26 +403,17 @@ defmodule Backpex.HTML.Layout do
         %{href: href} -> href
       end
 
-    highlight =
-      if Router.active?(assigns.current_url, path) do
-        "bg-base-300 text-base-content"
-      else
-        "text-base-content/95 hover:bg-base-100"
-      end
-
-    base_class = "group flex items-center gap-2 rounded-btn px-2 py-2 space-x-2 hover:cursor-pointer"
-
-    extra = assigns_to_attributes(assigns)
-
     assigns =
       assigns
-      |> assign(:class, [base_class, highlight, assigns.class])
-      |> assign(:extra, extra)
+      |> assign(:active, Router.active?(assigns.current_url, path))
+      |> assign(:extra, assigns_to_attributes(assigns))
 
     ~H"""
-    <.link class={@class} {@extra}>
-      {render_slot(@inner_block)}
-    </.link>
+    <li>
+      <.link class={[@class, @active && "bg-neutral text-neutral-content"]} {@extra}>
+        {render_slot(@inner_block)}
+      </.link>
+    </li>
     """
   end
 
@@ -497,101 +449,64 @@ defmodule Backpex.HTML.Layout do
   """
   @doc type: :component
 
+  attr :id, :string, required: true, doc: "modal ID"
+  attr :class, :string, default: nil, doc: "class for the modal wrapper"
+  attr :box_class, :string, default: "max-w-xl", doc: "class for the modal box"
   attr :title, :string, default: nil, doc: "modal title"
-  attr :target, :string, default: nil, doc: "live component for the close event to go to"
-  attr :close_event_name, :string, default: "close-modal", doc: "close event name"
-  attr :max_width, :string, default: "md", values: ["sm", "md", "lg", "xl", "2xl", "full"], doc: "modal max width"
+  attr :close_label, :string, default: "Close modal"
   attr :open, :boolean, default: true, doc: "modal open"
+  attr :on_cancel, JS, default: %JS{}, doc: "event triggered on modal close"
   attr :rest, :global
-
-  slot :inner_block, required: false
+  slot :inner_block, required: true
 
   def modal(assigns) do
-    assigns =
-      assigns
-      |> assign(:classes, get_modal_classes(assigns))
-
     ~H"""
-    <div id="modal">
-      <div
-        id="modal-overlay"
-        class={["animate-fade-in bg-neutral fixed inset-0 z-50 bg-opacity-40 transition-opacity", if(!@open, do: "hidden")]}
-        aria-hidden="true"
+    <dialog
+      id={@id}
+      class={["modal duration-0", @open && "modal-open", @class]}
+      phx-mounted={@open && open_modal(@id)}
+      phx-remove={close_modal(@id)}
+      data-cancel={JS.exec(@on_cancel, "phx-remove")}
+      open={@open}
+      {@rest}
+    >
+      <.focus_wrap
+        id={"#{@id}-box"}
+        class={["modal-box duration-0 p-0", @box_class]}
+        phx-key="escape"
+        phx-window-keydown={JS.exec("data-cancel", to: "##{@id}")}
+        phx-click-away={JS.exec("data-cancel", to: "##{@id}")}
       >
-      </div>
-      <div
-        id="modal-content"
-        class={[
-          "fixed inset-0 z-50 my-4 flex transform items-center justify-center overflow-hidden px-4 sm:px-6",
-          if(!@open, do: "hidden")
-        ]}
-        role="dialog"
-        aria-modal="true"
-      >
-        <div
-          class={@classes}
-          phx-click-away={@open && hide_modal(@target, @close_event_name)}
-          phx-window-keydown={@open && hide_modal(@target, @close_event_name)}
-          phx-key={@open && "escape"}
-        >
-          <!-- Header -->
-          <div class="border-base-200 border-b px-5 py-3">
-            <div class="flex items-center justify-between">
-              <div if={@title} class="0 text-base-content text-2xl font-semibold">
-                {@title}
-              </div>
-              <button
-                type="button"
-                phx-click={hide_modal(@target, @close_event_name)}
-                class="text-base-content/50 hover:text-base-content"
-                aria-label={Backpex.translate("Close modal")}
-              >
-                <Backpex.HTML.CoreComponents.icon name="hero-x-mark" class="h-5 w-5" />
-              </button>
-            </div>
-          </div>
-          <!-- Content -->
-          <div>
-            {render_slot(@inner_block)}
+        <div class="border-base-200 border-b px-5 py-3">
+          <button
+            type="button"
+            class="btn btn-sm btn-circle btn-ghost absolute top-3 right-3"
+            phx-click={JS.exec("data-cancel", to: "##{@id}")}
+          >
+            <Backpex.HTML.CoreComponents.icon name="hero-x-mark" class="size-5" />
+          </button>
+          <div :if={@title} class="0 text-base-content text-xl font-semibold">
+            {@title}
           </div>
         </div>
-      </div>
-    </div>
+        {render_slot(@inner_block)}
+      </.focus_wrap>
+    </dialog>
     """
   end
 
-  def hide_modal(target \\ nil, close_event)
-
-  def hide_modal(_target, nil) do
-    %JS{}
-    |> JS.hide(to: "#modal-overlay")
-    |> JS.hide(to: "#modal-content")
+  def open_modal(js \\ %JS{}, id) do
+    js
+    |> JS.focus_first(to: "##{id}-box")
+    |> JS.set_attribute({"open", "open"}, to: "##{id}")
+    |> JS.add_class("modal-open", to: "##{id}")
   end
 
-  def hide_modal(target, close_event) do
-    case target do
-      nil ->
-        JS.push(%JS{}, close_event)
-
-      target ->
-        JS.push(%JS{}, close_event, target: target)
-    end
-  end
-
-  defp get_modal_classes(assigns) do
-    base_classes = "animate-fade-in-scale w-full max-h-full overflow-auto bg-base-100 rounded-box shadow-lg"
-
-    max_width_class =
-      case Map.get(assigns, :max_width, "md") do
-        "sm" -> "max-w-sm"
-        "md" -> "max-w-xl"
-        "lg" -> "max-w-3xl"
-        "xl" -> "max-w-5xl"
-        "2xl" -> "max-w-7xl"
-        "full" -> "max-w-full"
-      end
-
-    [base_classes, max_width_class]
+  def close_modal(js \\ %JS{}, id) do
+    js
+    |> JS.pop_focus()
+    |> JS.remove_attribute("open", to: "##{id}")
+    |> JS.remove_class("modal-open", to: "##{id}")
   end
 
   @doc """

@@ -95,6 +95,7 @@ defmodule Backpex.Adapters.Ecto do
 
     list_query(criteria, assigns, live_resource)
     |> exclude(:preload)
+    |> exclude(:select)
     |> subquery()
     |> config[:repo].aggregate(:count)
     |> then(fn count -> {:ok, count} end)

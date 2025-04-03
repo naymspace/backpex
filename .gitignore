@@ -18,5 +18,5 @@ backpex-*.tar
 /priv/static/assets/
 /priv/static/cache_manifest.json
 npm-debug.log
-/assets/node_modules/
+/node_modules
 

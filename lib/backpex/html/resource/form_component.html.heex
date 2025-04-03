@@ -1,5 +1,6 @@
 <div id="form-component">
   <.form
+    :let={f}
     for={@form}
     id="resource-form"
     phx-target={@myself}
@@ -14,64 +15,77 @@
     }
     multipart
   >
-    <div>
-      <div class="first:pt-3 last:pb-3">
-        <.edit_panel form={@form} panel_fields={visible_fields_by_panel(@fields, :default, assigns)} {assigns} />
-        <.edit_panel
-          :for={{name, label} <- @panels}
-          :if={visible_fields_by_panel(@fields, name, assigns) != []}
-          form={@form}
-          panel_fields={visible_fields_by_panel(@fields, name, assigns)}
-          label={label}
-          class="mt-4"
+    <.edit_card>
+      <%!-- Default panel --%>
+      <:panel>
+        <.resource_form_field
+          :for={{name, _field_options} <- visible_fields_by_panel(@fields, :default, assigns)}
+          name={name}
+          form={f}
           {assigns}
         />
-      </div>
-    </div>
-    <div class="bg-base-200/50 rounded-b-box flex items-center justify-end space-x-4 px-6 py-3">
-      <div :if={form_errors?(@show_form_errors, @form)}>
-        <p class="text-error text-sm italic">
-          {Backpex.translate("There are errors in the form.")}
-        </p>
-      </div>
-      <%= if @action_type == :item do %>
-        <button type="button" class="btn" phx-click="close-modal">
-          {@action_to_confirm.module.cancel_label(assigns)}
-        </button>
+      </:panel>
 
-        <button
-          type="submit"
-          class={["btn", if(form_errors?(@show_form_errors, @form), do: "btn-error", else: "btn-primary")]}
-          phx-disable-with={@action_to_confirm.module.confirm_label(assigns) <> "..."}
-        >
-          {@action_to_confirm.module.confirm_label(assigns)}
-        </button>
-      <% else %>
-        <.link navigate={@live_resource.return_to(@socket, assigns, @live_action, @item)}>
-          <button type="button" class="btn btn-ghost">
-            {Backpex.translate("Cancel")}
+      <%!-- Custom panels --%>
+      <:panel
+        :for={{name, label} <- @panels}
+        :if={visible_fields_by_panel(@fields, name, assigns) != []}
+        label={label}
+        class="mt-4"
+      >
+        <.resource_form_field
+          :for={{name, _field_options} <- visible_fields_by_panel(@fields, name, assigns)}
+          name={name}
+          form={f}
+          {assigns}
+        />
+      </:panel>
+
+      <:actions>
+        <div :if={form_errors?(@show_form_errors, f)}>
+          <p class="text-error text-sm italic">
+            {Backpex.__("There are errors in the form.", @live_resource)}
+          </p>
+        </div>
+        <%= if @action_type == :item do %>
+          <button type="button" class="btn" phx-click={JS.exec("data-cancel", to: {:closest, "dialog"})}>
+            {@action_to_confirm.module.cancel_label(assigns)}
           </button>
-        </.link>
-        <button
-          :if={@continue_label}
-          type="submit"
-          name="save-type"
-          value="continue"
-          class={["btn", if(form_errors?(@show_form_errors, @form), do: "btn-error", else: "btn-neutral btn-outline")]}
-          phx-disable-with={@continue_label <> "..."}
-        >
-          {@continue_label}
-        </button>
-        <button
-          type="submit"
-          name="save-type"
-          value="save"
-          class={["btn", if(form_errors?(@show_form_errors, @form), do: "btn-error", else: "btn-primary")]}
-          phx-disable-with={@save_label <> "..."}
-        >
-          {@save_label}
-        </button>
-      <% end %>
-    </div>
+
+          <button
+            type="submit"
+            class={["btn", if(form_errors?(@show_form_errors, f), do: "btn-error", else: "btn-primary")]}
+            phx-disable-with={@action_to_confirm.module.confirm_label(assigns) <> "..."}
+          >
+            {@action_to_confirm.module.confirm_label(assigns)}
+          </button>
+        <% else %>
+          <.link navigate={@live_resource.return_to(@socket, assigns, @live_action, :cancel, @item)}>
+            <button type="button" class="btn">
+              {Backpex.__("Cancel", @live_resource)}
+            </button>
+          </.link>
+          <button
+            :if={@continue_label}
+            type="submit"
+            name="save-type"
+            value="continue"
+            class={["btn btn-soft", if(form_errors?(@show_form_errors, f), do: "btn-error", else: "btn-primary")]}
+            phx-disable-with={@continue_label <> "..."}
+          >
+            {@continue_label}
+          </button>
+          <button
+            type="submit"
+            name="save-type"
+            value="save"
+            class={["btn", if(form_errors?(@show_form_errors, f), do: "btn-error", else: "btn-primary")]}
+            phx-disable-with={@save_label <> "..."}
+          >
+            {@save_label}
+          </button>
+        <% end %>
+      </:actions>
+    </.edit_card>
   </.form>
 </div>

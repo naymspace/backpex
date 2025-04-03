@@ -6,6 +6,8 @@ defmodule Backpex.HTML.Form do
 
   alias Phoenix.HTML.Form
 
+  require Backpex
+
   @doc """
   Renders an input.
   """
@@ -60,7 +62,7 @@ defmodule Backpex.HTML.Form do
 
     ~H"""
     <div class={@class}>
-      <div class="form-control w-full">
+      <fieldset class="fieldset py-0">
         <%= if @label do %>
           <label class="label cursor-pointer">
             <input type="hidden" name={@name} value="false" />
@@ -93,8 +95,8 @@ defmodule Backpex.HTML.Form do
             {@rest}
           />
         <% end %>
-      </div>
-      <.error :for={msg <- @errors} :if={not @hide_errors}>{msg}</.error>
+      </fieldset>
+      <.error :for={msg <- @errors} :if={not @hide_errors} class="mt-1">{msg}</.error>
     </div>
     """
   end
@@ -104,7 +106,7 @@ defmodule Backpex.HTML.Form do
 
     ~H"""
     <div class={@class}>
-      <div class="form-control w-full">
+      <fieldset class="fieldset py-0">
         <%= if @label do %>
           <label class="label cursor-pointer">
             <input type="hidden" name={@name} value="false" />
@@ -131,8 +133,8 @@ defmodule Backpex.HTML.Form do
             {@rest}
           />
         <% end %>
-      </div>
-      <.error :for={msg <- @errors} :if={not @hide_errors}>{msg}</.error>
+      </fieldset>
+      <.error :for={msg <- @errors} :if={not @hide_errors} class="mt-1">{msg}</.error>
     </div>
     """
   end
@@ -140,24 +142,25 @@ defmodule Backpex.HTML.Form do
   def input(%{type: "select"} = assigns) do
     ~H"""
     <div class={@class}>
-      <div class="form-control">
+      <fieldset class="fieldset py-0">
         <label :if={@label} class="label">
           <span class="label-text">{@label}</span>
         </label>
         <div class={
           @input_wrapper_class ||
             [
-              @errors == [] && "[&>*]:select [&>*]:select-bordered [&>*]:text-base-content",
-              @errors != [] && "[&>*]:select [&>*]:select-error [&>*]:bg-error/10 [&>*]:text-error-content"
+              "[&>*]:w-full [&>*]:select",
+              @errors == [] && "[&>*]:text-base-content",
+              @errors != [] && "[&>*]:select-error [&>*]:bg-error/10 [&>*]:text-error-content"
             ]
         }>
-          <select class={@input_class || "w-full"} name={@name} {@rest}>
+          <select class={@input_class} name={@name} {@rest}>
             <option :if={@prompt} value="">{@prompt}</option>
             {Phoenix.HTML.Form.options_for_select(@options, @value)}
           </select>
         </div>
-      </div>
-      <.error :for={msg <- @errors} :if={not @hide_errors}>{msg}</.error>
+      </fieldset>
+      <.error :for={msg <- @errors} :if={not @hide_errors} class="mt-1">{msg}</.error>
     </div>
     """
   end
@@ -165,7 +168,7 @@ defmodule Backpex.HTML.Form do
   def input(%{type: "textarea"} = assigns) do
     ~H"""
     <div class={@class}>
-      <div class="form-control">
+      <fieldset class="fieldset py-0">
         <label :if={@label} class="label">
           <span class="label-text">{@label}</span>
         </label>
@@ -174,12 +177,12 @@ defmodule Backpex.HTML.Form do
           name={@name}
           class={
             @input_class ||
-              ["textarea", @errors == [] && "textarea-bordered", @errors != [] && "textarea-error bg-error/10"]
+              ["textarea w-full", @errors == [] && "textarea-bordered", @errors != [] && "textarea-error bg-error/10"]
           }
           {@rest}
         ><%= Phoenix.HTML.Form.normalize_value("textarea", @value) %></textarea>
-      </div>
-      <.error :for={msg <- @errors} :if={not @hide_errors}>{msg}</.error>
+      </fieldset>
+      <.error :for={msg <- @errors} :if={not @hide_errors} class="mt-1">{msg}</.error>
     </div>
     """
   end
@@ -187,7 +190,7 @@ defmodule Backpex.HTML.Form do
   def input(assigns) do
     ~H"""
     <div class={@class}>
-      <div class="form-control">
+      <fieldset class="fieldset py-0">
         <label :if={@label} class="label">
           <span class="label-text">{@label}</span>
         </label>
@@ -196,14 +199,11 @@ defmodule Backpex.HTML.Form do
           name={@name}
           id={@id}
           value={Phoenix.HTML.Form.normalize_value(@type, @value)}
-          class={
-            @input_class ||
-              ["input", @input_class, @errors == [] && "input-bordered", @errors != [] && "input-error bg-error/10"]
-          }
+          class={@input_class || ["input w-full text-base", @input_class, @errors != [] && "input-error bg-error/10"]}
           {@rest}
         />
-      </div>
-      <.error :for={msg <- @errors} :if={not @hide_errors}>{msg}</.error>
+      </fieldset>
+      <.error :for={msg <- @errors} :if={not @hide_errors} class="mt-1">{msg}</.error>
     </div>
     """
   end
@@ -213,11 +213,13 @@ defmodule Backpex.HTML.Form do
   """
   @doc type: :component
 
+  attr :class, :string, default: nil
+
   slot :inner_block, required: true
 
   def error(assigns) do
     ~H"""
-    <p class="text-error mt-1 text-xs italic">
+    <p class={["text-error text-xs italic", @class]}>
       {render_slot(@inner_block)}
     </p>
     """
@@ -239,7 +241,9 @@ defmodule Backpex.HTML.Form do
   attr :show_select_all, :boolean, required: true, doc: "whether to display the select all button"
   attr :show_more, :boolean, required: true, doc: "whether there are more options to show"
   attr :search_event, :string, default: "search", doc: "the event that will be sent when the search input changes"
+  attr :hide_search, :boolean, default: false, doc: "if search should be hidden"
   attr :hide_errors, :boolean, default: false, doc: "if errors should be hidden"
+  attr :live_resource, :atom, default: nil, doc: "the live resource module"
 
   def multi_select(assigns) do
     errors = if Phoenix.Component.used_input?(assigns.field), do: assigns.field.errors, else: []
@@ -248,37 +252,36 @@ defmodule Backpex.HTML.Form do
 
     ~H"""
     <div class="dropdown w-full">
-      <label tabindex="0" class="input input-bordered block h-fit w-full p-2">
+      <label tabindex="0" class="input block h-fit w-full p-2">
         <div class="flex h-full w-full flex-wrap items-center gap-1 px-2">
           <p :if={@selected == []} class="text-base-content p-0.5 text-sm">
             {@prompt}
           </p>
 
-          <div :for={{label, value} <- @selected} class="badge badge-primary p-[11px]">
-            <p class="mr-1">
-              {label}
-            </p>
-
+          <div :for={{label, value} <- @selected} class="badge badge-sm badge-primary pointer-events-auto pr-0">
+            {label}
             <div
+              class="flex cursor-pointer items-center pr-2"
               role="button"
               phx-click="toggle-option"
               phx-value-id={value}
               phx-target={@event_target}
-              aria-label={Backpex.translate({"Unselect %{label}", %{label: label}})}
+              aria-label={Backpex.__({"Unselect %{label}", %{label: label}}, @live_resource)}
             >
-              <Backpex.HTML.CoreComponents.icon name="hero-x-mark" class="text-base-100 ml-1 h-4 w-4" />
+              <Backpex.HTML.CoreComponents.icon name="hero-x-mark" class="text-primary-content size-4 scale-110" />
             </div>
           </div>
         </div>
       </label>
-      <.error :for={msg <- @errors} :if={not @hide_errors}>{msg}</.error>
+      <.error :for={msg <- @errors} :if={not @hide_errors} class="mt-1">{msg}</.error>
       <div tabindex="0" class="dropdown-content z-[1] menu bg-base-100 rounded-box w-full overflow-y-auto shadow">
         <div class="max-h-72 p-2">
           <input
+            :if={not @hide_search}
             type="search"
             name={@field.name <> "_search"}
-            class="input input-sm input-bordered mb-2 w-full"
-            placeholder={Backpex.translate("Search")}
+            class="input input-sm mb-2 w-full"
+            placeholder={Backpex.__("Search", @live_resource)}
             value={@search_input}
             phx-change={@search_event}
             phx-target={@event_target}
@@ -296,16 +299,16 @@ defmodule Backpex.HTML.Form do
             phx-target={@event_target}
           >
             <%= if @show_select_all do %>
-              {Backpex.translate("Select all")}
+              {Backpex.__("Select all", @live_resource)}
             <% else %>
-              {Backpex.translate("Deselect all")}
+              {Backpex.__("Deselect all", @live_resource)}
             <% end %>
           </button>
 
           <input type="hidden" name={@field.name} value="" />
 
           <div class="my-2 w-full">
-            <div
+            <label
               :for={{label, value} <- @options}
               class="mt-2 flex space-x-2"
               phx-click="toggle-option"
@@ -320,10 +323,10 @@ defmodule Backpex.HTML.Form do
                 checked_value={value}
                 value={value}
               />
-              <p class="text-md cursor-pointer">
+              <span class="text-md cursor-pointer">
                 {label}
-              </p>
-            </div>
+              </span>
+            </label>
           </div>
 
           <button
@@ -333,7 +336,7 @@ defmodule Backpex.HTML.Form do
             phx-click="show-more"
             phx-target={@event_target}
           >
-            {Backpex.translate("Show more")}
+            {Backpex.__("Show more", @live_resource)}
           </button>
         </div>
       </div>
@@ -350,7 +353,7 @@ defmodule Backpex.HTML.Form do
     |> Enum.map(fn error ->
       error
       |> translate_error_fun.()
-      |> Backpex.translate(:error)
+      |> Backpex.translate_error()
     end)
   end
 

@@ -13,7 +13,7 @@ defmodule BackpexWeb do
   """
   def html do
     quote do
-      use Phoenix.Component, global_prefixes: ~w(x-)
+      use Phoenix.Component
       unquote(html_helpers())
     end
   end
@@ -23,7 +23,7 @@ defmodule BackpexWeb do
   """
   def field do
     quote do
-      use Phoenix.Component, global_prefixes: ~w(x-)
+      use Phoenix.Component
       use Phoenix.LiveComponent
       alias Backpex.HTML
       alias Backpex.HTML.Form, as: BackpexForm
@@ -39,7 +39,7 @@ defmodule BackpexWeb do
   """
   def item_action do
     quote do
-      use Phoenix.Component, global_prefixes: ~w(x-)
+      use Phoenix.Component
       use Backpex.ItemAction
       import Phoenix.LiveView
       alias Backpex.Router
@@ -49,14 +49,15 @@ defmodule BackpexWeb do
 
   def filter do
     quote do
-      use Phoenix.Component, global_prefixes: ~w(x-)
+      use Phoenix.Component
       import Ecto.Query, warn: false
+      unquote(html_helpers())
     end
   end
 
   def metric do
     quote do
-      use Phoenix.Component, global_prefixes: ~w(x-)
+      use Phoenix.Component
       import Ecto.Query
       @behaviour Backpex.Metric
     end

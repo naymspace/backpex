@@ -25,6 +25,7 @@ defmodule Backpex.Filters.MultiSelect do
   > When you `use Backpex.Filters.MultiSelect`, the `Backpex.Filters.MultiSelect` module will set `@behavior Backpex.Filters.Select`. In addition it will add a `render` and `render_form` function in order to display the corresponding filter.
   """
   use BackpexWeb, :filter
+  require Backpex
 
   @doc """
   The list of options for the multi select filter.
@@ -85,19 +86,17 @@ defmodule Backpex.Filters.MultiSelect do
     assigns = assign(assigns, :value, value)
 
     ~H"""
-    <div class="mt-2" x-data="{ open: false }">
-      <div tabindex="0" @click="open = !open" role="button" class="select select-sm select-bordered w-full">
+    <div class="dropdown mt-2 w-full" phx-click={open_content()} phx-click-away={close_content()}>
+      <div tabindex="0" role="button" class="select select-sm">
         <%= if @value == [] do %>
           {@prompt}
         <% else %>
-          {"#{Enum.count(@value)} #{Backpex.translate("selected")}"}
+          {"#{Enum.count(@value)} #{Backpex.__("selected", assigns.live_resource)}"}
         <% end %>
       </div>
       <ul
         tabindex="0"
-        class="dropdown-content z-[1] menu bg-base-100 rounded-box min-w-60 max-h-96 w-max overflow-y-auto p-2 shadow"
-        x-show="open"
-        @click.outside="open = false"
+        class="dropdown-content z-[1] menu bg-base-100 rounded-box min-w-60 hidden max-h-96 w-max overflow-y-auto p-2 shadow"
       >
         <div class="space-y-2">
           <input type="hidden" name={@form[@field].name} value="" />
@@ -120,6 +119,16 @@ defmodule Backpex.Filters.MultiSelect do
       </ul>
     </div>
     """
+  end
+
+  defp open_content(js \\ %JS{}) do
+    js
+    |> JS.remove_class("hidden", to: {:inner, ".dropdown-content"})
+  end
+
+  defp close_content(js \\ %JS{}) do
+    js
+    |> JS.add_class("hidden", to: {:inner, ".dropdown-content"})
   end
 
   def query(query, _attribute, []), do: query
