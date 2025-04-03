@@ -82,11 +82,11 @@ defmodule DemoWeb.ItemActions.SoftDelete do
   end
 
   defp success_message(assigns, [_item]) do
-    "#{assigns.singular_name} has been deleted successfully."
+    "#{assigns.live_resource.singular_name()} has been deleted successfully."
   end
 
   defp success_message(assigns, items) do
-    "#{Enum.count(items)} #{assigns.plural_name} have been deleted successfully."
+    "#{Enum.count(items)} #{assigns.live_resource.plural_name()} have been deleted successfully."
   end
 
   defp error_message(assigns, %Postgrex.Error{postgres: %{code: :foreign_key_violation}}, [_item] = items) do
@@ -106,10 +106,10 @@ defmodule DemoWeb.ItemActions.SoftDelete do
   end
 
   defp error_message(assigns, _error, [_item]) do
-    "An error occurred while deleting the #{assigns.singular_name}!"
+    "An error occurred while deleting the #{assigns.live_resource.singular_name()}!"
   end
 
   defp error_message(assigns, _error, items) do
-    "An error occurred while deleting #{Enum.count(items)} #{assigns.plural_name}!"
+    "An error occurred while deleting #{Enum.count(items)} #{assigns.live_resource.plural_name()}!"
   end
 end

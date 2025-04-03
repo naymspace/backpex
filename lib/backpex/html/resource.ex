@@ -749,11 +749,13 @@ defmodule Backpex.HTML.Resource do
   attr :singular_name, :string, required: true, doc: "singular name of the resource"
 
   def empty_state(assigns) do
+    plural_name = assigns.live_resource.plural_name()
+
     assigns =
       assigns
       |> assign(:search_active?, get_in(assigns, [:query_options, :search]) not in [nil, ""])
       |> assign(:filter_active?, get_in(assigns, [:query_options, :filters]) != %{})
-      |> assign(:title, Backpex.__({"No %{resources} found", %{resources: assigns.plural_name}}, assigns.live_resource))
+      |> assign(:title, Backpex.__({"No %{resources} found", %{resources: plural_name}}, assigns.live_resource))
       |> assign(:create_allowed, assigns.live_resource.can?(assigns, :new, nil))
 
     ~H"""

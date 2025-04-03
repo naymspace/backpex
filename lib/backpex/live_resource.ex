@@ -348,7 +348,7 @@ defmodule Backpex.LiveResource do
       def render_resource_slot(var!(assigns), :index, :page_title) do
         ~H"""
         <.main_title class="flex items-center justify-between">
-          {@plural_name}
+          {@live_resource.plural_name()}
         </.main_title>
         """
       end
@@ -385,10 +385,10 @@ defmodule Backpex.LiveResource do
       def render_resource_slot(var!(assigns), :show, :page_title) do
         ~H"""
         <.main_title class="flex items-center justify-between">
-          {@singular_name}
+          {@live_resource.singular_name()}
           <.link
             :if={@live_resource.can?(assigns, :edit, @item)}
-            id={"#{@singular_name}-edit-link"}
+            id={"#{@live_resource.singular_name()}-edit-link"}
             phx-hook="BackpexTooltip"
             data-tooltip={Backpex.__("Edit", @live_resource)}
             aria-label={Backpex.__("Edit", @live_resource)}
@@ -414,7 +414,7 @@ defmodule Backpex.LiveResource do
       def render_resource_slot(var!(assigns), :edit, :page_title) do
         ~H"""
         <.main_title class="mb-4">
-          {Backpex.__({"Edit %{resource}", %{resource: @singular_name}}, @live_resource)}
+          {Backpex.__({"Edit %{resource}", %{resource: @live_resource.singular_name()}}, @live_resource)}
         </.main_title>
         """
       end
@@ -456,19 +456,14 @@ defmodule Backpex.LiveResource do
     pubsub = live_resource.pubsub()
     subscribe_to_topic(socket, pubsub)
 
-    # TODO: move these "config assigns" (and other global assigns) to where they are needed
-    fluid? = live_resource.config(:fluid?)
-
     socket
     |> assign(:live_resource, live_resource)
-    |> assign(:singular_name, live_resource.singular_name())
-    |> assign(:plural_name, live_resource.plural_name())
     |> assign(
       :create_button_label,
       Backpex.__({"New %{resource}", %{resource: live_resource.singular_name()}}, live_resource)
     )
     |> assign(:panels, live_resource.panels())
-    |> assign(:fluid?, fluid?)
+    |> assign(:fluid?, live_resource.config(:fluid?))
     |> assign_active_fields(session)
     |> assign_metrics_visibility(session)
     |> assign_filters_changed_status(params)
@@ -603,13 +598,13 @@ defmodule Backpex.LiveResource do
 
   defp apply_action(socket, :index) do
     socket
-    |> assign(:page_title, socket.assigns.plural_name)
+    |> assign(:page_title, socket.assigns.live_resource.plural_name())
     |> apply_index()
     |> assign(:item, nil)
   end
 
   defp apply_action(socket, :edit) do
-    %{live_resource: live_resource, singular_name: singular_name} = socket.assigns
+    %{live_resource: live_resource} = socket.assigns
 
     fields = live_resource.validated_fields() |> filtered_fields_by_action(socket.assigns, :edit)
     primary_value = URI.decode(socket.assigns.params["backpex_id"])
@@ -622,13 +617,13 @@ defmodule Backpex.LiveResource do
     socket
     |> assign(:fields, fields)
     |> assign(:changeset_function, changeset_function)
-    |> assign(:page_title, Backpex.__({"Edit %{resource}", %{resource: singular_name}}, live_resource))
+    |> assign(:page_title, Backpex.__({"Edit %{resource}", %{resource: live_resource.singular_name()}}, live_resource))
     |> assign(:item, item)
     |> assign_changeset(changeset_function, item, fields, :edit)
   end
 
   defp apply_action(socket, :show) do
-    %{live_resource: live_resource, singular_name: singular_name} = socket.assigns
+    %{live_resource: live_resource} = socket.assigns
 
     fields = live_resource.validated_fields() |> filtered_fields_by_action(socket.assigns, :show)
     primary_value = URI.decode(socket.assigns.params["backpex_id"])
@@ -637,7 +632,7 @@ defmodule Backpex.LiveResource do
     if not live_resource.can?(socket.assigns, :show, item), do: raise(Backpex.ForbiddenError)
 
     socket
-    |> assign(:page_title, singular_name)
+    |> assign(:page_title, live_resource.singular_name())
     |> assign(:fields, fields)
     |> assign(:item, item)
     |> apply_show_return_to(item)
