@@ -130,8 +130,8 @@ defmodule Backpex.Fields.HasManyThrough do
 
   @impl Backpex.Field
   def render_value(assigns) do
-    %{item: item, name: assoc_field_name, schema: schema} = assigns
-
+    %{item: item, name: assoc_field_name} = assigns
+    schema = assigns.live_resource.config(:adapter_config)[:schema]
     %{pivot: %{field: pivot_field}, child: %{field: child_field}} = association(schema, assoc_field_name)
 
     listables =
