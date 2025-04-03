@@ -861,13 +861,6 @@ defmodule Backpex.LiveResource do
   defp maybe_put_search(query_options, _params), do: query_options
 
   @impl Phoenix.LiveView
-  def handle_event("close-modal", _params, socket) do
-    socket
-    |> push_patch(to: socket.assigns.return_to)
-    |> noreply()
-  end
-
-  @impl Phoenix.LiveView
   def handle_event("item-action", %{"action-key" => key, "item-id" => item_id}, socket) do
     %{items: items, live_resource: live_resource} = socket.assigns
 
@@ -1044,6 +1037,15 @@ defmodule Backpex.LiveResource do
     socket
     |> assign(:select_all, select_all)
     |> assign(:selected_items, selected_items)
+    |> noreply()
+  end
+
+  @impl Phoenix.LiveView
+  def handle_event("cancel-action-confirm", _params, socket) do
+    socket
+    |> assign(:item, nil)
+    |> assign(:changeset, nil)
+    |> assign(:action_to_confirm, nil)
     |> noreply()
   end
 
