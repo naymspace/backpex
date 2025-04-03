@@ -25,16 +25,4 @@ defmodule Backpex.Metric do
   def metrics_visible?(%{} = visibility, resource) do
     Map.get(visibility, resource, true)
   end
-
-  @doc """
-  Builds string of css classes for basic metric box
-  """
-  def metric_box_class(metric) do
-    class = "mb-4 w-full rounded-btn bg-base-100 p-4 px-5 shadow-sm ring-1 ring-base-100"
-
-    case Map.get(metric, :class) do
-      nil -> class
-      extra_class -> class <> " " <> extra_class
-    end
-  end
 end

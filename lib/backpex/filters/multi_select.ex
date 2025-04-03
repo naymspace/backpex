@@ -25,6 +25,7 @@ defmodule Backpex.Filters.MultiSelect do
   > When you `use Backpex.Filters.MultiSelect`, the `Backpex.Filters.MultiSelect` module will set `@behavior Backpex.Filters.Select`. In addition it will add a `render` and `render_form` function in order to display the corresponding filter.
   """
   use BackpexWeb, :filter
+  require Backpex
 
   @doc """
   The list of options for the multi select filter.
@@ -86,11 +87,11 @@ defmodule Backpex.Filters.MultiSelect do
 
     ~H"""
     <div class="dropdown mt-2 w-full" phx-click={open_content()} phx-click-away={close_content()}>
-      <div tabindex="0" role="button" class="select select-sm select-bordered w-full">
+      <div tabindex="0" role="button" class="select select-sm">
         <%= if @value == [] do %>
           {@prompt}
         <% else %>
-          {"#{Enum.count(@value)} #{Backpex.translate("selected")}"}
+          {"#{Enum.count(@value)} #{Backpex.__("selected", assigns.live_resource)}"}
         <% end %>
       </div>
       <ul

@@ -5,7 +5,7 @@
 # renovate: datasource=github-tags depName=elixir packageName=elixir-lang/elixir versioning=semver
 ARG ELIXIR_VERSION=1.18.3
 # renovate: datasource=github-tags depName=erlang packageName=erlang/otp versioning=regex:^(?<major>\d+?)\.(?<minor>\d+?)(\.(?<patch>\d+))?$ extractVersion=^OTP-(?<version>\S+)
-ARG OTP_VERSION=27.3
+ARG OTP_VERSION=27.3.1
 # renovate: datasource=docker depName=ubuntu packageName=ubuntu versioning=ubuntu
 ARG UBUNTU_VERSION=noble-20250127
 
@@ -26,7 +26,7 @@ ENV MIX_HOME=/opt/mix \
 WORKDIR $APP_HOME
 
 RUN apt-get update -y \
-    && apt-get install -y build-essential curl git inotify-tools \
+    && apt-get install -y build-essential curl git inotify-tools watchman \
     && apt-get clean && rm -f /var/lib/apt/lists/*_*
 
 RUN curl -fsSL https://deb.nodesource.com/setup_lts.x | bash - \
