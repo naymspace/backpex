@@ -309,7 +309,7 @@ defmodule Backpex.Adapters.Ecto do
   defp get_changeset_function(:new, config, _assigns), do: config[:create_changeset]
   defp get_changeset_function(:edit, config, _assigns), do: config[:update_changeset]
   # TODO: find solution for this workaround
-  defp get_changeset_function(:index, _config, assigns), do: assigns.changeset_function
+  defp get_changeset_function(:index, config, _assigns), do: config[:update_changeset]
   defp get_changeset_function(:resource_action, _config, assigns), do: assigns.changeset_function
 
   defp before_changesets(changeset, attrs, metadata, repo, fields, assigns) do

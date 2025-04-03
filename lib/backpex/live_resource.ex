@@ -612,14 +612,11 @@ defmodule Backpex.LiveResource do
 
     if not live_resource.can?(socket.assigns, :edit, item), do: raise(Backpex.ForbiddenError)
 
-    changeset_function = live_resource.config(:adapter_config)[:update_changeset]
-
     socket
     |> assign(:fields, fields)
-    |> assign(:changeset_function, changeset_function)
     |> assign(:page_title, Backpex.__({"Edit %{resource}", %{resource: live_resource.singular_name()}}, live_resource))
     |> assign(:item, item)
-    |> assign_changeset(changeset_function, item, fields, :edit)
+    |> assign_changeset(live_resource.config(:adapter_config)[:update_changeset], item, fields, :edit)
   end
 
   defp apply_action(socket, :show) do
@@ -646,14 +643,12 @@ defmodule Backpex.LiveResource do
     fields = live_resource.validated_fields() |> filtered_fields_by_action(socket.assigns, :new)
     adapter_config = live_resource.config(:adapter_config)
     empty_item = adapter_config[:schema].__struct__()
-    changeset_function = live_resource.config(:adapter_config)[:create_changeset]
 
     socket
-    |> assign(:changeset_function, changeset_function)
     |> assign(:page_title, create_button_label)
     |> assign(:fields, fields)
     |> assign(:item, empty_item)
-    |> assign_changeset(changeset_function, empty_item, fields, :new)
+    |> assign_changeset(adapter_config[:create_changeset], empty_item, fields, :new)
   end
 
   defp apply_action(socket, :resource_action) do
@@ -760,7 +755,6 @@ defmodule Backpex.LiveResource do
     |> assign(:selected_items, [])
     |> assign(:select_all, false)
     |> assign(:fields, fields)
-    |> assign(:changeset_function, live_resource.config(:adapter_config)[:update_changeset])
     |> maybe_redirect_to_default_filters()
     |> assign_items()
     |> maybe_assign_metrics()
