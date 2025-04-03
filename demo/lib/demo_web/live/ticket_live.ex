@@ -15,14 +15,11 @@ defmodule DemoWeb.TicketLive do
   @impl Backpex.LiveResource
   def render_resource_slot(assigns, :index, :before_page_title) do
     ~H"""
-    <div role="alert" class="alert alert-info my-4 text-sm">
-      <Backpex.HTML.CoreComponents.icon name="hero-information-circle" class="h-5 w-5" />
-      <p>
-        This resource uses the <strong>Ash adapter</strong>, which is currently in a very early alpha stage.
-        Currently, only <strong>index</strong>, <strong>show</strong> and <strong>delete</strong> are functional in a
-        very basic form. We are working on supporting more Backpex features in the future.
-      </p>
-    </div>
+    <Backpex.HTML.Layout.alert kind={:info} closable={false}>
+      This resource uses the <strong>Ash adapter</strong>, which is currently in a very early alpha stage.
+      Currently, only <strong>index</strong>, <strong>show</strong> and <strong>delete</strong> are functional in a
+      very basic form. We are working on supporting more Backpex features in the future.
+    </Backpex.HTML.Layout.alert>
     """
   end
 
