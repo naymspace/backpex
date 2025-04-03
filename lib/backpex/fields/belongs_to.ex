@@ -65,9 +65,9 @@ defmodule Backpex.Fields.BelongsTo do
 
   @impl Phoenix.LiveComponent
   def update(assigns, socket) do
-    %{schema: schema, name: name, field: field} = assigns
-
-    %{queryable: queryable, owner_key: owner_key} = schema.__schema__(:association, name)
+    %{name: name, field: field} = assigns
+    adapter_config = assigns.live_resource.config(:adapter_config)
+    %{queryable: queryable, owner_key: owner_key} = adapter_config[:schema].__schema__(:association, name)
 
     display_field = display_field(field)
     display_field_form = display_field_form(field, display_field)
@@ -117,14 +117,14 @@ defmodule Backpex.Fields.BelongsTo do
   @impl Backpex.Field
   def render_form(assigns) do
     %{
-      repo: repo,
       field_options: field_options,
       queryable: queryable,
       owner_key: owner_key,
       display_field_form: display_field_form
     } = assigns
 
-    options = get_options(repo, queryable, field_options, display_field_form, assigns)
+    adapter_config = assigns.live_resource.config(:adapter_config)
+    options = get_options(adapter_config[:repo], queryable, field_options, display_field_form, assigns)
 
     assigns =
       assigns
@@ -154,10 +154,9 @@ defmodule Backpex.Fields.BelongsTo do
 
   @impl Backpex.Field
   def render_index_form(assigns) do
-    %{repo: repo, field_options: field_options, queryable: queryable, display_field_form: display_field_form} = assigns
-
-    options = get_options(repo, queryable, field_options, display_field_form, assigns)
-
+    %{field_options: field_options, queryable: queryable, display_field_form: display_field_form} = assigns
+    adapter_config = assigns.live_resource.config(:adapter_config)
+    options = get_options(adapter_config[:repo], queryable, field_options, display_field_form, assigns)
     form = to_form(%{"value" => assigns.value}, as: :index_form)
 
     assigns =

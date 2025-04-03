@@ -457,13 +457,10 @@ defmodule Backpex.LiveResource do
     subscribe_to_topic(socket, pubsub)
 
     # TODO: move these "config assigns" (and other global assigns) to where they are needed
-    adapter_config = live_resource.config(:adapter_config)
     fluid? = live_resource.config(:fluid?)
 
     socket
     |> assign(:live_resource, live_resource)
-    |> assign(:schema, adapter_config[:schema])
-    |> assign(:repo, adapter_config[:repo])
     |> assign(:singular_name, live_resource.singular_name())
     |> assign(:plural_name, live_resource.plural_name())
     |> assign(
@@ -529,28 +526,24 @@ defmodule Backpex.LiveResource do
 
   defp maybe_assign_metrics(socket) do
     %{
-      assigns:
-        %{
-          repo: repo,
-          schema: schema,
-          live_resource: live_resource,
-          fields: fields,
-          query_options: query_options,
-          metric_visibility: metric_visibility
-        } = assigns
-    } = socket
+      live_resource: live_resource,
+      fields: fields,
+      query_options: query_options,
+      metric_visibility: metric_visibility
+    } = socket.assigns
 
-    filters = active_filters(assigns)
+    adapter_config = live_resource.config(:adapter_config)
+    filters = active_filters(socket.assigns)
 
     metrics =
       socket.assigns.live_resource.metrics()
       |> Enum.map(fn {key, metric} ->
         criteria = [
-          search: search_options(query_options, fields, schema),
+          search: search_options(query_options, fields, adapter_config[:schema]),
           filters: filter_options(query_options, filters)
         ]
 
-        query = EctoAdapter.list_query(criteria, assigns, live_resource)
+        query = EctoAdapter.list_query(criteria, socket.assigns, live_resource)
 
         case Backpex.Metric.metrics_visible?(metric_visibility, live_resource) do
           true ->
@@ -559,7 +552,7 @@ defmodule Backpex.LiveResource do
               |> Ecto.Query.exclude(:select)
               |> Ecto.Query.exclude(:preload)
               |> Ecto.Query.exclude(:group_by)
-              |> metric.module.query(metric.select, repo)
+              |> metric.module.query(metric.select, adapter_config[:repo])
 
             {key, Map.put(metric, :data, data)}
 
@@ -651,13 +644,13 @@ defmodule Backpex.LiveResource do
   end
 
   defp apply_action(socket, :new) do
-    %{live_resource: live_resource, schema: schema, create_button_label: create_button_label} = socket.assigns
+    %{live_resource: live_resource, create_button_label: create_button_label} = socket.assigns
 
     if not live_resource.can?(socket.assigns, :new, nil), do: raise(Backpex.ForbiddenError)
 
     fields = live_resource.validated_fields() |> filtered_fields_by_action(socket.assigns, :new)
-    empty_item = schema.__struct__()
-
+    adapter_config = live_resource.config(:adapter_config)
+    empty_item = adapter_config[:schema].__struct__()
     changeset_function = live_resource.config(:adapter_config)[:create_changeset]
 
     socket
@@ -718,11 +711,7 @@ defmodule Backpex.LiveResource do
   end
 
   defp apply_index(socket) do
-    %{
-      live_resource: live_resource,
-      schema: schema,
-      params: params
-    } = socket.assigns
+    %{live_resource: live_resource, params: params} = socket.assigns
 
     if not live_resource.can?(socket.assigns, :index, nil), do: raise(Backpex.ForbiddenError)
 
@@ -735,8 +724,10 @@ defmodule Backpex.LiveResource do
     filters = active_filters(socket.assigns)
     valid_filter_params = get_valid_filters_from_params(params, filters, empty_filter_key())
 
+    adapter_config = live_resource.config(:adapter_config)
+
     count_criteria = [
-      search: search_options(params, fields, schema),
+      search: search_options(params, fields, adapter_config[:schema]),
       filters: filter_options(valid_filter_params, filters)
     ]
 
@@ -788,7 +779,10 @@ defmodule Backpex.LiveResource do
     assign(socket, :changeset, changeset)
   end
 
-  defp default_attrs(:new, fields, %{schema: schema} = assigns) do
+  defp default_attrs(:new, fields, assigns) do
+    adapter_config = assigns.live_resource.config(:adapter_config)
+    schema = adapter_config[:schema]
+
     Enum.reduce(fields, %{}, fn
       {name, %{default: default} = field_options} = field, attrs ->
         if field_options.module.association?(field) && schema.__schema__(:association, name).cardinality == :one do
@@ -1115,17 +1109,17 @@ defmodule Backpex.LiveResource do
   defp refresh_items(socket) do
     %{
       live_resource: live_resource,
-      schema: schema,
       params: params,
       fields: fields,
       query_options: query_options
     } = socket.assigns
 
+    adapter_config = live_resource.config(:adapter_config)
     filters = active_filters(socket.assigns)
     valid_filter_params = get_valid_filters_from_params(params, filters, empty_filter_key())
 
     count_criteria = [
-      search: search_options(params, fields, schema),
+      search: search_options(params, fields, adapter_config[:schema]),
       filters: filter_options(valid_filter_params, filters)
     ]
 
@@ -1398,13 +1392,14 @@ defmodule Backpex.LiveResource do
 
   defp build_criteria(assigns) do
     %{
-      schema: schema,
+      live_resource: live_resource,
       fields: fields,
       filters: filters,
       query_options: query_options,
       init_order: init_order
     } = assigns
 
+    adapter_config = live_resource.config(:adapter_config)
     field = Enum.find(fields, fn {name, _field_options} -> name == query_options.order_by end)
 
     order =
@@ -1413,20 +1408,20 @@ defmodule Backpex.LiveResource do
 
         %{
           by: field_options.module.display_field(field),
-          schema: field_options.module.schema(field, schema),
+          schema: field_options.module.schema(field, adapter_config[:schema]),
           direction: query_options.order_direction,
           field_name: field_name
         }
       else
         init_order
         |> resolve_init_order(assigns)
-        |> Map.put(:schema, schema)
+        |> Map.put(:schema, adapter_config[:schema])
       end
 
     [
       order: order,
       pagination: %{page: query_options.page, size: query_options.per_page},
-      search: search_options(query_options, fields, schema),
+      search: search_options(query_options, fields, adapter_config[:schema]),
       filters: filter_options(query_options, filters)
     ]
   end

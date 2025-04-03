@@ -52,7 +52,8 @@ defmodule Backpex.Fields.Currency do
 
   @impl Backpex.Field
   def render_value(assigns) do
-    assigns = assign(assigns, :casted_value, maybe_cast_value(assigns.name, assigns.schema, assigns.value))
+    adapter_config = assigns.live_resource.config(:adapter_config)
+    assigns = assign(assigns, :casted_value, maybe_cast_value(assigns.name, adapter_config[:schema], assigns.value))
 
     ~H"""
     <p class={@live_action in [:index, :resource_action] && "truncate"}>

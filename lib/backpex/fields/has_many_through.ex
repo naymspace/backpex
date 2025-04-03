@@ -93,9 +93,8 @@ defmodule Backpex.Fields.HasManyThrough do
   end
 
   defp apply_action(socket, :form) do
-    %{schema: schema, name: name} = socket.assigns
-
-    association = association(schema, name)
+    adapter_config = socket.assigns.live_resource.config(:adapter_config)
+    association = association(adapter_config[:schema], socket.assigns.name)
 
     socket
     |> assign_new(:association, fn -> association end)
@@ -107,14 +106,15 @@ defmodule Backpex.Fields.HasManyThrough do
   defp assign_options(%{assigns: %{options: _options, items: _items}} = socket), do: socket
 
   defp assign_options(socket) do
-    %{assigns: %{repo: repo, field_options: field_options, association: association} = assigns} = socket
+    %{field_options: field_options, association: association} = socket.assigns
+    adapter_config = socket.assigns.live_resource.config(:adapter_config)
 
     display_field = Map.get(field_options, :display_field_form, Map.get(field_options, :display_field))
 
     all_items =
       from(association.child.queryable)
-      |> maybe_options_query(field_options, assigns)
-      |> repo.all()
+      |> maybe_options_query(field_options, socket.assigns)
+      |> adapter_config[:repo].all()
 
     options = Enum.map(all_items, &{Map.get(&1, display_field), Map.get(&1, :id)})
 

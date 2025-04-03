@@ -81,8 +81,10 @@ defmodule Backpex.Adapters.Ecto do
   """
   @impl Backpex.Adapter
   def list(criteria, assigns, live_resource) do
+    config = live_resource.config(:adapter_config)
+
     list_query(criteria, assigns, live_resource)
-    |> assigns.repo.all()
+    |> config[:repo].all()
     |> then(fn items -> {:ok, items} end)
   end
 
@@ -107,20 +109,19 @@ defmodule Backpex.Adapters.Ecto do
   TODO: Should be private.
   """
   def list_query(criteria, assigns, live_resource) do
-    %{schema: schema} = assigns
     config = live_resource.config(:adapter_config)
     full_text_search = live_resource.config(:full_text_search)
     item_query = prepare_item_query(config, assigns)
     fields = live_resource.validated_fields()
-    associations = associations(fields, schema)
+    associations = associations(fields, config[:schema])
 
-    schema
-    |> from(as: ^name_by_schema(schema))
+    config[:schema]
+    |> from(as: ^name_by_schema(config[:schema]))
     |> item_query.()
     |> maybe_join(associations)
     |> maybe_preload(associations, fields)
     |> maybe_merge_dynamic_fields(fields)
-    |> apply_search(schema, full_text_search, criteria[:search])
+    |> apply_search(config[:schema], full_text_search, criteria[:search])
     |> apply_filters(criteria[:filters], Backpex.LiveResource.empty_filter_key())
     |> apply_criteria(criteria, fields)
   end
