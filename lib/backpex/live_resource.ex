@@ -549,17 +549,6 @@ defmodule Backpex.LiveResource do
   end
 
   @impl Phoenix.LiveView
-  def handle_info({:put_assoc, {key, value} = _assoc}, socket) do
-    changeset = Ecto.Changeset.put_assoc(socket.assigns.changeset, key, value)
-    assocs = Map.get(socket.assigns, :assocs, []) |> Keyword.put(key, value)
-
-    socket
-    |> assign(:assocs, assocs)
-    |> assign(:changeset, changeset)
-    |> noreply()
-  end
-
-  @impl Phoenix.LiveView
   def handle_info({:put_embed, {key, value} = _assoc}, socket) do
     changeset = Ecto.Changeset.put_embed(socket.assigns.changeset, key, value)
     embeds = Map.get(socket.assigns, :embeds, []) |> Keyword.put(key, value)

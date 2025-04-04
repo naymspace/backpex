@@ -40,6 +40,16 @@ defmodule Backpex.LiveResource.Edit do
     |> noreply()
   end
 
+  def handle_info({:put_assoc, {key, value} = _assoc}, socket) do
+    changeset = Ecto.Changeset.put_assoc(socket.assigns.changeset, key, value)
+    assocs = Map.get(socket.assigns, :assocs, []) |> Keyword.put(key, value)
+
+    socket
+    |> assign(:assocs, assocs)
+    |> assign(:changeset, changeset)
+    |> noreply()
+  end
+
   defp assign_item(socket) do
     %{live_resource: live_resource, params: params} = socket.assigns
 
