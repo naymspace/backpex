@@ -1,5 +1,6 @@
 defmodule Backpex.LiveResource.Show do
   @moduledoc false
+  use BackpexWeb, :html
 
   alias Backpex.Resource
   alias Backpex.LiveResource
@@ -7,8 +8,9 @@ defmodule Backpex.LiveResource.Show do
   alias Backpex.Adapters.Ecto, as: EctoAdapter
   alias Backpex.Router
   alias Phoenix.LiveView
-  use BackpexWeb, :html
+
   import Phoenix.Component
+
   require Backpex
 
   def mount(params, _session, socket, live_resource) do
@@ -19,13 +21,20 @@ defmodule Backpex.LiveResource.Show do
     |> assign(:live_resource, live_resource)
     |> assign(:panels, live_resource.panels())
     |> assign(:fluid?, live_resource.config(:fluid?))
+    |> assign(:page_title, live_resource.singular_name())
+    |> assign(:params, params)
+    |> assign_fields()
+    |> assign_item()
     |> ok()
   end
 
-  def handle_params(params, _url, socket) do
+  def handle_params(_params, _url, socket) do
+    noreply(socket)
+  end
+
+  def handle_info({"backpex:updated", item}, socket) do
     socket
-    |> assign(:params, params)
-    |> apply_action(socket.assigns.live_action)
+    |> assign_item()
     |> noreply()
   end
 
@@ -33,26 +42,26 @@ defmodule Backpex.LiveResource.Show do
     Backpex.HTML.Resource.resource_show(assigns)
   end
 
-  defp apply_action(socket, :show) do
-    %{live_resource: live_resource} = socket.assigns
+  defp assign_item(socket) do
+    %{live_resource: live_resource, params: params} = socket.assigns
 
-    fields = live_resource.validated_fields() |> LiveResource.filtered_fields_by_action(socket.assigns, :show)
-    primary_value = URI.decode(socket.assigns.params["backpex_id"])
+    backpex_id = Map.fetch!(params, "backpex_id")
+    primary_value = URI.decode(backpex_id)
+
     item = Resource.get!(primary_value, socket.assigns, live_resource)
 
     if not live_resource.can?(socket.assigns, :show, item), do: raise(Backpex.ForbiddenError)
 
     socket
-    |> assign(:page_title, live_resource.singular_name())
-    |> assign(:fields, fields)
     |> assign(:item, item)
-    |> apply_show_return_to(item)
+    |> assign(:return_to, Router.get_path(socket, live_resource, params, :show, item))
   end
 
-  defp apply_show_return_to(socket, item) do
-    %{live_resource: live_resource, params: params} = socket.assigns
+  defp assign_fields(socket) do
+    fields =
+      socket.assigns.live_resource.validated_fields()
+      |> LiveResource.filtered_fields_by_action(socket.assigns, :show)
 
-    socket
-    |> assign(:return_to, Router.get_path(socket, live_resource, params, :show, item))
+    assign(socket, :fields, fields)
   end
 end
