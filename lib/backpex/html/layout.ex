@@ -4,7 +4,7 @@ defmodule Backpex.HTML.Layout do
   """
 
   use BackpexWeb, :html
-
+  alias Backpex.HTML.CoreComponents
   alias Backpex.Router
 
   @doc """
@@ -100,33 +100,63 @@ defmodule Backpex.HTML.Layout do
 
   def flash_messages(assigns) do
     ~H"""
-    <div
-      :if={Phoenix.Flash.get(@flash, :info) && Phoenix.Flash.get(@flash, :info) != ""}
-      class="alert alert-info my-4"
-      phx-value-key="info"
+    <.alert
+      :for={kind <- ~w(info success warning error)a}
+      :if={msg = Phoenix.Flash.get(@flash, kind)}
+      kind={kind}
+      close_label={@close_label}
+      on_close={JS.push("lv:clear-flash", value: %{key: kind})}
     >
-      <Backpex.HTML.CoreComponents.icon name="hero-information-circle" class="h-5 w-5" />
-      <span>
-        {Phoenix.Flash.get(@flash, :info)}
-      </span>
-      <div>
-        <button class="btn btn-info btn-square btn-sm btn-ghost" phx-click="lv:clear-flash" aria-label={@close_label}>
-          <Backpex.HTML.CoreComponents.icon name="hero-x-mark" class="h-5 w-5" />
-        </button>
-      </div>
-    </div>
+      {msg}
+    </.alert>
+    """
+  end
 
+  @doc """
+  Renders an alert.
+  """
+  @doc type: :component
+
+  attr :class, :string, default: nil, doc: "additional class to be added to the component"
+  attr :kind, :atom, values: ~w(info success warning error)a, doc: "used for styling"
+  attr :closable, :boolean, default: true, doc: "show or hide the close button"
+  attr :on_close, JS, default: %JS{}, doc: "event triggered on alert close"
+  attr :close_label, :string, default: "Close alert"
+  attr :rest, :global
+  slot :inner_block
+
+  def alert(assigns) do
+    ~H"""
     <div
-      :if={Phoenix.Flash.get(@flash, :error) && Phoenix.Flash.get(@flash, :error) != ""}
-      class="alert bg-error text-error-content my-4 text-sm"
-      phx-value-key="error"
+      class={[
+        "alert my-4",
+        @kind === :info && "alert-info",
+        @kind === :success && "alert-success",
+        @kind === :warning && "alert-warning",
+        @kind === :error && "alert-error",
+        @class
+      ]}
+      role="alert"
+      data-close={@on_close}
+      {@rest}
     >
-      <Backpex.HTML.CoreComponents.icon name="hero-x-circle" class="h-5 w-5" />
-      <span>
-        {Phoenix.Flash.get(@flash, :error)}
-      </span>
-      <div>
-        <button class="btn btn-square btn-sm btn-ghost" phx-click="lv:clear-flash" aria-label={@close_label}>
+      <CoreComponents.icon :if={@kind === :info} name="hero-information-circle" class="h-5 w-5" />
+      <CoreComponents.icon :if={@kind === :success} name="hero-check-circle" class="h-5 w-5" />
+      <CoreComponents.icon :if={@kind === :warning} name="hero-exclamation-triangle" class="h-5 w-5" />
+      <CoreComponents.icon :if={@kind === :error} name="hero-x-circle" class="h-5 w-5" />
+      <span>{render_slot(@inner_block)}</span>
+      <div :if={@closable}>
+        <button
+          class={[
+            "btn btn-square btn-sm btn-ghost",
+            @kind === :info && "btn-info",
+            @kind === :success && "btn-success",
+            @kind === :warning && "btn-warning",
+            @kind === :error && "btn-error"
+          ]}
+          phx-click={JS.exec("data-close", to: {:closest, ".alert"})}
+          aria-label={@close_label}
+        >
           <Backpex.HTML.CoreComponents.icon name="hero-x-mark" class="h-5 w-5" />
         </button>
       </div>
