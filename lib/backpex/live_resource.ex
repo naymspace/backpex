@@ -548,41 +548,6 @@ defmodule Backpex.LiveResource do
     |> noreply()
   end
 
-  @impl Phoenix.LiveView
-  def handle_info({"backpex:" <> event, item}, socket) do
-    handle_backpex_info({event, item}, socket)
-  end
-
-  # TODO: needs splitting
-  defp handle_backpex_info({"updated", item}, socket)
-       when socket.assigns.live_action in [:index, :resource_action, :show] do
-    {:noreply, update_item(socket, item)}
-  end
-
-  # TODO: needs splitting
-  defp update_item(socket, item) do
-    %{live_resource: live_resource, live_action: live_action, items: items} = socket.assigns
-
-    item_primary_value = primary_value(item, live_resource)
-    {:ok, item} = Resource.get(item_primary_value, socket.assigns, live_resource)
-
-    socket =
-      cond do
-        live_action in [:index, :resource_action] and item ->
-          items = Enum.map(items, &if(primary_value(&1, live_resource) == item_primary_value, do: item, else: &1))
-
-          assign(socket, :items, items)
-
-        live_action == :show and item ->
-          assign(socket, :item, item)
-
-        true ->
-          socket
-      end
-
-    socket
-  end
-
   def primary_value(item, live_resource) do
     Map.get(item, live_resource.config(:primary_key))
   end
