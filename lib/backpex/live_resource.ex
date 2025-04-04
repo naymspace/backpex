@@ -305,56 +305,19 @@ defmodule Backpex.LiveResource do
                      item_actions: 1,
                      index_row_class: 4
 
-      defmodule Index do
-        @resource_opts NimbleOptions.validate!(opts, options_schema)
+      for action <- ~w(Index New Edit Show)a do
+        defmodule String.to_existing_atom("#{__MODULE__}.#{action}") do
+          @action_module String.to_existing_atom("Elixir.Backpex.LiveResource.#{action}")
+          @resource_opts NimbleOptions.validate!(opts, options_schema)
 
-        alias Backpex.LiveResource.Index
-        use Phoenix.LiveView, layout: @resource_opts[:layout]
+          use Phoenix.LiveView, layout: @resource_opts[:layout]
 
-        def mount(params, session, socket), do: Index.mount(params, session, socket, __MODULE__)
-        def handle_params(params, url, socket), do: Index.handle_params(params, url, socket)
-        def render(assigns), do: Index.render(assigns)
-        def handle_info(msg, socket), do: Index.handle_info(msg, socket)
-        def handle_event(event, params, socket), do: Index.handle_event(event, params, socket)
-      end
-
-      defmodule New do
-        @resource_opts NimbleOptions.validate!(opts, options_schema)
-
-        alias Backpex.LiveResource.New
-        use Phoenix.LiveView, layout: @resource_opts[:layout]
-
-        def mount(params, session, socket), do: New.mount(params, session, socket, __MODULE__)
-        def handle_params(params, url, socket), do: New.handle_params(params, url, socket)
-        def render(assigns), do: New.render(assigns)
-        def handle_info(msg, socket), do: New.handle_info(msg, socket)
-        def handle_event(event, params, socket), do: New.handle_event(event, params, socket)
-      end
-
-      defmodule Edit do
-        @resource_opts NimbleOptions.validate!(opts, options_schema)
-
-        alias Backpex.LiveResource.Edit
-        use Phoenix.LiveView, layout: @resource_opts[:layout]
-
-        def mount(params, session, socket), do: Edit.mount(params, session, socket, __MODULE__)
-        def handle_params(params, url, socket), do: Edit.handle_params(params, url, socket)
-        def render(assigns), do: Edit.render(assigns)
-        def handle_info(msg, socket), do: Edit.handle_info(msg, socket)
-        def handle_event(event, params, socket), do: Edit.handle_event(event, params, socket)
-      end
-
-      defmodule Show do
-        @resource_opts NimbleOptions.validate!(opts, options_schema)
-
-        alias Backpex.LiveResource.Show
-        use Phoenix.LiveView, layout: @resource_opts[:layout]
-
-        def mount(params, session, socket), do: Show.mount(params, session, socket, __MODULE__)
-        def handle_params(params, url, socket), do: Show.handle_params(params, url, socket)
-        def render(assigns), do: Show.render(assigns)
-        def handle_info(msg, socket), do: Show.handle_info(msg, socket)
-        def handle_event(event, params, socket), do: Show.handle_event(event, params, socket)
+          def mount(params, session, socket), do: @action_module.mount(params, session, socket, __MODULE__)
+          def handle_params(params, url, socket), do: @action_module.handle_params(params, url, socket)
+          def render(assigns), do: @action_module.render(assigns)
+          def handle_info(msg, socket), do: @action_module.handle_info(msg, socket)
+          def handle_event(event, params, socket), do: @action_module.handle_event(event, params, socket)
+        end
       end
     end
   end
