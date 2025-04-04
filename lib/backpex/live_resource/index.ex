@@ -61,13 +61,9 @@ defmodule Backpex.LiveResource.Index do
   def handle_info({"backpex:deleted", item}, socket) do
     %{items: items, live_resource: live_resource} = socket.assigns
 
-    primary_value = LiveResource.primary_value(item, live_resource) |> to_string()
+    primary_value = LiveResource.primary_value(item, live_resource)
 
-    displayed? = Enum.any?(items, fn i ->
-      LiveResource.primary_value(i, live_resource) |> to_string() == primary_value
-    end)
-
-    if displayed? do
+    if find_item_by_primary_value(items, primary_value, live_resource) do
       refresh_items(socket)
     else
       socket
@@ -82,8 +78,7 @@ defmodule Backpex.LiveResource.Index do
   def handle_event("item-action", %{"action-key" => key, "item-id" => item_id}, socket) do
     %{items: items, live_resource: live_resource} = socket.assigns
 
-    item =
-      Enum.find(items, fn item -> to_string(LiveResource.primary_value(item, live_resource)) == to_string(item_id) end)
+    item = find_item_by_primary_value(items, item_id, live_resource)
 
     socket
     |> assign(selected_items: [item])
@@ -163,12 +158,9 @@ defmodule Backpex.LiveResource.Index do
   end
 
   def handle_event("update-selected-items", %{"id" => id}, socket) do
-    %{selected_items: selected_items, live_resource: live_resource} = socket.assigns
+    %{selected_items: selected_items, live_resource: live_resource, items: items} = socket.assigns
 
-    item =
-      Enum.find(socket.assigns.items, fn item ->
-        to_string(LiveResource.primary_value(item, live_resource)) == to_string(id)
-      end)
+    item = find_item_by_primary_value(items, id, live_resource)
 
     updated_selected_items =
       if Enum.member?(selected_items, item) do
@@ -177,7 +169,7 @@ defmodule Backpex.LiveResource.Index do
         [item | selected_items]
       end
 
-    select_all = length(updated_selected_items) == length(socket.assigns.items)
+    select_all = length(updated_selected_items) == length(items)
 
     socket
     |> assign(:selected_items, updated_selected_items)
@@ -249,8 +241,7 @@ defmodule Backpex.LiveResource.Index do
       |> assign(:item, base_schema)
       |> assign(:changeset, changeset)
     else
-      socket
-      |> assign(:changeset, %{})
+      assign(socket, :changeset, %{})
     end
     |> assign(:action_to_confirm, Map.put(action, :key, key))
     |> noreply()
@@ -278,6 +269,14 @@ defmodule Backpex.LiveResource.Index do
         Item Actions with no form fields must return {:ok, socket}.
         """
     end
+  end
+
+  defp find_item_by_primary_value(items, primary_value, live_resource) do
+    primary_value_str = to_string(primary_value)
+
+    Enum.find(items, fn item ->
+      to_string(LiveResource.primary_value(item, live_resource)) == primary_value
+    end)
   end
 
   defp maybe_put_empty_filter(%{} = filters, empty_filter_key) when filters == %{} do
@@ -319,13 +318,20 @@ defmodule Backpex.LiveResource.Index do
   defp update_item(socket, item) do
     %{live_resource: live_resource, items: items} = socket.assigns
 
-    item_primary_value = LiveResource.primary_value(item, live_resource)
-    {:ok, item} = Resource.get(item_primary_value, socket.assigns, live_resource)
+    primary_value = LiveResource.primary_value(item, live_resource)
+    primary_value_str = to_string(primary_value)
 
-    items =
-      Enum.map(items, &if(LiveResource.primary_value(&1, live_resource) == item_primary_value, do: item, else: &1))
+    {:ok, updated_item} = Resource.get(primary_value, socket.assigns, live_resource)
 
-    assign(socket, :items, items)
+    updated_items = Enum.map(items, fn current_item ->
+      if to_string(LiveResource.primary_value(current_item, live_resource)) == primary_value_str do
+        updated_item
+      else
+        current_item
+      end
+    end)
+
+    assign(socket, :items, updated_items)
   end
 
   defp assign_metrics_visibility(socket, session) do
