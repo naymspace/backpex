@@ -620,15 +620,6 @@ defmodule Backpex.LiveResource do
   end
 
   @doc """
-  Subscribes to pubsub topic.
-  """
-  def subscribe_to_topic(socket, server: server, topic: topic) do
-    if Phoenix.LiveView.connected?(socket) do
-      Phoenix.PubSub.subscribe(server, topic)
-    end
-  end
-
-  @doc """
   Returns order options by params.
 
   ## Examples

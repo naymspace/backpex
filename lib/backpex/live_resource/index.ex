@@ -12,8 +12,11 @@ defmodule Backpex.LiveResource.Index do
   require Backpex
 
   def mount(params, session, socket, live_resource) do
-    pubsub = live_resource.pubsub()
-    LiveResource.subscribe_to_topic(socket, pubsub)
+    if LiveView.connected?(socket) do
+      [server: server, topic: topic] = live_resource.pubsub()
+
+      Phoenix.PubSub.subscribe(server, topic)
+    end
 
     socket
     |> assign(:live_resource, live_resource)
