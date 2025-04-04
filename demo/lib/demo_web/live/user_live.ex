@@ -19,18 +19,14 @@ defmodule DemoWeb.UserLive do
   def plural_name, do: "Users"
 
   @impl Backpex.LiveResource
-  def can?(_assigns, :soft_delete, item), do: item.role != :admin
+  def can?(_assigns, :user_soft_delete, item), do: item.role != :admin
 
   @impl Backpex.LiveResource
   def can?(_assigns, _action, _item), do: true
 
-  def item_query(query, live_action, _assigns) when live_action in [:index, :resource_action] do
+  def item_query(query, _live_action, _assigns) do
     from u in query,
       where: is_nil(u.deleted_at)
-  end
-
-  def item_query(query, _live_action, _assigns) do
-    query
   end
 
   def init_order(_assigns) do
@@ -53,7 +49,7 @@ defmodule DemoWeb.UserLive do
   def item_actions(default_actions) do
     default_actions
     |> Keyword.drop([:delete])
-    |> Enum.concat(soft_delete: %{module: DemoWeb.ItemActions.SoftDelete})
+    |> Enum.concat(user_soft_delete: %{module: DemoWeb.ItemActions.UserSoftDelete})
   end
 
   @impl Backpex.LiveResource
