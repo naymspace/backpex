@@ -186,13 +186,7 @@ defmodule Backpex.LiveResource.Index do
 
   def handle_event("toggle-item-selection", _params, socket) do
     select_all = not socket.assigns.select_all
-
-    selected_items =
-      if select_all do
-        socket.assigns.items
-      else
-        []
-      end
+    selected_items = select_all && socket.assigns.items || []
 
     socket
     |> assign(:select_all, select_all)
