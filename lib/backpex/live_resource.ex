@@ -958,7 +958,7 @@ defmodule Backpex.LiveResource do
       end)
 
     Map.put(params, "filters", filters)
-  end#
+  end
 
   def get_valid_filters_from_params(_params, _valid_filters, _empty_filter_key), do: %{}
 
