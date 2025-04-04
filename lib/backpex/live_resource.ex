@@ -463,19 +463,6 @@ defmodule Backpex.LiveResource do
     end
   end
 
-  @impl Phoenix.LiveView
-  def mount(_params, _session, socket) do
-    live_resource = socket.view
-    pubsub = live_resource.pubsub()
-    subscribe_to_topic(socket, pubsub)
-
-    socket
-    |> assign(:live_resource, live_resource)
-    |> assign(:panels, live_resource.panels())
-    |> assign(:fluid?, live_resource.config(:fluid?))
-    |> ok()
-  end
-
   @doc """
   Returns the fields of the given `Backpex.LiveResource` validated against each fields config schema.
   """
