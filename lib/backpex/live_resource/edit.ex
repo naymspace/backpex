@@ -1,5 +1,8 @@
 defmodule Backpex.LiveResource.Edit do
   @moduledoc false
+  use BackpexWeb, :html
+
+  import Phoenix.Component
 
   alias Backpex.Resource
   alias Backpex.LiveResource
@@ -7,23 +10,24 @@ defmodule Backpex.LiveResource.Edit do
   alias Backpex.Adapters.Ecto, as: EctoAdapter
   alias Backpex.Router
   alias Phoenix.LiveView
-  use BackpexWeb, :html
-  import Phoenix.Component
+
   require Backpex
 
-  def mount(_params, _session, socket, live_resource) do
+  def mount(params, _session, socket, live_resource) do
     socket
     |> assign(:live_resource, live_resource)
     |> assign(:panels, live_resource.panels())
     |> assign(:fluid?, live_resource.config(:fluid?))
+    |> assign(:page_title, Backpex.__({"Edit %{resource}", %{resource: live_resource.singular_name()}}, live_resource))
+    |> assign(:params, params)
+    |> assign_fields()
+    |> assign_item()
+    |> assign_changeset()
     |> ok()
   end
 
-  def handle_params(params, _url, socket) do
-    socket
-    |> assign(:params, params)
-    |> apply_action(socket.assigns.live_action)
-    |> noreply()
+  def handle_params(_params, _url, socket) do
+    noreply(socket)
   end
 
   def render(assigns) do
@@ -36,19 +40,31 @@ defmodule Backpex.LiveResource.Edit do
     |> noreply()
   end
 
-  defp apply_action(socket, :edit) do
-    %{live_resource: live_resource} = socket.assigns
+  defp assign_item(socket) do
+    %{live_resource: live_resource, params: params} = socket.assigns
 
-    fields = live_resource.validated_fields() |> LiveResource.filtered_fields_by_action(socket.assigns, :edit)
-    primary_value = URI.decode(socket.assigns.params["backpex_id"])
+    backpex_id = Map.fetch!(params, "backpex_id")
+    primary_value = URI.decode(backpex_id)
+
     item = Resource.get!(primary_value, socket.assigns, live_resource)
 
     if not live_resource.can?(socket.assigns, :edit, item), do: raise(Backpex.ForbiddenError)
 
-    socket
-    |> assign(:fields, fields)
-    |> assign(:page_title, Backpex.__({"Edit %{resource}", %{resource: live_resource.singular_name()}}, live_resource))
-    |> assign(:item, item)
-    |> LiveResource.assign_changeset(live_resource.config(:adapter_config)[:update_changeset], item, fields, :edit)
+    assign(socket, :item, item)
+  end
+
+  defp assign_fields(socket) do
+    fields =
+      socket.assigns.live_resource.validated_fields()
+      |> LiveResource.filtered_fields_by_action(socket.assigns, :edit)
+
+    assign(socket, :fields, fields)
+  end
+
+  defp assign_changeset(socket) do
+    %{live_resource: live_resource, item: item, fields: fields} = socket.assigns
+    update_changeset = live_resource.config(:adapter_config)[:update_changeset]
+
+    LiveResource.assign_changeset(socket, update_changeset, item, fields, :edit)
   end
 end
