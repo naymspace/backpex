@@ -1,7 +1,6 @@
 defmodule Backpex.LiveResource.Show do
   @moduledoc false
 
-  alias Backpex.Utils
   alias Backpex.Resource
   alias Backpex.LiveResource
   alias Backpex.ResourceAction
@@ -12,8 +11,7 @@ defmodule Backpex.LiveResource.Show do
   import Phoenix.Component
   require Backpex
 
-  def mount(_params, _session, socket, index_live_resource) do
-    live_resource = Utils.parent_module(index_live_resource)
+  def mount(params, _session, socket, live_resource) do
     pubsub = live_resource.pubsub()
     LiveResource.subscribe_to_topic(socket, pubsub)
 

@@ -305,6 +305,9 @@ defmodule Backpex.LiveResource do
                      item_actions: 1,
                      index_row_class: 4
 
+
+      live_resource = __MODULE__
+
       for action <- ~w(Index New Edit Show)a do
         defmodule Module.concat(__MODULE__, action) do
           @action_module String.to_existing_atom("Elixir.Backpex.LiveResource.#{action}")
@@ -312,7 +315,7 @@ defmodule Backpex.LiveResource do
 
           use Phoenix.LiveView, layout: @resource_opts[:layout]
 
-          def mount(params, session, socket), do: @action_module.mount(params, session, socket, __MODULE__)
+          def mount(params, session, socket), do: @action_module.mount(params, session, socket, unquote(live_resource))
           def handle_params(params, url, socket), do: @action_module.handle_params(params, url, socket)
           def render(assigns), do: @action_module.render(assigns)
           def handle_info(msg, socket), do: @action_module.handle_info(msg, socket)
@@ -986,7 +989,7 @@ defmodule Backpex.LiveResource do
       end)
 
     Map.put(params, "filters", filters)
-  end
+  end#
 
   def get_valid_filters_from_params(_params, _valid_filters, _empty_filter_key), do: %{}
 
