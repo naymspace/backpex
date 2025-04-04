@@ -306,7 +306,7 @@ defmodule Backpex.LiveResource do
                      index_row_class: 4
 
       for action <- ~w(Index New Edit Show)a do
-        defmodule String.to_existing_atom("#{__MODULE__}.#{action}") do
+        defmodule Module.concat(__MODULE__, action) do
           @action_module String.to_existing_atom("Elixir.Backpex.LiveResource.#{action}")
           @resource_opts NimbleOptions.validate!(opts, options_schema)
 
