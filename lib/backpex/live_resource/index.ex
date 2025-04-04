@@ -1,5 +1,8 @@
 defmodule Backpex.LiveResource.Index do
   @moduledoc false
+  use BackpexWeb, :html
+
+  import Phoenix.Component
 
   alias Backpex.Resource
   alias Backpex.LiveResource
@@ -7,8 +10,7 @@ defmodule Backpex.LiveResource.Index do
   alias Backpex.Adapters.Ecto, as: EctoAdapter
   alias Backpex.Router
   alias Phoenix.LiveView
-  use BackpexWeb, :html
-  import Phoenix.Component
+
   require Backpex
 
   def mount(params, session, socket, live_resource) do
