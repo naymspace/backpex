@@ -1,4 +1,4 @@
-defmodule DemoWeb.ItemActions.SoftDelete do
+defmodule DemoWeb.ItemActions.UserSoftDelete do
   @moduledoc false
 
   use BackpexWeb, :item_action
@@ -64,7 +64,16 @@ defmodule DemoWeb.ItemActions.SoftDelete do
     socket =
       try do
         updates = [set: [deleted_at: datetime]]
-        {:ok, _count} = Backpex.Resource.update_all(items, updates, "deleted", socket.assigns.live_resource)
+
+        {:ok, _count} =
+          Backpex.Resource.update_all(items, updates, "deleted", socket.assigns.live_resource)
+
+        # nullify the user_id in the posts owned by the users
+        _nullified_posts =
+          items
+          |> Enum.map(fn item ->
+            Backpex.Resource.update_all(item.posts, [set: [user_id: nil]], "updated", DemoWeb.PostLive)
+          end)
 
         socket
         |> clear_flash()
