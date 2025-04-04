@@ -46,38 +46,37 @@ defmodule Backpex.LiveResource.Index do
     Backpex.HTML.Resource.resource_index(assigns)
   end
 
-  def handle_info({"backpex:" <> event, item}, socket) do
-    handle_backpex_info({event, item}, socket)
+  def handle_info({"backpex:created", item}, socket) do
+    socket
+    |> refresh_items()
+    |> noreply()
   end
 
-  def handle_info(_msg, socket) do
-    {:noreply, socket}
+  def handle_info({"backpex:updated", item}, socket) do
+    socket
+    |> update_item(item)
+    |> noreply()
   end
 
-  defp handle_backpex_info({"created", _item}, socket) do
-    {:noreply, refresh_items(socket)}
-  end
-
-  defp handle_backpex_info({"deleted", item}, socket) do
+  def handle_info({"backpex:deleted", item}, socket) do
     %{items: items, live_resource: live_resource} = socket.assigns
 
-    if Enum.filter(
-         items,
-         &(to_string(LiveResource.primary_value(&1, live_resource)) ==
-             to_string(LiveResource.primary_value(item, live_resource)))
-       ) != [] do
-      {:noreply, refresh_items(socket)}
+    primary_value = LiveResource.primary_value(item, live_resource) |> to_string()
+
+    displayed? = Enum.any?(items, fn i ->
+      LiveResource.primary_value(i, live_resource) |> to_string() == primary_value
+    end)
+
+    if displayed? do
+      refresh_items(socket)
     else
-      {:noreply, socket}
+      socket
     end
+    |> noreply()
   end
 
-  defp handle_backpex_info({"updated", item}, socket) do
-    {:noreply, update_item(socket, item)}
-  end
-
-  defp handle_backpex_info({_event, _item}, socket) do
-    {:noreply, socket}
+  def handle_info(_event, socket) do
+    noreply(socket)
   end
 
   def handle_event("item-action", %{"action-key" => key, "item-id" => item_id}, socket) do
