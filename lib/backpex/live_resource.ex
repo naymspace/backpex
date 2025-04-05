@@ -347,8 +347,8 @@ defmodule Backpex.LiveResource do
       @impl Backpex.LiveResource
       def render_resource_slot(var!(assigns), :index, :page_title) do
         ~H"""
-        <.main_title class="flex items-center justify-between">
-          {@plural_name}
+        <.main_title>
+          {@page_title}
         </.main_title>
         """
       end
@@ -385,10 +385,10 @@ defmodule Backpex.LiveResource do
       def render_resource_slot(var!(assigns), :show, :page_title) do
         ~H"""
         <.main_title class="flex items-center justify-between">
-          {@singular_name}
+          {@page_title}
           <.link
             :if={@live_resource.can?(assigns, :edit, @item)}
-            id={"#{@singular_name}-edit-link"}
+            id={"#{@live_resource.singular_name()}-edit-link"}
             phx-hook="BackpexTooltip"
             data-tooltip={Backpex.__("Edit", @live_resource)}
             aria-label={Backpex.__("Edit", @live_resource)}
@@ -414,7 +414,7 @@ defmodule Backpex.LiveResource do
       def render_resource_slot(var!(assigns), :edit, :page_title) do
         ~H"""
         <.main_title class="mb-4">
-          {Backpex.__({"Edit %{resource}", %{resource: @singular_name}}, @live_resource)}
+          {@page_title}
         </.main_title>
         """
       end
@@ -456,24 +456,14 @@ defmodule Backpex.LiveResource do
     pubsub = live_resource.pubsub()
     subscribe_to_topic(socket, pubsub)
 
-    # TODO: move these "config assigns" (and other global assigns) to where they are needed
-    adapter_config = live_resource.config(:adapter_config)
-    fluid? = live_resource.config(:fluid?)
-    full_text_search = live_resource.config(:full_text_search)
-
     socket
     |> assign(:live_resource, live_resource)
-    |> assign(:schema, adapter_config[:schema])
-    |> assign(:repo, adapter_config[:repo])
-    |> assign(:singular_name, live_resource.singular_name())
-    |> assign(:plural_name, live_resource.plural_name())
     |> assign(
       :create_button_label,
       Backpex.__({"New %{resource}", %{resource: live_resource.singular_name()}}, live_resource)
     )
     |> assign(:panels, live_resource.panels())
-    |> assign(:fluid?, fluid?)
-    |> assign(:full_text_search, full_text_search)
+    |> assign(:fluid?, live_resource.config(:fluid?))
     |> assign_active_fields(session)
     |> assign_metrics_visibility(session)
     |> assign_filters_changed_status(params)
@@ -531,28 +521,24 @@ defmodule Backpex.LiveResource do
 
   defp maybe_assign_metrics(socket) do
     %{
-      assigns:
-        %{
-          repo: repo,
-          schema: schema,
-          live_resource: live_resource,
-          fields: fields,
-          query_options: query_options,
-          metric_visibility: metric_visibility
-        } = assigns
-    } = socket
+      live_resource: live_resource,
+      fields: fields,
+      query_options: query_options,
+      metric_visibility: metric_visibility
+    } = socket.assigns
 
-    filters = active_filters(assigns)
+    adapter_config = live_resource.config(:adapter_config)
+    filters = active_filters(socket.assigns)
 
     metrics =
       socket.assigns.live_resource.metrics()
       |> Enum.map(fn {key, metric} ->
         criteria = [
-          search: search_options(query_options, fields, schema),
+          search: search_options(query_options, fields, adapter_config[:schema]),
           filters: filter_options(query_options, filters)
         ]
 
-        query = EctoAdapter.list_query(criteria, assigns, live_resource)
+        query = EctoAdapter.list_query(criteria, socket.assigns, live_resource)
 
         case Backpex.Metric.metrics_visible?(metric_visibility, live_resource) do
           true ->
@@ -561,7 +547,7 @@ defmodule Backpex.LiveResource do
               |> Ecto.Query.exclude(:select)
               |> Ecto.Query.exclude(:preload)
               |> Ecto.Query.exclude(:group_by)
-              |> metric.module.query(metric.select, repo)
+              |> metric.module.query(metric.select, adapter_config[:repo])
 
             {key, Map.put(metric, :data, data)}
 
@@ -612,13 +598,13 @@ defmodule Backpex.LiveResource do
 
   defp apply_action(socket, :index) do
     socket
-    |> assign(:page_title, socket.assigns.plural_name)
+    |> assign(:page_title, socket.assigns.live_resource.plural_name())
     |> apply_index()
     |> assign(:item, nil)
   end
 
   defp apply_action(socket, :edit) do
-    %{live_resource: live_resource, singular_name: singular_name} = socket.assigns
+    %{live_resource: live_resource} = socket.assigns
 
     fields = live_resource.validated_fields() |> filtered_fields_by_action(socket.assigns, :edit)
     primary_value = URI.decode(socket.assigns.params["backpex_id"])
@@ -626,18 +612,15 @@ defmodule Backpex.LiveResource do
 
     if not live_resource.can?(socket.assigns, :edit, item), do: raise(Backpex.ForbiddenError)
 
-    changeset_function = live_resource.config(:adapter_config)[:update_changeset]
-
     socket
     |> assign(:fields, fields)
-    |> assign(:changeset_function, changeset_function)
-    |> assign(:page_title, Backpex.__({"Edit %{resource}", %{resource: singular_name}}, live_resource))
+    |> assign(:page_title, Backpex.__({"Edit %{resource}", %{resource: live_resource.singular_name()}}, live_resource))
     |> assign(:item, item)
-    |> assign_changeset(changeset_function, item, fields, :edit)
+    |> assign_changeset(live_resource.config(:adapter_config)[:update_changeset], item, fields, :edit)
   end
 
   defp apply_action(socket, :show) do
-    %{live_resource: live_resource, singular_name: singular_name} = socket.assigns
+    %{live_resource: live_resource} = socket.assigns
 
     fields = live_resource.validated_fields() |> filtered_fields_by_action(socket.assigns, :show)
     primary_value = URI.decode(socket.assigns.params["backpex_id"])
@@ -646,28 +629,26 @@ defmodule Backpex.LiveResource do
     if not live_resource.can?(socket.assigns, :show, item), do: raise(Backpex.ForbiddenError)
 
     socket
-    |> assign(:page_title, singular_name)
+    |> assign(:page_title, live_resource.singular_name())
     |> assign(:fields, fields)
     |> assign(:item, item)
     |> apply_show_return_to(item)
   end
 
   defp apply_action(socket, :new) do
-    %{live_resource: live_resource, schema: schema, create_button_label: create_button_label} = socket.assigns
+    %{live_resource: live_resource, create_button_label: create_button_label} = socket.assigns
 
     if not live_resource.can?(socket.assigns, :new, nil), do: raise(Backpex.ForbiddenError)
 
     fields = live_resource.validated_fields() |> filtered_fields_by_action(socket.assigns, :new)
-    empty_item = schema.__struct__()
-
-    changeset_function = live_resource.config(:adapter_config)[:create_changeset]
+    adapter_config = live_resource.config(:adapter_config)
+    empty_item = adapter_config[:schema].__struct__()
 
     socket
-    |> assign(:changeset_function, changeset_function)
     |> assign(:page_title, create_button_label)
     |> assign(:fields, fields)
     |> assign(:item, empty_item)
-    |> assign_changeset(changeset_function, empty_item, fields, :new)
+    |> assign_changeset(adapter_config[:create_changeset], empty_item, fields, :new)
   end
 
   defp apply_action(socket, :resource_action) do
@@ -720,11 +701,7 @@ defmodule Backpex.LiveResource do
   end
 
   defp apply_index(socket) do
-    %{
-      live_resource: live_resource,
-      schema: schema,
-      params: params
-    } = socket.assigns
+    %{live_resource: live_resource, params: params} = socket.assigns
 
     if not live_resource.can?(socket.assigns, :index, nil), do: raise(Backpex.ForbiddenError)
 
@@ -737,8 +714,10 @@ defmodule Backpex.LiveResource do
     filters = active_filters(socket.assigns)
     valid_filter_params = get_valid_filters_from_params(params, filters, empty_filter_key())
 
+    adapter_config = live_resource.config(:adapter_config)
+
     count_criteria = [
-      search: search_options(params, fields, schema),
+      search: search_options(params, fields, adapter_config[:schema]),
       filters: filter_options(valid_filter_params, filters)
     ]
 
@@ -776,7 +755,6 @@ defmodule Backpex.LiveResource do
     |> assign(:selected_items, [])
     |> assign(:select_all, false)
     |> assign(:fields, fields)
-    |> assign(:changeset_function, live_resource.config(:adapter_config)[:update_changeset])
     |> maybe_redirect_to_default_filters()
     |> assign_items()
     |> maybe_assign_metrics()
@@ -790,7 +768,10 @@ defmodule Backpex.LiveResource do
     assign(socket, :changeset, changeset)
   end
 
-  defp default_attrs(:new, fields, %{schema: schema} = assigns) do
+  defp default_attrs(:new, fields, assigns) do
+    adapter_config = assigns.live_resource.config(:adapter_config)
+    schema = adapter_config[:schema]
+
     Enum.reduce(fields, %{}, fn
       {name, %{default: default} = field_options} = field, attrs ->
         if field_options.module.association?(field) && schema.__schema__(:association, name).cardinality == :one do
@@ -859,13 +840,6 @@ defmodule Backpex.LiveResource do
     do: Map.put(query_options, :search, search)
 
   defp maybe_put_search(query_options, _params), do: query_options
-
-  @impl Phoenix.LiveView
-  def handle_event("close-modal", _params, socket) do
-    socket
-    |> push_patch(to: socket.assigns.return_to)
-    |> noreply()
-  end
 
   @impl Phoenix.LiveView
   def handle_event("item-action", %{"action-key" => key, "item-id" => item_id}, socket) do
@@ -1048,6 +1022,15 @@ defmodule Backpex.LiveResource do
   end
 
   @impl Phoenix.LiveView
+  def handle_event("cancel-action-confirm", _params, socket) do
+    socket
+    |> assign(:item, nil)
+    |> assign(:changeset, nil)
+    |> assign(:action_to_confirm, nil)
+    |> noreply()
+  end
+
+  @impl Phoenix.LiveView
   def handle_info({:put_assoc, {key, value} = _assoc}, socket) do
     changeset = Ecto.Changeset.put_assoc(socket.assigns.changeset, key, value)
     assocs = Map.get(socket.assigns, :assocs, []) |> Keyword.put(key, value)
@@ -1115,17 +1098,17 @@ defmodule Backpex.LiveResource do
   defp refresh_items(socket) do
     %{
       live_resource: live_resource,
-      schema: schema,
       params: params,
       fields: fields,
       query_options: query_options
     } = socket.assigns
 
+    adapter_config = live_resource.config(:adapter_config)
     filters = active_filters(socket.assigns)
     valid_filter_params = get_valid_filters_from_params(params, filters, empty_filter_key())
 
     count_criteria = [
-      search: search_options(params, fields, schema),
+      search: search_options(params, fields, adapter_config[:schema]),
       filters: filter_options(valid_filter_params, filters)
     ]
 
@@ -1398,13 +1381,14 @@ defmodule Backpex.LiveResource do
 
   defp build_criteria(assigns) do
     %{
-      schema: schema,
+      live_resource: live_resource,
       fields: fields,
       filters: filters,
       query_options: query_options,
       init_order: init_order
     } = assigns
 
+    adapter_config = live_resource.config(:adapter_config)
     field = Enum.find(fields, fn {name, _field_options} -> name == query_options.order_by end)
 
     order =
@@ -1413,20 +1397,20 @@ defmodule Backpex.LiveResource do
 
         %{
           by: field_options.module.display_field(field),
-          schema: field_options.module.schema(field, schema),
+          schema: field_options.module.schema(field, adapter_config[:schema]),
           direction: query_options.order_direction,
           field_name: field_name
         }
       else
         init_order
         |> resolve_init_order(assigns)
-        |> Map.put(:schema, schema)
+        |> Map.put(:schema, adapter_config[:schema])
       end
 
     [
       order: order,
       pagination: %{page: query_options.page, size: query_options.per_page},
-      search: search_options(query_options, fields, schema),
+      search: search_options(query_options, fields, adapter_config[:schema]),
       filters: filter_options(query_options, filters)
     ]
   end
