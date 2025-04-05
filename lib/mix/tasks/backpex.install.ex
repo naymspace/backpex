@@ -54,7 +54,7 @@ if Code.ensure_loaded?(Igniter) do
     @default_app_js_path Path.join(["assets", "js", "app.js"])
     @default_app_css_path Path.join(["assets", "css", "app.css"])
     @hooks "...BackpexHooks"
-    @imports "import { Hooks as BackpexHooks } from 'backpex';"
+    @imports "import { Hooks as BackpexHooks } from 'backpex'"
 
     use Igniter.Mix.Task
 
@@ -135,14 +135,14 @@ if Code.ensure_loaded?(Igniter) do
 
     defp install_daisyui(igniter) do
       with :ok <- install_daisyui_via_npm(),
-           igniter <- update_app_css(igniter, "@plugin \"daisyui\";") do
+           igniter <- update_app_css(igniter, "@plugin \"daisyui\"") do
         Igniter.add_notice(igniter, "Installed daisyUI via npm.")
       else
         {:error, error} ->
           Igniter.Util.Warning.warn_with_code_sample(
             igniter,
             "Error installing daisyUI: #{inspect(error)}, please install daisyUI manually and add the following plugin to the app.css file:",
-            "@plugin \"daisyui\";"
+            "@plugin \"daisyui\""
           )
       end
     end
@@ -168,8 +168,8 @@ if Code.ensure_loaded?(Igniter) do
 
     defp add_files_to_tailwind_content(igniter) do
       igniter
-      |> update_app_css("@source \"../../deps/backpex/**/*.*ex\";")
-      |> update_app_css("@source \"../../deps/backpex/assets/js/**/*.*js\";")
+      |> update_app_css("@source \"../../deps/backpex/**/*.*ex\"")
+      |> update_app_css("@source \"../../deps/backpex/assets/js/**/*.*js\"")
     end
 
     defp update_app_css(igniter, new_line) do
@@ -201,7 +201,7 @@ if Code.ensure_loaded?(Igniter) do
 
     defp check_for_tailwind_forms_plugin(igniter) do
       app_css_path = igniter.args.options[:app_css_path]
-      line = "@plugin \"tailwindcss/forms\";"
+      line = "@plugin \"tailwindcss/forms\""
 
       if Igniter.exists?(igniter, app_css_path) do
         Igniter.update_file(igniter, app_css_path, &maybe_remove_tailwind_forms_plugin(&1, line))
