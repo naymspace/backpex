@@ -246,11 +246,11 @@ if Code.ensure_loaded?(Igniter) do
 
     defp maybe_remove_bg_white(source) do
       root_layout_content = Rewrite.Source.get(source, :content)
-      body_tag_with_bg_white = "<body class=\"h-full bg-white\">"
+      body_tag_with_bg_white = "<body class=\"bg-white\">"
 
       if String.contains?(root_layout_content, body_tag_with_bg_white) do
         if remove_bg_white?() do
-          new_content = String.replace(root_layout_content, body_tag_with_bg_white, "<body class=\"h-full\">")
+          new_content = String.replace(root_layout_content, body_tag_with_bg_white, "<body>")
           Rewrite.Source.update(source, :content, new_content)
         else
           source
