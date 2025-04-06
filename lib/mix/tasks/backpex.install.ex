@@ -58,6 +58,8 @@ if Code.ensure_loaded?(Igniter) do
 
     use Igniter.Mix.Task
 
+    alias Backpex.Mix.Helpers
+
     @impl Igniter.Mix.Task
     def info(_argv, _composing_task) do
       %Igniter.Mix.Task.Info{
@@ -71,13 +73,11 @@ if Code.ensure_loaded?(Igniter) do
 
     @impl Igniter.Mix.Task
     def igniter(igniter) do
-      pubsub_module = Igniter.Project.Module.module_name(igniter, "PubSub")
-
       igniter
-      |> Igniter.Project.Config.configure_new("config.exs", :backpex, [:pubsub_server], pubsub_module)
+      |> configure_pubsub_server()
       |> install_backpex_hooks()
       |> install_daisyui()
-      |> Igniter.Project.Formatter.import_dep(:backpex)
+      |> add_backpex_formatter()
       |> add_files_to_tailwind_content()
       |> add_backpex_routes()
       |> generate_layout()
@@ -85,39 +85,14 @@ if Code.ensure_loaded?(Igniter) do
       |> check_for_tailwind_forms_plugin()
     end
 
-    # backpex hooks installation
+    # Global configuration
 
-    defp add_backpex_routes(igniter) do
-      web_module = Igniter.Libs.Phoenix.web_module(igniter)
-
-      case Igniter.Libs.Phoenix.select_router(igniter) do
-        {igniter, nil} ->
-          Mix.shell().error("Could not find router")
-          igniter
-
-        {igniter, router} ->
-          igniter
-          |> add_import_after_use(router, web_module, Backpex.Router)
-          |> Igniter.Libs.Phoenix.add_scope("/", "backpex_routes()", arg2: web_module)
-      end
+    defp configure_pubsub_server(igniter) do
+      pubsub_module = Helpers.pubsub_module(igniter)
+      Igniter.Project.Config.configure_new(igniter, "config.exs", :backpex, [:pubsub_server], pubsub_module)
     end
 
-    defp add_import_after_use(igniter, target_module, use_module, import_module) do
-      Igniter.Project.Module.find_and_update_module!(
-        igniter,
-        target_module,
-        fn zipper ->
-          case Igniter.Code.Module.move_to_use(zipper, use_module) do
-            {:ok, use_zipper} ->
-              {:ok, Igniter.Code.Common.add_code(use_zipper, "import #{inspect(import_module)}")}
-
-            _ ->
-              Mix.shell().error("Could not find use module #{inspect(use_module)} in #{inspect(target_module)}")
-              {:ok, zipper}
-          end
-        end
-      )
-    end
+    # Backpex hooks
 
     defp install_backpex_hooks(igniter) do
       app_js_path = igniter.args.options[:app_js_path]
@@ -132,11 +107,13 @@ if Code.ensure_loaded?(Igniter) do
       end
     end
 
-    # daisyui installation
+    # Install daisyUI
 
     defp install_daisyui(igniter) do
+      app_css_path = igniter.args.options[:app_css_path]
+
       with :ok <- install_daisyui_via_npm(),
-           igniter <- update_app_css(igniter, "@plugin \"daisyui\"") do
+           igniter <- Helpers.add_line_to_file(igniter, app_css_path, "@plugin \"daisyui\"") do
         Igniter.add_notice(igniter, "Installed daisyUI via npm.")
       else
         {:error, error} ->
@@ -165,40 +142,56 @@ if Code.ensure_loaded?(Igniter) do
       )
     end
 
-    # add backpex paths to app.css
+    # Add Backpex to formatter
+
+    defp add_backpex_formatter(igniter) do
+      Igniter.Project.Formatter.import_dep(igniter, :backpex)
+    end
+
+    # Add backpex files to tailwind content
 
     defp add_files_to_tailwind_content(igniter) do
-      igniter
-      |> update_app_css("@source \"../../deps/backpex/**/*.*ex\"")
-      |> update_app_css("@source \"../../deps/backpex/assets/js/**/*.*js\"")
-    end
-
-    defp update_app_css(igniter, new_line) do
       app_css_path = igniter.args.options[:app_css_path]
 
-      if Igniter.exists?(igniter, app_css_path) do
-        Igniter.update_file(igniter, app_css_path, &add_line(&1, new_line))
-      else
-        Igniter.Util.Warning.warn_with_code_sample(
-          igniter,
-          "app.css not found at #{app_css_path}. Please manually add the following line to your app.css file:",
-          new_line
-        )
+      igniter
+      |> Helpers.add_line_to_file(app_css_path, "@source \"../../deps/backpex/**/*.*ex\"")
+      |> Helpers.add_line_to_file(app_css_path, "@source \"../../deps/backpex/assets/js/**/*.*js\"")
+    end
+
+    # Add Backpex routes
+
+    defp add_backpex_routes(igniter) do
+      web_module = Igniter.Libs.Phoenix.web_module(igniter)
+
+      case Igniter.Libs.Phoenix.select_router(igniter) do
+        {igniter, nil} ->
+          Mix.shell().error("Could not find router")
+          igniter
+
+        {igniter, router} ->
+          igniter
+          |> Helpers.add_import_after_use(router, web_module, Backpex.Router)
+          |> Igniter.Libs.Phoenix.add_scope("/", "backpex_routes()", arg2: web_module)
       end
     end
 
-    defp add_line(source, line) do
-      app_css_content = Rewrite.Source.get(source, :content)
+    # Creates default admin layout
 
-      if String.contains?(app_css_content, line) do
-        Mix.shell().info("#{line} already exists in app.css.")
-        source
+    defp generate_layout(igniter) do
+      if igniter.args.options[:no_layout] do
+        Mix.shell().info("Skipping layout generation.")
+        igniter
       else
-        Rewrite.Source.update(source, :content, app_css_content <> "\n#{line}")
+        backpex_path = Application.app_dir(:backpex)
+        web_folder_path = Helpers.web_folder_path(igniter)
+        target_path = Path.join([web_folder_path, "components", "layouts", "admin.html.heex"])
+        template_path = Path.join([backpex_path, "priv", "templates", "layouts", "admin.html.heex"])
+
+        Igniter.copy_template(igniter, template_path, target_path, [], on_exists: :warning)
       end
     end
 
-    # check for tailwind forms plugin
+    # Checks for tailwind forms plugin
 
     defp check_for_tailwind_forms_plugin(igniter) do
       app_css_path = igniter.args.options[:app_css_path]
@@ -233,10 +226,11 @@ if Code.ensure_loaded?(Igniter) do
       Mix.shell().yes?("The following line could cause issues with daisyUI: #{line}. Do you want to remove it?")
     end
 
-    # check for "bg-white"
+    # Checks for default background color
 
     defp check_for_bg_white(igniter) do
-      root_layout_path = Path.join([web_folder_path(igniter), "components", "layouts", "root.html.heex"])
+      web_folder_path = Helpers.web_folder_path(igniter)
+      root_layout_path = Path.join([web_folder_path, "components", "layouts", "root.html.heex"])
 
       if Igniter.exists?(igniter, root_layout_path) do
         Igniter.update_file(igniter, root_layout_path, &maybe_remove_bg_white/1)
@@ -265,28 +259,6 @@ if Code.ensure_loaded?(Igniter) do
       Mix.shell().yes?(
         "A background color at the body could cause issues with the backpex app_shell. Do you want to remove it? See: https://hexdocs.pm/backpex/installation.html#remove-default-background-color"
       )
-    end
-
-    # admin layout generation
-
-    defp generate_layout(igniter) do
-      if igniter.args.options[:no_layout] do
-        Mix.shell().info("Skipping layout generation.")
-        igniter
-      else
-        backpex_path = Application.app_dir(:backpex)
-        web_folder_path = web_folder_path(igniter)
-        target_path = Path.join([web_folder_path, "components", "layouts", "admin.html.heex"])
-        template_path = Path.join([backpex_path, "priv", "templates", "layouts", "admin.html.heex"])
-
-        Igniter.copy_template(igniter, template_path, target_path, [], on_exists: :warning)
-      end
-    end
-
-    defp web_folder_path(igniter) do
-      igniter
-      |> Igniter.Project.Application.app_name()
-      |> Mix.Phoenix.web_path()
     end
   end
 else
