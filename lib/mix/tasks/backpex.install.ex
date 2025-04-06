@@ -48,17 +48,16 @@ end
 if Code.ensure_loaded?(Igniter) do
   defmodule Mix.Tasks.Backpex.Install do
     @shortdoc "#{__MODULE__.Docs.short_doc()}"
-
     @moduledoc __MODULE__.Docs.long_doc()
+
+    use Igniter.Mix.Task
+
+    alias Backpex.Mix.Helpers
 
     @default_app_js_path Path.join(["assets", "js", "app.js"])
     @default_app_css_path Path.join(["assets", "css", "app.css"])
     @hooks "...BackpexHooks"
     @imports "import { Hooks as BackpexHooks } from 'backpex'"
-
-    use Igniter.Mix.Task
-
-    alias Backpex.Mix.Helpers
 
     @impl Igniter.Mix.Task
     def info(_argv, _composing_task) do
@@ -98,11 +97,11 @@ if Code.ensure_loaded?(Igniter) do
       app_js_path = igniter.args.options[:app_js_path]
 
       with {:ok, content} <- IgniterJs.Helpers.read_and_validate_file(app_js_path),
-           {:ok, _, content} <- IgniterJs.Parsers.Javascript.Parser.insert_imports(content, @imports, :content),
-           {:ok, _, content} <- IgniterJs.Parsers.Javascript.Parser.extend_hook_object(content, @hooks, :content) do
+           {:ok, _fun, content} <- IgniterJs.Parsers.Javascript.Parser.insert_imports(content, @imports, :content),
+           {:ok, _fun, content} <- IgniterJs.Parsers.Javascript.Parser.extend_hook_object(content, @hooks, :content) do
         Igniter.create_new_file(igniter, app_js_path, content, on_exists: :overwrite)
       else
-        {:error, _function, error} -> Mix.raise("Failed to modify app.js: #{error}")
+        {:error, _fun, error} -> Mix.raise("Failed to modify app.js: #{error}")
         {:error, error} -> Mix.raise("Could not read app.js: #{error}")
       end
     end
@@ -126,13 +125,15 @@ if Code.ensure_loaded?(Igniter) do
     end
 
     defp install_daisyui_via_npm do
+      env = [{"PATH", System.get_env("PATH")}]
+
       with true <- install_daisyui?(),
-           {_version, 0} <- System.cmd("npm", ["--version"], stderr_to_stdout: true),
-           {_output, 0} <- System.cmd("npm", ["i", "-D", "daisyui@latest"], stderr_to_stdout: true) do
+           {_version, 0} <- System.cmd("npm", ["--version"], stderr_to_stdout: true, env: env),
+           {_output, 0} <- System.cmd("npm", ["i", "-D", "daisyui@latest"], stderr_to_stdout: true, env: env) do
         :ok
       else
         false -> {:error, "Denied by user"}
-        {error, _} -> {:error, error}
+        {error, _int} -> {:error, error}
       end
     end
 
@@ -218,7 +219,7 @@ if Code.ensure_loaded?(Igniter) do
            true <- remove_tailwind_forms_plugin?(line) do
         Rewrite.Source.update(source, :content, &String.replace(&1, line, ""))
       else
-        _ -> source
+        _false -> source
       end
     end
 

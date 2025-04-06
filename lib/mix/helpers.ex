@@ -8,7 +8,7 @@ defmodule Backpex.Mix.Helpers do
   """
   def pubsub_module(igniter) do
     web_module = Igniter.Libs.Phoenix.web_module(igniter)
-    endpoint_module = Module.concat(web_module, Endpoint)
+    endpoint_module = Module.safe_concat(web_module, Endpoint)
     app_name = Igniter.Project.Application.app_name(igniter)
 
     Application.get_env(app_name, endpoint_module)[:pubsub_server]
@@ -26,7 +26,7 @@ defmodule Backpex.Mix.Helpers do
           {:ok, use_zipper} ->
             {:ok, Igniter.Code.Common.add_code(use_zipper, "import #{inspect(import_module)}")}
 
-          _ ->
+          _error ->
             Mix.shell().error("Could not find use module #{inspect(use_module)} in #{inspect(target_module)}")
             {:ok, zipper}
         end
