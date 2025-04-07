@@ -558,9 +558,9 @@ cssesc@^3.0.0:
   integrity sha512-/Tb/JcjK111nNScGob5MNtsntNM1aCNUDipB/TkwZFhyDrrE47SOx/18wF2bbjgc3ZzCSKW1T5nt5EbFoAz/Vg==
 
 daisyui@^5.0.3:
-  version "5.0.13"
-  resolved "https://registry.yarnpkg.com/daisyui/-/daisyui-5.0.13.tgz#653c286d1caeefeed2780b0afe1826bd14aa6de2"
-  integrity sha512-ZYQgZhfMqyFNh4aIzcsILzuErBbp1/tfUIs18/D3oKuJgmfiuPf1KUZzvoGjc8f2/JK0LWZh+BAYSVtWZq2awQ==
+  version "5.0.15"
+  resolved "https://registry.yarnpkg.com/daisyui/-/daisyui-5.0.15.tgz#d32b97438ce60fe0a21cab9ff7b4741bd07a2c13"
+  integrity sha512-ytKxTDNocN4KNnEPbBImjNtuc+DK6yeb4JICOFtM0/zsoc/vERAKsL3leqnHss2LGVMnKCyJzLhm0bpTbQcAQw==
 
 data-view-buffer@^1.0.1:
   version "1.0.1"
