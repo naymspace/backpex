@@ -15,23 +15,26 @@ defmodule Backpex.Mix.Helpers do
   end
 
   @doc """
-  Adds an import statement after a specific module use statement.
+  Checks if a specific string exists within a module's source code.
   """
-  def add_import_after_use(igniter, target_module, use_module, import_module) do
-    Igniter.Project.Module.find_and_update_module!(
-      igniter,
-      target_module,
-      fn zipper ->
-        case Igniter.Code.Module.move_to_use(zipper, use_module) do
-          {:ok, use_zipper} ->
-            {:ok, Igniter.Code.Common.add_code(use_zipper, "import #{inspect(import_module)}")}
+  def exists_in_module?(igniter, module, line) do
+    case Igniter.Project.Module.find_module(igniter, module) do
+      {:ok, {igniter, source, _zipper}} ->
+        {:ok, {igniter, string_in_source?(source, line)}}
 
-          _error ->
-            Mix.shell().error("Could not find use module #{inspect(use_module)} in #{inspect(target_module)}")
-            {:ok, zipper}
-        end
-      end
-    )
+      {:error, igniter} ->
+        Mix.shell().warning("Could not find module #{inspect(module)}")
+        {:error, igniter}
+    end
+  end
+
+  @doc """
+  Checks if a specific string exists within a source's content.
+  """
+  def string_in_source?(source, string) do
+    source
+    |> Rewrite.Source.get(:content)
+    |> String.contains?(string)
   end
 
   @doc """

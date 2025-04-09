@@ -170,13 +170,38 @@ if Code.ensure_loaded?(Igniter) do
           igniter
 
         {igniter, router} ->
-          igniter
-          |> Helpers.add_import_after_use(router, web_module, Backpex.Router)
-          |> Igniter.Libs.Phoenix.add_scope("/", "backpex_routes()", arg2: web_module)
+          with {:ok, {igniter, false}} <- Helpers.exists_in_module?(igniter, router, "import Backpex.Router"),
+               {:ok, {igniter, false}} <- Helpers.exists_in_module?(igniter, router, "backpex_routes()"),
+               {:ok, igniter} <-
+                 Igniter.Project.Module.find_and_update_module(igniter, router, &add_backpex_router_import(&1, igniter)) do
+            Igniter.Libs.Phoenix.add_scope(igniter, "/", "backpex_routes()", arg2: web_module)
+          else
+            {:ok, {igniter, true}} ->
+              Mix.shell().info("Backpex routes already added")
+              igniter
+
+            {:error, igniter} ->
+              Mix.raise("Failed to add backpex routes")
+              igniter
+          end
       end
     end
 
-    # Creates default admin layout
+    defp add_backpex_router_import(zipper, igniter) do
+      case Igniter.Libs.Phoenix.move_to_router_use(igniter, zipper) do
+        {:ok, zipper} ->
+          {:ok, Igniter.Code.Common.add_code(zipper, "import Backpex.Router")}
+
+        _error ->
+          Mix.shell().error(
+            "Could not find router use. Please manually add the following line to your router: import Backpex.Router"
+          )
+
+          {:ok, zipper}
+      end
+    end
+
+    # Creates default adminlayout
 
     defp generate_layout(igniter) do
       if igniter.args.options[:no_layout] do
