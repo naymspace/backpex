@@ -76,4 +76,16 @@ defmodule Backpex.Mix.Helpers do
     |> IgniterApp.app_name()
     |> Mix.Phoenix.web_path()
   end
+
+  @doc """
+  Checks if a npm package is already installed in the project.
+  """
+  def npm_package_installed?(package_name) do
+    env = [{"PATH", System.get_env("PATH")}]
+
+    case System.cmd("npm", ["list", "--depth=0", package_name], stderr_to_stdout: true, env: env) do
+      {_output, 0} -> true
+      {_output, _int} -> false
+    end
+  end
 end

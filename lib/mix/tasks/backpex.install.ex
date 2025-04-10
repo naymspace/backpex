@@ -59,7 +59,7 @@ if Code.ensure_loaded?(Igniter) do
     alias Igniter.Project.Config
     alias Igniter.Project.Formatter
     alias Igniter.Project.Module
-    alias Igniter.Util.IO
+    alias Igniter.Util.IO, as: IgniterIO
     alias Igniter.Util.Warning
     alias IgniterJs.Parsers.Javascript.Parser
 
@@ -67,6 +67,7 @@ if Code.ensure_loaded?(Igniter) do
     @default_app_css_path Path.join(["assets", "css", "app.css"])
     @hooks "...BackpexHooks"
     @imports "import { Hooks as BackpexHooks } from 'backpex'"
+    @daisyui_version "daisyui@5"
 
     @impl Igniter.Mix.Task
     def info(_argv, _composing_task) do
@@ -119,10 +120,15 @@ if Code.ensure_loaded?(Igniter) do
     defp install_daisyui(igniter) do
       app_css_path = igniter.args.options[:app_css_path]
 
-      with :ok <- install_daisyui_via_npm(),
+      with false <- Helpers.npm_package_installed?(@daisyui_version),
+           :ok <- install_daisyui_via_npm(),
            igniter <- Helpers.add_line_to_file(igniter, app_css_path, "@plugin \"daisyui\"") do
         Igniter.add_notice(igniter, "Installed daisyUI via npm.")
       else
+        true ->
+          Mix.shell().info("daisyui is already in package.json with the desired version. Skipping.")
+          igniter
+
         {:error, error} ->
           Warning.warn_with_code_sample(
             igniter,
@@ -133,11 +139,11 @@ if Code.ensure_loaded?(Igniter) do
     end
 
     defp install_daisyui_via_npm do
-      env = [{"PATH", System.get_env("PATH")}]
+      cmd_opts = [stderr_to_stdout: true, env: [{"PATH", System.get_env("PATH")}]]
 
       with true <- install_daisyui?(),
-           {_version, 0} <- System.cmd("npm", ["--version"], stderr_to_stdout: true, env: env),
-           {_output, 0} <- System.cmd("npm", ["i", "-D", "daisyui@latest"], stderr_to_stdout: true, env: env) do
+           {_version, 0} <- System.cmd("npm", ["--version"], cmd_opts),
+           {_output, 0} <- System.cmd("npm", ["i", "-D", @daisyui_version], cmd_opts) do
         :ok
       else
         false -> {:error, "Denied by user"}
@@ -146,8 +152,8 @@ if Code.ensure_loaded?(Igniter) do
     end
 
     defp install_daisyui? do
-      IO.yes?(
-        "The following npm package needs to be installed: `daisyui`. Do you want to install `daisyui@latest` via npm?"
+      IgniterIO.yes?(
+        "The following npm package is outdated or needs to be installed: '#{@daisyui_version}'. Do you want to install '#{@daisyui_version}' via npm?"
       )
     end
 
