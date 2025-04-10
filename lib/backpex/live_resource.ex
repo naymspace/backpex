@@ -303,6 +303,15 @@ defmodule Backpex.LiveResource do
 
           use Phoenix.LiveView, layout: @resource_opts[:layout]
 
+          on_mount __MODULE__
+
+          def on_mount(:default, params, session, socket) do
+            case function_exported?(unquote(live_resource), :on_mount, 4) do
+              true -> unquote(live_resource).on_mount(:default, params, session, socket)
+              false -> {:cont, socket}
+            end
+          end
+
           def mount(params, session, socket), do: @action_module.mount(params, session, socket, unquote(live_resource))
           def handle_params(params, url, socket), do: @action_module.handle_params(params, url, socket)
           def render(assigns), do: @action_module.render(assigns)
