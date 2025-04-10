@@ -61,7 +61,7 @@ defmodule Backpex.Mix.Helpers do
     content = Rewrite.Source.get(source, :content)
 
     if String.contains?(content, line) do
-      Mix.shell().info("#{line} already exists in #{file_path}.")
+      Mix.shell().info("'#{line}' already exists in #{file_path}.")
       source
     else
       Rewrite.Source.update(source, :content, content <> "\n#{line}")
