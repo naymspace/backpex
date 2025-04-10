@@ -56,6 +56,10 @@ msgid "Attach %{resource}"
 msgstr ""
 
 #, elixir-autogen, elixir-format
+msgid "Attempting to reconnect..."
+msgstr ""
+
+#, elixir-autogen, elixir-format
 msgid "Cancel"
 msgstr ""
 
@@ -109,6 +113,10 @@ msgstr ""
 
 #, elixir-autogen, elixir-format
 msgid "From"
+msgstr ""
+
+#, elixir-autogen, elixir-format
+msgid "Hang in there while we get back on track..."
 msgstr ""
 
 #, elixir-autogen, elixir-format
@@ -184,6 +192,10 @@ msgid "Show more"
 msgstr ""
 
 #, elixir-autogen, elixir-format
+msgid "Something went wrong!"
+msgstr ""
+
+#, elixir-autogen, elixir-format
 msgid "The item is used elsewhere."
 msgstr ""
 
@@ -233,4 +245,8 @@ msgstr ""
 
 #, elixir-autogen, elixir-format
 msgid "Upload a file"
+msgstr ""
+
+#, elixir-autogen, elixir-format
+msgid "We can't find the internet!"
 msgstr ""
