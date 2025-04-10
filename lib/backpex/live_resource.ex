@@ -252,8 +252,6 @@ defmodule Backpex.LiveResource do
       @resource_opts[:adapter].validate_config!(@resource_opts[:adapter_config])
 
       use BackpexWeb, :html
-      use Phoenix.LiveView, layout: @resource_opts[:layout]
-
       import Backpex.LiveResource
       import Phoenix.LiveView.Helpers
 
@@ -266,15 +264,6 @@ defmodule Backpex.LiveResource do
       def pubsub, do: LiveResource.pubsub(__MODULE__)
 
       def validated_fields, do: LiveResource.validated_fields(__MODULE__)
-
-      @impl Phoenix.LiveView
-      def mount(params, session, socket), do: LiveResource.mount(params, session, socket)
-
-      @impl Phoenix.LiveView
-      def handle_params(params, url, socket), do: LiveResource.handle_params(params, url, socket)
-
-      @impl Phoenix.LiveView
-      def render(assigns), do: LiveResource.render(assigns)
 
       @impl Backpex.LiveResource
       def can?(_assigns, _action, _item), do: true
@@ -305,7 +294,6 @@ defmodule Backpex.LiveResource do
                      item_actions: 1,
                      index_row_class: 4
 
-
       live_resource = __MODULE__
 
       for action <- ~w(Index New Edit Show)a do
@@ -333,12 +321,6 @@ defmodule Backpex.LiveResource do
 
       alias Backpex.LiveResource
       alias Backpex.Router
-
-      @impl Phoenix.LiveView
-      def handle_event(event, params, socket), do: LiveResource.handle_event(event, params, socket)
-
-      @impl Phoenix.LiveView
-      def handle_info(msg, socket), do: LiveResource.handle_info(msg, socket)
 
       @impl Backpex.LiveResource
       def panels, do: []
@@ -516,7 +498,6 @@ defmodule Backpex.LiveResource do
 
   def default_attrs(_live_action, _fields, _assigns), do: %{}
 
-  @impl Phoenix.LiveView
   def handle_event("change-filter", params, socket) do
     query_options = socket.assigns.query_options
 

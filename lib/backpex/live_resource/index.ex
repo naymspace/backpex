@@ -1,16 +1,13 @@
 defmodule Backpex.LiveResource.Index do
   @moduledoc false
   use BackpexWeb, :html
-
   import Phoenix.Component
-
   alias Backpex.Resource
   alias Backpex.LiveResource
   alias Backpex.ResourceAction
   alias Backpex.Adapters.Ecto, as: EctoAdapter
   alias Backpex.Router
   alias Phoenix.LiveView
-
   require Backpex
 
   def mount(params, session, socket, live_resource) do
@@ -46,7 +43,7 @@ defmodule Backpex.LiveResource.Index do
     Backpex.HTML.Resource.resource_index(assigns)
   end
 
-  def handle_info({"backpex:created", item}, socket) do
+  def handle_info({"backpex:created", _item}, socket) do
     socket
     |> refresh_items()
     |> noreply()
@@ -125,7 +122,6 @@ defmodule Backpex.LiveResource.Index do
     |> noreply()
   end
 
-  @impl Phoenix.LiveView
   def handle_event("filter-preset-selected", %{"field" => field, "preset-index" => preset_index} = _params, socket) do
     query_options = socket.assigns.query_options
     preset_index = String.to_integer(preset_index)
@@ -179,7 +175,7 @@ defmodule Backpex.LiveResource.Index do
 
   def handle_event("toggle-item-selection", _params, socket) do
     select_all = not socket.assigns.select_all
-    selected_items = select_all && socket.assigns.items || []
+    selected_items = (select_all && socket.assigns.items) || []
 
     socket
     |> assign(:select_all, select_all)
@@ -272,8 +268,6 @@ defmodule Backpex.LiveResource.Index do
   end
 
   defp find_item_by_primary_value(items, primary_value, live_resource) do
-    primary_value_str = to_string(primary_value)
-
     Enum.find(items, fn item ->
       to_string(LiveResource.primary_value(item, live_resource)) == primary_value
     end)
@@ -323,13 +317,14 @@ defmodule Backpex.LiveResource.Index do
 
     {:ok, updated_item} = Resource.get(primary_value, socket.assigns, live_resource)
 
-    updated_items = Enum.map(items, fn current_item ->
-      if to_string(LiveResource.primary_value(current_item, live_resource)) == primary_value_str do
-        updated_item
-      else
-        current_item
-      end
-    end)
+    updated_items =
+      Enum.map(items, fn current_item ->
+        if to_string(LiveResource.primary_value(current_item, live_resource)) == primary_value_str do
+          updated_item
+        else
+          current_item
+        end
+      end)
 
     assign(socket, :items, updated_items)
   end

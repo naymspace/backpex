@@ -1,16 +1,9 @@
 defmodule Backpex.LiveResource.Edit do
   @moduledoc false
   use BackpexWeb, :html
-
   import Phoenix.Component
-
   alias Backpex.Resource
   alias Backpex.LiveResource
-  alias Backpex.ResourceAction
-  alias Backpex.Adapters.Ecto, as: EctoAdapter
-  alias Backpex.Router
-  alias Phoenix.LiveView
-
   require Backpex
 
   def mount(params, _session, socket, live_resource) do
@@ -47,6 +40,11 @@ defmodule Backpex.LiveResource.Edit do
     socket
     |> assign(:assocs, assocs)
     |> assign(:changeset, changeset)
+    |> noreply()
+  end
+
+  def handle_event(_event, _params, socket) do
+    socket
     |> noreply()
   end
 

@@ -1,16 +1,11 @@
 defmodule Backpex.LiveResource.Show do
   @moduledoc false
   use BackpexWeb, :html
-
   alias Backpex.Resource
   alias Backpex.LiveResource
-  alias Backpex.ResourceAction
-  alias Backpex.Adapters.Ecto, as: EctoAdapter
   alias Backpex.Router
   alias Phoenix.LiveView
-
   import Phoenix.Component
-
   require Backpex
 
   def mount(params, _session, socket, live_resource) do
@@ -35,9 +30,14 @@ defmodule Backpex.LiveResource.Show do
     noreply(socket)
   end
 
-  def handle_info({"backpex:updated", item}, socket) do
+  def handle_info({"backpex:updated", _item}, socket) do
     socket
     |> assign_item()
+    |> noreply()
+  end
+
+  def handle_event(_event, _params, socket) do
+    socket
     |> noreply()
   end
 
