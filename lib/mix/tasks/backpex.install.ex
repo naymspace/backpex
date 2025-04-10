@@ -54,6 +54,15 @@ if Code.ensure_loaded?(Igniter) do
 
     alias Backpex.Mix.Helpers
 
+    alias Igniter.Code.Common
+    alias Igniter.Libs.Phoenix
+    alias Igniter.Project.Config
+    alias Igniter.Project.Formatter
+    alias Igniter.Project.Module
+    alias Igniter.Util.IO
+    alias Igniter.Util.Warning
+    alias IgniterJs.Parsers.Javascript.Parser
+
     @default_app_js_path Path.join(["assets", "js", "app.js"])
     @default_app_css_path Path.join(["assets", "css", "app.css"])
     @hooks "...BackpexHooks"
@@ -88,7 +97,7 @@ if Code.ensure_loaded?(Igniter) do
 
     defp configure_pubsub_server(igniter) do
       pubsub_module = Helpers.pubsub_module(igniter)
-      Igniter.Project.Config.configure_new(igniter, "config.exs", :backpex, [:pubsub_server], pubsub_module)
+      Config.configure_new(igniter, "config.exs", :backpex, [:pubsub_server], pubsub_module)
     end
 
     # Backpex hooks
@@ -97,8 +106,8 @@ if Code.ensure_loaded?(Igniter) do
       app_js_path = igniter.args.options[:app_js_path]
 
       with {:ok, content} <- IgniterJs.Helpers.read_and_validate_file(app_js_path),
-           {:ok, _fun, content} <- IgniterJs.Parsers.Javascript.Parser.insert_imports(content, @imports, :content),
-           {:ok, _fun, content} <- IgniterJs.Parsers.Javascript.Parser.extend_hook_object(content, @hooks, :content) do
+           {:ok, _fun, content} <- Parser.insert_imports(content, @imports, :content),
+           {:ok, _fun, content} <- Parser.extend_hook_object(content, @hooks, :content) do
         Igniter.create_new_file(igniter, app_js_path, content, on_exists: :overwrite)
       else
         {:error, _fun, error} -> Mix.raise("Failed to modify app.js: #{error}")
@@ -116,7 +125,7 @@ if Code.ensure_loaded?(Igniter) do
         Igniter.add_notice(igniter, "Installed daisyUI via npm.")
       else
         {:error, error} ->
-          Igniter.Util.Warning.warn_with_code_sample(
+          Warning.warn_with_code_sample(
             igniter,
             "Error installing daisyUI: #{inspect(error)}, please install daisyUI manually and add the following plugin to the app.css file:",
             "@plugin \"daisyui\""
@@ -138,7 +147,7 @@ if Code.ensure_loaded?(Igniter) do
     end
 
     defp install_daisyui? do
-      Igniter.Util.IO.yes?(
+      IO.yes?(
         "The following npm package needs to be installed: `daisyui`. Do you want to install `daisyui@latest` via npm?"
       )
     end
@@ -146,7 +155,7 @@ if Code.ensure_loaded?(Igniter) do
     # Add Backpex to formatter
 
     defp add_backpex_formatter(igniter) do
-      Igniter.Project.Formatter.import_dep(igniter, :backpex)
+      Formatter.import_dep(igniter, :backpex)
     end
 
     # Add backpex files to tailwind content
@@ -162,9 +171,9 @@ if Code.ensure_loaded?(Igniter) do
     # Add Backpex routes
 
     defp add_backpex_routes(igniter) do
-      web_module = Igniter.Libs.Phoenix.web_module(igniter)
+      web_module = Phoenix.web_module(igniter)
 
-      case Igniter.Libs.Phoenix.select_router(igniter) do
+      case Phoenix.select_router(igniter) do
         {igniter, nil} ->
           Mix.shell().error("Could not find router")
           igniter
@@ -173,8 +182,8 @@ if Code.ensure_loaded?(Igniter) do
           with {:ok, {igniter, false}} <- Helpers.exists_in_module?(igniter, router, "import Backpex.Router"),
                {:ok, {igniter, false}} <- Helpers.exists_in_module?(igniter, router, "backpex_routes()"),
                {:ok, igniter} <-
-                 Igniter.Project.Module.find_and_update_module(igniter, router, &add_backpex_router_import(&1, igniter)) do
-            Igniter.Libs.Phoenix.add_scope(igniter, "/", "backpex_routes()", arg2: web_module)
+                 Module.find_and_update_module(igniter, router, &add_backpex_router_import(&1, igniter)) do
+            Phoenix.add_scope(igniter, "/", "backpex_routes()", arg2: web_module)
           else
             {:ok, {igniter, true}} ->
               Mix.shell().info("Backpex routes already added")
@@ -188,9 +197,9 @@ if Code.ensure_loaded?(Igniter) do
     end
 
     defp add_backpex_router_import(zipper, igniter) do
-      case Igniter.Libs.Phoenix.move_to_router_use(igniter, zipper) do
+      case Phoenix.move_to_router_use(igniter, zipper) do
         {:ok, zipper} ->
-          {:ok, Igniter.Code.Common.add_code(zipper, "import Backpex.Router")}
+          {:ok, Common.add_code(zipper, "import Backpex.Router")}
 
         _error ->
           Mix.shell().error(
@@ -226,7 +235,7 @@ if Code.ensure_loaded?(Igniter) do
       if Igniter.exists?(igniter, app_css_path) do
         Igniter.update_file(igniter, app_css_path, &maybe_remove_tailwind_forms_plugin(&1, line))
       else
-        Igniter.Util.Warning.warn_with_code_sample(
+        Warning.warn_with_code_sample(
           igniter,
           """
           app.css not found at #{app_css_path}.
