@@ -193,9 +193,10 @@ defmodule DemoWeb.UserLive do
         ]
       },
       permissions: %{
-        module: Backpex.Fields.MultiSelect,
+        module: Backpex.Fields.CheckboxGroup,
         label: "Permissions",
-        options: fn _assigns -> [{"Delete", "delete"}, {"Edit", "edit"}, {"Show", "show"}] end
+        options: fn _assigns -> [{"Delete", "delete"}, {"Edit", "edit"}, {"Show", "show"}] end,
+        columns: 3
       }
     ]
   end
