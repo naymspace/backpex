@@ -16,6 +16,7 @@ defmodule Backpex.HTML.Form do
   attr :id, :any, default: nil
   attr :name, :any
   attr :label, :string, default: nil
+  attr :help_text, :any, default: nil
   attr :value, :any
 
   attr :type, :string,
@@ -97,6 +98,7 @@ defmodule Backpex.HTML.Form do
         <% end %>
       </fieldset>
       <.error :for={msg <- @errors} :if={not @hide_errors} class="mt-1">{msg}</.error>
+      <p :if={@help_text} class="label mt-1">{@help_text}</p>
     </div>
     """
   end
@@ -135,6 +137,7 @@ defmodule Backpex.HTML.Form do
         <% end %>
       </fieldset>
       <.error :for={msg <- @errors} :if={not @hide_errors} class="mt-1">{msg}</.error>
+      <p :if={@help_text} class="label mt-1">{@help_text}</p>
     </div>
     """
   end
@@ -161,6 +164,7 @@ defmodule Backpex.HTML.Form do
         </div>
       </fieldset>
       <.error :for={msg <- @errors} :if={not @hide_errors} class="mt-1">{msg}</.error>
+      <p :if={@help_text} class="label mt-1">{@help_text}</p>
     </div>
     """
   end
@@ -183,6 +187,7 @@ defmodule Backpex.HTML.Form do
         ><%= Phoenix.HTML.Form.normalize_value("textarea", @value) %></textarea>
       </fieldset>
       <.error :for={msg <- @errors} :if={not @hide_errors} class="mt-1">{msg}</.error>
+      <p :if={@help_text} class="label mt-1">{@help_text}</p>
     </div>
     """
   end
@@ -204,6 +209,7 @@ defmodule Backpex.HTML.Form do
         />
       </fieldset>
       <.error :for={msg <- @errors} :if={not @hide_errors} class="mt-1">{msg}</.error>
+      <p :if={@help_text} class="label mt-1">{@help_text}</p>
     </div>
     """
   end
