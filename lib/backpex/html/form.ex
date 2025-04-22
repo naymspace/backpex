@@ -16,6 +16,7 @@ defmodule Backpex.HTML.Form do
   attr :id, :any, default: nil
   attr :name, :any
   attr :label, :string, default: nil
+  attr :help_text, :any, default: nil
   attr :value, :any
 
   attr :type, :string,
@@ -61,43 +62,25 @@ defmodule Backpex.HTML.Form do
     assigns = assign_new(assigns, :checked, fn -> Form.normalize_value("checkbox", assigns.value) end)
 
     ~H"""
-    <div class={@class}>
-      <fieldset class="fieldset py-0">
-        <%= if @label do %>
-          <label class="label cursor-pointer">
-            <input type="hidden" name={@name} value="false" />
-            <input
-              type="checkbox"
-              id={@id}
-              name={@name}
-              value="true"
-              checked={@checked}
-              class={
-                @input_class ||
-                  ["checkbox checkbox-sm", @errors == [] && "checkbox-primary", @errors != [] && "checkbox-error"]
-              }
-              {@rest}
-            />
-            <span class="label-text ml-2">{@label}</span>
-          </label>
-        <% else %>
-          <input type="hidden" name={@name} value="false" />
-          <input
-            type="checkbox"
-            id={@id}
-            name={@name}
-            value="true"
-            checked={@checked}
-            class={
-              @input_class ||
-                ["checkbox checkbox-sm", @errors == [] && "checkbox-primary", @errors != [] && "checkbox-error"]
-            }
-            {@rest}
-          />
-        <% end %>
-      </fieldset>
+    <fieldset class={["fieldset py-0", @class]}>
+      <label class="label">
+        <input type="hidden" name={@name} value="false" disabled={@rest[:disabled]} />
+        <input
+          type="checkbox"
+          id={@id}
+          name={@name}
+          value="true"
+          checked={@checked}
+          class={
+            @input_class || ["checkbox checkbox-sm", @errors == [] && "checkbox-primary", @errors != [] && "checkbox-error"]
+          }
+          {@rest}
+        />
+        <span :if={@label} class="ml-2">{@label}</span>
+      </label>
       <.error :for={msg <- @errors} :if={not @hide_errors} class="mt-1">{msg}</.error>
-    </div>
+      <p :if={@help_text} class="label mt-1">{@help_text}</p>
+    </fieldset>
     """
   end
 
@@ -105,106 +88,83 @@ defmodule Backpex.HTML.Form do
     assigns = assign_new(assigns, :checked, fn -> Form.normalize_value("checkbox", assigns.value) end)
 
     ~H"""
-    <div class={@class}>
-      <fieldset class="fieldset py-0">
-        <%= if @label do %>
-          <label class="label cursor-pointer">
-            <input type="hidden" name={@name} value="false" />
-            <input
-              type="checkbox"
-              id={@id}
-              name={@name}
-              value="true"
-              checked={@checked}
-              class={@input_class || ["toggle", @errors == [] && "toggle-primary", @errors != [] && "toggle-error"]}
-              {@rest}
-            />
-            <span class="label-text ml-2">{@label}</span>
-          </label>
-        <% else %>
-          <input type="hidden" name={@name} value="false" />
-          <input
-            type="checkbox"
-            id={@id}
-            name={@name}
-            value="true"
-            checked={@checked}
-            class={@input_class || ["toggle", @errors == [] && "toggle-primary", @errors != [] && "toggle-error"]}
-            {@rest}
-          />
-        <% end %>
-      </fieldset>
+    <fieldset class={["fieldset py-0", @class]}>
+      <label class="label">
+        <input type="hidden" name={@name} value="false" />
+        <input
+          type="checkbox"
+          id={@id}
+          name={@name}
+          value="true"
+          checked={@checked}
+          class={@input_class || ["toggle", @errors == [] && "toggle-primary", @errors != [] && "toggle-error"]}
+          {@rest}
+        />
+        <span class="ml-2">{@label}</span>
+      </label>
       <.error :for={msg <- @errors} :if={not @hide_errors} class="mt-1">{msg}</.error>
-    </div>
+      <p :if={@help_text} class="label mt-1">{@help_text}</p>
+    </fieldset>
     """
   end
 
   def input(%{type: "select"} = assigns) do
     ~H"""
-    <div class={@class}>
-      <fieldset class="fieldset py-0">
-        <label :if={@label} class="label">
-          <span class="label-text">{@label}</span>
-        </label>
-        <div class={
-          @input_wrapper_class ||
-            [
-              "[&>*]:w-full [&>*]:select",
-              @errors == [] && "[&>*]:text-base-content",
-              @errors != [] && "[&>*]:select-error [&>*]:bg-error/10 [&>*]:text-error-content"
-            ]
-        }>
-          <select class={@input_class} name={@name} {@rest}>
-            <option :if={@prompt} value="">{@prompt}</option>
-            {Phoenix.HTML.Form.options_for_select(@options, @value)}
-          </select>
-        </div>
-      </fieldset>
+    <fieldset class={["fieldset py-0", @class]}>
+      <legend :if={@label} class="fieldset-legend mb-1">{@label}</legend>
+      <div class={
+        @input_wrapper_class ||
+          [
+            "[&>*]:w-full [&>*]:select",
+            @errors == [] && "[&>*]:text-base-content",
+            @errors != [] && "[&>*]:select-error [&>*]:bg-error/10 [&>*]:text-error-content"
+          ]
+      }>
+        <select class={@input_class} name={@name} {@rest}>
+          <option :if={@prompt} value="">{@prompt}</option>
+          {Phoenix.HTML.Form.options_for_select(@options, @value)}
+        </select>
+      </div>
       <.error :for={msg <- @errors} :if={not @hide_errors} class="mt-1">{msg}</.error>
-    </div>
+      <p :if={@help_text} class="label mt-1">{@help_text}</p>
+    </fieldset>
     """
   end
 
   def input(%{type: "textarea"} = assigns) do
     ~H"""
-    <div class={@class}>
-      <fieldset class="fieldset py-0">
-        <label :if={@label} class="label">
-          <span class="label-text">{@label}</span>
-        </label>
-        <textarea
-          id={@id}
-          name={@name}
-          class={
-            @input_class ||
-              ["textarea w-full", @errors == [] && "textarea-bordered", @errors != [] && "textarea-error bg-error/10"]
-          }
-          {@rest}
-        ><%= Phoenix.HTML.Form.normalize_value("textarea", @value) %></textarea>
-      </fieldset>
+    <fieldset class={["fieldset py-0", @class]}>
+      <legend :if={@label} class="fieldset-legend mb-1">{@label}</legend>
+      <textarea
+        id={@id}
+        name={@name}
+        class={
+          @input_class ||
+            ["textarea w-full", @errors == [] && "textarea-bordered", @errors != [] && "textarea-error bg-error/10"]
+        }
+        {@rest}
+      ><%= Phoenix.HTML.Form.normalize_value("textarea", @value) %></textarea>
       <.error :for={msg <- @errors} :if={not @hide_errors} class="mt-1">{msg}</.error>
-    </div>
+      <p :if={@help_text} class="label mt-1">{@help_text}</p>
+    </fieldset>
     """
   end
 
   def input(assigns) do
     ~H"""
-    <div class={@class}>
-      <fieldset class="fieldset py-0">
-        <label :if={@label} class="label">
-          <span class="label-text">{@label}</span>
-        </label>
-        <input
-          type={@type}
-          name={@name}
-          id={@id}
-          value={Phoenix.HTML.Form.normalize_value(@type, @value)}
-          class={@input_class || ["input w-full text-base", @input_class, @errors != [] && "input-error bg-error/10"]}
-          {@rest}
-        />
-      </fieldset>
+    <fieldset class={["fieldset py-0", @class]}>
+      <legend :if={@label} class="fieldset-legend mb-1">{@label}</legend>
+      <input
+        type={@type}
+        name={@name}
+        id={@id}
+        value={Phoenix.HTML.Form.normalize_value(@type, @value)}
+        class={@input_class || ["input w-full text-base", @input_class, @errors != [] && "input-error bg-error/10"]}
+        {@rest}
+      />
       <.error :for={msg <- @errors} :if={not @hide_errors} class="mt-1">{msg}</.error>
-    </div>
+      <p :if={@help_text} class="label mt-1">{@help_text}</p>
+    </fieldset>
     """
   end
 
