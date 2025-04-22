@@ -101,6 +101,7 @@ defmodule Backpex.HTML.Form do
         <span class="ml-2">{@label}</span>
       </label>
       <.error :for={msg <- @errors} :if={not @hide_errors} class="mt-1">{msg}</.error>
+    </fieldset>
     """
   end
 
