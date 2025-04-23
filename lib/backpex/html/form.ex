@@ -241,7 +241,7 @@ defmodule Backpex.HTML.Form do
   slot :inner_block, required: true
   def help_text(assigns) do
     ~H"""
-    <p class={["label whitespace-normal", @class]}>
+    <p class={["text-base-content/60", @class]}>
       {render_slot(@inner_block)}
     </p>
     """
