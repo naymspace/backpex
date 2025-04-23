@@ -84,7 +84,8 @@ defmodule DemoWeb.UserLive do
         label: "Username",
         searchable: true,
         panel: :names,
-        index_editable: true
+        index_editable: true,
+        help_text: "Insert your username."
       },
       full_name: %{
         module: Backpex.Fields.Text,
