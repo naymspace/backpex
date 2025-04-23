@@ -253,6 +253,7 @@ defmodule Backpex.HTML.Form do
   @doc type: :component
 
   attr :prompt, :string, required: true, doc: "string that will be shown when no option is selected"
+  attr :help_text, :string, default: nil, doc: "help text to be displayed below input"
   attr :not_found_text, :string, required: true, doc: "string that will be shown when there are no options"
   attr :options, :list, required: true, doc: "a list of options for the select"
   attr :search_input, :string, required: true, doc: "to prefill and or persist the search term for rerendering"
@@ -363,6 +364,8 @@ defmodule Backpex.HTML.Form do
         </div>
       </div>
     </div>
+
+    <.help_text :if={@help_text} class="mt-1">{@help_text}</.help_text>
     """
   end
 
