@@ -16,7 +16,7 @@ defmodule Backpex.HTML.Form do
   attr :id, :any, default: nil
   attr :name, :any
   attr :label, :string, default: nil
-  attr :help_text, :any, default: nil
+  attr :help_text, :string, default: nil
   attr :value, :any
 
   attr :type, :string,
