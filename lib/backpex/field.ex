@@ -13,7 +13,7 @@ defmodule Backpex.Field do
     ],
     help_text: [
       doc: "A text to be displayed below the input on form views.",
-      type: {:or, [:string, {:fun, 1}]},
+      type: {:or, [:string, {:fun, 1}]}
     ],
     default: [
       doc: """

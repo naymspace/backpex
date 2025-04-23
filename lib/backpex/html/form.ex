@@ -239,6 +239,7 @@ defmodule Backpex.HTML.Form do
   attr :class, :string, default: nil
 
   slot :inner_block, required: true
+
   def help_text(assigns) do
     ~H"""
     <p class={["text-base-content/60", @class]}>
