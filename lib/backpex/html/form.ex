@@ -98,7 +98,7 @@ defmodule Backpex.HTML.Form do
         <% end %>
       </fieldset>
       <.error :for={msg <- @errors} :if={not @hide_errors} class="mt-1">{msg}</.error>
-      <p :if={@help_text} class="label mt-1">{@help_text}</p>
+      <.help_text :if={@help_text} class="mt-1">{@help_text}</.help_text>
     </div>
     """
   end
@@ -137,7 +137,7 @@ defmodule Backpex.HTML.Form do
         <% end %>
       </fieldset>
       <.error :for={msg <- @errors} :if={not @hide_errors} class="mt-1">{msg}</.error>
-      <p :if={@help_text} class="label mt-1">{@help_text}</p>
+      <.help_text :if={@help_text} class="mt-1">{@help_text}</.help_text>
     </div>
     """
   end
@@ -164,7 +164,7 @@ defmodule Backpex.HTML.Form do
         </div>
       </fieldset>
       <.error :for={msg <- @errors} :if={not @hide_errors} class="mt-1">{msg}</.error>
-      <p :if={@help_text} class="label mt-1">{@help_text}</p>
+      <.help_text :if={@help_text} class="mt-1">{@help_text}</.help_text>
     </div>
     """
   end
@@ -187,14 +187,14 @@ defmodule Backpex.HTML.Form do
         ><%= Phoenix.HTML.Form.normalize_value("textarea", @value) %></textarea>
       </fieldset>
       <.error :for={msg <- @errors} :if={not @hide_errors} class="mt-1">{msg}</.error>
-      <p :if={@help_text} class="label mt-1">{@help_text}</p>
+      <.help_text :if={@help_text} class="mt-1">{@help_text}</.help_text>
     </div>
     """
   end
 
   def input(assigns) do
     ~H"""
-    <div class={@class}>
+    <div class={[@class]}>
       <fieldset class="fieldset py-0">
         <label :if={@label} class="label">
           <span class="label-text">{@label}</span>
@@ -209,7 +209,7 @@ defmodule Backpex.HTML.Form do
         />
       </fieldset>
       <.error :for={msg <- @errors} :if={not @hide_errors} class="mt-1">{msg}</.error>
-      <p :if={@help_text} class="label mt-1">{@help_text}</p>
+      <.help_text :if={@help_text} class="mt-1">{@help_text}</.help_text>
     </div>
     """
   end
@@ -226,6 +226,22 @@ defmodule Backpex.HTML.Form do
   def error(assigns) do
     ~H"""
     <p class={["text-error text-xs italic", @class]}>
+      {render_slot(@inner_block)}
+    </p>
+    """
+  end
+
+  @doc """
+  Displays a help text.
+  """
+  @doc type: :component
+
+  attr :class, :string, default: nil
+
+  slot :inner_block, required: true
+  def help_text(assigns) do
+    ~H"""
+    <p class={["label whitespace-normal", @class]}>
       {render_slot(@inner_block)}
     </p>
     """
