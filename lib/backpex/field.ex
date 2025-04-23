@@ -11,6 +11,10 @@ defmodule Backpex.Field do
       type: :string,
       required: true
     ],
+    help_text: [
+      doc: "A text to be displayed below the input on form views.",
+      type: {:or, [:string, {:fun, 1}]},
+    ],
     default: [
       doc: """
       A function to assign default values to fields. Also see the [field defaults](/guides/fields/defaults.md) guide.
@@ -327,6 +331,10 @@ defmodule Backpex.Field do
   def placeholder(%{placeholder: placeholder}, _assigns) when is_binary(placeholder), do: placeholder
   def placeholder(%{placeholder: placeholder}, assigns) when is_function(placeholder, 1), do: placeholder.(assigns)
   def placeholder(_field, _assigns), do: nil
+
+  def help_text(%{help_text: help_text}, _assigns) when is_binary(help_text), do: help_text
+  def help_text(%{help_text: help_text}, assigns) when is_function(help_text, 1), do: help_text.(assigns)
+  def help_text(_field, _assigns), do: nil
 
   @doc """
   Defines debounce timeout value.
