@@ -101,40 +101,42 @@ defmodule Backpex.HTML.Layout do
 
   def flash_messages(assigns) do
     ~H"""
-    <.alert
-      :for={kind <- ~w(info success warning error)a}
-      :if={msg = Phoenix.Flash.get(@flash, kind)}
-      kind={kind}
-      close_label={@close_label}
-      on_close={JS.push("lv:clear-flash", value: %{key: kind})}
-    >
-      {msg}
-    </.alert>
-    <div class="toast toast-end toast-top z-50">
+    <div aria-live="polite">
       <.alert
-        id="client-error"
-        class="hidden"
-        kind={:error}
-        closable={false}
-        title={Backpex.__("We can't find the internet!")}
-        phx-disconnected={JS.remove_class("hidden", to: ".phx-client-error #client-error")}
-        phx-connected={JS.add_class("hidden")}
+        :for={kind <- ~w(info success warning error)a}
+        :if={msg = Phoenix.Flash.get(@flash, kind)}
+        kind={kind}
+        close_label={@close_label}
+        on_close={JS.push("lv:clear-flash", value: %{key: kind})}
       >
-        <:icon><CoreComponents.icon name="hero-arrow-path" class="size-5 motion-safe:animate-spin" /></:icon>
-        {Backpex.__("Attempting to reconnect...")}
+        {msg}
       </.alert>
-      <.alert
-        id="server-error"
-        class="hidden"
-        kind={:error}
-        closable={false}
-        title={Backpex.__("Something went wrong!")}
-        phx-disconnected={JS.remove_class("hidden", to: ".phx-server-error #server-error")}
-        phx-connected={JS.add_class("hidden")}
-      >
-        <:icon><CoreComponents.icon name="hero-arrow-path" class="size-5 motion-safe:animate-spin" /></:icon>
-        {Backpex.__("Hang in there while we get back on track...")}
-      </.alert>
+      <div class="toast toast-end toast-top z-50">
+        <.alert
+          id="client-error"
+          class="hidden"
+          kind={:error}
+          closable={false}
+          title={Backpex.__("We can't find the internet!")}
+          phx-disconnected={JS.remove_class("hidden", to: ".phx-client-error #client-error")}
+          phx-connected={JS.add_class("hidden")}
+        >
+          <:icon><CoreComponents.icon name="hero-arrow-path" class="size-5 motion-safe:animate-spin" /></:icon>
+          {Backpex.__("Attempting to reconnect...")}
+        </.alert>
+        <.alert
+          id="server-error"
+          class="hidden"
+          kind={:error}
+          closable={false}
+          title={Backpex.__("Something went wrong!")}
+          phx-disconnected={JS.remove_class("hidden", to: ".phx-server-error #server-error")}
+          phx-connected={JS.add_class("hidden")}
+        >
+          <:icon><CoreComponents.icon name="hero-arrow-path" class="size-5 motion-safe:animate-spin" /></:icon>
+          {Backpex.__("Hang in there while we get back on track...")}
+        </.alert>
+      </div>
     </div>
     """
   end
