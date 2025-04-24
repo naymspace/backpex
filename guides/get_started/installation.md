@@ -274,7 +274,7 @@ scope "/admin", MyAppWeb do
 end
 ```
 
-It does not matter where you place the [`backpex_routes/0`](Backpex.Router.html#backpex_routes/0) macro in your router file. You can insert it in every scope you want to, but we recommend placing it in the scope you want to use backpex in, e.g. `/admin`.
+It does not matter where you place the [`backpex_routes/0`](Backpex.Router.html#backpex_routes/0) macro in your router file. You can insert it in every scope you want to, but we recommend placing it in the scope you want to use backpex in, e.g. `/admin`. But always make sure that the scope you put it in pipes through the `:browser` pipeline: `pipe_through :browser`.
 
 ## Add Init Assigns and LiveSession
 
