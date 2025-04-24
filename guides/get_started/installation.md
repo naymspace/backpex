@@ -6,7 +6,7 @@ The following guide will help you to install Backpex in your Phoenix application
 
 Backpex integrates seamlessly with your existing Phoenix LiveView application, but there are a few prerequisites you need to meet before you can start using it.
 
-## Global configuration
+### Global configuration
 
 Set the PubSub server of your application in your `config.exs`:
 
