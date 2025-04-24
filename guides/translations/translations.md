@@ -44,8 +44,7 @@ You will also need to create a Gettext template file in your application. You ca
 
 > #### Warning {: .warning}
 >
-> If you copy the above mentioned `backpex.pot` file, you should remove the`elixir-autogen` comments. Otherwise, running the `gettext.extract --merge` task will remove the translations from your project.
-
+> If you copy the above mentioned `backpex.pot` file, you should remove the `elixir-autogen` comments. Otherwise, running the `gettext.extract --merge` task will remove the translations from your project.
 ## Modify texts (per `LiveResource`)
 
 In addition to translating texts, Backpex provides a way to modify texts per LiveResource with the `c:Backpex.LiveResource.translate/1` callback.
