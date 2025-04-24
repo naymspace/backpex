@@ -128,9 +128,9 @@ defmodule Backpex.HTML.Layout do
         class="hidden"
         kind={:error}
         closable={false}
+        title={Backpex.__("Something went wrong!")}
         phx-disconnected={JS.remove_class("hidden", to: ".phx-server-error #server-error")}
         phx-connected={JS.add_class("hidden")}
-        title={Backpex.__("Something went wrong!")}
       >
         <:icon><CoreComponents.icon name="hero-arrow-path" class="size-5 motion-safe:animate-spin" /></:icon>
         {Backpex.__("Hang in there while we get back on track...")}
