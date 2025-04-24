@@ -169,7 +169,7 @@ defmodule Backpex.HTML.Layout do
       data-close={@on_close}
       {@rest}
     >
-      <%= if (@icon == []) do %>
+      <%= if @icon == [] do %>
         <CoreComponents.icon :if={@kind === :info} name="hero-information-circle" class="h-5 w-5" />
         <CoreComponents.icon :if={@kind === :success} name="hero-check-circle" class="h-5 w-5" />
         <CoreComponents.icon :if={@kind === :warning} name="hero-exclamation-triangle" class="h-5 w-5" />
