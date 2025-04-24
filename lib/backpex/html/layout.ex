@@ -170,10 +170,10 @@ defmodule Backpex.HTML.Layout do
       {@rest}
     >
       <%= if @icon == [] do %>
-        <CoreComponents.icon :if={@kind === :info} name="hero-information-circle" class="h-5 w-5" />
-        <CoreComponents.icon :if={@kind === :success} name="hero-check-circle" class="h-5 w-5" />
-        <CoreComponents.icon :if={@kind === :warning} name="hero-exclamation-triangle" class="h-5 w-5" />
-        <CoreComponents.icon :if={@kind === :error} name="hero-x-circle" class="h-5 w-5" />
+        <CoreComponents.icon :if={@kind === :info} name="hero-information-circle" class="size-5" />
+        <CoreComponents.icon :if={@kind === :success} name="hero-check-circle" class="size-5" />
+        <CoreComponents.icon :if={@kind === :warning} name="hero-exclamation-triangle" class="size-5" />
+        <CoreComponents.icon :if={@kind === :error} name="hero-x-circle" class="size-5" />
       <% else %>
         {render_slot(@icon)}
       <% end %>
