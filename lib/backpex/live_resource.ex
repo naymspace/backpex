@@ -326,16 +326,9 @@ defmodule Backpex.LiveResource do
   defmacro insert_on_mount_hooks(hooks) do
     quote bind_quoted: [hooks: hooks] do
       case hooks do
-        hooks when is_nil(hooks) ->
-          nil
-
-        hooks when is_list(hooks) ->
-          for hook <- hooks do
-            on_mount hook
-          end
-
-        hook ->
-          on_mount hook
+        hooks when is_nil(hooks) -> nil
+        hooks when is_list(hooks) -> for hook <- hooks, do: on_mount(hook)
+        hook -> on_mount hook
       end
     end
   end
