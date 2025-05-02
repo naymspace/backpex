@@ -53,22 +53,22 @@ defmodule Backpex.LiveResource.Form do
     noreply(socket)
   end
 
-  defp page_title(live_resource, _live_action = :new) do
+  defp page_title(live_resource, :new = _live_action) do
     Backpex.__({"New %{resource}", %{resource: live_resource.singular_name()}}, live_resource)
   end
 
-  defp page_title(live_resource, _live_action = :edit) do
+  defp page_title(live_resource, :edit = _live_action) do
     Backpex.__({"Edit %{resource}", %{resource: live_resource.singular_name()}}, live_resource)
   end
 
-  defp assign_item(socket, _live_action = :new) do
+  defp assign_item(socket, :new = _live_action) do
     adapter_config = socket.assigns.live_resource.config(:adapter_config)
     empty_item = adapter_config[:schema].__struct__()
 
     assign(socket, :item, empty_item)
   end
 
-  defp assign_item(socket, _live_action = :edit) do
+  defp assign_item(socket, :edit = _live_action) do
     %{live_resource: live_resource, params: params} = socket.assigns
 
     backpex_id = Map.fetch!(params, "backpex_id")
@@ -106,6 +106,6 @@ defmodule Backpex.LiveResource.Form do
     LiveResource.assign_changeset(socket, changeset, item, fields, live_action)
   end
 
-  defp changeset(live_resource, _live_action = :new), do: live_resource.config(:adapter_config)[:create_changeset]
-  defp changeset(live_resource, _live_action = :edit), do: live_resource.config(:adapter_config)[:update_changeset]
+  defp changeset(live_resource, :new = _live_action), do: live_resource.config(:adapter_config)[:create_changeset]
+  defp changeset(live_resource, :edit = _live_action), do: live_resource.config(:adapter_config)[:update_changeset]
 end
