@@ -79,13 +79,13 @@ defmodule Backpex.LiveResource.Form do
     assign(socket, :item, item)
   end
 
-  defp can?(socket, live_resource, live_action = :new) do
+  defp can?(socket, live_resource, :new = live_action) do
     if not live_resource.can?(socket.assigns, live_action, nil), do: raise(Backpex.ForbiddenError)
 
     socket
   end
 
-  defp can?(socket, live_resource, live_action = :edit) do
+  defp can?(socket, live_resource, :edit = live_action) do
     if not live_resource.can?(socket.assigns, live_action, socket.assigns.item), do: raise(Backpex.ForbiddenError)
 
     socket
