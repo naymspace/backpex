@@ -7,7 +7,8 @@ defmodule DemoWeb.TagLive do
       create_changeset: &Demo.Tag.create_changeset/3
     ],
     layout: {DemoWeb.Layouts, :admin},
-    init_order: %{by: :name, direction: :desc}
+    init_order: %{by: :name, direction: :desc},
+    on_mount: __MODULE__
 
   def on_mount(:default, _params, _session, socket) do
     msg = """

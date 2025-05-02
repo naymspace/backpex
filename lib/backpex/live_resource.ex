@@ -99,6 +99,14 @@ defmodule Backpex.LiveResource do
       doc: "If the \"Save & Continue editing\" button is shown on form views.",
       type: :boolean,
       default: false
+    ],
+    on_mount: [
+      doc: """
+      An optional list of hooks to attach to the mount lifecycle. Passing a single value is also accepted.
+      See https://hexdocs.pm/phoenix_live_view/Phoenix.LiveView.html#on_mount/1
+      """,
+      type: {:or, [:mod_arg, :atom, {:list, :mod_arg}, {:list, :atom}]},
+      required: false
     ]
   ]
 
@@ -303,14 +311,7 @@ defmodule Backpex.LiveResource do
 
           use Phoenix.LiveView, layout: @resource_opts[:layout]
 
-          on_mount __MODULE__
-
-          def on_mount(:default, params, session, socket) do
-            case function_exported?(unquote(live_resource), :on_mount, 4) do
-              true -> unquote(live_resource).on_mount(:default, params, session, socket)
-              false -> {:cont, socket}
-            end
-          end
+          insert_on_mount_hooks(@resource_opts[:on_mount])
 
           def mount(params, session, socket), do: @action_module.mount(params, session, socket, unquote(live_resource))
           def handle_params(params, url, socket), do: @action_module.handle_params(params, url, socket)
@@ -318,6 +319,23 @@ defmodule Backpex.LiveResource do
           def handle_info(msg, socket), do: @action_module.handle_info(msg, socket)
           def handle_event(event, params, socket), do: @action_module.handle_event(event, params, socket)
         end
+      end
+    end
+  end
+
+  defmacro insert_on_mount_hooks(hooks) do
+    quote bind_quoted: [hooks: hooks] do
+      case hooks do
+        hooks when is_nil(hooks) ->
+          nil
+
+        hooks when is_list(hooks) ->
+          for hook <- hooks do
+            on_mount hook
+          end
+
+        hook ->
+          on_mount hook
       end
     end
   end
