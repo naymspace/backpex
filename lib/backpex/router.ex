@@ -1,4 +1,3 @@
-# credo:disable-for-this-file Credo.Check.Warning.UnsafeToAtom
 defmodule Backpex.Router do
   @moduledoc """
   Provides LiveView routing for Backpex resources.
@@ -42,21 +41,21 @@ defmodule Backpex.Router do
       path = unquote(path)
       live_resource = unquote(live_resource)
 
-      if Enum.member?(actions, :index), do: live("#{path}/", String.to_atom("#{live_resource}.Index"), :index)
-      if Enum.member?(actions, :new), do: live("#{path}/new", String.to_atom("#{live_resource}.Form"), :new)
+      if Enum.member?(actions, :index), do: live("#{path}/", String.to_existing_atom("#{live_resource}.Index"), :index)
+      if Enum.member?(actions, :new), do: live("#{path}/new", String.to_existing_atom("#{live_resource}.Form"), :new)
 
       if Enum.member?(actions, :edit),
-        do: live("#{path}/:backpex_id/edit", String.to_atom("#{live_resource}.Form"), :edit)
+        do: live("#{path}/:backpex_id/edit", String.to_existing_atom("#{live_resource}.Form"), :edit)
 
       if Enum.member?(actions, :show),
-        do: live("#{path}/:backpex_id/show", String.to_atom("#{live_resource}.Show"), :show)
+        do: live("#{path}/:backpex_id/show", String.to_existing_atom("#{live_resource}.Show"), :show)
 
       resource_module = Phoenix.Router.scoped_alias(__MODULE__, live_resource)
 
       if Router.has_resource_actions?(__MODULE__, live_resource) do
         live(
           "#{path}/:backpex_id/resource-action",
-          String.to_atom("#{live_resource}.Index"),
+          String.to_existing_atom("#{live_resource}.Index"),
           :resource_action
         )
       end
