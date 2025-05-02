@@ -5,9 +5,9 @@ defmodule Backpex.LiveResource.Show do
   import Phoenix.Component
 
   alias Backpex.LiveResource
-  alias Phoenix.LiveView
   alias Backpex.Resource
   alias Backpex.Router
+  alias Phoenix.LiveView
 
   require Backpex
 

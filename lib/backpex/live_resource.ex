@@ -8,9 +8,12 @@ defmodule Backpex.LiveResource do
   '''
 
   use Phoenix.LiveView
+
   import Backpex.HTML.Resource
+
   alias Backpex.Resource
   alias Backpex.Router
+
   require Backpex
 
   @options_schema [
@@ -306,10 +309,10 @@ defmodule Backpex.LiveResource do
 
       for action <- ~w(Index Form Show)a do
         defmodule Module.safe_concat(__MODULE__, action) do
+          use Phoenix.LiveView, layout: @resource_opts[:layout]
+
           @action_module String.to_existing_atom("Elixir.Backpex.LiveResource.#{action}")
           @resource_opts NimbleOptions.validate!(opts, options_schema)
-
-          use Phoenix.LiveView, layout: @resource_opts[:layout]
 
           insert_on_mount_hooks(@resource_opts[:on_mount])
 
