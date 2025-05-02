@@ -1,11 +1,14 @@
 defmodule Backpex.LiveResource.Show do
   @moduledoc false
   use BackpexWeb, :html
-  alias Backpex.Resource
-  alias Backpex.LiveResource
-  alias Backpex.Router
-  alias Phoenix.LiveView
+
   import Phoenix.Component
+
+  alias Backpex.LiveResource
+  alias Phoenix.LiveView
+  alias Backpex.Resource
+  alias Backpex.Router
+
   require Backpex
 
   def mount(params, _session, socket, live_resource) do
