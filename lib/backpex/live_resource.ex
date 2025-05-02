@@ -296,7 +296,7 @@ defmodule Backpex.LiveResource do
 
       live_resource = __MODULE__
 
-      for action <- ~w(Index New Edit Show)a do
+      for action <- ~w(Index Form Show)a do
         defmodule Module.concat(__MODULE__, action) do
           @action_module String.to_existing_atom("Elixir.Backpex.LiveResource.#{action}")
           @resource_opts NimbleOptions.validate!(opts, options_schema)
@@ -430,7 +430,7 @@ defmodule Backpex.LiveResource do
       def render_resource_slot(var!(assigns), :new, :page_title) do
         ~H"""
         <.main_title class="mb-4">
-          {@create_button_label}
+          {@page_title}
         </.main_title>
         """
       end

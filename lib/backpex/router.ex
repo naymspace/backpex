@@ -42,8 +42,8 @@ defmodule Backpex.Router do
       live_resource = unquote(live_resource)
 
       if Enum.member?(actions, :index), do: live("#{path}/", :"#{live_resource}.Index", :index)
-      if Enum.member?(actions, :new), do: live("#{path}/new", :"#{live_resource}.New", :new)
-      if Enum.member?(actions, :edit), do: live("#{path}/:backpex_id/edit", :"#{live_resource}.Edit", :edit)
+      if Enum.member?(actions, :new), do: live("#{path}/new", :"#{live_resource}.Form", :new)
+      if Enum.member?(actions, :edit), do: live("#{path}/:backpex_id/edit", :"#{live_resource}.Form", :edit)
       if Enum.member?(actions, :show), do: live("#{path}/:backpex_id/show", :"#{live_resource}.Show", :show)
 
       resource_module = Phoenix.Router.scoped_alias(__MODULE__, live_resource)
@@ -182,6 +182,8 @@ defmodule Backpex.Router do
   end
 
   defp action_module(module, :resource_action), do: action_module(module, :index)
+
+  defp action_module(module, action) when action in [:edit, :new], do: action_module(module, :form)
 
   defp action_module(module, action) do
     action
