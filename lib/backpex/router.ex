@@ -1,3 +1,4 @@
+# credo:disable-for-this-file Credo.Check.Warning.UnsafeToAtom
 defmodule Backpex.Router do
   @moduledoc """
   Provides LiveView routing for Backpex resources.

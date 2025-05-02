@@ -308,6 +308,7 @@ defmodule Backpex.LiveResource do
       live_resource = __MODULE__
 
       for action <- ~w(Index Form Show)a do
+        # credo:disable-for-next-line Credo.Check.Warning.UnsafeToAtom
         defmodule String.to_atom("#{__MODULE__}.#{action}") do
           @resource_opts NimbleOptions.validate!(opts, options_schema)
 
