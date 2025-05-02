@@ -4,7 +4,7 @@ overwrite_checks = [
   {Credo.Check.Readability.OnePipePerLine, false},
   {Credo.Check.Readability.SinglePipe, false},
   {Credo.Check.Readability.Specs, false},
-  {Credo.Check.Readability.StrictModuleLayout, ignore_module_attributes: ~w[config_schema]a},
+  {Credo.Check.Readability.StrictModuleLayout, ignore_module_attributes: ~w[config_schema resource_opts]a},
   {Credo.Check.Refactor.ABCSize, false},
   {Credo.Check.Refactor.ModuleDependencies, false},
   {Credo.Check.Refactor.PipeChainStart, false},
