@@ -735,6 +735,10 @@ defmodule Backpex.Fields.Upload do
             </p>
           <% end %>
           <BackpexForm.error :for={msg <- @form_errors}>{msg}</BackpexForm.error>
+
+          <%= if help_text = Backpex.Field.help_text(@field_options, assigns) do %>
+            <Backpex.HTML.Form.help_text class="mt-1">{help_text}</Backpex.HTML.Form.help_text>
+          <% end %>
         </section>
       </Layout.field_container>
     </div>
