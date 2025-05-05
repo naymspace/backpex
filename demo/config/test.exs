@@ -6,4 +6,13 @@ config :demo, Demo.Repo, pool: Ecto.Adapters.SQL.Sandbox
 
 config :phoenix, :plug_init_mode, :runtime
 
-config :phoenix_test, :endpoint, DemoWeb.Endpoint
+config :phoenix_test,
+  endpoint: DemoWeb.Endpoint,
+  otp_app: :demo,
+  playwright: [
+    cli: "node_modules/playwright/cli.js",
+    browser: :chromium,
+    browser_launch_timeout: 10_000
+  ]
+
+config :demo, DemoWeb.Endpoint, server: true

@@ -161,6 +161,9 @@ jobs:
           cache: 'yarn'
           cache-dependency-path: demo/yarn.lock
 
+      - name: Install playwright
+        run: yarn playwright install chromium --with-deps
+
       - name: Restore the deps and _build cache
         uses: actions/cache@5a3ec84eff668545956fd18022155c47e93e2684 # v4.2.3
         id: restore-cache
@@ -179,8 +182,7 @@ jobs:
         if: steps.restore-cache.outputs.cache-hit != 'true'
         working-directory: demo
         run: mix deps.get
-          
-  
+
       - name: Compile dependencies
         if: steps.restore-cache.outputs.cache-hit != 'true'
         working-directory: demo
@@ -230,6 +232,16 @@ jobs:
           DB_PASSWORD: postgres
           DB_DATABASE: test
         run: yarn test
+
+      - name: Run browser test
+        working-directory: demo
+        env:
+          DB_HOSTNAME: localhost
+          DB_USERNAME: postgres
+          DB_PASSWORD: postgres
+          DB_DATABASE: test
+        run: yarn test:browser
+        continue-on-error: true
 
       - name: Deps audit
         working-directory: demo
