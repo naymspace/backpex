@@ -1,6 +1,7 @@
 defmodule DemoWeb.Browser.CategoryBrowserTest do
-  use DemoWeb.ConnCase, async: true
   use PhoenixTest.Playwright.Case, async: true
+  use DemoWeb, :verified_routes
+  use DemoWeb.A11yAssertions
 
   import Demo.EctoFactory
 

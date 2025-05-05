@@ -17,8 +17,6 @@ defmodule DemoWeb.ConnCase do
 
   use ExUnit.CaseTemplate
 
-  alias PhoenixTest.Playwright.Frame
-
   using do
     quote do
       # The default endpoint for testing
@@ -32,32 +30,11 @@ defmodule DemoWeb.ConnCase do
       import Plug.Conn
       import Phoenix.ConnTest
       import DemoWeb.ConnCase
-
-      define_a11y_assertions()
     end
   end
 
   setup tags do
     Demo.DataCase.setup_sandbox(tags)
     {:ok, conn: Phoenix.ConnTest.build_conn()}
-  end
-
-  defmacro define_a11y_assertions do
-    quote do
-      alias PhoenixTest.Playwright.Frame
-
-      def assert_a11y(session) do
-        Frame.evaluate(session.frame_id, A11yAudit.JS.axe_core())
-
-        results =
-          session.frame_id
-          |> Frame.evaluate("axe.run()")
-          |> A11yAudit.Results.from_json()
-
-        A11yAudit.Assertions.assert_no_violations(results)
-
-        session
-      end
-    end
   end
 end
