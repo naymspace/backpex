@@ -12,6 +12,9 @@
     ":automergePatch",
     "helpers:pinGitHubActionDigestsToSemver"
   ],
+  "lockFileMaintenance": {
+    "enabled": true
+  },
   "additionalBranchPrefix": "{{packageFileDir}}-",
   "packageRules": [
     {
