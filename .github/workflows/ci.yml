@@ -234,14 +234,14 @@ jobs:
           DB_DATABASE: test
         run: yarn test
 
-      - name: Run browser test
+      - name: Run external test
         working-directory: demo
         env:
           DB_HOSTNAME: localhost
           DB_USERNAME: postgres
           DB_PASSWORD: postgres
           DB_DATABASE: test
-        run: yarn test:browser
+        run: yarn test:external
         continue-on-error: true
 
       - name: Deps audit
