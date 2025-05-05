@@ -11,7 +11,7 @@ defmodule DemoWeb.A11yAssertions do
 
         results =
           session.frame_id
-          |> Frame.evaluate(A11yAudit.JS.await_audit_results())
+          |> Frame.evaluate("axe.run()")
           |> A11yAudit.Results.from_json()
 
         A11yAudit.Assertions.assert_no_violations(results)
