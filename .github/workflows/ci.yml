@@ -163,6 +163,7 @@ jobs:
 
       - name: Install playwright
         run: yarn playwright install chromium --with-deps
+        working-directory: demo
 
       - name: Restore the deps and _build cache
         uses: actions/cache@5a3ec84eff668545956fd18022155c47e93e2684 # v4.2.3
