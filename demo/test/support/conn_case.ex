@@ -32,6 +32,8 @@ defmodule DemoWeb.ConnCase do
       import Plug.Conn
       import Phoenix.ConnTest
       import DemoWeb.ConnCase
+
+      define_a11y_assertions()
     end
   end
 
@@ -40,16 +42,22 @@ defmodule DemoWeb.ConnCase do
     {:ok, conn: Phoenix.ConnTest.build_conn()}
   end
 
-  def assert_a11y(session) do
-    Frame.evaluate(session.frame_id, A11yAudit.JS.axe_core())
+  defmacro define_a11y_assertions do
+    quote do
+      alias PhoenixTest.Playwright.Frame
 
-    results =
-      session.frame_id
-      |> Frame.evaluate("axe.run()")
-      |> A11yAudit.Results.from_json()
+      def assert_a11y(session) do
+        Frame.evaluate(session.frame_id, A11yAudit.JS.axe_core())
 
-    A11yAudit.Assertions.assert_no_violations(results)
+        results =
+          session.frame_id
+          |> Frame.evaluate("axe.run()")
+          |> A11yAudit.Results.from_json()
 
-    session
+        A11yAudit.Assertions.assert_no_violations(results)
+
+        session
+      end
+    end
   end
 end
