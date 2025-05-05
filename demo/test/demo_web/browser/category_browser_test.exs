@@ -11,6 +11,7 @@ defmodule DemoWeb.Browser.CategoryBrowserTest do
     test "a11y", %{conn: conn} do
       conn
       |> visit(~p"/admin/categories")
+
       # |> assert_a11y()
     end
   end
