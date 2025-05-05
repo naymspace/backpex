@@ -193,10 +193,6 @@ jobs:
         working-directory: demo
         run: yarn install --pure-lockfile
 
-      - name: Install playwright
-        working-directory: demo
-        run: yarn playwright install chromium --with-deps --only-shell
-
       - name: lint:mix
         working-directory: demo
         run: yarn lint:mix
@@ -233,6 +229,10 @@ jobs:
           DB_PASSWORD: postgres
           DB_DATABASE: test
         run: yarn test
+
+      - name: Install playwright
+        working-directory: demo
+        run: yarn playwright install chromium --with-deps --only-shell
 
       - name: Run external test
         working-directory: demo
