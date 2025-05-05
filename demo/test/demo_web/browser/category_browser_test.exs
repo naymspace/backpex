@@ -3,7 +3,7 @@ defmodule DemoWeb.Browser.CategoryBrowserTest do
   use DemoWeb, :verified_routes
   use DemoWeb.A11yAssertions
 
-  # import Demo.EctoFactory
+  import Demo.EctoFactory
 
   @moduletag :external
 
