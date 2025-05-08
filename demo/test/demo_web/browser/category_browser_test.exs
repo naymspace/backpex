@@ -1,5 +1,5 @@
 defmodule DemoWeb.Browser.CategoryBrowserTest do
-  use PhoenixTest.Playwright.Case, async: false
+  use PhoenixTest.Playwright.Case, async: true
   use DemoWeb, :verified_routes
   use DemoWeb.A11yAssertions
 
