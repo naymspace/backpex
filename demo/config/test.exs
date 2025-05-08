@@ -16,4 +16,8 @@ config :phoenix_test,
     trace: System.get_env("PW_TRACE", "false") in ~w(t true)
   ]
 
-config :demo, DemoWeb.Endpoint, server: true
+config :demo, DemoWeb.Endpoint,
+  http: [ip: {127, 0, 0, 1}, port: 4002],
+  secret_key_base: "Ak58iOj9S792DBPi/oaAd+fsg6WdMiU10YfZAXGVz5ItCPbUGYHyvHiLvu2u0nGc",
+  server: true,
+  live_view: [signing_salt: "GD16mZjn72cumxHE"]
