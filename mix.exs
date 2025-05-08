@@ -20,7 +20,7 @@ defmodule Backpex.MixProject do
 
       # Hex.pm
       package: package(),
-      description: "Phoenix Admin Panel built with PETAL.",
+      description: "Highly customizable administration panel for Phoenix LiveView applications.",
 
       # Docs
       name: "Backpex",
