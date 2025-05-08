@@ -26,6 +26,8 @@ config :demo, DemoWeb.Endpoint,
   ],
   force_ssl: [hsts: true],
   http: [port: 4000],
+  secret_key_base: "4DclY9DmXWBbZE9/+vd/r2NPGQNmnyQST9eAAxDlioBmCDOJnDpctU+PuKigG8Au",
+  live_view: [signing_salt: "0DladinI"],
   reloadable_apps: [:demo, :backpex]
 
 config :logger, :console, format: "[$level] $message\n"
