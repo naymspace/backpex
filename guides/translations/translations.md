@@ -42,6 +42,9 @@ You can place the functions in a module of your choice. In this example, we use 
 
 You will also need to create a Gettext template file in your application. You can use the [this](https://github.com/naymspace/backpex/blob/main/priv/gettext/backpex.pot) template from our GitHub repository as it contains all the translations used by Backpex. Note that this file may contain unreleased translations, so be sure to select the tag that matches your version in the branch selection input in the top left corner.
 
+> #### Warning {: .warning}
+>
+> If you copy the above mentioned `backpex.pot` file, you should remove the `elixir-autogen` comments. Otherwise, running the `gettext.extract --merge` task will remove the translations from your project.
 ## Modify texts (per `LiveResource`)
 
 In addition to translating texts, Backpex provides a way to modify texts per LiveResource with the `c:Backpex.LiveResource.translate/1` callback.
