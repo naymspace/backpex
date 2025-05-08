@@ -241,7 +241,7 @@ jobs:
           DB_USERNAME: postgres
           DB_PASSWORD: postgres
           DB_DATABASE: test
-        run: yarn test:external
+        run: "mix test --include external:true || if [[ $? = 2 ]]; then PW_TRACE=true  mix test --include external:true --failed; else false; fi"
         continue-on-error: true
 
       - name: Deps audit

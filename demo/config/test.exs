@@ -12,7 +12,8 @@ config :phoenix_test,
   playwright: [
     cli: "node_modules/playwright/cli.js",
     browser: :chromium,
-    browser_launch_timeout: 10_000
+    browser_launch_timeout: 10_000,
+    trace: System.get_env("PW_TRACE", "false") in ~w(t true)
   ]
 
 config :demo, DemoWeb.Endpoint, server: true
