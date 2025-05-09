@@ -23,7 +23,15 @@ def on_mount(:my_hook, _params, _session, socket) do
   {:cont, socket}
 end
 
-def handle_event(_params, _url, socket) do
+def handle_event("my-event", _params_, socket) do
+  # Do stuff
+
+  {:cont, socket}
+end
+
+def handle_event(_event_, _params_, socket) do
   {:cont, socket}
 end
 ```
+
+**Important:** Make sure you add a catch-all event at the end that continues. Otherwise, Backpex will not receive internal events.
