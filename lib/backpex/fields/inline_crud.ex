@@ -179,6 +179,10 @@ defmodule Backpex.Fields.InlineCRUD do
           aria-label={Backpex.__("Add entry", @live_resource)}
           class="btn btn-outline btn-sm btn-primary"
         />
+
+        <%= if help_text = Backpex.Field.help_text(@field_options, assigns) do %>
+          <Backpex.HTML.Form.help_text class="mt-1">{help_text}</Backpex.HTML.Form.help_text>
+        <% end %>
       </Layout.field_container>
     </div>
     """

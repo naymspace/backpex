@@ -229,7 +229,7 @@ defmodule Backpex.FormComponent do
         |> put_flash(
           :info,
           Backpex.__(
-            {"New %{resource} has been created successfully.", %{resource: assigns.singular_name}},
+            {"New %{resource} has been created successfully.", %{resource: assigns.live_resource.singular_name()}},
             live_resource
           )
         )
@@ -251,7 +251,6 @@ defmodule Backpex.FormComponent do
   defp handle_save(socket, :edit, params, save_type) do
     %{
       live_resource: live_resource,
-      singular_name: singular_name,
       item: item,
       fields: fields,
       live_action: live_action
@@ -270,7 +269,12 @@ defmodule Backpex.FormComponent do
     case Resource.update(item, params, fields, socket.assigns, live_resource, opts) do
       {:ok, item} ->
         return_to = return_to_path(save_type, live_resource, socket, socket.assigns, live_action, item)
-        info_msg = Backpex.__({"%{resource} has been edited successfully.", %{resource: singular_name}}, live_resource)
+
+        info_msg =
+          Backpex.__(
+            {"%{resource} has been edited successfully.", %{resource: live_resource.singular_name()}},
+            live_resource
+          )
 
         socket
         |> assign(:show_form_errors, false)

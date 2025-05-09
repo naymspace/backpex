@@ -247,6 +247,10 @@ defmodule Backpex.Fields.HasMany do
             </div>
           </div>
         </div>
+
+        <%= if help_text = Backpex.Field.help_text(@field_options, assigns) do %>
+          <Backpex.HTML.Form.help_text class="mt-1">{help_text}</Backpex.HTML.Form.help_text>
+        <% end %>
       </Layout.field_container>
     </div>
     """
@@ -405,9 +409,9 @@ defmodule Backpex.Fields.HasMany do
   end
 
   defp options(assigns, opts) do
-    %{repo: repo, schema: schema, field: field, field_options: field_options, name: name} = assigns
-
-    %{queryable: queryable} = schema.__schema__(:association, name)
+    %{field: field, field_options: field_options, name: name} = assigns
+    adapter_config = assigns.live_resource.config(:adapter_config)
+    %{queryable: queryable} = adapter_config[:schema].__schema__(:association, name)
 
     display_field = display_field(field)
 
@@ -418,7 +422,7 @@ defmodule Backpex.Fields.HasMany do
     |> maybe_search_query(schema_name, field_options, display_field, Keyword.get(opts, :search))
     |> maybe_offset_query(Keyword.get(opts, :offset))
     |> maybe_limit_query(Keyword.get(opts, :limit))
-    |> repo.all()
+    |> adapter_config[:repo].all()
     |> Enum.map(fn item ->
       {Map.get(item, display_field_form(field)), item.id}
     end)
@@ -451,18 +455,18 @@ defmodule Backpex.Fields.HasMany do
   end
 
   defp count_options(assigns, opts \\ []) do
-    %{schema: schema, repo: repo, field: field, field_options: field_options, name: name} = assigns
-
+    %{field: field, field_options: field_options, name: name} = assigns
+    adapter_config = assigns.live_resource.config(:adapter_config)
     display_field = display_field(field)
 
-    %{queryable: queryable} = schema.__schema__(:association, name)
+    %{queryable: queryable} = adapter_config[:schema].__schema__(:association, name)
     schema_name = EctoAdapter.name_by_schema(queryable)
 
     from(queryable, as: ^schema_name)
     |> maybe_options_query(field_options, assigns)
     |> maybe_search_query(schema_name, field_options, display_field, Keyword.get(opts, :search))
     |> subquery()
-    |> repo.aggregate(:count)
+    |> adapter_config[:repo].aggregate(:count)
   end
 
   def assign_selected(socket) do
@@ -481,7 +485,8 @@ defmodule Backpex.Fields.HasMany do
   end
 
   defp fetch_selected_items(socket, selected_ids) do
-    %{queryable: queryable} = socket.assigns.schema.__schema__(:association, socket.assigns.name)
+    adapter_config = socket.assigns.live_resource.config(:adapter_config)
+    %{queryable: queryable} = adapter_config[:schema].__schema__(:association, socket.assigns.name)
     {from_options, to_fetch} = separate_selected_items(selected_ids, socket.assigns.options)
     from_db = fetch_from_db(to_fetch, queryable, socket)
 
@@ -502,10 +507,12 @@ defmodule Backpex.Fields.HasMany do
   defp fetch_from_db([], _queryable, _socket), do: []
 
   defp fetch_from_db(ids_to_fetch, queryable, socket) do
+    adapter_config = socket.assigns.live_resource.config(:adapter_config)
+
     queryable
     |> where([x], x.id in ^ids_to_fetch)
     |> maybe_options_query(socket.assigns.field_options, socket.assigns)
-    |> socket.assigns.repo.all()
+    |> adapter_config[:repo].all()
     |> Enum.map(fn item ->
       {Map.get(item, display_field_form(socket.assigns.field)), item.id}
     end)

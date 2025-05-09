@@ -52,7 +52,8 @@ defmodule Backpex.Fields.Currency do
 
   @impl Backpex.Field
   def render_value(assigns) do
-    assigns = assign(assigns, :casted_value, maybe_cast_value(assigns.name, assigns.schema, assigns.value))
+    adapter_config = assigns.live_resource.config(:adapter_config)
+    assigns = assign(assigns, :casted_value, maybe_cast_value(assigns.name, adapter_config[:schema], assigns.value))
 
     ~H"""
     <p class={@live_action in [:index, :resource_action] && "truncate"}>
@@ -75,6 +76,7 @@ defmodule Backpex.Fields.Currency do
           type="number"
           field={@form[@name]}
           value={@casted_value}
+          help_text={Backpex.Field.help_text(@field_options, assigns)}
           phx-debounce={Backpex.Field.debounce(@field_options, assigns)}
           phx-throttle={Backpex.Field.throttle(@field_options, assigns)}
           step=".01"

@@ -51,6 +51,7 @@ defmodule Backpex.Fields.Text do
           field={@form[@name]}
           placeholder={@field_options[:placeholder]}
           translate_error_fun={Backpex.Field.translate_error_fun(@field_options, assigns)}
+          help_text={Backpex.Field.help_text(@field_options, assigns)}
           phx-debounce={Backpex.Field.debounce(@field_options, assigns)}
           phx-throttle={Backpex.Field.throttle(@field_options, assigns)}
         />
@@ -100,7 +101,7 @@ defmodule Backpex.Fields.Text do
           placeholder={@field_options[:placeholder]}
           input_class={[
             "input w-46 !h-8",
-            @valid && "[:not(:hover)]:input-ghost",
+            @valid && "not-hover:input-ghost",
             !@valid && "input-error bg-error/10"
           ]}
           phx-debounce="100"

@@ -16,6 +16,7 @@ defmodule Backpex.HTML.Form do
   attr :id, :any, default: nil
   attr :name, :any
   attr :label, :string, default: nil
+  attr :help_text, :string, default: nil
   attr :value, :any
 
   attr :type, :string,
@@ -97,6 +98,7 @@ defmodule Backpex.HTML.Form do
         <% end %>
       </fieldset>
       <.error :for={msg <- @errors} :if={not @hide_errors} class="mt-1">{msg}</.error>
+      <.help_text :if={@help_text} class="mt-1">{@help_text}</.help_text>
     </div>
     """
   end
@@ -135,6 +137,7 @@ defmodule Backpex.HTML.Form do
         <% end %>
       </fieldset>
       <.error :for={msg <- @errors} :if={not @hide_errors} class="mt-1">{msg}</.error>
+      <.help_text :if={@help_text} class="mt-1">{@help_text}</.help_text>
     </div>
     """
   end
@@ -161,6 +164,7 @@ defmodule Backpex.HTML.Form do
         </div>
       </fieldset>
       <.error :for={msg <- @errors} :if={not @hide_errors} class="mt-1">{msg}</.error>
+      <.help_text :if={@help_text} class="mt-1">{@help_text}</.help_text>
     </div>
     """
   end
@@ -183,13 +187,14 @@ defmodule Backpex.HTML.Form do
         ><%= Phoenix.HTML.Form.normalize_value("textarea", @value) %></textarea>
       </fieldset>
       <.error :for={msg <- @errors} :if={not @hide_errors} class="mt-1">{msg}</.error>
+      <.help_text :if={@help_text} class="mt-1">{@help_text}</.help_text>
     </div>
     """
   end
 
   def input(assigns) do
     ~H"""
-    <div class={@class}>
+    <div class={[@class]}>
       <fieldset class="fieldset py-0">
         <label :if={@label} class="label">
           <span class="label-text">{@label}</span>
@@ -204,6 +209,7 @@ defmodule Backpex.HTML.Form do
         />
       </fieldset>
       <.error :for={msg <- @errors} :if={not @hide_errors} class="mt-1">{msg}</.error>
+      <.help_text :if={@help_text} class="mt-1">{@help_text}</.help_text>
     </div>
     """
   end
@@ -226,11 +232,29 @@ defmodule Backpex.HTML.Form do
   end
 
   @doc """
+  Displays a help text.
+  """
+  @doc type: :component
+
+  attr :class, :string, default: nil
+
+  slot :inner_block, required: true
+
+  def help_text(assigns) do
+    ~H"""
+    <p class={["text-base-content/60", @class]}>
+      {render_slot(@inner_block)}
+    </p>
+    """
+  end
+
+  @doc """
   Renders a searchable multi select.
   """
   @doc type: :component
 
   attr :prompt, :string, required: true, doc: "string that will be shown when no option is selected"
+  attr :help_text, :string, default: nil, doc: "help text to be displayed below input"
   attr :not_found_text, :string, required: true, doc: "string that will be shown when there are no options"
   attr :options, :list, required: true, doc: "a list of options for the select"
   attr :search_input, :string, required: true, doc: "to prefill and or persist the search term for rerendering"
@@ -241,6 +265,7 @@ defmodule Backpex.HTML.Form do
   attr :show_select_all, :boolean, required: true, doc: "whether to display the select all button"
   attr :show_more, :boolean, required: true, doc: "whether there are more options to show"
   attr :search_event, :string, default: "search", doc: "the event that will be sent when the search input changes"
+  attr :hide_search, :boolean, default: false, doc: "if search should be hidden"
   attr :hide_errors, :boolean, default: false, doc: "if errors should be hidden"
   attr :live_resource, :atom, default: nil, doc: "the live resource module"
 
@@ -276,6 +301,7 @@ defmodule Backpex.HTML.Form do
       <div tabindex="0" class="dropdown-content z-[1] menu bg-base-100 rounded-box w-full overflow-y-auto shadow">
         <div class="max-h-72 p-2">
           <input
+            :if={not @hide_search}
             type="search"
             name={@field.name <> "_search"}
             class="input input-sm mb-2 w-full"
@@ -306,7 +332,7 @@ defmodule Backpex.HTML.Form do
           <input type="hidden" name={@field.name} value="" />
 
           <div class="my-2 w-full">
-            <div
+            <label
               :for={{label, value} <- @options}
               class="mt-2 flex space-x-2"
               phx-click="toggle-option"
@@ -321,10 +347,10 @@ defmodule Backpex.HTML.Form do
                 checked_value={value}
                 value={value}
               />
-              <p class="text-md cursor-pointer">
+              <span class="text-md cursor-pointer">
                 {label}
-              </p>
-            </div>
+              </span>
+            </label>
           </div>
 
           <button
@@ -339,6 +365,8 @@ defmodule Backpex.HTML.Form do
         </div>
       </div>
     </div>
+
+    <.help_text :if={@help_text} class="mt-1">{@help_text}</.help_text>
     """
   end
 

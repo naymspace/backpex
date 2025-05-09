@@ -62,7 +62,7 @@ defmodule Backpex.ItemActions.Delete do
 
   defp success_message(assigns, [_item]) do
     Backpex.__(
-      {"%{resource} has been deleted successfully.", %{resource: assigns.singular_name}},
+      {"%{resource} has been deleted successfully.", %{resource: assigns.live_resource.singular_name()}},
       assigns.live_resource
     )
   end
@@ -70,7 +70,7 @@ defmodule Backpex.ItemActions.Delete do
   defp success_message(assigns, items) do
     Backpex.__(
       {"%{count} %{resources} have been deleted successfully.",
-       %{resources: assigns.plural_name, count: Enum.count(items)}},
+       %{resources: assigns.live_resource.plural_name(), count: Enum.count(items)}},
       assigns.live_resource
     )
   end
@@ -97,7 +97,7 @@ defmodule Backpex.ItemActions.Delete do
 
   defp error_message(assigns, _error, [_item]) do
     Backpex.__(
-      {"An error occurred while deleting the %{resource}!", %{resource: assigns.singular_name}},
+      {"An error occurred while deleting the %{resource}!", %{resource: assigns.live_resource.singular_name()}},
       assigns.live_resource
     )
   end
@@ -105,7 +105,7 @@ defmodule Backpex.ItemActions.Delete do
   defp error_message(assigns, _error, items) do
     Backpex.__(
       {"An error occurred while deleting %{count} %{resources}!",
-       %{resources: assigns.plural_name, count: Enum.count(items)}},
+       %{resources: assigns.live_resource.plural_name(), count: Enum.count(items)}},
       assigns.live_resource
     )
   end

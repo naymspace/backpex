@@ -1,7 +1,7 @@
 defmodule Backpex.MixProject do
   use Mix.Project
 
-  @version "0.12.0"
+  @version "0.13.0"
 
   @source_url "https://github.com/naymspace/backpex"
   @changelog_url "https://github.com/naymspace/backpex/releases"
@@ -20,7 +20,7 @@ defmodule Backpex.MixProject do
 
       # Hex.pm
       package: package(),
-      description: "Phoenix Admin Panel built with PETAL.",
+      description: "Highly customizable administration panel for Phoenix LiveView applications.",
 
       # Docs
       name: "Backpex",
@@ -136,6 +136,7 @@ defmodule Backpex.MixProject do
       "guides/live_resource/templates.md",
       "guides/live_resource/item-query.md",
       "guides/live_resource/ordering.md",
+      "guides/live_resource/on_mount-hook.md",
       "guides/live_resource/hooks.md",
       "guides/live_resource/navigation.md",
       "guides/live_resource/panels.md",
@@ -180,6 +181,7 @@ defmodule Backpex.MixProject do
       "guides/translations/translations.md",
 
       # Upgrade Guides
+      "guides/upgrading/v0.13.md",
       "guides/upgrading/v0.12.md",
       "guides/upgrading/v0.11.md",
       "guides/upgrading/v0.10.md",

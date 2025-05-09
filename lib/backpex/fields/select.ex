@@ -78,6 +78,7 @@ defmodule Backpex.Fields.Select do
           options={@options}
           prompt={@prompt}
           translate_error_fun={Backpex.Field.translate_error_fun(@field_options, assigns)}
+          help_text={Backpex.Field.help_text(@field_options, assigns)}
           phx-debounce={Backpex.Field.debounce(@field_options, assigns)}
           phx-throttle={Backpex.Field.throttle(@field_options, assigns)}
         />
@@ -107,7 +108,7 @@ defmodule Backpex.Fields.Select do
           options={@options}
           prompt={@prompt}
           input_wrapper_class=""
-          input_class={["select select-sm", if(@valid, do: "[:not(:hover)]:select-ghost", else: "select-error")]}
+          input_class={["select select-sm", if(@valid, do: "not-hover:select-ghost", else: "select-error")]}
           disabled={@readonly}
           hide_errors
         />

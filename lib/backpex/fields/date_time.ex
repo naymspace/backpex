@@ -109,6 +109,7 @@ defmodule Backpex.Fields.DateTime do
           type="datetime-local"
           field={@form[@name]}
           translate_error_fun={Backpex.Field.translate_error_fun(@field_options, assigns)}
+          help_text={Backpex.Field.help_text(@field_options, assigns)}
           phx-debounce={Backpex.Field.debounce(@field_options, assigns)}
           phx-throttle={Backpex.Field.throttle(@field_options, assigns)}
         />
@@ -154,7 +155,7 @@ defmodule Backpex.Fields.DateTime do
         <BackpexForm.input
           type="datetime-local"
           field={@form[:value]}
-          input_class={["input input-sm w-52 [:not(:hover)]:input-ghost", !@valid && "input-error"]}
+          input_class={["input input-sm w-52 not-hover:input-ghost", !@valid && "input-error"]}
           phx-debounce="100"
           readonly={@readonly}
           hide_errors
