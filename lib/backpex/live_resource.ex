@@ -9,8 +9,6 @@ defmodule Backpex.LiveResource do
 
   use Phoenix.LiveView
 
-  import Backpex.HTML.Resource
-
   alias Backpex.Resource
   alias Backpex.Router
 
