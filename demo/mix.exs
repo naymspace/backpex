@@ -36,7 +36,7 @@ defmodule Demo.MixProject do
       # development
       {:ex_doc, "~> 0.37", only: [:dev, :test], runtime: false},
       {:credo, "~> 1.7.5", only: [:dev, :test], runtime: false},
-      {:sobelow, "~> 0.13", only: [:dev, :test]},
+      {:sobelow, "~> 0.14", only: [:dev, :test]},
       {:mix_audit, "~> 2.0", only: [:dev, :test], runtime: false},
       {:tailwind_formatter, "~> 0.4.0", only: [:dev, :test], runtime: false},
       {:ex_machina, "~> 2.3"},
