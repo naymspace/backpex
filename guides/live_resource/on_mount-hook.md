@@ -26,7 +26,7 @@ end
 def handle_event("my-event", _params_, socket) do
   # Do stuff
 
-  {:cont, socket}
+  {:halt, socket}
 end
 
 def handle_event(_event_, _params_, socket) do
@@ -34,4 +34,6 @@ def handle_event(_event_, _params_, socket) do
 end
 ```
 
-**Important:** Make sure you add a catch-all event at the end that continues. Otherwise, Backpex will not receive internal events.
+**Important:** 
+Make sure to halt for custom events as Backpex won't handle them. In addition, you are required to add a catch-all event at the end that continues. 
+Otherwise, Backpex will not receive internal events.
