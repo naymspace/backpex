@@ -76,6 +76,37 @@ defmodule Backpex.LiveResource.Index do
     noreply(socket)
   end
 
+  def handle_event("change-filter", params, socket) do
+    query_options = socket.assigns.query_options
+
+    empty_filter_name = Atom.to_string(LiveResource.empty_filter_key())
+
+    filters =
+      Map.get(query_options, :filters, %{})
+      |> Map.merge(params["filters"])
+      # Filter manually emptied filters and empty filter
+      |> Enum.filter(fn
+        {^empty_filter_name, _value} -> false
+        {_filter, ""} -> false
+        {_filter, %{"start" => "", "end" => ""}} -> false
+        _filter_params -> true
+      end)
+
+    to =
+      Router.get_path(
+        socket,
+        socket.assigns.live_resource,
+        socket.assigns.params,
+        :index,
+        Map.put(query_options, :filters, filters)
+      )
+
+    socket
+    |> assign(filters_changed: true)
+    |> LiveView.push_patch(to: to)
+    |> noreply()
+  end
+
   def handle_event("item-action", %{"action-key" => key, "item-id" => item_id}, socket) do
     %{items: items, live_resource: live_resource} = socket.assigns
 

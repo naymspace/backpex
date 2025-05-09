@@ -523,37 +523,6 @@ defmodule Backpex.LiveResource do
 
   def default_attrs(_live_action, _fields, _assigns), do: %{}
 
-  def handle_event("change-filter", params, socket) do
-    query_options = socket.assigns.query_options
-
-    empty_filter_name = Atom.to_string(empty_filter_key())
-
-    filters =
-      Map.get(query_options, :filters, %{})
-      |> Map.merge(params["filters"])
-      # Filter manually emptied filters and empty filter
-      |> Enum.filter(fn
-        {^empty_filter_name, _value} -> false
-        {_filter, ""} -> false
-        {_filter, %{"start" => "", "end" => ""}} -> false
-        _filter_params -> true
-      end)
-
-    to =
-      Router.get_path(
-        socket,
-        socket.assigns.live_resource,
-        socket.assigns.params,
-        :index,
-        Map.put(query_options, :filters, filters)
-      )
-
-    socket
-    |> assign(filters_changed: true)
-    |> push_patch(to: to)
-    |> noreply()
-  end
-
   def primary_value(item, live_resource) do
     Map.get(item, live_resource.config(:primary_key))
   end
