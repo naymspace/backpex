@@ -108,7 +108,7 @@ defmodule Backpex.LiveResource do
       An optional list of hooks to attach to the mount lifecycle. Passing a single value is also accepted.
       See https://hexdocs.pm/phoenix_live_view/Phoenix.LiveView.html#on_mount/1
       """,
-      type: {:or, [:mod_arg, :atom, {:list, :mod_arg}, {:list, :atom}]},
+      type: {:or, [:mod_arg, :atom, {:list, {:or, [:mod_arg, :atom]}}]},
       required: false
     ]
   ]
