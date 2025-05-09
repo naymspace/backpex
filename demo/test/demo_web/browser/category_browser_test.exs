@@ -9,6 +9,8 @@ defmodule DemoWeb.Browser.CategoryBrowserTest do
 
   describe "categories index" do
     test "a11y", %{conn: conn} do
+      insert_list(10, :category)
+
       conn
       |> visit(~p"/admin/categories")
       |> assert_a11y()
