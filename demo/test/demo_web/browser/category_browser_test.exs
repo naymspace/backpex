@@ -20,7 +20,7 @@ defmodule DemoWeb.Browser.CategoryBrowserTest do
       category = insert(:category)
 
       conn
-      |> visit(~p"/admin/categories/#{category.id}/edit")
+      |> visit(~p"/admin/categories/#{category.id}/show")
       |> assert_a11y()
     end
   end
