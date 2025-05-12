@@ -2,9 +2,25 @@ import Config
 import System, only: [get_env: 1, get_env: 2, fetch_env!: 1]
 import String, only: [to_integer: 1, to_atom: 1, to_existing_atom: 1]
 
-config :demo,
-  dns_cluster_query: get_env("DNS_CLUSTER_QUERY"),
-  analytics: get_env("ANALYTICS", "false") |> to_existing_atom()
+if config_env() == :prod do
+  config :demo,
+    dns_cluster_query: get_env("DNS_CLUSTER_QUERY"),
+    analytics: get_env("ANALYTICS", "false") |> to_existing_atom()
+
+  config :demo, DemoWeb.Endpoint,
+    http: [
+      port: get_env("PORT", "4000") |> to_integer()
+    ],
+    url: [
+      scheme: get_env("URL_SCHEME", "http"),
+      host: get_env("HOST", "localhost"),
+      port: get_env("URL_PORT", "4000")
+    ],
+    secret_key_base: fetch_env!("SECRET_KEY_BASE"),
+    live_view: [
+      signing_salt: fetch_env!("LIVE_VIEW_SIGNING_SALT")
+    ]
+end
 
 config :demo, Demo.Repo,
   hostname: get_env("DB_HOSTNAME", "postgres"),
@@ -13,20 +29,6 @@ config :demo, Demo.Repo,
   database: get_env("DB_DATABASE", "postgres"),
   port: get_env("DB_PORT", "5432") |> to_integer(),
   pool_size: get_env("DB_POOL_SIZE", "5") |> to_integer()
-
-config :demo, DemoWeb.Endpoint,
-  http: [
-    port: get_env("PORT", "4000") |> to_integer()
-  ],
-  url: [
-    scheme: get_env("URL_SCHEME", "http"),
-    host: get_env("HOST", "localhost"),
-    port: get_env("URL_PORT", "4000")
-  ],
-  secret_key_base: fetch_env!("SECRET_KEY_BASE"),
-  live_view: [
-    signing_salt: fetch_env!("LIVE_VIEW_SIGNING_SALT")
-  ]
 
 config :demo, DemoWeb.DashboardAuthPlug,
   enabled: get_env("DASHBOARD_AUTH_ENABLED", "false") |> to_existing_atom(),
