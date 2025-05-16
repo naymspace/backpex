@@ -93,8 +93,8 @@ defmodule Backpex.Fields.HasManyThrough do
   end
 
   defp apply_action(socket, :form) do
-    adapter_config = socket.assigns.live_resource.config(:adapter_config)
-    association = association(adapter_config[:schema], socket.assigns.name)
+    schema = socket.assigns.live_resource.adapter_config(:schema)
+    association = association(schema, socket.assigns.name)
 
     socket
     |> assign_new(:association, fn -> association end)
@@ -107,14 +107,14 @@ defmodule Backpex.Fields.HasManyThrough do
 
   defp assign_options(socket) do
     %{field_options: field_options, association: association} = socket.assigns
-    adapter_config = socket.assigns.live_resource.config(:adapter_config)
+    repo = socket.assigns.live_resource.adapter_config(:repo)
 
     display_field = Map.get(field_options, :display_field_form, Map.get(field_options, :display_field))
 
     all_items =
       from(association.child.queryable)
       |> maybe_options_query(field_options, socket.assigns)
-      |> adapter_config[:repo].all()
+      |> repo.all()
 
     options = Enum.map(all_items, &{Map.get(&1, display_field), Map.get(&1, :id)})
 
@@ -131,7 +131,7 @@ defmodule Backpex.Fields.HasManyThrough do
   @impl Backpex.Field
   def render_value(assigns) do
     %{item: item, name: assoc_field_name} = assigns
-    schema = assigns.live_resource.config(:adapter_config)[:schema]
+    schema = assigns.live_resource.adapter_config(:schema)
     %{pivot: %{field: pivot_field}, child: %{field: child_field}} = association(schema, assoc_field_name)
 
     listables =

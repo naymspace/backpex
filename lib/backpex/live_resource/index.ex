@@ -429,10 +429,10 @@ defmodule Backpex.LiveResource.Index do
     filters = LiveResource.active_filters(socket.assigns)
     valid_filter_params = LiveResource.get_valid_filters_from_params(params, filters, LiveResource.empty_filter_key())
 
-    adapter_config = live_resource.config(:adapter_config)
+    schema = live_resource.adapter_config(:schema)
 
     count_criteria = [
-      search: LiveResource.search_options(params, fields, adapter_config[:schema]),
+      search: LiveResource.search_options(params, fields, schema),
       filters: LiveResource.filter_options(valid_filter_params, filters)
     ]
 
@@ -541,12 +541,12 @@ defmodule Backpex.LiveResource.Index do
       query_options: query_options
     } = socket.assigns
 
-    adapter_config = live_resource.config(:adapter_config)
+    schema = live_resource.adapter_config(:schema)
     filters = LiveResource.active_filters(socket.assigns)
     valid_filter_params = LiveResource.get_valid_filters_from_params(params, filters, LiveResource.empty_filter_key())
 
     count_criteria = [
-      search: LiveResource.search_options(params, fields, adapter_config[:schema]),
+      search: LiveResource.search_options(params, fields, schema),
       filters: LiveResource.filter_options(valid_filter_params, filters)
     ]
 
@@ -571,14 +571,15 @@ defmodule Backpex.LiveResource.Index do
       metric_visibility: metric_visibility
     } = socket.assigns
 
-    adapter_config = live_resource.config(:adapter_config)
+    repo = live_resource.adapter_config(:repo)
+    schema = live_resource.adapter_config(:schema)
     filters = LiveResource.active_filters(socket.assigns)
 
     metrics =
       socket.assigns.live_resource.metrics()
       |> Enum.map(fn {key, metric} ->
         criteria = [
-          search: LiveResource.search_options(query_options, fields, adapter_config[:schema]),
+          search: LiveResource.search_options(query_options, fields, schema),
           filters: LiveResource.filter_options(query_options, filters)
         ]
 
@@ -591,7 +592,7 @@ defmodule Backpex.LiveResource.Index do
               |> Ecto.Query.exclude(:select)
               |> Ecto.Query.exclude(:preload)
               |> Ecto.Query.exclude(:group_by)
-              |> metric.module.query(metric.select, adapter_config[:repo])
+              |> metric.module.query(metric.select, repo)
 
             {key, Map.put(metric, :data, data)}
 
