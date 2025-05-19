@@ -65,8 +65,8 @@ defmodule Backpex.MixProject do
       {:ash_postgres, "~> 2.0", optional: true},
 
       # generators
-      {:igniter, "~> 0.5.41"},
-      {:igniter_js, "~> 0.4.6"}
+      {:igniter, "~> 0.5"},
+      {:igniter_js, "~> 0.4"}
     ]
   end
 

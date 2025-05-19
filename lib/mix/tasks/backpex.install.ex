@@ -235,7 +235,7 @@ if Code.ensure_loaded?(Igniter) do
 
     defp check_for_tailwind_forms_plugin(igniter) do
       app_css_path = igniter.args.options[:app_css_path]
-      line = "@plugin \"tailwindcss/forms\""
+      line = "@plugin \"@tailwindcss/forms\""
 
       if Igniter.exists?(igniter, app_css_path) do
         Igniter.update_file(igniter, app_css_path, &maybe_remove_tailwind_forms_plugin(&1, line))
