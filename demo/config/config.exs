@@ -43,7 +43,7 @@ config :demo, DemoWeb.Endpoint,
 config :demo, Demo.Repo, migration_primary_key: [name: :id, type: :binary_id]
 
 config :esbuild,
-  version: "0.25.2",
+  version: "0.25.4",
   default: [
     args:
       ~w(assets/js/app.js --bundle --target=es2017 --outdir=priv/static/assets --external:/fonts/* --external:/images/* --alias:backpex=/opt/app),
@@ -52,7 +52,7 @@ config :esbuild,
   ]
 
 config :tailwind,
-  version: "4.0.17",
+  version: "4.1.7",
   default: [
     args: ~w(
       --input=assets/css/app.css

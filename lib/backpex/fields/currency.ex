@@ -76,6 +76,7 @@ defmodule Backpex.Fields.Currency do
           type="number"
           field={@form[@name]}
           value={@casted_value}
+          help_text={Backpex.Field.help_text(@field_options, assigns)}
           phx-debounce={Backpex.Field.debounce(@field_options, assigns)}
           phx-throttle={Backpex.Field.throttle(@field_options, assigns)}
           step=".01"

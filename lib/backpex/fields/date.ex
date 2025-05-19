@@ -109,6 +109,7 @@ defmodule Backpex.Fields.Date do
           type="date"
           field={@form[@name]}
           translate_error_fun={Backpex.Field.translate_error_fun(@field_options, assigns)}
+          help_text={Backpex.Field.help_text(@field_options, assigns)}
           phx-debounce={Backpex.Field.debounce(@field_options, assigns)}
           phx-throttle={Backpex.Field.throttle(@field_options, assigns)}
         />

@@ -70,7 +70,7 @@ In your `mix.exs`:
 defp deps do
   [
     ...
-    {:backpex, "~> 0.11.0"}
+    {:backpex, "~> 0.13.0"}
   ]
 end
 ```

@@ -364,6 +364,10 @@ defmodule Backpex.Fields.HasManyThrough do
         <button type="button" class="btn btn-sm btn-outline btn-primary" phx-click="new-relational" phx-target={@myself}>
           {@relational_title}
         </button>
+
+        <%= if help_text = Backpex.Field.help_text(@field_options, assigns) do %>
+          <Backpex.HTML.Form.help_text class="mt-1">{help_text}</Backpex.HTML.Form.help_text>
+        <% end %>
       </Layout.field_container>
     </div>
     """

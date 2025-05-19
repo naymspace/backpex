@@ -6,6 +6,7 @@ defmodule Backpex.HTML.Layout do
   use BackpexWeb, :html
   alias Backpex.HTML.CoreComponents
   alias Backpex.Router
+  require Backpex
 
   @doc """
   Renders an app shell representing the base of your layout.
@@ -100,15 +101,43 @@ defmodule Backpex.HTML.Layout do
 
   def flash_messages(assigns) do
     ~H"""
-    <.alert
-      :for={kind <- ~w(info success warning error)a}
-      :if={msg = Phoenix.Flash.get(@flash, kind)}
-      kind={kind}
-      close_label={@close_label}
-      on_close={JS.push("lv:clear-flash", value: %{key: kind})}
-    >
-      {msg}
-    </.alert>
+    <div aria-live="polite">
+      <.alert
+        :for={kind <- ~w(info success warning error)a}
+        :if={msg = Phoenix.Flash.get(@flash, kind)}
+        kind={kind}
+        close_label={@close_label}
+        on_close={JS.push("lv:clear-flash", value: %{key: kind})}
+      >
+        {msg}
+      </.alert>
+      <div class="toast toast-end toast-top z-50">
+        <.alert
+          id="client-error"
+          class="hidden"
+          kind={:error}
+          closable={false}
+          title={Backpex.__("We can't find the internet!")}
+          phx-disconnected={JS.remove_class("hidden", to: ".phx-client-error #client-error")}
+          phx-connected={JS.add_class("hidden")}
+        >
+          <:icon><CoreComponents.icon name="hero-arrow-path" class="size-5 motion-safe:animate-spin" /></:icon>
+          {Backpex.__("Attempting to reconnect...")}
+        </.alert>
+        <.alert
+          id="server-error"
+          class="hidden"
+          kind={:error}
+          closable={false}
+          title={Backpex.__("Something went wrong!")}
+          phx-disconnected={JS.remove_class("hidden", to: ".phx-server-error #server-error")}
+          phx-connected={JS.add_class("hidden")}
+        >
+          <:icon><CoreComponents.icon name="hero-arrow-path" class="size-5 motion-safe:animate-spin" /></:icon>
+          {Backpex.__("Hang in there while we get back on track...")}
+        </.alert>
+      </div>
+    </div>
     """
   end
 
@@ -122,8 +151,10 @@ defmodule Backpex.HTML.Layout do
   attr :closable, :boolean, default: true, doc: "show or hide the close button"
   attr :on_close, JS, default: %JS{}, doc: "event triggered on alert close"
   attr :close_label, :string, default: "Close alert"
+  attr :title, :string, default: nil, doc: "title for the alert"
   attr :rest, :global
   slot :inner_block
+  slot :icon
 
   def alert(assigns) do
     ~H"""
@@ -140,11 +171,18 @@ defmodule Backpex.HTML.Layout do
       data-close={@on_close}
       {@rest}
     >
-      <CoreComponents.icon :if={@kind === :info} name="hero-information-circle" class="h-5 w-5" />
-      <CoreComponents.icon :if={@kind === :success} name="hero-check-circle" class="h-5 w-5" />
-      <CoreComponents.icon :if={@kind === :warning} name="hero-exclamation-triangle" class="h-5 w-5" />
-      <CoreComponents.icon :if={@kind === :error} name="hero-x-circle" class="h-5 w-5" />
-      <span>{render_slot(@inner_block)}</span>
+      <%= if @icon == [] do %>
+        <CoreComponents.icon :if={@kind === :info} name="hero-information-circle" class="size-5" />
+        <CoreComponents.icon :if={@kind === :success} name="hero-check-circle" class="size-5" />
+        <CoreComponents.icon :if={@kind === :warning} name="hero-exclamation-triangle" class="size-5" />
+        <CoreComponents.icon :if={@kind === :error} name="hero-x-circle" class="size-5" />
+      <% else %>
+        {render_slot(@icon)}
+      <% end %>
+      <div>
+        <h3 :if={@title} class="font-bold">{@title}</h3>
+        <div>{render_slot(@inner_block)}</div>
+      </div>
       <div :if={@closable}>
         <button
           class={[
