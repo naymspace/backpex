@@ -188,7 +188,12 @@ if Code.ensure_loaded?(Igniter) do
                {:ok, {igniter, false}} <- Helpers.exists_in_module?(igniter, router, "backpex_routes()"),
                {:ok, igniter} <-
                  Module.find_and_update_module(igniter, router, &add_backpex_router_import(&1, igniter)) do
-            Phoenix.add_scope(igniter, "/", "backpex_routes()", arg2: web_module)
+            contents = """
+            pipe_through :browser
+            backpex_routes()
+            """
+
+            Phoenix.add_scope(igniter, "/", contents, arg2: web_module)
           else
             {:ok, {igniter, true}} ->
               Mix.shell().info("Backpex routes already added")
