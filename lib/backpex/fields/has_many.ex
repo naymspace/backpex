@@ -174,7 +174,7 @@ defmodule Backpex.Fields.HasMany do
               </div>
             </div>
           </label>
-          <Form.error :for={msg <- @errors}>{msg}</Form.error>
+          <Form.error :for={msg <- @errors} class="mt-1">{msg}</Form.error>
           <div tabindex="0" class="dropdown-content z-[1] menu bg-base-100 rounded-box w-full overflow-y-auto shadow">
             <div class="max-h-72 p-2">
               <input
