@@ -85,8 +85,8 @@ if Code.ensure_loaded?(Igniter) do
       |> configure_pubsub_server()
       |> install_backpex_hooks()
       |> install_daisyui()
-      |> add_backpex_formatter()
       |> add_files_to_tailwind_content()
+      |> add_backpex_formatter()
       |> add_backpex_routes()
       |> generate_layout()
       |> check_for_bg_white()
@@ -157,12 +157,6 @@ if Code.ensure_loaded?(Igniter) do
       )
     end
 
-    # Add Backpex to formatter
-
-    defp add_backpex_formatter(igniter) do
-      Formatter.import_dep(igniter, :backpex)
-    end
-
     # Add backpex files to tailwind content
 
     defp add_files_to_tailwind_content(igniter) do
@@ -171,6 +165,12 @@ if Code.ensure_loaded?(Igniter) do
       igniter
       |> Helpers.add_line_to_file(app_css_path, "@source \"../../deps/backpex/**/*.*ex\"")
       |> Helpers.add_line_to_file(app_css_path, "@source \"../../deps/backpex/assets/js/**/*.*js\"")
+    end
+
+    # Add Backpex to formatter
+
+    defp add_backpex_formatter(igniter) do
+      Formatter.import_dep(igniter, :backpex)
     end
 
     # Add Backpex routes
@@ -215,7 +215,7 @@ if Code.ensure_loaded?(Igniter) do
       end
     end
 
-    # Creates default adminlayout
+    # Creates default admin layout
 
     defp generate_layout(igniter) do
       if igniter.args.options[:no_layout] do
@@ -229,41 +229,6 @@ if Code.ensure_loaded?(Igniter) do
 
         Igniter.copy_template(igniter, template_path, target_path, [], on_exists: :warning)
       end
-    end
-
-    # Checks for tailwind forms plugin
-
-    defp check_for_tailwind_forms_plugin(igniter) do
-      app_css_path = igniter.args.options[:app_css_path]
-      line = "@plugin \"@tailwindcss/forms\""
-
-      if Igniter.exists?(igniter, app_css_path) do
-        Igniter.update_file(igniter, app_css_path, &maybe_remove_tailwind_forms_plugin(&1, line))
-      else
-        Warning.warn_with_code_sample(
-          igniter,
-          """
-          app.css not found at #{app_css_path}.
-          You may remove the following line from your app.css file because it can cause issues with daisyUI:
-          """,
-          line
-        )
-      end
-    end
-
-    defp maybe_remove_tailwind_forms_plugin(source, line) do
-      app_css_content = Rewrite.Source.get(source, :content)
-
-      with true <- String.contains?(app_css_content, line),
-           true <- remove_tailwind_forms_plugin?(line) do
-        Rewrite.Source.update(source, :content, &String.replace(&1, line, ""))
-      else
-        _false -> source
-      end
-    end
-
-    defp remove_tailwind_forms_plugin?(line) do
-      Mix.shell().yes?("The following line could cause issues with daisyUI: #{line}. Do you want to remove it?")
     end
 
     # Checks for default background color
@@ -299,6 +264,41 @@ if Code.ensure_loaded?(Igniter) do
       Mix.shell().yes?(
         "A background color at the body could cause issues with the backpex app_shell. Do you want to remove it? See: https://hexdocs.pm/backpex/installation.html#remove-default-background-color"
       )
+    end
+
+    # Checks for tailwind forms plugin
+
+    defp check_for_tailwind_forms_plugin(igniter) do
+      app_css_path = igniter.args.options[:app_css_path]
+      line = "@plugin \"@tailwindcss/forms\""
+
+      if Igniter.exists?(igniter, app_css_path) do
+        Igniter.update_file(igniter, app_css_path, &maybe_remove_tailwind_forms_plugin(&1, line))
+      else
+        Warning.warn_with_code_sample(
+          igniter,
+          """
+          app.css not found at #{app_css_path}.
+          You may remove the following line from your app.css file because it can cause issues with daisyUI:
+          """,
+          line
+        )
+      end
+    end
+
+    defp maybe_remove_tailwind_forms_plugin(source, line) do
+      app_css_content = Rewrite.Source.get(source, :content)
+
+      with true <- String.contains?(app_css_content, line),
+           true <- remove_tailwind_forms_plugin?(line) do
+        Rewrite.Source.update(source, :content, &String.replace(&1, line, ""))
+      else
+        _false -> source
+      end
+    end
+
+    defp remove_tailwind_forms_plugin?(line) do
+      Mix.shell().yes?("The following line could cause issues with daisyUI: #{line}. Do you want to remove it?")
     end
   end
 else
