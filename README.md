@@ -7,7 +7,7 @@
   <img src="https://github.com/naymspace/backpex/blob/develop/priv/static/images/logo.svg?raw=true" width="100" height="100">
   <br />
   <br />
-  Phoenix Admin Panel built with PET~~A~~L · Backpex
+  Phoenix LiveView Admin Panel · Backpex
   <br />
   <br />
   <span>📚 <a href="https://hexdocs.pm/backpex">Documentation</a></span>
