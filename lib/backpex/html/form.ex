@@ -282,7 +282,7 @@ defmodule Backpex.HTML.Form do
             {@prompt}
           </p>
 
-          <div :for={{label, value} <- @selected} class="badge badge-sm badge-primary pointer-events-auto pr-0">
+          <div :for={{label, value} <- @selected} class="badge badge-sm badge-soft badge-primary pointer-events-auto pr-0">
             {label}
             <div
               class="flex cursor-pointer items-center pr-2"
@@ -292,7 +292,7 @@ defmodule Backpex.HTML.Form do
               phx-target={@event_target}
               aria-label={Backpex.__({"Unselect %{label}", %{label: label}}, @live_resource)}
             >
-              <Backpex.HTML.CoreComponents.icon name="hero-x-mark" class="text-primary-content size-4 scale-110" />
+              <Backpex.HTML.CoreComponents.icon name="hero-x-mark" class="size-4 scale-105 hover:scale-110" />
             </div>
           </div>
         </div>
