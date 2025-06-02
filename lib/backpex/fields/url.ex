@@ -70,7 +70,7 @@ defmodule Backpex.Fields.URL do
   defp valid_url?(value, field_options) when is_binary(value) do
     case URI.new(value) do
       {:ok, %URI{scheme: scheme}} ->
-        is_nil(scheme) or scheme in field_options.allowed_schemes
+        is_nil(scheme) or String.downcase(scheme) in field_options.allowed_schemes
 
       {:error, _part} ->
         false
