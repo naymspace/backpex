@@ -123,16 +123,7 @@ defmodule Backpex.Fields.HasMany do
           <:separator>
             ,&nbsp;
           </:separator>
-          <.item
-            socket={@socket}
-            field={@field}
-            field_options={@field_options}
-            params={@params}
-            live_resource={@live_resource}
-            live_action={@live_action}
-            item={item}
-            link_assocs={@link_assocs}
-          />
+          <.item item={item} {assigns} />
         </.intersperse>
       </div>
     </div>
