@@ -139,10 +139,11 @@ defmodule Backpex.Fields.HasMany do
           <Layout.input_label text={@field_options[:label]} />
         </:label>
         <div class="dropdown w-full">
-          <label
+          <div
             tabindex="0"
+            role="button"
             class={[
-              "input block h-fit w-full p-2",
+              "input block h-fit w-full cursor-pointer p-2",
               @errors == [] && "bg-transparent",
               @errors != [] && "input-error bg-error/10"
             ]}
@@ -167,7 +168,7 @@ defmodule Backpex.Fields.HasMany do
                 </label>
               </div>
             </div>
-          </label>
+          </div>
           <Form.error :for={msg <- @errors} class="mt-1">{msg}</Form.error>
           <div tabindex="0" class="dropdown-content z-[1] menu bg-base-100 rounded-box w-full overflow-y-auto shadow">
             <div class="max-h-72 p-2">
