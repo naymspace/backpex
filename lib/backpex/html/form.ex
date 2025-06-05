@@ -276,7 +276,7 @@ defmodule Backpex.HTML.Form do
 
     ~H"""
     <div class="dropdown w-full">
-      <label tabindex="0" class="input block h-fit w-full p-2">
+      <div role="button" tabindex="0" class="input block h-fit w-full p-2">
         <div class="flex h-full w-full flex-wrap items-center gap-1 px-2">
           <p :if={@selected == []} class="text-base-content p-0.5 text-sm">
             {@prompt}
@@ -296,7 +296,7 @@ defmodule Backpex.HTML.Form do
             </div>
           </div>
         </div>
-      </label>
+      </div>
       <.error :for={msg <- @errors} :if={not @hide_errors} class="mt-1">{msg}</.error>
       <div tabindex="0" class="dropdown-content z-[1] menu bg-base-100 rounded-box w-full overflow-y-auto shadow">
         <div class="max-h-72 p-2">
