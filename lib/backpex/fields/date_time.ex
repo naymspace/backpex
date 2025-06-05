@@ -153,6 +153,7 @@ defmodule Backpex.Fields.DateTime do
     <div>
       <.form for={@form} phx-change="update-field" phx-submit="update-field" phx-target={@myself}>
         <BackpexForm.input
+          id={"index-form-input-#{@name}-#{LiveResource.primary_value(@item, @live_resource)}"}
           type="datetime-local"
           field={@form[:value]}
           input_class={["input input-sm w-52 not-hover:input-ghost", !@valid && "input-error"]}
