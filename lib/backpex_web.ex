@@ -68,7 +68,10 @@ defmodule BackpexWeb do
       import Phoenix.HTML
       alias Phoenix.LiveView.JS
 
+      @doc false
       def ok(socket), do: {:ok, socket}
+
+      @doc false
       def noreply(socket), do: {:noreply, socket}
     end
   end
