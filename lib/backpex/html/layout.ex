@@ -381,7 +381,9 @@ defmodule Backpex.HTML.Layout do
   def topbar_dropdown(assigns) do
     ~H"""
     <div class={["dropdown dropdown-end", @class]}>
-      {render_slot(@label)}
+      <div tabindex="0" role="button">
+        {render_slot(@label)}
+      </div>
       <ul tabindex="0" class="dropdown-content z-[1] menu bg-base-100 rounded-box w-52 p-2 shadow">
         {render_slot(@inner_block)}
       </ul>
@@ -583,12 +585,19 @@ defmodule Backpex.HTML.Layout do
   @doc type: :component
 
   attr :text, :string, doc: "text of the label"
+  attr :for, :any, default: nil, doc: "form element the label is bound to"
 
   def input_label(assigns) do
+    assigns =
+      case assigns.for do
+        field = %Phoenix.HTML.FormField{} -> assign(assigns, :for, field.id)
+        id -> assign(assigns, :for, id)
+      end
+
     ~H"""
-    <p class="text-content block break-words text-sm font-medium">
+    <label for={@for} class="text-content block break-words text-sm font-medium">
       {@text}
-    </p>
+    </label>
     """
   end
 
