@@ -65,6 +65,7 @@ defmodule Backpex.Fields.Boolean do
     <div>
       <.form for={@form} class="relative" phx-change="update-field" phx-submit="update-field" phx-target={@myself}>
         <BackpexForm.input
+          id={"index-form-input-#{@name}-#{LiveResource.primary_value(@item, @live_resource)}"}
           type="toggle"
           field={@form[:value]}
           input_class={["toggle toggle-sm toggle-success", "hover:input-bordered"]}
