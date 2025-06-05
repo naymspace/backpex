@@ -584,8 +584,10 @@ defmodule Backpex.HTML.Layout do
   """
   @doc type: :component
 
+  attr :as, :string, default: "label", doc: "html tag name"
   attr :text, :string, doc: "text of the label"
   attr :for, :any, default: nil, doc: "form element the label is bound to"
+  attr :rest, :global
 
   def input_label(assigns) do
     assigns =
@@ -595,9 +597,9 @@ defmodule Backpex.HTML.Layout do
       end
 
     ~H"""
-    <label for={@for} class="text-content block break-words text-sm font-medium">
+    <.dynamic_tag tag_name={@as} for={@for} class="text-content block break-words text-sm font-medium" {@rest}>
       {@text}
-    </label>
+    </.dynamic_tag>
     """
   end
 
