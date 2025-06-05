@@ -17,7 +17,7 @@ export default {
     })
   },
   hasContent (element) {
-    if (element.children.length === 0) {
+    if (!element || element.children.length === 0) {
       return false
     }
 
