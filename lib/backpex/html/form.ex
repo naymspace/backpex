@@ -157,7 +157,7 @@ defmodule Backpex.HTML.Form do
               @errors != [] && "[&>*]:select-error [&>*]:bg-error/10 [&>*]:text-error-content"
             ]
         }>
-          <select class={@input_class} name={@name} {@rest}>
+          <select id={@id} class={@input_class} name={@name} {@rest}>
             <option :if={@prompt} value="">{@prompt}</option>
             {Phoenix.HTML.Form.options_for_select(@options, @value)}
           </select>
