@@ -9,6 +9,7 @@ defmodule Backpex.FormComponent do
   alias Backpex.ResourceAction
 
   require Backpex
+  require Logger
 
   def update(assigns, socket) do
     socket
@@ -271,12 +272,23 @@ defmodule Backpex.FormComponent do
       {:ok, _item} ->
         info_msg = Backpex.__({"%{resource} has been edited successfully.", %{resource: singular_name}}, live_resource)
 
-        socket
-        |> assign(:show_form_errors, false)
-        |> clear_flash()
-        |> put_flash(:info, info_msg)
-        |> push_navigate(to: return_to)
-        |> noreply()
+        socket =
+          socket
+          |> assign(:show_form_errors, false)
+          |> clear_flash()
+          |> put_flash(:info, info_msg)
+
+        if String.starts_with?(return_to, "https://") do
+          Logger.debug("EXTERNAL URL: redirecting to #{return_to} ...")
+
+          socket
+          |> redirect(external: return_to)
+          |> noreply()
+        else
+          socket
+          |> push_navigate(to: return_to)
+          |> noreply()
+        end
 
       {:error, %Ecto.Changeset{errors: [base: {error_msg, _}]} = changeset} ->
         form = Phoenix.Component.to_form(changeset, as: :change)
@@ -438,8 +450,12 @@ defmodule Backpex.FormComponent do
     |> Kernel.<>("/#{primary_value}/edit")
   end
 
-  defp return_to_path("continue", _live_resource, _socket, %{current_url: url}, :edit, _item) do
-    URI.parse(url).path
+  defp return_to_path("continue", _live_resource, _socket, %{current_url: url, redirect_url: r_url}, :edit, _item) do
+    if r_url do
+      r_url
+    else
+      URI.parse(url).path
+    end
   end
 
   defp return_to_path("save", live_resource, socket, assigns, live_action, item) do
