@@ -16,7 +16,7 @@ export default {
       toggle.removeEventListener('click', this.handleToggle.bind(this))
     })
   },
-  hasContent(element) {
+  hasContent (element) {
     if (element.children.length === 0) {
       return false
     }
