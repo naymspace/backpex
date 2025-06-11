@@ -16,7 +16,7 @@ defmodule Backpex.Filter do
   @doc """
   The filter query that is executed if an option was selected.
   """
-  @callback query(Ecto.Query.t(), any(), any()) :: Ecto.Query.t()
+  @callback query(Ecto.Query.t(), any(), any(), assigns :: map()) :: Ecto.Query.t()
 
   @doc """
   Renders the filters selected value(s).
