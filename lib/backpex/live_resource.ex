@@ -258,7 +258,7 @@ defmodule Backpex.LiveResource do
 
       @resource_opts NimbleOptions.validate!(opts, options_schema)
 
-      @resource_opts[:adapter].validate_config!(@resource_opts[:adapter_config])
+      @adapter_opts @resource_opts[:adapter].validate_config!(@resource_opts[:adapter_config])
 
       use BackpexWeb, :html
       import Backpex.LiveResource
@@ -269,6 +269,8 @@ defmodule Backpex.LiveResource do
       require Backpex
 
       def config(key), do: Keyword.get(@resource_opts, key)
+
+      def adapter_config(key), do: Keyword.get(@adapter_opts, key)
 
       def pubsub, do: LiveResource.pubsub(__MODULE__)
 
@@ -491,8 +493,7 @@ defmodule Backpex.LiveResource do
   end
 
   def default_attrs(:new, fields, assigns) do
-    adapter_config = assigns.live_resource.config(:adapter_config)
-    schema = adapter_config[:schema]
+    schema = assigns.live_resource.adapter_config(:schema)
 
     Enum.reduce(fields, %{}, fn
       {name, %{default: default} = field_options} = field, attrs ->
@@ -697,7 +698,7 @@ defmodule Backpex.LiveResource do
       init_order: init_order
     } = assigns
 
-    adapter_config = live_resource.config(:adapter_config)
+    schema = live_resource.adapter_config(:schema)
     field = Enum.find(fields, fn {name, _field_options} -> name == query_options.order_by end)
 
     order =
@@ -706,20 +707,20 @@ defmodule Backpex.LiveResource do
 
         %{
           by: field_options.module.display_field(field),
-          schema: field_options.module.schema(field, adapter_config[:schema]),
+          schema: field_options.module.schema(field, schema),
           direction: query_options.order_direction,
           field_name: field_name
         }
       else
         init_order
         |> resolve_init_order(assigns)
-        |> Map.put(:schema, adapter_config[:schema])
+        |> Map.put(:schema, schema)
       end
 
     [
       order: order,
       pagination: %{page: query_options.page, size: query_options.per_page},
-      search: search_options(query_options, fields, adapter_config[:schema]),
+      search: search_options(query_options, fields, schema),
       filters: filter_options(query_options, filters)
     ]
   end
