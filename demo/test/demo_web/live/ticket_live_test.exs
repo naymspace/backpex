@@ -35,8 +35,8 @@ defmodule DemoWeb.TicketLiveTest do
       conn
       |> visit(~p"/admin/tickets/#{ticket.id}/show")
       |> assert_has("h1", text: "Ticket", exact: true)
-      |> assert_has("p", text: "Subject", exact: true)
-      |> assert_has("p", text: "Body", exact: true)
+      |> assert_has("dt", text: "Subject", exact: true)
+      |> assert_has("dt", text: "Body", exact: true)
       |> assert_has("p", text: ticket.subject, exact: true)
       |> assert_has("p", text: ticket.body, exact: true)
     end
