@@ -136,7 +136,7 @@ defmodule Backpex.Fields.HasMany do
     <div id={@name}>
       <Layout.field_container>
         <:label align={Backpex.Field.align_label(@field_options, assigns)}>
-          <Layout.input_label text={@field_options[:label]} />
+          <Layout.input_label as="p" text={@field_options[:label]} />
         </:label>
         <div class="dropdown w-full">
           <div
