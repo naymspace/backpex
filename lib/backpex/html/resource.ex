@@ -225,10 +225,10 @@ defmodule Backpex.HTML.Resource do
         <span :if={@filter_count > 0} class="indicator-item badge badge-sm badge-secondary rounded-selector">
           {@filter_count}
         </span>
-        <label tabindex="0" class="btn btn-sm btn-outline ring-base-content/10 border-0 ring-1">
+        <div role="button" tabindex="0" class="btn btn-sm btn-outline ring-base-content/10 border-0 ring-1">
           <Backpex.HTML.CoreComponents.icon name="hero-funnel-solid" class={["mr-2 h-5 w-5", @filter_icon_class]} />
           {@label}
-        </label>
+        </div>
       </div>
       <div tabindex="0" class="dropdown-content z-[1] menu bg-base-100 rounded-box p-4 shadow">
         <.index_filter_forms filters={@filters} filter_options={@filter_options} live_resource={@live_resource} {assigns} />
@@ -331,7 +331,7 @@ defmodule Backpex.HTML.Resource do
 
     ~H"""
     <div class={["dropdown", @class]}>
-      <label tabindex="0" class="hover:cursor-pointer">
+      <div role="button" tabindex="0" class="hover:cursor-pointer">
         <span class="sr-only">
           {Backpex.__("Toggle columns", @live_resource)}
         </span>
@@ -340,7 +340,7 @@ defmodule Backpex.HTML.Resource do
           aria-hidden="true"
           class="text-base-content/50 h-5 w-5 hover:text-base-content"
         />
-      </label>
+      </div>
       <div tabindex="0" class="dropdown-content menu bg-base-100 rounded-box min-w-52 max-w-72 p-4 shadow">
         <.form class="w-full" method="POST" for={@form} action={Router.cookie_path(@socket)}>
           <input type="hidden" name={@form[:_resource].name} value={@form[:_resource].value} />
@@ -860,14 +860,16 @@ defmodule Backpex.HTML.Resource do
       <div class="card bg-base-100 mt-4 shadow-sm">
         <div class="card-body p-0">
           <div class="flex flex-col sm:divide-base-200 sm:divide-y">
-            <div :for={{name, %{label: label}} <- @panel_fields}>
+            <dl :for={{name, %{label: label}} <- @panel_fields}>
               <.field_container>
                 <:label>
-                  <.input_label text={label} />
+                  <.input_label as="dt" text={label} />
                 </:label>
-                <.resource_field name={name} {assigns} />
+                <dd>
+                  <.resource_field name={name} {assigns} />
+                </dd>
               </.field_container>
-            </div>
+            </dl>
           </div>
         </div>
       </div>
