@@ -361,7 +361,13 @@ defmodule Backpex.Fields.HasManyThrough do
           </div>
         </.modal>
 
-        <button type="button" class="btn btn-sm btn-outline btn-primary" phx-click="new-relational" phx-target={@myself}>
+        <button
+          type="button"
+          class="btn btn-sm btn-outline btn-primary"
+          phx-click="new-relational"
+          phx-target={@myself}
+          aria-labelledby={"has-many-through-label-#{@name}"}
+        >
           {@relational_title}
         </button>
 
