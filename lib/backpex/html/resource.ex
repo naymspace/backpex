@@ -231,7 +231,7 @@ defmodule Backpex.HTML.Resource do
         </div>
       </div>
       <div tabindex="0" class="dropdown-content z-[1] menu bg-base-100 rounded-box p-4 shadow">
-        <.index_filter_forms filters={@filters} filter_options={@filter_options} live_resource={@live_resource} />
+        <.index_filter_forms filters={@filters} filter_options={@filter_options} live_resource={@live_resource} {assigns} />
       </div>
     </div>
     <Backpex.HTML.CoreComponents.filter_badge
@@ -243,7 +243,7 @@ defmodule Backpex.HTML.Resource do
     >
       {component(
         &Keyword.get(@filters, String.to_existing_atom(key)).module.render/1,
-        [value: value],
+        Map.merge(assigns, %{value: value}),
         {__ENV__.module, __ENV__.function, __ENV__.file, __ENV__.line}
       )}
     </Backpex.HTML.CoreComponents.filter_badge>
@@ -265,7 +265,7 @@ defmodule Backpex.HTML.Resource do
               <div class="w-[240px]">
                 {component(
                   &filter.module.render_form/1,
-                  [field: field, value: value, form: f, live_resource: @live_resource],
+                  Map.merge(assigns, %{field: field, value: value, form: f, live_resource: @live_resource}),
                   {__ENV__.module, __ENV__.function, __ENV__.file, __ENV__.line}
                 )}
               </div>
@@ -684,6 +684,7 @@ defmodule Backpex.HTML.Resource do
         filter_options={LiveResource.get_filter_options(@query_options)}
         filters={LiveResource.active_filters(assigns)}
         label={Backpex.__("Filters", @live_resource)}
+        {assigns}
       />
     </div>
     """
