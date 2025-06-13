@@ -592,12 +592,12 @@ defmodule Backpex.HTML.Layout do
   def input_label(assigns) do
     assigns =
       case assigns.for do
-        field = %Phoenix.HTML.FormField{} -> assign(assigns, :for, field.id)
-        id -> assign(assigns, :for, id)
+        field = %Phoenix.HTML.FormField{} -> assign(assigns, :rest, Map.put(assigns.rest, :for, field.id))
+        id -> assign(assigns, :rest, Map.put(assigns.rest, :for, id))
       end
 
     ~H"""
-    <.dynamic_tag tag_name={@as} for={@for} class="text-content block break-words text-sm font-medium" {@rest}>
+    <.dynamic_tag tag_name={@as} class="text-content block break-words text-sm font-medium" {@rest}>
       {@text}
     </.dynamic_tag>
     """
