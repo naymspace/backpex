@@ -20,7 +20,7 @@
   },
   "devDependencies": {
     "@sentry/browser": "9.29.0",
-    "npm-run-all2": "7.0.2",
+    "npm-run-all2": "8.0.4",
     "postcss": "8.5.6",
     "standard": "17.1.2",
     "stylelint": "16.20.0",
