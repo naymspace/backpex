@@ -76,7 +76,7 @@ defmodule Backpex.FormComponent do
   end
 
   def handle_event("validate", %{"change" => change, "_target" => target}, %{assigns: %{action_type: :item}} = socket) do
-    %{assigns: %{item: item, fields: fields} = assigns} = socket
+    %{assigns: %{form_item: item, fields: fields} = assigns} = socket
 
     changeset_function = &assigns.action_to_confirm.module.changeset/3
 
@@ -107,7 +107,7 @@ defmodule Backpex.FormComponent do
   def handle_event("validate", %{"change" => change, "_target" => target}, socket) do
     %{
       live_resource: live_resource,
-      item: item,
+      form_item: item,
       fields: fields
     } = socket.assigns
 
@@ -159,7 +159,7 @@ defmodule Backpex.FormComponent do
       |> Map.get(:removed_uploads, [])
       |> Keyword.update(upload_key, [file_key], fn existing -> [file_key | existing] end)
 
-    files = Upload.existing_file_paths(field, socket.assigns.item, Keyword.get(removed_uploads, upload_key, []))
+    files = Upload.existing_file_paths(field, socket.assigns.form_item, Keyword.get(removed_uploads, upload_key, []))
     uploaded_files = Keyword.put(socket.assigns[:uploaded_files], upload_key, files)
 
     socket
@@ -207,7 +207,7 @@ defmodule Backpex.FormComponent do
   defp handle_save(socket, key, params, save_type \\ "save")
 
   defp handle_save(socket, :new, params, save_type) do
-    %{assigns: %{live_resource: live_resource, item: item, live_action: live_action} = assigns} = socket
+    %{assigns: %{live_resource: live_resource, form_item: item, live_action: live_action} = assigns} = socket
 
     opts = [
       assocs: Map.get(assigns, :assocs, []),
@@ -251,7 +251,7 @@ defmodule Backpex.FormComponent do
   defp handle_save(socket, :edit, params, save_type) do
     %{
       live_resource: live_resource,
-      item: item,
+      form_item: item,
       fields: fields,
       live_action: live_action
     } = socket.assigns
@@ -301,7 +301,7 @@ defmodule Backpex.FormComponent do
         %{
           live_resource: live_resource,
           resource_action: resource_action,
-          item: item,
+          form_item: item,
           return_to: return_to,
           fields: fields
         } = assigns
@@ -353,8 +353,7 @@ defmodule Backpex.FormComponent do
           live_resource: live_resource,
           selected_items: selected_items,
           action_to_confirm: action_to_confirm,
-          fields: fields,
-          return_to: return_to
+          fields: fields
         } = assigns
     } = socket
 
@@ -366,7 +365,7 @@ defmodule Backpex.FormComponent do
 
         metadata = Resource.build_changeset_metadata(assigns)
 
-        assigns.item
+        assigns.form_item
         |> changeset_function.(params, metadata)
         |> Map.put(:action, :insert)
         |> Ecto.Changeset.apply_action(:insert)
@@ -381,7 +380,7 @@ defmodule Backpex.FormComponent do
       |> assign(:show_form_errors, false)
       |> assign(:selected_items, [])
       |> assign(:select_all, false)
-      |> push_patch(to: return_to)
+      |> push_navigate(to: socket.assigns.return_to)
       |> noreply()
     else
       {:error, changeset} ->
@@ -450,7 +449,7 @@ defmodule Backpex.FormComponent do
         uploaded_entries = uploaded_entries(socket, upload_key)
         removed_entries = Keyword.get(socket.assigns.removed_uploads, upload_key, [])
 
-        change = put_upload_change.(socket, acc, socket.assigns.item, uploaded_entries, removed_entries, action)
+        change = put_upload_change.(socket, acc, socket.assigns.form_item, uploaded_entries, removed_entries, action)
 
         upload_used_input_data = Map.get(change, "#{to_string(name)}_used_input")
         used_input? = upload_used_input_data != "false"

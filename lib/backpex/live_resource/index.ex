@@ -220,7 +220,7 @@ defmodule Backpex.LiveResource.Index do
 
   def handle_event("cancel-action-confirm", _params, socket) do
     socket
-    |> assign(:item, nil)
+    |> assign(:form_item, nil)
     |> assign(:changeset, nil)
     |> assign(:action_to_confirm, nil)
     |> noreply()
@@ -269,7 +269,7 @@ defmodule Backpex.LiveResource.Index do
       changeset = changeset_function.(base_schema, %{}, metadata)
 
       socket
-      |> assign(:item, base_schema)
+      |> assign(:form_item, base_schema)
       |> assign(:changeset, changeset)
     else
       assign(socket, :changeset, %{})
@@ -387,7 +387,7 @@ defmodule Backpex.LiveResource.Index do
     socket
     |> assign(:page_title, socket.assigns.live_resource.plural_name())
     |> apply_index()
-    |> assign(:item, nil)
+    |> assign(:form_item, nil)
   end
 
   defp apply_action(socket, :resource_action) do
@@ -409,7 +409,7 @@ defmodule Backpex.LiveResource.Index do
     |> assign(:page_title, ResourceAction.name(action, :title))
     |> assign(:resource_action, action)
     |> assign(:resource_action_id, id)
-    |> assign(:item, item)
+    |> assign(:form_item, item)
     |> apply_index()
     |> assign(:changeset_function, changeset_function)
     |> assign_changeset(changeset_function, item, action.module.fields(), :resource_action)
