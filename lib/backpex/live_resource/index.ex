@@ -2,8 +2,6 @@ defmodule Backpex.LiveResource.Index do
   @moduledoc false
   use BackpexWeb, :html
 
-  import Phoenix.Component
-
   alias Backpex.Adapters.Ecto, as: EctoAdapter
   alias Backpex.LiveResource
   alias Backpex.Resource

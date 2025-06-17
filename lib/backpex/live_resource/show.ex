@@ -2,7 +2,7 @@ defmodule Backpex.LiveResource.Show do
   @moduledoc false
   use BackpexWeb, :html
 
-  import Phoenix.Component
+  import Phoenix.LiveView
 
   alias Backpex.LiveResource
   alias Backpex.Resource
@@ -78,13 +78,19 @@ defmodule Backpex.LiveResource.Show do
     backpex_id = Map.fetch!(params, "backpex_id")
     primary_value = URI.decode(backpex_id)
 
-    item = Resource.get!(primary_value, socket.assigns, live_resource)
+    case Resource.get(primary_value, socket.assigns, live_resource) do
+      {:ok, %{} = item} ->
+        if not live_resource.can?(socket.assigns, :show, item), do: raise(Backpex.ForbiddenError)
 
-    if not live_resource.can?(socket.assigns, :show, item), do: raise(Backpex.ForbiddenError)
+        socket
+        |> assign(:item, item)
+        |> assign(:return_to, Router.get_path(socket, live_resource, params, :show, item))
 
-    socket
-    |> assign(:item, item)
-    |> assign(:return_to, Router.get_path(socket, live_resource, params, :show, item))
+      _ ->
+        socket
+        |> put_flash(:error, "The resource does not exist.")
+        |> push_navigate(to: Router.get_path(socket, live_resource, params, :index))
+    end
   end
 
   defp assign_fields(socket) do
