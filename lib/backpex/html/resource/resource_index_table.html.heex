@@ -3,6 +3,7 @@
     <tr id="row-headers" phx-hook="BackpexStickyActions" class="border-b-2">
       <th :if={Enum.any?(index_item_actions(@item_actions))}>
         <input
+          name="select-all-items"
           phx-click="toggle-item-selection"
           type="checkbox"
           class="checkbox checkbox-sm"
