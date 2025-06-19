@@ -52,7 +52,7 @@ defmodule Demo.MixProject do
       {:gettext, "~> 0.26"},
       {:sentry, "~> 10.8"},
       {:hackney, "~> 1.17", override: true},
-      {:circular_buffer, "~> 0.4.0"},
+      {:circular_buffer, "~> 1.0.0"},
 
       # phoenix
       {:bandit, "~> 1.0"},
