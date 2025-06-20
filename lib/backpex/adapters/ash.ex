@@ -61,7 +61,7 @@ if Code.ensure_loaded?(Ash) do
     """
     @impl Backpex.Adapter
     def delete_all(items, live_resource) do
-      primary_key = live_resource.adapter_config(:primary_key)
+      primary_key = live_resource.config(:primary_key)
       ids = Enum.map(items, &Map.fetch!(&1, primary_key))
 
       result =
