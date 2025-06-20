@@ -42,13 +42,15 @@ defmodule Backpex.ItemActions.Delete do
 
   @impl Backpex.ItemAction
   def handle(socket, items, _data) do
-    {:ok, deleted_items} = Resource.delete_all(items, socket.assigns.live_resource)
+    %{live_resource: live_resource, params: params} = socket.assigns
+    {:ok, deleted_items} = Resource.delete_all(items, live_resource)
 
-    Enum.each(deleted_items, fn deleted_item -> socket.assigns.live_resource.on_item_deleted(socket, deleted_item) end)
+    Enum.each(deleted_items, fn deleted_item -> live_resource.on_item_deleted(socket, deleted_item) end)
 
     socket
     |> clear_flash()
     |> put_flash(:info, success_message(socket.assigns, deleted_items))
+    |> assign(:return_to, Router.get_path(socket, live_resource, params, :index))
     |> ok()
   rescue
     error ->
