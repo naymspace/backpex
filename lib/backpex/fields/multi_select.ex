@@ -128,16 +128,10 @@ defmodule Backpex.Fields.MultiSelect do
     ~H"""
     <div class={[@live_action in [:index, :resource_action] && "truncate"]}>
       {if @selected_labels == [], do: raw("&mdash;")}
-
-      <div class={["flex", @live_action == :show && "flex-wrap"]}>
-        <.intersperse :let={item} enum={@selected_labels}>
-          <:separator>
-            ,&nbsp;
-          </:separator>
-          <p>
-            {HTML.pretty_value(item)}
-          </p>
-        </.intersperse>
+      <div class="space-x-1">
+        <div :for={item <- @selected_labels} class="badge badge-sm badge-soft badge-primary">
+          <span>{HTML.pretty_value(item)}</span>
+        </div>
       </div>
     </div>
     """

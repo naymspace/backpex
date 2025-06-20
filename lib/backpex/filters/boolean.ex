@@ -45,7 +45,7 @@ defmodule Backpex.Filters.Boolean do
   @doc """
   The list of options for the select filter.
   """
-  @callback options :: [map()]
+  @callback options(assigns :: map()) :: [map()]
 
   defmacro __using__(_opts) do
     quote do
@@ -57,23 +57,23 @@ defmodule Backpex.Filters.Boolean do
       @behaviour Backpex.Filters.Boolean
 
       @impl Backpex.Filter
-      def query(query, attribute, value) do
-        BooleanFilter.query(query, options(), attribute, value)
+      def query(query, attribute, value, assigns) do
+        BooleanFilter.query(query, options(assigns), attribute, value, assigns)
       end
 
       @impl Backpex.Filter
       def render(assigns) do
-        assigns = assign(assigns, :options, options())
+        assigns = assign(assigns, :options, options(assigns))
         BooleanFilter.render(assigns)
       end
 
       @impl Backpex.Filter
       def render_form(assigns) do
-        assigns = assign(assigns, :options, options())
+        assigns = assign(assigns, :options, options(assigns))
         BooleanFilter.render_form(assigns)
       end
 
-      defoverridable query: 3, render: 1, render_form: 1
+      defoverridable query: 4, render: 1, render_form: 1
     end
   end
 
@@ -124,9 +124,9 @@ defmodule Backpex.Filters.Boolean do
     """
   end
 
-  def query(query, _options, _attribute, []), do: query
+  def query(query, _options, _attribute, [], _assigns), do: query
 
-  def query(query, options, _attribute, value) do
+  def query(query, options, _attribute, value, _assigns) do
     Enum.reduce(value, nil, fn
       v, nil ->
         Map.get(predicates(options), v)

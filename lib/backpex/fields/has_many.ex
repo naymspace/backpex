@@ -123,16 +123,7 @@ defmodule Backpex.Fields.HasMany do
           <:separator>
             ,&nbsp;
           </:separator>
-          <.item
-            socket={@socket}
-            field={@field}
-            field_options={@field_options}
-            params={@params}
-            live_resource={@live_resource}
-            live_action={@live_action}
-            item={item}
-            link_assocs={@link_assocs}
-          />
+          <.item item={item} {assigns} />
         </.intersperse>
       </div>
     </div>
@@ -161,7 +152,10 @@ defmodule Backpex.Fields.HasMany do
                 {@prompt}
               </p>
 
-              <div :for={{label, value} <- @selected} class="badge badge-sm badge-primary pointer-events-auto pr-0">
+              <div
+                :for={{label, value} <- @selected}
+                class="badge badge-sm badge-soft badge-primary pointer-events-auto pr-0"
+              >
                 <span>{label}</span>
                 <label
                   class="flex cursor-pointer items-center pr-2"
@@ -169,12 +163,12 @@ defmodule Backpex.Fields.HasMany do
                   for={"has-many-#{@name}-checkbox-value-#{value}"}
                   aria-label={Backpex.__({"Unselect %{label}", %{label: label}}, @live_resource)}
                 >
-                  <Backpex.HTML.CoreComponents.icon name="hero-x-mark" class="text-primary-content size-4" />
+                  <Backpex.HTML.CoreComponents.icon name="hero-x-mark" class="size-4 scale-105 hover:scale-110" />
                 </label>
               </div>
             </div>
           </label>
-          <Form.error :for={msg <- @errors}>{msg}</Form.error>
+          <Form.error :for={msg <- @errors} class="mt-1">{msg}</Form.error>
           <div tabindex="0" class="dropdown-content z-[1] menu bg-base-100 rounded-box w-full overflow-y-auto shadow">
             <div class="max-h-72 p-2">
               <input
@@ -206,7 +200,7 @@ defmodule Backpex.Fields.HasMany do
                 </span>
               </label>
 
-              <input type="hidden" id={"has-many-#{@name}-hidden-input"} name={"#{@form[@name].name}[]"} value="" />
+              <input class="hidden" id={"has-many-#{@name}-hidden-input"} name={"#{@form[@name].name}[]"} value="" />
 
               <input
                 :for={value <- @selected_ids}
