@@ -230,6 +230,14 @@ defmodule Backpex.Field do
 
       use BackpexWeb, :field
 
+      @doc """
+      Returns the schema of configurable options for this field.
+
+      This can be useful for reuse in other field modules.
+      """
+      def config_schema, do: @config_schema
+
+      @doc false
       def validate_config!({name, options} = _field, live_resource) do
         field_options = Keyword.new(options)
 
