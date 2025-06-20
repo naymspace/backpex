@@ -31,7 +31,7 @@ if Code.ensure_loaded?(Ash) do
     @impl Backpex.Adapter
     def get(primary_value, _assigns, live_resource) do
       resource = live_resource.adapter_config(:resource)
-      primary_key = live_resource.adapter_config(:primary_key)
+      primary_key = live_resource.config(:primary_key)
 
       resource
       |> Ash.Query.filter(^Ash.Expr.ref(primary_key) == ^primary_value)
