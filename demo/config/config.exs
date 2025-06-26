@@ -52,7 +52,7 @@ config :esbuild,
   ]
 
 config :tailwind,
-  version: "4.1.10",
+  version: "4.1.11",
   default: [
     args: ~w(
       --input=assets/css/app.css
