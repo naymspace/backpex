@@ -85,14 +85,13 @@ defmodule Demo.EctoFactory do
   def film_review_factory do
     %FilmReview{
       title: Faker.Lorem.word(),
-      overview: Faker.Lorem.paragraph(),
+      overview: Faker.Lorem.paragraph()
     }
   end
 
   defp boolean do
     Enum.random(0..1) == 1
   end
-
 
   defp generate_social_links do
     labels =

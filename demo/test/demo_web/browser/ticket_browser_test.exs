@@ -21,7 +21,7 @@ defmodule DemoWeb.Browser.TicketBrowserTest do
 
   describe "tickets show" do
     test "a11y", %{conn: conn} do
-       ticket = insert!(Ticket)
+      ticket = insert!(Ticket)
 
       conn
       |> visit(~p"/admin/tickets/#{ticket.id}/show")
