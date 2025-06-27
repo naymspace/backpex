@@ -860,16 +860,14 @@ defmodule Backpex.HTML.Resource do
       <div class="card bg-base-100 mt-4 shadow-sm">
         <div class="card-body p-0">
           <div class="flex flex-col sm:divide-base-200 sm:divide-y">
-            <dl :for={{name, %{label: label}} <- @panel_fields}>
+            <div :for={{name, %{label: label}} <- @panel_fields}>
               <.field_container>
                 <:label>
-                  <.input_label as="dt" text={label} />
+                  <.input_label as="span" text={label} />
                 </:label>
-                <dd>
-                  <.resource_field name={name} {assigns} />
-                </dd>
+                <.resource_field name={name} {assigns} />
               </.field_container>
-            </dl>
+            </div>
           </div>
         </div>
       </div>

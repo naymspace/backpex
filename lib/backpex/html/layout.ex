@@ -492,7 +492,7 @@ defmodule Backpex.HTML.Layout do
   """
   @doc type: :component
 
-  attr :class, :string, default: "", doc: "extra classes to be added"
+  attr :class, :any, default: nil, doc: "extra classes to be added"
 
   slot :label, required: true do
     attr :align, :atom, values: [:top, :center, :bottom]
@@ -501,16 +501,22 @@ defmodule Backpex.HTML.Layout do
   slot :inner_block
 
   def field_container(assigns) do
-    ~H"""
-    <div class={"#{@class} flex flex-col items-stretch space-y-2 px-6 py-4 sm:flex-row sm:space-y-0 sm:py-3"}>
-      <div :for={label <- @label} class={"#{get_align_class(label[:align])} hyphens-auto break-words pr-2 sm:w-1/4"}>
-        {render_slot(@label)}
-      </div>
+    assigns =
+      update(assigns, :label, fn
+        [label] -> label
+        _other -> raise ArgumentError, "Expected a single label slot, got: #{inspect(assigns.label)}"
+      end)
 
-      <div class="w-full sm:w-3/4">
+    ~H"""
+    <dl class={["flex flex-col items-stretch space-y-2 px-6 py-4 sm:flex-row sm:space-y-0 sm:py-3", @class]}>
+      <dt class={["hyphens-auto break-words pr-2 sm:w-1/4", get_align_class(@label[:align])]}>
+        {render_slot(@label)}
+      </dt>
+
+      <dd class="w-full sm:w-3/4">
         {render_slot(@inner_block)}
-      </div>
-    </div>
+      </dd>
+    </dl>
     """
   end
 
