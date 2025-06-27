@@ -232,7 +232,7 @@ jobs:
 
       - name: Install playwright
         working-directory: demo
-        run: yarn playwright install chromium --with-deps
+        run: yarn playwright install chromium --with-deps --only-shell
 
       - name: Run playwright test
         working-directory: demo
