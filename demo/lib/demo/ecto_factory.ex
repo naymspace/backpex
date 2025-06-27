@@ -23,16 +23,6 @@ defmodule Demo.EctoFactory do
     }
   end
 
-  def generate_social_links do
-    labels =
-      ["Facebook", "LinkedIn", "Twitter", "YouTube", "TikTok", "Snapchat", "Instagram", "Pinterest"]
-      |> Enum.shuffle()
-
-    for index <- 0..Enum.random(0..3) do
-      %{label: Enum.at(labels, index), url: "https://example.com/"}
-    end
-  end
-
   def category_factory do
     %Category{
       name: Faker.Team.name()
@@ -93,5 +83,16 @@ defmodule Demo.EctoFactory do
 
   defp boolean do
     Enum.random(0..1) == 1
+  end
+
+
+  defp generate_social_links do
+    labels =
+      ["Facebook", "LinkedIn", "Twitter", "YouTube", "TikTok", "Snapchat", "Instagram", "Pinterest"]
+      |> Enum.shuffle()
+
+    for index <- 0..Enum.random(0..3) do
+      %{label: Enum.at(labels, index), url: "https://example.com/"}
+    end
   end
 end
