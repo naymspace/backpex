@@ -5,6 +5,7 @@ defmodule Demo.EctoFactory do
 
   alias Demo.Address
   alias Demo.Category
+  alias Demo.FilmReview
   alias Demo.Post
   alias Demo.Product
   alias Demo.ShortLink
@@ -82,8 +83,8 @@ defmodule Demo.EctoFactory do
   end
 
   def film_review_factory do
-    %{
-      title: Faker.Movie.title(),
+    %FilmReview{
+      title: Faker.Lorem.word(),
       overview: Faker.Lorem.paragraph(),
     }
   end
