@@ -34,12 +34,12 @@ defmodule Backpex.HTML.Layout do
       <input id="menu-drawer" type="checkbox" class="drawer-toggle" />
       <div class="drawer-content">
         <div class="bg-base-200 fixed inset-0 -z-10 h-full w-full"></div>
-        <div class={[
+        <ul class={[
           "menu hidden overflow-y-scroll px-2 pt-5 pb-4 md:fixed md:inset-y-0 md:mt-16 md:block md:w-64",
           build_slot_class(@sidebar)
         ]}>
           {render_slot(@sidebar)}
-        </div>
+        </ul>
 
         <div class={["flex flex-1 flex-col", length(@sidebar) > 0 && "md:pl-64"]}>
           <div class="fixed top-0 z-30 block w-full md:-ml-64">
@@ -61,12 +61,12 @@ defmodule Backpex.HTML.Layout do
       </div>
       <div class="drawer-side z-40">
         <label for="menu-drawer" class="drawer-overlay"></label>
-        <div class={[
+        <ul class={[
           "bg-base-100 menu min-h-full w-64 flex-1 flex-col overflow-y-auto px-2 pt-5 pb-4",
           build_slot_class(@sidebar)
         ]}>
           {render_slot(@sidebar)}
-        </div>
+        </ul>
       </div>
     </div>
     """
