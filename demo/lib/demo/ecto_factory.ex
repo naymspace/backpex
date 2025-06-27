@@ -81,6 +81,13 @@ defmodule Demo.EctoFactory do
     }
   end
 
+  def film_review_factory do
+    %{
+      title: Faker.Movie.title(),
+      overview: Faker.Lorem.paragraph(),
+    }
+  end
+
   defp boolean do
     Enum.random(0..1) == 1
   end
