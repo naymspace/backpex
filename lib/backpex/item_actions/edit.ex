@@ -24,6 +24,6 @@ defmodule Backpex.ItemActions.Edit do
   def handle(socket, [item | _items], _data) do
     path = Router.get_path(socket, socket.assigns.live_resource, socket.assigns.params, :edit, item)
 
-    {:ok, Phoenix.LiveView.push_patch(socket, to: path)}
+    {:ok, Phoenix.LiveView.push_navigate(socket, to: path)}
   end
 end

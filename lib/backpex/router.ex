@@ -1,3 +1,4 @@
+# credo:disable-for-this-file Credo.Check.Warning.UnsafeToAtom
 defmodule Backpex.Router do
   @moduledoc """
   Provides LiveView routing for Backpex resources.
@@ -41,15 +42,24 @@ defmodule Backpex.Router do
       path = unquote(path)
       live_resource = unquote(live_resource)
 
-      if Enum.member?(actions, :index), do: live("#{path}/", live_resource, :index)
-      if Enum.member?(actions, :new), do: live("#{path}/new", live_resource, :new)
-      if Enum.member?(actions, :edit), do: live("#{path}/:backpex_id/edit", live_resource, :edit)
-      if Enum.member?(actions, :show), do: live("#{path}/:backpex_id/show", live_resource, :show)
+      if Enum.member?(actions, :index), do: live("#{path}/", String.to_atom("#{live_resource}.Index"), :index)
+      if Enum.member?(actions, :new), do: live("#{path}/new", String.to_atom("#{live_resource}.Form"), :new)
+
+      if Enum.member?(actions, :edit),
+        do: live("#{path}/:backpex_id/edit", String.to_atom("#{live_resource}.Form"), :edit)
+
+      if Enum.member?(actions, :show),
+        do: live("#{path}/:backpex_id/show", String.to_atom("#{live_resource}.Show"), :show)
 
       resource_module = Phoenix.Router.scoped_alias(__MODULE__, live_resource)
 
-      if Router.has_resource_actions?(__MODULE__, live_resource),
-        do: live("#{path}/:backpex_id/resource-action", live_resource, :resource_action)
+      if Router.has_resource_actions?(__MODULE__, live_resource) do
+        live(
+          "#{path}/:backpex_id/resource-action",
+          String.to_atom("#{live_resource}.Index"),
+          :resource_action
+        )
+      end
     end
   end
 
@@ -162,9 +172,11 @@ defmodule Backpex.Router do
   defp maybe_put_query_params(path, encoded_query_params), do: path <> "?" <> encoded_query_params
 
   defp get_route_path(socket, module, action) do
+    action_module = action_module(module, action)
+
     route =
       Enum.find(Map.get(socket, :router).__routes__(), fn element ->
-        element[:metadata][:log_module] == module and element[:plug_opts] == action
+        element[:metadata][:log_module] == action_module and element[:plug_opts] == action
       end)
 
     case route do
@@ -173,10 +185,22 @@ defmodule Backpex.Router do
 
       nil ->
         raise ArgumentError, """
-        Could not find route for #{inspect(module)} with action #{inspect(action)}.
+        Could not find route for #{inspect(action_module)} with action #{inspect(action)}.
         Make sure you have defined the route in your router.
         """
     end
+  end
+
+  defp action_module(module, :resource_action), do: action_module(module, :index)
+
+  defp action_module(module, action) when action in [:edit, :new], do: action_module(module, :form)
+
+  defp action_module(module, action) do
+    action
+    |> to_string()
+    |> String.capitalize()
+    |> then(fn a -> to_string(module) <> "." <> a end)
+    |> String.to_existing_atom()
   end
 
   @doc """

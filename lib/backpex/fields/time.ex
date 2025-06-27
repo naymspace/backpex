@@ -126,6 +126,7 @@ defmodule Backpex.Fields.Time do
     <div>
       <.form for={@form} phx-change="update-field" phx-submit="update-field" phx-target={@myself}>
         <BackpexForm.input
+          id={"index-form-input-#{@name}-#{LiveResource.primary_value(@item, @live_resource)}"}
           type="time"
           field={@form[:value]}
           input_class={["input input-sm w-32", @valid && "not-hover:input-ghost", !@valid && "input-error"]}

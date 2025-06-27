@@ -34,7 +34,7 @@ defmodule Demo.MixProject do
   defp deps do
     [
       # development
-      {:ex_doc, "~> 0.37", only: [:dev, :test], runtime: false},
+      {:ex_doc, "~> 0.38", only: [:dev, :test], runtime: false},
       {:credo, "~> 1.7.5", only: [:dev, :test], runtime: false},
       {:sobelow, "~> 0.13", only: [:dev, :test]},
       {:mix_audit, "~> 2.0", only: [:dev, :test], runtime: false},
@@ -71,7 +71,7 @@ defmodule Demo.MixProject do
       {:csv, "~> 3.2.0"},
       {:jason, ">= 1.0.0"},
       {:ash, "~> 3.0"},
-      {:ash_postgres, "~> 2.5.0"},
+      {:ash_postgres, "~> 2.6.0"},
 
       # assets
       {:esbuild, "~> 0.9", runtime: Mix.env() == :dev},
