@@ -2,5 +2,5 @@
 
 Application.put_env(:phoenix_test, :base_url, DemoWeb.Endpoint.url())
 
-ExUnit.configure(exclude: [external: true])
+ExUnit.configure(exclude: [playwright: true])
 ExUnit.start()

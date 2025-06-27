@@ -230,14 +230,14 @@ jobs:
           DB_DATABASE: test
         run: yarn test
 
-      - name: Run external test
+      - name: Run playwright test
         working-directory: demo
         env:
           DB_HOSTNAME: localhost
           DB_USERNAME: postgres
           DB_PASSWORD: postgres
           DB_DATABASE: test
-        run: yarn test:external
+        run: yarn test:playwright
         continue-on-error: true
 
       - name: Deps audit
