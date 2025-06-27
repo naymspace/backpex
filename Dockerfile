@@ -54,13 +54,16 @@ COPY demo/config/config.exs demo/config/${MIX_ENV}.exs config/
 RUN mix do deps.compile
 
 COPY demo/priv priv/
-
 COPY demo/package.json demo/yarn.lock demo/.stylelintrc.json ./
+
 RUN yarn install --pure-lockfile
+
 COPY demo/assets assets/
 COPY demo/lib lib/
+
 COPY assets ../assets/
 COPY package.json ../
+
 RUN mix assets.deploy
 
 # Copy the rest of the application files

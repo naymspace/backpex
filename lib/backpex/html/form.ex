@@ -35,14 +35,11 @@ defmodule Backpex.HTML.Form do
   attr :rest, :global, include: ~w(accept autocomplete capture cols disabled form list max maxlength min minlength
                 multiple pattern placeholder readonly required rows size step)
 
-  attr :class, :any, default: nil, doc: "additional class for the container"
-  attr :input_class, :any, default: nil, doc: "additional class for the input element"
+  attr :class, :any, default: nil, doc: "additional classes for the container element"
+  attr :input_class, :any, default: nil, doc: "the input class to use over defaults"
+  attr :error_class, :any, default: nil, doc: "the input error class to use over defaults"
 
-  attr :input_wrapper_class, :any,
-    default: nil,
-    doc: "additional class for the input wrapper element, currently only used in select type"
-
-  attr :translate_error_fun, :any, default: &Function.identity/1, doc: "TODO"
+  attr :translate_error_fun, :any, default: &Function.identity/1, doc: "a custom function to map form errors"
   attr :hide_errors, :boolean, default: false, doc: "if errors should be hidden"
 
   slot :inner_block
@@ -62,43 +59,21 @@ defmodule Backpex.HTML.Form do
     assigns = assign_new(assigns, :checked, fn -> Form.normalize_value("checkbox", assigns.value) end)
 
     ~H"""
-    <div class={@class}>
-      <fieldset class="fieldset py-0">
-        <%= if @label do %>
-          <label class="label cursor-pointer">
-            <input type="hidden" name={@name} value="false" />
-            <input
-              type="checkbox"
-              id={@id}
-              name={@name}
-              value="true"
-              checked={@checked}
-              class={
-                @input_class ||
-                  ["checkbox checkbox-sm", @errors == [] && "checkbox-primary", @errors != [] && "checkbox-error"]
-              }
-              {@rest}
-            />
-            <span class="label-text ml-2">{@label}</span>
-          </label>
-        <% else %>
-          <input type="hidden" name={@name} value="false" />
-          <input
-            type="checkbox"
-            id={@id}
-            name={@name}
-            value="true"
-            checked={@checked}
-            class={
-              @input_class ||
-                ["checkbox checkbox-sm", @errors == [] && "checkbox-primary", @errors != [] && "checkbox-error"]
-            }
-            {@rest}
-          />
-        <% end %>
-      </fieldset>
-      <.error :for={msg <- @errors} :if={not @hide_errors} class="mt-1">{msg}</.error>
-      <.help_text :if={@help_text} class="mt-1">{@help_text}</.help_text>
+    <div class={["fieldset py-0", @class]}>
+      <label class="label cursor-pointer">
+        <input type="hidden" name={@name} value="false" />
+        <input
+          type="checkbox"
+          id={@id}
+          name={@name}
+          value="true"
+          checked={@checked}
+          class={[@input_class || "checkbox checkbox-primary", @errors != [] && (@error_class || "!checkbox-error")]}
+          {@rest}
+        />{@label}
+      </label>
+      <.error :for={msg <- @errors} :if={not @hide_errors}>{msg}</.error>
+      <.help_text :if={@help_text}>{@help_text}</.help_text>
     </div>
     """
   end
@@ -107,109 +82,84 @@ defmodule Backpex.HTML.Form do
     assigns = assign_new(assigns, :checked, fn -> Form.normalize_value("checkbox", assigns.value) end)
 
     ~H"""
-    <div class={@class}>
-      <fieldset class="fieldset py-0">
-        <%= if @label do %>
-          <label class="label cursor-pointer">
-            <input type="hidden" name={@name} value="false" />
-            <input
-              type="checkbox"
-              id={@id}
-              name={@name}
-              value="true"
-              checked={@checked}
-              class={@input_class || ["toggle", @errors == [] && "toggle-primary", @errors != [] && "toggle-error"]}
-              {@rest}
-            />
-            <span class="label-text ml-2">{@label}</span>
-          </label>
-        <% else %>
-          <input type="hidden" name={@name} value="false" />
-          <input
-            type="checkbox"
-            id={@id}
-            name={@name}
-            value="true"
-            checked={@checked}
-            class={@input_class || ["toggle", @errors == [] && "toggle-primary", @errors != [] && "toggle-error"]}
-            {@rest}
-          />
-        <% end %>
-      </fieldset>
-      <.error :for={msg <- @errors} :if={not @hide_errors} class="mt-1">{msg}</.error>
-      <.help_text :if={@help_text} class="mt-1">{@help_text}</.help_text>
+    <div class={["fieldset py-0", @class]}>
+      <label class="label cursor-pointer">
+        <input type="hidden" name={@name} value="false" />
+        <input
+          type="checkbox"
+          id={@id}
+          name={@name}
+          value="true"
+          checked={@checked}
+          class={[@input_class || "toggle toggle-primary", @errors != [] && (@error_class || "!toggle-error")]}
+          {@rest}
+        />{@label}
+      </label>
+      <.error :for={msg <- @errors} :if={not @hide_errors}>{msg}</.error>
+      <.help_text :if={@help_text}>{@help_text}</.help_text>
     </div>
     """
   end
 
   def input(%{type: "select"} = assigns) do
     ~H"""
-    <div class={@class}>
-      <fieldset class="fieldset py-0">
-        <label :if={@label} class="label">
-          <span class="label-text">{@label}</span>
-        </label>
-        <div class={
-          @input_wrapper_class ||
-            [
-              "[&>*]:w-full [&>*]:select",
-              @errors == [] && "[&>*]:text-base-content",
-              @errors != [] && "[&>*]:select-error [&>*]:bg-error/10 [&>*]:text-error-content"
-            ]
-        }>
-          <select id={@id} class={@input_class} name={@name} {@rest}>
-            <option :if={@prompt} value="">{@prompt}</option>
-            {Phoenix.HTML.Form.options_for_select(@options, @value)}
-          </select>
-        </div>
-      </fieldset>
-      <.error :for={msg <- @errors} :if={not @hide_errors} class="mt-1">{msg}</.error>
-      <.help_text :if={@help_text} class="mt-1">{@help_text}</.help_text>
+    <div class={["fieldset py-0", @class]}>
+      <label>
+        <span :if={@label} class="label mb-1">{@label}</span>
+        <select
+          id={@id}
+          name={@name}
+          class={[
+            @input_class || "select w-full",
+            @errors != [] && (@error_class || "select-error text-error-content bg-error/10")
+          ]}
+          multiple={@multiple}
+          {@rest}
+        >
+          <option :if={@prompt} value="">{@prompt}</option>
+          {Phoenix.HTML.Form.options_for_select(@options, @value)}
+        </select>
+      </label>
+      <.error :for={msg <- @errors} :if={not @hide_errors}>{msg}</.error>
+      <.help_text :if={@help_text}>{@help_text}</.help_text>
     </div>
     """
   end
 
   def input(%{type: "textarea"} = assigns) do
     ~H"""
-    <div class={@class}>
-      <fieldset class="fieldset py-0">
-        <label :if={@label} class="label">
-          <span class="label-text">{@label}</span>
-        </label>
+    <div class={["fieldset py-0", @class]}>
+      <label>
+        <span :if={@label} class="label mb-1">{@label}</span>
         <textarea
           id={@id}
           name={@name}
-          class={
-            @input_class ||
-              ["textarea w-full", @errors == [] && "textarea-bordered", @errors != [] && "textarea-error bg-error/10"]
-          }
+          class={[@input_class || "textarea w-full", @errors != [] && (@error_class || "textarea-error bg-error/10")]}
           {@rest}
-        ><%= Phoenix.HTML.Form.normalize_value("textarea", @value) %></textarea>
-      </fieldset>
-      <.error :for={msg <- @errors} :if={not @hide_errors} class="mt-1">{msg}</.error>
-      <.help_text :if={@help_text} class="mt-1">{@help_text}</.help_text>
+        >{Phoenix.HTML.Form.normalize_value("textarea", @value)}</textarea>
+      </label>
+      <.error :for={msg <- @errors} :if={not @hide_errors}>{msg}</.error>
+      <.help_text :if={@help_text}>{@help_text}</.help_text>
     </div>
     """
   end
 
   def input(assigns) do
     ~H"""
-    <div class={[@class]}>
-      <fieldset class="fieldset py-0">
-        <label :if={@label} class="label">
-          <span class="label-text">{@label}</span>
-        </label>
+    <div class={["fieldset py-0", @class]}>
+      <label>
+        <span :if={@label} class="label mb-1">{@label}</span>
         <input
           type={@type}
           name={@name}
           id={@id}
           value={Phoenix.HTML.Form.normalize_value(@type, @value)}
-          class={@input_class || ["input w-full text-base", @input_class, @errors != [] && "input-error bg-error/10"]}
+          class={[@input_class || "input w-full", @errors != [] && (@error_class || "input-error bg-error/10")]}
           {@rest}
         />
-      </fieldset>
-      <.error :for={msg <- @errors} :if={not @hide_errors} class="mt-1">{msg}</.error>
-      <.help_text :if={@help_text} class="mt-1">{@help_text}</.help_text>
+      </label>
+      <.error :for={msg <- @errors} :if={not @hide_errors}>{msg}</.error>
+      <.help_text :if={@help_text}>{@help_text}</.help_text>
     </div>
     """
   end
