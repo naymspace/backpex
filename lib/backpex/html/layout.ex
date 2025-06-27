@@ -34,12 +34,12 @@ defmodule Backpex.HTML.Layout do
       <input id="menu-drawer" type="checkbox" class="drawer-toggle" />
       <div class="drawer-content">
         <div class="bg-base-200 fixed inset-0 -z-10 h-full w-full"></div>
-        <div class={[
+        <ul class={[
           "menu hidden overflow-y-scroll px-2 pt-5 pb-4 md:fixed md:inset-y-0 md:mt-16 md:block md:w-64",
           build_slot_class(@sidebar)
         ]}>
           {render_slot(@sidebar)}
-        </div>
+        </ul>
 
         <div class={["flex flex-1 flex-col", length(@sidebar) > 0 && "md:pl-64"]}>
           <div class="fixed top-0 z-30 block w-full md:-ml-64">
@@ -61,12 +61,12 @@ defmodule Backpex.HTML.Layout do
       </div>
       <div class="drawer-side z-40">
         <label for="menu-drawer" class="drawer-overlay"></label>
-        <div class={[
+        <ul class={[
           "bg-base-100 menu min-h-full w-64 flex-1 flex-col overflow-y-auto px-2 pt-5 pb-4",
           build_slot_class(@sidebar)
         ]}>
           {render_slot(@sidebar)}
-        </div>
+        </ul>
       </div>
     </div>
     """
@@ -381,7 +381,9 @@ defmodule Backpex.HTML.Layout do
   def topbar_dropdown(assigns) do
     ~H"""
     <div class={["dropdown dropdown-end", @class]}>
-      {render_slot(@label)}
+      <div tabindex="0" role="button">
+        {render_slot(@label)}
+      </div>
       <ul tabindex="0" class="dropdown-content z-[1] menu bg-base-100 rounded-box w-52 p-2 shadow">
         {render_slot(@inner_block)}
       </ul>
@@ -490,7 +492,7 @@ defmodule Backpex.HTML.Layout do
   """
   @doc type: :component
 
-  attr :class, :string, default: "", doc: "extra classes to be added"
+  attr :class, :any, default: nil, doc: "extra classes to be added"
 
   slot :label, required: true do
     attr :align, :atom, values: [:top, :center, :bottom]
@@ -499,16 +501,22 @@ defmodule Backpex.HTML.Layout do
   slot :inner_block
 
   def field_container(assigns) do
-    ~H"""
-    <div class={"#{@class} flex flex-col items-stretch space-y-2 px-6 py-4 sm:flex-row sm:space-y-0 sm:py-3"}>
-      <div :for={label <- @label} class={"#{get_align_class(label[:align])} hyphens-auto break-words pr-2 sm:w-1/4"}>
-        {render_slot(@label)}
-      </div>
+    assigns =
+      update(assigns, :label, fn
+        [label] -> label
+        _other -> raise ArgumentError, "Expected a single label slot, got: #{inspect(assigns.label)}"
+      end)
 
-      <div class="w-full sm:w-3/4">
+    ~H"""
+    <dl class={["flex flex-col items-stretch space-y-2 px-6 py-4 sm:flex-row sm:space-y-0 sm:py-3", @class]}>
+      <dt class={["hyphens-auto break-words pr-2 sm:w-1/4", get_align_class(@label[:align])]}>
+        {render_slot(@label)}
+      </dt>
+
+      <dd class="w-full sm:w-3/4">
         {render_slot(@inner_block)}
-      </div>
-    </div>
+      </dd>
+    </dl>
     """
   end
 
@@ -582,13 +590,22 @@ defmodule Backpex.HTML.Layout do
   """
   @doc type: :component
 
+  attr :as, :string, default: "label", doc: "html tag name"
   attr :text, :string, doc: "text of the label"
+  attr :for, :any, default: nil, doc: "form element the label is bound to"
+  attr :rest, :global
 
   def input_label(assigns) do
+    assigns =
+      case assigns.for do
+        field = %Phoenix.HTML.FormField{} -> assign(assigns, :rest, Map.put(assigns.rest, :for, field.id))
+        id -> assign(assigns, :rest, Map.put(assigns.rest, :for, id))
+      end
+
     ~H"""
-    <p class="text-content block break-words text-sm font-medium">
+    <.dynamic_tag tag_name={@as} class="text-content block break-words text-sm font-medium" {@rest}>
       {@text}
-    </p>
+    </.dynamic_tag>
     """
   end
 
