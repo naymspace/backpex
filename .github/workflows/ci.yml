@@ -179,8 +179,7 @@ jobs:
         if: steps.restore-cache.outputs.cache-hit != 'true'
         working-directory: demo
         run: mix deps.get
-          
-  
+
       - name: Compile dependencies
         if: steps.restore-cache.outputs.cache-hit != 'true'
         working-directory: demo
@@ -230,6 +229,20 @@ jobs:
           DB_PASSWORD: postgres
           DB_DATABASE: test
         run: yarn test
+
+      - name: Install playwright
+        working-directory: demo
+        run: yarn playwright install chromium --with-deps --only-shell
+
+      - name: Run playwright test
+        working-directory: demo
+        env:
+          DB_HOSTNAME: localhost
+          DB_USERNAME: postgres
+          DB_PASSWORD: postgres
+          DB_DATABASE: test
+        run: yarn test:playwright
+        continue-on-error: true
 
       - name: Deps audit
         working-directory: demo
