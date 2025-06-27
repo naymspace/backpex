@@ -230,6 +230,10 @@ jobs:
           DB_DATABASE: test
         run: yarn test
 
+      - name: Install playwright
+        working-directory: demo
+        run: yarn playwright install chromium --with-deps
+
       - name: Run playwright test
         working-directory: demo
         env:

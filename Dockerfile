@@ -57,7 +57,6 @@ COPY demo/priv priv/
 COPY demo/package.json demo/yarn.lock demo/.stylelintrc.json ./
 
 RUN yarn install --pure-lockfile
-RUN yarn playwright install chromium --with-deps
 
 COPY demo/assets assets/
 COPY demo/lib lib/
