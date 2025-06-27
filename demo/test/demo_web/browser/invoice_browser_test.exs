@@ -3,6 +3,8 @@ defmodule DemoWeb.Browser.InvoiceBrowserTest do
   use DemoWeb, :verified_routes
   use DemoWeb.A11yAssertions
 
+  @moduletag :playwright
+
   describe "invoices index" do
     test "a11y", %{conn: conn} do
       conn
