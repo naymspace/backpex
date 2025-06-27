@@ -122,7 +122,7 @@ defmodule Backpex.Adapters.Ecto do
     |> maybe_preload(associations, fields)
     |> maybe_merge_dynamic_fields(fields)
     |> apply_search(config[:schema], full_text_search, criteria[:search])
-    |> apply_filters(criteria[:filters], Backpex.LiveResource.empty_filter_key())
+    |> apply_filters(criteria[:filters], Backpex.LiveResource.empty_filter_key(), assigns)
     |> apply_criteria(criteria, fields)
   end
 
@@ -170,15 +170,15 @@ defmodule Backpex.Adapters.Ecto do
     dynamic(^field_options.module.search_condition(schema_name, field_name, search_string))
   end
 
-  def apply_filters(query, [], _empty_filter_key), do: query
+  def apply_filters(query, [], _empty_filter_key, _assigns), do: query
 
-  def apply_filters(query, filters, empty_filter_key) do
+  def apply_filters(query, filters, empty_filter_key, assigns) do
     Enum.reduce(filters, query, fn
       %{field: ^empty_filter_key} = _filter, acc ->
         acc
 
       %{field: field, value: value, filter_config: filter_config} = _filter, acc ->
-        filter_config.module.query(acc, field, value)
+        filter_config.module.query(acc, field, value, assigns)
     end)
   end
 
