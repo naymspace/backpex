@@ -36,7 +36,7 @@ defmodule Backpex.MixProject do
   defp deps do
     [
       # development
-      {:ex_doc, "~> 0.37", only: [:dev, :test], runtime: false},
+      {:ex_doc, "~> 0.38", only: [:dev, :test], runtime: false},
       {:makeup_eex, "~> 2.0", only: [:dev, :test], runtime: false},
       {:makeup_syntect, "~> 0.1.3", only: [:dev, :test], runtime: false},
       {:credo, ">= 0.0.0", only: [:dev, :test], runtime: false},
@@ -181,6 +181,7 @@ defmodule Backpex.MixProject do
       "guides/translations/translations.md",
 
       # Upgrade Guides
+      "guides/upgrading/v0.14.md",
       "guides/upgrading/v0.13.md",
       "guides/upgrading/v0.12.md",
       "guides/upgrading/v0.11.md",

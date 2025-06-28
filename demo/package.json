@@ -2,6 +2,7 @@
   "private": true,
   "scripts": {
     "test": "env $(cat .env.test | xargs) mix test",
+    "test:playwright": "env $(cat .env.test | xargs) mix test --include playwright:true",
     "erd": "env $(cat .env.test | xargs) mix ecto.gen.erd --output-path=ecto_erd.puml",
     "doctest": "env $(cat .env.test | xargs) mix test test/doc_test.exs",
     "lint": "run-p lint:*",
@@ -19,11 +20,12 @@
     "gettext": "mix gettext.extract --merge"
   },
   "devDependencies": {
-    "@sentry/browser": "9.14.0",
+    "@sentry/browser": "9.29.0",
     "npm-run-all2": "7.0.2",
-    "postcss": "8.5.3",
+    "playwright": "1.52.0",
+    "postcss": "8.5.6",
     "standard": "17.1.2",
-    "stylelint": "16.19.1",
+    "stylelint": "16.20.0",
     "stylelint-config-standard": "38.0.0",
     "topbar": "3.0.0"
   },
