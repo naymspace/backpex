@@ -423,42 +423,12 @@ defmodule Backpex.LiveResource.Index do
     fields = live_resource.validated_fields() |> LiveResource.filtered_fields_by_action(socket.assigns, :index)
 
     per_page_options = live_resource.config(:per_page_options)
-    per_page_default = live_resource.config(:per_page_default)
     init_order = live_resource.config(:init_order)
 
     filters = LiveResource.active_filters(socket.assigns)
-    valid_filter_params = LiveResource.get_valid_filters_from_params(params, filters, LiveResource.empty_filter_key())
-
-    adapter_config = live_resource.config(:adapter_config)
-
-    count_criteria = [
-      search: LiveResource.search_options(params, fields, adapter_config[:schema]),
-      filters: LiveResource.filter_options(valid_filter_params, filters)
-    ]
-
-    {:ok, item_count} = Resource.count(count_criteria, socket.assigns, live_resource)
-
-    per_page =
-      params
-      |> LiveResource.parse_integer("per_page", per_page_default)
-      |> LiveResource.value_in_permitted_or_default(per_page_options, per_page_default)
-
-    total_pages = LiveResource.calculate_total_pages(item_count, per_page)
-    page = params |> LiveResource.parse_integer("page", 1) |> LiveResource.validate_page(total_pages)
-
-    page_options = %{page: page, per_page: per_page}
-
-    order_options = LiveResource.order_options_by_params(params, fields, init_order, socket.assigns)
-
-    query_options =
-      page_options
-      |> Map.merge(order_options)
-      |> maybe_put_search(params)
-      |> Map.put(:filters, Map.get(valid_filter_params, "filters", %{}))
 
     socket
     |> assign(:item_count, item_count)
-    |> assign(:query_options, query_options)
     |> assign(:init_order, init_order)
     |> assign(:total_pages, total_pages)
     |> assign(:per_page_options, per_page_options)
@@ -472,8 +442,44 @@ defmodule Backpex.LiveResource.Index do
     |> assign(:fields, fields)
     |> maybe_redirect_to_default_filters()
     |> assign_items()
+    |> assigns_query_params()
     |> maybe_assign_metrics()
     |> apply_index_return_to()
+  end
+
+  defp assigns_query_params(socket, params) do
+    %{live_resource: live_resource, params: params, filters: filters, fields: fields} = socket.assigns
+
+    adapter_config = live_resource.config(:adapter_config)
+    valid_filter_params = LiveResource.get_valid_filters_from_params(params, filters, LiveResource.empty_filter_key())
+
+    count_criteria = [
+      search: LiveResource.search_options(params, fields, adapter_config[:schema]),
+      filters: LiveResource.filter_options(valid_filter_params, filters)
+    ]
+
+    {:ok, item_count} = Resource.count(count_criteria, socket.assigns, live_resource)
+
+    per_page_default = live_resource.config(:per_page_default)
+
+    per_page =
+      params
+      |> LiveResource.parse_integer("per_page", per_page_default)
+      |> LiveResource.value_in_permitted_or_default(per_page_options, per_page_default)
+
+    total_pages = LiveResource.calculate_total_pages(item_count, per_page)
+    page = params |> LiveResource.parse_integer("page", 1) |> LiveResource.validate_page(total_pages)
+
+    page_options = %{page: page, per_page: per_page}
+    order_options = LiveResource.order_options_by_params(params, socket.assings.fields, init_order, socket.assigns)
+
+    query_options =
+      page_options
+      |> Map.merge(order_options)
+      |> maybe_put_search(params)
+      |> Map.put(:filters, Map.get(valid_filter_params, "filters", %{}))
+
+    assign(socket, :query_options, query_options)
   end
 
   defp apply_index_return_to(socket) do
