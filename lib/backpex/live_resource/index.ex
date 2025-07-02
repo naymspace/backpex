@@ -423,6 +423,7 @@ defmodule Backpex.LiveResource.Index do
     fields = live_resource.validated_fields() |> LiveResource.filtered_fields_by_action(socket.assigns, :index)
 
     per_page_options = live_resource.config(:per_page_options)
+    per_page_default = live_resource.config(:per_page_default)
     init_order = live_resource.config(:init_order)
 
     filters = LiveResource.active_filters(socket.assigns)
@@ -436,8 +437,6 @@ defmodule Backpex.LiveResource.Index do
     ]
 
     {:ok, item_count} = Resource.count(count_criteria, socket.assigns, live_resource)
-
-    per_page_default = live_resource.config(:per_page_default)
 
     per_page =
       params
