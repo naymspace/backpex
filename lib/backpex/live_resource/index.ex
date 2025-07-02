@@ -384,14 +384,18 @@ defmodule Backpex.LiveResource.Index do
   end
 
   defp apply_action(socket, :index) do
+    fields = live_resource.validated_fields() |> LiveResource.filtered_fields_by_action(socket.assigns, :index)
+
     socket
     |> assign(:page_title, socket.assigns.live_resource.plural_name())
+    |> assign(:fields, fields)
     |> apply_index()
     |> assign(:item, nil)
   end
 
   defp apply_action(socket, :resource_action) do
     %{live_resource: live_resource} = socket.assigns
+    fields = live_resource.validated_fields() |> LiveResource.filtered_fields_by_action(socket.assigns, :resource_action)
 
     id =
       socket.assigns.params["backpex_id"]
@@ -407,6 +411,7 @@ defmodule Backpex.LiveResource.Index do
 
     socket
     |> assign(:page_title, ResourceAction.name(action, :title))
+    |> assign(:fields, fields)
     |> assign(:resource_action, action)
     |> assign(:resource_action_id, id)
     |> assign(:item, item)
@@ -416,18 +421,15 @@ defmodule Backpex.LiveResource.Index do
   end
 
   defp apply_index(socket) do
-    %{live_resource: live_resource, params: params} = socket.assigns
+    %{live_resource: live_resource, params: params, fields: fields} = socket.assigns
 
     if not live_resource.can?(socket.assigns, :index, nil), do: raise(Backpex.ForbiddenError)
-
-    fields = live_resource.validated_fields() |> LiveResource.filtered_fields_by_action(socket.assigns, :index)
-    assigns = assign(socket.assigns, :fields, fields)
 
     per_page_options = live_resource.config(:per_page_options)
     per_page_default = live_resource.config(:per_page_default)
     init_order = live_resource.config(:init_order)
 
-    filters = LiveResource.active_filters(assigns)
+    filters = LiveResource.active_filters(socket.assigns)
     valid_filter_params = LiveResource.get_valid_filters_from_params(params, filters, LiveResource.empty_filter_key())
 
     adapter_config = live_resource.config(:adapter_config)
@@ -437,7 +439,7 @@ defmodule Backpex.LiveResource.Index do
       filters: LiveResource.filter_options(valid_filter_params, filters)
     ]
 
-    {:ok, item_count} = Resource.count(count_criteria, assigns, live_resource)
+    {:ok, item_count} = Resource.count(count_criteria, socket.assigns, live_resource)
 
     per_page =
       params
@@ -446,7 +448,7 @@ defmodule Backpex.LiveResource.Index do
 
     total_pages = LiveResource.calculate_total_pages(item_count, per_page)
 
-    assigns
+    socket
     |> assign(:item_count, item_count)
     |> assign(:init_order, init_order)
     |> assign(:total_pages, total_pages)
@@ -459,7 +461,6 @@ defmodule Backpex.LiveResource.Index do
     |> assign(:action_to_confirm, nil)
     |> assign(:selected_items, [])
     |> assign(:select_all, false)
-    |> assign(:fields, fields)
     |> maybe_redirect_to_default_filters()
     |> assign_items()
     |> assigns_query_params()
