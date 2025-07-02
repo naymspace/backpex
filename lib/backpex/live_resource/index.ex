@@ -469,7 +469,6 @@ defmodule Backpex.LiveResource.Index do
 
   defp assigns_query_params(socket) do
     %{
-      live_resource: live_resource,
       params: params,
       filters: filters,
       fields: fields,
@@ -481,6 +480,7 @@ defmodule Backpex.LiveResource.Index do
 
     page = params |> LiveResource.parse_integer("page", 1) |> LiveResource.validate_page(total_pages)
 
+    valid_filter_params = LiveResource.get_valid_filters_from_params(params, filters, LiveResource.empty_filter_key())
     page_options = %{page: page, per_page: per_page}
     order_options = LiveResource.order_options_by_params(params, fields, init_order, socket.assigns)
 
