@@ -446,7 +446,7 @@ defmodule Backpex.LiveResource.Index do
 
     total_pages = LiveResource.calculate_total_pages(item_count, per_page)
 
-    socket
+    assigns
     |> assign(:item_count, item_count)
     |> assign(:init_order, init_order)
     |> assign(:total_pages, total_pages)
