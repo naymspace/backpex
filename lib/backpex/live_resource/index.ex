@@ -473,7 +473,6 @@ defmodule Backpex.LiveResource.Index do
       filters: filters,
       fields: fields,
       init_order: init_order,
-      per_page_options: per_page_options,
       total_pages: total_pages,
       per_page: per_page
     } = socket.assigns
