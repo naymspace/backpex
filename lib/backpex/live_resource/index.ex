@@ -421,7 +421,7 @@ defmodule Backpex.LiveResource.Index do
     if not live_resource.can?(socket.assigns, :index, nil), do: raise(Backpex.ForbiddenError)
 
     fields = live_resource.validated_fields() |> LiveResource.filtered_fields_by_action(socket.assigns, :index)
-    assigns = assign(socket, :fields, fields)
+    assigns = assign(socket.assigns, :fields, fields)
 
     per_page_options = live_resource.config(:per_page_options)
     per_page_default = live_resource.config(:per_page_default)
