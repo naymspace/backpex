@@ -465,7 +465,16 @@ defmodule Backpex.LiveResource.Index do
   end
 
   defp assigns_query_params(socket) do
-    %{live_resource: live_resource, params: params, filters: filters, fields: fields, init_order: init_order, per_page_options: per_page_options, total_pages: total_pages, per_page: per_page} = socket.assigns
+    %{
+      live_resource: live_resource,
+      params: params,
+      filters: filters,
+      fields: fields,
+      init_order: init_order,
+      per_page_options: per_page_options,
+      total_pages: total_pages,
+      per_page: per_page
+    } = socket.assigns
 
     adapter_config = live_resource.config(:adapter_config)
     valid_filter_params = LiveResource.get_valid_filters_from_params(params, filters, LiveResource.empty_filter_key())
