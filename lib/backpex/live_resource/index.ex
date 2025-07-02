@@ -384,6 +384,7 @@ defmodule Backpex.LiveResource.Index do
   end
 
   defp apply_action(socket, :index) do
+    %{live_resource: live_resource} = socket.assigns
     fields = live_resource.validated_fields() |> LiveResource.filtered_fields_by_action(socket.assigns, :index)
 
     socket
