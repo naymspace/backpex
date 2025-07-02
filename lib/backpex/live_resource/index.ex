@@ -462,9 +462,9 @@ defmodule Backpex.LiveResource.Index do
     |> assign(:action_to_confirm, nil)
     |> assign(:selected_items, [])
     |> assign(:select_all, false)
+    |> assigns_query_params()
     |> maybe_redirect_to_default_filters()
     |> assign_items()
-    |> assigns_query_params()
     |> maybe_assign_metrics()
     |> apply_index_return_to()
   end
