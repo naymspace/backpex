@@ -427,6 +427,9 @@ defmodule Backpex.LiveResource.Index do
 
     filters = LiveResource.active_filters(socket.assigns)
 
+    adapter_config = live_resource.config(:adapter_config)
+    valid_filter_params = LiveResource.get_valid_filters_from_params(params, filters, LiveResource.empty_filter_key())
+
     count_criteria = [
       search: LiveResource.search_options(params, fields, adapter_config[:schema]),
       filters: LiveResource.filter_options(valid_filter_params, filters)
@@ -475,9 +478,6 @@ defmodule Backpex.LiveResource.Index do
       total_pages: total_pages,
       per_page: per_page
     } = socket.assigns
-
-    adapter_config = live_resource.config(:adapter_config)
-    valid_filter_params = LiveResource.get_valid_filters_from_params(params, filters, LiveResource.empty_filter_key())
 
     page = params |> LiveResource.parse_integer("page", 1) |> LiveResource.validate_page(total_pages)
 
