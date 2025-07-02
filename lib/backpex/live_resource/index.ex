@@ -427,10 +427,27 @@ defmodule Backpex.LiveResource.Index do
 
     filters = LiveResource.active_filters(socket.assigns)
 
+    count_criteria = [
+      search: LiveResource.search_options(params, fields, adapter_config[:schema]),
+      filters: LiveResource.filter_options(valid_filter_params, filters)
+    ]
+
+    {:ok, item_count} = Resource.count(count_criteria, socket.assigns, live_resource)
+
+    per_page_default = live_resource.config(:per_page_default)
+
+    per_page =
+      params
+      |> LiveResource.parse_integer("per_page", per_page_default)
+      |> LiveResource.value_in_permitted_or_default(per_page_options, per_page_default)
+
+    total_pages = LiveResource.calculate_total_pages(item_count, per_page)
+
     socket
     |> assign(:item_count, item_count)
     |> assign(:init_order, init_order)
     |> assign(:total_pages, total_pages)
+    |> assign(:per_page, per_page)
     |> assign(:per_page_options, per_page_options)
     |> assign(:filters, filters)
     |> assign(:orderable_fields, LiveResource.orderable_fields(fields))
@@ -448,26 +465,11 @@ defmodule Backpex.LiveResource.Index do
   end
 
   defp assigns_query_params(socket) do
-    %{live_resource: live_resource, params: params, filters: filters, fields: fields, init_order: init_order, per_page_options: per_page_options} = socket.assigns
+    %{live_resource: live_resource, params: params, filters: filters, fields: fields, init_order: init_order, per_page_options: per_page_options, total_pages: total_pages, per_page: per_page} = socket.assigns
 
     adapter_config = live_resource.config(:adapter_config)
     valid_filter_params = LiveResource.get_valid_filters_from_params(params, filters, LiveResource.empty_filter_key())
 
-    count_criteria = [
-      search: LiveResource.search_options(params, fields, adapter_config[:schema]),
-      filters: LiveResource.filter_options(valid_filter_params, filters)
-    ]
-
-    {:ok, item_count} = Resource.count(count_criteria, socket.assigns, live_resource)
-
-    per_page_default = live_resource.config(:per_page_default)
-
-    per_page =
-      params
-      |> LiveResource.parse_integer("per_page", per_page_default)
-      |> LiveResource.value_in_permitted_or_default(per_page_options, per_page_default)
-
-    total_pages = LiveResource.calculate_total_pages(item_count, per_page)
     page = params |> LiveResource.parse_integer("page", 1) |> LiveResource.validate_page(total_pages)
 
     page_options = %{page: page, per_page: per_page}
