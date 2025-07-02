@@ -427,9 +427,9 @@ defmodule Backpex.LiveResource.Index do
     init_order = live_resource.config(:init_order)
 
     filters = LiveResource.active_filters(socket.assigns)
+    valid_filter_params = LiveResource.get_valid_filters_from_params(params, filters, LiveResource.empty_filter_key())
 
     adapter_config = live_resource.config(:adapter_config)
-    valid_filter_params = LiveResource.get_valid_filters_from_params(params, filters, LiveResource.empty_filter_key())
 
     count_criteria = [
       search: LiveResource.search_options(params, fields, adapter_config[:schema]),
