@@ -23,7 +23,6 @@ defmodule Backpex.FormComponent do
 
   defp update_assigns(%{assigns: %{action_type: :item}} = socket) do
     socket
-    |> assign_fields()
   end
 
   defp update_assigns(%{assigns: assigns} = socket) do
@@ -33,18 +32,16 @@ defmodule Backpex.FormComponent do
   end
 
   defp maybe_assign_uploads(socket) do
+    %{live_resource: live_resource, live_action: live_action} = socket.assings
+
+    fields = live_resource.fields(live_action, socket.assigns)
+
     socket =
-      Enum.reduce(socket.assigns.fields, socket, fn {_name, field_options} = field, acc ->
+      Enum.reduce(fields, socket, fn {_name, field_options} = field, acc ->
         field_options.module.assign_uploads(field, acc)
       end)
 
     assign_new(socket, :removed_uploads, fn -> Keyword.new() end)
-  end
-
-  defp assign_fields(%{assigns: %{action_to_confirm: action_to_confirm}} = socket) do
-    socket
-    |> assign_new(:fields, fn -> action_to_confirm.module.fields() end)
-    |> assign(:save_label, action_to_confirm.module.confirm_label(socket.assigns))
   end
 
   defp apply_action(socket, action) when action in [:edit, :new] do
@@ -58,7 +55,6 @@ defmodule Backpex.FormComponent do
 
     socket
     |> assign(:save_label, ResourceAction.name(resource_action, :label))
-    |> assign(:fields, resource_action.module.fields())
   end
 
   defp maybe_assign_continue_label(socket) do
@@ -76,7 +72,8 @@ defmodule Backpex.FormComponent do
   end
 
   def handle_event("validate", %{"change" => change, "_target" => target}, %{assigns: %{action_type: :item}} = socket) do
-    %{assigns: %{item: item, fields: fields} = assigns} = socket
+    %{assigns: %{item: item, live_action: live_action} = assigns} = socket
+    fields = live_resource.fields(live_action, assigns)
 
     changeset_function = &assigns.action_to_confirm.module.changeset/3
 
@@ -107,8 +104,8 @@ defmodule Backpex.FormComponent do
   def handle_event("validate", %{"change" => change, "_target" => target}, socket) do
     %{
       live_resource: live_resource,
-      item: item,
-      fields: fields
+      live_action: live_action,
+      item: item
     } = socket.assigns
 
     target = Enum.at(target, 1)
@@ -147,9 +144,11 @@ defmodule Backpex.FormComponent do
 
   def handle_event("cancel-existing-entry", %{"ref" => file_key, "id" => upload_key}, socket) do
     upload_key = String.to_existing_atom(upload_key)
+    %{live_resource: live_resource, live_action: live_action} = socket.assigns
+    fields = live_resource.fields(live_action, socket.assigns)
 
     field =
-      socket.assigns.fields()
+      fields
       |> Enum.find(fn {_name, field_options} ->
         Map.has_key?(field_options, :upload_key) and Map.get(field_options, :upload_key) == upload_key
       end)
@@ -175,7 +174,8 @@ defmodule Backpex.FormComponent do
   end
 
   def handle_event("save", %{"change" => change, "save-type" => save_type}, socket) do
-    %{assigns: %{live_action: live_action, fields: fields} = assigns} = socket
+    %{assigns: %{live_action: live_action} = assigns} = socket
+    fields = live_resource.fields(live_action, assigns)
 
     change =
       change
@@ -198,7 +198,10 @@ defmodule Backpex.FormComponent do
   end
 
   def handle_event(msg, params, socket) do
-    Enum.reduce(socket.assigns.fields, socket, fn el, acc ->
+    %{live_resource: live_resource, live_action: live_action} = socket.assigns
+    fields = live_resource.fields(live_action, socket.assigns)
+
+    Enum.reduce(fields, socket, fn el, acc ->
       el.module.handle_form_event(el, msg, params, acc)
     end)
     |> noreply()
@@ -252,7 +255,6 @@ defmodule Backpex.FormComponent do
     %{
       live_resource: live_resource,
       item: item,
-      fields: fields,
       live_action: live_action
     } = socket.assigns
 
@@ -265,6 +267,8 @@ defmodule Backpex.FormComponent do
         {:ok, item}
       end
     ]
+
+    fields = live_resource.fields(:edit, socket.assigns)
 
     case Resource.update(item, params, fields, socket.assigns, live_resource, opts) do
       {:ok, item} ->
@@ -300,14 +304,15 @@ defmodule Backpex.FormComponent do
       assigns:
         %{
           live_resource: live_resource,
+          live_action: live_action,
           resource_action: resource_action,
           item: item,
-          return_to: return_to,
-          fields: fields
+          return_to: return_to
         } = assigns
     } = socket
 
     assocs = Map.get(assigns, :assocs, [])
+    fields = live_resource.fields(live_action, assigns)
     params = drop_readonly_changes(params, fields, assigns)
 
     result =
@@ -351,13 +356,14 @@ defmodule Backpex.FormComponent do
       assigns:
         %{
           live_resource: live_resource,
+          live_action: live_action,
           selected_items: selected_items,
           action_to_confirm: action_to_confirm,
-          fields: fields,
           return_to: return_to
         } = assigns
     } = socket
 
+    fields = live_resource.fields(live_action, assigns)
     params = drop_readonly_changes(params, fields, assigns)
 
     result =
@@ -443,7 +449,10 @@ defmodule Backpex.FormComponent do
   end
 
   defp put_upload_change(change, socket, action) do
-    Enum.reduce(socket.assigns.fields, change, fn
+    %{live_resource: live_resource, live_action: live_action} = socket.assigns
+    fields = live_resource.fields(live_action, socket.assigns)
+
+    Enum.reduce(fields, change, fn
       {name, %{upload_key: upload_key} = field_options} = _field, acc ->
         %{put_upload_change: put_upload_change} = field_options
 
@@ -471,7 +480,10 @@ defmodule Backpex.FormComponent do
   end
 
   defp handle_uploads(%{assigns: %{uploads: _uploads}} = socket, item) do
-    for {_name, %{upload_key: upload_key} = field_options} = _field <- socket.assigns.fields do
+    %{live_resource: live_resource, live_action: live_action} = socket.assigns
+    fields = live_resource.fields(live_action, socket.assigns)
+
+    for {_name, %{upload_key: upload_key} = field_options} = _field <- fields do
       if Map.has_key?(socket.assigns.uploads, upload_key) do
         %{consume_upload: consume_upload, remove_uploads: remove_uploads} = field_options
 

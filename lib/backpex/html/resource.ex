@@ -102,7 +102,8 @@ defmodule Backpex.HTML.Resource do
   attr :fields, :list, required: true, doc: "list of all fields provided by the resource configuration"
 
   def resource_field(assigns) do
-    %{name: name, item: item, fields: fields, live_resource: live_resource} = assigns
+    %{name: name, item: item, live_resource: live_resource, live_action: live_action} = assigns
+    fields = live_resource.fields(live_action, assigns)
 
     {_name, field_options} = field = Enum.find(fields, fn {field_name, _field_options} -> field_name == name end)
 
@@ -141,7 +142,8 @@ defmodule Backpex.HTML.Resource do
   attr :fields, :list, required: true, doc: "list of all fields provided by the resource configuration"
 
   def resource_form_field(assigns) do
-    %{name: name, fields: fields} = assigns
+    %{name: name, live_action: live_action} = assigns
+    fields = live_resource.fields(live_action, assigns)
 
     {_name, field_options} = field = Enum.find(fields, fn {field_name, _field_options} -> field_name == name end)
 

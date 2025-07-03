@@ -414,7 +414,7 @@ defmodule Backpex.Fields.HasManyThrough do
     {:noreply, socket}
   end
 
-  defp action_fields(fields, assigns, action), do: LiveResource.filtered_fields_by_action(fields, assigns, action)
+  defp action_fields(fields, assigns, action), do: LiveResource.fields_by_action(fields, assigns, action)
 
   defp assign_fallback_child_fields(assigns) do
     case Map.has_key?(assigns.field_options, :child_fields) do
@@ -422,7 +422,7 @@ defmodule Backpex.Fields.HasManyThrough do
         assigns
 
       false ->
-        fields = assigns.field_options.live_resource.validated_fields()
+        fields = assigns.field_options.live_resource.fields(:index, assigns)
         new_field_options = Map.put(assigns.field_options, :child_fields, fields)
 
         assigns

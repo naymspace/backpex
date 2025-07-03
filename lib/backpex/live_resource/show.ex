@@ -24,7 +24,6 @@ defmodule Backpex.LiveResource.Show do
     |> assign(:fluid?, live_resource.config(:fluid?))
     |> assign(:page_title, live_resource.singular_name())
     |> assign(:params, params)
-    |> assign_fields()
     |> assign_item()
     |> ok()
   end
@@ -61,13 +60,5 @@ defmodule Backpex.LiveResource.Show do
     socket
     |> assign(:item, item)
     |> assign(:return_to, Router.get_path(socket, live_resource, params, :show, item))
-  end
-
-  defp assign_fields(socket) do
-    fields =
-      socket.assigns.live_resource.validated_fields()
-      |> LiveResource.filtered_fields_by_action(socket.assigns, :show)
-
-    assign(socket, :fields, fields)
   end
 end

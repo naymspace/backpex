@@ -272,7 +272,7 @@ defmodule Backpex.LiveResource do
 
       def pubsub, do: LiveResource.pubsub(__MODULE__)
 
-      def validated_fields, do: LiveResource.validated_fields(__MODULE__)
+      def fields(live_action, assings), do: LiveResource.validated_fields(__MODULE__, live_action, assigns)
 
       @impl Backpex.LiveResource
       def can?(_assigns, _action, _item), do: true
@@ -473,8 +473,18 @@ defmodule Backpex.LiveResource do
 
   @doc """
   Returns the fields of the given `Backpex.LiveResource` validated against each fields config schema.
+
+  In case a `live_action` is provided the fields are filtered accordingly before validating. Additionaly
+  the assigns can be passed, to make sure to evaluate the `can?` option of each field.
   """
-  def validated_fields(live_resource) do
+  def fields(live_resource, live_action, assigns) do
+    live_resource
+    |> validated_fields()
+    |> fields_by_action(live_action)
+    |> fields_by_can(assigns)
+  end
+
+  defp validated_fields(live_resource) do
     live_resource.fields()
     |> Enum.map(fn {name, options} = field ->
       options.module.validate_config!(field, live_resource)
@@ -611,17 +621,35 @@ defmodule Backpex.LiveResource do
   Returns filtered fields by a certain action.
 
   ## Example
-      iex> Backpex.LiveResource.filtered_fields_by_action([field1: %{label: "Field1"}, field2: %{label: "Field2"}], %{}, :index)
+      iex> Backpex.LiveResource.fields_by_action([field1: %{label: "Field1"}, field2: %{label: "Field2"}], :index)
       [field1: %{label: "Field1"}, field2: %{label: "Field2"}]
-      iex> Backpex.LiveResource.filtered_fields_by_action([field1: %{label: "Field1", except: [:show]}, field2: %{label: "Field2"}], %{}, :show)
+      iex> Backpex.LiveResource.fields_by_action([field1: %{label: "Field1", except: [:show]}, field2: %{label: "Field2"}], :show)
       [field2: %{label: "Field2"}]
-      iex> Backpex.LiveResource.filtered_fields_by_action([field1: %{label: "Field1", only: [:index]}, field2: %{label: "Field2"}], %{}, :show)
+      iex> Backpex.LiveResource.fields_by_action([field1: %{label: "Field1", only: [:index]}, field2: %{label: "Field2"}], :show)
       [field2: %{label: "Field2"}]
   """
-  def filtered_fields_by_action(fields, assigns, action) do
+  def fields_by_action(fields, action) do
     fields
     |> Keyword.filter(fn {_name, field_options} ->
-      can_view_field?(field_options, assigns) and filter_field_by_action(field_options, action)
+      filter_field_by_action(field_options, action)
+    end)
+  end
+
+  @doc """
+  Returns filtered fields by the result of the implemented `can?` function.
+
+  ## Example
+      iex> Backpex.LiveResource.fields_by_can([field1: %{label: "Field1", can?: fn _assigns -> true end}, field2: %{label: "Field2", can?: fn -> _asssings -> true end}], %{})
+      [field1: %{label: "Field1"}, field2: %{label: "Field2"}]
+      iex> Backpex.LiveResource.fields_by_can([field1: %{label: "Field1", can?: fn _assigns -> false end}, field2: %{label: "Field2", can?: fn -> _asssings -> true end}], %{})
+      [field2: %{label: "Field2"}]
+      iex> Backpex.LiveResource.fields_by_can([field1: %{label: "Field1", can?: fn _assigns -> false end})
+      []
+  """
+  def fields_by_can(fields, assigns) do
+    fields
+    |> Keyword.filter(fn {_name, field_options} ->
+      can_view_field?(field_options, assigns)
     end)
   end
 
@@ -691,13 +719,15 @@ defmodule Backpex.LiveResource do
   def build_criteria(assigns) do
     %{
       live_resource: live_resource,
-      fields: fields,
+      live_action: live_action,
       filters: filters,
       query_options: query_options,
       init_order: init_order
     } = assigns
 
     adapter_config = live_resource.config(:adapter_config)
+    fields = live_resource.fields(live_action, assigns)
+
     field = Enum.find(fields, fn {name, _field_options} -> name == query_options.order_by end)
 
     order =

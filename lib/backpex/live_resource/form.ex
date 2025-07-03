@@ -91,18 +91,11 @@ defmodule Backpex.LiveResource.Form do
     socket
   end
 
-  defp assign_fields(socket, live_action) do
-    fields =
-      socket.assigns.live_resource.validated_fields()
-      |> LiveResource.filtered_fields_by_action(socket.assigns, live_action)
-
-    assign(socket, :fields, fields)
-  end
-
   defp assign_changeset(socket, live_action) do
-    %{live_resource: live_resource, item: item, fields: fields} = socket.assigns
+    %{live_resource: live_resource, item: item} = socket.assigns
     changeset = changeset(live_resource, live_action)
 
+    fields = live_resource.fields(live_action, assigns)
     LiveResource.assign_changeset(socket, changeset, item, fields, live_action)
   end
 

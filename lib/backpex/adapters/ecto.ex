@@ -112,7 +112,7 @@ defmodule Backpex.Adapters.Ecto do
     config = live_resource.config(:adapter_config)
     full_text_search = live_resource.config(:full_text_search)
     item_query = prepare_item_query(config, assigns)
-    fields = assigns.fields
+    fields = live_resource.fields(:index, assigns)
     associations = associations(fields, config[:schema])
 
     config[:schema]
@@ -351,7 +351,7 @@ defmodule Backpex.Adapters.Ecto do
     config = live_resource.config(:adapter_config)
     item_query = prepare_item_query(config, assigns)
 
-    fields = assigns.fields
+    fields = live_resource.fields(:show, assigns)
     schema_name = name_by_schema(config[:schema])
     primary_key = live_resource.config(:primary_key)
     primary_type = config[:schema].__schema__(:type, primary_key)
