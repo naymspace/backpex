@@ -18,7 +18,6 @@ defmodule Backpex.LiveResource.Form do
     |> assign(:fluid?, live_resource.config(:fluid?))
     |> assign(:params, params)
     |> assign(:page_title, page_title(live_resource, live_action))
-    |> assign_fields(live_action)
     |> assign_item(live_action)
     |> can?(live_resource, live_action)
     |> assign_changeset(live_action)
@@ -95,7 +94,7 @@ defmodule Backpex.LiveResource.Form do
     %{live_resource: live_resource, item: item} = socket.assigns
     changeset = changeset(live_resource, live_action)
 
-    fields = live_resource.fields(live_action, assigns)
+    fields = live_resource.fields(live_action, socket.assigns)
     LiveResource.assign_changeset(socket, changeset, item, fields, live_action)
   end
 

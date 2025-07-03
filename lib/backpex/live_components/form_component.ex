@@ -72,7 +72,7 @@ defmodule Backpex.FormComponent do
   end
 
   def handle_event("validate", %{"change" => change, "_target" => target}, %{assigns: %{action_type: :item}} = socket) do
-    %{assigns: %{item: item, live_action: live_action} = assigns} = socket
+    %{assigns: %{item: item, live_resource: live_resource, live_action: live_action} = assigns} = socket
     fields = live_resource.fields(live_action, assigns)
 
     changeset_function = &assigns.action_to_confirm.module.changeset/3
@@ -110,6 +110,8 @@ defmodule Backpex.FormComponent do
 
     target = Enum.at(target, 1)
     assocs = Map.get(socket.assigns, :assocs, [])
+
+    fields = live_resource.fields(live_action, socket.assigns)
 
     change =
       change
@@ -174,7 +176,7 @@ defmodule Backpex.FormComponent do
   end
 
   def handle_event("save", %{"change" => change, "save-type" => save_type}, socket) do
-    %{assigns: %{live_action: live_action} = assigns} = socket
+    %{assigns: %{live_resource: live_resource, live_action: live_action} = assigns} = socket
     fields = live_resource.fields(live_action, assigns)
 
     change =

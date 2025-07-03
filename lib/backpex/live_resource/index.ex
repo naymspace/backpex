@@ -317,9 +317,8 @@ defmodule Backpex.LiveResource.Index do
   end
 
   defp assign_active_fields(socket, session) do
-    fields =
-      socket.assigns.live_resource.validated_fields()
-      |> LiveResource.fields_by_action(socket.assigns, :index)
+    %{live_resource: live_resource} = socket.assigns
+    fields = live_resource.fields(:index, socket.assigns)
 
     saved_fields = get_in(session, ["backpex", "column_toggle", "#{socket.assigns.live_resource}"]) || %{}
 
@@ -384,9 +383,6 @@ defmodule Backpex.LiveResource.Index do
   end
 
   defp apply_action(socket, :index) do
-    %{live_resource: live_resource} = socket.assigns
-    fields = live_resource.fields(:index, socket.assigns)
-
     socket
     |> assign(:page_title, socket.assigns.live_resource.plural_name())
     |> apply_index()
@@ -395,8 +391,6 @@ defmodule Backpex.LiveResource.Index do
 
   defp apply_action(socket, :resource_action) do
     %{live_resource: live_resource} = socket.assigns
-
-    fields = live_resource.fields(:resource_action, socket.assigns)
 
     id =
       socket.assigns.params["backpex_id"]
@@ -472,6 +466,7 @@ defmodule Backpex.LiveResource.Index do
 
   defp assigns_query_params(socket) do
     %{
+      live_resource: live_resource,
       params: params,
       filters: filters,
       init_order: init_order,
@@ -480,6 +475,7 @@ defmodule Backpex.LiveResource.Index do
     } = socket.assigns
 
     page = params |> LiveResource.parse_integer("page", 1) |> LiveResource.validate_page(total_pages)
+    fields = live_resource.fields(:index, socket.assigns)
 
     valid_filter_params = LiveResource.get_valid_filters_from_params(params, filters, LiveResource.empty_filter_key())
     page_options = %{page: page, per_page: per_page}
@@ -562,7 +558,7 @@ defmodule Backpex.LiveResource.Index do
     filters = LiveResource.active_filters(socket.assigns)
     valid_filter_params = LiveResource.get_valid_filters_from_params(params, filters, LiveResource.empty_filter_key())
 
-    fields = live_resource.fields(:index, assigns)
+    fields = live_resource.fields(:index, socket.assigns)
 
     count_criteria = [
       search: LiveResource.search_options(params, fields, adapter_config[:schema]),
@@ -591,7 +587,7 @@ defmodule Backpex.LiveResource.Index do
 
     adapter_config = live_resource.config(:adapter_config)
     filters = LiveResource.active_filters(socket.assigns)
-    fields = live_resource.fields(:index, assigns)
+    fields = live_resource.fields(:index, socket.assigns)
 
     metrics =
       socket.assigns.live_resource.metrics()
