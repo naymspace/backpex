@@ -32,7 +32,7 @@ defmodule Backpex.FormComponent do
   end
 
   defp maybe_assign_uploads(socket) do
-    %{live_resource: live_resource, live_action: live_action} = socket.assings
+    %{live_resource: live_resource, live_action: live_action} = socket.assigns
 
     fields = live_resource.fields(live_action, socket.assigns)
 
