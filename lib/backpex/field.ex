@@ -427,8 +427,7 @@ defmodule Backpex.Field do
       end
     ]
 
-    fields = live_resource.fields(:index, assigns)
-    result = Backpex.Resource.update(item, change, fields, assigns, live_resource, opts)
+    result = Backpex.Resource.update(item, change, assigns, live_resource, opts)
 
     socket =
       case result do
