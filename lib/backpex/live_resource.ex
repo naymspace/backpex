@@ -272,7 +272,7 @@ defmodule Backpex.LiveResource do
 
       def pubsub, do: LiveResource.pubsub(__MODULE__)
 
-      def fields(live_action, assings), do: LiveResource.validated_fields(__MODULE__, live_action, assigns)
+      def fields(live_action, assigns), do: LiveResource.fields(__MODULE__, live_action, assigns)
 
       @impl Backpex.LiveResource
       def can?(_assigns, _action, _item), do: true
