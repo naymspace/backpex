@@ -639,12 +639,15 @@ defmodule Backpex.LiveResource do
   Returns filtered fields by the result of the implemented `can?` function.
 
   ## Example
-      iex> Backpex.LiveResource.fields_by_can([field1: %{label: "Field1", can?: fn _assigns -> true end}, field2: %{label: "Field2", can?: fn _assigns -> true end}], %{})
+      > Backpex.LiveResource.fields_by_can([field1: %{label: "Field1"}], %{})
+      [field1: %{label: "Field1"}]
+      > Backpex.LiveResource.fields_by_can([field1: %{label: "Field1", can?: fn _assigns -> true end}, field2: %{label: "Field2", can?: fn _assigns -> true end}], %{})
       [field1: %{label: "Field1"}, field2: %{label: "Field2"}]
-      iex> Backpex.LiveResource.fields_by_can([field1: %{label: "Field1", can?: fn _assigns -> false end}, field2: %{label: "Field2", can?: fn _assigns -> true end}], %{})
+      > Backpex.LiveResource.fields_by_can([field1: %{label: "Field1", can?: fn _assigns -> false end}, field2: %{label: "Field2", can?: fn _assigns -> true end}], %{})
       [field2: %{label: "Field2"}]
-      iex> Backpex.LiveResource.fields_by_can([field1: %{label: "Field1", can?: fn _assigns -> false end})
+      > Backpex.LiveResource.fields_by_can([field1: %{label: "Field1", can?: fn _assigns -> false end}], %{})
       []
+
   """
   def fields_by_can(fields, assigns) do
     fields
