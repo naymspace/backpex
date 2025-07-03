@@ -33,7 +33,7 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
 
-      - uses: erlef/setup-beam@6389fe58dcb1ee91fd829c7c65bf8771b06dacc4 # v1.20.2
+      - uses: erlef/setup-beam@8e7fdef09ffa3ea54328b5000c170a3b9b20ca96 # v1.20.3
         with:
           otp-version: ${{ matrix.erlang }}
           elixir-version: ${{ matrix.elixir }}
@@ -109,7 +109,7 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
 
-      - uses: erlef/setup-beam@6389fe58dcb1ee91fd829c7c65bf8771b06dacc4 # v1.20.2
+      - uses: erlef/setup-beam@8e7fdef09ffa3ea54328b5000c170a3b9b20ca96 # v1.20.3
         id: beam
         with:
           version-file: .tool-versions
@@ -148,7 +148,7 @@ jobs:
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
 
       - name: Setup beam
-        uses: erlef/setup-beam@6389fe58dcb1ee91fd829c7c65bf8771b06dacc4 # v1.20.2
+        uses: erlef/setup-beam@8e7fdef09ffa3ea54328b5000c170a3b9b20ca96 # v1.20.3
         id: beam
         with:
           version-file: .tool-versions
