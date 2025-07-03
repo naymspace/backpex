@@ -154,16 +154,10 @@ defmodule Backpex.Fields.HasManyThrough do
       <table class="table">
         <thead class="bg-base-200/50 text-base-content uppercase">
           <tr>
-            <th
-              :for={{_name, %{label: label}} <- action_fields(@field_options.child_fields, :index)}
-              class="font-medium"
-            >
+            <th :for={{_name, %{label: label}} <- action_fields(@field_options.child_fields, :index)} class="font-medium">
               {label}
             </th>
-            <th
-              :for={{_name, %{label: label}} <- action_fields(@field_options.pivot_fields, :index)}
-              class="font-medium"
-            >
+            <th :for={{_name, %{label: label}} <- action_fields(@field_options.pivot_fields, :index)} class="font-medium">
               {label}
             </th>
             <th></th>
