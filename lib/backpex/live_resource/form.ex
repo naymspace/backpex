@@ -16,6 +16,7 @@ defmodule Backpex.LiveResource.Form do
     |> assign(:live_resource, live_resource)
     |> assign(:panels, live_resource.panels())
     |> assign(:fluid?, live_resource.config(:fluid?))
+    |> assign(:fields, live_resource.fields(live_action, socket.assigns))
     |> assign(:params, params)
     |> assign(:page_title, page_title(live_resource, live_action))
     |> assign_item(live_action)

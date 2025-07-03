@@ -25,6 +25,7 @@ defmodule Backpex.LiveResource.Index do
     |> assign(:live_resource, live_resource)
     |> assign(:panels, live_resource.panels())
     |> assign(:fluid?, live_resource.config(:fluid?))
+    |> assign(:fields, live_resource.fields(socket.assigns.live_action, socket.assigns))
     |> assign(
       :create_button_label,
       Backpex.__({"New %{resource}", %{resource: live_resource.singular_name()}}, live_resource)

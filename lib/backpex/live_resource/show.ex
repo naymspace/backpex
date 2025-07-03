@@ -21,6 +21,7 @@ defmodule Backpex.LiveResource.Show do
     |> assign(:live_resource, live_resource)
     |> assign(:panels, live_resource.panels())
     |> assign(:fluid?, live_resource.config(:fluid?))
+    |> assign(:fields, live_resource.fields(:show, socket.assigns))
     |> assign(:page_title, live_resource.singular_name())
     |> assign(:params, params)
     |> assign_item()
