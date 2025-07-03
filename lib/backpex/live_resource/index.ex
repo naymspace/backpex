@@ -445,41 +445,10 @@ defmodule Backpex.LiveResource.Index do
 
     total_pages = LiveResource.calculate_total_pages(item_count, per_page)
 
-    socket
-    |> assign(:item_count, item_count)
-    |> assign(:init_order, init_order)
-    |> assign(:total_pages, total_pages)
-    |> assign(:per_page, per_page)
-    |> assign(:per_page_options, per_page_options)
-    |> assign(:filters, filters)
-    |> assign(:orderable_fields, LiveResource.orderable_fields(fields))
-    |> assign(:searchable_fields, LiveResource.searchable_fields(fields))
-    |> assign(:resource_actions, live_resource.resource_actions())
-    |> assign(:action_to_confirm, nil)
-    |> assign(:selected_items, [])
-    |> assign(:select_all, false)
-    |> assigns_query_params()
-    |> maybe_redirect_to_default_filters()
-    |> assign_items()
-    |> maybe_assign_metrics()
-    |> apply_index_return_to()
-  end
-
-  defp assigns_query_params(socket) do
-    %{
-      live_resource: live_resource,
-      params: params,
-      filters: filters,
-      init_order: init_order,
-      total_pages: total_pages,
-      per_page: per_page
-    } = socket.assigns
-
     page = params |> LiveResource.parse_integer("page", 1) |> LiveResource.validate_page(total_pages)
-    fields = live_resource.fields(:index, socket.assigns)
 
-    valid_filter_params = LiveResource.get_valid_filters_from_params(params, filters, LiveResource.empty_filter_key())
     page_options = %{page: page, per_page: per_page}
+
     order_options = LiveResource.order_options_by_params(params, fields, init_order, socket.assigns)
 
     query_options =
@@ -488,7 +457,23 @@ defmodule Backpex.LiveResource.Index do
       |> maybe_put_search(params)
       |> Map.put(:filters, Map.get(valid_filter_params, "filters", %{}))
 
-    assign(socket, :query_options, query_options)
+    socket
+    |> assign(:item_count, item_count)
+    |> assign(:query_options, query_options)
+    |> assign(:init_order, init_order)
+    |> assign(:total_pages, total_pages)
+    |> assign(:per_page_options, per_page_options)
+    |> assign(:filters, filters)
+    |> assign(:orderable_fields, LiveResource.orderable_fields(fields))
+    |> assign(:searchable_fields, LiveResource.searchable_fields(fields))
+    |> assign(:resource_actions, live_resource.resource_actions())
+    |> assign(:action_to_confirm, nil)
+    |> assign(:selected_items, [])
+    |> assign(:select_all, false)
+    |> maybe_redirect_to_default_filters()
+    |> assign_items()
+    |> maybe_assign_metrics()
+    |> apply_index_return_to()
   end
 
   defp apply_index_return_to(socket) do
