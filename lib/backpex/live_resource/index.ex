@@ -446,7 +446,6 @@ defmodule Backpex.LiveResource.Index do
     total_pages = LiveResource.calculate_total_pages(item_count, per_page)
 
     page = params |> LiveResource.parse_integer("page", 1) |> LiveResource.validate_page(total_pages)
-
     page_options = %{page: page, per_page: per_page}
 
     order_options = LiveResource.order_options_by_params(params, fields, init_order, socket.assigns)
