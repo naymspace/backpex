@@ -41,7 +41,7 @@ defmodule MyApp.Filters.CustomSelectFilter do
     end
 
     @impl Backpex.Filter
-    def query(query, attribute, value) do
+    def query(query, attribute, value, _assigns) do
         where(query, [x], field(x, ^attribute) == ^value)
     end
 
