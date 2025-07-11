@@ -19,7 +19,7 @@ defmodule MyApp.Filters.CustomSelectFilter do
 
     @impl Backpex.Filter
     def render(assigns) do
-        assigns = assign(assigns, :label, option_value_to_label(options(), assigns.value))
+        assigns = assign(assigns, :label, option_value_to_label(my_options(), assigns.value))
 
         ~H"""
         <%= @label %>
