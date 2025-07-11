@@ -62,6 +62,6 @@ defmodule MyApp.Filters.CustomSelectFilter do
 end
 ```
 
-In this example, we define a custom select filter that filters the data based on the event status. The `query/3` function filters the data based on the selected value.
+In this example, we define a custom select filter that filters the data based on the event status. The `query/4` function filters the data based on the selected value.
 
 See `Backpex.Filter` for available callback functions.
