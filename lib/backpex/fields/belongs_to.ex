@@ -228,7 +228,7 @@ defmodule Backpex.Fields.BelongsTo do
 
     link =
       if live_resource && live_resource.can?(assigns, :show, value) do
-        Router.get_path(socket, Map.get(field_options, :live_resource), params, :show, value)
+        Router.get_path(socket, live_resource, params, :show, value)
       end
 
     assign(assigns, :link, link)
