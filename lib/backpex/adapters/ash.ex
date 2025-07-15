@@ -29,7 +29,7 @@ if Code.ensure_loaded?(Ash) do
     Returns `nil` if no result was found.
     """
     @impl Backpex.Adapter
-    def get(primary_value, _assigns, live_resource) do
+    def get(primary_value, _assigns, _fields, live_resource) do
       resource = live_resource.adapter_config(:resource)
       primary_key = live_resource.config(:primary_key)
 
