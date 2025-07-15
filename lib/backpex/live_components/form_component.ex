@@ -22,7 +22,11 @@ defmodule Backpex.FormComponent do
   end
 
   defp update_assigns(%{assigns: %{action_type: :item}} = socket) do
+    %{action_to_confirm: action_to_confirm} = socket.assigns
+
     socket
+    |> assign_new(:fields, fn -> action_to_confirm.module.fields() end)
+    |> assign(:save_label, action_to_confirm.module.confirm_label(socket.assigns))
   end
 
   defp update_assigns(%{assigns: assigns} = socket) do
