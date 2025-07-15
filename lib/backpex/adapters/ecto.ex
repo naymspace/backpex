@@ -68,10 +68,10 @@ defmodule Backpex.Adapters.Ecto do
   Gets a database record with the given primary key value.
   """
   @impl Backpex.Adapter
-  def get(primary_value, assigns, live_resource) do
+  def get(primary_value, assigns, live_action, live_resource) do
     config = live_resource.config(:adapter_config)
 
-    record_query(primary_value, assigns, live_resource)
+    record_query(primary_value, assigns, live_action, live_resource)
     |> config[:repo].one()
     |> then(fn result -> {:ok, result} end)
   end
@@ -347,11 +347,11 @@ defmodule Backpex.Adapters.Ecto do
     &query_fun.(&1, assigns.live_action, assigns)
   end
 
-  defp record_query(primary_value, assigns, live_resource) do
+  defp record_query(primary_value, assigns, live_action, live_resource) do
     config = live_resource.config(:adapter_config)
     item_query = prepare_item_query(config, assigns)
 
-    fields = live_resource.fields(:show, assigns)
+    fields = live_resource.fields(live_action, assigns)
     schema_name = name_by_schema(config[:schema])
     primary_key = live_resource.config(:primary_key)
     primary_type = config[:schema].__schema__(:type, primary_key)

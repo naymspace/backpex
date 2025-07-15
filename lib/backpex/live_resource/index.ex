@@ -350,7 +350,7 @@ defmodule Backpex.LiveResource.Index do
     primary_value = LiveResource.primary_value(item, live_resource)
     primary_value_str = to_string(primary_value)
 
-    {:ok, updated_item} = Resource.get(primary_value, socket.assigns, live_resource)
+    {:ok, updated_item} = Resource.get(primary_value, socket.assigns, :index, live_resource)
 
     updated_items =
       Enum.map(items, fn current_item ->
