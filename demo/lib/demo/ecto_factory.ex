@@ -1,11 +1,11 @@
-defmodule Demo.Factory do
+defmodule Demo.EctoFactory do
   @moduledoc false
 
   use ExMachina.Ecto, repo: Demo.Repo
 
   alias Demo.Address
   alias Demo.Category
-  alias Demo.Helpdesk.Ticket
+  alias Demo.FilmReview
   alias Demo.Post
   alias Demo.Product
   alias Demo.ShortLink
@@ -22,16 +22,6 @@ defmodule Demo.Factory do
       role: :user,
       social_links: generate_social_links()
     }
-  end
-
-  def generate_social_links do
-    labels =
-      ["Facebook", "LinkedIn", "Twitter", "YouTube", "TikTok", "Snapchat", "Instagram", "Pinterest"]
-      |> Enum.shuffle()
-
-    for index <- 0..Enum.random(0..3) do
-      %{label: Enum.at(labels, index), url: "https://example.com/"}
-    end
   end
 
   def category_factory do
@@ -92,14 +82,24 @@ defmodule Demo.Factory do
     }
   end
 
-  def ticket_factory do
-    %Ticket{
-      subject: Faker.Lorem.sentence(),
-      body: Faker.Lorem.paragraph()
+  def film_review_factory do
+    %FilmReview{
+      title: Faker.Lorem.word(),
+      overview: Faker.Lorem.paragraph()
     }
   end
 
   defp boolean do
     Enum.random(0..1) == 1
+  end
+
+  defp generate_social_links do
+    labels =
+      ["Facebook", "LinkedIn", "Twitter", "YouTube", "TikTok", "Snapchat", "Instagram", "Pinterest"]
+      |> Enum.shuffle()
+
+    for index <- 0..Enum.random(0..3) do
+      %{label: Enum.at(labels, index), url: "https://example.com/"}
+    end
   end
 end

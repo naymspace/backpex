@@ -43,6 +43,7 @@ defmodule Backpex.Fields.Boolean do
           type="toggle"
           field={@form[@name]}
           translate_error_fun={Backpex.Field.translate_error_fun(@field_options, assigns)}
+          help_text={Backpex.Field.help_text(@field_options, assigns)}
           phx-debounce={Backpex.Field.debounce(@field_options, assigns)}
           phx-throttle={Backpex.Field.throttle(@field_options, assigns)}
         />
@@ -64,9 +65,14 @@ defmodule Backpex.Fields.Boolean do
     <div>
       <.form for={@form} class="relative" phx-change="update-field" phx-submit="update-field" phx-target={@myself}>
         <BackpexForm.input
+          id={"index-form-input-#{@name}-#{LiveResource.primary_value(@item, @live_resource)}"}
           type="toggle"
           field={@form[:value]}
-          input_class={["toggle toggle-sm toggle-success", "hover:input-bordered"]}
+          input_class={[
+            "toggle toggle-sm",
+            @valid && "toggle-primary",
+            !@valid && "toggle-error"
+          ]}
           phx-debounce={Backpex.Field.debounce(@field_options, assigns)}
           phx-throttle={Backpex.Field.throttle(@field_options, assigns)}
           readonly={@readonly}

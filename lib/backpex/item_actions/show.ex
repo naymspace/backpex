@@ -5,6 +5,8 @@ defmodule Backpex.ItemActions.Show do
 
   use BackpexWeb, :item_action
 
+  require Backpex
+
   @impl Backpex.ItemAction
   def icon(assigns, _item) do
     ~H"""
@@ -16,11 +18,11 @@ defmodule Backpex.ItemActions.Show do
   end
 
   @impl Backpex.ItemAction
-  def label(_assigns, _item), do: Backpex.translate("Show")
+  def label(assigns, _item), do: Backpex.__("Show", assigns.live_resource)
 
   @impl Backpex.ItemAction
   def handle(socket, [item | _items], _data) do
     path = Router.get_path(socket, socket.assigns.live_resource, socket.assigns.params, :show, item)
-    {:ok, Phoenix.LiveView.push_patch(socket, to: path)}
+    {:ok, Phoenix.LiveView.push_navigate(socket, to: path)}
   end
 end

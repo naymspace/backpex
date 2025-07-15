@@ -44,12 +44,16 @@ defmodule Backpex.Fields.MultiSelect do
   """
   use Backpex.Field, config_schema: @config_schema
   alias Backpex.HTML.Form
+  require Backpex
 
   @impl Phoenix.LiveComponent
   def update(assigns, socket) do
     socket
     |> assign(assigns)
-    |> assign(:not_found_text, assigns.field_options[:not_found_text] || Backpex.translate("No options found"))
+    |> assign(
+      :not_found_text,
+      assigns.field_options[:not_found_text] || Backpex.__("No options found", assigns.live_resource)
+    )
     |> assign(:prompt, prompt(assigns, assigns.field_options))
     |> assign(:search_input, "")
     |> assign_options()
@@ -124,16 +128,10 @@ defmodule Backpex.Fields.MultiSelect do
     ~H"""
     <div class={[@live_action in [:index, :resource_action] && "truncate"]}>
       {if @selected_labels == [], do: raw("&mdash;")}
-
-      <div class={["flex", @live_action == :show && "flex-wrap"]}>
-        <.intersperse :let={item} enum={@selected_labels}>
-          <:separator>
-            ,&nbsp;
-          </:separator>
-          <p>
-            {HTML.pretty_value(item)}
-          </p>
-        </.intersperse>
+      <div class="space-x-1">
+        <div :for={item <- @selected_labels} class="badge badge-sm badge-soft badge-primary">
+          <span>{HTML.pretty_value(item)}</span>
+        </div>
       </div>
     </div>
     """
@@ -159,6 +157,8 @@ defmodule Backpex.Fields.MultiSelect do
           show_more={false}
           event_target={@myself}
           search_event="search"
+          live_resource={@live_resource}
+          help_text={Backpex.Field.help_text(@field_options, assigns)}
         />
       </Layout.field_container>
     </div>
@@ -232,7 +232,7 @@ defmodule Backpex.Fields.MultiSelect do
 
   defp prompt(assigns, field_options) do
     case Map.get(field_options, :prompt) do
-      nil -> Backpex.translate("Select options...")
+      nil -> Backpex.__("Select options...", assigns.live_resource)
       prompt when is_function(prompt) -> prompt.(assigns)
       prompt -> prompt
     end

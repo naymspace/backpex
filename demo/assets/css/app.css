@@ -1,14 +1,16 @@
-@import "tailwindcss/base";
-@import "tailwindcss/components";
-@import "tailwindcss/utilities";
+@import "tailwindcss";
 
-@layer utilities {
-  .phx-click-loading {
-    opacity: 0.5;
-    transition: opacity 1s ease-out;
-  }
+@plugin "./tailwind_heroicons.js";
 
-  .phx-loading {
-    cursor: wait;
-  }
+@plugin "daisyui" {
+  themes: all;
 }
+
+@plugin "@tailwindcss/typography";
+
+@source "../../../lib/**/*.*ex";
+@source "../../../assets/js/hooks/**/*.*js";
+
+@custom-variant phx-click-loading (.phx-click-loading&, .phx-click-loading &);
+@custom-variant phx-submit-loading (.phx-submit-loading&, .phx-submit-loading &);
+@custom-variant phx-change-loading (.phx-change-loading&, .phx-change-loading &);

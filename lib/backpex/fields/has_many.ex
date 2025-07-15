@@ -80,6 +80,7 @@ defmodule Backpex.Fields.HasMany do
   alias Backpex.Adapters.Ecto, as: EctoAdapter
   alias Backpex.HTML.Form
   alias Backpex.Router
+  require Backpex
 
   @impl Phoenix.LiveComponent
   def update(assigns, socket) do
@@ -98,7 +99,9 @@ defmodule Backpex.Fields.HasMany do
 
     socket
     |> assign_new(:prompt, fn -> prompt(assigns, field_options) end)
-    |> assign_new(:not_found_text, fn -> field_options[:not_found_text] || Backpex.translate("No options found") end)
+    |> assign_new(:not_found_text, fn ->
+      field_options[:not_found_text] || Backpex.__("No options found", socket.assigns.live_resource)
+    end)
     |> assign_new(:search_input, fn -> "" end)
     |> assign_new(:offset, fn -> 0 end)
     |> assign_new(:options_count, fn -> count_options(assigns) end)
@@ -120,16 +123,7 @@ defmodule Backpex.Fields.HasMany do
           <:separator>
             ,&nbsp;
           </:separator>
-          <.item
-            socket={@socket}
-            field={@field}
-            field_options={@field_options}
-            params={@params}
-            live_resource={@live_resource}
-            live_action={@live_action}
-            item={item}
-            link_assocs={@link_assocs}
-          />
+          <.item item={item} {assigns} />
         </.intersperse>
       </div>
     </div>
@@ -149,7 +143,7 @@ defmodule Backpex.Fields.HasMany do
             tabindex="0"
             class={[
               "input block h-fit w-full p-2",
-              @errors == [] && "input-bordered bg-transparent",
+              @errors == [] && "bg-transparent",
               @errors != [] && "input-error bg-error/10"
             ]}
           >
@@ -158,31 +152,32 @@ defmodule Backpex.Fields.HasMany do
                 {@prompt}
               </p>
 
-              <div :for={{label, value} <- @selected} class="badge badge-primary p-[11px]">
-                <p class="mr-1">
-                  {label}
-                </p>
-
+              <div
+                :for={{label, value} <- @selected}
+                class="badge badge-sm badge-soft badge-primary pointer-events-auto pr-0"
+              >
+                <span>{label}</span>
                 <label
+                  class="flex cursor-pointer items-center pr-2"
                   role="button"
                   for={"has-many-#{@name}-checkbox-value-#{value}"}
-                  aria-label={Backpex.translate({"Unselect %{label}", %{label: label}})}
+                  aria-label={Backpex.__({"Unselect %{label}", %{label: label}}, @live_resource)}
                 >
-                  <Backpex.HTML.CoreComponents.icon name="hero-x-mark" class="text-base-100 ml-1 h-4 w-4" />
+                  <Backpex.HTML.CoreComponents.icon name="hero-x-mark" class="size-4 scale-105 hover:scale-110" />
                 </label>
               </div>
             </div>
           </label>
-          <Form.error :for={msg <- @errors}>{msg}</Form.error>
+          <Form.error :for={msg <- @errors} class="mt-1">{msg}</Form.error>
           <div tabindex="0" class="dropdown-content z-[1] menu bg-base-100 rounded-box w-full overflow-y-auto shadow">
             <div class="max-h-72 p-2">
               <input
                 type="search"
                 name={"#{@name}_search"}
-                class="input input-sm input-bordered mb-2 w-full"
+                class="input input-sm mb-2 w-full"
                 phx-change="search"
                 phx-target={@myself}
-                placeholder={Backpex.translate("Search")}
+                placeholder={Backpex.__("Search", @live_resource)}
                 value={@search_input}
               />
               <p :if={@options == []} class="w-full">
@@ -198,14 +193,14 @@ defmodule Backpex.Fields.HasMany do
                 />
                 <span role="button" class="text-primary my-2 cursor-pointer text-sm underline">
                   <%= if @all_selected do %>
-                    {Backpex.translate("Deselect all")}
+                    {Backpex.__("Deselect all", @live_resource)}
                   <% else %>
-                    {Backpex.translate("Select all")}
+                    {Backpex.__("Select all", @live_resource)}
                   <% end %>
                 </span>
               </label>
 
-              <input type="hidden" id={"has-many-#{@name}-hidden-input"} name={"#{@form[@name].name}[]"} value="" />
+              <input class="hidden" id={"has-many-#{@name}-hidden-input"} name={"#{@form[@name].name}[]"} value="" />
 
               <input
                 :for={value <- @selected_ids}
@@ -241,11 +236,15 @@ defmodule Backpex.Fields.HasMany do
                 phx-click="show-more"
                 phx-target={@myself}
               >
-                {Backpex.translate("Show more")}
+                {Backpex.__("Show more", @live_resource)}
               </button>
             </div>
           </div>
         </div>
+
+        <%= if help_text = Backpex.Field.help_text(@field_options, assigns) do %>
+          <Backpex.HTML.Form.help_text class="mt-1">{help_text}</Backpex.HTML.Form.help_text>
+        <% end %>
       </Layout.field_container>
     </div>
     """
@@ -290,7 +289,7 @@ defmodule Backpex.Fields.HasMany do
     validate_live_resource(field_name, field_options)
 
     # TODO: do not rely on specific adapter
-    schema = field_options.live_resource.config(:adapter_config)[:schema]
+    schema = field_options.live_resource.adapter_config(:schema)
     field_name_string = to_string(field_name)
 
     new_assocs = get_new_assocs(attrs, field_name_string, schema, repo, field_options, assigns)
@@ -404,8 +403,9 @@ defmodule Backpex.Fields.HasMany do
   end
 
   defp options(assigns, opts) do
-    %{repo: repo, schema: schema, field: field, field_options: field_options, name: name} = assigns
-
+    %{field: field, field_options: field_options, name: name} = assigns
+    repo = assigns.live_resource.adapter_config(:repo)
+    schema = assigns.live_resource.adapter_config(:schema)
     %{queryable: queryable} = schema.__schema__(:association, name)
 
     display_field = display_field(field)
@@ -450,8 +450,9 @@ defmodule Backpex.Fields.HasMany do
   end
 
   defp count_options(assigns, opts \\ []) do
-    %{schema: schema, repo: repo, field: field, field_options: field_options, name: name} = assigns
-
+    %{field: field, field_options: field_options, name: name} = assigns
+    repo = assigns.live_resource.adapter_config(:repo)
+    schema = assigns.live_resource.adapter_config(:schema)
     display_field = display_field(field)
 
     %{queryable: queryable} = schema.__schema__(:association, name)
@@ -480,7 +481,8 @@ defmodule Backpex.Fields.HasMany do
   end
 
   defp fetch_selected_items(socket, selected_ids) do
-    %{queryable: queryable} = socket.assigns.schema.__schema__(:association, socket.assigns.name)
+    schema = socket.assigns.live_resource.adapter_config(:schema)
+    %{queryable: queryable} = schema.__schema__(:association, socket.assigns.name)
     {from_options, to_fetch} = separate_selected_items(selected_ids, socket.assigns.options)
     from_db = fetch_from_db(to_fetch, queryable, socket)
 
@@ -501,10 +503,12 @@ defmodule Backpex.Fields.HasMany do
   defp fetch_from_db([], _queryable, _socket), do: []
 
   defp fetch_from_db(ids_to_fetch, queryable, socket) do
+    repo = socket.assigns.live_resource.adapter_config(:repo)
+
     queryable
     |> where([x], x.id in ^ids_to_fetch)
     |> maybe_options_query(socket.assigns.field_options, socket.assigns)
-    |> socket.assigns.repo.all()
+    |> repo.all()
     |> Enum.map(fn item ->
       {Map.get(item, display_field_form(socket.assigns.field)), item.id}
     end)
@@ -545,7 +549,7 @@ defmodule Backpex.Fields.HasMany do
 
   defp prompt(assigns, field_options) do
     case Map.get(field_options, :prompt) do
-      nil -> Backpex.translate("Select options...")
+      nil -> Backpex.__("Select options...", assigns.live_resource)
       prompt when is_function(prompt) -> prompt.(assigns)
       prompt -> prompt
     end

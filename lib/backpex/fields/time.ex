@@ -82,6 +82,7 @@ defmodule Backpex.Fields.Time do
           type="time"
           field={@form[@name]}
           translate_error_fun={Backpex.Field.translate_error_fun(@field_options, assigns)}
+          help_text={Backpex.Field.help_text(@field_options, assigns)}
           phx-debounce={Backpex.Field.debounce(@field_options, assigns)}
           phx-throttle={Backpex.Field.throttle(@field_options, assigns)}
         />
@@ -125,9 +126,10 @@ defmodule Backpex.Fields.Time do
     <div>
       <.form for={@form} phx-change="update-field" phx-submit="update-field" phx-target={@myself}>
         <BackpexForm.input
+          id={"index-form-input-#{@name}-#{LiveResource.primary_value(@item, @live_resource)}"}
           type="time"
           field={@form[:value]}
-          input_class={["input input-sm w-32", @valid && "hover:input-bordered", !@valid && "input-error"]}
+          input_class={["input input-sm w-32", @valid && "not-hover:input-ghost", !@valid && "input-error"]}
           phx-debounce="100"
           readonly={@readonly}
           hide_errors

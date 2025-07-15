@@ -7,7 +7,8 @@ defmodule DemoWeb.PostLive do
       create_changeset: &Demo.Post.create_changeset/3
     ],
     layout: {DemoWeb.Layouts, :admin},
-    fluid?: true
+    fluid?: true,
+    save_and_continue_button?: true
 
   import Ecto.Query, warn: false
 
@@ -156,6 +157,7 @@ defmodule DemoWeb.PostLive do
         select: dynamic([user: u], fragment("concat(?, ' ', ?)", u.first_name, u.last_name)),
         options_query: fn query, _assigns ->
           query
+          |> where([user], is_nil(user.deleted_at))
           |> select_merge([user], %{
             full_name: fragment("concat(?, ' ', ?)", user.first_name, user.last_name)
           })

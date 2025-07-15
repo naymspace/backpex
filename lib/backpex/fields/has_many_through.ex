@@ -78,10 +78,11 @@ defmodule Backpex.Fields.HasManyThrough do
   """
   use Backpex.Field, config_schema: @config_schema
   import Ecto.Query
-  import Backpex.HTML.Layout, only: [modal: 1]
+  import Backpex.HTML.Layout, except: [ok: 1, noreply: 1]
   import PhoenixHTMLHelpers.Form, only: [hidden_inputs_for: 1]
   alias Backpex.LiveResource
   alias Ecto.Changeset
+  require Backpex
 
   @impl Phoenix.LiveComponent
   def update(assigns, socket) do
@@ -92,12 +93,10 @@ defmodule Backpex.Fields.HasManyThrough do
   end
 
   defp apply_action(socket, :form) do
-    %{schema: schema, name: name} = socket.assigns
-
-    association = association(schema, name)
+    schema = socket.assigns.live_resource.adapter_config(:schema)
+    association = association(schema, socket.assigns.name)
 
     socket
-    |> assign_new(:edit_relational, fn -> nil end)
     |> assign_new(:association, fn -> association end)
     |> assign_options()
   end
@@ -107,19 +106,22 @@ defmodule Backpex.Fields.HasManyThrough do
   defp assign_options(%{assigns: %{options: _options, items: _items}} = socket), do: socket
 
   defp assign_options(socket) do
-    %{assigns: %{repo: repo, field_options: field_options, association: association} = assigns} = socket
+    %{field_options: field_options, association: association} = socket.assigns
+    repo = socket.assigns.live_resource.adapter_config(:repo)
 
     display_field = Map.get(field_options, :display_field_form, Map.get(field_options, :display_field))
 
     all_items =
       from(association.child.queryable)
-      |> maybe_options_query(field_options, assigns)
+      |> maybe_options_query(field_options, socket.assigns)
       |> repo.all()
 
     options = Enum.map(all_items, &{Map.get(&1, display_field), Map.get(&1, :id)})
 
-    prompt =
-      {Backpex.translate({"Choose %{resource} ...", %{resource: field_options.live_resource.singular_name()}}), nil}
+    live_resource = field_options.live_resource
+    singular_name = live_resource.singular_name()
+
+    prompt = {Backpex.__({"Choose %{resource} ...", %{resource: singular_name}}, live_resource), nil}
 
     socket
     |> assign(:all_items, all_items)
@@ -128,8 +130,8 @@ defmodule Backpex.Fields.HasManyThrough do
 
   @impl Backpex.Field
   def render_value(assigns) do
-    %{item: item, name: assoc_field_name, schema: schema} = assigns
-
+    %{item: item, name: assoc_field_name} = assigns
+    schema = assigns.live_resource.adapter_config(:schema)
     %{pivot: %{field: pivot_field}, child: %{field: child_field}} = association(schema, assoc_field_name)
 
     listables =
@@ -224,8 +226,10 @@ defmodule Backpex.Fields.HasManyThrough do
       end)
       |> maybe_sort_by(assigns)
 
-    relational_title =
-      Backpex.translate({"Attach %{resource}", %{resource: assoc_field_options.live_resource.singular_name()}})
+    live_resource = assoc_field_options.live_resource
+    singular_name = live_resource.singular_name()
+
+    relational_title = Backpex.__({"Attach %{resource}", %{resource: singular_name}}, live_resource)
 
     assigns =
       assigns
@@ -234,6 +238,7 @@ defmodule Backpex.Fields.HasManyThrough do
       |> assign(owner_key: association.child.owner_key)
       |> assign(relational_title: relational_title)
       |> assign(association: association)
+      |> assign_new(:newest_relational, fn -> nil end)
 
     ~H"""
     <div>
@@ -289,26 +294,32 @@ defmodule Backpex.Fields.HasManyThrough do
                 <td>
                   <div class="flex items-center space-x-2">
                     <button
+                      class="cursor-pointer"
                       type="button"
-                      phx-click="edit-relational"
-                      phx-target={@myself}
-                      phx-value-index={listable.index}
-                      aria-label={Backpex.translate({"Edit relation with index %{index}", %{index: listable.index}})}
+                      phx-click={open_modal("edit-relational-modal-#{listable.index}")}
+                      aria-label={
+                        Backpex.__({"Edit relation with index %{index}", %{index: listable.index}}, @live_resource)
+                      }
                     >
                       <Backpex.HTML.CoreComponents.icon name="hero-pencil-square" class="h-5 w-5" />
                     </button>
                     <button
+                      class="cursor-pointer"
                       type="button"
                       phx-click="detach-relational"
                       phx-target={@myself}
                       phx-value-index={listable.index}
-                      aria-label={Backpex.translate({"Detach relation with index %{index}", %{index: listable.index}})}
+                      aria-label={
+                        Backpex.__({"Detach relation with index %{index}", %{index: listable.index}}, @live_resource)
+                      }
                     >
                       <Backpex.HTML.CoreComponents.icon name="hero-trash" class="h-5 w-5" />
                     </button>
                     <div
                       :if={has_error?(@editables, index)}
-                      aria-label={Backpex.translate({"Error in relation with index %{index}", %{index: listable.index}})}
+                      aria-label={
+                        Backpex.__({"Error in relation with index %{index}", %{index: listable.index}}, @live_resource)
+                      }
                     >
                       <Backpex.HTML.CoreComponents.icon name="hero-exclamation-triangle" class="text-error h-5 w-5" />
                     </div>
@@ -320,32 +331,32 @@ defmodule Backpex.Fields.HasManyThrough do
         </div>
 
         <.modal
-          open={@edit_relational != nil}
+          :for={e <- @editables}
+          id={"edit-relational-modal-#{e.index}"}
+          box_class="max-w-5xl"
           title={@relational_title}
-          close_event_name="cancel-relational"
-          target={@myself}
-          max_width="xl"
+          open={@newest_relational === e.index}
+          close_label={Backpex.__("Close modal", @live_resource)}
         >
           <div class="py-3">
-            <div :for={e <- @editables} class={[if(e.index != @edit_relational, do: "hidden")]}>
-              {hidden_inputs_for(e)}
-              <.select_relational_field
-                form={e}
-                label={@field_options.live_resource.singular_name()}
-                field_options={@field}
-                owner_key={@owner_key}
-                options={@options}
-              />
-              <.pivot_field :for={{name, _field_options} <- @field_options.pivot_fields} name={name} form={e} {assigns} />
-            </div>
+            {hidden_inputs_for(e)}
+            <.select_relational_field
+              form={e}
+              label={@field_options.live_resource.singular_name()}
+              field_options={@field}
+              owner_key={@owner_key}
+              options={@options}
+            />
+            <.pivot_field :for={{name, _field_options} <- @field_options.pivot_fields} name={name} form={e} {assigns} />
           </div>
           <div class="bg-base-200 flex justify-end space-x-4 px-6 py-3">
-            <button type="button" class="btn" phx-click="cancel-relational" phx-target={@myself}>
-              {Backpex.translate("Cancel")}
-            </button>
-
-            <button type="button" class="btn btn-primary" phx-click="complete-relational" phx-target={@myself}>
-              {Backpex.translate("Apply")}
+            <button
+              type="button"
+              class="btn btn-primary"
+              phx-click={close_modal("edit-relational-modal-#{e.index}")}
+              phx-target={@myself}
+            >
+              {Backpex.__("Apply", @live_resource)}
             </button>
           </div>
         </.modal>
@@ -353,6 +364,10 @@ defmodule Backpex.Fields.HasManyThrough do
         <button type="button" class="btn btn-sm btn-outline btn-primary" phx-click="new-relational" phx-target={@myself}>
           {@relational_title}
         </button>
+
+        <%= if help_text = Backpex.Field.help_text(@field_options, assigns) do %>
+          <Backpex.HTML.Form.help_text class="mt-1">{help_text}</Backpex.HTML.Form.help_text>
+        <% end %>
       </Layout.field_container>
     </div>
     """
@@ -364,13 +379,11 @@ defmodule Backpex.Fields.HasManyThrough do
 
     existing = get_change_or_field(changeset, association.pivot.field)
     all_assocs = Enum.concat(existing, [%{}])
-    change = Changeset.get_change(changeset, association.pivot.field, existing)
 
     put_assoc(association.pivot.field, all_assocs)
 
     socket
-    |> assign(return_to_change: change)
-    |> assign(edit_relational: Enum.count(existing))
+    |> assign(:newest_relational, Enum.count(existing))
     |> noreply()
   end
 
@@ -399,38 +412,6 @@ defmodule Backpex.Fields.HasManyThrough do
     put_assoc(association.pivot.field, updated)
 
     {:noreply, socket}
-  end
-
-  @impl Phoenix.LiveComponent
-  def handle_event("edit-relational", %{"index" => index}, socket) do
-    %{changeset: changeset, association: association} = socket.assigns
-
-    existing = get_change_or_field(changeset, association.pivot.field)
-    index = String.to_integer(index)
-    change = Changeset.get_change(changeset, association.pivot.field, existing)
-
-    socket
-    |> assign(edit_relational: index)
-    |> assign(return_to_change: change)
-    |> noreply()
-  end
-
-  @impl Phoenix.LiveComponent
-  def handle_event("complete-relational", _params, socket) do
-    socket
-    |> assign(edit_relational: nil)
-    |> noreply()
-  end
-
-  @impl Phoenix.LiveComponent
-  def handle_event("cancel-relational", _params, socket) do
-    %{association: association, return_to_change: return_to_change} = socket.assigns
-
-    put_assoc(association.pivot.field, return_to_change)
-
-    socket
-    |> assign(edit_relational: nil)
-    |> noreply()
   end
 
   defp action_fields(fields, assigns, action), do: LiveResource.filtered_fields_by_action(fields, assigns, action)

@@ -78,6 +78,7 @@ defmodule Backpex.Fields.Select do
           options={@options}
           prompt={@prompt}
           translate_error_fun={Backpex.Field.translate_error_fun(@field_options, assigns)}
+          help_text={Backpex.Field.help_text(@field_options, assigns)}
           phx-debounce={Backpex.Field.debounce(@field_options, assigns)}
           phx-throttle={Backpex.Field.throttle(@field_options, assigns)}
         />
@@ -102,12 +103,16 @@ defmodule Backpex.Fields.Select do
     <div>
       <.form for={@form} class="relative" phx-change="update-field" phx-submit="update-field" phx-target={@myself}>
         <BackpexForm.input
+          id={"index-form-input-#{@name}-#{LiveResource.primary_value(@item, @live_resource)}"}
           type="select"
           field={@form[:value]}
           options={@options}
           prompt={@prompt}
-          input_wrapper_class=""
-          input_class={["select select-sm", if(@valid, do: "hover:input-bordered", else: "select-error")]}
+          input_class={[
+            "select select-sm",
+            @valid && "not-hover:select-ghost",
+            !@valid && "select-error text-error-content bg-error/10"
+          ]}
           disabled={@readonly}
           hide_errors
         />

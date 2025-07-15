@@ -12,6 +12,8 @@ defmodule Backpex.HTML.Resource do
   alias Backpex.ResourceAction
   alias Backpex.Router
 
+  require Backpex
+
   embed_templates("resource/*")
 
   @doc """
@@ -186,7 +188,7 @@ defmodule Backpex.HTML.Resource do
     <.form :if={@search_enabled} id="index-search-form" for={@form} phx-change="index-search" phx-submit="index-search">
       <input
         name={@form[:value].name}
-        class="input input-sm input-bordered"
+        class="input input-sm"
         placeholder={@placeholder}
         phx-debounce="200"
         value={@form[:value].value}
@@ -203,6 +205,7 @@ defmodule Backpex.HTML.Resource do
   attr :live_resource, :any, required: true, doc: "module of the live resource"
   attr :filter_options, :map, required: true, doc: "filter options"
   attr :filters, :list, required: true, doc: "list of active filters"
+  attr :label, :string, required: true
 
   def index_filter(assigns) do
     computed = [
@@ -219,16 +222,16 @@ defmodule Backpex.HTML.Resource do
     ~H"""
     <div :if={@filters != []} class="dropdown">
       <div class="indicator">
-        <span :if={@filter_count > 0} class="indicator-item badge badge-secondary">
+        <span :if={@filter_count > 0} class="indicator-item badge badge-sm badge-secondary rounded-selector">
           {@filter_count}
         </span>
         <label tabindex="0" class="btn btn-sm btn-outline ring-base-content/10 border-0 ring-1">
           <Backpex.HTML.CoreComponents.icon name="hero-funnel-solid" class={["mr-2 h-5 w-5", @filter_icon_class]} />
-          {Backpex.translate("Filters")}
+          {@label}
         </label>
       </div>
       <div tabindex="0" class="dropdown-content z-[1] menu bg-base-100 rounded-box p-4 shadow">
-        <.index_filter_forms filters={@filters} filter_options={@filter_options} />
+        <.index_filter_forms filters={@filters} filter_options={@filter_options} live_resource={@live_resource} {assigns} />
       </div>
     </div>
     <Backpex.HTML.CoreComponents.filter_badge
@@ -236,10 +239,11 @@ defmodule Backpex.HTML.Resource do
       filter_name={key}
       clear_event="clear-filter"
       label={Keyword.get(@filters, String.to_existing_atom(key)).module.label()}
+      live_resource={@live_resource}
     >
       {component(
         &Keyword.get(@filters, String.to_existing_atom(key)).module.render/1,
-        [value: value],
+        Map.merge(assigns, %{value: value}),
         {__ENV__.module, __ENV__.function, __ENV__.file, __ENV__.line}
       )}
     </Backpex.HTML.CoreComponents.filter_badge>
@@ -255,13 +259,13 @@ defmodule Backpex.HTML.Resource do
           <div>
             <div class="relative flex w-full flex-wrap justify-start gap-2">
               <div class="text-base-content text-sm font-medium">{Map.get(filter, :label, filter.module.label())}</div>
-              <.maybe_clear_button field={field} value={value} />
+              <.maybe_clear_button field={field} value={value} live_resource={@live_resource} />
             </div>
             <div class="flex gap-4">
               <div class="w-[240px]">
                 {component(
                   &filter.module.render_form/1,
-                  [field: field, value: value, form: f],
+                  Map.merge(assigns, %{field: field, value: value, form: f, live_resource: @live_resource}),
                   {__ENV__.module, __ENV__.function, __ENV__.file, __ENV__.line}
                 )}
               </div>
@@ -297,7 +301,7 @@ defmodule Backpex.HTML.Resource do
   defp maybe_clear_button(assigns) do
     ~H"""
     <input
-      value={Backpex.translate("clear")}
+      value={Backpex.__("clear", @live_resource)}
       type="button"
       phx-click="clear-filter"
       phx-value-field={@field}
@@ -329,7 +333,7 @@ defmodule Backpex.HTML.Resource do
     <div class={["dropdown", @class]}>
       <label tabindex="0" class="hover:cursor-pointer">
         <span class="sr-only">
-          {Backpex.translate("Toggle columns")}
+          {Backpex.__("Toggle columns", @live_resource)}
         </span>
         <Backpex.HTML.CoreComponents.icon
           name="hero-view-columns-solid"
@@ -343,7 +347,7 @@ defmodule Backpex.HTML.Resource do
           <input type="hidden" name={@form[:_cookie_redirect_url].name} value={@form[:_cookie_redirect_url].value} />
           <.toggle_columns_inputs active_fields={@active_fields} form={@form} />
           <button class="btn btn-sm btn-primary mt-4">
-            {Backpex.translate("Save")}
+            {Backpex.__("Save", @live_resource)}
           </button>
         </.form>
       </div>
@@ -382,6 +386,7 @@ defmodule Backpex.HTML.Resource do
 
   attr :total, :integer, required: true, doc: "total number of items"
   attr :query_options, :map, required: true, doc: "query options"
+  attr :live_resource, :atom, default: nil, doc: "the live resource module"
 
   def pagination_info(assigns) do
     %{query_options: %{page: page, per_page: per_page}} = assigns
@@ -389,8 +394,8 @@ defmodule Backpex.HTML.Resource do
     from = (page - 1) * per_page + 1
     to = min(page * per_page, assigns.total)
 
-    from_to_string = Backpex.translate({"Items %{from} to %{to}", %{from: from, to: to}})
-    total_string = "(#{assigns.total} #{Backpex.translate("total")})"
+    from_to_string = Backpex.__({"Items %{from} to %{to}", %{from: from, to: to}}, assigns.live_resource)
+    total_string = Backpex.__({"(%{count} total)", %{count: assigns.total}}, assigns.live_resource)
 
     label = from_to_string <> " " <> total_string
 
@@ -412,21 +417,23 @@ defmodule Backpex.HTML.Resource do
   attr :current_page, :integer, required: true, doc: "current page number"
   attr :total_pages, :integer, required: true, doc: "number of total pages"
   attr :path, :string, required: true, doc: "path to be used for page links"
+  attr :next_page_label, :string, default: "Next page"
+  attr :previous_page_label, :string, default: "Previous page"
 
   def pagination(assigns) do
-    assigns =
-      assigns
-      |> assign(:pagination_items, pagination_items(assigns.current_page, assigns.total_pages))
+    assigns = assign(assigns, :pagination_items, pagination_items(assigns.current_page, assigns.total_pages))
 
     ~H"""
     <div class="join">
       <.pagination_item
         :for={%{type: type, number: number} <- @pagination_items}
-        class="join-item text-xs"
+        class="join-item"
         type={type}
         number={number}
         current_page={@current_page}
         path={@path}
+        next_page_label={@next_page_label}
+        previous_page_label={@previous_page_label}
       />
     </div>
     """
@@ -437,62 +444,51 @@ defmodule Backpex.HTML.Resource do
   attr :type, :atom, required: true
   attr :number, :integer, default: nil, required: false
   attr :class, :string, default: nil
+  attr :next_page_label, :string, default: "Next page"
+  attr :previous_page_label, :string, default: "Previous page"
 
   defp pagination_item(%{type: :number} = assigns) do
     pagination_link = get_pagination_link(assigns.path, assigns.number)
-
     assigns = assign(assigns, :href, pagination_link)
 
     ~H"""
-    <%= if @current_page == @number do %>
-      <button class={["btn btn-active", @class]} aria-disabled="true">
-        {Integer.to_string(@number)}
-      </button>
-    <% else %>
-      <.link href={@href}>
-        <button class={["btn bg-base-100", @class]}>
-          {Integer.to_string(@number)}
-        </button>
-      </.link>
-    <% end %>
+    <.link href={@href} class={[pagination_btn_class(), @current_page == @number && "bg-base-300", @class]}>
+      {Integer.to_string(@number)}
+    </.link>
     """
   end
 
   defp pagination_item(%{type: :prev} = assigns) do
     pagination_link = get_pagination_link(assigns.path, assigns.current_page - 1)
-
     assigns = assign(assigns, :href, pagination_link)
 
     ~H"""
-    <.link href={@href}>
-      <button class={["btn bg-base-100", @class]} aria-label={Backpex.translate("Previous page")}>
-        <Backpex.HTML.CoreComponents.icon name="hero-chevron-left" class="h-4 w-4" />
-      </button>
+    <.link href={@href} class={[pagination_btn_class(), @class]} aria-label={@previous_page_label}>
+      <Backpex.HTML.CoreComponents.icon name="hero-chevron-left" class="h-4 w-4" />
     </.link>
     """
   end
 
   defp pagination_item(%{type: :next} = assigns) do
     pagination_link = get_pagination_link(assigns.path, assigns.current_page + 1)
-
     assigns = assign(assigns, :href, pagination_link)
 
     ~H"""
-    <.link href={@href}>
-      <button class={["btn bg-base-100", @class]} aria-label={Backpex.translate("Next page")}>
-        <Backpex.HTML.CoreComponents.icon name="hero-chevron-right" class="h-4 w-4" />
-      </button>
+    <.link href={@href} class={[pagination_btn_class(), @class]} aria-label={@next_page_label}>
+      <Backpex.HTML.CoreComponents.icon name="hero-chevron-right" class="h-4 w-4" />
     </.link>
     """
   end
 
   defp pagination_item(%{type: :placeholder} = assigns) do
     ~H"""
-    <button class={["btn bg-base-100", @class]} aria-disable="true">
+    <button class={[pagination_btn_class(), @class]} aria-disable="true">
       ...
     </button>
     """
   end
+
+  defp pagination_btn_class, do: ["btn btn-sm bg-base-100 hover:bg-[var(--btn-border)]"]
 
   defp get_pagination_link(path, page), do: String.replace(path, ":page", page |> Integer.to_string())
 
@@ -607,7 +603,7 @@ defmodule Backpex.HTML.Resource do
 
     ~H"""
     <.form for={@form} class={@class} phx-change="select-page-size" phx-submit="select-page-size">
-      <select name={@form[:value].name} class="select select-sm select-bordered">
+      <select name={@form[:value].name} class="select select-sm">
         {Phoenix.HTML.Form.options_for_select(@options, @selected)}
       </select>
     </.form>
@@ -670,7 +666,6 @@ defmodule Backpex.HTML.Resource do
     default: [],
     doc: "The fields that can be searched. Here only used to hide the component when empty."
 
-  attr :full_text_search, :string, default: nil, doc: "full text search column name"
   attr :query_options, :map, default: %{}, doc: "query options"
   attr :search_placeholder, :string, required: true, doc: "placeholder for the search input"
 
@@ -680,7 +675,7 @@ defmodule Backpex.HTML.Resource do
       <.metric_toggle {assigns} />
       <.index_search_form
         searchable_fields={@searchable_fields}
-        full_text_search={@full_text_search}
+        full_text_search={@live_resource.config(:full_text_search)}
         value={Map.get(@query_options, :search, "")}
         placeholder={@search_placeholder}
       />
@@ -688,6 +683,8 @@ defmodule Backpex.HTML.Resource do
         live_resource={@live_resource}
         filter_options={LiveResource.get_filter_options(@query_options)}
         filters={LiveResource.active_filters(assigns)}
+        label={Backpex.__("Filters", @live_resource)}
+        {assigns}
       />
     </div>
     """
@@ -753,11 +750,13 @@ defmodule Backpex.HTML.Resource do
   attr :singular_name, :string, required: true, doc: "singular name of the resource"
 
   def empty_state(assigns) do
+    plural_name = assigns.live_resource.plural_name()
+
     assigns =
       assigns
       |> assign(:search_active?, get_in(assigns, [:query_options, :search]) not in [nil, ""])
       |> assign(:filter_active?, get_in(assigns, [:query_options, :filters]) != %{})
-      |> assign(:title, Backpex.translate({"No %{resources} found", %{resources: assigns.plural_name}}))
+      |> assign(:title, Backpex.__({"No %{resources} found", %{resources: plural_name}}, assigns.live_resource))
       |> assign(:create_allowed, assigns.live_resource.can?(assigns, :new, nil))
 
     ~H"""
@@ -767,12 +766,12 @@ defmodule Backpex.HTML.Resource do
           <.empty_state_content
             :if={@search_active?}
             title={@title}
-            subtitle={Backpex.translate("Try a different search term.")}
+            subtitle={Backpex.__("Try a different search term.", @live_resource)}
           />
           <.empty_state_content
             :if={not @search_active? and @filter_active?}
             title={@title}
-            subtitle={Backpex.translate("Try a different filter setting or clear all filters.")}
+            subtitle={Backpex.__("Try a different filter setting or clear all filters.", @live_resource)}
           />
           <.empty_state_content :if={not @search_active? and not @filter_active?} title={@title}>
             <.link :if={@create_allowed} patch={Router.get_path(@socket, @live_resource, @params, :new)}>
@@ -858,7 +857,7 @@ defmodule Backpex.HTML.Resource do
         {@label}
       </p>
 
-      <div class="card bg-base-100 mt-4">
+      <div class="card bg-base-100 mt-4 shadow-sm">
         <div class="card-body p-0">
           <div class="flex flex-col sm:divide-base-200 sm:divide-y">
             <div :for={{name, %{label: label}} <- @panel_fields}>
@@ -974,13 +973,17 @@ defmodule Backpex.HTML.Resource do
       <.form method="POST" for={@form} action={Router.cookie_path(@socket)}>
         <input type="hidden" name={@form[:_resource].name} value={@form[:_resource].value} />
         <input type="hidden" name={@form[:_cookie_redirect_url].name} value={@form[:_cookie_redirect_url].value} />
-        <div id="toggle-metrics-button" phx-hook="BackpexTooltip" data-tooltip={Backpex.translate("Toggle metrics")}>
+        <div
+          id="toggle-metrics-button"
+          phx-hook="BackpexTooltip"
+          data-tooltip={Backpex.__("Toggle metrics", @live_resource)}
+        >
           <button
             type="submit"
-            class={["btn btn-sm", @visible && "btn-primary", !@visible && "btn-neutral"]}
-            aria-label={Backpex.translate("Toggle metrics")}
+            class={["btn btn-sm", @visible && "btn-active"]}
+            aria-label={Backpex.__("Toggle metrics", @live_resource)}
           >
-            <Backpex.HTML.CoreComponents.icon name="hero-chart-bar-square" class="h-5 w-5" />
+            <Backpex.HTML.CoreComponents.icon name="hero-chart-bar-square" class="size-6" />
           </button>
         </div>
       </.form>
@@ -1019,7 +1022,7 @@ defmodule Backpex.HTML.Resource do
   defp sticky_col_class do
     [
       "sticky right-0",
-      "after:[&[stuck]]:block after:absolute after:inset-y-0 after:left-0 after:hidden",
+      "[&[stuck]]:after:block after:absolute after:inset-y-0 after:left-0 after:hidden",
       "after:border-r after:border-base-200 after:shadow-[-1px_0_2px_0_rgba(0,0,0,0.05)]"
     ]
   end
@@ -1031,9 +1034,4 @@ defmodule Backpex.HTML.Resource do
 
   defp toggle_order_direction(:asc), do: :desc
   defp toggle_order_direction(:desc), do: :asc
-
-  defp primary_value(item, live_resource) do
-    item
-    |> Map.get(live_resource.config(:primary_key))
-  end
 end

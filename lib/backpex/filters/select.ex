@@ -40,7 +40,7 @@ defmodule Backpex.Filters.Select do
   @doc """
   The list of options for the select filter.
   """
-  @callback options :: [{String.t() | atom(), String.t() | atom()}]
+  @callback options(assigns :: map()) :: [{String.t() | atom(), String.t() | atom()}]
 
   defmacro __using__(_opts) do
     quote do
@@ -52,11 +52,11 @@ defmodule Backpex.Filters.Select do
       @behaviour Backpex.Filters.Select
 
       @impl Backpex.Filter
-      defdelegate query(query, attribute, value), to: SelectFilter
+      defdelegate query(query, attribute, value, assigns), to: SelectFilter
 
       @impl Backpex.Filter
       def render(assigns) do
-        assigns = assign(assigns, :options, options())
+        assigns = assign(assigns, :options, options(assigns))
         SelectFilter.render(assigns)
       end
 
@@ -64,13 +64,13 @@ defmodule Backpex.Filters.Select do
       def render_form(assigns) do
         assigns =
           assigns
-          |> assign(:options, options())
+          |> assign(:options, options(assigns))
           |> assign(:prompt, prompt())
 
         SelectFilter.render_form(assigns)
       end
 
-      defoverridable query: 3, render: 1, render_form: 1
+      defoverridable query: 4, render: 1, render_form: 1
     end
   end
 
@@ -93,7 +93,7 @@ defmodule Backpex.Filters.Select do
 
   def render_form(assigns) do
     ~H"""
-    <select name={@form[@field].name} class="select select-sm select-bordered mt-2 w-full">
+    <select name={@form[@field].name} class="select select-sm mt-2">
       <option value="">{@prompt}</option>
       {Phoenix.HTML.Form.options_for_select(@options, selected(@value))}
     </select>
@@ -103,7 +103,7 @@ defmodule Backpex.Filters.Select do
   def selected(""), do: nil
   def selected(value), do: value
 
-  def query(query, attribute, value) do
+  def query(query, attribute, value, _assigns) do
     where(query, [x], field(x, ^attribute) == ^value)
   end
 

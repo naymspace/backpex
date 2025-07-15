@@ -19,23 +19,23 @@ defmodule DemoWeb.UserLive do
   def plural_name, do: "Users"
 
   @impl Backpex.LiveResource
-  def can?(_assigns, :soft_delete, item), do: item.role != :admin
+  def can?(_assigns, :user_soft_delete, item), do: item.role != :admin
 
   @impl Backpex.LiveResource
   def can?(_assigns, _action, _item), do: true
 
-  def item_query(query, live_action, _assigns) when live_action in [:index, :resource_action] do
+  def item_query(query, _live_action, _assigns) do
     from u in query,
       where: is_nil(u.deleted_at)
-  end
-
-  def item_query(query, _live_action, _assigns) do
-    query
   end
 
   def init_order(_assigns) do
     %{by: :username, direction: :asc}
   end
+
+  @impl Backpex.LiveResource
+  def translate({"Cancel", _opts}), do: "Go back"
+  def translate({"Save", _opts}), do: "Save User"
 
   @impl Backpex.LiveResource
   def resource_actions do
@@ -49,7 +49,7 @@ defmodule DemoWeb.UserLive do
   def item_actions(default_actions) do
     default_actions
     |> Keyword.drop([:delete])
-    |> Enum.concat(soft_delete: %{module: DemoWeb.ItemActions.SoftDelete})
+    |> Enum.concat(user_soft_delete: %{module: DemoWeb.ItemActions.UserSoftDelete})
   end
 
   @impl Backpex.LiveResource
@@ -84,7 +84,8 @@ defmodule DemoWeb.UserLive do
         label: "Username",
         searchable: true,
         panel: :names,
-        index_editable: true
+        index_editable: true,
+        help_text: "Insert your username."
       },
       full_name: %{
         module: Backpex.Fields.Text,

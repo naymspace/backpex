@@ -17,7 +17,7 @@ defmodule Backpex.Adapters.Ecto do
       - `:target` - the name of the `form` target that triggered the changeset call. Default to `nil` if the call was not triggered by a form field.
       """,
       type: {:fun, 3},
-      required: true
+      default: &__MODULE__.default_changeset/3
     ],
     create_changeset: [
       doc: """
@@ -26,7 +26,7 @@ defmodule Backpex.Adapters.Ecto do
       - `:target` - the name of the `form` target that triggered the changeset call. Default to `nil` if the call was not triggered by a form field.
       """,
       type: {:fun, 3},
-      required: true
+      default: &__MODULE__.default_changeset/3
     ],
     item_query: [
       doc: """
@@ -43,7 +43,8 @@ defmodule Backpex.Adapters.Ecto do
       It should return an `Ecto.Queryable`. It is recommended to build your `item_query` on top of the incoming query.
       Otherwise you will likely get binding errors.
       """,
-      type: {:fun, 3}
+      type: {:fun, 3},
+      default: &__MODULE__.default_item_query/3
     ]
   ]
 
@@ -64,15 +65,21 @@ defmodule Backpex.Adapters.Ecto do
   use Backpex.Adapter, config_schema: @config_schema
   import Ecto.Query
 
+  @doc false
+  def default_changeset(item, attrs, _metadata), do: Ecto.Changeset.cast(item, attrs, [])
+
+  @doc false
+  def default_item_query(query, _live_action, _assigns), do: query
+
   @doc """
   Gets a database record with the given primary key value.
   """
   @impl Backpex.Adapter
   def get(primary_value, assigns, live_resource) do
-    config = live_resource.config(:adapter_config)
+    repo = live_resource.adapter_config(:repo)
 
     record_query(primary_value, assigns, live_resource)
-    |> config[:repo].one()
+    |> repo.one()
     |> then(fn result -> {:ok, result} end)
   end
 
@@ -81,8 +88,10 @@ defmodule Backpex.Adapters.Ecto do
   """
   @impl Backpex.Adapter
   def list(criteria, assigns, live_resource) do
+    repo = live_resource.adapter_config(:repo)
+
     list_query(criteria, assigns, live_resource)
-    |> assigns.repo.all()
+    |> repo.all()
     |> then(fn items -> {:ok, items} end)
   end
 
@@ -91,12 +100,13 @@ defmodule Backpex.Adapters.Ecto do
   """
   @impl Backpex.Adapter
   def count(criteria, assigns, live_resource) do
-    config = live_resource.config(:adapter_config)
+    repo = live_resource.adapter_config(:repo)
 
     list_query(criteria, assigns, live_resource)
     |> exclude(:preload)
+    |> exclude(:select)
     |> subquery()
-    |> config[:repo].aggregate(:count)
+    |> repo.aggregate(:count)
     |> then(fn count -> {:ok, count} end)
   end
 
@@ -106,20 +116,20 @@ defmodule Backpex.Adapters.Ecto do
   TODO: Should be private.
   """
   def list_query(criteria, assigns, live_resource) do
-    %{schema: schema, full_text_search: full_text_search} = assigns
-    config = live_resource.config(:adapter_config)
-    item_query = prepare_item_query(config, assigns)
+    schema = live_resource.adapter_config(:schema)
+    item_query = live_resource.adapter_config(:item_query)
+    full_text_search = live_resource.config(:full_text_search)
     fields = live_resource.validated_fields()
     associations = associations(fields, schema)
 
     schema
     |> from(as: ^name_by_schema(schema))
-    |> item_query.()
+    |> item_query.(assigns.live_action, assigns)
     |> maybe_join(associations)
     |> maybe_preload(associations, fields)
     |> maybe_merge_dynamic_fields(fields)
     |> apply_search(schema, full_text_search, criteria[:search])
-    |> apply_filters(criteria[:filters], Backpex.LiveResource.empty_filter_key())
+    |> apply_filters(criteria[:filters], Backpex.LiveResource.empty_filter_key(), assigns)
     |> apply_criteria(criteria, fields)
   end
 
@@ -167,15 +177,15 @@ defmodule Backpex.Adapters.Ecto do
     dynamic(^field_options.module.search_condition(schema_name, field_name, search_string))
   end
 
-  def apply_filters(query, [], _empty_filter_key), do: query
+  def apply_filters(query, [], _empty_filter_key, _assigns), do: query
 
-  def apply_filters(query, filters, empty_filter_key) do
+  def apply_filters(query, filters, empty_filter_key, assigns) do
     Enum.reduce(filters, query, fn
       %{field: ^empty_filter_key} = _filter, acc ->
         acc
 
       %{field: field, value: value, filter_config: filter_config} = _filter, acc ->
-        filter_config.module.query(acc, field, value)
+        filter_config.module.query(acc, field, value, assigns)
     end)
   end
 
@@ -230,14 +240,15 @@ defmodule Backpex.Adapters.Ecto do
   """
   @impl Backpex.Adapter
   def delete_all(items, live_resource) do
-    config = live_resource.config(:adapter_config)
+    schema = live_resource.adapter_config(:schema)
+    repo = live_resource.adapter_config(:repo)
     primary_key = live_resource.config(:primary_key)
 
     result =
-      config[:schema]
+      schema
       |> where([item], field(item, ^primary_key) in ^Enum.map(items, &Map.get(&1, primary_key)))
       |> select([item], item)
-      |> config[:repo].delete_all()
+      |> repo.delete_all()
 
     case result do
       {_count, deleted_items} when is_list(deleted_items) ->
@@ -253,10 +264,9 @@ defmodule Backpex.Adapters.Ecto do
   """
   @impl Backpex.Adapter
   def insert(item, live_resource) do
-    config = live_resource.config(:adapter_config)
+    repo = live_resource.adapter_config(:repo)
 
-    item
-    |> config[:repo].insert()
+    repo.insert(item)
   end
 
   @doc """
@@ -264,10 +274,9 @@ defmodule Backpex.Adapters.Ecto do
   """
   @impl Backpex.Adapter
   def update(item, live_resource) do
-    config = live_resource.config(:adapter_config)
+    repo = live_resource.adapter_config(:repo)
 
-    item
-    |> config[:repo].update()
+    repo.update(item)
   end
 
   @doc """
@@ -275,12 +284,13 @@ defmodule Backpex.Adapters.Ecto do
   """
   @impl Backpex.Adapter
   def update_all(items, updates, live_resource) do
-    config = live_resource.config(:adapter_config)
+    repo = live_resource.adapter_config(:repo)
+    schema = live_resource.adapter_config(:schema)
     primary_key = live_resource.config(:primary_key)
 
-    config[:schema]
+    schema
     |> where([i], field(i, ^primary_key) in ^Enum.map(items, &Map.get(&1, primary_key)))
-    |> config[:repo].update_all(updates)
+    |> repo.update_all(updates)
   end
 
   @doc """
@@ -288,26 +298,26 @@ defmodule Backpex.Adapters.Ecto do
   """
   @impl Backpex.Adapter
   def change(item, attrs, fields, assigns, live_resource, opts) do
-    config = live_resource.config(:adapter_config)
+    repo = live_resource.adapter_config(:repo)
     assocs = Keyword.get(opts, :assocs, [])
     target = Keyword.get(opts, :target, nil)
     action = Keyword.get(opts, :action, :validate)
     metadata = Backpex.Resource.build_changeset_metadata(assigns, target)
-    changeset_function = get_changeset_function(assigns.live_action, config, assigns)
+    changeset_function = get_changeset_function(assigns.live_action, live_resource, assigns)
 
     item
     |> Ecto.Changeset.change()
-    |> before_changesets(attrs, metadata, config[:repo], fields, assigns)
+    |> before_changesets(attrs, metadata, repo, fields, assigns)
     |> put_assocs(assocs)
     |> changeset_function.(attrs, metadata)
     |> Map.put(:action, action)
   end
 
-  defp get_changeset_function(:new, config, _assigns), do: config[:create_changeset]
-  defp get_changeset_function(:edit, config, _assigns), do: config[:update_changeset]
+  defp get_changeset_function(:new, live_resource, _assigns), do: live_resource.adapter_config(:create_changeset)
+  defp get_changeset_function(:edit, live_resource, _assigns), do: live_resource.adapter_config(:update_changeset)
   # TODO: find solution for this workaround
-  defp get_changeset_function(:index, _config, assigns), do: assigns.changeset_function
-  defp get_changeset_function(:resource_action, _config, assigns), do: assigns.changeset_function
+  defp get_changeset_function(:index, live_resource, _assigns), do: live_resource.adapter_config(:update_changeset)
+  defp get_changeset_function(:resource_action, _live_resource, assigns), do: assigns.changeset_function
 
   defp before_changesets(changeset, attrs, metadata, repo, fields, assigns) do
     Enum.reduce(fields, changeset, fn {_name, field_options} = field, acc ->
@@ -338,24 +348,17 @@ defmodule Backpex.Adapters.Ecto do
 
   # --- PRIVATE
 
-  defp prepare_item_query(config, assigns) do
-    query_fun = config[:item_query] || fn query, _live_action, _assigns -> query end
-
-    &query_fun.(&1, assigns.live_action, assigns)
-  end
-
   defp record_query(primary_value, assigns, live_resource) do
-    config = live_resource.config(:adapter_config)
-    item_query = prepare_item_query(config, assigns)
-
+    schema = live_resource.adapter_config(:schema)
+    item_query = live_resource.adapter_config(:item_query)
     fields = live_resource.validated_fields()
-    schema_name = name_by_schema(config[:schema])
+    schema_name = name_by_schema(schema)
     primary_key = live_resource.config(:primary_key)
-    primary_type = config[:schema].__schema__(:type, primary_key)
-    associations = associations(fields, config[:schema])
+    primary_type = schema.__schema__(:type, primary_key)
+    associations = associations(fields, schema)
 
-    from(item in config[:schema], as: ^schema_name, distinct: field(item, ^primary_key))
-    |> item_query.()
+    from(item in schema, as: ^schema_name, distinct: field(item, ^primary_key))
+    |> item_query.(assigns.live_action, assigns)
     |> maybe_join(associations)
     |> maybe_preload(associations, fields)
     |> maybe_merge_dynamic_fields(fields)
