@@ -2,6 +2,22 @@ defmodule Backpex.RouterTest do
   use ExUnit.Case, async: true
 
   describe "live_resources/3 macro" do
+    defmodule UserLive do
+      def resource_actions, do: []
+    end
+
+    defmodule PostLive do
+      def resource_actions, do: []
+    end
+
+    defmodule CommentLive do
+      def resource_actions, do: []
+    end
+
+    defmodule ProductLive do
+      def resource_actions, do: []
+    end
+
     defmodule TestRouter do
       use Phoenix.Router, helpers: false
 
@@ -68,6 +84,14 @@ defmodule Backpex.RouterTest do
   end
 
   describe "live_resources/3 with NimbleOptions validation" do
+    defmodule BadLive do
+      def resource_actions, do: []
+    end
+
+    defmodule ValidLive do
+      def resource_actions, do: []
+    end
+
     test "raises error for invalid option type" do
       assert_raise NimbleOptions.ValidationError, fn ->
         defmodule InvalidRouter1 do
