@@ -62,8 +62,8 @@ defmodule Backpex.LiveResource.Form do
   end
 
   defp assign_item(socket, :new = _live_action) do
-    adapter_config = socket.assigns.live_resource.config(:adapter_config)
-    empty_item = adapter_config[:schema].__struct__()
+    schema = socket.assigns.live_resource.adapter_config(:schema)
+    empty_item = schema.__struct__()
 
     assign(socket, :item, empty_item)
   end
@@ -94,12 +94,12 @@ defmodule Backpex.LiveResource.Form do
 
   defp assign_changeset(socket, live_action) do
     %{live_resource: live_resource, item: item} = socket.assigns
-    changeset = changeset(live_resource, live_action)
-
+    changeset_fun = changeset_fun(live_resource, live_action)
     fields = live_resource.fields(live_action, socket.assigns)
-    LiveResource.assign_changeset(socket, changeset, item, fields, live_action)
+
+    LiveResource.assign_changeset(socket, changeset_fun, item, fields, live_action)
   end
 
-  defp changeset(live_resource, :new = _live_action), do: live_resource.config(:adapter_config)[:create_changeset]
-  defp changeset(live_resource, :edit = _live_action), do: live_resource.config(:adapter_config)[:update_changeset]
+  defp changeset_fun(live_resource, :new = _live_action), do: live_resource.adapter_config(:create_changeset)
+  defp changeset_fun(live_resource, :edit = _live_action), do: live_resource.adapter_config(:update_changeset)
 end

@@ -42,9 +42,9 @@ defmodule Demo.MixProject do
       {:ex_machina, "~> 2.3"},
       {:smokestack, "~> 0.9.2"},
       {:faker, "~> 0.18"},
-      {:phoenix_test, "~> 0.6.0", only: :test, runtime: false},
+      {:phoenix_test, "~> 0.7.0", only: :test, runtime: false},
       {:sourceror, "~> 1.7", only: [:dev, :test]},
-      {:phoenix_test_playwright, "~> 0.6.2", only: :test, runtime: false},
+      {:phoenix_test_playwright, "~> 0.7.0", only: :test, runtime: false},
       {:a11y_audit, "~> 0.2.3", only: :test},
 
       # core
@@ -52,7 +52,7 @@ defmodule Demo.MixProject do
       {:telemetry_poller, "~> 1.0"},
       {:telemetry_metrics, "~> 1.0"},
       {:gettext, "~> 0.26"},
-      {:sentry, "~> 10.8"},
+      {:sentry, "~> 11.0"},
       {:hackney, "~> 1.17", override: true},
       {:circular_buffer, "~> 1.0.0"},
 
