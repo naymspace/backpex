@@ -93,8 +93,6 @@ defmodule Backpex.Router do
       if Enum.member?(actions, :show),
         do: live("#{path}/:backpex_id/show", String.to_atom("#{live_resource}.Show"), :show, live_options)
 
-      resource_module = Phoenix.Router.scoped_alias(__MODULE__, live_resource)
-
       if Router.has_resource_actions?(__MODULE__, live_resource) do
         live(
           "#{path}/:backpex_id/resource-action",
@@ -108,9 +106,7 @@ defmodule Backpex.Router do
 
   def has_resource_actions?(module, live_resource) do
     resource_module = Phoenix.Router.scoped_alias(module, live_resource)
-
-    Kernel.function_exported?(resource_module, :resource_actions, 0) &&
-      Enum.count(resource_module.resource_actions()) > 0
+    Enum.count(resource_module.resource_actions()) > 0
   end
 
   defmacro backpex_routes do
