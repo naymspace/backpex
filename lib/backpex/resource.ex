@@ -44,20 +44,20 @@ defmodule Backpex.Resource do
 
   * `primary_value`: The identifier for the specific item to be fetched.
   * `assigns` (map): The current assigns of the socket.
-  * `live_action` (atom): The current live action.
+  * `fields` (list): The list of fields of the current view.
   * `live_resource` (module): The `Backpex.LiveResource` module.
   """
-  def get(primary_value, assigns, live_action, live_resource) do
+  def get(primary_value, assigns, fields, live_resource) do
     adapter = live_resource.config(:adapter)
 
-    adapter.get(primary_value, assigns, live_action, live_resource)
+    adapter.get(primary_value, assigns, fields, live_resource)
   end
 
   @doc """
   Same as `get/4` but returns the result or raises an error.
   """
-  def get!(primary_value, assigns, live_action, live_resource) do
-    case get(primary_value, assigns, live_action, live_resource) do
+  def get!(primary_value, assigns, fields, live_resource) do
+    case get(primary_value, assigns, fields, live_resource) do
       {:ok, nil} -> raise Backpex.NoResultsError
       {:ok, result} -> result
       {:error, _error} -> raise Backpex.NoResultsError
