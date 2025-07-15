@@ -1,7 +1,7 @@
 <table class="table">
   <thead class="bg-base-100 text-base-content uppercase">
     <tr id="row-headers" phx-hook="BackpexStickyActions" class="border-b-2">
-      <th :if={Enum.any?(index_item_actions(@item_actions))}>
+      <th :if={Enum.any?(item_actions_for(:index, @item_actions))}>
         <input
           phx-click="toggle-item-selection"
           type="checkbox"
@@ -36,7 +36,7 @@
       class={index_row_class(assigns, item, selected?(@selected_items, item), index)}
       phx-hook="BackpexStickyActions"
     >
-      <td :if={Enum.any?(index_item_actions(@item_actions))} class="relative">
+      <td :if={Enum.any?(item_actions_for(:index, @item_actions))} class="relative">
         <div :if={selected?(@selected_items, item)} class="bg-base-content absolute inset-y-0 left-0 w-0.5" />
         <input
           id={"select-input-#{LiveResource.primary_value(item, @live_resource)}"}
@@ -65,7 +65,7 @@
       ]}>
         <div class={["flex items-center justify-end space-x-2"]}>
           <button
-            :for={{key, action} <- row_item_actions(@item_actions)}
+            :for={{key, action} <- item_actions_for(:row, @item_actions)}
             :if={@live_resource.can?(assigns, key, item)}
             id={"item-action-#{key}-#{LiveResource.primary_value(item, @live_resource)}"}
             type="button"

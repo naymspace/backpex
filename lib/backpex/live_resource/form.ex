@@ -2,8 +2,6 @@ defmodule Backpex.LiveResource.Form do
   @moduledoc false
   use BackpexWeb, :html
 
-  import Phoenix.Component
-
   alias Backpex.LiveResource
   alias Backpex.Resource
 

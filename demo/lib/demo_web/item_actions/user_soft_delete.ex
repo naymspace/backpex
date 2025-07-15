@@ -75,9 +75,12 @@ defmodule DemoWeb.ItemActions.UserSoftDelete do
             Backpex.Resource.update_all(item.posts, [set: [user_id: nil]], "updated", DemoWeb.PostLive)
           end)
 
+        %{live_resource: live_resource, params: params} = socket.assigns
+
         socket
         |> clear_flash()
         |> put_flash(:info, success_message(socket.assigns, items))
+        |> assign(:return_to, Router.get_path(socket, live_resource, params, :index))
       rescue
         error ->
           Logger.error("An error occurred while deleting the resource: #{inspect(error)}")

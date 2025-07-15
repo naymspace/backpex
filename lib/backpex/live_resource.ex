@@ -409,19 +409,21 @@ defmodule Backpex.LiveResource do
         ~H"""
         <.main_title class="flex items-center justify-between">
           {@page_title}
-          <.link
-            :if={@live_resource.can?(assigns, :edit, @item)}
-            id={"#{@live_resource.singular_name()}-edit-link"}
-            phx-hook="BackpexTooltip"
-            data-tooltip={Backpex.__("Edit", @live_resource)}
-            aria-label={Backpex.__("Edit", @live_resource)}
-            patch={Router.get_path(@socket, @live_resource, @params, :edit, @item)}
-          >
-            <Backpex.HTML.CoreComponents.icon
-              name="hero-pencil-square"
-              class="h-6 w-6 cursor-pointer transition duration-75 hover:text-primary hover:scale-110"
-            />
-          </.link>
+          <div class={["flex items-center justify-end space-x-2"]}>
+            <button
+              :for={{key, action} <- item_actions_for(:show, @item_actions)}
+              :if={@live_resource.can?(assigns, key, @item)}
+              id={"item-action-#{key}-#{LiveResource.primary_value(@item, @live_resource)}"}
+              type="button"
+              phx-click="item-action"
+              phx-value-action-key={key}
+              aria-label={action.module.label(assigns, @item)}
+              phx-hook="BackpexTooltip"
+              data-tooltip={action.module.label(assigns, @item)}
+            >
+              {action.module.icon(assigns, @item)}
+            </button>
+          </div>
         </.main_title>
         """
       end
