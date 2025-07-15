@@ -119,7 +119,6 @@ defmodule Backpex.Adapters.Ecto do
     schema = live_resource.adapter_config(:schema)
     item_query = live_resource.adapter_config(:item_query)
     full_text_search = live_resource.config(:full_text_search)
-    item_query = prepare_item_query(config, assigns)
     fields = live_resource.fields(:index, assigns)
     associations = associations(fields, schema)
 
