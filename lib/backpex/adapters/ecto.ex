@@ -75,8 +75,9 @@ defmodule Backpex.Adapters.Ecto do
   Gets a database record with the given primary key value.
   """
   @impl Backpex.Adapter
-  def get(primary_value, assigns, fields, live_resource) do
+  def get(primary_value, assigns, live_resource) do
     repo = live_resource.adapter_config(:repo)
+    fields = live_resource.fields(assigns.live_action, assigns)
 
     record_query(primary_value, assigns, fields, live_resource)
     |> repo.one()

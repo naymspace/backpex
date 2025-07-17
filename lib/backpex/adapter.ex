@@ -27,7 +27,7 @@ defmodule Backpex.Adapter do
 
   Should return `nil` if no result was found.
   """
-  @callback get(term(), map(), list(), module()) :: {:ok, struct() | nil} | {:error, term()}
+  @callback get(term(), list(), module()) :: {:ok, struct() | nil} | {:error, term()}
 
   @doc """
   Returns a list of items by given criteria.

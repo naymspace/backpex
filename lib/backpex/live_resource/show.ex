@@ -52,12 +52,9 @@ defmodule Backpex.LiveResource.Show do
 
   defp assign_item(socket) do
     %{live_resource: live_resource, params: params} = socket.assigns
-
     backpex_id = Map.fetch!(params, "backpex_id")
     primary_value = URI.decode(backpex_id)
-    fields = live_resource.fields(:show, socket.assigns)
-
-    item = Resource.get!(primary_value, socket.assigns, fields, live_resource)
+    item = Resource.get!(primary_value, socket.assigns, live_resource)
 
     if not live_resource.can?(socket.assigns, :show, item), do: raise(Backpex.ForbiddenError)
 

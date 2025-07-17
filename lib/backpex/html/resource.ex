@@ -141,7 +141,7 @@ defmodule Backpex.HTML.Resource do
   attr :fields, :list, required: true, doc: "list of all fields provided by the resource configuration"
 
   def resource_form_field(assigns) do
-    %{name: name, live_resource: live_resource, fields: fields} = assigns
+    %{name: name, fields: fields} = assigns
 
     {_name, field_options} = field = Enum.find(fields, fn {field_name, _field_options} -> field_name == name end)
 
