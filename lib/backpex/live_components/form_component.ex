@@ -21,6 +21,7 @@ defmodule Backpex.FormComponent do
     |> ok()
   end
 
+  # item action
   defp update_assigns(%{assigns: %{action_type: :item}} = socket) do
     %{action_to_confirm: action_to_confirm} = socket.assigns
 
@@ -29,6 +30,16 @@ defmodule Backpex.FormComponent do
     |> assign(:save_label, action_to_confirm.module.confirm_label(socket.assigns))
   end
 
+  # resource action
+  defp update_assigns(%{assigns: %{action_type: :resource}} = socket) do
+    %{resource_action: resource_action} = socket.assigns
+
+    socket
+    |> assign_new(:fields, fn -> resource_action.module.fields() end)
+    |> assign(:save_label, ResourceAction.name(resource_action, :label))
+  end
+
+  # default form
   defp update_assigns(%{assigns: assigns} = socket) do
     socket
     |> apply_action(assigns.live_action)
@@ -52,13 +63,6 @@ defmodule Backpex.FormComponent do
     socket
     |> assign(:save_label, Backpex.__("Save", socket.assigns.live_resource))
     |> maybe_assign_continue_label()
-  end
-
-  defp apply_action(socket, :resource_action) do
-    %{assigns: %{resource_action: resource_action}} = socket
-
-    socket
-    |> assign(:save_label, ResourceAction.name(resource_action, :label))
   end
 
   defp maybe_assign_continue_label(socket) do
