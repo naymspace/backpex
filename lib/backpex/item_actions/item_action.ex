@@ -105,6 +105,8 @@ defmodule Backpex.ItemAction do
 
   defmacro __before_compile__(_env) do
     quote do
+      @after_compile Backpex.ItemAction
+
       @impl Backpex.ItemAction
       def confirm_label(assigns), do: Backpex.__("Apply", assigns.live_resource)
 
@@ -115,20 +117,46 @@ defmodule Backpex.ItemAction do
       def fields, do: []
 
       @impl Backpex.ItemAction
-      def changeset(_change, _attrs, metadata) do
-        assigns = Keyword.get(metadata, :assigns)
-
-        assigns
-        |> base_schema()
-        |> Ecto.Changeset.change()
-      end
-
-      @impl Backpex.ItemAction
       def base_schema(_assigns) do
         types = fields() |> Backpex.Field.changeset_types()
 
         {%{}, types}
       end
+    end
+  end
+
+  def __after_compile__(env, _bytecode) do
+    # Check if the module has non-empty fields but no changeset/3
+    module = env.module
+
+    try do
+      fields = apply(module, :fields, [])
+      has_fields = fields != []
+      has_changeset = function_exported?(module, :changeset, 3)
+
+      if has_fields and not has_changeset do
+        raise CompileError,
+          file: env.file,
+          line: env.line,
+          description: """
+          ItemAction #{inspect(module)} defines fields but does not implement the changeset/3 callback.
+
+          When an ItemAction has fields, it must implement the changeset/3 callback to handle form validation and data processing.
+
+          For example:
+
+          @impl Backpex.ItemAction
+          def changeset(change, attrs, _metadata) do
+            change
+            |> Ecto.Changeset.cast(attrs, [:field1, :field2])
+            |> Ecto.Changeset.validate_required([:field1])
+          end
+          """
+      end
+    rescue
+      UndefinedFunctionError ->
+        # fields/0 is not defined, which means it will use the default empty list
+        :ok
     end
   end
 
