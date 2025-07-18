@@ -131,37 +131,34 @@ defmodule Backpex.ItemAction do
 
     changeset_function? = function_exported?(module, :changeset, 3)
     confirm_function? = function_exported?(module, :confirm, 1)
-    fields? = module.fields() != []
+    fields? = function_exported?(module, :fields, 0) and module.fields() != []
 
-    try do
-      if fields? and (not changeset_function? or not confirm_function?) do
-        raise CompileError,
-          file: env.file,
-          line: env.line,
-          description: """
-          ItemAction #{inspect(module)} defines fields but does not implement the changeset/3 and confirm/1 callbacks.
+    if fields? and (not changeset_function? or not confirm_function?) do
+      raise CompileError,
+        file: env.file,
+        line: env.line,
+        description: """
+        ItemAction #{inspect(module)} defines fields but does not implement the changeset/3 and confirm/1 callbacks.
 
-          When an ItemAction has fields, it must implement the changeset/3 callback to handle form validation and data processing, and the confirm/1 callback to set the confirmation message.
+        When an ItemAction has fields, it must implement the changeset/3 callback to handle form validation and data processing, and the confirm/1 callback to set the confirmation message.
 
-          For example:
+        For example:
 
-          @impl Backpex.ItemAction
-          def confirm(assigns) do
-            "Are you sure you want to apply this action?"
-          end
+        @impl Backpex.ItemAction
+        def confirm(assigns) do
+          "Are you sure you want to apply this action?"
+        end
 
-          @impl Backpex.ItemAction
-          def changeset(change, attrs, _metadata) do
-            change
-            |> Ecto.Changeset.cast(attrs, [:field1, :field2])
-            |> Ecto.Changeset.validate_required([:field1])
-          end
-          """
-      end
-    rescue
-      UndefinedFunctionError ->
-        # fields/0 is not defined, which means it will use the default empty list
-        :ok
+        @impl Backpex.ItemAction
+        def changeset(change, attrs, _metadata) do
+          change
+          |> Ecto.Changeset.cast(attrs, [:field1, :field2])
+          |> Ecto.Changeset.validate_required([:field1])
+        end
+        """
+    else
+      # fields/0 is not defined, which means it will use the default empty list
+      :ok
     end
   end
 
