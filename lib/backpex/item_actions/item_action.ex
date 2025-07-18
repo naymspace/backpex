@@ -34,13 +34,13 @@ defmodule Backpex.ItemAction do
               | {Ecto.Changeset.data(), Ecto.Changeset.types()}
 
   @doc """
-  The changeset to be used in the resource action. It may be used to validate form inputs.
+  The changeset to be used in the item action. It is used to validate form inputs.
 
-  Additional metadata is passed as a keyword list via the third parameter.
+  Additional metadata is passed as a keyword list via the metadata parameter.
 
   The list of metadata:
   - `:assigns` - the assigns
-  - `:target` - the name of the `form` target that triggered the changeset call. Default to `nil` if the call was not triggered by a form field.
+  - `:target` - the name of the `form` target that triggered the changeset call. Defaults to `nil` if the call was not triggered by a form field.
   """
   @callback changeset(
               change ::
