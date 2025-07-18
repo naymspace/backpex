@@ -25,6 +25,13 @@ config :spark,
     "Ash.Domain": [section_order: [:resources, :policies, :authorization, :domain, :execution]]
   ]
 
+config :money,
+  default_currency: :EUR,
+  separator: ".",
+  delimiter: ",",
+  symbol_on_right: true,
+  symbol_space: true
+
 config :demo,
   namespace: Demo,
   ecto_repos: [Demo.Repo],
