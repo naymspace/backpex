@@ -474,10 +474,10 @@ defmodule Backpex.LiveResource do
   end
 
   @doc """
-  Returns the fields of the given `Backpex.LiveResource` validated against each fields config schema.
+  Returns the fields of the given `Backpex.LiveResource`.
 
-  In case a `live_action` is provided the fields are filtered accordingly before validating. Additionaly
-  the assigns can be passed, to make sure to evaluate the `can?` option of each field.
+  Each field is validated against each fields config schema and filtered by the `live_action` and
+  the fields `can?` options.
   """
   def fields(live_resource, live_action, assigns) do
     live_resource
