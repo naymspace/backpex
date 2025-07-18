@@ -68,6 +68,26 @@
       "automerge": true
     },
     {
+      "description": "Automerge some non-major node package updates",
+      "matchDepNames": [
+        "@sentry/browser",
+        "stylelint",
+        "stylelint-config-standard",
+        "standard",
+        "playwright",
+        "topbar",
+        "npm-run-all2"
+      ],
+      "matchDatasources": [
+        "npm"
+      ],
+      "matchUpdateTypes": [
+        "minor",
+        "patch"
+      ],
+      "automerge": true
+    },
+    {
       "description": "Label dependency updates in demo directory",
       "matchFileNames": [
         "demo/**",
