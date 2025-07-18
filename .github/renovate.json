@@ -58,7 +58,7 @@
       "rangeStrategy": "update-lockfile"
     },
     {
-      "description": "Automatically merge github actions updates",
+      "description": "Automatically merge non-major github actions updates",
       "matchManagers": [
         "github-actions"
       ],
