@@ -39,7 +39,7 @@
       "pinDigests": false
     },
     {
-      "description": "Disable ubuntu major updates and digest pinning",
+      "description": "Disable ubuntu major updates",
       "matchDatasources": [
         "docker"
       ],
@@ -47,8 +47,7 @@
         "ubuntu"
       ],
       "matchUpdateTypes": [
-        "major",
-        "pinDigest"
+        "major"
       ],
       "enabled": false
     },
