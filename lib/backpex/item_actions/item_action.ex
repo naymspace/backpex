@@ -129,17 +129,26 @@ defmodule Backpex.ItemAction do
     # Check if the module has non-empty fields but no changeset/3
     module = env.module
 
+    changeset_function? = function_exported?(module, :changeset, 3)
+    confirm_function? = function_exported?(module, :confirm, 1)
+    fields? = module.fields() != []
+
     try do
-      if module.fields() != [] and not function_exported?(module, :changeset, 3) do
+      if fields? and (not changeset_function? or not confirm_function?) do
         raise CompileError,
           file: env.file,
           line: env.line,
           description: """
-          ItemAction #{inspect(module)} defines fields but does not implement the changeset/3 callback.
+          ItemAction #{inspect(module)} defines fields but does not implement the changeset/3 or confirm/1 callback.
 
-          When an ItemAction has fields, it must implement the changeset/3 callback to handle form validation and data processing.
+          When an ItemAction has fields, it must implement the changeset/3 and confirm/1 callbacks to handle form validation and data processing and set the confirmation message.
 
           For example:
+
+          @impl Backpex.ItemAction
+          def confirm(assigns) do
+            "Are you sure you want to apply this action?"
+          end
 
           @impl Backpex.ItemAction
           def changeset(change, attrs, _metadata) do
