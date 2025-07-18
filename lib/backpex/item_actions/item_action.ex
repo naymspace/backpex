@@ -141,7 +141,7 @@ defmodule Backpex.ItemAction do
           description: """
           ItemAction #{inspect(module)} defines fields but does not implement the changeset/3 or confirm/1 callback.
 
-          When an ItemAction has fields, it must implement the changeset/3 and confirm/1 callbacks to handle form validation and data processing and set the confirmation message.
+          When an ItemAction has fields, it must implement the changeset/3 callback to handle form validation and data processing, and the confirm/1 callback to set the confirmation message.
 
           For example:
 
