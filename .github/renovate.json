@@ -22,6 +22,13 @@
   "additionalBranchPrefix": "{{packageFileDir}}-",
   "packageRules": [
     {
+      "description": "Set Mix versioning strategy to update-lockfile",
+      "matchManagers": [
+        "mix"
+      ],
+      "rangeStrategy": "update-lockfile"
+    },
+    {
       "description": "Group dependency updates to the Elixir base image",
       "groupName": "Base Image",
       "matchDepNames": [
@@ -51,13 +58,6 @@
         "docker"
       ],
       "automerge": true
-    },
-    {
-      "description": "Set Mix versioning strategy to update-lockfile",
-      "matchManagers": [
-        "mix"
-      ],
-      "rangeStrategy": "update-lockfile"
     },
     {
       "description": "Automatically merge non-major github actions updates",
