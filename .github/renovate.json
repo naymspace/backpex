@@ -52,6 +52,17 @@
       "automerge": false
     },
     {
+      "description": "Automerge Docker digest updates",
+      "matchDatasources": [
+        "docker"
+      ],
+      "matchUpdateTypes": [
+        "pinDigest"
+      ],
+      "automerge": true
+    },
+    {
+      "description": "Set Mix versioning strategy to update-lockfile",
       "matchManagers": [
         "mix"
       ],
