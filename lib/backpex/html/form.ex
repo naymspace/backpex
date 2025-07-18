@@ -231,15 +231,8 @@ defmodule Backpex.HTML.Form do
           @input_class || "[&_>_input]:input [&_>_input]:w-full",
           @errors != [] && (@error_class || "[&_>_input]:input-error [&_>_input]:bg-error/10")
         ]}>
-          <input
-            id={"#{@id}_masked"}
-            name={@name}
-            value={@value}
-            data-masked-input
-            phx-update="ignore"
-            class={@input_class}
-            {@rest}
-          />
+          <input id={"#{@id}_masked"} name={@name} data-masked-input phx-update="ignore" {@rest} />
+          <input type="hidden" value={@value} name={@name} data-hidden-input />
         </span>
       </div>
       <.error :for={msg <- @errors} :if={not @hide_errors}>{msg}</.error>
