@@ -12,6 +12,7 @@
     ":automergePatch",
     "helpers:pinGitHubActionDigestsToSemver"
   ],
+  "pinDigests": false,
   "lockFileMaintenance": {
     "enabled": true,
     "extends": [
@@ -45,12 +46,9 @@
       "enabled": false
     },
     {
-      "description": "Automerge Docker digest updates",
+      "description": "Disable automerge for docker data source",
       "matchDatasources": [
         "docker"
-      ],
-      "matchUpdateTypes": [
-        "pinDigest"
       ],
       "automerge": true
     },
