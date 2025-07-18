@@ -130,11 +130,7 @@ defmodule Backpex.ItemAction do
     module = env.module
 
     try do
-      fields = apply(module, :fields, [])
-      has_fields = fields != []
-      has_changeset = function_exported?(module, :changeset, 3)
-
-      if has_fields and not has_changeset do
+      if module.fields() != [] and not function_exported?(module, :changeset, 3) do
         raise CompileError,
           file: env.file,
           line: env.line,
