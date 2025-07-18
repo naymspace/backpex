@@ -13,7 +13,10 @@
     "helpers:pinGitHubActionDigestsToSemver"
   ],
   "lockFileMaintenance": {
-    "enabled": true
+    "enabled": true,
+    "extends": [
+      "schedule:weekly"
+    ]
   },
   "additionalBranchPrefix": "{{packageFileDir}}-",
   "packageRules": [
