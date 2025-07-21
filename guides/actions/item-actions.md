@@ -24,11 +24,11 @@ First, we need to add the item action to our resource configuration module.
 # in your resource configuration file
 @impl Backpex.LiveResource
 def item_actions([_show, _edit, _delete]) do
-    [
-        show: %{
-            module: DemoWeb.ItemAction.Show
-        }
-    ]
+  [
+    show: %{
+      module: DemoWeb.ItemAction.Show
+    }
+  ]
 end
 ```
 
@@ -57,7 +57,7 @@ defmodule DemoWeb.ItemAction.Show do
   @impl Backpex.ItemAction
   def handle(socket, [item | _items], _data) do
     path = Router.get_path(socket, socket.assigns.live_resource, socket.assigns.params, :show, item)
-    {:noreply, Phoenix.LiveView.push_patch(socket, to: path)}
+    {:ok, Phoenix.LiveView.push_patch(socket, to: path)}
   end
 end
 ```
@@ -90,35 +90,44 @@ The following example shows how to place the `show` item action on the index tab
 # in your resource configuration file
 @impl Backpex.LiveResource
 def item_actions([_show, _edit, _delete]) do
-    [
-        show: %{
-            module: DemoWeb.ItemAction.Show,
-            only: [:row]
-        }
-    ]
+  [
+    show: %{
+      module: DemoWeb.ItemAction.Show,
+      only: [:row]
+    }
+  ]
 end
 ```
 
-## Advanced Item Action
+## Confirmation Dialog
 
-In the following example, we define an item action to soft delete users. The item action will also asked the user for a reason before the user can be deleted.
+By default an item action is triggered immediately when the user clicks on the corresponding icon in the resource table or in the show view, but an item actions also supports a confirmation dialog. To enable the confirmation dialog you need to implement the `c:Backpex.ItemAction.confirm/1` function and return a string that will be displayed in the confirmation dialog. The confirmation dialog will be displayed when the user clicks on the icon in the resource table.
 
-First, wee need to add the item action to our resource configuration module.
+You might want to use the `c:Backpex.ItemAction.cancel_label/1` (defaults to "Cancel") and `c:Backpex.ItemAction.confirm_label/1` (defaults to "Apply") functions to set the labels of the buttons in the dialog.
+
+## Item Actions with Forms
+
+If you want to create an item action that requires user input, you can define a form for the item action. This is done by implementing the `c:Backpex.ItemAction.fields/0` callback.
+The `fields/0` callback has to return a list of (form) fields that will be displayed in the form like you would do in a LiveResource.
+Item Actions with a form must also implement the `c:Backpex.ItemAction.changeset/3` callback to validate and cast the parameters received from the form.
+
+In the following example, we define an item action to soft delete users. The item action will also ask the user for a reason before the user can be deleted.
+
+First, we need to add the item action to our resource configuration module.
 
 ```elixir
 # in your resource configuration file
 
 @impl Backpex.LiveResource
 def item_actions([show, edit, _delete]) do
-    Enum.concat([show, edit],
-        soft_delete: %{module: DemoWeb.ItemAction.SoftDelete}
+    Enum.concat(
+      [show, edit],
+      soft_delete: %{module: DemoWeb.ItemAction.SoftDelete}
     )
 end
 ```
 
-In the above example, we add the `soft_delete` item action to the default item actions. We do not add the default `delete` item action to the list of item actions. This way we replace the default `delete` item action with our custom `soft_delete` item action.
-
-Next, we need to implement the item action module.
+Next, we need to implement the item action module:
 
 ```elixir
 defmodule DemoWeb.ItemAction.SoftDelete do
@@ -137,22 +146,20 @@ defmodule DemoWeb.ItemAction.SoftDelete do
 
     @impl Backpex.ItemAction
     def fields do
-        [
-            reason: %{
-                module: Backpex.Fields.Textarea,
-                label: "Reason",
-                type: :string
-            }
-        ]       
+      [
+        reason: %{
+          module: Backpex.Fields.Textarea,
+          label: "Reason",
+          type: :string
+        }
+      ]       
     end
-
-    @required_fields ~w[reason]a
 
     @impl Backpex.ItemAction
     def changeset(change, attrs, _meta) do
-        change
-        |> cast(attrs, @required_fields)
-        |> validate_required(@required_fields)
+      change
+      |> cast(attrs, [:reason])
+      |> validate_required([:reason])
     end
 
     @impl Backpex.ItemAction
@@ -169,36 +176,33 @@ defmodule DemoWeb.ItemAction.SoftDelete do
 
     @impl Backpex.ItemAction
     def handle(socket, items, data) do
-        datetime = DateTime.truncate(DateTime.utc_now(), :second)
+      datetime = DateTime.truncate(DateTime.utc_now(), :second)
 
-        socket =
-            try do
-                {:ok, _count_} =
-                Backpex.Resource.update_all(
-                    socket.assigns,
-                    items,
-                    [set: [deleted_at: datetime, reason: data.reason]],
-                    "deleted"
-                )
+      socket =
+        try do
+          {:ok, _count_} =
+            Backpex.Resource.update_all(
+              socket.assigns,
+              items,
+              [set: [deleted_at: datetime, reason: data.reason]],
+              "deleted"
+            )
 
-                socket
-                |> clear_flash()
-                |> put_flash(:info, "Item(s) successfully deleted.")
-            rescue
-                socket
-                |> clear_flash()
-                |> put_flash(:error, error)
-            end
+            socket
+            |> clear_flash()
+            |> put_flash(:info, "Item(s) successfully deleted.")
+        rescue
+          socket
+          |> clear_flash()
+          |> put_flash(:error, error)
+        end
 
-        {:noreply, socket}
+      {:ok, socket}
     end
 end
 ```
 
-In the above example, we define an item action to soft delete users. The item action will also ask the user for a reason before the user can be deleted. The user needs to fill out the reason field before the item action can be performed. The reason field is defined in the `c:Backpex.ItemAction.fields/0` function. The `c:Backpex.ItemAction.changeset/3` function is used to validate the user input.
+The above ItemAction require users to fill out the reason field before the action can be performed. The reason field is defined in the `c:Backpex.ItemAction.fields/0` function. The `c:Backpex.ItemAction.changeset/3` function is used to validate the user input.
 
-The `c:Backpex.ItemAction.handle/3` function is called when the item action is triggered. The handle function receives the socket, the items that should be affected by the action, and the parameters that were submitted by the user.
-
-By default an item action is triggered immediately when the user clicks on the corresponding icon in the resource table or in the show view, but an item actions also supports a confirmation dialog. To enable the confirmation dialog you need to implement the `c:Backpex.ItemAction.confirm/1` function and return a string that will be displayed in the confirmation dialog. The confirmation dialog will be displayed when the user clicks on the icon in the resource table.
-
-You might want to use the `c:Backpex.ItemAction.cancel_label/1` (defaults to "Cancel") and `c:Backpex.ItemAction.confirm_label/1` (defaults to "Apply") functions to set the labels of the buttons in the dialog.
+> #### Important {: .note}
+> If your ItemAction has form fields, you must also implement the `c:Backpex.ItemAction.confirm/1` function.

@@ -123,16 +123,7 @@ defmodule Backpex.Fields.HasMany do
           <:separator>
             ,&nbsp;
           </:separator>
-          <.item
-            socket={@socket}
-            field={@field}
-            field_options={@field_options}
-            params={@params}
-            live_resource={@live_resource}
-            live_action={@live_action}
-            item={item}
-            link_assocs={@link_assocs}
-          />
+          <.item item={item} {assigns} />
         </.intersperse>
       </div>
     </div>
@@ -209,7 +200,7 @@ defmodule Backpex.Fields.HasMany do
                 </span>
               </label>
 
-              <input type="hidden" id={"has-many-#{@name}-hidden-input"} name={"#{@form[@name].name}[]"} value="" />
+              <input class="hidden" id={"has-many-#{@name}-hidden-input"} name={"#{@form[@name].name}[]"} value="" />
 
               <input
                 :for={value <- @selected_ids}
@@ -298,7 +289,7 @@ defmodule Backpex.Fields.HasMany do
     validate_live_resource(field_name, field_options)
 
     # TODO: do not rely on specific adapter
-    schema = field_options.live_resource.config(:adapter_config)[:schema]
+    schema = field_options.live_resource.adapter_config(:schema)
     field_name_string = to_string(field_name)
 
     new_assocs = get_new_assocs(attrs, field_name_string, schema, repo, field_options, assigns)
@@ -413,8 +404,9 @@ defmodule Backpex.Fields.HasMany do
 
   defp options(assigns, opts) do
     %{field: field, field_options: field_options, name: name} = assigns
-    adapter_config = assigns.live_resource.config(:adapter_config)
-    %{queryable: queryable} = adapter_config[:schema].__schema__(:association, name)
+    repo = assigns.live_resource.adapter_config(:repo)
+    schema = assigns.live_resource.adapter_config(:schema)
+    %{queryable: queryable} = schema.__schema__(:association, name)
 
     display_field = display_field(field)
 
@@ -425,7 +417,7 @@ defmodule Backpex.Fields.HasMany do
     |> maybe_search_query(schema_name, field_options, display_field, Keyword.get(opts, :search))
     |> maybe_offset_query(Keyword.get(opts, :offset))
     |> maybe_limit_query(Keyword.get(opts, :limit))
-    |> adapter_config[:repo].all()
+    |> repo.all()
     |> Enum.map(fn item ->
       {Map.get(item, display_field_form(field)), item.id}
     end)
@@ -459,17 +451,18 @@ defmodule Backpex.Fields.HasMany do
 
   defp count_options(assigns, opts \\ []) do
     %{field: field, field_options: field_options, name: name} = assigns
-    adapter_config = assigns.live_resource.config(:adapter_config)
+    repo = assigns.live_resource.adapter_config(:repo)
+    schema = assigns.live_resource.adapter_config(:schema)
     display_field = display_field(field)
 
-    %{queryable: queryable} = adapter_config[:schema].__schema__(:association, name)
+    %{queryable: queryable} = schema.__schema__(:association, name)
     schema_name = EctoAdapter.name_by_schema(queryable)
 
     from(queryable, as: ^schema_name)
     |> maybe_options_query(field_options, assigns)
     |> maybe_search_query(schema_name, field_options, display_field, Keyword.get(opts, :search))
     |> subquery()
-    |> adapter_config[:repo].aggregate(:count)
+    |> repo.aggregate(:count)
   end
 
   def assign_selected(socket) do
@@ -488,8 +481,8 @@ defmodule Backpex.Fields.HasMany do
   end
 
   defp fetch_selected_items(socket, selected_ids) do
-    adapter_config = socket.assigns.live_resource.config(:adapter_config)
-    %{queryable: queryable} = adapter_config[:schema].__schema__(:association, socket.assigns.name)
+    schema = socket.assigns.live_resource.adapter_config(:schema)
+    %{queryable: queryable} = schema.__schema__(:association, socket.assigns.name)
     {from_options, to_fetch} = separate_selected_items(selected_ids, socket.assigns.options)
     from_db = fetch_from_db(to_fetch, queryable, socket)
 
@@ -510,12 +503,12 @@ defmodule Backpex.Fields.HasMany do
   defp fetch_from_db([], _queryable, _socket), do: []
 
   defp fetch_from_db(ids_to_fetch, queryable, socket) do
-    adapter_config = socket.assigns.live_resource.config(:adapter_config)
+    repo = socket.assigns.live_resource.adapter_config(:repo)
 
     queryable
     |> where([x], x.id in ^ids_to_fetch)
     |> maybe_options_query(socket.assigns.field_options, socket.assigns)
-    |> adapter_config[:repo].all()
+    |> repo.all()
     |> Enum.map(fn item ->
       {Map.get(item, display_field_form(socket.assigns.field)), item.id}
     end)

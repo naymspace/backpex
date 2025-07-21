@@ -77,31 +77,6 @@ Backpex is styled using daisyUI. Make sure you have daisyUI installed in your ap
 
 *Note that the current version of Backpex requires daisyUI version 5.*
 
-### Ecto
-
-Backpex currently depends on Ecto as the database layer. Make sure you have a running Ecto repository in your application.
-
-> #### Warning {: .warning}
->
-> Backpex requires a single primary key field in your database schema. Compound keys are not supported. We tested Backpex with UUID (binary_id), integer (bigserial) and string primary keys. Note that the primary key is used in the URL for Show and Edit Views, so make sure it is always URL-encoded or safe to use in a URL.
-
-If you meet all these prerequisites, you are ready to install and configure Backpex in your Phoenix application. See our [installation guide](guides/get_started/installation.md) for more information on how to install and configure Backpex.
-
-## Add to list of dependencies
-
-In your `mix.exs`:
-
-```elixir
-defp deps do
-  [
-    ...
-    {:backpex, "~> 0.13.0"}
-  ]
-end
-```
-
-See the [hex.pm page](https://hex.pm/packages/backpex) for the latest version.
-
 ## Add files to Tailwind content
 
 Backpex uses Tailwind CSS and daisyUI. Make sure to add Backpex files as a tailwind source in order to include the Backpex styles.
