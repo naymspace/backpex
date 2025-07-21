@@ -15,7 +15,7 @@ defmodule DemoWeb.Filters.PostUserMultiSelect do
   def prompt, do: "Select users ..."
 
   @impl Backpex.Filters.Select
-  def options do
+  def options(_assigns) do
     query =
       from p in Post,
         join: u in assoc(p, :user),

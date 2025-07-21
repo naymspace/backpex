@@ -97,6 +97,7 @@ defmodule Backpex.Fields.Number do
     <div>
       <.form for={@form} class="relative" phx-change="update-field" phx-submit="update-field" phx-target={@myself}>
         <BackpexForm.input
+          id={"index-form-input-#{@name}-#{LiveResource.primary_value(@item, @live_resource)}"}
           type="text"
           field={@form[:value]}
           placeholder={@field_options[:placeholder]}

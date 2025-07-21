@@ -11,6 +11,12 @@ defmodule Backpex.Fields.URL do
     throttle: [
       doc: "Timeout value (in milliseconds) or function that receives the assigns.",
       type: {:or, [:pos_integer, {:fun, 1}]}
+    ],
+    allowed_schemes: [
+      doc:
+        "List of allowed schemes for the link (e.g. https). Values with disallowed scheme are displayed as raw text.",
+      type: {:list, :string},
+      default: ~w(https http tel mailto)
     ]
   ]
 
@@ -27,11 +33,14 @@ defmodule Backpex.Fields.URL do
 
   @impl Backpex.Field
   def render_value(assigns) do
+    assigns = assign(assigns, :valid?, valid_url?(assigns.value, assigns.field_options))
+
     ~H"""
     <p class={@live_action in [:index, :resource_action] && "truncate"}>
-      <.link href={@value} class="text-blue-600 underline">
+      <.link :if={@valid?} href={@value} class="text-blue-600 underline">
         {@value}
       </.link>
+      <span :if={!@valid?}>{@value}</span>
     </p>
     """
   end
@@ -57,4 +66,16 @@ defmodule Backpex.Fields.URL do
     </div>
     """
   end
+
+  defp valid_url?(value, field_options) when is_binary(value) do
+    case URI.new(value) do
+      {:ok, %URI{scheme: scheme}} ->
+        is_nil(scheme) or String.downcase(scheme) in field_options.allowed_schemes
+
+      {:error, _part} ->
+        false
+    end
+  end
+
+  defp valid_url?(_value, _field_options), do: false
 end

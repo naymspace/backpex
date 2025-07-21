@@ -9,7 +9,7 @@ defmodule DemoWeb.Filters.PostPublished do
   def label, do: "Published?"
 
   @impl Backpex.Filters.Boolean
-  def options do
+  def options(_assigns) do
     [
       %{
         label: "Published",

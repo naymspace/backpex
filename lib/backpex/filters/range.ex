@@ -43,8 +43,8 @@ defmodule Backpex.Filters.Range do
       @behaviour RangeFilter
 
       @impl Backpex.Filter
-      def query(query, attribute, params) do
-        RangeFilter.query(query, type(), attribute, params)
+      def query(query, attribute, params, assigns) do
+        RangeFilter.query(query, type(), attribute, params, assigns)
       end
 
       @impl Backpex.Filter
@@ -59,7 +59,7 @@ defmodule Backpex.Filters.Range do
         Backpex.Filters.Range.render_form(assigns)
       end
 
-      defoverridable query: 3, render: 1, render_form: 1
+      defoverridable query: 4, render: 1, render_form: 1
     end
   end
 
@@ -127,12 +127,12 @@ defmodule Backpex.Filters.Range do
     """
   end
 
-  def query(query, type, attribute, %{"start" => start_at, "end" => end_at}) do
+  def query(query, type, attribute, %{"start" => start_at, "end" => end_at}, _assigns) do
     maybe_parse_range(type, start_at, end_at)
     |> do_query(query, attribute)
   end
 
-  def query(query, _type, _attribute, _params) do
+  def query(query, _type, _attribute, _params, _assigns) do
     query
   end
 

@@ -39,9 +39,12 @@ defmodule Backpex.LiveResource.Show do
     |> noreply()
   end
 
+  def handle_info(_event, socket) do
+    noreply(socket)
+  end
+
   def handle_event(_event, _params, socket) do
-    socket
-    |> noreply()
+    noreply(socket)
   end
 
   def render(assigns) do

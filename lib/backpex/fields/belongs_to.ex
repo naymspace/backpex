@@ -66,8 +66,8 @@ defmodule Backpex.Fields.BelongsTo do
   @impl Phoenix.LiveComponent
   def update(assigns, socket) do
     %{name: name, field: field} = assigns
-    adapter_config = assigns.live_resource.config(:adapter_config)
-    %{queryable: queryable, owner_key: owner_key} = adapter_config[:schema].__schema__(:association, name)
+    schema = assigns.live_resource.adapter_config(:schema)
+    %{queryable: queryable, owner_key: owner_key} = schema.__schema__(:association, name)
 
     display_field = display_field(field)
     display_field_form = display_field_form(field, display_field)
@@ -123,8 +123,8 @@ defmodule Backpex.Fields.BelongsTo do
       display_field_form: display_field_form
     } = assigns
 
-    adapter_config = assigns.live_resource.config(:adapter_config)
-    options = get_options(adapter_config[:repo], queryable, field_options, display_field_form, assigns)
+    repo = assigns.live_resource.adapter_config(:repo)
+    options = get_options(repo, queryable, field_options, display_field_form, assigns)
 
     assigns =
       assigns
@@ -156,8 +156,8 @@ defmodule Backpex.Fields.BelongsTo do
   @impl Backpex.Field
   def render_index_form(assigns) do
     %{field_options: field_options, queryable: queryable, display_field_form: display_field_form} = assigns
-    adapter_config = assigns.live_resource.config(:adapter_config)
-    options = get_options(adapter_config[:repo], queryable, field_options, display_field_form, assigns)
+    repo = assigns.live_resource.adapter_config(:repo)
+    options = get_options(repo, queryable, field_options, display_field_form, assigns)
     form = to_form(%{"value" => assigns.value}, as: :index_form)
 
     assigns =
@@ -171,13 +171,17 @@ defmodule Backpex.Fields.BelongsTo do
     <div>
       <.form for={@form} class="relative" phx-change="update-field" phx-submit="update-field" phx-target={@myself}>
         <BackpexForm.input
+          id={"index-form-input-#{@name}-#{LiveResource.primary_value(@item, @live_resource)}"}
           type="select"
           field={@form[:value]}
           options={@options}
           prompt={@prompt}
           value={@value && Map.get(@value, :id)}
-          input_wrapper_class=""
-          input_class={["select select-sm", if(@valid, do: "not-hover:select-ghost", else: "select-error")]}
+          input_class={[
+            "select select-sm",
+            @valid && "not-hover:select-ghost",
+            !@valid && "select-error text-error-content bg-error/10"
+          ]}
           disabled={@readonly}
           hide_errors
         />
@@ -218,14 +222,13 @@ defmodule Backpex.Fields.BelongsTo do
   end
 
   defp assign_link(assigns) do
-    %{socket: socket, field_options: field_options, value: value, live_resource: live_resource, params: params} =
-      assigns
+    %{socket: socket, field_options: field_options, value: value, params: params} = assigns
+
+    live_resource = Map.get(field_options, :live_resource)
 
     link =
-      if Map.has_key?(field_options, :live_resource) and live_resource.can?(assigns, :show, value) do
-        Router.get_path(socket, Map.get(field_options, :live_resource), params, :show, value)
-      else
-        nil
+      if live_resource && live_resource.can?(assigns, :show, value) do
+        Router.get_path(socket, live_resource, params, :show, value)
       end
 
     assign(assigns, :link, link)
