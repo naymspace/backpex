@@ -6,7 +6,7 @@ You can change the visibility of fields in certain views.
 
 You can use the `only` and `except` options to define the views where a field should be visible. The `only` option will show the field only in the specified views, while the `except` option will show the field in all views except the specified ones. The options have to be a list of view names.
 
-The following values are supported: `:new`, `:edit`, `:show`, `:index` and `:resource_action`.
+The following values are supported: `:new`, `:edit`, `:show` and `:index`.
 
 ```elixir
 # in your resource configuration file
