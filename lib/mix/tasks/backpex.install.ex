@@ -120,13 +120,14 @@ if Code.ensure_loaded?(Igniter) do
     defp install_daisyui(igniter) do
       app_css_path = igniter.args.options[:app_css_path]
 
-      with false <- Helpers.npm_package_installed?(@daisyui_version),
+      with false <- Igniter.exists?(igniter, "assets/vendor/daisyui.js"),
+           false <- Helpers.npm_package_installed?(@daisyui_version),
            :ok <- install_daisyui_via_npm(),
            igniter <- Helpers.add_line_to_file(igniter, app_css_path, "@plugin \"daisyui\"") do
         Igniter.add_notice(igniter, "Installed daisyUI via npm.")
       else
         true ->
-          Mix.shell().info("daisyui is already in package.json with the desired version. Skipping.")
+          Mix.shell().info("daisyui is already installed. Skipping.")
           igniter
 
         {:error, error} ->
