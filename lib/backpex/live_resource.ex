@@ -629,6 +629,8 @@ defmodule Backpex.LiveResource do
       iex> Backpex.LiveResource.fields_by_action([field1: %{label: "Field1", only: [:index]}, field2: %{label: "Field2"}], :show)
       [field2: %{label: "Field2"}]
   """
+  def fields_by_action(fields, :resource_action), do: fields_by_action(fields, :index)
+
   def fields_by_action(fields, action) do
     fields
     |> Keyword.filter(fn {_name, field_options} ->

@@ -37,6 +37,7 @@ defmodule Backpex.FormComponent do
     socket
     |> assign_new(:fields, fn -> resource_action.module.fields() end)
     |> assign(:save_label, ResourceAction.name(resource_action, :label))
+    |> maybe_assign_uploads()
   end
 
   # default form
@@ -47,12 +48,8 @@ defmodule Backpex.FormComponent do
   end
 
   defp maybe_assign_uploads(socket) do
-    %{live_resource: live_resource, live_action: live_action} = socket.assigns
-
-    fields = live_resource.fields(live_action, socket.assigns)
-
     socket =
-      Enum.reduce(fields, socket, fn {_name, field_options} = field, acc ->
+      Enum.reduce(socket.assigns.fields, socket, fn {_name, field_options} = field, acc ->
         field_options.module.assign_uploads(field, acc)
       end)
 
@@ -457,10 +454,7 @@ defmodule Backpex.FormComponent do
   end
 
   defp put_upload_change(change, socket, action) do
-    %{live_resource: live_resource, live_action: live_action} = socket.assigns
-    fields = live_resource.fields(live_action, socket.assigns)
-
-    Enum.reduce(fields, change, fn
+    Enum.reduce(socket.assigns.fields, change, fn
       {name, %{upload_key: upload_key} = field_options} = _field, acc ->
         %{put_upload_change: put_upload_change} = field_options
 
@@ -488,10 +482,7 @@ defmodule Backpex.FormComponent do
   end
 
   defp handle_uploads(%{assigns: %{uploads: _uploads}} = socket, item) do
-    %{live_resource: live_resource, live_action: live_action} = socket.assigns
-    fields = live_resource.fields(live_action, socket.assigns)
-
-    for {_name, %{upload_key: upload_key} = field_options} = _field <- fields do
+    for {_name, %{upload_key: upload_key} = field_options} = _field <- socket.assigns.fields do
       if Map.has_key?(socket.assigns.uploads, upload_key) do
         %{consume_upload: consume_upload, remove_uploads: remove_uploads} = field_options
 

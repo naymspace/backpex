@@ -51,7 +51,7 @@ defmodule DemoWeb.ProductLive do
           assigns ->
             ~H"<p>{Backpex.HTML.pretty_value(@value)}</p>"
         end,
-        except: [:index, :resource_action],
+        except: [:index],
         align: :center
       },
       name: %{

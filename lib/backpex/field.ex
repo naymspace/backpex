@@ -93,11 +93,11 @@ defmodule Backpex.Field do
     ],
     only: [
       doc: "Define the only views where this field should be visible.",
-      type: {:list, {:in, [:new, :edit, :show, :index, :resource_action]}}
+      type: {:list, {:in, [:new, :edit, :show, :index]}}
     ],
     except: [
       doc: "Define the views where this field should not be visible.",
-      type: {:list, {:in, [:new, :edit, :show, :index, :resource_action]}}
+      type: {:list, {:in, [:new, :edit, :show, :index]}}
     ],
     translate_error: [
       doc: """
