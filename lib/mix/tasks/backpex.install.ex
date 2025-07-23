@@ -105,18 +105,18 @@ if Code.ensure_loaded?(Igniter) do
 
     defp check_tailwind_version(igniter) do
       with version when is_binary(version) <- Application.get_env(:tailwind, :version),
-           true <- version_compatible?(version) do
+           {true, _version} <- version_compatible?(version) do
         igniter
       else
         nil -> show_tailwind_warning(igniter, "no version found")
-        false -> show_tailwind_warning(igniter, version)
+        {false, version} -> show_tailwind_warning(igniter, version)
       end
     end
 
     defp version_compatible?(version) do
       [major | _rest] = String.split(version, ".")
       {major_num, _remainder} = Integer.parse(major)
-      major_num >= 4
+      {major_num >= 4, version}
     end
 
     defp show_tailwind_warning(igniter, version_info) do
