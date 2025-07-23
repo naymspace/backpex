@@ -82,6 +82,7 @@ if Code.ensure_loaded?(Igniter) do
     @impl Igniter.Mix.Task
     def igniter(igniter) do
       igniter
+      |> check_tailwind_version()
       |> configure_pubsub_server()
       |> install_backpex_hooks()
       |> install_daisyui()
@@ -98,6 +99,35 @@ if Code.ensure_loaded?(Igniter) do
     defp configure_pubsub_server(igniter) do
       pubsub_module = Helpers.pubsub_module(igniter)
       Config.configure_new(igniter, "config.exs", :backpex, [:pubsub_server], pubsub_module)
+    end
+
+    # Tailwind version check
+
+    defp check_tailwind_version(igniter) do
+      with version when is_binary(version) <- Application.get_env(:tailwind, :version),
+           true <- version_compatible?(version) do
+        igniter
+      else
+        nil -> show_tailwind_warning(igniter, "no version found")
+        false -> show_tailwind_warning(igniter, version)
+      end
+    end
+
+    defp version_compatible?(version) do
+      [major | _rest] = String.split(version, ".")
+      {major_num, _remainder} = Integer.parse(major)
+      major_num >= 4
+    end
+
+    defp show_tailwind_warning(igniter, version_info) do
+      message =
+        "No compatible Tailwind version found in config.exs (#{version_info}). Backpex requires Tailwind CSS >= 4.x.x. Do you want to continue anyway? Installation may not work correctly."
+
+      if IgniterIO.yes?(message) do
+        igniter
+      else
+        Mix.raise("Installation cancelled. Please install Tailwind CSS >= 4.x.x and try again.")
+      end
     end
 
     # Backpex hooks
