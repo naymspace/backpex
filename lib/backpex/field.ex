@@ -34,7 +34,7 @@ defmodule Backpex.Field do
       type: :atom
     ],
     align: [
-      doc: "Align the field value on index view.",
+      doc: "Align the field value on index views.",
       type: {:in, [:left, :center, :right]}
     ],
     align_label: [
