@@ -72,7 +72,7 @@ if Code.ensure_loaded?(Igniter) do
     @impl Igniter.Mix.Task
     def info(_argv, _composing_task) do
       %Igniter.Mix.Task.Info{
-        adds_deps: [igniter_js: "~> 0.4.6"],
+        adds_deps: [igniter_js: "~> 0.4"],
         example: __MODULE__.Docs.example(),
         schema: [app_js_path: :string, app_css_path: :string, no_layout: :boolean],
         defaults: [app_js_path: @default_app_js_path, app_css_path: @default_app_css_path, no_layout: false]
