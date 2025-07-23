@@ -1,10 +1,10 @@
 # Alignment
 
-It is possible to align the fields of a resource in the index view and the labels of the fields in the edit view.
+It is possible to align the field values of a resource on index views and the labels of the fields on edit views.
 
-## Field Alignment (Index View)
+## Field Alignment (Index Views)
 
-You can align the fields of a resource in the index view by setting the `align` option in the field configuration.
+You can align the field values of a resource on index views by setting the `align` option in the field configuration.
 
 The following alignments are supported: `:left`, `:center` and `:right`
 
@@ -14,19 +14,19 @@ The following alignments are supported: `:left`, `:center` and `:right`
 @impl Backpex.LiveResource
 def fields do
 [
-    %{
-        ...,
-        align: :center
-    }
+  %{
+    ...,
+    align: :center
+  }
 ]
 end
 ```
 
-The example above will align the field to the center in the index view.
+The example above will center the field value on the index view.
 
-## Label Alignment (Edit View)
+## Label Alignment (Form Views)
 
-You can align the labels of the fields in the edit view by setting the `label_align` option in the field configuration.
+You can align the labels of the fields on form views by setting the `label_align` option in the field configuration.
 
 The following label orientations are supported: `:top`, `:center` and `:bottom`.
 
@@ -35,12 +35,12 @@ The following label orientations are supported: `:top`, `:center` and `:bottom`.
 @impl Backpex.LiveResource
 def fields do
 [
-    %{
-        ...,
-        align_label: :top
-    }
+  %{
+    ...,
+    align_label: :top
+  }
 ]
 end
 ```
 
-The example above will align the label to the top in the edit view.
+The example above will align the label to the top on the form view.
