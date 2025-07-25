@@ -9,7 +9,8 @@ services:
     environment:
       - STARTUP_COMMAND_1=mix do deps.get, ecto.create, ecto.migrate
       - STARTUP_COMMAND_2=yarn install --pure-lockfile
-      - STARTUP_COMMAND_3=mix assets.setup
+      - STARTUP_COMMAND_3=yarn playwright install chromium --with-deps
+      - STARTUP_COMMAND_4=mix assets.setup
     volumes:
       - .:/opt/app
     ports:
