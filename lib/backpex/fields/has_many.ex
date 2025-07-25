@@ -279,7 +279,8 @@ defmodule Backpex.Fields.HasMany do
 
   @impl Backpex.Field
   def schema({name, _field_options}, schema) do
-    Map.get(schema.__schema__(:association, name), :queryable)
+    schema.__schema__(:association, name)
+    |> Map.get(:queryable)
   end
 
   @impl Backpex.Field

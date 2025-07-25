@@ -192,7 +192,8 @@ defmodule Backpex.Fields.InlineCRUD do
 
   @impl Backpex.Field
   def schema({name, _field_options}, schema) do
-    Map.get(schema.__schema__(:association, name), :queryable)
+    schema.__schema__(:association, name)
+    |> Map.get(:queryable)
   end
 
   defp child_field_class(%{class: class} = _child_field_options, assigns) when is_function(class), do: class.(assigns)

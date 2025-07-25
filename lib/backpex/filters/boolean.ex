@@ -130,10 +130,10 @@ defmodule Backpex.Filters.Boolean do
     value
     |> Enum.reduce(nil, fn
       v, nil ->
-        Map.get(predicates(options), v)
+        options |> predicates() |> Map.get(v)
 
       v, p ->
-        dynamic(^p or ^Map.get(predicates(options), v))
+        dynamic(^p or ^(options |> predicates() |> Map.get(v)))
     end)
     |> maybe_query(query)
   end
