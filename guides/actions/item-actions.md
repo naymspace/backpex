@@ -80,6 +80,7 @@ See `Backpex.ItemAction` for a list of all available callbacks.
 Item actions can be placed in the resource table or at the top of it. You can specify the placement of the item action by using the `only` and `except` keys.
 
 The `only` key is used to include specified placements, meaning the item action will only appear in the specified locations. In contrast, the `except` key is used to exclude specified placements, meaning the item action will appear in all locations except those specified.
+
 The `only` and `except` keys must provide a list and accept the following options:
 
 * `:row` - displays an icon for each element in the table, clicking it triggers the item action for the corresponding element
