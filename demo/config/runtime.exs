@@ -7,17 +7,17 @@ config :demo, Demo.Repo,
   username: get_env("DB_USERNAME", "postgres"),
   password: get_env("DB_PASSWORD", "postgres"),
   database: get_env("DB_DATABASE", "postgres"),
-  port: get_env("DB_PORT", "5432") |> to_integer(),
-  pool_size: get_env("DB_POOL_SIZE", "5") |> to_integer()
+  port: to_integer(get_env("DB_PORT", "5432")),
+  pool_size: to_integer(get_env("DB_POOL_SIZE", "5"))
 
 config :demo, DemoWeb.DashboardAuthPlug,
-  enabled: get_env("DASHBOARD_AUTH_ENABLED", "false") |> to_existing_atom(),
+  enabled: to_existing_atom(get_env("DASHBOARD_AUTH_ENABLED", "false")),
   username: get_env("DASHBOARD_AUTH_USERNAME", "backpex"),
   password: get_env("DASHBOARD_AUTH_PASSWORD", "backpex")
 
 config :demo, DemoWeb.Endpoint,
   http: [
-    port: get_env("PORT", "4000") |> to_integer()
+    port: to_integer(get_env("PORT", "4000"))
   ],
   url: [
     scheme: get_env("URL_SCHEME", "http"),
@@ -31,9 +31,9 @@ config :demo, DemoWeb.Endpoint,
 
 config :demo,
   dns_cluster_query: get_env("DNS_CLUSTER_QUERY"),
-  analytics: get_env("ANALYTICS", "false") |> to_existing_atom()
+  analytics: to_existing_atom(get_env("ANALYTICS", "false"))
 
-config :logger, level: get_env("LOGGER_LEVEL", "debug") |> to_atom()
+config :logger, level: to_atom(get_env("LOGGER_LEVEL", "debug"))
 
 config :sentry,
   dsn: get_env("SENTRY_DSN"),
