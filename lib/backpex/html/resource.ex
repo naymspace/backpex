@@ -211,9 +211,9 @@ defmodule Backpex.HTML.Resource do
     computed = [
       filter_count: Enum.count(assigns.filter_options),
       filter_icon_class:
-        if(assigns.filter_options != %{},
-          do: "text-primary group-hover:text-primary-content",
-          else: "text-primary/75 group-hover:text-primary-content"
+        if(assigns.filter_options == %{},
+          do: "text-primary/75 group-hover:text-primary-content",
+          else: "text-primary group-hover:text-primary-content"
         )
     ]
 

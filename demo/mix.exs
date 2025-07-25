@@ -96,7 +96,7 @@ defmodule Demo.MixProject do
     ]
   end
 
-  defp gettext() do
+  defp gettext do
     [
       write_reference_comments: false,
       sort_by_msgid: :case_insensitive

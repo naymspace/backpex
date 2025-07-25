@@ -4,8 +4,6 @@ config :demo, Demo.Repo,
   show_sensitive_data_on_connection_error: true,
   migration_timestamps: [type: :utc_datetime]
 
-config :phoenix_live_reload, :dirs, [Path.expand("../..", __DIR__)]
-
 config :demo, DemoWeb.Endpoint,
   debug_errors: true,
   code_reloader: true,
@@ -30,8 +28,9 @@ config :demo, DemoWeb.Endpoint,
 
 config :logger, :console, format: "[$level] $message\n"
 
+config :phoenix, :plug_init_mode, :runtime
 config :phoenix, :stacktrace_depth, 20
 
-config :phoenix, :plug_init_mode, :runtime
+config :phoenix_live_reload, :dirs, [Path.expand("../..", __DIR__)]
 
 config :phoenix_live_view, debug_heex_annotations: true

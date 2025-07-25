@@ -64,11 +64,14 @@ defmodule Backpex.LiveResource.Index do
 
     primary_value = LiveResource.primary_value(item, live_resource)
 
-    if find_item_by_primary_value(items, primary_value, live_resource) do
-      refresh_items(socket)
-    else
-      socket
-    end
+    if_result =
+      if find_item_by_primary_value(items, primary_value, live_resource) do
+        refresh_items(socket)
+      else
+        socket
+      end
+
+    if_result
     |> noreply()
   end
 
@@ -132,7 +135,7 @@ defmodule Backpex.LiveResource.Index do
         socket.assigns.live_resource,
         params,
         :index,
-        Map.merge(query_options, %{per_page: per_page})
+        Map.put(query_options, :per_page, per_page)
       )
 
     socket
@@ -149,7 +152,7 @@ defmodule Backpex.LiveResource.Index do
         socket.assigns.live_resource,
         params,
         :index,
-        Map.merge(query_options, %{search: search_input})
+        Map.put(query_options, :search, search_input)
       )
 
     socket
@@ -171,7 +174,7 @@ defmodule Backpex.LiveResource.Index do
     filters =
       Map.get(query_options, :filters, %{})
       |> Map.put(field, get_preset_values.())
-      |> Map.drop([Atom.to_string(LiveResource.empty_filter_key())])
+      |> Map.delete(Atom.to_string(LiveResource.empty_filter_key()))
 
     to =
       Router.get_path(
@@ -261,19 +264,22 @@ defmodule Backpex.LiveResource.Index do
   end
 
   defp open_action_confirm_modal(socket, action, key) do
-    if Backpex.ItemAction.has_form?(action) do
-      changeset_function = &action.module.changeset/3
-      base_schema = action.module.base_schema(socket.assigns)
+    if_result =
+      if Backpex.ItemAction.has_form?(action) do
+        changeset_function = &action.module.changeset/3
+        base_schema = action.module.base_schema(socket.assigns)
 
-      metadata = Resource.build_changeset_metadata(socket.assigns)
-      changeset = changeset_function.(base_schema, %{}, metadata)
+        metadata = Resource.build_changeset_metadata(socket.assigns)
+        changeset = changeset_function.(base_schema, %{}, metadata)
 
-      socket
-      |> assign(:item, base_schema)
-      |> assign(:changeset, changeset)
-    else
-      assign(socket, :changeset, %{})
-    end
+        socket
+        |> assign(:item, base_schema)
+        |> assign(:changeset, changeset)
+      else
+        assign(socket, :changeset, %{})
+      end
+
+    if_result
     |> assign(:action_to_confirm, Map.put(action, :key, key))
     |> noreply()
   end
@@ -491,12 +497,10 @@ defmodule Backpex.LiveResource.Index do
     assign(socket, :changeset, changeset)
   end
 
-  defp maybe_put_search(query_options, %{"search" => search} = _params)
-       when is_nil(search) or search == "",
-       do: query_options
+  defp maybe_put_search(query_options, %{"search" => search} = _params) when is_nil(search) or search == "",
+    do: query_options
 
-  defp maybe_put_search(query_options, %{"search" => search} = _params),
-    do: Map.put(query_options, :search, search)
+  defp maybe_put_search(query_options, %{"search" => search} = _params), do: Map.put(query_options, :search, search)
 
   defp maybe_put_search(query_options, _params), do: query_options
 
@@ -510,13 +514,13 @@ defmodule Backpex.LiveResource.Index do
       end)
 
     # redirect to default filters if no filters are set and defaults are available
-    if Map.get(query_options, :filters) == %{} and Enum.count(filters_with_defaults) > 0 do
+    if Map.get(query_options, :filters) == %{} and not Enum.empty?(filters_with_defaults) do
       default_filter_options =
         filters_with_defaults
         |> Enum.map(fn {key, filter_config} ->
           {key, filter_config.default}
         end)
-        |> Enum.into(%{}, fn {key, value} ->
+        |> Map.new(fn {key, value} ->
           {Atom.to_string(key), value}
         end)
 

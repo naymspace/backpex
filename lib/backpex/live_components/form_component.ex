@@ -375,7 +375,7 @@ defmodule Backpex.FormComponent do
       end
 
     with {:ok, data} <- result,
-         selected_items <- Enum.filter(selected_items, &live_resource.can?(socket.assigns, action_key, &1)),
+         selected_items = Enum.filter(selected_items, &live_resource.can?(socket.assigns, action_key, &1)),
          {:ok, socket} <- action_to_confirm.module.handle(socket, selected_items, data) do
       socket
       |> assign(:show_form_errors, false)

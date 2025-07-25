@@ -480,7 +480,7 @@ defmodule Backpex.LiveResource do
     live_resource.fields()
     |> Enum.map(fn {name, options} = field ->
       options.module.validate_config!(field, live_resource)
-      |> Enum.into(%{})
+      |> Map.new()
       |> then(&{name, &1})
     end)
   end
@@ -650,8 +650,7 @@ defmodule Backpex.LiveResource do
   @doc """
   Returns all filter options.
   """
-  def filter_options(%{"filters" => filters}, filter_configs),
-    do: filter_options(%{filters: filters}, filter_configs)
+  def filter_options(%{"filters" => filters}, filter_configs), do: filter_options(%{filters: filters}, filter_configs)
 
   def filter_options(%{filters: ""}, _filter_configs), do: %{}
   def filter_options(%{filters: nil}, _filter_configs), do: %{}
@@ -821,8 +820,7 @@ defmodule Backpex.LiveResource do
       iex> Backpex.LiveResource.calculate_total_pages(25, 6)
       5
   """
-  def calculate_total_pages(items_length, per_page),
-    do: ceil(items_length / per_page)
+  def calculate_total_pages(items_length, per_page), do: ceil(items_length / per_page)
 
   @doc """
   Validates a page number.
@@ -865,7 +863,7 @@ defmodule Backpex.LiveResource do
   def get_filter_options(query_options) do
     query_options
     |> Map.get(:filters, %{})
-    |> Map.drop([Atom.to_string(empty_filter_key())])
+    |> Map.delete(Atom.to_string(empty_filter_key()))
   end
 
   @doc """

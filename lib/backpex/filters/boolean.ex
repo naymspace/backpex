@@ -153,6 +153,6 @@ defmodule Backpex.Filters.Boolean do
 
   def predicates(options) do
     Enum.map(options, fn %{predicate: p, key: k} -> {k, p} end)
-    |> Enum.into(%{})
+    |> Map.new()
   end
 end

@@ -48,7 +48,7 @@ defmodule DemoWeb.UserLive do
   @impl Backpex.LiveResource
   def item_actions(default_actions) do
     default_actions
-    |> Keyword.drop([:delete])
+    |> Keyword.delete(:delete)
     |> Enum.concat(user_soft_delete: %{module: DemoWeb.ItemActions.UserSoftDelete})
   end
 

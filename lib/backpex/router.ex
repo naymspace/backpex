@@ -106,7 +106,7 @@ defmodule Backpex.Router do
 
   def has_resource_actions?(module, live_resource) do
     resource_module = Phoenix.Router.scoped_alias(module, live_resource)
-    Enum.count(resource_module.resource_actions()) > 0
+    not Enum.empty?(resource_module.resource_actions())
   end
 
   defmacro backpex_routes do

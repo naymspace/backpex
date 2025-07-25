@@ -86,7 +86,7 @@ defmodule Backpex.MixProject do
     ]
   end
 
-  defp docs() do
+  defp docs do
     [
       main: "readme",
       logo: "priv/static/images/logo.svg",
@@ -224,7 +224,7 @@ defmodule Backpex.MixProject do
     ]
   end
 
-  defp gettext() do
+  defp gettext do
     [
       write_reference_comments: false,
       sort_by_msgid: :case_insensitive

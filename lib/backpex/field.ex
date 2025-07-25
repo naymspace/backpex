@@ -306,7 +306,7 @@ defmodule Backpex.Field do
       def search_condition(schema_name, field_name, search_string) do
         dynamic(
           [{^schema_name, schema_name}],
-          ilike(schema_name |> field(^field_name), ^search_string)
+          schema_name |> field(^field_name) |> ilike(^search_string)
         )
       end
 
@@ -320,8 +320,7 @@ defmodule Backpex.Field do
   """
   def index_editable_enabled?(field_options, assigns, default \\ false)
 
-  def index_editable_enabled?(_field_options, %{live_action: live_action}, _default)
-      when live_action != :index do
+  def index_editable_enabled?(_field_options, %{live_action: live_action}, _default) when live_action != :index do
     false
   end
 
@@ -403,10 +402,9 @@ defmodule Backpex.Field do
   """
   def changeset_types(fields) do
     fields
-    |> Enum.map(fn {name, field_options} ->
+    |> Map.new(fn {name, field_options} ->
       {name, field_options.type}
     end)
-    |> Enum.into(%{})
   end
 
   @doc """
@@ -429,7 +427,7 @@ defmodule Backpex.Field do
 
     result = Backpex.Resource.update(item, change, fields, assigns, live_resource, opts)
 
-    socket =
+    case_result =
       case result do
         {:ok, _item} ->
           assign(socket, :valid, true)
@@ -437,6 +435,9 @@ defmodule Backpex.Field do
         _error ->
           assign(socket, :valid, false)
       end
+
+    socket =
+      case_result
       |> assign(:form, Phoenix.Component.to_form(%{"value" => value}, as: :index_form))
 
     {:noreply, socket}

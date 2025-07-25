@@ -75,11 +75,7 @@ defmodule Backpex.ItemActions.Delete do
     )
   end
 
-  defp error_message(
-         assigns,
-         %Postgrex.Error{postgres: %{code: :foreign_key_violation}},
-         [_item] = items
-       ) do
+  defp error_message(assigns, %Postgrex.Error{postgres: %{code: :foreign_key_violation}}, [_item] = items) do
     "#{error_message(assigns, :error, items)} #{Backpex.__("The item is used elsewhere.", assigns.live_resource)}"
   end
 

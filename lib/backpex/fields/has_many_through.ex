@@ -516,10 +516,7 @@ defmodule Backpex.Fields.HasManyThrough do
     end)
   end
 
-  defp maybe_sort_by(
-         [%{child: _child} | _tail] = items,
-         %{field: %{sort_by: column_names}} = _assigns
-       ) do
+  defp maybe_sort_by([%{child: _child} | _tail] = items, %{field: %{sort_by: column_names}} = _assigns) do
     items
     |> Enum.sort_by(fn item ->
       column_names

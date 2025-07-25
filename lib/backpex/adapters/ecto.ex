@@ -397,11 +397,11 @@ defmodule Backpex.Adapters.Ecto do
           # credo:disable-for-lines:3 Credo.Check.Refactor.Nesting
           raise """
           The field "#{name}"" is not an association but used as if it were one with the field module #{inspect(field_options.module)}.
-          #{if without_id != name_str,
-            do: """
+          #{if without_id == name_str,
+            do: "",
+            else: """
             You are using a field ending with _id. Please make sure to use the correct field name for the association. Try using the name of the association, maybe "#{without_id}"?
-            """,
-            else: ""}.
+            """}.
           """
         end
 
