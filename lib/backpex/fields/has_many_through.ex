@@ -398,7 +398,7 @@ defmodule Backpex.Fields.HasManyThrough do
     primary_key = field_options.live_resource.config(:primary_key)
 
     updated =
-      if to_delete |> Changeset.change().data |> Map.get(primary_key) == nil do
+      if Map.get(Changeset.change(to_delete).data, primary_key) == nil do
         rest
       else
         # mark item for deletion in changeset
