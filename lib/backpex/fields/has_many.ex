@@ -279,8 +279,7 @@ defmodule Backpex.Fields.HasMany do
 
   @impl Backpex.Field
   def schema({name, _field_options}, schema) do
-    schema.__schema__(:association, name)
-    |> Map.get(:queryable)
+    Map.get(schema.__schema__(:association, name), :queryable)
   end
 
   @impl Backpex.Field
@@ -422,10 +421,10 @@ defmodule Backpex.Fields.HasMany do
   end
 
   defp maybe_limit_query(query, nil), do: query
-  defp maybe_limit_query(query, limit), do: query |> limit(^limit)
+  defp maybe_limit_query(query, limit), do: limit(query, ^limit)
 
   defp maybe_offset_query(query, nil), do: query
-  defp maybe_offset_query(query, offset), do: query |> offset(^offset)
+  defp maybe_offset_query(query, offset), do: offset(query, ^offset)
 
   defp maybe_options_query(query, %{options_query: options_query}, assigns), do: options_query.(query, assigns)
   defp maybe_options_query(query, _field_options, _assigns), do: query

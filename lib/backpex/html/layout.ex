@@ -227,7 +227,7 @@ defmodule Backpex.HTML.Layout do
     """
   end
 
-  defp version, do: Application.spec(:backpex, :vsn) |> to_string()
+  defp version, do: to_string(Application.spec(:backpex, :vsn))
 
   @doc """
   Renders the topbar branding.
@@ -607,8 +607,7 @@ defmodule Backpex.HTML.Layout do
       []
   """
   def visible_fields_by_panel(fields, panel, assigns) do
-    fields
-    |> Keyword.filter(fn {_name, field_options} ->
+    Keyword.filter(fields, fn {_name, field_options} ->
       get_panel(field_options) == panel and visible?(field_options, assigns)
     end)
   end

@@ -70,8 +70,7 @@ defmodule DemoWeb.ItemActions.UserSoftDelete do
 
         # nullify the user_id in the posts owned by the users
         _nullified_posts =
-          items
-          |> Enum.map(fn item ->
+          Enum.map(items, fn item ->
             Backpex.Resource.update_all(item.posts, [set: [user_id: nil]], "updated", DemoWeb.PostLive)
           end)
 

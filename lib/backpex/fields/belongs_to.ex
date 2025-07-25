@@ -202,8 +202,7 @@ defmodule Backpex.Fields.BelongsTo do
 
   @impl Backpex.Field
   def schema({name, _field_options}, schema) do
-    schema.__schema__(:association, name)
-    |> Map.get(:queryable)
+    Map.get(schema.__schema__(:association, name), :queryable)
   end
 
   @impl Backpex.Field

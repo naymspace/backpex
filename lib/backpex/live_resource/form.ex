@@ -41,7 +41,7 @@ defmodule Backpex.LiveResource.Form do
 
   def handle_info({:put_assoc, {key, value} = _assoc}, socket) do
     changeset = Ecto.Changeset.put_assoc(socket.assigns.changeset, key, value)
-    assocs = Map.get(socket.assigns, :assocs, []) |> Keyword.put(key, value)
+    assocs = socket.assigns |> Map.get(:assocs, []) |> Keyword.put(key, value)
 
     socket
     |> assign(:assocs, assocs)
@@ -93,8 +93,11 @@ defmodule Backpex.LiveResource.Form do
 
   defp assign_fields(socket, live_action) do
     fields =
-      socket.assigns.live_resource.validated_fields()
-      |> LiveResource.filtered_fields_by_action(socket.assigns, live_action)
+      LiveResource.filtered_fields_by_action(
+        socket.assigns.live_resource.validated_fields(),
+        socket.assigns,
+        live_action
+      )
 
     assign(socket, :fields, fields)
   end

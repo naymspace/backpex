@@ -91,7 +91,7 @@ defmodule Backpex.Fields.Currency do
   def search_condition(schema_name, field_name, search_string) do
     dynamic(
       [{^schema_name, schema_name}],
-      ilike(fragment("CAST(? AS TEXT)", schema_name |> field(^field_name)), ^search_string)
+      ilike(fragment("CAST(? AS TEXT)", field(schema_name, ^field_name)), ^search_string)
     )
   end
 

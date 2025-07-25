@@ -215,7 +215,7 @@ defmodule Backpex.Fields.HasManyThrough do
       |> Enum.map(fn editable ->
         edited = Changeset.apply_changes(editable.source)
         relational_id = Map.get(edited, association.child.owner_key)
-        item = Enum.filter(all_items, &(Map.get(&1, primary_key) == relational_id)) |> List.first()
+        item = all_items |> Enum.filter(&(Map.get(&1, primary_key) == relational_id)) |> List.first()
         item = if is_nil(item), do: %{}, else: item
 
         %{
@@ -445,9 +445,7 @@ defmodule Backpex.Fields.HasManyThrough do
   defp pivot_field(assigns) do
     name = assigns.name
 
-    field_options =
-      assigns.field_options.pivot_fields
-      |> Keyword.get(name)
+    field_options = Keyword.get(assigns.field_options.pivot_fields, name)
 
     assigns =
       assigns
@@ -506,19 +504,20 @@ defmodule Backpex.Fields.HasManyThrough do
           []
 
         changes ->
-          Enum.filter(changes, &(&1.action == :delete))
+          changes
+          |> Enum.filter(&(&1.action == :delete))
           |> Enum.map(&Map.get(&1.data, primary_key))
       end
 
-    form.impl.to_form(form.source, form, association.pivot.field, [])
+    form.source
+    |> form.impl.to_form(form, association.pivot.field, [])
     |> Enum.filter(fn item ->
       !Enum.member?(deleted_ids, Map.get(item.data, primary_key))
     end)
   end
 
   defp maybe_sort_by([%{child: _child} | _tail] = items, %{field: %{sort_by: column_names}} = _assigns) do
-    items
-    |> Enum.sort_by(fn item ->
+    Enum.sort_by(items, fn item ->
       column_names
       |> Enum.map(&{&1, Map.get(item.child, &1)})
       |> Keyword.values()

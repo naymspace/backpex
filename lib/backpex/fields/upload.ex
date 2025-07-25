@@ -807,8 +807,7 @@ defmodule Backpex.Fields.Upload do
   Maps uploaded files to keyword list with identifier and label.
   """
   def map_file_paths({_field_name, field_options} = _field, files) when is_list(files) do
-    files
-    |> Enum.map(&{&1, label_from_file(field_options, &1)})
+    Enum.map(files, &{&1, label_from_file(field_options, &1)})
   end
 
   @doc """

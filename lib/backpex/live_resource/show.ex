@@ -68,8 +68,7 @@ defmodule Backpex.LiveResource.Show do
 
   defp assign_fields(socket) do
     fields =
-      socket.assigns.live_resource.validated_fields()
-      |> LiveResource.filtered_fields_by_action(socket.assigns, :show)
+      LiveResource.filtered_fields_by_action(socket.assigns.live_resource.validated_fields(), socket.assigns, :show)
 
     assign(socket, :fields, fields)
   end

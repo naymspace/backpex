@@ -121,9 +121,7 @@ defmodule Backpex.Fields.InlineCRUD do
 
   @impl Backpex.Field
   def render_form(assigns) do
-    assigns =
-      assigns
-      |> assign(:child_fields, assigns.field_options.child_fields)
+    assigns = assign(assigns, :child_fields, assigns.field_options.child_fields)
 
     ~H"""
     <div>
@@ -194,8 +192,7 @@ defmodule Backpex.Fields.InlineCRUD do
 
   @impl Backpex.Field
   def schema({name, _field_options}, schema) do
-    schema.__schema__(:association, name)
-    |> Map.get(:queryable)
+    Map.get(schema.__schema__(:association, name), :queryable)
   end
 
   defp child_field_class(%{class: class} = _child_field_options, assigns) when is_function(class), do: class.(assigns)

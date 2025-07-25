@@ -49,12 +49,12 @@ defmodule Backpex.Filters.Boolean do
 
   defmacro __using__(_opts) do
     quote do
+      @behaviour Backpex.Filters.Boolean
+
       use BackpexWeb, :filter
       use Backpex.Filter
 
       alias Backpex.Filters.Boolean, as: BooleanFilter
-
-      @behaviour Backpex.Filters.Boolean
 
       @impl Backpex.Filter
       def query(query, attribute, value, assigns) do
@@ -127,7 +127,8 @@ defmodule Backpex.Filters.Boolean do
   def query(query, _options, _attribute, [], _assigns), do: query
 
   def query(query, options, _attribute, value, _assigns) do
-    Enum.reduce(value, nil, fn
+    value
+    |> Enum.reduce(nil, fn
       v, nil ->
         Map.get(predicates(options), v)
 
@@ -141,7 +142,8 @@ defmodule Backpex.Filters.Boolean do
   def maybe_query(predicates, query), do: where(query, ^predicates)
 
   def option_value_to_label(options, values) do
-    Enum.map(values, fn key -> find_option_label(options, key) end)
+    values
+    |> Enum.map(fn key -> find_option_label(options, key) end)
     |> Enum.intersperse(", ")
   end
 
@@ -152,7 +154,6 @@ defmodule Backpex.Filters.Boolean do
   end
 
   def predicates(options) do
-    Enum.map(options, fn %{predicate: p, key: k} -> {k, p} end)
-    |> Map.new()
+    Map.new(options, fn %{predicate: p, key: k} -> {k, p} end)
   end
 end

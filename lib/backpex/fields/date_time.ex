@@ -86,9 +86,7 @@ defmodule Backpex.Fields.DateTime do
         true -> HTML.pretty_value(assigns.value)
       end
 
-    assigns =
-      assigns
-      |> assign(:value, value)
+    assigns = assign(assigns, :value, value)
 
     ~H"""
     <p class={@live_action in [:index, :resource_action] && "truncate"}>

@@ -62,7 +62,8 @@ defmodule Backpex.CookieController do
   end
 
   defp redirect_path(%URI{path: path, query: query}) do
-    URI.new!(path)
+    path
+    |> URI.new!()
     |> Map.put(:query, query)
   end
 

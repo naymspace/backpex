@@ -43,8 +43,7 @@ if Code.ensure_loaded?(Ash) do
     """
     @impl Backpex.Adapter
     def list(_criteria, _assigns, live_resource) do
-      live_resource.adapter_config(:resource)
-      |> Ash.read()
+      Ash.read(live_resource.adapter_config(:resource))
     end
 
     @doc """
@@ -52,8 +51,7 @@ if Code.ensure_loaded?(Ash) do
     """
     @impl Backpex.Adapter
     def count(_criteria, _assigns, live_resource) do
-      live_resource.adapter_config(:resource)
-      |> Ash.count()
+      Ash.count(live_resource.adapter_config(:resource))
     end
 
     @doc """

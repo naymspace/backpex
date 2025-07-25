@@ -477,8 +477,7 @@ defmodule Backpex.LiveResource do
   Returns the fields of the given `Backpex.LiveResource` validated against each fields config schema.
   """
   def validated_fields(live_resource) do
-    live_resource.fields()
-    |> Enum.map(fn {name, options} = field ->
+    Enum.map(live_resource.fields(), fn {name, options} = field ->
       options.module.validate_config!(field, live_resource)
       |> Map.new()
       |> then(&{name, &1})
@@ -620,8 +619,7 @@ defmodule Backpex.LiveResource do
       [field2: %{label: "Field2"}]
   """
   def filtered_fields_by_action(fields, assigns, action) do
-    fields
-    |> Keyword.filter(fn {_name, field_options} ->
+    Keyword.filter(fields, fn {_name, field_options} ->
       can_view_field?(field_options, assigns) and filter_field_by_action(field_options, action)
     end)
   end
@@ -662,7 +660,7 @@ defmodule Backpex.LiveResource do
       %{
         field: String.to_existing_atom(key),
         value: value,
-        filter_config: filter_configs |> Keyword.get(key_as_atom)
+        filter_config: Keyword.get(filter_configs, key_as_atom)
       }
     end)
   end
@@ -881,8 +879,7 @@ defmodule Backpex.LiveResource do
     valid_filters = Keyword.put(valid_filters, empty_filter_key, %{})
 
     filters =
-      valid_filters
-      |> Enum.reduce(%{}, fn {key, _val}, acc ->
+      Enum.reduce(valid_filters, %{}, fn {key, _val}, acc ->
         string_key = Atom.to_string(key)
 
         if Map.has_key?(filters, string_key) do

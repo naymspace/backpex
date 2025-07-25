@@ -37,6 +37,7 @@ insert!(Demo.Helpdesk.Ticket, count: 10)
   escape_max_lines: 20
 )
 |> Enum.each(fn {:ok, item} ->
-  Demo.FilmReview.create_changeset(%Demo.FilmReview{}, item)
+  %Demo.FilmReview{}
+  |> Demo.FilmReview.create_changeset(item)
   |> Demo.Repo.insert!()
 end)

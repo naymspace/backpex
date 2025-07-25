@@ -95,7 +95,8 @@ defmodule Backpex.Fields.MultiSelect do
       end
 
     selected =
-      Enum.reduce(options, [], fn {_label, value} = option, acc ->
+      options
+      |> Enum.reduce([], fn {_label, value} = option, acc ->
         if value in selected_ids do
           [option | acc]
         else
@@ -196,7 +197,8 @@ defmodule Backpex.Fields.MultiSelect do
     search_input = Map.get(params, "change[#{name}]_search")
 
     options =
-      field_options.options.(assigns)
+      assigns
+      |> field_options.options.()
       |> maybe_apply_search(search_input)
 
     socket
@@ -224,7 +226,8 @@ defmodule Backpex.Fields.MultiSelect do
       search_input_downcase = String.downcase(search_input)
 
       Enum.filter(options, fn {label, _value} ->
-        String.downcase(label)
+        label
+        |> String.downcase()
         |> String.contains?(search_input_downcase)
       end)
     end

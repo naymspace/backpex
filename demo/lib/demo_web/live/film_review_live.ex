@@ -33,8 +33,7 @@ defmodule DemoWeb.FilmReviewLive do
 
   @impl Backpex.LiveResource
   def item_actions(default_actions) do
-    default_actions
-    |> Keyword.delete(:delete)
+    Keyword.delete(default_actions, :delete)
   end
 
   @impl Backpex.LiveResource

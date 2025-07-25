@@ -211,19 +211,14 @@ defmodule Backpex.Adapters.Ecto do
 
         case field do
           {_name, %{select: select} = _field_options} ->
-            query
-            |> order_by([{^schema_name, schema_name}], ^[{direction, select}])
+            order_by(query, [{^schema_name, schema_name}], ^[{direction, select}])
 
           _field ->
-            query
-            |> order_by([{^schema_name, schema_name}], [
-              {^direction, field(schema_name, ^by)}
-            ])
+            order_by(query, [{^schema_name, schema_name}], [{^direction, field(schema_name, ^by)}])
         end
 
       {:limit, limit}, query ->
-        query
-        |> limit(^limit)
+        limit(query, ^limit)
 
       {:pagination, %{page: page, size: size}}, query ->
         query
@@ -391,7 +386,7 @@ defmodule Backpex.Adapters.Ecto do
         association = schema.__schema__(:association, name)
 
         if association == nil do
-          name_str = name |> Atom.to_string()
+          name_str = Atom.to_string(name)
           without_id = String.replace(name_str, ~r/_id$/, "")
 
           # credo:disable-for-lines:3 Credo.Check.Refactor.Nesting
@@ -410,7 +405,7 @@ defmodule Backpex.Adapters.Ecto do
             association |> Map.from_struct() |> Map.put(:custom_alias, custom_alias)
 
           _other ->
-            association |> Map.from_struct()
+            Map.from_struct(association)
         end
     end)
   end
@@ -489,13 +484,11 @@ defmodule Backpex.Adapters.Ecto do
         end
       end)
 
-    query
-    |> preload(^preload_items)
+    preload(query, ^preload_items)
   end
 
   defp maybe_merge_dynamic_fields(query, fields) do
-    fields
-    |> Enum.reduce(query, fn
+    Enum.reduce(fields, query, fn
       {_name, %{display_field: _display_field}}, q ->
         q
 

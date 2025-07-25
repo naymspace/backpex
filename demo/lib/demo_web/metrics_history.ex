@@ -17,8 +17,7 @@ defmodule DemoWeb.MetricsStorage do
     Process.flag(:trap_exit, true)
 
     metric_histories_map =
-      metrics
-      |> Map.new(fn metric ->
+      Map.new(metrics, fn metric ->
         attach_handler(metric)
         {metric, CircularBuffer.new(@history_buffer_size)}
       end)

@@ -375,8 +375,7 @@ defmodule Backpex.Field do
   def align_label(field_options, assigns, default \\ :center)
 
   def align_label(%{align_label: align_label}, _assigns, default) when is_atom(align_label) do
-    align_label
-    |> get_align_label(default)
+    get_align_label(align_label, default)
   end
 
   def align_label(%{align_label: align_label}, assigns, default) when is_function(align_label) do
@@ -401,8 +400,7 @@ defmodule Backpex.Field do
   Returns a map of types from a list of fields used for the Ecto changeset.
   """
   def changeset_types(fields) do
-    fields
-    |> Map.new(fn {name, field_options} ->
+    Map.new(fields, fn {name, field_options} ->
       {name, field_options.type}
     end)
   end
@@ -436,9 +434,7 @@ defmodule Backpex.Field do
           assign(socket, :valid, false)
       end
 
-    socket =
-      case_result
-      |> assign(:form, Phoenix.Component.to_form(%{"value" => value}, as: :index_form))
+    socket = assign(case_result, :form, Phoenix.Component.to_form(%{"value" => value}, as: :index_form))
 
     {:noreply, socket}
   end

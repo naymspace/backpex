@@ -75,7 +75,8 @@ defmodule Backpex.Resource do
   def delete_all(items, live_resource) do
     adapter = live_resource.config(:adapter)
 
-    adapter.delete_all(items, live_resource)
+    items
+    |> adapter.delete_all(live_resource)
     |> tap(fn {:ok, delete_items} ->
       Enum.each(delete_items, fn deleted_item ->
         broadcast({:ok, deleted_item}, "deleted", live_resource)

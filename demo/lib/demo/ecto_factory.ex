@@ -95,8 +95,7 @@ defmodule Demo.EctoFactory do
 
   defp generate_social_links do
     labels =
-      ["Facebook", "LinkedIn", "Twitter", "YouTube", "TikTok", "Snapchat", "Instagram", "Pinterest"]
-      |> Enum.shuffle()
+      Enum.shuffle(["Facebook", "LinkedIn", "Twitter", "YouTube", "TikTok", "Snapchat", "Instagram", "Pinterest"])
 
     for index <- 0..Enum.random(0..3) do
       %{label: Enum.at(labels, index), url: "https://example.com/"}

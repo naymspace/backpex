@@ -25,6 +25,7 @@ defmodule Backpex.Filters.MultiSelect do
   > When you `use Backpex.Filters.MultiSelect`, the `Backpex.Filters.MultiSelect` module will set `@behavior Backpex.Filters.Select`. In addition it will add a `render` and `render_form` function in order to display the corresponding filter.
   """
   use BackpexWeb, :filter
+
   require Backpex
 
   @doc """
@@ -34,12 +35,12 @@ defmodule Backpex.Filters.MultiSelect do
 
   defmacro __using__(_opts) do
     quote do
+      @behaviour Backpex.Filters.Select
+
       use BackpexWeb, :filter
       use Backpex.Filter
 
       alias Backpex.Filters.MultiSelect, as: MultiSelectFilter
-
-      @behaviour Backpex.Filters.Select
 
       @impl Backpex.Filter
       defdelegate query(query, attribute, value, assigns), to: MultiSelectFilter
@@ -122,19 +123,18 @@ defmodule Backpex.Filters.MultiSelect do
   end
 
   defp open_content(js \\ %JS{}) do
-    js
-    |> JS.remove_class("hidden", to: {:inner, ".dropdown-content"})
+    JS.remove_class(js, "hidden", to: {:inner, ".dropdown-content"})
   end
 
   defp close_content(js \\ %JS{}) do
-    js
-    |> JS.add_class("hidden", to: {:inner, ".dropdown-content"})
+    JS.add_class(js, "hidden", to: {:inner, ".dropdown-content"})
   end
 
   def query(query, _attribute, [], _assigns), do: query
 
   def query(query, attribute, value, _assigns) do
-    Enum.reduce(value, nil, fn
+    value
+    |> Enum.reduce(nil, fn
       v, nil ->
         dynamic([x], field(x, ^attribute) == ^v)
 
@@ -148,7 +148,8 @@ defmodule Backpex.Filters.MultiSelect do
   def maybe_query(predicates, query), do: where(query, ^predicates)
 
   def option_value_to_label(options, values) do
-    Enum.map(values, fn key -> find_option_label(options, key) end)
+    values
+    |> Enum.map(fn key -> find_option_label(options, key) end)
     |> Enum.intersperse(", ")
   end
 

@@ -77,9 +77,7 @@ defmodule Backpex.Router do
 
       live_options = Keyword.take(options, [:container, :as, :metadata, :private])
 
-      actions =
-        [:index, :new, :edit, :show]
-        |> Router.filter_actions(only, except)
+      actions = Router.filter_actions([:index, :new, :edit, :show], only, except)
 
       if Enum.member?(actions, :index),
         do: live("#{path}/", String.to_atom("#{live_resource}.Index"), :index, live_options)
@@ -152,8 +150,7 @@ defmodule Backpex.Router do
       [:index, :edit, :show]
   """
   def filter_actions(actions, only, except) do
-    actions
-    |> Enum.filter(fn item ->
+    Enum.filter(actions, fn item ->
       member?(only, item, true) and not member?(except, item, false)
     end)
   end
@@ -190,7 +187,10 @@ defmodule Backpex.Router do
       put_route_params(route_path, Map.put(params, "backpex_id", maybe_to_string(id)))
     else
       query_params = Query.encode(params_or_item)
-      put_route_params(route_path, params) |> maybe_put_query_params(query_params)
+
+      route_path
+      |> put_route_params(params)
+      |> maybe_put_query_params(query_params)
     end
   end
 
@@ -205,7 +205,8 @@ defmodule Backpex.Router do
     route_path = get_route_path(socket, module, action)
     query_params = Query.encode(query_params)
 
-    put_route_params(route_path, Map.put(params, "backpex_id", maybe_to_string(id_serializable)))
+    route_path
+    |> put_route_params(Map.put(params, "backpex_id", maybe_to_string(id_serializable)))
     |> maybe_put_query_params(query_params)
   end
 

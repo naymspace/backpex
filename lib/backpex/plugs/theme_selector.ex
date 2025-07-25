@@ -13,7 +13,6 @@ defmodule Backpex.ThemeSelectorPlug do
     session = get_session(conn)
     theme = session[@backpex_key][@theme_key]
 
-    conn
-    |> assign(:theme, theme)
+    assign(conn, :theme, theme)
   end
 end

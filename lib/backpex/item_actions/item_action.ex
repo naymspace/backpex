@@ -118,7 +118,7 @@ defmodule Backpex.ItemAction do
 
       @impl Backpex.ItemAction
       def base_schema(_assigns) do
-        types = fields() |> Backpex.Field.changeset_types()
+        types = Backpex.Field.changeset_types(fields())
 
         {%{}, types}
       end

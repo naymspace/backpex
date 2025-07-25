@@ -4,9 +4,9 @@ defmodule Backpex.HTML.Resource do
   """
   use BackpexWeb, :html
 
-  import Phoenix.LiveView.TagEngine
   import Backpex.HTML.Form
   import Backpex.HTML.Layout
+  import Phoenix.LiveView.TagEngine
 
   alias Backpex.LiveResource
   alias Backpex.ResourceAction
@@ -54,9 +54,7 @@ defmodule Backpex.HTML.Resource do
         :asc
       end
 
-    assigns =
-      assigns
-      |> assign(:next_order_direction, order_direction)
+    assigns = assign(assigns, :next_order_direction, order_direction)
 
     ~H"""
     <.link
@@ -490,7 +488,7 @@ defmodule Backpex.HTML.Resource do
 
   defp pagination_btn_class, do: ["btn btn-sm bg-base-100 hover:bg-[var(--btn-border)]"]
 
-  defp get_pagination_link(path, page), do: String.replace(path, ":page", page |> Integer.to_string())
+  defp get_pagination_link(path, page), do: String.replace(path, ":page", Integer.to_string(page))
 
   @doc """
   Creates a list of pagination items based on the current page and the total number of pages. A maximum of five pages will be displayed.
@@ -725,7 +723,8 @@ defmodule Backpex.HTML.Resource do
   end
 
   defp action_disabled?(assigns, action_key, items) do
-    Enum.filter(items, fn item ->
+    items
+    |> Enum.filter(fn item ->
       assigns.live_resource.can?(assigns, action_key, item)
     end)
     |> Enum.empty?()
@@ -939,9 +938,7 @@ defmodule Backpex.HTML.Resource do
   def resource_metrics(assigns) do
     %{metric_visibility: metric_visibility, live_resource: live_resource} = assigns
 
-    assigns =
-      assigns
-      |> assign(visible: Backpex.Metric.metrics_visible?(metric_visibility, live_resource))
+    assigns = assign(assigns, visible: Backpex.Metric.metrics_visible?(metric_visibility, live_resource))
 
     ~H"""
     <div :if={length(@metrics) > 0 and @visible} class="items-center gap-4 lg:flex">
@@ -960,8 +957,9 @@ defmodule Backpex.HTML.Resource do
     visible = Backpex.Metric.metrics_visible?(assigns.metric_visibility, assigns.live_resource)
 
     form =
-      %{"_resource" => assigns.live_resource, "_cookie_redirect_url" => assigns.current_url}
-      |> to_form(as: :toggle_metrics)
+      to_form(%{"_resource" => assigns.live_resource, "_cookie_redirect_url" => assigns.current_url},
+        as: :toggle_metrics
+      )
 
     assigns =
       assigns

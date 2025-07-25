@@ -4,6 +4,7 @@ defmodule Backpex.FormComponent do
   """
   use BackpexWeb, :html
   use Phoenix.LiveComponent
+
   alias Backpex.Fields.Upload
   alias Backpex.Resource
   alias Backpex.ResourceAction
@@ -22,8 +23,7 @@ defmodule Backpex.FormComponent do
   end
 
   defp update_assigns(%{assigns: %{action_type: :item}} = socket) do
-    socket
-    |> assign_fields()
+    assign_fields(socket)
   end
 
   defp update_assigns(%{assigns: assigns} = socket) do
@@ -149,8 +149,7 @@ defmodule Backpex.FormComponent do
     upload_key = String.to_existing_atom(upload_key)
 
     field =
-      socket.assigns.fields()
-      |> Enum.find(fn {_name, field_options} ->
+      Enum.find(socket.assigns.fields(), fn {_name, field_options} ->
         Map.has_key?(field_options, :upload_key) and Map.get(field_options, :upload_key) == upload_key
       end)
 
@@ -198,7 +197,8 @@ defmodule Backpex.FormComponent do
   end
 
   def handle_event(msg, params, socket) do
-    Enum.reduce(socket.assigns.fields, socket, fn el, acc ->
+    socket.assigns.fields
+    |> Enum.reduce(socket, fn el, acc ->
       el.module.handle_form_event(el, msg, params, acc)
     end)
     |> noreply()
@@ -414,8 +414,7 @@ defmodule Backpex.FormComponent do
   end
 
   defp drop_unused_changes(change) do
-    change
-    |> Enum.reduce(%{}, fn {key, value}, acc ->
+    Enum.reduce(change, %{}, fn {key, value}, acc ->
       if String.starts_with?(key, "_unused_"), do: acc, else: Map.put(acc, key, value)
     end)
   end

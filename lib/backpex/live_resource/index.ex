@@ -71,8 +71,7 @@ defmodule Backpex.LiveResource.Index do
         socket
       end
 
-    if_result
-    |> noreply()
+    noreply(if_result)
   end
 
   def handle_info(_event, socket) do
@@ -324,8 +323,7 @@ defmodule Backpex.LiveResource.Index do
 
   defp assign_active_fields(socket, session) do
     fields =
-      socket.assigns.live_resource.validated_fields()
-      |> LiveResource.filtered_fields_by_action(socket.assigns, :index)
+      LiveResource.filtered_fields_by_action(socket.assigns.live_resource.validated_fields(), socket.assigns, :index)
 
     saved_fields = get_in(session, ["backpex", "column_toggle", "#{socket.assigns.live_resource}"]) || %{}
 
@@ -338,8 +336,7 @@ defmodule Backpex.LiveResource.Index do
          }}
       end)
 
-    socket
-    |> assign(:active_fields, active_fields)
+    assign(socket, :active_fields, active_fields)
   end
 
   defp field_active?(name, saved_fields) do
@@ -373,19 +370,17 @@ defmodule Backpex.LiveResource.Index do
   defp assign_metrics_visibility(socket, session) do
     value = get_in(session, ["backpex", "metric_visibility"]) || %{}
 
-    socket
-    |> assign(metric_visibility: value)
+    assign(socket, metric_visibility: value)
   end
 
   defp assign_filters_changed_status(socket, params) do
     %{assigns: %{live_action: live_action}} = socket
 
-    socket
-    |> assign(:filters_changed, live_action == :index and params["filters_changed"] == "true")
+    assign(socket, :filters_changed, live_action == :index and params["filters_changed"] == "true")
   end
 
   defp assign_item_actions(socket) do
-    item_actions = Backpex.ItemAction.default_actions() |> socket.assigns.live_resource.item_actions()
+    item_actions = socket.assigns.live_resource.item_actions(Backpex.ItemAction.default_actions())
     assign(socket, :item_actions, item_actions)
   end
 
@@ -426,7 +421,7 @@ defmodule Backpex.LiveResource.Index do
 
     if not live_resource.can?(socket.assigns, :index, nil), do: raise(Backpex.ForbiddenError)
 
-    fields = live_resource.validated_fields() |> LiveResource.filtered_fields_by_action(socket.assigns, :index)
+    fields = LiveResource.filtered_fields_by_action(live_resource.validated_fields(), socket.assigns, :index)
 
     per_page_options = live_resource.config(:per_page_options)
     per_page_default = live_resource.config(:per_page_default)
@@ -485,8 +480,7 @@ defmodule Backpex.LiveResource.Index do
   defp apply_index_return_to(socket) do
     %{live_resource: live_resource, params: params, query_options: query_options} = socket.assigns
 
-    socket
-    |> assign(:return_to, Router.get_path(socket, live_resource, params, :index, query_options))
+    assign(socket, :return_to, Router.get_path(socket, live_resource, params, :index, query_options))
   end
 
   # TODO: move to common module
@@ -508,8 +502,7 @@ defmodule Backpex.LiveResource.Index do
     %{live_resource: live_resource, query_options: query_options, params: params, filters: filters} = socket.assigns
 
     filters_with_defaults =
-      filters
-      |> Enum.filter(fn {_key, filter_config} ->
+      Enum.filter(filters, fn {_key, filter_config} ->
         Map.has_key?(filter_config, :default)
       end)
 
@@ -580,8 +573,7 @@ defmodule Backpex.LiveResource.Index do
     filters = LiveResource.active_filters(socket.assigns)
 
     metrics =
-      socket.assigns.live_resource.metrics()
-      |> Enum.map(fn {key, metric} ->
+      Enum.map(socket.assigns.live_resource.metrics(), fn {key, metric} ->
         criteria = [
           search: LiveResource.search_options(query_options, fields, schema),
           filters: LiveResource.filter_options(query_options, filters)
@@ -605,8 +597,7 @@ defmodule Backpex.LiveResource.Index do
         end
       end)
 
-    socket
-    |> assign(metrics: metrics)
+    assign(socket, metrics: metrics)
   end
 
   defp assign_items(socket) do

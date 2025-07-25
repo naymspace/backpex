@@ -35,12 +35,12 @@ defmodule Backpex.Filters.Range do
 
   defmacro __using__(_opts) do
     quote do
+      @behaviour Backpex.Filters.Range
+
       use BackpexWeb, :filter
       use Backpex.Filter
 
       alias Backpex.Filters.Range, as: RangeFilter
-
-      @behaviour RangeFilter
 
       @impl Backpex.Filter
       def query(query, attribute, params, assigns) do
@@ -128,7 +128,8 @@ defmodule Backpex.Filters.Range do
   end
 
   def query(query, type, attribute, %{"start" => start_at, "end" => end_at}, _assigns) do
-    maybe_parse_range(type, start_at, end_at)
+    type
+    |> maybe_parse_range(start_at, end_at)
     |> do_query(query, attribute)
   end
 

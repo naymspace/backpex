@@ -7,9 +7,7 @@ defmodule Backpex.InitAssigns do
   import Phoenix.LiveView
 
   def on_mount(:default, _params, _session, socket) do
-    socket =
-      socket
-      |> attach_current_url_hook()
+    socket = attach_current_url_hook(socket)
 
     {:cont, socket}
   end
