@@ -34,11 +34,11 @@ defmodule Backpex.Field do
       type: :atom
     ],
     align: [
-      doc: "Align the fields of a resource in the index view.",
+      doc: "Align the field value on index views.",
       type: {:in, [:left, :center, :right]}
     ],
     align_label: [
-      doc: "Align the labels of the fields in the edit view.",
+      doc: "Align the label of the field on form views.",
       type: {:or, [{:in, [:top, :center, :bottom]}, {:fun, 1}]}
     ],
     searchable: [
