@@ -55,7 +55,8 @@ defmodule Demo.ShortLink do
   end
 
   defp key_exists?(key) do
-    from(s in __MODULE__, where: s.short_key == ^key)
+    __MODULE__
+    |> where([s], s.short_key == ^key)
     |> Repo.exists?()
   end
 end
