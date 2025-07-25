@@ -77,7 +77,7 @@ defmodule DemoWeb.UserLive do
           assigns ->
             ~H'<img class="h-10 w-auto" src={file_url(@value)} />'
         end,
-        align: :center
+        align_label: :center
       },
       username: %{
         module: Backpex.Fields.Text,

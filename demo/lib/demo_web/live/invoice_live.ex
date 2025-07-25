@@ -33,8 +33,7 @@ defmodule DemoWeb.InvoiceLive do
       },
       amount: %{
         module: Backpex.Fields.Currency,
-        label: "Amount",
-        align: :right
+        label: "Amount"
       }
     ]
   end
