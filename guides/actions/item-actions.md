@@ -77,12 +77,12 @@ See `Backpex.ItemAction` for a list of all available callbacks.
 
 ## Placement of Item Actions
 
-Item actions can be placed in the resource table or at the top of it. You can specify the placement of the item action by using the `only` key.
+Item actions can be placed in the resource table or at the top of it. You can specify the placement of the item action by using the `only` and `except` keys.
 
-The only key must provide a list and accepts the following options
+The `only` and `except` keys must provide a list and accept the following options:
 
-* `:row` - display an icon for each element in the table that can trigger the Item Action for the corresponding element
-* `:index` - display a button at the top of the resource table, which triggers the Item Action for selected items
+* `:row` - displays an icon for each element in the table, clicking it triggers the item action for the corresponding element
+* `:index` - displays a button at the top of the resource table, clicking it will trigger the item action for selected items
 
 The following example shows how to place the `show` item action on the index table rows only.
 
