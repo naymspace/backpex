@@ -1,7 +1,6 @@
 import Config
 
 config :demo, Demo.Repo, pool: Ecto.Adapters.SQL.Sandbox
-
 config :demo, DemoWeb.Endpoint, server: true
 
 config :phoenix, :plug_init_mode, :runtime
