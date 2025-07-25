@@ -46,6 +46,7 @@ defmodule Demo.MixProject do
       {:sourceror, "~> 1.7", only: [:dev, :test]},
       {:phoenix_test_playwright, "~> 0.7.0", only: :test, runtime: false},
       {:a11y_audit, "~> 0.2.3", only: :test},
+      {:quokka, "~> 2.9", only: [:dev, :test], runtime: false},
 
       # core
       {:dns_cluster, "~> 0.2.0"},
