@@ -188,6 +188,10 @@ msgid "Select options..."
 msgstr ""
 
 #, elixir-autogen, elixir-format
+msgid "Select theme"
+msgstr ""
+
+#, elixir-autogen, elixir-format
 msgid "selected"
 msgstr ""
 
