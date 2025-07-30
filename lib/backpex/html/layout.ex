@@ -278,11 +278,14 @@ defmodule Backpex.HTML.Layout do
       <%!-- Desktop Icon --%>
       <div tabindex="0" role="button" class="btn btn-ghost hidden md:flex">
         {@label}
-        <Backpex.HTML.CoreComponents.icon name="hero-chevron-down" class="h-3 w-3" />
+        <Backpex.HTML.CoreComponents.icon name="hero-chevron-down" class="size-3" />
       </div>
       <%!-- Mobile Icon --%>
       <div tabindex="0" role="button" class="btn btn-square btn-ghost md:hidden">
-        <Backpex.HTML.CoreComponents.icon name="hero-swatch" class="size-6 md:hidden" />
+        <span class="sr-only">
+          {Backpex.__("Select theme")}
+        </span>
+        <Backpex.HTML.CoreComponents.icon name="hero-swatch" class="size-6" />
       </div>
       <form
         id="backpex-theme-selector-form"
