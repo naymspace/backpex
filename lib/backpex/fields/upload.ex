@@ -379,7 +379,7 @@ defmodule Backpex.Fields.Upload do
                   ~H'<p><%= Backpex.HTML.pretty_value(@value) %></p>'
               end,
               except: [:index, :resource_action],
-              align: :center
+              align_label: :center
             },
             ...
           ]
