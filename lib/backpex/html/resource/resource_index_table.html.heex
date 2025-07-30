@@ -27,7 +27,11 @@
           <% end %>
         </div>
       </th>
-      <th class={["bg-base-100", sticky_col_class()]}></th>
+      <th class={["bg-base-100", sticky_col_class()]}>
+        <span class="sr-only">
+          {Backpex.__("Actions", @live_resource)}
+        </span>
+      </th>
     </tr>
   </thead>
   <tbody>

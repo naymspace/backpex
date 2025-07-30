@@ -166,7 +166,11 @@ defmodule Backpex.Fields.HasManyThrough do
             >
               {label}
             </th>
-            <th></th>
+            <th>
+              <span class="sr-only">
+                {Backpex.__("Actions", @live_resource)}
+              </span>
+            </th>
           </tr>
         </thead>
         <tbody class="text-base-content/75">
@@ -263,7 +267,11 @@ defmodule Backpex.Fields.HasManyThrough do
                 >
                   {label}
                 </th>
-                <th></th>
+                <th>
+                  <span class="sr-only">
+                    {Backpex.__("Actions", @live_resource)}
+                  </span>
+                </th>
               </tr>
             </thead>
             <tbody class="text-base-content/90">

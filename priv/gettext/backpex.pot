@@ -28,6 +28,10 @@ msgid "(%{count} total)"
 msgstr ""
 
 #, elixir-autogen, elixir-format
+msgid "Actions"
+msgstr ""
+
+#, elixir-autogen, elixir-format
 msgid "Add entry"
 msgstr ""
 
