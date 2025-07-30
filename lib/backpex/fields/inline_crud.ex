@@ -158,33 +158,31 @@ defmodule Backpex.Fields.InlineCRUD do
                 />
               </div>
 
-              <div class={if f_nested.index == 0, do: "mt-5", else: nil}>
-                <label for={"#{@name}-checkbox-delete-#{f_nested.index}"}>
-                  <input
-                    id={"#{@name}-checkbox-delete-#{f_nested.index}"}
-                    type="checkbox"
-                    name={"change[#{@name}_delete][]"}
-                    value={f_nested.index}
-                    class="hidden"
-                  />
-
-                  <div class="btn btn-outline btn-error">
-                    <Backpex.HTML.CoreComponents.icon name="hero-trash" class="h-5 w-5" />
-                    <span class="sr-only">{Backpex.__("Delete", @live_resource)}</span>
-                  </div>
-                </label>
-              </div>
+              <button
+                type="button"
+                name={"change[#{@name}_delete][]"}
+                class={["btn btn-outline btn-error", f_nested.index == 0 && "mt-5"]}
+                phx-click={JS.dispatch("change")}
+                value={f_nested.index}
+                aria-label={Backpex.__({"Delete row with index %{index}", %{index: f_nested.index}}, @live_resource)}
+              >
+                <Backpex.HTML.CoreComponents.icon name="hero-trash" class="size-5" />
+              </button>
             </div>
           </.inputs_for>
 
           <input type="hidden" name={"change[#{@name}_delete][]"} />
         </div>
-        <input
+
+        <button
+          type="button"
           name={"change[#{@name}_order][]"}
-          type="checkbox"
-          aria-label={Backpex.__("Add entry", @live_resource)}
           class="btn btn-outline btn-sm btn-primary"
-        />
+          phx-click={JS.dispatch("change")}
+          value="new"
+        >
+          {Backpex.__("Add entry", @live_resource)}
+        </button>
 
         <%= if help_text = Backpex.Field.help_text(@field_options, assigns) do %>
           <Backpex.HTML.Form.help_text class="mt-1">{help_text}</Backpex.HTML.Form.help_text>
