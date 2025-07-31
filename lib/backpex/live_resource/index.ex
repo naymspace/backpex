@@ -7,7 +7,6 @@ defmodule Backpex.LiveResource.Index do
   alias Backpex.Adapters.Ecto, as: EctoAdapter
   alias Backpex.LiveResource
   alias Backpex.Resource
-  alias Backpex.ResourceAction
   alias Backpex.Router
 
   alias Phoenix.LiveView
@@ -385,7 +384,6 @@ defmodule Backpex.LiveResource.Index do
 
   defp apply_action(socket, :index) do
     socket
-    |> assign(:page_title, socket.assigns.live_resource.plural_name())
     |> apply_index()
     |> assign(:item, nil)
   end
@@ -406,7 +404,6 @@ defmodule Backpex.LiveResource.Index do
     item = action.module.base_schema(socket.assigns)
 
     socket
-    |> assign(:page_title, ResourceAction.name(action, :title))
     |> assign(:resource_action, action)
     |> assign(:resource_action_id, id)
     |> assign(:item, item)
@@ -457,6 +454,7 @@ defmodule Backpex.LiveResource.Index do
       |> Map.put(:filters, Map.get(valid_filter_params, "filters", %{}))
 
     socket
+    |> assign(:page_title, socket.assigns.live_resource.plural_name())
     |> assign(:item_count, item_count)
     |> assign(:query_options, query_options)
     |> assign(:init_order, init_order)
