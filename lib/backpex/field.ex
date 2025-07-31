@@ -321,7 +321,7 @@ defmodule Backpex.Field do
   def index_editable_enabled?(field_options, assigns, default \\ false)
 
   def index_editable_enabled?(_field_options, %{live_action: live_action}, _default)
-      when live_action != :index do
+      when live_action not in [:index, :resource_action] do
     false
   end
 
