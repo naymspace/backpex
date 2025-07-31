@@ -551,7 +551,7 @@ defmodule Backpex.Fields.HasManyThrough do
     ~H"""
     <Layout.field_container>
       <:label>
-        <Layout.input_label for={@form[@name]} text={@label} />
+        <Layout.input_label for={@form[@owner_key]} text={@label} />
       </:label>
       <BackpexForm.input
         type="select"
