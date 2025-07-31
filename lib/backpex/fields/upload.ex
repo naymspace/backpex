@@ -670,11 +670,11 @@ defmodule Backpex.Fields.Upload do
             <div class="flex flex-col items-center space-y-1 text-center">
               <Backpex.HTML.CoreComponents.icon name="hero-document-arrow-up" class="text-base-content/50 h-8 w-8" />
               <div class="flex text-sm">
-                <label>
-                  <a class="link link-hover link-primary font-medium">
+                <label class="focus-within:rounded-[var(--radius-box)] focus-within:ring-primary focus-within:outline-none focus-within:ring-2 focus-within:ring-offset-1">
+                  <span class="link link-hover link-primary font-medium">
                     {Backpex.__("Upload a file", @live_resource)}
-                  </a>
-                  <.live_file_input :if={@uploads_allowed} upload={@upload} phx-target="#form-component" class="hidden" />
+                  </span>
+                  <.live_file_input :if={@uploads_allowed} upload={@upload} phx-target="#form-component" class="sr-only" />
                 </label>
                 <input
                   type="hidden"
