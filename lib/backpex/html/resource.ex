@@ -625,19 +625,20 @@ defmodule Backpex.HTML.Resource do
   def resource_buttons(assigns) do
     ~H"""
     <div class="mb-4 flex space-x-2">
-      <.link :if={@live_resource.can?(assigns, :new, nil)} patch={Router.get_path(@socket, @live_resource, @params, :new)}>
-        <button class="btn btn-sm btn-outline btn-primary">
-          {@create_button_label}
-        </button>
+      <.link
+        :if={@live_resource.can?(assigns, :new, nil)}
+        patch={Router.get_path(@socket, @live_resource, @params, :new)}
+        class="btn btn-sm btn-outline btn-primary"
+      >
+        {@create_button_label}
       </.link>
 
       <.link
         :for={{key, action} <- resource_actions(assigns, @resource_actions)}
         patch={Router.get_path(@socket, @live_resource, @params, :resource_action, key, @query_options)}
+        class="btn btn-sm btn-outline btn-primary"
       >
-        <button class="btn btn-sm btn-outline btn-primary">
-          {ResourceAction.name(action, :label)}
-        </button>
+        {ResourceAction.name(action, :label)}
       </.link>
 
       <div :if={display_divider?(assigns)} class="border-base-300 my-0.5 border-r-2 border-solid" />
@@ -774,10 +775,12 @@ defmodule Backpex.HTML.Resource do
             subtitle={Backpex.__("Try a different filter setting or clear all filters.", @live_resource)}
           />
           <.empty_state_content :if={not @search_active? and not @filter_active?} title={@title}>
-            <.link :if={@create_allowed} patch={Router.get_path(@socket, @live_resource, @params, :new)}>
-              <button class="btn btn-sm btn-outline btn-primary mt-6">
-                {@create_button_label}
-              </button>
+            <.link
+              :if={@create_allowed}
+              patch={Router.get_path(@socket, @live_resource, @params, :new)}
+              class="btn btn-sm btn-outline btn-primary mt-6"
+            >
+              {@create_button_label}
             </.link>
           </.empty_state_content>
         </div>

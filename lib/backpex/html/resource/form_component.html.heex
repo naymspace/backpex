@@ -60,10 +60,8 @@
             {@action_to_confirm.module.confirm_label(assigns)}
           </button>
         <% else %>
-          <.link navigate={@live_resource.return_to(@socket, assigns, @live_action, :cancel, @item)}>
-            <button type="button" class="btn">
-              {Backpex.__("Cancel", @live_resource)}
-            </button>
+          <.link navigate={@live_resource.return_to(@socket, assigns, @live_action, :cancel, @item)} class="btn">
+            {Backpex.__("Cancel", @live_resource)}
           </.link>
           <button
             :if={@continue_label}
