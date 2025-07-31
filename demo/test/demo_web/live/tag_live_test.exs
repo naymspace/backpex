@@ -12,7 +12,7 @@ defmodule DemoWeb.Live.TagLiveTest do
       conn
       |> visit(~p"/admin/tags")
       |> assert_has("h1", text: "Tags", exact: true)
-      |> assert_has("button", text: "New Tag", exact: true)
+      |> assert_has("a", text: "New Tag", exact: true)
       |> assert_has("button[disabled]", text: "Delete", exact: true)
       |> assert_has("div", text: "Items 1 to 3 (3 total)", exact: true)
       |> assert_has("table tbody tr", count: 3)
@@ -65,7 +65,7 @@ defmodule DemoWeb.Live.TagLiveTest do
       conn
       |> visit(~p"/admin/tags/#{tag.id}/edit")
       |> assert_has("h1", text: "Edit Tag", exact: true)
-      |> assert_has("button", text: "Cancel", exact: true)
+      |> assert_has("a", text: "Cancel", exact: true)
       |> assert_has("button", text: "Save", exact: true)
     end
 
@@ -90,7 +90,7 @@ defmodule DemoWeb.Live.TagLiveTest do
       conn
       |> visit(~p"/admin/tags/new")
       |> assert_has("h1", text: "New Tag", exact: true)
-      |> assert_has("button", text: "Cancel", exact: true)
+      |> assert_has("a", text: "Cancel", exact: true)
       |> assert_has("button", text: "Save", exact: true)
     end
 

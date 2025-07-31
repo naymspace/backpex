@@ -12,7 +12,7 @@ defmodule DemoWeb.Live.CategoryLiveTest do
       conn
       |> visit(~p"/admin/categories")
       |> assert_has("h1", text: "Categories", exact: true)
-      |> assert_has("button", text: "New Category", exact: true)
+      |> assert_has("a", text: "New Category", exact: true)
       |> assert_has("button[disabled]", text: "Delete", exact: true)
       |> assert_has("div", text: "Items 1 to 3 (3 total)", exact: true)
       |> assert_has("table tbody tr", count: 3)
@@ -64,7 +64,7 @@ defmodule DemoWeb.Live.CategoryLiveTest do
       conn
       |> visit(~p"/admin/categories/#{category.id}/edit")
       |> assert_has("h1", text: "Edit Category", exact: true)
-      |> assert_has("button", text: "Cancel", exact: true)
+      |> assert_has("a", text: "Cancel", exact: true)
       |> assert_has("button", text: "Save", exact: true)
     end
 
@@ -89,7 +89,7 @@ defmodule DemoWeb.Live.CategoryLiveTest do
       conn
       |> visit(~p"/admin/categories/new")
       |> assert_has("h1", text: "New Category", exact: true)
-      |> assert_has("button", text: "Cancel", exact: true)
+      |> assert_has("a", text: "Cancel", exact: true)
       |> assert_has("button", text: "Save", exact: true)
     end
 
