@@ -259,11 +259,8 @@ defmodule Backpex.Field do
       def render(%{type: :index} = assigns) do
         if Backpex.Field.index_editable_enabled?(assigns.field_options, assigns) do
           case Map.get(assigns.field_options, :render_index_form) do
-            nil ->
-              apply(__MODULE__, :render_index_form, [assigns])
-
-            func ->
-              func.(assigns)
+            fun when is_function(fun, 1) -> fun.(assigns)
+            nil -> apply(__MODULE__, :render_index_form, [assigns])
           end
         else
           Map.get(assigns.field_options, :render, &render_value/1).(assigns)
