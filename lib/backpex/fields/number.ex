@@ -48,7 +48,7 @@ defmodule Backpex.Fields.Number do
           <Layout.input_label text={@field_options[:label]} />
         </:label>
         <BackpexForm.input
-          type="text"
+          type="number"
           field={@form[@name]}
           placeholder={@field_options[:placeholder]}
           translate_error_fun={Backpex.Field.translate_error_fun(@field_options, assigns)}
@@ -76,7 +76,7 @@ defmodule Backpex.Fields.Number do
       <.form for={@form} class="relative" phx-change="update-field" phx-submit="update-field" phx-target={@myself}>
         <BackpexForm.input
           id={"index-form-input-#{@name}-#{LiveResource.primary_value(@item, @live_resource)}"}
-          type="text"
+          type="number"
           field={@form[:value]}
           placeholder={@field_options[:placeholder]}
           input_class={["input input-sm", @valid && "not-hover:input-ghost", !@valid && "input-error bg-error/10"]}
