@@ -3,7 +3,7 @@
   "version": "0.14.0",
   "license": "MIT",
   "type": "module",
-  "main": "./priv/static/assets/js/backpex.cjs.js",
+  "main": "./priv/static/js/backpex.cjs.js",
   "exports": {
     "import": {
       "default": "./priv/static/js/backpex.esm.js"
