@@ -8,7 +8,7 @@ defmodule Demo.MixProject do
       elixir: "~> 1.12",
       elixirc_options: [warnings_as_errors: halt_on_warnings?(Mix.env())],
       elixirc_paths: elixirc_paths(Mix.env()),
-      compilers: Mix.compilers(),
+      compilers: [:phoenix_live_view] ++ Mix.compilers(),
       start_permanent: Mix.env() == :prod,
       deps: deps(),
       aliases: aliases(),
