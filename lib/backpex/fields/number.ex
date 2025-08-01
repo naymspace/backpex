@@ -48,36 +48,14 @@ defmodule Backpex.Fields.Number do
           <Layout.input_label for={@form[@name]} text={@field_options[:label]} />
         </:label>
         <BackpexForm.input
-          type="text"
+          type="number"
           field={@form[@name]}
           placeholder={@field_options[:placeholder]}
           translate_error_fun={Backpex.Field.translate_error_fun(@field_options, assigns)}
           phx-debounce={Backpex.Field.debounce(@field_options, assigns)}
           phx-throttle={Backpex.Field.throttle(@field_options, assigns)}
-        />
-      </Layout.field_container>
-    </div>
-    """
-  end
-
-  @impl Backpex.Field
-  def render_form_readonly(assigns) do
-    ~H"""
-    <div>
-      <Layout.field_container>
-        <:label align={Backpex.Field.align_label(@field_options, assigns)}>
-          <Layout.input_label for={@form[@name]} text={@field_options[:label]} />
-        </:label>
-        <BackpexForm.input
-          type="text"
-          field={@form[@name]}
-          placeholder={@field_options[:placeholder]}
-          translate_error_fun={Backpex.Field.translate_error_fun(@field_options, assigns)}
-          help_text={Backpex.Field.help_text(@field_options, assigns)}
-          phx-debounce={Backpex.Field.debounce(@field_options, assigns)}
-          phx-throttle={Backpex.Field.throttle(@field_options, assigns)}
-          readonly
-          disabled
+          readonly={@readonly}
+          disabled={@readonly}
         />
       </Layout.field_container>
     </div>
@@ -98,7 +76,7 @@ defmodule Backpex.Fields.Number do
       <.form for={@form} class="relative" phx-change="update-field" phx-submit="update-field" phx-target={@myself}>
         <BackpexForm.input
           id={"index-form-input-#{@name}-#{LiveResource.primary_value(@item, @live_resource)}"}
-          type="text"
+          type="number"
           field={@form[:value]}
           placeholder={@field_options[:placeholder]}
           input_class={["input input-sm", @valid && "not-hover:input-ghost", !@valid && "input-error bg-error/10"]}
