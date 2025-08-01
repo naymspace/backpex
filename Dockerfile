@@ -63,6 +63,7 @@ COPY demo/lib lib/
 
 COPY assets ../assets/
 COPY package.json ../
+COPY priv/static/js ../priv/static/js/
 
 RUN mix assets.deploy
 

@@ -46,7 +46,7 @@ config :esbuild,
   version: "0.25.8",
   default: [
     args:
-      ~w(assets/js/app.js --bundle --target=es2017 --outdir=priv/static/assets --external:/fonts/* --external:/images/* --alias:backpex=/opt/app),
+      ~w(assets/js/app.js --bundle --target=es2017 --outdir=priv/static/assets --external:/fonts/* --external:/images/*),
     cd: Path.expand("..", __DIR__),
     env: %{"NODE_PATH" => Path.expand("../deps", __DIR__)}
   ]
