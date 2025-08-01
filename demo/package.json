@@ -30,6 +30,7 @@
     "topbar": "3.0.0"
   },
   "dependencies": {
+    "backpex": "file:..",
     "daisyui": "^5.0.3"
   }
 }
