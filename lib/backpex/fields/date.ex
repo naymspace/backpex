@@ -112,28 +112,8 @@ defmodule Backpex.Fields.Date do
           help_text={Backpex.Field.help_text(@field_options, assigns)}
           phx-debounce={Backpex.Field.debounce(@field_options, assigns)}
           phx-throttle={Backpex.Field.throttle(@field_options, assigns)}
-        />
-      </Layout.field_container>
-    </div>
-    """
-  end
-
-  @impl Backpex.Field
-  def render_form_readonly(assigns) do
-    ~H"""
-    <div>
-      <Layout.field_container>
-        <:label align={Backpex.Field.align_label(@field_options, assigns, :top)}>
-          <Layout.input_label text={@field_options[:label]} />
-        </:label>
-        <BackpexForm.input
-          type="date"
-          field={@form[@name]}
-          translate_error_fun={Backpex.Field.translate_error_fun(@field_options, assigns)}
-          phx-debounce={Backpex.Field.debounce(@field_options, assigns)}
-          phx-throttle={Backpex.Field.throttle(@field_options, assigns)}
-          readonly
-          disabled
+          readonly={@readonly}
+          disabled={@readonly}
         />
       </Layout.field_container>
     </div>
