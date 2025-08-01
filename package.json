@@ -4,8 +4,6 @@
   "license": "MIT",
   "type": "module",
   "main": "./priv/static/assets/js/backpex.cjs.js",
-  "unpkg": "./priv/static/js/backpex.min.js",
-  "jsdelivr": "./priv/static/js/backpex.min.js",
   "exports": {
     "import": {
       "default": "./priv/static/js/backpex.esm.js"

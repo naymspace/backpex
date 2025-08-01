@@ -85,8 +85,6 @@ defmodule Backpex.MixProject do
       lint: ["format --check-formatted", "credo", "sobelow --config"],
       "assets.build": [
         "esbuild module",
-        "esbuild cdn",
-        "esbuild cdn_min",
         "esbuild main"
       ],
       "assets.watch": "esbuild module --watch",
