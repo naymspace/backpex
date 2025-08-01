@@ -30,7 +30,7 @@ defmodule Backpex.Filters.MultiSelect do
   @doc """
   The list of options for the multi select filter.
   """
-  @callback options :: [{String.t() | atom(), String.t() | atom()}]
+  @callback options(assigns :: map()) :: [{String.t() | atom(), String.t() | atom()}]
 
   defmacro __using__(_opts) do
     quote do
@@ -42,11 +42,11 @@ defmodule Backpex.Filters.MultiSelect do
       @behaviour Backpex.Filters.Select
 
       @impl Backpex.Filter
-      defdelegate query(query, attribute, value), to: MultiSelectFilter
+      defdelegate query(query, attribute, value, assigns), to: MultiSelectFilter
 
       @impl Backpex.Filter
       def render(assigns) do
-        assigns = assign(assigns, :options, options())
+        assigns = assign(assigns, :options, options(assigns))
         MultiSelectFilter.render(assigns)
       end
 
@@ -54,13 +54,13 @@ defmodule Backpex.Filters.MultiSelect do
       def render_form(assigns) do
         assigns =
           assigns
-          |> assign(:options, options())
+          |> assign(:options, options(assigns))
           |> assign(:prompt, prompt())
 
         MultiSelectFilter.render_form(assigns)
       end
 
-      defoverridable query: 3, render: 1, render_form: 1
+      defoverridable query: 4, render: 1, render_form: 1
     end
   end
 
@@ -131,9 +131,9 @@ defmodule Backpex.Filters.MultiSelect do
     |> JS.add_class("hidden", to: {:inner, ".dropdown-content"})
   end
 
-  def query(query, _attribute, []), do: query
+  def query(query, _attribute, [], _assigns), do: query
 
-  def query(query, attribute, value) do
+  def query(query, attribute, value, _assigns) do
     Enum.reduce(value, nil, fn
       v, nil ->
         dynamic([x], field(x, ^attribute) == ^v)

@@ -33,7 +33,7 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
 
-      - uses: erlef/setup-beam@5304e04ea2b355f03681464e683d92e3b2f18451 # v1.18.2
+      - uses: erlef/setup-beam@e6d7c94229049569db56a7ad5a540c051a010af9 # v1.20.4
         with:
           otp-version: ${{ matrix.erlang }}
           elixir-version: ${{ matrix.elixir }}
@@ -109,7 +109,7 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
 
-      - uses: erlef/setup-beam@5304e04ea2b355f03681464e683d92e3b2f18451 # v1.18.2
+      - uses: erlef/setup-beam@e6d7c94229049569db56a7ad5a540c051a010af9 # v1.20.4
         id: beam
         with:
           version-file: .tool-versions
@@ -132,7 +132,7 @@ jobs:
 
     services:
       postgres:
-        image: postgres:16.9@sha256:64d54200dec0cb9d2d3e43f094e9aa47e7e6c8c246828a512969cccc39b5afb2
+        image: postgres:16.9@sha256:fec2740c517838d4f582e48a8a9a1cb51082af3dcae59e9b12a66ec262302b97
         env:
           POSTGRES_PASSWORD: postgres
         options: >-
@@ -148,7 +148,7 @@ jobs:
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
 
       - name: Setup beam
-        uses: erlef/setup-beam@5304e04ea2b355f03681464e683d92e3b2f18451 # v1.18.2
+        uses: erlef/setup-beam@e6d7c94229049569db56a7ad5a540c051a010af9 # v1.20.4
         id: beam
         with:
           version-file: .tool-versions
@@ -179,8 +179,7 @@ jobs:
         if: steps.restore-cache.outputs.cache-hit != 'true'
         working-directory: demo
         run: mix deps.get
-          
-  
+
       - name: Compile dependencies
         if: steps.restore-cache.outputs.cache-hit != 'true'
         working-directory: demo
@@ -231,6 +230,20 @@ jobs:
           DB_DATABASE: test
         run: yarn test
 
+      - name: Install playwright
+        working-directory: demo
+        run: yarn playwright install chromium --with-deps --only-shell
+
+      - name: Run playwright test
+        working-directory: demo
+        env:
+          DB_HOSTNAME: localhost
+          DB_USERNAME: postgres
+          DB_PASSWORD: postgres
+          DB_DATABASE: test
+        run: yarn test:playwright
+        continue-on-error: true
+
       - name: Deps audit
         working-directory: demo
         continue-on-error: true
@@ -252,7 +265,7 @@ jobs:
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
 
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@b5ca514318bd6ebac0fb2aedd5d36ec1b5c232a2 # v3.10.0
+        uses: docker/setup-buildx-action@e468171a9de216ec08956ac3ada2f0791b6bd435 # v3.11.1
 
       - name: Log in to the container registry
         if: env.PUSH_IMAGE == 'true'
@@ -269,7 +282,7 @@ jobs:
           images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME_RUNTIME }}
 
       - name: Build container
-        uses: docker/build-push-action@14487ce63c7a62a4a324b0bfb37086795e31c6c1 # v6.16.0
+        uses: docker/build-push-action@263435318d21b8e681c14492fe198d362a7d2c83 # v6.18.0
         with:
           push: ${{ env.PUSH_IMAGE }}
           tags: ${{ steps.meta.outputs.tags }}

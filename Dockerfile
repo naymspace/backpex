@@ -3,11 +3,11 @@
 ########################################################################
 
 # renovate: datasource=github-tags depName=elixir packageName=elixir-lang/elixir versioning=semver
-ARG ELIXIR_VERSION=1.18.3
+ARG ELIXIR_VERSION=1.18.4
 # renovate: datasource=github-tags depName=erlang packageName=erlang/otp versioning=regex:^(?<major>\d+?)\.(?<minor>\d+?)(\.(?<patch>\d+))?$ extractVersion=^OTP-(?<version>\S+)
-ARG OTP_VERSION=27.3.3
+ARG OTP_VERSION=28.0.2
 # renovate: datasource=docker depName=ubuntu packageName=ubuntu versioning=ubuntu
-ARG UBUNTU_VERSION=noble-20250404
+ARG UBUNTU_VERSION=noble-20250714
 
 ARG BUILDER_IMAGE="hexpm/elixir:${ELIXIR_VERSION}-erlang-${OTP_VERSION}-ubuntu-${UBUNTU_VERSION}"
 ARG RUNTIME_IMAGE="ubuntu:${UBUNTU_VERSION}"
@@ -54,13 +54,16 @@ COPY demo/config/config.exs demo/config/${MIX_ENV}.exs config/
 RUN mix do deps.compile
 
 COPY demo/priv priv/
-
 COPY demo/package.json demo/yarn.lock demo/.stylelintrc.json ./
+
 RUN yarn install --pure-lockfile
+
 COPY demo/assets assets/
 COPY demo/lib lib/
+
 COPY assets ../assets/
 COPY package.json ../
+
 RUN mix assets.deploy
 
 # Copy the rest of the application files

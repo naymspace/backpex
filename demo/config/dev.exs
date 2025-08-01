@@ -1,5 +1,10 @@
 import Config
 
+config :live_debugger,
+  ip: {0, 0, 0, 0},
+  port: 4007,
+  external_url: "http://localhost:4007"
+
 config :demo, Demo.Repo,
   show_sensitive_data_on_connection_error: true,
   migration_timestamps: [type: :utc_datetime]

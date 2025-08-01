@@ -34,7 +34,7 @@ defmodule Demo.MixProject do
   defp deps do
     [
       # development
-      {:ex_doc, "~> 0.37", only: [:dev, :test], runtime: false},
+      {:ex_doc, "~> 0.38", only: [:dev, :test], runtime: false},
       {:credo, "~> 1.7.5", only: [:dev, :test], runtime: false},
       {:sobelow, "~> 0.13", only: [:dev, :test]},
       {:mix_audit, "~> 2.0", only: [:dev, :test], runtime: false},
@@ -42,17 +42,20 @@ defmodule Demo.MixProject do
       {:ex_machina, "~> 2.3"},
       {:smokestack, "~> 0.9.2"},
       {:faker, "~> 0.18"},
-      {:phoenix_test, "~> 0.6.0", only: :test, runtime: false},
+      {:phoenix_test, "~> 0.7.0", only: :test, runtime: false},
       {:sourceror, "~> 1.7", only: [:dev, :test]},
+      {:phoenix_test_playwright, "~> 0.7.0", only: :test, runtime: false},
+      {:a11y_audit, "~> 0.2.3", only: :test},
+      {:live_debugger, "~> 0.3", only: :dev},
 
       # core
       {:dns_cluster, "~> 0.2.0"},
       {:telemetry_poller, "~> 1.0"},
       {:telemetry_metrics, "~> 1.0"},
       {:gettext, "~> 0.26"},
-      {:sentry, "~> 10.8"},
+      {:sentry, "~> 11.0"},
       {:hackney, "~> 1.17", override: true},
-      {:circular_buffer, "~> 0.4.0"},
+      {:circular_buffer, "~> 1.0.0"},
 
       # phoenix
       {:bandit, "~> 1.0"},
@@ -71,7 +74,7 @@ defmodule Demo.MixProject do
       {:csv, "~> 3.2.0"},
       {:jason, ">= 1.0.0"},
       {:ash, "~> 3.0"},
-      {:ash_postgres, "~> 2.5.0"},
+      {:ash_postgres, "~> 2.6.0"},
 
       # assets
       {:esbuild, "~> 0.9", runtime: Mix.env() == :dev},

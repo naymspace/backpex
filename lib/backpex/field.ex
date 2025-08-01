@@ -34,11 +34,11 @@ defmodule Backpex.Field do
       type: :atom
     ],
     align: [
-      doc: "Align the fields of a resource in the index view.",
+      doc: "Align the field value on index views.",
       type: {:in, [:left, :center, :right]}
     ],
     align_label: [
-      doc: "Align the labels of the fields in the edit view.",
+      doc: "Align the label of the field on form views.",
       type: {:or, [{:in, [:top, :center, :bottom]}, {:fun, 1}]}
     ],
     searchable: [
@@ -150,11 +150,6 @@ defmodule Backpex.Field do
   @callback render_index_form(assigns :: map()) :: %Phoenix.LiveView.Rendered{}
 
   @doc """
-  Used to render the readonly version of the field.
-  """
-  @callback render_form_readonly(assigns :: map()) :: %Phoenix.LiveView.Rendered{}
-
-  @doc """
   The field to be displayed on index views. In most cases this is the name / key configured in the corresponding field definition.
   In fields with associations this value often differs from the name / key. The function will receive the field definition.
   """
@@ -211,7 +206,7 @@ defmodule Backpex.Field do
             ) ::
               Ecto.Query.dynamic_expr()
 
-  @optional_callbacks render_form_readonly: 1, render_index_form: 1
+  @optional_callbacks render_index_form: 1
 
   @doc """
   Returns the default config schema.
@@ -230,6 +225,14 @@ defmodule Backpex.Field do
 
       use BackpexWeb, :field
 
+      @doc """
+      Returns the schema of configurable options for this field.
+
+      This can be useful for reuse in other field modules.
+      """
+      def config_schema, do: @config_schema
+
+      @doc false
       def validate_config!({name, options} = _field, live_resource) do
         field_options = Keyword.new(options)
 
@@ -256,11 +259,8 @@ defmodule Backpex.Field do
       def render(%{type: :index} = assigns) do
         if Backpex.Field.index_editable_enabled?(assigns.field_options, assigns) do
           case Map.get(assigns.field_options, :render_index_form) do
-            nil ->
-              apply(__MODULE__, :render_index_form, [assigns])
-
-            func ->
-              func.(assigns)
+            fun when is_function(fun, 1) -> fun.(assigns)
+            nil -> apply(__MODULE__, :render_index_form, [assigns])
           end
         else
           Map.get(assigns.field_options, :render, &render_value/1).(assigns)
@@ -269,16 +269,9 @@ defmodule Backpex.Field do
 
       @impl Phoenix.LiveComponent
       def render(%{type: :form} = assigns) do
-        if Backpex.Field.readonly?(assigns.field_options, assigns) do
-          case Map.get(assigns.field_options, :render_form_readonly) do
-            nil ->
-              apply(__MODULE__, :render_form_readonly, [assigns])
-
-            func ->
-              func.(assigns)
-          end
-        else
-          Map.get(assigns.field_options, :render_form, &render_form/1).(assigns)
+        case Map.get(assigns.field_options, :render_form) do
+          fun when is_function(fun, 1) -> fun.(assigns)
+          nil -> apply(__MODULE__, :render_form, [assigns])
         end
       end
 
@@ -313,7 +306,7 @@ defmodule Backpex.Field do
   def index_editable_enabled?(field_options, assigns, default \\ false)
 
   def index_editable_enabled?(_field_options, %{live_action: live_action}, _default)
-      when live_action != :index do
+      when live_action not in [:index, :resource_action] do
     false
   end
 

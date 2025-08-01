@@ -7,7 +7,6 @@ defmodule Backpex.LiveResource.Index do
   alias Backpex.Adapters.Ecto, as: EctoAdapter
   alias Backpex.LiveResource
   alias Backpex.Resource
-  alias Backpex.ResourceAction
   alias Backpex.Router
 
   alias Phoenix.LiveView
@@ -385,7 +384,6 @@ defmodule Backpex.LiveResource.Index do
 
   defp apply_action(socket, :index) do
     socket
-    |> assign(:page_title, socket.assigns.live_resource.plural_name())
     |> apply_index()
     |> assign(:item, nil)
   end
@@ -406,7 +404,6 @@ defmodule Backpex.LiveResource.Index do
     item = action.module.base_schema(socket.assigns)
 
     socket
-    |> assign(:page_title, ResourceAction.name(action, :title))
     |> assign(:resource_action, action)
     |> assign(:resource_action_id, id)
     |> assign(:item, item)
@@ -429,10 +426,10 @@ defmodule Backpex.LiveResource.Index do
     filters = LiveResource.active_filters(socket.assigns)
     valid_filter_params = LiveResource.get_valid_filters_from_params(params, filters, LiveResource.empty_filter_key())
 
-    adapter_config = live_resource.config(:adapter_config)
+    schema = live_resource.adapter_config(:schema)
 
     count_criteria = [
-      search: LiveResource.search_options(params, fields, adapter_config[:schema]),
+      search: LiveResource.search_options(params, fields, schema),
       filters: LiveResource.filter_options(valid_filter_params, filters)
     ]
 
@@ -457,6 +454,7 @@ defmodule Backpex.LiveResource.Index do
       |> Map.put(:filters, Map.get(valid_filter_params, "filters", %{}))
 
     socket
+    |> assign(:page_title, socket.assigns.live_resource.plural_name())
     |> assign(:item_count, item_count)
     |> assign(:query_options, query_options)
     |> assign(:init_order, init_order)
@@ -541,12 +539,12 @@ defmodule Backpex.LiveResource.Index do
       query_options: query_options
     } = socket.assigns
 
-    adapter_config = live_resource.config(:adapter_config)
+    schema = live_resource.adapter_config(:schema)
     filters = LiveResource.active_filters(socket.assigns)
     valid_filter_params = LiveResource.get_valid_filters_from_params(params, filters, LiveResource.empty_filter_key())
 
     count_criteria = [
-      search: LiveResource.search_options(params, fields, adapter_config[:schema]),
+      search: LiveResource.search_options(params, fields, schema),
       filters: LiveResource.filter_options(valid_filter_params, filters)
     ]
 
@@ -571,14 +569,15 @@ defmodule Backpex.LiveResource.Index do
       metric_visibility: metric_visibility
     } = socket.assigns
 
-    adapter_config = live_resource.config(:adapter_config)
+    repo = live_resource.adapter_config(:repo)
+    schema = live_resource.adapter_config(:schema)
     filters = LiveResource.active_filters(socket.assigns)
 
     metrics =
       socket.assigns.live_resource.metrics()
       |> Enum.map(fn {key, metric} ->
         criteria = [
-          search: LiveResource.search_options(query_options, fields, adapter_config[:schema]),
+          search: LiveResource.search_options(query_options, fields, schema),
           filters: LiveResource.filter_options(query_options, filters)
         ]
 
@@ -591,7 +590,7 @@ defmodule Backpex.LiveResource.Index do
               |> Ecto.Query.exclude(:select)
               |> Ecto.Query.exclude(:preload)
               |> Ecto.Query.exclude(:group_by)
-              |> metric.module.query(metric.select, adapter_config[:repo])
+              |> metric.module.query(metric.select, repo)
 
             {key, Map.put(metric, :data, data)}
 

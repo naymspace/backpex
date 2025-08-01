@@ -103,12 +103,16 @@ defmodule Backpex.Fields.Select do
     <div>
       <.form for={@form} class="relative" phx-change="update-field" phx-submit="update-field" phx-target={@myself}>
         <BackpexForm.input
+          id={"index-form-input-#{@name}-#{LiveResource.primary_value(@item, @live_resource)}"}
           type="select"
           field={@form[:value]}
           options={@options}
           prompt={@prompt}
-          input_wrapper_class=""
-          input_class={["select select-sm", if(@valid, do: "not-hover:select-ghost", else: "select-error")]}
+          input_class={[
+            "select select-sm",
+            @valid && "not-hover:select-ghost",
+            !@valid && "select-error text-error-content bg-error/10"
+          ]}
           disabled={@readonly}
           hide_errors
         />
