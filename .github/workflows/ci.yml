@@ -99,6 +99,9 @@ jobs:
       - name: Gettext Check
         run: mix gettext.extract --check-up-to-date
 
+      - name: Check assets up-to-date
+        run: mix assets.check
+
   publish:
     needs: test
     if: github.event_name == 'release'

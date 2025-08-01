@@ -90,10 +90,7 @@ defmodule Backpex.MixProject do
         "esbuild main"
       ],
       "assets.watch": "esbuild module --watch",
-      "assets.check": [
-        "assets.build",
-        "cmd git diff --exit-code priv/static/js/ || (echo 'JS assets not up to date in priv/static/js/. Run mix assets.build' && exit 1)"
-      ]
+      "assets.check": ["assets.build", "cmd ./scripts/check_assets.sh"]
     ]
   end
 
