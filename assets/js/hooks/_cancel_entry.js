@@ -6,8 +6,6 @@ export default {
   mounted () {
     this.form = this.el.closest('form')
 
-    console.debug('Mounted _cancel_entry hook', this.el)
-
     const uploadKey = this.el.dataset.uploadKey
     this.handleEvent(`cancel-entry:${uploadKey}`, (e) => { this.dispatchChangeEvent() })
     this.handleEvent(`cancel-existing-entry:${uploadKey}`, (e) => { this.dispatchChangeEvent() })
