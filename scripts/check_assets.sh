@@ -3,12 +3,6 @@
 
 set -e
 
-# Check if the priv/static/js directory exists
-if [ ! -d "priv/static/js/" ]; then
-  echo "❌ The directory priv/static/js/ does not exist."
-  echo "Please ensure the directory exists and try again."
-  exit 1
-fi
 # Check if there are any changes in priv/static/js directory
 if ! git diff --exit-code priv/static/js/ > /dev/null 2>&1; then
   echo "❌ JS assets are not up to date in priv/static/js/"
