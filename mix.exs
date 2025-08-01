@@ -13,6 +13,7 @@ defmodule Backpex.MixProject do
       version: @version,
       elixir: "~> 1.16",
       elixirc_paths: elixirc_paths(Mix.env()),
+      compilers: [:phoenix_live_view] ++ Mix.compilers(),
       start_permanent: Mix.env() == :prod,
       deps: deps(),
       aliases: aliases(),
@@ -43,6 +44,7 @@ defmodule Backpex.MixProject do
       {:mix_audit, "~> 2.0", only: [:dev, :test], runtime: false},
       {:tailwind_formatter, "~> 0.4", only: [:dev, :test], runtime: false},
       {:sobelow, ">= 0.0.0", only: [:dev, :test]},
+      {:lazy_html, ">= 0.0.0", only: :test},
 
       # core
       {:nimble_options, "~> 1.1"},
@@ -55,7 +57,7 @@ defmodule Backpex.MixProject do
       {:phoenix, "~> 1.7.6"},
       {:phoenix_html, "~> 4.1"},
       {:phoenix_html_helpers, "~> 1.0"},
-      {:phoenix_live_view, "~> 1.0"},
+      {:phoenix_live_view, "~> 1.1"},
 
       # adapters
       {:ecto_sql, "~> 3.6"},
