@@ -8,7 +8,9 @@
     "import": {
       "default": "./priv/static/js/backpex.esm.js"
     },
-    "require": "./priv/static/js/backpex.cjs.js"
+    "require": {
+      "default": "./priv/static/js/backpex.cjs.js"
+    }
   },
   "repository": {
     "type": "git",
