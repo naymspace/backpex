@@ -157,7 +157,7 @@ if Code.ensure_loaded?(Igniter) do
         Igniter.add_notice(igniter, "Installed daisyUI via npm.")
       else
         true ->
-          Mix.shell().info("daisyui is already installed. Skipping.")
+          Mix.shell().info("daisyUI is already installed. Skipping.")
           igniter
 
         {:error, error} ->
@@ -231,8 +231,26 @@ if Code.ensure_loaded?(Igniter) do
               igniter
 
             {:error, igniter} ->
-              Mix.raise("Failed to add backpex routes")
-              igniter
+              Warning.warn_with_code_sample(
+                igniter,
+                """
+                Failed to add backpex routes automatically. Please manually add the following to your router.ex:
+
+                1. Add the import at the top of your router file:
+                """,
+                "import Backpex.Router"
+              )
+              |> Warning.warn_with_code_sample(
+                """
+                2. Add the backpex routes in a scope with the browser pipeline:
+                """,
+                """
+                scope "/admin", #{Phoenix.web_module(igniter)} do
+                  pipe_through :browser
+                  backpex_routes()
+                end
+                """
+              )
           end
       end
     end
@@ -298,7 +316,7 @@ if Code.ensure_loaded?(Igniter) do
 
     defp remove_bg_white? do
       Mix.shell().yes?(
-        "A background color at the body could cause issues with the backpex app_shell. Do you want to remove it? See: https://hexdocs.pm/backpex/installation.html#remove-default-background-color"
+        "A background color at the body could cause issues with the backpex app_shell component. Do you want to remove it? See: https://hexdocs.pm/backpex/installation.html#remove-default-background-color"
       )
     end
 

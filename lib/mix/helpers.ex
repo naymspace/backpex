@@ -78,7 +78,7 @@ defmodule Backpex.Mix.Helpers do
   end
 
   @doc """
-  Checks if a npm package is already installed in the project.
+  Checks if an npm package is already installed in the project.
   """
   def npm_package_installed?(package_name) do
     env = [{"PATH", System.get_env("PATH")}]
