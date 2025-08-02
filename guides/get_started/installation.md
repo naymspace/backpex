@@ -85,7 +85,7 @@ In your stylesheet:
 
 ```css
 @source "../../deps/backpex/**/*.*ex";
-@source '../../deps/backpex/assets/js/**/*.*js'
+@source "../../deps/backpex/assets/js/**/*.*js";
 ```
 
 > #### Info {: .info}

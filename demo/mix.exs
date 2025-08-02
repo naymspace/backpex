@@ -45,6 +45,7 @@ defmodule Demo.MixProject do
       {:phoenix_test, "~> 0.7.0", only: :test, runtime: false},
       {:phoenix_test_playwright, "~> 0.7.0", only: :test, runtime: false},
       {:a11y_audit, "~> 0.2.3", only: :test},
+      {:live_debugger, "~> 0.3", only: :dev},
 
       # core
       {:dns_cluster, "~> 0.2.0"},
