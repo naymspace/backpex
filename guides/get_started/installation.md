@@ -1,6 +1,6 @@
 # Installation
 
-The following guide will help you to install Backpex in your Phoenix application. We will guide you through the installation process and show you how to create a simple resource.
+The following guide will help you to install Backpex in your Phoenix application. We will guide you through the installation process and show you how to create a simple resource. 
 
 ## Prerequisites
 
@@ -9,6 +9,10 @@ Backpex integrates seamlessly with your existing Phoenix LiveView application, b
 ### Phoenix LiveView
 
 Backpex is built on top of Phoenix LiveView, so you need to have Phoenix LiveView installed in your application. If you generate a new Phoenix application using the latest version of the `mix phx.new` generator, Phoenix LiveView is included by default.
+
+> #### Info {: .info}
+>
+> We have created an initial version of the [Backpex installer task](Mix.Tasks.Backpex.Install.html), which runs with the help of the [Igniter](https://github.com/ash-project/igniter) framework. This installer automates the upcoming steps up to the "[Create an example resource](installation.html#create-an-example-resource)" step. Feedback is welcome!
 
 ### Tailwind CSS
 
