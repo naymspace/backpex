@@ -16,7 +16,7 @@ defmodule Backpex.Fields.Currency do
     unit_position: [
       doc: "Position of the unit relative to the value, either `:before` or `:after`.",
       type: {:in, [:before, :after]},
-      default: :before
+      default: :after
     ],
     radix: [
       doc:
