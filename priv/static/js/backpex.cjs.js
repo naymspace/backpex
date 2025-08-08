@@ -3490,7 +3490,6 @@ var masked_number_input_default = {
   },
   initializeMask() {
     const maskPattern = this.el.dataset.maskPattern;
-    console.log("Mask pattern:", maskPattern);
     if (!maskPattern) {
       console.error("You must provide a mask pattern in the data-masked-pattern attribute.");
       return;
