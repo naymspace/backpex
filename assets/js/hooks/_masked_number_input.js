@@ -32,7 +32,7 @@ export default {
     this.mask.on('accept', this.handleMaskChange.bind(this))
   },
   updated () {
-    this.handleMaskChange.bind(this)
+    this.handleMaskChange()
   },
   handleMaskChange () {
     this.hiddenInput.value = this.rawValue(this.mask.value)
