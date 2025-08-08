@@ -197,9 +197,9 @@ defmodule Backpex.HTML.Form do
   attr :translate_error_fun, :any, default: &Function.identity/1, doc: "a custom function to map form errors"
   attr :hide_errors, :boolean, default: false, doc: "if errors should be hidden"
 
-  attr :unit, :string, default: nil
   attr :radix, :string, default: "."
   attr :thousands_separator, :string, default: ","
+  attr :mask_pattern, :string, default: "num"
 
   attr :rest, :global, include: ~w(accept autocomplete capture cols disabled form list max maxlength min minlength
               multiple pattern placeholder readonly required rows size step)
@@ -217,14 +217,15 @@ defmodule Backpex.HTML.Form do
 
   def masked_input(assigns) do
     ~H"""
+
     <div class={["fieldset py-0", @class]}>
       <span :if={@label} class="label mb-1">{@label}</span>
       <div
         id={@id}
         phx-hook="BackpexMaskedInput"
         data-radix={@radix}
-        data-unit={@unit}
         data-thousands-separator={@thousands_separator}
+        data-mask-pattern={@mask_pattern}
       >
         <%!-- As the input ignores updates, we need to wrap it in a span to apply the styles correctly --%>
         <span class={[

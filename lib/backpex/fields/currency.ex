@@ -13,6 +13,11 @@ defmodule Backpex.Fields.Currency do
       type: :string,
       default: "€"
     ],
+    unit_position: [
+      doc: "Position of the unit relative to the value, either `:before` or `:after`.",
+      type: {:in, [:before, :after]},
+      default: :before
+    ],
     radix: [
       doc:
         "Character used as the decimal separator, e.g. ',' or '.'. Make sure this value matches the one you've configured in your Money library.",
@@ -79,6 +84,8 @@ defmodule Backpex.Fields.Currency do
 
   @impl Backpex.Field
   def render_form(assigns) do
+    assigns = assign(assigns, :mask_pattern, build_mask_pattern(assigns.field_options))
+
     ~H"""
     <div>
       <Layout.field_container>
@@ -92,8 +99,8 @@ defmodule Backpex.Fields.Currency do
           help_text={Backpex.Field.help_text(@field_options, assigns)}
           phx-debounce={Backpex.Field.debounce(@field_options, assigns)}
           phx-throttle={Backpex.Field.throttle(@field_options, assigns)}
-          unit={@field_options[:unit]}
           radix={@field_options[:radix]}
+          mask_pattern={@mask_pattern}
           thousands_separator={@field_options[:thousands_separator]}
         />
       </Layout.field_container>
@@ -108,4 +115,7 @@ defmodule Backpex.Fields.Currency do
       ilike(fragment("CAST(? AS TEXT)", field(schema_name, ^field_name)), ^search_string)
     )
   end
+
+  defp build_mask_pattern(%{unit_position: :before} = field_option), do: "#{field_option.unit} num"
+  defp build_mask_pattern(%{unit_position: :after} = field_option), do: "num #{field_option.unit}"
 end

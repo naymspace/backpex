@@ -8,7 +8,14 @@ export default {
     this.initializeMask()
   },
   initializeMask () {
-    const maskPattern = this.el.dataset.unit ? `num ${this.el.dataset.unit}` : 'num'
+    const maskPattern = this.el.dataset.maskPattern
+
+    console.log('Mask pattern:', maskPattern)
+
+    if (!maskPattern) {
+      console.error('You must provide a mask pattern in the data-masked-pattern attribute.')
+      return
+    }
 
     this.maskOptions = {
       mask: maskPattern,
