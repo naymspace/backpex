@@ -9,7 +9,7 @@ var hooks_exports = {};
 __export(hooks_exports, {
   BackpexCancelEntry: () => cancel_entry_default,
   BackpexDragHover: () => drag_hover_default,
-  BackpexMaskedInput: () => masked_input_default,
+  BackpexMaskedNumberInput: () => masked_number_input_default,
   BackpexSidebarSections: () => sidebar_sections_default,
   BackpexStickyActions: () => sticky_actions_default,
   BackpexThemeSelector: () => theme_selector_default,
@@ -3462,8 +3462,8 @@ try {
 } catch {
 }
 
-// js/hooks/_masked_input.js
-var masked_input_default = {
+// js/hooks/_masked_number_input.js
+var masked_number_input_default = {
   mounted() {
     this.maskedInput = this.el.querySelector("[data-masked-input]");
     this.hiddenInput = this.el.querySelector("[data-hidden-input]");

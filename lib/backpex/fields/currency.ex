@@ -92,7 +92,7 @@ defmodule Backpex.Fields.Currency do
         <:label align={Backpex.Field.align_label(@field_options, assigns)}>
           <Layout.input_label text={@field_options[:label]} />
         </:label>
-        <BackpexForm.masked_input
+        <BackpexForm.masked_number_input
           type="text"
           field={@form[@name]}
           translate_error_fun={Backpex.Field.translate_error_fun(@field_options, assigns)}

@@ -172,8 +172,8 @@ defmodule Backpex.HTML.Form do
 
   ## Examples
 
-    <.masked_input field={@form[:amount]} unit="€" />
-    <.masked_input id="amount-input" name="amount" value="20" unit="€" readonly />
+    <.masked_number_input field={@form[:amount]} unit="€" />
+    <.masked_number_input id="amount-input" name="amount" value="20" unit="€" readonly />
   """
   attr :id, :any, default: nil
   attr :name, :any
@@ -204,7 +204,7 @@ defmodule Backpex.HTML.Form do
   attr :rest, :global, include: ~w(accept autocomplete capture cols disabled form list max maxlength min minlength
               multiple pattern placeholder readonly required rows size step)
 
-  def masked_input(%{field: %Phoenix.HTML.FormField{} = field} = assigns) do
+  def masked_number_input(%{field: %Phoenix.HTML.FormField{} = field} = assigns) do
     errors = if Phoenix.Component.used_input?(field), do: field.errors, else: []
 
     assigns
@@ -212,17 +212,16 @@ defmodule Backpex.HTML.Form do
     |> assign(:errors, translate_form_errors(errors, assigns.translate_error_fun))
     |> assign_new(:name, fn -> field.name end)
     |> assign_new(:value, fn -> field.value end)
-    |> masked_input()
+    |> masked_number_input()
   end
 
-  def masked_input(assigns) do
+  def masked_number_input(assigns) do
     ~H"""
-
     <div class={["fieldset py-0", @class]}>
       <span :if={@label} class="label mb-1">{@label}</span>
       <div
         id={@id}
-        phx-hook="BackpexMaskedInput"
+        phx-hook="BackpexMaskedNumberInput"
         data-radix={@radix}
         data-thousands-separator={@thousands_separator}
         data-mask-pattern={@mask_pattern}
