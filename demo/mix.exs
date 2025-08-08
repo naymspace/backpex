@@ -43,7 +43,6 @@ defmodule Demo.MixProject do
       {:smokestack, "~> 0.9.2"},
       {:faker, "~> 0.18"},
       {:phoenix_test, "~> 0.7.0", only: :test, runtime: false},
-      {:sourceror, "~> 1.7", only: [:dev, :test]},
       {:phoenix_test_playwright, "~> 0.7.0", only: :test, runtime: false},
       {:a11y_audit, "~> 0.2.3", only: :test},
       {:live_debugger, "~> 0.3", only: :dev},
