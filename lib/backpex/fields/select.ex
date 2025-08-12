@@ -108,11 +108,7 @@ defmodule Backpex.Fields.Select do
           field={@form[:value]}
           options={@options}
           prompt={@prompt}
-          input_class={[
-            "select select-sm",
-            @valid && "not-hover:select-ghost",
-            !@valid && "select-error text-error-content bg-error/10"
-          ]}
+          input_class={["select select-sm", @valid && "not-hover:select-ghost", !@valid && "select-error bg-error/10"]}
           disabled={@readonly}
           hide_errors
         />
