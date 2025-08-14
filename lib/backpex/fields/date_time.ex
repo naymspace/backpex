@@ -136,7 +136,7 @@ defmodule Backpex.Fields.DateTime do
           id={"index-form-input-#{@name}-#{LiveResource.primary_value(@item, @live_resource)}"}
           type="datetime-local"
           field={@form[:value]}
-          input_class={["input input-sm w-52 not-hover:input-ghost", !@valid && "input-error"]}
+          input_class={["input input-sm", @valid && "not-hover:input-ghost", !@valid && "input-error bg-error/10"]}
           phx-debounce="100"
           readonly={@readonly}
           hide_errors
