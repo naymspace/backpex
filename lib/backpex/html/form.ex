@@ -172,8 +172,8 @@ defmodule Backpex.HTML.Form do
 
   ## Examples
 
-    <.masked_number_input field={@form[:amount]} unit="€" />
-    <.masked_number_input id="amount-input" name="amount" value="20" unit="€" readonly />
+    <.currency_input field={@form[:amount]} unit="€" unit_position={:after} />
+    <.currency_input id="amount-input" name="amount" value="20" unit="$" unit_position={:before} readonly />
   """
   attr :id, :any, default: nil
   attr :name, :any
@@ -197,14 +197,15 @@ defmodule Backpex.HTML.Form do
   attr :translate_error_fun, :any, default: &Function.identity/1, doc: "a custom function to map form errors"
   attr :hide_errors, :boolean, default: false, doc: "if errors should be hidden"
 
+  attr :unit, :string, required: true
+  attr :unit_position, :atom, required: true, values: ~w(before after)a
   attr :radix, :string, default: "."
   attr :thousands_separator, :string, default: ","
-  attr :mask_pattern, :string, default: "num"
 
   attr :rest, :global, include: ~w(accept autocomplete capture cols disabled form list max maxlength min minlength
               multiple pattern placeholder readonly required rows size step)
 
-  def masked_number_input(%{field: %Phoenix.HTML.FormField{} = field} = assigns) do
+  def currency_input(%{field: %Phoenix.HTML.FormField{} = field} = assigns) do
     errors = if Phoenix.Component.used_input?(field), do: field.errors, else: []
 
     assigns
@@ -212,18 +213,21 @@ defmodule Backpex.HTML.Form do
     |> assign(:errors, translate_form_errors(errors, assigns.translate_error_fun))
     |> assign_new(:name, fn -> field.name end)
     |> assign_new(:value, fn -> field.value end)
-    |> masked_number_input()
+    |> currency_input()
   end
 
-  def masked_number_input(assigns) do
+  def currency_input(assigns) do
+    assigns = assign(assigns, :mask_pattern, build_mask_pattern(assigns.unit_position, assigns.unit))
+
     ~H"""
     <div class={["fieldset py-0", @class]}>
       <span :if={@label} class="label mb-1">{@label}</span>
       <div
         id={@id}
-        phx-hook="BackpexMaskedNumberInput"
+        phx-hook="BackpexCurrencyInput"
         data-radix={@radix}
         data-thousands-separator={@thousands_separator}
+        data-unit={@unit}
         data-mask-pattern={@mask_pattern}
       >
         <%!-- As the input ignores updates, we need to wrap it in a span to apply the styles correctly --%>
@@ -240,6 +244,9 @@ defmodule Backpex.HTML.Form do
     </div>
     """
   end
+
+  defp build_mask_pattern(:before = _unit_position, unit), do: "#{unit} num"
+  defp build_mask_pattern(:after = _unit_position, unit), do: "num #{unit}"
 
   @doc """
   Generates a generic error message.

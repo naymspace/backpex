@@ -84,15 +84,13 @@ defmodule Backpex.Fields.Currency do
 
   @impl Backpex.Field
   def render_form(assigns) do
-    assigns = assign(assigns, :mask_pattern, build_mask_pattern(assigns.field_options))
-
     ~H"""
     <div>
       <Layout.field_container>
         <:label align={Backpex.Field.align_label(@field_options, assigns)}>
           <Layout.input_label text={@field_options[:label]} />
         </:label>
-        <BackpexForm.masked_number_input
+        <BackpexForm.currency_input
           type="text"
           field={@form[@name]}
           translate_error_fun={Backpex.Field.translate_error_fun(@field_options, assigns)}
@@ -100,8 +98,9 @@ defmodule Backpex.Fields.Currency do
           phx-debounce={Backpex.Field.debounce(@field_options, assigns)}
           phx-throttle={Backpex.Field.throttle(@field_options, assigns)}
           radix={@field_options[:radix]}
-          mask_pattern={@mask_pattern}
           thousands_separator={@field_options[:thousands_separator]}
+          unit={@field_options[:unit]}
+          unit_position={@field_options[:unit_position]}
         />
       </Layout.field_container>
     </div>
@@ -115,7 +114,4 @@ defmodule Backpex.Fields.Currency do
       ilike(fragment("CAST(? AS TEXT)", field(schema_name, ^field_name)), ^search_string)
     )
   end
-
-  defp build_mask_pattern(%{unit_position: :before} = field_option), do: "#{field_option.unit} num"
-  defp build_mask_pattern(%{unit_position: :after} = field_option), do: "num #{field_option.unit}"
 end

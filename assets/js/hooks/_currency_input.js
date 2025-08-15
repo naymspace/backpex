@@ -36,15 +36,14 @@ export default {
   },
   handleMaskChange () {
     this.hiddenInput.value = this.rawValue(this.mask.value)
-    this.hiddenInput.dispatchEvent(new Event('input', { bubbles: true }))
+  },
+  destroyed () {
+    this.mask.destroy()
   },
   rawValue (value) {
     return value
       .replace(this.el.dataset.unit || '', '')
       .trim()
       .replace(new RegExp(`\\${this.el.dataset.thousandsSeparator}`, 'g'), '')
-  },
-  destroyed () {
-    this.mask.destroy()
   }
 }

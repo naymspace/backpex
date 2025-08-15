@@ -8,8 +8,8 @@ var __export = (target, all) => {
 var hooks_exports = {};
 __export(hooks_exports, {
   BackpexCancelEntry: () => cancel_entry_default,
+  BackpexCurrencyInput: () => currency_input_default,
   BackpexDragHover: () => drag_hover_default,
-  BackpexMaskedNumberInput: () => masked_number_input_default,
   BackpexSidebarSections: () => sidebar_sections_default,
   BackpexStickyActions: () => sticky_actions_default,
   BackpexThemeSelector: () => theme_selector_default,
@@ -3462,8 +3462,8 @@ try {
 } catch {
 }
 
-// js/hooks/_masked_number_input.js
-var masked_number_input_default = {
+// js/hooks/_currency_input.js
+var currency_input_default = {
   mounted() {
     this.maskedInput = this.el.querySelector("[data-masked-input]");
     this.hiddenInput = this.el.querySelector("[data-hidden-input]");
@@ -3491,17 +3491,16 @@ var masked_number_input_default = {
     this.mask.on("accept", this.handleMaskChange.bind(this));
   },
   updated() {
-    this.handleMaskChange.bind(this);
+    this.handleMaskChange();
   },
   handleMaskChange() {
     this.hiddenInput.value = this.rawValue(this.mask.value);
-    this.hiddenInput.dispatchEvent(new Event("input", { bubbles: true }));
-  },
-  rawValue(value) {
-    return value.replace(this.el.dataset.unit || "", "").trim().replace(new RegExp(`\\${this.el.dataset.thousandsSeparator}`, "g"), "");
   },
   destroyed() {
     this.mask.destroy();
+  },
+  rawValue(value) {
+    return value.replace(this.el.dataset.unit || "", "").trim().replace(new RegExp(`\\${this.el.dataset.thousandsSeparator}`, "g"), "");
   }
 };
 export {
