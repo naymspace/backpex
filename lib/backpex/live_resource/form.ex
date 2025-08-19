@@ -49,6 +49,10 @@ defmodule Backpex.LiveResource.Form do
     |> noreply()
   end
 
+  def handle_info(_event, socket) do
+    noreply(socket)
+  end
+
   def handle_event(_event, _params, socket) do
     noreply(socket)
   end
