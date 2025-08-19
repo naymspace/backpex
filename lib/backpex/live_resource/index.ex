@@ -71,12 +71,14 @@ defmodule Backpex.LiveResource.Index do
     |> noreply()
   end
 
+  # credo:disable-for-this-file Credo.Check.Design.DuplicatedCode
   def handle_info({:update_changeset, changeset}, socket) do
     socket
     |> assign(:changeset, changeset)
     |> noreply()
   end
 
+  # credo:disable-for-this-file Credo.Check.Design.DuplicatedCode
   def handle_info({:put_assoc, {key, value} = _assoc}, socket) do
     changeset = Ecto.Changeset.put_assoc(socket.assigns.changeset, key, value)
     assocs = Map.get(socket.assigns, :assocs, []) |> Keyword.put(key, value)
