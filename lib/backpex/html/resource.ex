@@ -226,10 +226,10 @@ defmodule Backpex.HTML.Resource do
         <span :if={@filter_count > 0} class="indicator-item badge badge-sm badge-secondary rounded-selector">
           {@filter_count}
         </span>
-        <label tabindex="0" class="btn btn-sm btn-outline ring-base-content/10 border-0 ring-1">
+        <div role="button" tabindex="0" class="btn btn-sm btn-outline ring-base-content/10 border-0 ring-1">
           <Backpex.HTML.CoreComponents.icon name="hero-funnel-solid" class={["mr-2 h-5 w-5", @filter_icon_class]} />
           {@label}
-        </label>
+        </div>
       </div>
       <div tabindex="0" class="dropdown-content z-[1] menu bg-base-100 rounded-box p-4 shadow">
         <.index_filter_forms filters={@filters} filter_options={@filter_options} live_resource={@live_resource} {assigns} />
@@ -332,7 +332,7 @@ defmodule Backpex.HTML.Resource do
 
     ~H"""
     <div class={["dropdown", @class]}>
-      <label tabindex="0" class="hover:cursor-pointer">
+      <div role="button" tabindex="0" class="hover:cursor-pointer">
         <span class="sr-only">
           {Backpex.__("Toggle columns", @live_resource)}
         </span>
@@ -341,7 +341,7 @@ defmodule Backpex.HTML.Resource do
           aria-hidden="true"
           class="text-base-content/50 h-5 w-5 hover:text-base-content"
         />
-      </label>
+      </div>
       <div tabindex="0" class="dropdown-content menu bg-base-100 rounded-box min-w-52 max-w-72 p-4 shadow">
         <.form class="w-full" method="POST" for={@form} action={Router.cookie_path(@socket)}>
           <input type="hidden" name={@form[:_resource].name} value={@form[:_resource].value} />
@@ -626,19 +626,20 @@ defmodule Backpex.HTML.Resource do
   def resource_buttons(assigns) do
     ~H"""
     <div class="mb-4 flex space-x-2">
-      <.link :if={@live_resource.can?(assigns, :new, nil)} patch={Router.get_path(@socket, @live_resource, @params, :new)}>
-        <button class="btn btn-sm btn-outline btn-primary">
-          {@create_button_label}
-        </button>
+      <.link
+        :if={@live_resource.can?(assigns, :new, nil)}
+        patch={Router.get_path(@socket, @live_resource, @params, :new)}
+        class="btn btn-sm btn-outline btn-primary"
+      >
+        {@create_button_label}
       </.link>
 
       <.link
         :for={{key, action} <- resource_actions(assigns, @resource_actions)}
         patch={Router.get_path(@socket, @live_resource, @params, :resource_action, key, @query_options)}
+        class="btn btn-sm btn-outline btn-primary"
       >
-        <button class="btn btn-sm btn-outline btn-primary">
-          {ResourceAction.name(action, :label)}
-        </button>
+        {ResourceAction.name(action, :label)}
       </.link>
 
       <div :if={display_divider?(assigns)} class="border-base-300 my-0.5 border-r-2 border-solid" />
@@ -775,10 +776,12 @@ defmodule Backpex.HTML.Resource do
             subtitle={Backpex.__("Try a different filter setting or clear all filters.", @live_resource)}
           />
           <.empty_state_content :if={not @search_active? and not @filter_active?} title={@title}>
-            <.link :if={@create_allowed} patch={Router.get_path(@socket, @live_resource, @params, :new)}>
-              <button class="btn btn-sm btn-outline btn-primary mt-6">
-                {@create_button_label}
-              </button>
+            <.link
+              :if={@create_allowed}
+              patch={Router.get_path(@socket, @live_resource, @params, :new)}
+              class="btn btn-sm btn-outline btn-primary mt-6"
+            >
+              {@create_button_label}
             </.link>
           </.empty_state_content>
         </div>
@@ -864,7 +867,7 @@ defmodule Backpex.HTML.Resource do
             <div :for={{name, %{label: label}} <- @panel_fields}>
               <.field_container>
                 <:label>
-                  <.input_label text={label} />
+                  <.input_label as="span" text={label} />
                 </:label>
                 <.resource_field name={name} {assigns} />
               </.field_container>

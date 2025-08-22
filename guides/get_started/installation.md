@@ -142,7 +142,7 @@ To get you started quickly, we provide a layout you can copy & paste into your a
   <:topbar>
     <Backpex.HTML.Layout.topbar_branding />
 
-    <Backpex.HTML.Layout.topbar_dropdown class="mr-2 md:mr-0">
+    <Backpex.HTML.Layout.topbar_dropdown class="mr-2 md:mr-0" title="User menu" aria-label="Open user menu">
       <:label>
         <label tabindex="0" class="btn btn-square btn-ghost">
           <Backpex.HTML.CoreComponents.icon name="hero-user" class="size-6" />

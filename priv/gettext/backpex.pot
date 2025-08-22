@@ -28,6 +28,10 @@ msgid "(%{count} total)"
 msgstr ""
 
 #, elixir-autogen, elixir-format
+msgid "Actions"
+msgstr ""
+
+#, elixir-autogen, elixir-format
 msgid "Add entry"
 msgstr ""
 
@@ -81,6 +85,10 @@ msgstr ""
 
 #, elixir-autogen, elixir-format
 msgid "Delete"
+msgstr ""
+
+#, elixir-autogen, elixir-format
+msgid "Delete row with index %{index}"
 msgstr ""
 
 #, elixir-autogen, elixir-format
@@ -177,6 +185,10 @@ msgstr ""
 
 #, elixir-autogen, elixir-format
 msgid "Select options..."
+msgstr ""
+
+#, elixir-autogen, elixir-format
+msgid "Select theme"
 msgstr ""
 
 #, elixir-autogen, elixir-format

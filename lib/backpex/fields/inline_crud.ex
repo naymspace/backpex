@@ -129,7 +129,7 @@ defmodule Backpex.Fields.InlineCRUD do
     <div>
       <Layout.field_container>
         <:label align={Backpex.Field.align_label(@field_options, assigns, :top)}>
-          <Layout.input_label text={@field_options[:label]} />
+          <Layout.input_label id={"inline-crud-label-#{@name}"} as="p" text={@field_options[:label]} />
         </:label>
 
         <div class="flex flex-col">
@@ -141,44 +141,48 @@ defmodule Backpex.Fields.InlineCRUD do
                 :for={{child_field_name, child_field_options} <- @child_fields}
                 class={child_field_class(child_field_options, assigns)}
               >
-                <p :if={f_nested.index == 0} class="mb-1 text-xs">
+                <span
+                  :if={f_nested.index == 0}
+                  id={"inline-crud-header-label-#{@name}-#{child_field_name}"}
+                  class="mb-1 text-xs"
+                >
                   {child_field_options.label}
-                </p>
+                </span>
                 <BackpexForm.input
                   type={input_type(child_field_options) |> Atom.to_string()}
                   field={f_nested[child_field_name]}
+                  aria-labelledby={"inline-crud-header-label-#{@name}-#{child_field_name} inline-crud-label-#{@name}"}
                   translate_error_fun={Backpex.Field.translate_error_fun(child_field_options, assigns)}
                   phx-debounce={Backpex.Field.debounce(child_field_options, assigns)}
                   phx-throttle={Backpex.Field.throttle(child_field_options, assigns)}
                 />
               </div>
 
-              <div class={if f_nested.index == 0, do: "mt-5", else: nil}>
-                <label for={"#{@name}-checkbox-delete-#{f_nested.index}"}>
-                  <input
-                    id={"#{@name}-checkbox-delete-#{f_nested.index}"}
-                    type="checkbox"
-                    name={"change[#{@name}_delete][]"}
-                    value={f_nested.index}
-                    class="hidden"
-                  />
-
-                  <div class="btn btn-outline btn-error" aria-label={Backpex.__("Delete", @live_resource)}>
-                    <Backpex.HTML.CoreComponents.icon name="hero-trash" class="h-5 w-5" />
-                  </div>
-                </label>
-              </div>
+              <button
+                type="button"
+                name={"change[#{@name}_delete][]"}
+                class={["btn btn-outline btn-error", f_nested.index == 0 && "mt-5"]}
+                phx-click={JS.dispatch("change")}
+                value={f_nested.index}
+                aria-label={Backpex.__({"Delete row with index %{index}", %{index: f_nested.index}}, @live_resource)}
+              >
+                <Backpex.HTML.CoreComponents.icon name="hero-trash" class="size-5" />
+              </button>
             </div>
           </.inputs_for>
 
           <input type="hidden" name={"change[#{@name}_delete][]"} />
         </div>
-        <input
+
+        <button
+          type="button"
           name={"change[#{@name}_order][]"}
-          type="checkbox"
-          aria-label={Backpex.__("Add entry", @live_resource)}
           class="btn btn-outline btn-sm btn-primary"
-        />
+          phx-click={JS.dispatch("change")}
+          value="new"
+        >
+          {Backpex.__("Add entry", @live_resource)}
+        </button>
 
         <%= if help_text = Backpex.Field.help_text(@field_options, assigns) do %>
           <Backpex.HTML.Form.help_text class="mt-1">{help_text}</Backpex.HTML.Form.help_text>
