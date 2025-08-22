@@ -91,7 +91,12 @@ defmodule Demo.MixProject do
       test: ["ecto.create --quiet", "ecto.migrate --quiet", "test --warnings-as-errors"],
       "assets.setup": ["tailwind.install --if-missing", "esbuild.install --if-missing"],
       "assets.build": ["tailwind default", "esbuild backpex", "esbuild default"],
-      "assets.deploy": ["tailwind default --minify", "esbuild backpex --minify", "esbuild default --minify", "phx.digest"]
+      "assets.deploy": [
+        "tailwind default --minify",
+        "esbuild backpex --minify",
+        "esbuild default --minify",
+        "phx.digest"
+      ]
     ]
   end
 
