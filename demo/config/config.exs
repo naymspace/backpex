@@ -51,8 +51,7 @@ config :esbuild,
     env: %{"NODE_PATH" => Path.expand("../deps", __DIR__)}
   ],
   backpex: [
-    args:
-      ~w(../assets/js/backpex.js --bundle --format=esm --sourcemap --outfile=priv/static/js/backpex.esm.js),
+    args: ~w(../assets/js/backpex.js --bundle --format=esm --sourcemap --outfile=priv/static/js/backpex.esm.js),
     cd: Path.expand("..", __DIR__),
     env: %{"NODE_PATH" => Path.expand("../deps", __DIR__)}
   ]
