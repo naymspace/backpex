@@ -56,13 +56,13 @@ RUN mix do deps.compile
 COPY demo/priv priv/
 COPY demo/package.json demo/yarn.lock demo/.stylelintrc.json ./
 
+COPY assets ../assets/
+COPY package.json ../
+
 RUN yarn install --pure-lockfile
 
 COPY demo/assets assets/
 COPY demo/lib lib/
-
-COPY assets ../assets/
-COPY package.json ../
 
 RUN mix assets.deploy
 

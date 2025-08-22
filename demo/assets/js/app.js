@@ -3,7 +3,9 @@ import * as Sentry from '@sentry/browser'
 import topbar from 'topbar'
 import { Socket } from 'phoenix'
 import { LiveSocket } from 'phoenix_live_view'
-import { Hooks as BackpexHooks } from 'backpex'
+// in your app.js, just use 'backpex' like this:
+// import { Hooks as BackpexHooks } from 'backpex'
+import { Hooks as BackpexHooks } from '#backpex'
 
 /**
  * Sentry
