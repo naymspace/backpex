@@ -43,7 +43,6 @@ defmodule Demo.MixProject do
       {:smokestack, "~> 0.9.2"},
       {:faker, "~> 0.18"},
       {:phoenix_test, "~> 0.7.0", only: :test, runtime: false},
-      {:sourceror, "~> 1.7", only: [:dev, :test]},
       {:phoenix_test_playwright, "~> 0.7.0", only: :test, runtime: false},
       {:a11y_audit, "~> 0.2.3", only: :test},
       {:live_debugger, "~> 0.3", only: :dev},
@@ -91,8 +90,13 @@ defmodule Demo.MixProject do
       "ecto.reset": ["ecto.rollback --all", "ecto.setup"],
       test: ["ecto.create --quiet", "ecto.migrate --quiet", "test --warnings-as-errors"],
       "assets.setup": ["tailwind.install --if-missing", "esbuild.install --if-missing"],
-      "assets.build": ["tailwind default", "esbuild default"],
-      "assets.deploy": ["tailwind default --minify", "esbuild default --minify", "phx.digest"]
+      "assets.build": ["tailwind default", "esbuild backpex", "esbuild default"],
+      "assets.deploy": [
+        "tailwind default --minify",
+        "esbuild backpex --minify",
+        "esbuild default --minify",
+        "phx.digest"
+      ]
     ]
   end
 
