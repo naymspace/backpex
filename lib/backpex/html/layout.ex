@@ -378,13 +378,14 @@ defmodule Backpex.HTML.Layout do
   @doc type: :component
 
   attr :class, :string, required: false, default: nil, doc: "additional class that will be added to the component"
+  attr :rest, :global, doc: "attributes that will be added to the dropdown button"
 
   slot :label, required: true, doc: "label of the dropdown"
 
   def topbar_dropdown(assigns) do
     ~H"""
     <div class={["dropdown dropdown-end", @class]}>
-      <div tabindex="0" role="button">
+      <div tabindex="0" role="button" {@rest}>
         {render_slot(@label)}
       </div>
       <ul tabindex="0" class="dropdown-content z-[1] menu bg-base-100 rounded-box w-52 p-2 shadow">
