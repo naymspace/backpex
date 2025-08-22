@@ -10,7 +10,7 @@ if Mix.env() == :dev do
   end
 
   config :esbuild,
-    version: "0.25.8",
+    version: "0.25.9",
     module: esbuild.(~w(--format=esm --sourcemap --outfile=../priv/static/js/backpex.esm.js)),
     main: esbuild.(~w(--format=cjs --sourcemap --outfile=../priv/static/js/backpex.cjs.js))
 end
