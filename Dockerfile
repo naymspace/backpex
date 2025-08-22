@@ -58,7 +58,6 @@ COPY demo/package.json demo/yarn.lock demo/.stylelintrc.json ./
 
 COPY assets ../assets/
 COPY package.json ../
-COPY priv/static/js demo/priv/static/js/
 
 RUN yarn install --pure-lockfile
 
