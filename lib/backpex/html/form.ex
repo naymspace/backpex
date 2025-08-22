@@ -165,7 +165,7 @@ defmodule Backpex.HTML.Form do
   end
 
   @doc """
-  Renders a masked input.
+  Renders a masked input for currencies.
 
   A `Phoenix.HTML.FormField` may be passed as argument, which is used to retrieve the input name, id, and values.
   Otherwise all attributes may be passed explicitly.
