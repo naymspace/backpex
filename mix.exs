@@ -43,6 +43,7 @@ defmodule Backpex.MixProject do
       {:mix_audit, "~> 2.0", only: [:dev, :test], runtime: false},
       {:tailwind_formatter, "~> 0.4", only: [:dev, :test], runtime: false},
       {:sobelow, ">= 0.0.0", only: [:dev, :test]},
+      {:esbuild, "~> 0.2", only: :dev},
 
       # core
       {:nimble_options, "~> 1.1"},
@@ -85,7 +86,13 @@ defmodule Backpex.MixProject do
 
   defp aliases do
     [
-      lint: ["format --check-formatted", "credo", "sobelow --config"]
+      lint: ["format --check-formatted", "credo", "sobelow --config"],
+      "assets.build": [
+        "esbuild module",
+        "esbuild main"
+      ],
+      "assets.watch": "esbuild module --watch",
+      "assets.check": ["assets.build", "cmd ./scripts/check_assets.sh"]
     ]
   end
 

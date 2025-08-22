@@ -16,6 +16,7 @@ config :demo, DemoWeb.Endpoint,
   code_reloader: true,
   check_origin: false,
   watchers: [
+    backpex: {Esbuild, :install_and_run, [:backpex, ~w(--sourcemap=inline --watch)]},
     esbuild: {Esbuild, :install_and_run, [:default, ~w(--sourcemap=inline --watch)]},
     tailwind: {Tailwind, :install_and_run, [:default, ~w(--watch)]}
   ],
@@ -26,7 +27,8 @@ config :demo, DemoWeb.Endpoint,
       ~r"demo/lib/demo_web/helpers.ex$",
       ~r"demo/lib/demo_web/(live|views)/.*(ex)$",
       ~r"demo/lib/demo_web/templates/.*(eex)$",
-      ~r"lib/backpex/(fields|html)/.*(ex)$"
+      ~r"lib/backpex/(fields|html)/.*(ex)$",
+      ~r"priv/static/js/.*(js)$"
     ]
   ],
   force_ssl: [hsts: true],

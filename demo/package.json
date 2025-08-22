@@ -1,5 +1,8 @@
 {
   "private": true,
+  "imports": {
+    "#backpex": "./priv/static/js/backpex.esm.js"
+  },
   "scripts": {
     "test": "env $(cat .env.test | xargs) mix test",
     "test:playwright": "env $(cat .env.test | xargs) mix test --include playwright:true",

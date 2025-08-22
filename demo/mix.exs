@@ -90,8 +90,13 @@ defmodule Demo.MixProject do
       "ecto.reset": ["ecto.rollback --all", "ecto.setup"],
       test: ["ecto.create --quiet", "ecto.migrate --quiet", "test --warnings-as-errors"],
       "assets.setup": ["tailwind.install --if-missing", "esbuild.install --if-missing"],
-      "assets.build": ["tailwind default", "esbuild default"],
-      "assets.deploy": ["tailwind default --minify", "esbuild default --minify", "phx.digest"]
+      "assets.build": ["tailwind default", "esbuild backpex", "esbuild default"],
+      "assets.deploy": [
+        "tailwind default --minify",
+        "esbuild backpex --minify",
+        "esbuild default --minify",
+        "phx.digest"
+      ]
     ]
   end
 
