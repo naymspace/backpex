@@ -23,7 +23,7 @@
     "gettext": "mix gettext.extract --merge"
   },
   "devDependencies": {
-    "@sentry/browser": "10.6.0",
+    "@sentry/browser": "10.7.0",
     "npm-run-all2": "8.0.4",
     "playwright": "1.55.0",
     "postcss": "8.5.6",
