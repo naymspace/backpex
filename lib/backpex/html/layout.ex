@@ -8,6 +8,42 @@ defmodule Backpex.HTML.Layout do
   alias Backpex.Router
   require Backpex
 
+  @doc false
+  slot :inner_content
+
+  def layout(assigns) do
+    case assigns.live_resource.config(:layout) do
+      {module, fun} ->
+        apply(module, fun, [assigns])
+
+      fun when is_function(fun, 1) ->
+        fun.(assigns)
+
+      wrong_config ->
+        raise ArgumentError, """
+        Invalid layout configuration for Backpex LiveResource.
+
+        Expected one of:
+          • A tuple with module and function: {MyAppWeb.Layouts, :admin}
+          • A function reference: &MyAppWeb.Layouts.admin/1
+
+        Got: #{inspect(wrong_config)}
+
+        Examples of valid configurations:
+
+          # Option 1: Module and function tuple
+          use Backpex.LiveResource,
+            layout: {MyAppWeb.Layouts, :admin}
+
+          # Option 2: Function capture
+          use Backpex.LiveResource,
+            layout: &MyAppWeb.Layouts.admin/1
+
+        Make sure your layout function accepts assigns and returns rendered HTML.
+        """
+    end
+  end
+
   @doc """
   Renders an app shell representing the base of your layout.
   """

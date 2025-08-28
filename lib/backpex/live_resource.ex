@@ -32,7 +32,7 @@ defmodule Backpex.LiveResource do
     ],
     layout: [
       doc: "Layout to be used by the LiveResource.",
-      type: :mod_arg,
+      type: {:or, [:mod_arg, {:fun, 1}]},
       required: true
     ],
     pubsub: [
@@ -312,7 +312,7 @@ defmodule Backpex.LiveResource do
         defmodule String.to_atom("#{__MODULE__}.#{action}") do
           @resource_opts NimbleOptions.validate!(opts, options_schema)
 
-          use Phoenix.LiveView, layout: @resource_opts[:layout]
+          use Phoenix.LiveView
 
           @action_module String.to_existing_atom("Elixir.Backpex.LiveResource.#{action}")
 
