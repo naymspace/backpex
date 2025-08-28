@@ -3,7 +3,7 @@ import * as Sentry from '@sentry/browser'
 import topbar from 'topbar'
 import { Socket } from 'phoenix'
 import { LiveSocket } from 'phoenix_live_view'
-// import { hooks as colocatedHooks } from 'phoenix-colocated/demo'
+import { hooks as colocatedHooks } from 'phoenix-colocated/demo'
 // in your app.js, just use 'backpex' like this:
 // import { Hooks as BackpexHooks } from 'backpex'
 import { Hooks as BackpexHooks } from '#backpex'
@@ -35,7 +35,7 @@ const csrfToken = document.querySelector("meta[name='csrf-token']").getAttribute
 
 const liveSocket = new LiveSocket('/live', Socket, {
   params: { _csrf_token: csrfToken },
-  hooks: { ...BackpexHooks }
+  hooks: { ...BackpexHooks, ...colocatedHooks }
 })
 
 liveSocket.connect()
