@@ -100,8 +100,7 @@ defmodule Backpex.Adapters.EctoTest do
     end
 
     test "adds tsquery fragment for non-empty search string" do
-      schema_alias = EctoAdapter.name_by_schema(TestUser)
-      base_query = from(TestUser, as: ^schema_alias)
+      base_query = from(TestUser, as: ^EctoAdapter.name_by_schema(TestUser))
 
       query = EctoAdapter.apply_search(base_query, TestUser, :title, {"hello world", []})
 
