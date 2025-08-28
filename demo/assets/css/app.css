@@ -1,6 +1,6 @@
 @import "tailwindcss";
 
-@plugin "./tailwind_heroicons.js";
+@plugin "../vendor/heroicons";
 
 @plugin "daisyui" {
   themes: all;

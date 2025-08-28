@@ -22,7 +22,7 @@ defmodule DemoWeb.Endpoint do
   plug Plug.Static,
     at: "/",
     from: :demo,
-    gzip: true,
+    gzip: not code_reloading?,
     only: ~w(assets images uploads favicon.ico robots.txt)
 
   # Code reloading can be explicitly enabled under the

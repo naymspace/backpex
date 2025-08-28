@@ -66,7 +66,7 @@ config :tailwind,
     cd: Path.expand("..", __DIR__)
   ]
 
-config :logger, :console,
+config :logger, :default_formatter,
   format: "$time $metadata[$level] $message\n",
   metadata: [:request_id]
 

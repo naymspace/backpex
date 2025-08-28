@@ -64,6 +64,7 @@ RUN yarn install --pure-lockfile
 COPY demo/assets assets/
 COPY demo/lib lib/
 
+RUN mix compile
 RUN mix assets.deploy
 
 # Copy the rest of the application files
