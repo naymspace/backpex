@@ -53,7 +53,7 @@ defmodule Backpex.MixProject do
       {:money, "~> 1.13"},
 
       # phoenix
-      {:phoenix, "~> 1.7.6"},
+      {:phoenix, "~> 1.7"},
       {:phoenix_html, "~> 4.1"},
       {:phoenix_html_helpers, "~> 1.0"},
       {:phoenix_live_view, "~> 1.0"},
