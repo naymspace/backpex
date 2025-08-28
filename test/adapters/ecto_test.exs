@@ -29,6 +29,11 @@ defmodule Backpex.Adapters.EctoTest do
       send(self(), {:repo_one, query})
       nil
     end
+
+    def aggregate(queryable, :count) do
+      send(self(), {:repo_aggregate_count, queryable})
+      0
+    end
   end
 
   defmodule TestLiveResource do
@@ -36,6 +41,7 @@ defmodule Backpex.Adapters.EctoTest do
     def adapter_config(:schema), do: Backpex.Adapters.EctoTest.TestUser
     def adapter_config(:item_query), do: &Backpex.Adapters.Ecto.default_item_query/3
     def config(:primary_key), do: :id
+    def config(:full_text_search), do: nil
     def validated_fields, do: []
   end
 
@@ -186,6 +192,45 @@ defmodule Backpex.Adapters.EctoTest do
       assert expr_str =~ "websearch_to_tsquery"
       assert expr_str =~ "@@"
       assert expr_str =~ "title"
+    end
+  end
+
+  describe "count/3" do
+    test "builds subquery without select/preload and calls aggregate(:count)" do
+      live_resource = Backpex.Adapters.EctoTest.TestLiveResource
+      assigns = %{live_resource: live_resource, live_action: :index}
+
+      criteria = [search: {"", []}, filters: []]
+
+      assert {:ok, 0} = EctoAdapter.count(criteria, assigns, live_resource)
+
+      assert_received {:repo_aggregate_count, %Ecto.SubQuery{query: inner}}
+
+      # inner query should be built on TestUser
+      assert %Ecto.Query{from: %Ecto.Query.FromExpr{source: {_source, Backpex.Adapters.EctoTest.TestUser}}} = inner
+
+      # exclude(:preload) and exclude(:select)
+      assert inner.preloads in [[], nil]
+      assert is_nil(inner.select)
+    end
+
+    test "applies search before subquery" do
+      live_resource = Backpex.Adapters.EctoTest.TestLiveResource
+      assigns = %{live_resource: live_resource, live_action: :index}
+
+      searchable_fields = [
+        {:title, %{module: Backpex.Fields.Text, queryable: TestUser}}
+      ]
+
+      criteria = [search: {"foo", searchable_fields}, filters: []]
+
+      assert {:ok, 0} = EctoAdapter.count(criteria, assigns, live_resource)
+
+      assert_received {:repo_aggregate_count, %Ecto.SubQuery{query: inner}}
+
+      # search ilike should be in inner where expressions
+      assert [%{expr: ilike_expr}] = inner.wheres
+      assert match?({:ilike, _, _}, ilike_expr)
     end
   end
 end
