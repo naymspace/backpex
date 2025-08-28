@@ -37,9 +37,9 @@ defmodule Backpex.Adapters.EctoTest do
   end
 
   defmodule TestLiveResource do
-    def adapter_config(:repo), do: Backpex.Adapters.EctoTest.CaptureRepo
-    def adapter_config(:schema), do: Backpex.Adapters.EctoTest.TestUser
-    def adapter_config(:item_query), do: &Backpex.Adapters.Ecto.default_item_query/3
+    def adapter_config(:repo), do: CaptureRepo
+    def adapter_config(:schema), do: TestUser
+    def adapter_config(:item_query), do: &EctoAdapter.default_item_query/3
     def config(:primary_key), do: :id
     def config(:full_text_search), do: nil
     def validated_fields, do: []
@@ -122,7 +122,7 @@ defmodule Backpex.Adapters.EctoTest do
 
   describe "get/3" do
     test "builds query with distinct and id filter and calls repo.one" do
-      live_resource = Backpex.Adapters.EctoTest.TestLiveResource
+      live_resource = TestLiveResource
       assigns = %{live_resource: live_resource, live_action: :show}
 
       assert {:ok, nil} = EctoAdapter.get(123, assigns, live_resource)
@@ -140,7 +140,7 @@ defmodule Backpex.Adapters.EctoTest do
     end
 
     test "raises on invalid id casting for :id primary key" do
-      live_resource = Backpex.Adapters.EctoTest.TestLiveResource
+      live_resource = TestLiveResource
       assigns = %{live_resource: live_resource, live_action: :show}
 
       assert_raise Ecto.NoResultsError, fn ->
@@ -150,9 +150,9 @@ defmodule Backpex.Adapters.EctoTest do
 
     test "handles binary_id schemas: valid uuid creates equality where, invalid raises" do
       defmodule LiveResourceUUID do
-        def adapter_config(:repo), do: Backpex.Adapters.EctoTest.CaptureRepo
-        def adapter_config(:schema), do: Backpex.Adapters.EctoTest.TestUUID
-        def adapter_config(:item_query), do: &Backpex.Adapters.Ecto.default_item_query/3
+        def adapter_config(:repo), do: CaptureRepo
+        def adapter_config(:schema), do: TestUUID
+        def adapter_config(:item_query), do: &EctoAdapter.default_item_query/3
         def config(:primary_key), do: :id
         def validated_fields, do: []
       end
@@ -197,7 +197,7 @@ defmodule Backpex.Adapters.EctoTest do
 
   describe "count/3" do
     test "builds subquery without select/preload and calls aggregate(:count)" do
-      live_resource = Backpex.Adapters.EctoTest.TestLiveResource
+      live_resource = TestLiveResource
       assigns = %{live_resource: live_resource, live_action: :index}
 
       criteria = [search: {"", []}, filters: []]
@@ -207,7 +207,7 @@ defmodule Backpex.Adapters.EctoTest do
       assert_received {:repo_aggregate_count, %Ecto.SubQuery{query: inner}}
 
       # inner query should be built on TestUser
-      assert %Ecto.Query{from: %Ecto.Query.FromExpr{source: {_source, Backpex.Adapters.EctoTest.TestUser}}} = inner
+      assert %Ecto.Query{from: %Ecto.Query.FromExpr{source: {_source, TestUser}}} = inner
 
       # exclude(:preload) and exclude(:select)
       assert inner.preloads in [[], nil]
@@ -215,7 +215,7 @@ defmodule Backpex.Adapters.EctoTest do
     end
 
     test "applies search before subquery" do
-      live_resource = Backpex.Adapters.EctoTest.TestLiveResource
+      live_resource = TestLiveResource
       assigns = %{live_resource: live_resource, live_action: :index}
 
       searchable_fields = [
