@@ -59,7 +59,7 @@ defmodule Demo.MixProject do
 
       # phoenix
       {:bandit, "~> 1.0"},
-      {:phoenix, "~> 1.7.6"},
+      {:phoenix, "~> 1.8.0"},
       {:phoenix_pubsub, "~> 2.0"},
       {:phoenix_live_view, "~> 1.1"},
       {:phoenix_live_dashboard, "~> 0.8"},
