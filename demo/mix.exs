@@ -17,12 +17,6 @@ defmodule Demo.MixProject do
     ]
   end
 
-  def cli do
-    [
-      preferred_envs: [precommit: :test]
-    ]
-  end
-
   def application do
     [
       mod: {Demo.Application, []},
@@ -104,8 +98,7 @@ defmodule Demo.MixProject do
         "esbuild backpex --minify",
         "esbuild default --minify",
         "phx.digest"
-      ],
-      precommit: ["compile --warning-as-errors", "deps.unlock --unused", "format", "test"]
+      ]
     ]
   end
 
