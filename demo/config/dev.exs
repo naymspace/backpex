@@ -22,20 +22,17 @@ config :demo, DemoWeb.Endpoint,
   ],
   live_reload: [
     patterns: [
-      ~r"demo/priv/static/.*(js|css|png|jpeg|jpg|gif|svg)$",
-      ~r"demo/priv/gettext/.*(po)$",
-      ~r"demo/lib/demo_web/helpers.ex$",
-      ~r"demo/lib/demo_web/(live|views)/.*(ex)$",
-      ~r"demo/lib/demo_web/templates/.*(eex)$",
-      ~r"lib/backpex/(fields|html)/.*(ex)$",
-      ~r"priv/static/js/.*(js)$"
+      ~r"priv/static/.*(js|css|png|jpeg|jpg|gif|svg)$",
+      ~r"priv/gettext/.*(po)$",
+      ~r"lib/demo_web/(?:controllers|live|components|router)/?.*\.(ex|heex)$",
+      ~r"lib/backpex/(fields|html)/.*(ex)$"
     ]
   ],
   force_ssl: [hsts: true],
   http: [port: 4000],
   reloadable_apps: [:demo, :backpex]
 
-config :logger, :console, format: "[$level] $message\n"
+config :logger, :default_formatter, format: "[$level] $message\n"
 
 config :phoenix, :stacktrace_depth, 20
 
