@@ -22,11 +22,10 @@ config :demo, DemoWeb.Endpoint,
   ],
   live_reload: [
     patterns: [
-      ~r"demo/priv/static/.*(js|css|png|jpeg|jpg|gif|svg)$",
-      ~r"demo/priv/gettext/.*(po)$",
+      ~r"priv/static/.*(js|css|png|jpeg|jpg|gif|svg)$",
+      ~r"priv/gettext/.*(po)$",
       ~r"lib/demo_web/(?:controllers|live|components|router)/?.*\.(ex|heex)$",
-      ~r"lib/backpex/(fields|html)/.*(ex)$",
-      ~r"priv/static/js/.*(js)$"
+      ~r"lib/backpex/(fields|html)/.*(ex)$"
     ]
   ],
   force_ssl: [hsts: true],
