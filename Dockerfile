@@ -41,6 +41,8 @@ ENV PATH=/opt/scripts/:/opt/app/_build/prod/rel/demo/bin:$PATH
 ARG MIX_ENV=prod
 ENV MIX_ENV=$MIX_ENV
 
+RUN yarn install --pure-lockfile
+
 RUN mkdir demo
 WORKDIR $APP_HOME/demo
 
