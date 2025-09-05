@@ -318,8 +318,7 @@ defmodule Backpex.LiveResource.Index do
   end
 
   defp assign_active_fields(socket, session) do
-    %{live_resource: live_resource} = socket.assigns
-    fields = live_resource.fields(:index, socket.assigns)
+    fields = socket.assigns.live_resource.fields(:index, socket.assigns)
 
     saved_fields = get_in(session, ["backpex", "column_toggle", "#{socket.assigns.live_resource}"]) || %{}
 
