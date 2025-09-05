@@ -48,6 +48,7 @@ defmodule Demo.MixProject do
       {:phoenix_test_playwright, "~> 0.7.0", only: :test, runtime: false},
       {:a11y_audit, "~> 0.2.3", only: :test},
       {:live_debugger, "~> 0.3", only: :dev},
+      {:quokka, "~> 2.9", only: [:dev, :test], runtime: false},
 
       # core
       {:dns_cluster, "~> 0.2.0"},
@@ -102,7 +103,7 @@ defmodule Demo.MixProject do
     ]
   end
 
-  defp gettext() do
+  defp gettext do
     [
       write_reference_comments: false,
       sort_by_msgid: :case_insensitive

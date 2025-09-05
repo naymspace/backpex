@@ -218,15 +218,15 @@ defmodule Backpex.Fields.MultiSelect do
   end
 
   defp maybe_apply_search(options, search_input) do
-    if String.trim(search_input) != "" do
+    if String.trim(search_input) == "" do
+      options
+    else
       search_input_downcase = String.downcase(search_input)
 
       Enum.filter(options, fn {label, _value} ->
         String.downcase(label)
         |> String.contains?(search_input_downcase)
       end)
-    else
-      options
     end
   end
 

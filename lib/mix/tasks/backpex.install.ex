@@ -152,8 +152,8 @@ if Code.ensure_loaded?(Igniter) do
 
       with false <- Igniter.exists?(igniter, "assets/vendor/daisyui.js"),
            false <- Helpers.npm_package_installed?(@daisyui_version),
-           :ok <- install_daisyui_via_npm(),
-           igniter <- Helpers.add_line_to_file(igniter, app_css_path, "@plugin \"daisyui\"") do
+           :ok <- install_daisyui_via_npm() do
+        igniter = Helpers.add_line_to_file(igniter, app_css_path, "@plugin \"daisyui\"")
         Igniter.add_notice(igniter, "Installed daisyUI via npm.")
       else
         true ->
