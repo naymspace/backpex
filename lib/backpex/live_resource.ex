@@ -725,7 +725,6 @@ defmodule Backpex.LiveResource do
   def build_criteria(assigns) do
     %{
       live_resource: live_resource,
-      live_action: live_action,
       filters: filters,
       query_options: query_options,
       init_order: init_order,
