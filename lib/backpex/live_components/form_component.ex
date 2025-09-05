@@ -262,7 +262,7 @@ defmodule Backpex.FormComponent do
       end
     ]
 
-    case Resource.update(item, params, socket.assigns, fields, live_resource, opts) do
+    case Resource.update(item, params, fields, socket.assigns, live_resource, opts) do
       {:ok, item} ->
         return_to = return_to_path(save_type, live_resource, socket, socket.assigns, live_action, item)
 
