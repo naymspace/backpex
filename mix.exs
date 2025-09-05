@@ -46,6 +46,7 @@ defmodule Backpex.MixProject do
       {:sobelow, ">= 0.0.0", only: [:dev, :test]},
       {:lazy_html, ">= 0.0.0", only: :test},
       {:esbuild, "~> 0.2", only: :dev},
+      {:quokka, "~> 2.9", only: [:dev, :test], runtime: false},
 
       # core
       {:nimble_options, "~> 1.1"},
@@ -98,7 +99,7 @@ defmodule Backpex.MixProject do
     ]
   end
 
-  defp docs() do
+  defp docs do
     [
       main: "readme",
       logo: "priv/static/images/logo.svg",
@@ -237,7 +238,7 @@ defmodule Backpex.MixProject do
     ]
   end
 
-  defp gettext() do
+  defp gettext do
     [
       write_reference_comments: false,
       sort_by_msgid: :case_insensitive

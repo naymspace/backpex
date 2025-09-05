@@ -291,7 +291,7 @@ defmodule Backpex.Field do
       def search_condition(schema_name, field_name, search_string) do
         dynamic(
           [{^schema_name, schema_name}],
-          ilike(schema_name |> field(^field_name), ^search_string)
+          schema_name |> field(^field_name) |> ilike(^search_string)
         )
       end
 
@@ -387,11 +387,9 @@ defmodule Backpex.Field do
   Returns a map of types from a list of fields used for the Ecto changeset.
   """
   def changeset_types(fields) do
-    fields
-    |> Enum.map(fn {name, field_options} ->
+    Map.new(fields, fn {name, field_options} ->
       {name, field_options.type}
     end)
-    |> Enum.into(%{})
   end
 
   @doc """
@@ -414,14 +412,15 @@ defmodule Backpex.Field do
 
     result = Backpex.Resource.update(item, change, fields, assigns, live_resource, opts)
 
-    socket =
+    valid =
       case result do
-        {:ok, _item} ->
-          assign(socket, :valid, true)
-
-        _error ->
-          assign(socket, :valid, false)
+        {:ok, _item} -> true
+        _error -> false
       end
+
+    socket =
+      socket
+      |> assign(:valid, valid)
       |> assign(:form, Phoenix.Component.to_form(%{"value" => value}, as: :index_form))
 
     {:noreply, socket}

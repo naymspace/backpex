@@ -770,12 +770,7 @@ defmodule Backpex.Fields.Upload do
 
   defp allow_field_uploads(socket, _field_options, 0, _max_file_size), do: socket
 
-  defp allow_field_uploads(
-         socket,
-         %{external: presign_upload} = field_options,
-         max_entries,
-         max_file_size
-       ) do
+  defp allow_field_uploads(socket, %{external: presign_upload} = field_options, max_entries, max_file_size) do
     Phoenix.LiveView.allow_upload(socket, field_options.upload_key,
       accept: field_options.accept,
       max_entries: max_entries,
