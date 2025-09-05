@@ -360,11 +360,11 @@ defmodule Backpex.LiveResource.Index do
   end
 
   defp update_item(socket, item) do
-    %{live_resource: live_resource, items: items} = socket.assigns
+    %{live_resource: live_resource, fields: fields, items: items} = socket.assigns
 
     primary_value = LiveResource.primary_value(item, live_resource)
     primary_value_str = to_string(primary_value)
-    {:ok, updated_item} = Resource.get(primary_value, socket.assigns, live_resource)
+    {:ok, updated_item} = Resource.get(primary_value, socket.assigns, live_resource, fields)
 
     updated_items =
       Enum.map(items, fn current_item ->
@@ -446,7 +446,7 @@ defmodule Backpex.LiveResource.Index do
       filters: LiveResource.filter_options(valid_filter_params, filters)
     ]
 
-    {:ok, item_count} = Resource.count(count_criteria, socket.assigns, live_resource)
+    {:ok, item_count} = Resource.count(count_criteria, socket.assigns, live_resource, fields)
 
     per_page =
       params
@@ -555,7 +555,7 @@ defmodule Backpex.LiveResource.Index do
       filters: LiveResource.filter_options(valid_filter_params, filters)
     ]
 
-    {:ok, item_count} = Resource.count(count_criteria, socket.assigns, live_resource)
+    {:ok, item_count} = Resource.count(count_criteria, socket.assigns, live_resource, fields)
     %{page: page, per_page: per_page} = query_options
     total_pages = LiveResource.calculate_total_pages(item_count, per_page)
     new_query_options = Map.put(query_options, :page, LiveResource.validate_page(page, total_pages))
@@ -588,7 +588,7 @@ defmodule Backpex.LiveResource.Index do
           filters: LiveResource.filter_options(query_options, filters)
         ]
 
-        query = EctoAdapter.list_query(criteria, socket.assigns, live_resource)
+        query = EctoAdapter.list_query(criteria, socket.assigns, live_resource, fields)
 
         case Backpex.Metric.metrics_visible?(metric_visibility, live_resource) do
           true ->
@@ -611,8 +611,12 @@ defmodule Backpex.LiveResource.Index do
   end
 
   defp assign_items(socket) do
-    criteria = LiveResource.build_criteria(socket.assigns)
-    {:ok, items} = Resource.list(criteria, socket.assigns, socket.assigns.live_resource)
+    %{assigns: %{live_resource: live_resource, fields: fields} = assigns} = socket
+
+    {:ok, items} =
+      assigns
+      |> LiveResource.build_criteria()
+      |> Resource.list(assigns, live_resource, fields)
 
     assign(socket, :items, items)
   end

@@ -203,7 +203,7 @@ defmodule Backpex.FormComponent do
   defp handle_save(socket, key, params, save_type \\ "save")
 
   defp handle_save(socket, :new, params, save_type) do
-    %{assigns: %{live_resource: live_resource, item: item, live_action: live_action} = assigns} = socket
+    %{assigns: %{live_resource: live_resource, fields: fields, item: item, live_action: live_action} = assigns} = socket
 
     opts = [
       assocs: Map.get(assigns, :assocs, []),
@@ -215,7 +215,7 @@ defmodule Backpex.FormComponent do
       end
     ]
 
-    case Resource.insert(item, params, socket.assigns, live_resource, opts) do
+    case Resource.insert(item, params, socket.assigns, live_resource, fields, opts) do
       {:ok, item} ->
         return_to = return_to_path(save_type, live_resource, socket, socket.assigns, live_action, item)
 
@@ -248,7 +248,8 @@ defmodule Backpex.FormComponent do
     %{
       live_resource: live_resource,
       item: item,
-      live_action: live_action
+      live_action: live_action,
+      fields: fields
     } = socket.assigns
 
     opts = [
@@ -261,7 +262,7 @@ defmodule Backpex.FormComponent do
       end
     ]
 
-    case Resource.update(item, params, socket.assigns, live_resource, opts) do
+    case Resource.update(item, params, socket.assigns, fields, live_resource, opts) do
       {:ok, item} ->
         return_to = return_to_path(save_type, live_resource, socket, socket.assigns, live_action, item)
 

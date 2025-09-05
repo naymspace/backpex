@@ -29,7 +29,7 @@ if Code.ensure_loaded?(Ash) do
     Returns `nil` if no result was found.
     """
     @impl Backpex.Adapter
-    def get(primary_value, _assigns, live_resource) do
+    def get(primary_value, _assigns, live_resource, _fields) do
       resource = live_resource.adapter_config(:resource)
       primary_key = live_resource.config(:primary_key)
 
@@ -42,7 +42,7 @@ if Code.ensure_loaded?(Ash) do
     Returns a list of items by given criteria.
     """
     @impl Backpex.Adapter
-    def list(_criteria, _assigns, live_resource) do
+    def list(_criteria, _assigns, live_resource, _fields) do
       live_resource.adapter_config(:resource)
       |> Ash.read()
     end
@@ -51,7 +51,7 @@ if Code.ensure_loaded?(Ash) do
     Returns the number of items matching the given criteria.
     """
     @impl Backpex.Adapter
-    def count(_criteria, _assigns, live_resource) do
+    def count(_criteria, _assigns, live_resource, _fields) do
       live_resource.adapter_config(:resource)
       |> Ash.count()
     end
