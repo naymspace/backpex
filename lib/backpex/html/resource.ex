@@ -102,7 +102,7 @@ defmodule Backpex.HTML.Resource do
   attr :fields, :list, required: true, doc: "list of all fields provided by the resource configuration"
 
   def resource_field(assigns) do
-    %{name: name, item: item, fields: fields, live_resource: live_resource} = assigns
+    %{name: name, item: item, live_resource: live_resource, fields: fields} = assigns
 
     {_name, field_options} = field = Enum.find(fields, fn {field_name, _field_options} -> field_name == name end)
 
@@ -212,9 +212,9 @@ defmodule Backpex.HTML.Resource do
     computed = [
       filter_count: Enum.count(assigns.filter_options),
       filter_icon_class:
-        if(assigns.filter_options != %{},
-          do: "text-primary group-hover:text-primary-content",
-          else: "text-primary/75 group-hover:text-primary-content"
+        if(assigns.filter_options == %{},
+          do: "text-primary/75 group-hover:text-primary-content",
+          else: "text-primary group-hover:text-primary-content"
         )
     ]
 

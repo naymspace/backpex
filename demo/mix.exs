@@ -12,7 +12,8 @@ defmodule Demo.MixProject do
       start_permanent: Mix.env() == :prod,
       deps: deps(),
       aliases: aliases(),
-      gettext: gettext()
+      gettext: gettext(),
+      listeners: [Phoenix.CodeReloader]
     ]
   end
 
@@ -43,10 +44,11 @@ defmodule Demo.MixProject do
       {:ex_machina, "~> 2.3"},
       {:smokestack, "~> 0.9.2"},
       {:faker, "~> 0.18"},
-      {:phoenix_test, "~> 0.7.0", only: :test, runtime: false},
+      {:phoenix_test, "~> 0.7.1", only: :test, runtime: false},
       {:phoenix_test_playwright, "~> 0.7.0", only: :test, runtime: false},
       {:a11y_audit, "~> 0.2.3", only: :test},
       {:live_debugger, "~> 0.3", only: :dev},
+      {:quokka, "~> 2.9", only: [:dev, :test], runtime: false},
 
       # core
       {:dns_cluster, "~> 0.2.0"},
@@ -59,7 +61,7 @@ defmodule Demo.MixProject do
 
       # phoenix
       {:bandit, "~> 1.0"},
-      {:phoenix, "~> 1.7.6"},
+      {:phoenix, "~> 1.8.0"},
       {:phoenix_pubsub, "~> 2.0"},
       {:phoenix_live_view, "~> 1.1"},
       {:phoenix_live_dashboard, "~> 0.8"},
@@ -101,7 +103,7 @@ defmodule Demo.MixProject do
     ]
   end
 
-  defp gettext() do
+  defp gettext do
     [
       write_reference_comments: false,
       sort_by_msgid: :case_insensitive

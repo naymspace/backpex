@@ -323,8 +323,7 @@ defmodule Backpex.HTML.Form do
   def form_errors?(false, _form), do: false
   def form_errors?(true = _show_errors, form), do: form.errors != []
 
-  def translate_form_errors(errors, translate_error_fun)
-      when is_function(translate_error_fun, 1) do
+  def translate_form_errors(errors, translate_error_fun) when is_function(translate_error_fun, 1) do
     errors
     |> Enum.map(fn error ->
       error

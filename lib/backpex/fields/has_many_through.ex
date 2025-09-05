@@ -154,16 +154,10 @@ defmodule Backpex.Fields.HasManyThrough do
       <table class="table">
         <thead class="bg-base-200/50 text-base-content uppercase">
           <tr>
-            <th
-              :for={{_name, %{label: label}} <- action_fields(@field_options.child_fields, assigns, :index)}
-              class="font-medium"
-            >
+            <th :for={{_name, %{label: label}} <- action_fields(@field_options.child_fields, :index)} class="font-medium">
               {label}
             </th>
-            <th
-              :for={{_name, %{label: label}} <- action_fields(@field_options.pivot_fields, assigns, :index)}
-              class="font-medium"
-            >
+            <th :for={{_name, %{label: label}} <- action_fields(@field_options.pivot_fields, :index)} class="font-medium">
               {label}
             </th>
             <th></th>
@@ -171,7 +165,7 @@ defmodule Backpex.Fields.HasManyThrough do
         </thead>
         <tbody class="text-base-content/75">
           <tr :for={{listable, index} <- Enum.with_index(@listables)}>
-            <td :for={{name, field_options} = field <- action_fields(@field_options.child_fields, assigns, :index)}>
+            <td :for={{name, field_options} = field <- action_fields(@field_options.child_fields, :index)}>
               <.live_component
                 id={"child_table_#{name}_#{index}"}
                 module={field_options.module}
@@ -183,7 +177,7 @@ defmodule Backpex.Fields.HasManyThrough do
                 {assigns}
               />
             </td>
-            <td :for={{name, field_options} = field <- action_fields(@field_options.pivot_fields, assigns, :index)}>
+            <td :for={{name, field_options} = field <- action_fields(@field_options.pivot_fields, :index)}>
               <.live_component
                 id={"pivot_table_#{name}_#{index}"}
                 module={field_options.module}
@@ -252,13 +246,13 @@ defmodule Backpex.Fields.HasManyThrough do
             <thead class="bg-base-200/50 text-base-content uppercase">
               <tr>
                 <th
-                  :for={{_name, %{label: label}} <- action_fields(@field_options.child_fields, assigns, :index)}
+                  :for={{_name, %{label: label}} <- action_fields(@field_options.child_fields, :index)}
                   class="font-medium"
                 >
                   {label}
                 </th>
                 <th
-                  :for={{_name, %{label: label}} <- action_fields(@field_options.pivot_fields, assigns, :index)}
+                  :for={{_name, %{label: label}} <- action_fields(@field_options.pivot_fields, :index)}
                   class="font-medium"
                 >
                   {label}
@@ -271,7 +265,7 @@ defmodule Backpex.Fields.HasManyThrough do
                 :for={{listable, index} <- Enum.with_index(@listables)}
                 class="border-b-[1px] border-base-content/10 last:border-b-0"
               >
-                <td :for={{name, field_options} <- action_fields(@field_options.child_fields, assigns, :index)}>
+                <td :for={{name, field_options} <- action_fields(@field_options.child_fields, :index)}>
                   <.live_component
                     id={"child_table_#{name}_#{index}"}
                     module={field_options.module}
@@ -281,7 +275,7 @@ defmodule Backpex.Fields.HasManyThrough do
                     {assigns}
                   />
                 </td>
-                <td :for={{name, field_options} <- action_fields(@field_options.pivot_fields, assigns, :index)}>
+                <td :for={{name, field_options} <- action_fields(@field_options.pivot_fields, :index)}>
                   <.live_component
                     id={"pivot_table_#{name}_#{index}"}
                     module={field_options.module}
@@ -414,7 +408,11 @@ defmodule Backpex.Fields.HasManyThrough do
     {:noreply, socket}
   end
 
-  defp action_fields(fields, assigns, action), do: LiveResource.filtered_fields_by_action(fields, assigns, action)
+  defp action_fields(fields, action) do
+    # Currently, the fields are only filtered by action, not by the fields `can?` option.
+    # See https://github.com/naymspace/backpex/pull/1271
+    LiveResource.fields_by_action(fields, action)
+  end
 
   defp assign_fallback_child_fields(assigns) do
     case Map.has_key?(assigns.field_options, :child_fields) do
@@ -422,7 +420,10 @@ defmodule Backpex.Fields.HasManyThrough do
         assigns
 
       false ->
-        fields = assigns.field_options.live_resource.validated_fields()
+        # It's currently not supported to add a `can?` options to the child fields. Therefore we
+        # are passing an empty map as the assigns.
+        # See https://github.com/naymspace/backpex/pull/1271
+        fields = assigns.field_options.live_resource.fields(:index, %{})
         new_field_options = Map.put(assigns.field_options, :child_fields, fields)
 
         assigns
@@ -516,10 +517,7 @@ defmodule Backpex.Fields.HasManyThrough do
     end)
   end
 
-  defp maybe_sort_by(
-         [%{child: _child} | _tail] = items,
-         %{field: %{sort_by: column_names}} = _assigns
-       ) do
+  defp maybe_sort_by([%{child: _child} | _tail] = items, %{field: %{sort_by: column_names}} = _assigns) do
     items
     |> Enum.sort_by(fn item ->
       column_names

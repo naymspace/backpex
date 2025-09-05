@@ -1,7 +1,7 @@
 defmodule Backpex.MixProject do
   use Mix.Project
 
-  @version "0.14.0"
+  @version "0.15.0"
 
   @source_url "https://github.com/naymspace/backpex"
   @changelog_url "https://github.com/naymspace/backpex/releases"
@@ -46,6 +46,7 @@ defmodule Backpex.MixProject do
       {:sobelow, ">= 0.0.0", only: [:dev, :test]},
       {:lazy_html, ">= 0.0.0", only: :test},
       {:esbuild, "~> 0.2", only: :dev},
+      {:quokka, "~> 2.9", only: [:dev, :test], runtime: false},
 
       # core
       {:nimble_options, "~> 1.1"},
@@ -55,7 +56,7 @@ defmodule Backpex.MixProject do
       {:money, "~> 1.13"},
 
       # phoenix
-      {:phoenix, "~> 1.7.6"},
+      {:phoenix, ">= 1.7.6 and < 1.9.0"},
       {:phoenix_html, "~> 4.1"},
       {:phoenix_html_helpers, "~> 1.0"},
       {:phoenix_live_view, "~> 1.0"},
@@ -98,7 +99,7 @@ defmodule Backpex.MixProject do
     ]
   end
 
-  defp docs() do
+  defp docs do
     [
       main: "readme",
       logo: "priv/static/images/logo.svg",
@@ -237,7 +238,7 @@ defmodule Backpex.MixProject do
     ]
   end
 
-  defp gettext() do
+  defp gettext do
     [
       write_reference_comments: false,
       sort_by_msgid: :case_insensitive
