@@ -232,7 +232,7 @@ defmodule Backpex.FormComponent do
         |> push_navigate(to: return_to)
         |> noreply()
 
-      {:error, %struct{} = changeset} when struct in [Ecto.Changeset, Ash.Changeset] ->
+      {:error, changeset} ->
         form = Phoenix.Component.to_form(changeset, as: :change)
 
         send(self(), {:update_changeset, changeset})
@@ -279,7 +279,7 @@ defmodule Backpex.FormComponent do
         |> push_navigate(to: return_to)
         |> noreply()
 
-      {:error, %struct{} = changeset} when struct in [Ecto.Changeset, Ash.Changeset] ->
+      {:error, changeset} ->
         form = Phoenix.Component.to_form(changeset, as: :change)
 
         send(self(), {:update_changeset, changeset})
