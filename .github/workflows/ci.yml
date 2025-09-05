@@ -23,11 +23,15 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        elixir: ["1.17", "1.16"]
-        erlang: ["27.1", "26.2"]
-        exclude:
+        include:
           - elixir: "1.16"
-            erlang: "27.1"
+            otp: "26.2"
+
+          - elixir: "1.17"
+            otp: "27.3"
+
+          - elixir: "1.18"
+            otp: "28.0"
 
     steps:
       - name: Checkout code
@@ -35,7 +39,7 @@ jobs:
 
       - uses: erlef/setup-beam@e6d7c94229049569db56a7ad5a540c051a010af9 # v1.20.4
         with:
-          otp-version: ${{ matrix.erlang }}
+          otp-version: ${{ matrix.otp }}
           elixir-version: ${{ matrix.elixir }}
 
       - name: Setup node
@@ -54,8 +58,8 @@ jobs:
           path: |
             deps
             _build
-          key: ${{ runner.os }}-${{ matrix.elixir }}-${{ matrix.erlang }}-build-deps-mixlockhash-${{ env.MIX_LOCK_HASH }}
-          restore-keys:  ${{ runner.os }}-${{ matrix.elixir }}-${{ matrix.erlang }}-build-deps-
+          key: ${{ runner.os }}-${{ matrix.elixir }}-${{ matrix.otp }}-build-deps-mixlockhash-${{ env.MIX_LOCK_HASH }}
+          restore-keys:  ${{ runner.os }}-${{ matrix.elixir }}-${{ matrix.otp }}-build-deps-
 
       - name: Install dependencies
         if: steps.restore-cache.outputs.cache-hit != 'true'
