@@ -408,10 +408,8 @@ defmodule Backpex.Fields.HasManyThrough do
     {:noreply, socket}
   end
 
-  defp action_fields(fields, :resource_action), do: action_fields(fields, :index)
-
   defp action_fields(fields, action) do
-    # Currenly the fields are only filtered by action, not by the fields `can?` option.
+    # Currently, the fields are only filtered by action, not by the fields `can?` option.
     # See https://github.com/naymspace/backpex/pull/1271
     LiveResource.fields_by_action(fields, action)
   end
