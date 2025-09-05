@@ -398,7 +398,7 @@ defmodule Backpex.Field do
   Handles index editable.
   """
   def handle_index_editable(socket, value, change) do
-    %{assigns: %{item: item, live_resource: live_resource} = assigns} = socket
+    %{assigns: %{item: item, fields: fields, live_resource: live_resource} = assigns} = socket
 
     if not live_resource.can?(assigns, :edit, item) do
       raise Backpex.ForbiddenError
@@ -412,7 +412,7 @@ defmodule Backpex.Field do
       end
     ]
 
-    result = Backpex.Resource.update(item, change, assigns, live_resource, opts)
+    result = Backpex.Resource.update(item, change, fields, assigns, live_resource, opts)
 
     socket =
       case result do
