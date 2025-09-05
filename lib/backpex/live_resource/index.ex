@@ -364,7 +364,7 @@ defmodule Backpex.LiveResource.Index do
 
     primary_value = LiveResource.primary_value(item, live_resource)
     primary_value_str = to_string(primary_value)
-    {:ok, updated_item} = Resource.get(primary_value, socket.assigns, live_resource, fields)
+    {:ok, updated_item} = Resource.get(primary_value, fields, socket.assigns, live_resource)
 
     updated_items =
       Enum.map(items, fn current_item ->
@@ -446,7 +446,7 @@ defmodule Backpex.LiveResource.Index do
       filters: LiveResource.filter_options(valid_filter_params, filters)
     ]
 
-    {:ok, item_count} = Resource.count(count_criteria, socket.assigns, live_resource, fields)
+    {:ok, item_count} = Resource.count(count_criteria, fields, socket.assigns, live_resource)
 
     per_page =
       params
@@ -555,7 +555,7 @@ defmodule Backpex.LiveResource.Index do
       filters: LiveResource.filter_options(valid_filter_params, filters)
     ]
 
-    {:ok, item_count} = Resource.count(count_criteria, socket.assigns, live_resource, fields)
+    {:ok, item_count} = Resource.count(count_criteria, fields, socket.assigns, live_resource)
     %{page: page, per_page: per_page} = query_options
     total_pages = LiveResource.calculate_total_pages(item_count, per_page)
     new_query_options = Map.put(query_options, :page, LiveResource.validate_page(page, total_pages))
@@ -588,7 +588,7 @@ defmodule Backpex.LiveResource.Index do
           filters: LiveResource.filter_options(query_options, filters)
         ]
 
-        query = EctoAdapter.list_query(criteria, socket.assigns, live_resource, fields)
+        query = EctoAdapter.list_query(criteria, fields, socket.assigns, live_resource)
 
         case Backpex.Metric.metrics_visible?(metric_visibility, live_resource) do
           true ->
@@ -616,7 +616,7 @@ defmodule Backpex.LiveResource.Index do
     {:ok, items} =
       assigns
       |> LiveResource.build_criteria()
-      |> Resource.list(assigns, live_resource, fields)
+      |> Resource.list(fields, assigns, live_resource)
 
     assign(socket, :items, items)
   end
