@@ -25,6 +25,7 @@ Backpex supports the following live actions:
 - `:new` - The form for creating a new resource
 - `:edit` - The form for editing an existing resource
 - `:show` - The detailed view of a single resource
+- `:resource_action` - An open resource action on the list view
 
 ## Form Actions
 
