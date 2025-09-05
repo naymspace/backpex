@@ -27,7 +27,7 @@ defmodule MyAppWeb.Filters.PostCategorySelect do
   def prompt, do: "Select category ..."
 
   @impl Backpex.Filters.Select
-  def options do
+  def options(_assigns) do
     query =
       from p in Post,
         join: c in Category,

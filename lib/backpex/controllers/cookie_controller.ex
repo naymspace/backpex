@@ -1,5 +1,5 @@
 defmodule Backpex.CookieController do
-  use Phoenix.Controller
+  use Phoenix.Controller, formats: [:html, :json]
 
   import Plug.Conn
 

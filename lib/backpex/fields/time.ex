@@ -109,7 +109,7 @@ defmodule Backpex.Fields.Time do
           id={"index-form-input-#{@name}-#{LiveResource.primary_value(@item, @live_resource)}"}
           type="time"
           field={@form[:value]}
-          input_class={["input input-sm w-32", @valid && "not-hover:input-ghost", !@valid && "input-error"]}
+          input_class={["input input-sm", @valid && "not-hover:input-ghost", !@valid && "input-error bg-error/10"]}
           phx-debounce="100"
           readonly={@readonly}
           hide_errors

@@ -1,0 +1,27 @@
+<Backpex.HTML.Layout.app_shell fluid={@fluid?}>
+  <:topbar>
+    <Backpex.HTML.Layout.topbar_branding />
+
+    <Backpex.HTML.Layout.topbar_dropdown>
+      <:label>
+        <label tabindex="0" class="btn btn-square btn-ghost">
+          <.icon name="hero-user" class="size-6" />
+        </label>
+      </:label>
+      <li>
+        <.link navigate={~p"/"} class="flex justify-between text-error hover:bg-base-200">
+          <p>Logout</p>
+          <.icon name="hero-arrow-right-on-rectangle" class="size-5" />
+        </.link>
+      </li>
+    </Backpex.HTML.Layout.topbar_dropdown>
+  </:topbar>
+  <:sidebar>
+    <!-- Example Sidebar Item -->
+    <!-- <Backpex.HTML.Layout.sidebar_item current_url={@current_url} navigate={"/admin/users"}>
+      <.icon name="hero-users" class="size-5" /> Users
+    </Backpex.HTML.Layout.sidebar_item> -->
+  </:sidebar>
+  <Backpex.HTML.Layout.flash_messages flash={@flash} />
+    {@inner_content}
+</Backpex.HTML.Layout.app_shell>

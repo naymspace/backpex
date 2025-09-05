@@ -119,13 +119,15 @@ defmodule Backpex.Fields.Upload do
     ],
     remove_uploads: [
       doc: """
-      A function that is being called after saving an item to be able to delete removed files.
+      A function that is being called after editing an item to be able to delete removed files.
+
+      Note that this function is not invoked when an item is deleted. Therefore, you must implement file deletion logic in the `c:Backpex.LiveResource.on_item_deleted/2` callback.
 
       **Parameters**
 
       * `:socket` - The socket.
       * `:item` (struct) - The item without its changes.
-      * `removed_entries` (list) - A list of removed uploads during edit.
+      * `removed_entries` (list) - A list of removed uploads during edit. The list only contains files that existed before the edit.
 
       **Example**
 
@@ -768,12 +770,7 @@ defmodule Backpex.Fields.Upload do
 
   defp allow_field_uploads(socket, _field_options, 0, _max_file_size), do: socket
 
-  defp allow_field_uploads(
-         socket,
-         %{external: presign_upload} = field_options,
-         max_entries,
-         max_file_size
-       ) do
+  defp allow_field_uploads(socket, %{external: presign_upload} = field_options, max_entries, max_file_size) do
     Phoenix.LiveView.allow_upload(socket, field_options.upload_key,
       accept: field_options.accept,
       max_entries: max_entries,

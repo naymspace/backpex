@@ -16,9 +16,9 @@ defmodule Backpex.LiveResource.Form do
     |> assign(:live_resource, live_resource)
     |> assign(:panels, live_resource.panels())
     |> assign(:fluid?, live_resource.config(:fluid?))
+    |> assign(:fields, live_resource.fields(live_action, socket.assigns))
     |> assign(:params, params)
     |> assign(:page_title, page_title(live_resource, live_action))
-    |> assign_fields(live_action)
     |> assign_item(live_action)
     |> can?(live_resource, live_action)
     |> assign_changeset(live_action)
@@ -33,12 +33,14 @@ defmodule Backpex.LiveResource.Form do
     Backpex.HTML.Resource.resource_form(assigns)
   end
 
+  # credo:disable-for-this-file Credo.Check.Design.DuplicatedCode
   def handle_info({:update_changeset, changeset}, socket) do
     socket
     |> assign(:changeset, changeset)
     |> noreply()
   end
 
+  # credo:disable-for-this-file Credo.Check.Design.DuplicatedCode
   def handle_info({:put_assoc, {key, value} = _assoc}, socket) do
     changeset = Ecto.Changeset.put_assoc(socket.assigns.changeset, key, value)
     assocs = Map.get(socket.assigns, :assocs, []) |> Keyword.put(key, value)
@@ -47,6 +49,10 @@ defmodule Backpex.LiveResource.Form do
     |> assign(:assocs, assocs)
     |> assign(:changeset, changeset)
     |> noreply()
+  end
+
+  def handle_info(_event, socket) do
+    noreply(socket)
   end
 
   def handle_event(_event, _params, socket) do
@@ -69,12 +75,12 @@ defmodule Backpex.LiveResource.Form do
   end
 
   defp assign_item(socket, :edit = _live_action) do
-    %{live_resource: live_resource, params: params} = socket.assigns
+    %{live_resource: live_resource, fields: fields, params: params} = socket.assigns
 
     backpex_id = Map.fetch!(params, "backpex_id")
     primary_value = URI.decode(backpex_id)
 
-    item = Resource.get!(primary_value, socket.assigns, live_resource)
+    item = Resource.get!(primary_value, fields, socket.assigns, live_resource)
 
     assign(socket, :item, item)
   end
@@ -91,18 +97,10 @@ defmodule Backpex.LiveResource.Form do
     socket
   end
 
-  defp assign_fields(socket, live_action) do
-    fields =
-      socket.assigns.live_resource.validated_fields()
-      |> LiveResource.filtered_fields_by_action(socket.assigns, live_action)
-
-    assign(socket, :fields, fields)
-  end
-
   defp assign_changeset(socket, live_action) do
     %{live_resource: live_resource, item: item, fields: fields} = socket.assigns
-    changeset_fun = changeset_fun(live_resource, live_action)
 
+    changeset_fun = changeset_fun(live_resource, live_action)
     LiveResource.assign_changeset(socket, changeset_fun, item, fields, live_action)
   end
 
