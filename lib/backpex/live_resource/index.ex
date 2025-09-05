@@ -328,7 +328,7 @@ defmodule Backpex.LiveResource.Index do
 
   defp find_item_by_primary_value(items, primary_value, live_resource) do
     Enum.find(items, fn item ->
-      to_string(LiveResource.primary_value(item, live_resource)) == primary_value
+      to_string(LiveResource.primary_value(item, live_resource)) == to_string(primary_value)
     end)
   end
 
