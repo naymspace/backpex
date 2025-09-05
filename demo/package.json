@@ -1,5 +1,8 @@
 {
   "private": true,
+  "imports": {
+    "#backpex": "./priv/static/js/backpex.esm.js"
+  },
   "scripts": {
     "test": "env $(cat .env.test | xargs) mix test",
     "test:playwright": "env $(cat .env.test | xargs) mix test --include playwright:true",
@@ -20,16 +23,19 @@
     "gettext": "mix gettext.extract --merge"
   },
   "devDependencies": {
-    "@sentry/browser": "9.40.0",
+    "@sentry/browser": "10.10.0",
     "npm-run-all2": "8.0.4",
-    "playwright": "1.54.1",
+    "playwright": "1.55.0",
     "postcss": "8.5.6",
     "standard": "17.1.2",
-    "stylelint": "16.22.0",
-    "stylelint-config-standard": "38.0.0",
+    "stylelint": "16.23.1",
+    "stylelint-config-standard": "39.0.0",
     "topbar": "3.0.0"
   },
   "dependencies": {
-    "daisyui": "^5.0.3"
+    "daisyui": "^5.0.3",
+    "phoenix": "./deps/phoenix",
+    "phoenix_html": "./deps/phoenix_html",
+    "phoenix_live_view": "./deps/phoenix_live_view"
   }
 }

@@ -85,28 +85,8 @@ defmodule Backpex.Fields.Time do
           help_text={Backpex.Field.help_text(@field_options, assigns)}
           phx-debounce={Backpex.Field.debounce(@field_options, assigns)}
           phx-throttle={Backpex.Field.throttle(@field_options, assigns)}
-        />
-      </Layout.field_container>
-    </div>
-    """
-  end
-
-  @impl Backpex.Field
-  def render_form_readonly(assigns) do
-    ~H"""
-    <div>
-      <Layout.field_container>
-        <:label align={Backpex.Field.align_label(@field_options, assigns, :top)}>
-          <Layout.input_label text={@field_options[:label]} />
-        </:label>
-        <BackpexForm.input
-          type="time"
-          field={@form[@name]}
-          translate_error_fun={Backpex.Field.translate_error_fun(@field_options, assigns)}
-          phx-debounce={Backpex.Field.debounce(@field_options, assigns)}
-          phx-throttle={Backpex.Field.throttle(@field_options, assigns)}
-          readonly
-          disabled
+          readonly={@readonly}
+          disabled={@readonly}
         />
       </Layout.field_container>
     </div>
@@ -129,7 +109,7 @@ defmodule Backpex.Fields.Time do
           id={"index-form-input-#{@name}-#{LiveResource.primary_value(@item, @live_resource)}"}
           type="time"
           field={@form[:value]}
-          input_class={["input input-sm w-32", @valid && "not-hover:input-ghost", !@valid && "input-error"]}
+          input_class={["input input-sm", @valid && "not-hover:input-ghost", !@valid && "input-error bg-error/10"]}
           phx-debounce="100"
           readonly={@readonly}
           hide_errors

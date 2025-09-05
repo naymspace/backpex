@@ -12,11 +12,22 @@
     ":automergePatch",
     "helpers:pinGitHubActionDigestsToSemver"
   ],
+  "pinDigests": false,
   "lockFileMaintenance": {
-    "enabled": true
+    "enabled": true,
+    "extends": [
+      "schedule:weekly"
+    ]
   },
   "additionalBranchPrefix": "{{packageFileDir}}-",
   "packageRules": [
+    {
+      "description": "Set Mix versioning strategy to update-lockfile",
+      "matchManagers": [
+        "mix"
+      ],
+      "rangeStrategy": "update-lockfile"
+    },
     {
       "description": "Group dependency updates to the Elixir base image",
       "groupName": "Base Image",
@@ -28,7 +39,7 @@
       "pinDigests": false
     },
     {
-      "description": "Disable ubuntu major updates and digest pinning",
+      "description": "Disable ubuntu major updates",
       "matchDatasources": [
         "docker"
       ],
@@ -36,8 +47,7 @@
         "ubuntu"
       ],
       "matchUpdateTypes": [
-        "major",
-        "pinDigest"
+        "major"
       ],
       "enabled": false
     },
@@ -46,16 +56,10 @@
       "matchDatasources": [
         "docker"
       ],
-      "automerge": false
+      "automerge": true
     },
     {
-      "matchManagers": [
-        "mix"
-      ],
-      "rangeStrategy": "update-lockfile"
-    },
-    {
-      "description": "Automatically merge github actions updates",
+      "description": "Automatically merge non-major github actions updates",
       "matchManagers": [
         "github-actions"
       ],
@@ -64,6 +68,26 @@
         "patch",
         "pin",
         "pinDigest"
+      ],
+      "automerge": true
+    },
+    {
+      "description": "Automerge some non-major node package updates",
+      "matchDepNames": [
+        "@sentry/browser",
+        "stylelint",
+        "stylelint-config-standard",
+        "standard",
+        "playwright",
+        "topbar",
+        "npm-run-all2"
+      ],
+      "matchDatasources": [
+        "npm"
+      ],
+      "matchUpdateTypes": [
+        "minor",
+        "patch"
       ],
       "automerge": true
     },

@@ -1,7 +1,7 @@
 defmodule Backpex.MixProject do
   use Mix.Project
 
-  @version "0.13.0"
+  @version "0.14.0"
 
   @source_url "https://github.com/naymspace/backpex"
   @changelog_url "https://github.com/naymspace/backpex/releases"
@@ -13,6 +13,7 @@ defmodule Backpex.MixProject do
       version: @version,
       elixir: "~> 1.16",
       elixirc_paths: elixirc_paths(Mix.env()),
+      compilers: [:phoenix_live_view] ++ Mix.compilers(),
       start_permanent: Mix.env() == :prod,
       deps: deps(),
       aliases: aliases(),
@@ -43,6 +44,8 @@ defmodule Backpex.MixProject do
       {:mix_audit, "~> 2.0", only: [:dev, :test], runtime: false},
       {:tailwind_formatter, "~> 0.4", only: [:dev, :test], runtime: false},
       {:sobelow, ">= 0.0.0", only: [:dev, :test]},
+      {:lazy_html, ">= 0.0.0", only: :test},
+      {:esbuild, "~> 0.2", only: :dev},
 
       # core
       {:nimble_options, "~> 1.1"},
@@ -52,7 +55,7 @@ defmodule Backpex.MixProject do
       {:money, "~> 1.13"},
 
       # phoenix
-      {:phoenix, "~> 1.7.6"},
+      {:phoenix, ">= 1.7.6 and < 1.9.0"},
       {:phoenix_html, "~> 4.1"},
       {:phoenix_html_helpers, "~> 1.0"},
       {:phoenix_live_view, "~> 1.0"},
@@ -62,7 +65,11 @@ defmodule Backpex.MixProject do
       {:postgrex, ">= 0.0.0"},
       {:phoenix_ecto, "~> 4.4"},
       {:ash, "~> 3.0", optional: true},
-      {:ash_postgres, "~> 2.0", optional: true}
+      {:ash_postgres, "~> 2.0", optional: true},
+
+      # generators
+      {:igniter, "~> 0.6"},
+      {:igniter_js, "~> 0.4"}
     ]
   end
 
@@ -81,7 +88,13 @@ defmodule Backpex.MixProject do
 
   defp aliases do
     [
-      lint: ["format --check-formatted", "credo", "sobelow --config"]
+      lint: ["format --check-formatted", "credo", "sobelow --config"],
+      "assets.build": [
+        "esbuild module",
+        "esbuild main"
+      ],
+      "assets.watch": "esbuild module --watch",
+      "assets.check": ["assets.build", "cmd ./scripts/check_assets.sh"]
     ]
   end
 
@@ -181,6 +194,7 @@ defmodule Backpex.MixProject do
       "guides/translations/translations.md",
 
       # Upgrade Guides
+      "guides/upgrading/v0.15.md",
       "guides/upgrading/v0.14.md",
       "guides/upgrading/v0.13.md",
       "guides/upgrading/v0.12.md",

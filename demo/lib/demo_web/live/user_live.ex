@@ -7,7 +7,7 @@ defmodule DemoWeb.UserLive do
       create_changeset: &Demo.User.changeset/3,
       item_query: &__MODULE__.item_query/3
     ],
-    layout: {DemoWeb.Layouts, :admin},
+    layout: &DemoWeb.Layouts.admin/1,
     init_order: &__MODULE__.init_order/1
 
   import Ecto.Query, warn: false

@@ -8,11 +8,12 @@ defmodule Demo.MixProject do
       elixir: "~> 1.12",
       elixirc_options: [warnings_as_errors: halt_on_warnings?(Mix.env())],
       elixirc_paths: elixirc_paths(Mix.env()),
-      compilers: Mix.compilers(),
+      compilers: [:phoenix_live_view] ++ Mix.compilers(),
       start_permanent: Mix.env() == :prod,
       deps: deps(),
       aliases: aliases(),
-      gettext: gettext()
+      gettext: gettext(),
+      listeners: [Phoenix.CodeReloader]
     ]
   end
 
@@ -39,11 +40,11 @@ defmodule Demo.MixProject do
       {:sobelow, "~> 0.13", only: [:dev, :test]},
       {:mix_audit, "~> 2.0", only: [:dev, :test], runtime: false},
       {:tailwind_formatter, "~> 0.4.0", only: [:dev, :test], runtime: false},
+      {:lazy_html, "~> 0.1.3", only: :test},
       {:ex_machina, "~> 2.3"},
       {:smokestack, "~> 0.9.2"},
       {:faker, "~> 0.18"},
-      {:phoenix_test, "~> 0.7.0", only: :test, runtime: false},
-      {:sourceror, "~> 1.7", only: [:dev, :test]},
+      {:phoenix_test, "~> 0.7.1", only: :test, runtime: false},
       {:phoenix_test_playwright, "~> 0.7.0", only: :test, runtime: false},
       {:a11y_audit, "~> 0.2.3", only: :test},
       {:live_debugger, "~> 0.3", only: :dev},
@@ -59,9 +60,9 @@ defmodule Demo.MixProject do
 
       # phoenix
       {:bandit, "~> 1.0"},
-      {:phoenix, "~> 1.7.6"},
+      {:phoenix, "~> 1.8.0"},
       {:phoenix_pubsub, "~> 2.0"},
-      {:phoenix_live_view, "~> 1.0"},
+      {:phoenix_live_view, "~> 1.1"},
       {:phoenix_live_dashboard, "~> 0.8"},
       {:phoenix_live_reload, "~> 1.2", only: :dev},
 
@@ -91,8 +92,13 @@ defmodule Demo.MixProject do
       "ecto.reset": ["ecto.rollback --all", "ecto.setup"],
       test: ["ecto.create --quiet", "ecto.migrate --quiet", "test --warnings-as-errors"],
       "assets.setup": ["tailwind.install --if-missing", "esbuild.install --if-missing"],
-      "assets.build": ["tailwind default", "esbuild default"],
-      "assets.deploy": ["tailwind default --minify", "esbuild default --minify", "phx.digest"]
+      "assets.build": ["tailwind default", "esbuild backpex", "esbuild default"],
+      "assets.deploy": [
+        "tailwind default --minify",
+        "esbuild backpex --minify",
+        "esbuild default --minify",
+        "phx.digest"
+      ]
     ]
   end
 

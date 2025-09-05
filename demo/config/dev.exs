@@ -16,16 +16,15 @@ config :demo, DemoWeb.Endpoint,
   code_reloader: true,
   check_origin: false,
   watchers: [
+    backpex: {Esbuild, :install_and_run, [:backpex, ~w(--sourcemap=inline --watch)]},
     esbuild: {Esbuild, :install_and_run, [:default, ~w(--sourcemap=inline --watch)]},
     tailwind: {Tailwind, :install_and_run, [:default, ~w(--watch)]}
   ],
   live_reload: [
     patterns: [
-      ~r"demo/priv/static/.*(js|css|png|jpeg|jpg|gif|svg)$",
-      ~r"demo/priv/gettext/.*(po)$",
-      ~r"demo/lib/demo_web/helpers.ex$",
-      ~r"demo/lib/demo_web/(live|views)/.*(ex)$",
-      ~r"demo/lib/demo_web/templates/.*(eex)$",
+      ~r"priv/static/.*(js|css|png|jpeg|jpg|gif|svg)$",
+      ~r"priv/gettext/.*(po)$",
+      ~r"lib/demo_web/(?:controllers|live|components|router)/?.*\.(ex|heex)$",
       ~r"lib/backpex/(fields|html)/.*(ex)$"
     ]
   ],
@@ -33,10 +32,13 @@ config :demo, DemoWeb.Endpoint,
   http: [port: 4000],
   reloadable_apps: [:demo, :backpex]
 
-config :logger, :console, format: "[$level] $message\n"
+config :logger, :default_formatter, format: "[$level] $message\n"
 
 config :phoenix, :stacktrace_depth, 20
 
 config :phoenix, :plug_init_mode, :runtime
 
-config :phoenix_live_view, debug_heex_annotations: true
+config :phoenix_live_view,
+  debug_heex_annotations: true,
+  debug_attributes: true,
+  enable_expensive_runtime_checks: true

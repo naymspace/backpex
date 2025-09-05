@@ -43,25 +43,30 @@ config :demo, DemoWeb.Endpoint,
 config :demo, Demo.Repo, migration_primary_key: [name: :id, type: :binary_id]
 
 config :esbuild,
-  version: "0.25.8",
+  version: "0.25.9",
   default: [
     args:
-      ~w(assets/js/app.js --bundle --target=es2017 --outdir=priv/static/assets --external:/fonts/* --external:/images/* --alias:backpex=/opt/app),
+      ~w(js/app.js --bundle --target=es2022 --outdir=../priv/static/assets/js --external:/fonts/* --external:/images/* --alias:@=. --alias:backpex=/opt/app),
+    cd: Path.expand("../assets", __DIR__),
+    env: %{"NODE_PATH" => [Path.expand("../deps", __DIR__), Mix.Project.build_path()]}
+  ],
+  backpex: [
+    args: ~w(../assets/js/backpex.js --bundle --format=esm --sourcemap --outfile=priv/static/js/backpex.esm.js),
     cd: Path.expand("..", __DIR__),
     env: %{"NODE_PATH" => Path.expand("../deps", __DIR__)}
   ]
 
 config :tailwind,
-  version: "4.1.11",
+  version: "4.1.13",
   default: [
     args: ~w(
       --input=assets/css/app.css
-      --output=priv/static/assets/app.css
+      --output=priv/static/assets/css/app.css
     ),
     cd: Path.expand("..", __DIR__)
   ]
 
-config :logger, :console,
+config :logger, :default_formatter,
   format: "$time $metadata[$level] $message\n",
   metadata: [:request_id]
 

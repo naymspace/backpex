@@ -1,8 +1,28 @@
 {
   "name": "backpex",
-  "version": "0.10.0",
+  "version": "0.14.0",
   "license": "MIT",
-  "main": "assets/js/backpex.js",
+  "type": "module",
+  "main": "./priv/static/js/backpex.cjs.js",
+  "exports": {
+    "import": {
+      "default": "./priv/static/js/backpex.esm.js"
+    },
+    "require": {
+      "default": "./priv/static/js/backpex.cjs.js"
+    }
+  },
+  "repository": {
+    "type": "git",
+    "url": "git://github.com/naymspace/backpex.git"
+  },
+  "files": [
+    "README.md",
+    "LICENSE.md",
+    "package.json",
+    "priv/static/js/*",
+    "assets/js/**"
+  ],
   "scripts": {
     "format:standard": "standard assets/js --fix",
     "lint:standard": "standard assets/js"

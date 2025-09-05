@@ -136,6 +136,8 @@ defmodule Backpex.Adapters.Ecto do
 
   def apply_search(query, _schema, nil, {_search_string, []}), do: query
 
+  def apply_search(query, _schema, nil, {"", _searchable_fields}), do: query
+
   def apply_search(query, _schema, nil, {search_string, searchable_fields}) do
     search_string = "%#{search_string}%"
 
