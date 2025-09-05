@@ -728,11 +728,11 @@ defmodule Backpex.LiveResource do
       live_action: live_action,
       filters: filters,
       query_options: query_options,
-      init_order: init_order
+      init_order: init_order,
+      fields: fields
     } = assigns
 
     schema = live_resource.adapter_config(:schema)
-    fields = live_resource.fields(live_action, assigns)
 
     field = Enum.find(fields, fn {name, _field_options} -> name == query_options.order_by end)
 

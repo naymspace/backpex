@@ -98,10 +98,9 @@ defmodule Backpex.LiveResource.Form do
   end
 
   defp assign_changeset(socket, live_action) do
-    %{live_resource: live_resource, item: item} = socket.assigns
-    changeset_fun = changeset_fun(live_resource, live_action)
-    fields = live_resource.fields(live_action, socket.assigns)
+    %{live_resource: live_resource, item: item, fields: fields} = socket.assigns
 
+    changeset_fun = changeset_fun(live_resource, live_action)
     LiveResource.assign_changeset(socket, changeset_fun, item, fields, live_action)
   end
 

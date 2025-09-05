@@ -77,9 +77,7 @@ defmodule Backpex.FormComponent do
   end
 
   def handle_event("validate", %{"change" => change, "_target" => target}, %{assigns: %{action_type: :item}} = socket) do
-    %{assigns: %{item: item, live_resource: live_resource, live_action: live_action} = assigns} = socket
-    fields = live_resource.fields(live_action, assigns)
-
+    %{assigns: %{item: item, fields: fields} = assigns} = socket
     changeset_function = &assigns.action_to_confirm.module.changeset/3
 
     target = Enum.at(target, 1)
@@ -107,16 +105,10 @@ defmodule Backpex.FormComponent do
   end
 
   def handle_event("validate", %{"change" => change, "_target" => target}, socket) do
-    %{
-      live_resource: live_resource,
-      live_action: live_action,
-      item: item
-    } = socket.assigns
+    %{live_resource: live_resource, fields: fields, item: item} = socket.assigns
 
     target = Enum.at(target, 1)
     assocs = Map.get(socket.assigns, :assocs, [])
-
-    fields = live_resource.fields(live_action, socket.assigns)
 
     change =
       change
@@ -151,11 +143,9 @@ defmodule Backpex.FormComponent do
 
   def handle_event("cancel-existing-entry", %{"ref" => file_key, "id" => upload_key}, socket) do
     upload_key = String.to_existing_atom(upload_key)
-    %{live_resource: live_resource, live_action: live_action} = socket.assigns
-    fields = live_resource.fields(live_action, socket.assigns)
 
     field =
-      fields
+      socket.assigns.fields
       |> Enum.find(fn {_name, field_options} ->
         Map.has_key?(field_options, :upload_key) and Map.get(field_options, :upload_key) == upload_key
       end)
@@ -181,8 +171,7 @@ defmodule Backpex.FormComponent do
   end
 
   def handle_event("save", %{"change" => change, "save-type" => save_type}, socket) do
-    %{assigns: %{live_resource: live_resource, live_action: live_action} = assigns} = socket
-    fields = live_resource.fields(live_action, assigns)
+    %{assigns: %{live_action: live_action, fields: fields} = assigns} = socket
 
     change =
       change
@@ -205,10 +194,7 @@ defmodule Backpex.FormComponent do
   end
 
   def handle_event(msg, params, socket) do
-    %{live_resource: live_resource, live_action: live_action} = socket.assigns
-    fields = live_resource.fields(live_action, socket.assigns)
-
-    Enum.reduce(fields, socket, fn el, acc ->
+    Enum.reduce(socket.assigns.fields, socket, fn el, acc ->
       el.module.handle_form_event(el, msg, params, acc)
     end)
     |> noreply()
@@ -309,7 +295,7 @@ defmodule Backpex.FormComponent do
       assigns:
         %{
           live_resource: live_resource,
-          live_action: live_action,
+          fields: fields,
           resource_action: resource_action,
           item: item,
           return_to: return_to
@@ -317,7 +303,6 @@ defmodule Backpex.FormComponent do
     } = socket
 
     assocs = Map.get(assigns, :assocs, [])
-    fields = live_resource.fields(live_action, assigns)
     params = drop_readonly_changes(params, fields, assigns)
 
     result =
@@ -361,14 +346,13 @@ defmodule Backpex.FormComponent do
       assigns:
         %{
           live_resource: live_resource,
-          live_action: live_action,
+          fields: fields,
           selected_items: selected_items,
           action_to_confirm: action_to_confirm,
           return_to: return_to
         } = assigns
     } = socket
 
-    fields = live_resource.fields(live_action, assigns)
     params = drop_readonly_changes(params, fields, assigns)
 
     result =
