@@ -93,11 +93,11 @@ defmodule Backpex.Field do
     ],
     only: [
       doc: "Define the only views where this field should be visible.",
-      type: {:list, {:in, [:new, :edit, :show, :index, :resource_action]}}
+      type: {:list, {:in, [:new, :edit, :show, :index]}}
     ],
     except: [
       doc: "Define the views where this field should not be visible.",
-      type: {:list, {:in, [:new, :edit, :show, :index, :resource_action]}}
+      type: {:list, {:in, [:new, :edit, :show, :index]}}
     ],
     translate_error: [
       doc: """
@@ -398,7 +398,7 @@ defmodule Backpex.Field do
   Handles index editable.
   """
   def handle_index_editable(socket, value, change) do
-    %{assigns: %{item: item, live_resource: live_resource, fields: fields} = assigns} = socket
+    %{assigns: %{item: item, fields: fields, live_resource: live_resource} = assigns} = socket
 
     if not live_resource.can?(assigns, :edit, item) do
       raise Backpex.ForbiddenError

@@ -75,10 +75,10 @@ defmodule Backpex.Adapters.Ecto do
   Gets a database record with the given primary key value.
   """
   @impl Backpex.Adapter
-  def get(primary_value, assigns, live_resource) do
+  def get(primary_value, fields, assigns, live_resource) do
     repo = live_resource.adapter_config(:repo)
 
-    record_query(primary_value, assigns, live_resource)
+    record_query(primary_value, assigns, fields, live_resource)
     |> repo.one()
     |> then(fn result -> {:ok, result} end)
   end
@@ -87,10 +87,10 @@ defmodule Backpex.Adapters.Ecto do
   Returns a list of items by given criteria.
   """
   @impl Backpex.Adapter
-  def list(criteria, assigns, live_resource) do
+  def list(criteria, fields, assigns, live_resource) do
     repo = live_resource.adapter_config(:repo)
 
-    list_query(criteria, assigns, live_resource)
+    list_query(criteria, fields, assigns, live_resource)
     |> repo.all()
     |> then(fn items -> {:ok, items} end)
   end
@@ -99,10 +99,10 @@ defmodule Backpex.Adapters.Ecto do
   Returns the number of items matching the given criteria.
   """
   @impl Backpex.Adapter
-  def count(criteria, assigns, live_resource) do
+  def count(criteria, fields, assigns, live_resource) do
     repo = live_resource.adapter_config(:repo)
 
-    list_query(criteria, assigns, live_resource)
+    list_query(criteria, fields, assigns, live_resource)
     |> exclude(:preload)
     |> exclude(:select)
     |> subquery()
@@ -115,11 +115,10 @@ defmodule Backpex.Adapters.Ecto do
 
   TODO: Should be private.
   """
-  def list_query(criteria, assigns, live_resource) do
+  def list_query(criteria, fields, assigns, live_resource) do
     schema = live_resource.adapter_config(:schema)
     item_query = live_resource.adapter_config(:item_query)
     full_text_search = live_resource.config(:full_text_search)
-    fields = live_resource.validated_fields()
     associations = associations(fields, schema)
 
     schema
@@ -350,10 +349,9 @@ defmodule Backpex.Adapters.Ecto do
 
   # --- PRIVATE
 
-  defp record_query(primary_value, assigns, live_resource) do
+  defp record_query(primary_value, assigns, fields, live_resource) do
     schema = live_resource.adapter_config(:schema)
     item_query = live_resource.adapter_config(:item_query)
-    fields = live_resource.validated_fields()
     schema_name = name_by_schema(schema)
     primary_key = live_resource.config(:primary_key)
     primary_type = schema.__schema__(:type, primary_key)

@@ -21,11 +21,26 @@ defmodule Backpex.FormComponent do
     |> ok()
   end
 
+  # item action
   defp update_assigns(%{assigns: %{action_type: :item}} = socket) do
+    %{action_to_confirm: action_to_confirm} = socket.assigns
+
     socket
-    |> assign_fields()
+    |> assign_new(:fields, fn -> action_to_confirm.module.fields() end)
+    |> assign(:save_label, action_to_confirm.module.confirm_label(socket.assigns))
   end
 
+  # resource action
+  defp update_assigns(%{assigns: %{action_type: :resource}} = socket) do
+    %{resource_action: resource_action} = socket.assigns
+
+    socket
+    |> assign_new(:fields, fn -> resource_action.module.fields() end)
+    |> assign(:save_label, ResourceAction.name(resource_action, :label))
+    |> maybe_assign_uploads()
+  end
+
+  # default form
   defp update_assigns(%{assigns: assigns} = socket) do
     socket
     |> apply_action(assigns.live_action)
@@ -41,24 +56,10 @@ defmodule Backpex.FormComponent do
     assign_new(socket, :removed_uploads, fn -> Keyword.new() end)
   end
 
-  defp assign_fields(%{assigns: %{action_to_confirm: action_to_confirm}} = socket) do
-    socket
-    |> assign_new(:fields, fn -> action_to_confirm.module.fields() end)
-    |> assign(:save_label, action_to_confirm.module.confirm_label(socket.assigns))
-  end
-
   defp apply_action(socket, action) when action in [:edit, :new] do
     socket
     |> assign(:save_label, Backpex.__("Save", socket.assigns.live_resource))
     |> maybe_assign_continue_label()
-  end
-
-  defp apply_action(socket, :resource_action) do
-    %{assigns: %{resource_action: resource_action}} = socket
-
-    socket
-    |> assign(:save_label, ResourceAction.name(resource_action, :label))
-    |> assign(:fields, resource_action.module.fields())
   end
 
   defp maybe_assign_continue_label(socket) do
@@ -77,7 +78,6 @@ defmodule Backpex.FormComponent do
 
   def handle_event("validate", %{"change" => change, "_target" => target}, %{assigns: %{action_type: :item}} = socket) do
     %{assigns: %{item: item, fields: fields} = assigns} = socket
-
     changeset_function = &assigns.action_to_confirm.module.changeset/3
 
     target = Enum.at(target, 1)
@@ -105,11 +105,7 @@ defmodule Backpex.FormComponent do
   end
 
   def handle_event("validate", %{"change" => change, "_target" => target}, socket) do
-    %{
-      live_resource: live_resource,
-      item: item,
-      fields: fields
-    } = socket.assigns
+    %{live_resource: live_resource, fields: fields, item: item} = socket.assigns
 
     target = Enum.at(target, 1)
     assocs = Map.get(socket.assigns, :assocs, [])
@@ -149,7 +145,7 @@ defmodule Backpex.FormComponent do
     upload_key = String.to_existing_atom(upload_key)
 
     field =
-      socket.assigns.fields()
+      socket.assigns.fields
       |> Enum.find(fn {_name, field_options} ->
         Map.has_key?(field_options, :upload_key) and Map.get(field_options, :upload_key) == upload_key
       end)
@@ -207,7 +203,7 @@ defmodule Backpex.FormComponent do
   defp handle_save(socket, key, params, save_type \\ "save")
 
   defp handle_save(socket, :new, params, save_type) do
-    %{assigns: %{live_resource: live_resource, item: item, live_action: live_action} = assigns} = socket
+    %{assigns: %{live_resource: live_resource, fields: fields, item: item, live_action: live_action} = assigns} = socket
 
     opts = [
       assocs: Map.get(assigns, :assocs, []),
@@ -219,7 +215,7 @@ defmodule Backpex.FormComponent do
       end
     ]
 
-    case Resource.insert(item, params, socket.assigns, live_resource, opts) do
+    case Resource.insert(item, params, fields, socket.assigns, live_resource, opts) do
       {:ok, item} ->
         return_to = return_to_path(save_type, live_resource, socket, socket.assigns, live_action, item)
 
@@ -252,8 +248,8 @@ defmodule Backpex.FormComponent do
     %{
       live_resource: live_resource,
       item: item,
-      fields: fields,
-      live_action: live_action
+      live_action: live_action,
+      fields: fields
     } = socket.assigns
 
     opts = [
@@ -300,10 +296,10 @@ defmodule Backpex.FormComponent do
       assigns:
         %{
           live_resource: live_resource,
+          fields: fields,
           resource_action: resource_action,
           item: item,
-          return_to: return_to,
-          fields: fields
+          return_to: return_to
         } = assigns
     } = socket
 
@@ -351,9 +347,9 @@ defmodule Backpex.FormComponent do
       assigns:
         %{
           live_resource: live_resource,
+          fields: fields,
           selected_items: selected_items,
           action_to_confirm: action_to_confirm,
-          fields: fields,
           return_to: return_to
         } = assigns
     } = socket
