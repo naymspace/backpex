@@ -13,6 +13,7 @@ Backpex provides the following built-in field types:
 - `Backpex.Fields.Currency`
 - `Backpex.Fields.DateTime`
 - `Backpex.Fields.Date`
+- `Backpex.Fields.Email`
 - `Backpex.Fields.HasManyThrough`
 - `Backpex.Fields.HasMany`
 - `Backpex.Fields.InlineCRUD`
