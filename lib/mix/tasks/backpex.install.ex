@@ -135,7 +135,7 @@ if Code.ensure_loaded?(Igniter) do
     defp install_backpex_hooks(igniter) do
       app_js_path = igniter.args.options[:app_js_path]
 
-      with {:ok, content} <- IgniterJs.IgniterHelpers.read_and_validate_file(app_js_path),
+      with {:ok, content} <- IgniterJs.Helpers.read_and_validate_file(app_js_path),
            {:ok, _fun, content} <- Parser.insert_imports(content, @imports, :content),
            {:ok, _fun, content} <- Parser.extend_hook_object(content, @hooks, :content) do
         Igniter.create_new_file(igniter, app_js_path, content, on_exists: :overwrite)
