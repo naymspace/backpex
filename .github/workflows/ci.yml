@@ -43,7 +43,7 @@ jobs:
           elixir-version: ${{ matrix.elixir }}
 
       - name: Setup node
-        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
         with:
           node-version: 22
           cache: 'yarn'
@@ -139,7 +139,7 @@ jobs:
 
     services:
       postgres:
-        image: postgres:16.10@sha256:66a5efb5677ffac1037774a0e141fd3a4c035c9c0c0e624c9cc980dfa10f45e5
+        image: postgres:16.10@sha256:156c96ceaa08b09b539febd051147cf9191233378b7c995c93bc54f8bf400cad
         env:
           POSTGRES_PASSWORD: postgres
         options: >-
@@ -162,7 +162,7 @@ jobs:
           version-type: strict
 
       - name: Setup node
-        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
         with:
           node-version: 22
           cache: 'yarn'
