@@ -97,7 +97,7 @@ if Code.ensure_loaded?(Igniter) do
     # Global configuration
 
     defp configure_pubsub_server(igniter) do
-      pubsub_module = Helpers.pubsub_module(igniter)
+      pubsub_module = IgniterHelpers.pubsub_module(igniter)
       Config.configure_new(igniter, "config.exs", :backpex, [:pubsub_server], pubsub_module)
     end
 
@@ -135,7 +135,7 @@ if Code.ensure_loaded?(Igniter) do
     defp install_backpex_hooks(igniter) do
       app_js_path = igniter.args.options[:app_js_path]
 
-      with {:ok, content} <- IgniterJs.Helpers.read_and_validate_file(app_js_path),
+      with {:ok, content} <- IgniterJs.IgniterHelpers.read_and_validate_file(app_js_path),
            {:ok, _fun, content} <- Parser.insert_imports(content, @imports, :content),
            {:ok, _fun, content} <- Parser.extend_hook_object(content, @hooks, :content) do
         Igniter.create_new_file(igniter, app_js_path, content, on_exists: :overwrite)
@@ -151,9 +151,9 @@ if Code.ensure_loaded?(Igniter) do
       app_css_path = igniter.args.options[:app_css_path]
 
       with false <- Igniter.exists?(igniter, "assets/vendor/daisyui.js"),
-           false <- Helpers.npm_package_installed?(@daisyui_version),
+           false <- IgniterHelpers.npm_package_installed?(@daisyui_version),
            :ok <- install_daisyui_via_npm() do
-        igniter = Helpers.add_line_to_file(igniter, app_css_path, "@plugin \"daisyui\"")
+        igniter = IgniterHelpers.add_line_to_file(igniter, app_css_path, "@plugin \"daisyui\"")
         Igniter.add_notice(igniter, "Installed daisyUI via npm.")
       else
         true ->
@@ -194,8 +194,8 @@ if Code.ensure_loaded?(Igniter) do
       app_css_path = igniter.args.options[:app_css_path]
 
       igniter
-      |> Helpers.add_line_to_file(app_css_path, "@source \"../../deps/backpex/**/*.*ex\";")
-      |> Helpers.add_line_to_file(app_css_path, "@source \"../../deps/backpex/assets/js/**/*.*js\";")
+      |> IgniterHelpers.add_line_to_file(app_css_path, "@source \"../../deps/backpex/**/*.*ex\";")
+      |> IgniterHelpers.add_line_to_file(app_css_path, "@source \"../../deps/backpex/assets/js/**/*.*js\";")
     end
 
     # Add Backpex to formatter
@@ -215,8 +215,8 @@ if Code.ensure_loaded?(Igniter) do
           igniter
 
         {igniter, router} ->
-          with {:ok, {igniter, false}} <- Helpers.exists_in_module?(igniter, router, "import Backpex.Router"),
-               {:ok, {igniter, false}} <- Helpers.exists_in_module?(igniter, router, "backpex_routes()"),
+          with {:ok, {igniter, false}} <- IgniterHelpers.exists_in_module?(igniter, router, "import Backpex.Router"),
+               {:ok, {igniter, false}} <- IgniterHelpers.exists_in_module?(igniter, router, "backpex_routes()"),
                {:ok, igniter} <-
                  Module.find_and_update_module(igniter, router, &add_backpex_router_import(&1, igniter)) do
             contents = """
@@ -277,7 +277,7 @@ if Code.ensure_loaded?(Igniter) do
         igniter
       else
         backpex_path = Application.app_dir(:backpex)
-        web_folder_path = Helpers.web_folder_path(igniter)
+        web_folder_path = IgniterHelpers.web_folder_path(igniter)
         target_path = Path.join([web_folder_path, "components", "layouts", "admin.html.heex"])
         template_path = Path.join([backpex_path, "priv", "templates", "layouts", "admin.html.heex"])
 
@@ -288,7 +288,7 @@ if Code.ensure_loaded?(Igniter) do
     # Checks for default background color
 
     defp check_for_bg_white(igniter) do
-      web_folder_path = Helpers.web_folder_path(igniter)
+      web_folder_path = IgniterHelpers.web_folder_path(igniter)
       root_layout_path = Path.join([web_folder_path, "components", "layouts", "root.html.heex"])
 
       if Igniter.exists?(igniter, root_layout_path) do
