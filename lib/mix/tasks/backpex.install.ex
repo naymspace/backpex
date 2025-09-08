@@ -52,7 +52,7 @@ if Code.ensure_loaded?(Igniter) do
 
     use Igniter.Mix.Task
 
-    alias Backpex.Mix.Helpers
+    alias Backpex.Mix.IgniterHelpers
 
     alias Igniter.Code.Common
     alias Igniter.Libs.Phoenix
