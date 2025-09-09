@@ -37,14 +37,14 @@
   integrity sha512-PCqQV3c4CoVm3kdPhyeZ07VmBRdH2EpMFA/pd9OASpOEC3aXNGoqPDAZ80D0cLpMBxnmk0+yNhGsEx31hq7Gtw==
 
 "@dual-bundle/import-meta-resolve@^4.1.0":
-  version "4.1.0"
-  resolved "https://registry.yarnpkg.com/@dual-bundle/import-meta-resolve/-/import-meta-resolve-4.1.0.tgz#519c1549b0e147759e7825701ecffd25e5819f7b"
-  integrity sha512-+nxncfwHM5SgAtrVzgpzJOI1ol0PkumhVo469KCf9lUi21IGcY90G98VuHm9VRrUypmAzawAHO9bs6hqeADaVg==
+  version "4.2.1"
+  resolved "https://registry.yarnpkg.com/@dual-bundle/import-meta-resolve/-/import-meta-resolve-4.2.1.tgz#cd0b25b3808cd9e684cd6cd549bbf8e1dcf05ee7"
+  integrity sha512-id+7YRUgoUX6CgV0DtuhirQWodeeA7Lf4i2x71JS/vtA5pRb/hIGWlw+G6MeXvsM+MXrz0VAydTGElX1rAfgPg==
 
 "@eslint-community/eslint-utils@^4.2.0":
-  version "4.7.0"
-  resolved "https://registry.yarnpkg.com/@eslint-community/eslint-utils/-/eslint-utils-4.7.0.tgz#607084630c6c033992a082de6e6fbc1a8b52175a"
-  integrity sha512-dyybb3AcajC7uha6CvhdVRJqaKyn7w2YKqKyAN37NKYgZT36w+iRb0Dymmc5qEJ549c/S31cMMSFd75bteCpCw==
+  version "4.9.0"
+  resolved "https://registry.yarnpkg.com/@eslint-community/eslint-utils/-/eslint-utils-4.9.0.tgz#7308df158e064f0dd8b8fdb58aa14fa2a7f913b3"
+  integrity sha512-ayVFHdtZ+hsq1t2Dy24wCmGXGe4q9Gu3smhLYALJrr473ZH27MsnSL+LKUlimp4BWJqMDMLmPpx/Q9R3OAlL4g==
   dependencies:
     eslint-visitor-keys "^3.4.3"
 
@@ -123,51 +123,51 @@
   resolved "https://registry.yarnpkg.com/@rtsao/scc/-/scc-1.1.0.tgz#927dd2fae9bc3361403ac2c7a00c32ddce9ad7e8"
   integrity sha512-zt6OdqaDoOnJ1ZYsCYGt9YmWzDXl4vQdKTyJev62gFhRGKdx7mcT54V9KIjg+d2wi9EXsPvAPKe7i7WjfVWB8g==
 
-"@sentry-internal/browser-utils@10.9.0":
-  version "10.9.0"
-  resolved "https://registry.yarnpkg.com/@sentry-internal/browser-utils/-/browser-utils-10.9.0.tgz#b98c4095356493c132a86d2e6680b7c704976309"
-  integrity sha512-TqTFvD4jw8uq4uYTrQAZvQx7iz7eZzHjMBaiuPj5v9nt9nfb5SZU+EOV49aaSdNspf0UF+meq1xLDWaHY5Ogug==
+"@sentry-internal/browser-utils@10.10.0":
+  version "10.10.0"
+  resolved "https://registry.yarnpkg.com/@sentry-internal/browser-utils/-/browser-utils-10.10.0.tgz#0103af0d5b6ae95e8a80426bfd05823ccaea075d"
+  integrity sha512-209QN9vsQBwJcS+9DU7B4yl9mb4OqCt2kdL3LYDvqsuOdpICpwfowdK3RMn825Ruf4KLJa0KHM1scQbXZCc4lw==
   dependencies:
-    "@sentry/core" "10.9.0"
+    "@sentry/core" "10.10.0"
 
-"@sentry-internal/feedback@10.9.0":
-  version "10.9.0"
-  resolved "https://registry.yarnpkg.com/@sentry-internal/feedback/-/feedback-10.9.0.tgz#25ee2a899cd234dd39987d1bb226e3165acef449"
-  integrity sha512-OuvzxMqIv9QO+8tFZHCCFbqN/5K9ThmG6wVhWQfTXtpLbDttDAwY1EWAjFgOv78McimUdUtsPw1VSsZBje2aIg==
+"@sentry-internal/feedback@10.10.0":
+  version "10.10.0"
+  resolved "https://registry.yarnpkg.com/@sentry-internal/feedback/-/feedback-10.10.0.tgz#cb695920057a532ace7b61b03b55a32c3a0f10d0"
+  integrity sha512-oSU4F/ebOsJA9Eof0me9hLpSDTSelpnEY6gmhU9sHyIG+U7hJRuCfeGICxQOzBtteepWRhAaZEv4s9ZBh3iD2w==
   dependencies:
-    "@sentry/core" "10.9.0"
+    "@sentry/core" "10.10.0"
 
-"@sentry-internal/replay-canvas@10.9.0":
-  version "10.9.0"
-  resolved "https://registry.yarnpkg.com/@sentry-internal/replay-canvas/-/replay-canvas-10.9.0.tgz#9953e852c443e7b9e883d7632d376626436deb66"
-  integrity sha512-eUsu3MnfgISIiLLAw1zckZSlW2b0hwM+JsM44DnH1ymHULDY7oX4syv0u/YzptFEJOvJMgsuxI0HKLmQCZ3dzw==
+"@sentry-internal/replay-canvas@10.10.0":
+  version "10.10.0"
+  resolved "https://registry.yarnpkg.com/@sentry-internal/replay-canvas/-/replay-canvas-10.10.0.tgz#7d29b1dced4cfce4e6d83c41352a296d3c55049f"
+  integrity sha512-mJBNB0EBbE3vzL7lgd8lDoWWhRaRwxXdI4Kkx3r39u2+1qTdJP/xHbJDihyemCaw7gRL1FR/GC44JLipzEfkKQ==
   dependencies:
-    "@sentry-internal/replay" "10.9.0"
-    "@sentry/core" "10.9.0"
+    "@sentry-internal/replay" "10.10.0"
+    "@sentry/core" "10.10.0"
 
-"@sentry-internal/replay@10.9.0":
-  version "10.9.0"
-  resolved "https://registry.yarnpkg.com/@sentry-internal/replay/-/replay-10.9.0.tgz#05f85dc252433b945da6c3c759a625bd702e886e"
-  integrity sha512-D8y13BPaFUxliaxJ9yOKzl89WM+jzhG/awC1bssa5JvMcLPqAh7nWOWFneOG5CqvppKsf//rotNjywPGncATPw==
+"@sentry-internal/replay@10.10.0":
+  version "10.10.0"
+  resolved "https://registry.yarnpkg.com/@sentry-internal/replay/-/replay-10.10.0.tgz#f7f2c15a964b1c8d9a8306cd8c7af0185fb13323"
+  integrity sha512-sKFYWBaft0ET6gd5B0pThR6gYTjaUECXCzVAnSYxy64a2/PK6lV93BtnA1C2Q34Yhv/0scdyIbZtfTnSsEgwUg==
   dependencies:
-    "@sentry-internal/browser-utils" "10.9.0"
-    "@sentry/core" "10.9.0"
+    "@sentry-internal/browser-utils" "10.10.0"
+    "@sentry/core" "10.10.0"
 
-"@sentry/browser@10.9.0":
-  version "10.9.0"
-  resolved "https://registry.yarnpkg.com/@sentry/browser/-/browser-10.9.0.tgz#7365f04ad4b6569ccc4904eeb4991a5fdb294d71"
-  integrity sha512-Z/fHYCv0v4pGsHvsYorVdlz/NPEYa2I3XaDTD+NedQToyE9Y4cCIZ4QS0JFCpa8oToSvbDvJ6awLvPQF+gC1Mw==
+"@sentry/browser@10.10.0":
+  version "10.10.0"
+  resolved "https://registry.yarnpkg.com/@sentry/browser/-/browser-10.10.0.tgz#2d2ebbb22e9b4c00fb276e3379936c9d759db47f"
+  integrity sha512-STBs29meUk0CvluIOXXnnRGRtjKsJN9fAHS3dUu3GMjmow4rxKBiBbAwoPYftAVdfvGypT7zQCQ+K30dbRxp0g==
   dependencies:
-    "@sentry-internal/browser-utils" "10.9.0"
-    "@sentry-internal/feedback" "10.9.0"
-    "@sentry-internal/replay" "10.9.0"
-    "@sentry-internal/replay-canvas" "10.9.0"
-    "@sentry/core" "10.9.0"
+    "@sentry-internal/browser-utils" "10.10.0"
+    "@sentry-internal/feedback" "10.10.0"
+    "@sentry-internal/replay" "10.10.0"
+    "@sentry-internal/replay-canvas" "10.10.0"
+    "@sentry/core" "10.10.0"
 
-"@sentry/core@10.9.0":
-  version "10.9.0"
-  resolved "https://registry.yarnpkg.com/@sentry/core/-/core-10.9.0.tgz#d3db841695a80aab732b68ec492f49b8fe97e277"
-  integrity sha512-beuwWUTk7yKPNTIntG6aMye+7FIslWrdd2DJ9tnl3jwHvUk1k3IZ0B4NrDuLQr2xqvqL8q2NStUD6yXg0/nLyw==
+"@sentry/core@10.10.0":
+  version "10.10.0"
+  resolved "https://registry.yarnpkg.com/@sentry/core/-/core-10.10.0.tgz#8bf5e2d2de20c42dacc979f8bfa980ec03cfa761"
+  integrity sha512-4O1O6my/vYE98ZgfEuLEwOOuHzqqzfBT6IdRo1yiQM7/AXcmSl0H/k4HJtXCiCTiHm+veEuTDBHp0GQZmpIbtA==
 
 "@types/json5@^0.0.29":
   version "0.0.29"
@@ -483,7 +483,9 @@ cssesc@^3.0.0:
   integrity sha512-/Tb/JcjK111nNScGob5MNtsntNM1aCNUDipB/TkwZFhyDrrE47SOx/18wF2bbjgc3ZzCSKW1T5nt5EbFoAz/Vg==
 
 daisyui@^5.0.3:
-  version "5.1.7"
+  version "5.1.8"
+  resolved "https://registry.yarnpkg.com/daisyui/-/daisyui-5.1.8.tgz#a69cd835bcac1157fc7bbaeebdc432f9fc5ae3df"
+  integrity sha512-MJd683sm8ydToKrPoY8q72cht4j2EKellmTex51alY7L4p782gUtXTAZwiMOZixeKda/qb/c94XgoyLWSm4VNg==
 
 data-view-buffer@^1.0.2:
   version "1.0.2"
@@ -985,7 +987,7 @@ fastq@^1.6.0:
   dependencies:
     reusify "^1.0.4"
 
-file-entry-cache@^10.1.3:
+file-entry-cache@^10.1.4:
   version "10.1.4"
   resolved "https://registry.yarnpkg.com/file-entry-cache/-/file-entry-cache-10.1.4.tgz#1e81441517dc33ba5fe14421d96dc5fe7e37e820"
   integrity sha512-5XRUFc0WTtUbjfGzEwXc42tiGxQHBmtbUG1h9L2apu4SulCGN3Hqm//9D6FAolf8MYNL7f/YlJl9vy08pj5JuA==
@@ -1736,6 +1738,11 @@ minimist@^1.2.0, minimist@^1.2.6:
   resolved "https://registry.yarnpkg.com/minimist/-/minimist-1.2.8.tgz#c1a464e7693302e082a075cee0c057741ac4772c"
   integrity sha512-2yyAR8qBkN3YuheJanUpWC5U3bb5osDywNB8RzDVlDwDHbocAJveqqj1u8+SVD7jkWT4yvsHCpWqqWqAxb0zCA==
 
+morphdom@2.7.7:
+  version "2.7.7"
+  resolved "https://registry.yarnpkg.com/morphdom/-/morphdom-2.7.7.tgz#72559af781357a4eb2169a0a578acb76ff7e8abf"
+  integrity sha512-04GmsiBcalrSCNmzfo+UjU8tt3PhZJKzcOy+r1FlGA7/zri8wre3I1WkYN9PT3sIeIKfW9bpyElA+VzOg2E24g==
+
 ms@^2.1.1, ms@^2.1.3:
   version "2.1.3"
   resolved "https://registry.yarnpkg.com/ms/-/ms-2.1.3.tgz#574c8138ce1d2b5861f0b44579dbadd60c6615b2"
@@ -1956,6 +1963,17 @@ path-type@^4.0.0:
   version "4.0.0"
   resolved "https://registry.yarnpkg.com/path-type/-/path-type-4.0.0.tgz#84ed01c0a7ba380afe09d90a8c180dcd9d03043b"
   integrity sha512-gDKb8aZMDeD/tZWs9P6+q0J9Mwkdl6xMV8TjnGP3qJVJ06bdMgkbBlLU8IdfOsIsFz2BW1rNVT3XuNEl8zPAvw==
+
+phoenix@./deps/phoenix:
+  version "1.8.1"
+
+phoenix_html@./deps/phoenix_html:
+  version "4.2.1"
+
+phoenix_live_view@./deps/phoenix_live_view:
+  version "1.1.11"
+  dependencies:
+    morphdom "2.7.7"
 
 picocolors@^1.1.1:
   version "1.1.1"
@@ -2441,10 +2459,10 @@ stylelint-config-standard@39.0.0:
   dependencies:
     stylelint-config-recommended "^17.0.0"
 
-stylelint@16.23.1:
-  version "16.23.1"
-  resolved "https://registry.yarnpkg.com/stylelint/-/stylelint-16.23.1.tgz#e5f5ee173adf989db0855b825e66f9ccdde3c78a"
-  integrity sha512-dNvDTsKV1U2YtiUDfe9d2gp902veFeo3ecCWdGlmLm2WFrAV0+L5LoOj/qHSBABQwMsZPJwfC4bf39mQm1S5zw==
+stylelint@16.24.0:
+  version "16.24.0"
+  resolved "https://registry.yarnpkg.com/stylelint/-/stylelint-16.24.0.tgz#a436920636732b496a55665997f2804d1d63b5b6"
+  integrity sha512-7ksgz3zJaSbTUGr/ujMXvLVKdDhLbGl3R/3arNudH7z88+XZZGNLMTepsY28WlnvEFcuOmUe7fg40Q3lfhOfSQ==
   dependencies:
     "@csstools/css-parser-algorithms" "^3.0.5"
     "@csstools/css-tokenizer" "^3.0.4"
@@ -2459,7 +2477,7 @@ stylelint@16.23.1:
     debug "^4.4.1"
     fast-glob "^3.3.3"
     fastest-levenshtein "^1.0.16"
-    file-entry-cache "^10.1.3"
+    file-entry-cache "^10.1.4"
     global-modules "^2.0.0"
     globby "^11.1.0"
     globjoin "^0.1.4"

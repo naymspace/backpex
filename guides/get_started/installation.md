@@ -174,7 +174,7 @@ defmodule MyAppWeb.Layouts do
 
   attr :flash, :map, required: true, doc: "the map of flash messages"
   attr :fluid?, :boolean, default: true, doc: "if the content uses full width"
-  attr :current_url, :string, required, doc: "the current url"
+  attr :current_url, :string, required: true, doc: "the current url"
 
   slot :inner_block, required: true
 
