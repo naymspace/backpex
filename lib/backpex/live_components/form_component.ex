@@ -279,7 +279,7 @@ defmodule Backpex.FormComponent do
         |> push_navigate(to: return_to)
         |> noreply()
 
-      {:error, changeset} when is_struct(changeset)  ->
+      {:error, changeset} when is_struct(changeset) ->
         form = Phoenix.Component.to_form(changeset, as: :change)
 
         send(self(), {:update_changeset, changeset})
