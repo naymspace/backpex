@@ -450,10 +450,14 @@ defmodule Backpex.HTML.Resource do
 
   defp pagination_item(%{type: :number} = assigns) do
     pagination_link = get_pagination_link(assigns.path, assigns.number)
-    assigns = assign(assigns, :href, pagination_link)
+
+    assigns =
+      assigns
+      |> assign(:btn_class, pagination_btn_class())
+      |> assign(:link, pagination_link)
 
     ~H"""
-    <.link href={@href} class={[pagination_btn_class(), @current_page == @number && "bg-base-300", @class]}>
+    <.link patch={@link} class={[@btn_class, @current_page == @number && "bg-base-300", @class]}>
       {Integer.to_string(@number)}
     </.link>
     """
@@ -461,29 +465,39 @@ defmodule Backpex.HTML.Resource do
 
   defp pagination_item(%{type: :prev} = assigns) do
     pagination_link = get_pagination_link(assigns.path, assigns.current_page - 1)
-    assigns = assign(assigns, :href, pagination_link)
+
+    assigns =
+      assigns
+      |> assign(:btn_class, pagination_btn_class())
+      |> assign(:link, pagination_link)
 
     ~H"""
-    <.link href={@href} class={[pagination_btn_class(), @class]} aria-label={@previous_page_label}>
-      <Backpex.HTML.CoreComponents.icon name="hero-chevron-left" class="h-4 w-4" />
+    <.link patch={@link} class={[@btn_class, @class]} aria-label={@previous_page_label}>
+      <Backpex.HTML.CoreComponents.icon name="hero-chevron-left" class="size-4" />
     </.link>
     """
   end
 
   defp pagination_item(%{type: :next} = assigns) do
     pagination_link = get_pagination_link(assigns.path, assigns.current_page + 1)
-    assigns = assign(assigns, :href, pagination_link)
+
+    assigns =
+      assigns
+      |> assign(:btn_class, pagination_btn_class())
+      |> assign(:link, pagination_link)
 
     ~H"""
-    <.link href={@href} class={[pagination_btn_class(), @class]} aria-label={@next_page_label}>
-      <Backpex.HTML.CoreComponents.icon name="hero-chevron-right" class="h-4 w-4" />
+    <.link patch={@link} class={[@btn_class, @class]} aria-label={@next_page_label}>
+      <Backpex.HTML.CoreComponents.icon name="hero-chevron-right" class="size-4" />
     </.link>
     """
   end
 
   defp pagination_item(%{type: :placeholder} = assigns) do
+    assigns = assign(assigns, :btn_class, pagination_btn_class())
+
     ~H"""
-    <button class={[pagination_btn_class(), @class]} aria-disable="true">
+    <button class={[@btn_class, @class]} aria-disable="true">
       ...
     </button>
     """
