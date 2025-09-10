@@ -483,7 +483,7 @@ cssesc@^3.0.0:
   integrity sha512-/Tb/JcjK111nNScGob5MNtsntNM1aCNUDipB/TkwZFhyDrrE47SOx/18wF2bbjgc3ZzCSKW1T5nt5EbFoAz/Vg==
 
 daisyui@^5.0.3:
-  version "5.1.9"
+  version "5.1.10"
 
 data-view-buffer@^1.0.2:
   version "1.0.2"
