@@ -483,9 +483,7 @@ cssesc@^3.0.0:
   integrity sha512-/Tb/JcjK111nNScGob5MNtsntNM1aCNUDipB/TkwZFhyDrrE47SOx/18wF2bbjgc3ZzCSKW1T5nt5EbFoAz/Vg==
 
 daisyui@^5.0.3:
-  version "5.1.8"
-  resolved "https://registry.yarnpkg.com/daisyui/-/daisyui-5.1.8.tgz#a69cd835bcac1157fc7bbaeebdc432f9fc5ae3df"
-  integrity sha512-MJd683sm8ydToKrPoY8q72cht4j2EKellmTex51alY7L4p782gUtXTAZwiMOZixeKda/qb/c94XgoyLWSm4VNg==
+  version "5.1.9"
 
 data-view-buffer@^1.0.2:
   version "1.0.2"
