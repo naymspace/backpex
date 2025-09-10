@@ -1,7 +1,7 @@
 defmodule Backpex.MixProject do
   use Mix.Project
 
-  @version "0.15.1"
+  @version "0.15.2"
 
   @source_url "https://github.com/naymspace/backpex"
   @changelog_url "https://github.com/naymspace/backpex/releases"
@@ -69,8 +69,8 @@ defmodule Backpex.MixProject do
       {:ash_postgres, "~> 2.0", optional: true},
 
       # generators
-      {:igniter, "~> 0.6"},
-      {:igniter_js, "~> 0.4"}
+      {:igniter, "~> 0.6", optional: true},
+      {:igniter_js, "~> 0.4", optional: true}
     ]
   end
 
