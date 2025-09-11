@@ -133,19 +133,9 @@ defmodule Backpex.Filters.MultiSelect do
 
   def query(query, _attribute, [], _assigns), do: query
 
-  def query(query, attribute, value, _assigns) do
-    Enum.reduce(value, nil, fn
-      v, nil ->
-        dynamic([x], field(x, ^attribute) == ^v)
-
-      v, p ->
-        dynamic([x], ^p or field(x, ^attribute) == ^v)
-    end)
-    |> maybe_query(query)
+  def query(query, attribute, values, _assigns) do
+    where(query, [x], field(x, ^attribute) in ^values)
   end
-
-  def maybe_query(nil, query), do: query
-  def maybe_query(predicates, query), do: where(query, ^predicates)
 
   def option_value_to_label(options, values) do
     Enum.map(values, fn key -> find_option_label(options, key) end)
