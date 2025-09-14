@@ -1,6 +1,6 @@
 defmodule Backpex.ItemActions.Edit do
   @moduledoc """
-  Inline item action to redirect to show view.
+  Inline item action to redirect to edit view.
   """
 
   use BackpexWeb, :item_action
