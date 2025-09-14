@@ -80,19 +80,16 @@ defmodule Backpex.Fields.MultiSelect do
 
     selected_ids =
       if type == :form do
-        values =
-          case PhoenixForm.input_value(assigns.form, name) do
-            value when is_binary(value) -> [value]
-            value when is_list(value) -> value
-            _value -> []
-          end
-
-        Enum.map(values, &to_string/1)
+        case PhoenixForm.input_value(assigns.form, name) do
+          value when is_binary(value) -> [value]
+          value when is_list(value) -> value
+          _value -> []
+        end
       else
-        value = Map.get(item, name)
-
-        if value, do: value, else: []
+        Map.get(item, name, []) || []
       end
+
+    selected_ids = Enum.map(selected_ids, &to_string/1)
 
     selected = Enum.filter(options, fn {_label, value} -> value in selected_ids end)
 
