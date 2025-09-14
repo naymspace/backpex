@@ -1,8 +1,8 @@
 defmodule Backpex.Fields.Select do
   @config_schema [
     options: [
-      doc: "List of options or function that receives the assigns.",
-      type: {:or, [{:list, :any}, {:fun, 1}]},
+      doc: "List of possibly grouped options or function that receives the assigns.",
+      type: {:or, [{:list, :any}, {:map, :any, :any}, {:fun, 1}]},
       required: true
     ],
     prompt: [
@@ -127,6 +127,15 @@ defmodule Backpex.Fields.Select do
   end
 
   defp get_label(value, options) do
+    options =
+      Enum.map(options, fn {_label, value} = option ->
+        case value do
+          value when is_list(value) or is_map(value) -> value
+          _ -> option
+        end
+      end)
+      |> List.flatten()
+
     case Enum.find(options, fn option -> value?(option, value) end) do
       nil -> value
       {label, _value} -> label
