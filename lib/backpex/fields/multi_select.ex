@@ -94,15 +94,7 @@ defmodule Backpex.Fields.MultiSelect do
         if value, do: value, else: []
       end
 
-    selected =
-      Enum.reduce(options, [], fn {_label, value} = option, acc ->
-        if value in selected_ids do
-          [option | acc]
-        else
-          acc
-        end
-      end)
-      |> Enum.reverse()
+    selected = Enum.filter(options, fn {_label, value} -> value in selected_ids end)
 
     assign(socket, :selected, selected)
   end
