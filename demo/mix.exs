@@ -54,7 +54,7 @@ defmodule Demo.MixProject do
       {:dns_cluster, "~> 0.2.0"},
       {:telemetry_poller, "~> 1.0"},
       {:telemetry_metrics, "~> 1.0"},
-      {:gettext, "~> 0.26"},
+      {:gettext, "~> 1.0"},
       {:sentry, "~> 11.0"},
       {:hackney, "~> 1.17", override: true},
       {:circular_buffer, "~> 1.0.0"},
