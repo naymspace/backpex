@@ -160,7 +160,7 @@ To get you started quickly, we provide a layout component you can copy & paste i
     <!-- Sidebar Content -->
   </:sidebar>
   <Backpex.HTML.Layout.flash_messages flash={@flash} />
-  {render_slot(@inner_content)}
+  {render_slot(@inner_block)}
 </Backpex.HTML.Layout.app_shell>
 ```
 
