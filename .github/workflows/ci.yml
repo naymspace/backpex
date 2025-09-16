@@ -12,6 +12,8 @@ on:
       - develop
   release:
     types: [published]
+  merge_group:
+    types: [checks_requested]
 
 env:
   REGISTRY: ghcr.io
@@ -46,7 +48,7 @@ jobs:
         uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
         with:
           node-version: 22
-          cache: 'yarn'
+          cache: "yarn"
           cache-dependency-path: yarn.lock
 
       - name: Restore the deps and _build cache
@@ -59,7 +61,7 @@ jobs:
             deps
             _build
           key: ${{ runner.os }}-${{ matrix.elixir }}-${{ matrix.otp }}-build-deps-mixlockhash-${{ env.MIX_LOCK_HASH }}
-          restore-keys:  ${{ runner.os }}-${{ matrix.elixir }}-${{ matrix.otp }}-build-deps-
+          restore-keys: ${{ runner.os }}-${{ matrix.elixir }}-${{ matrix.otp }}-build-deps-
 
       - name: Install dependencies
         if: steps.restore-cache.outputs.cache-hit != 'true'
@@ -139,7 +141,7 @@ jobs:
 
     services:
       postgres:
-        image: postgres:16.10@sha256:29a9393ca3b02d1f5ec46ea6e73bf6af9cb4400e8d2a127bbb1e1f32c12b2c6f
+        image: postgres:16.10@sha256:b477759d38be47671d54a054d832791f8ddb9f0eaf6faf51ed17516087793a66
         env:
           POSTGRES_PASSWORD: postgres
         options: >-
@@ -165,7 +167,7 @@ jobs:
         uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
         with:
           node-version: 22
-          cache: 'yarn'
+          cache: "yarn"
           cache-dependency-path: demo/yarn.lock
 
       - name: Restore the deps and _build cache
@@ -180,7 +182,7 @@ jobs:
             demo/deps
             demo/_build
           key: ${{ runner.os }}-${{ env.ELIXIR_VERSION }}-${{ env.OTP_VERSION }}-build-deps-demo-mixlockhash-${{ env.MIX_LOCK_HASH }}
-          restore-keys:  ${{ runner.os }}-${{ env.ELIXIR_VERSION }}-${{ env.OTP_VERSION }}-build-deps-demo-
+          restore-keys: ${{ runner.os }}-${{ env.ELIXIR_VERSION }}-${{ env.OTP_VERSION }}-build-deps-demo-
 
       - name: Install dependencies
         if: steps.restore-cache.outputs.cache-hit != 'true'

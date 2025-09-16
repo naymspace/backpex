@@ -47,14 +47,14 @@ defmodule Demo.MixProject do
       {:phoenix_test, "~> 0.7.1", only: :test, runtime: false},
       {:phoenix_test_playwright, "~> 0.7.0", only: :test, runtime: false},
       {:a11y_audit, "~> 0.2.3", only: :test},
-      {:live_debugger, "~> 0.3", only: :dev},
+      {:live_debugger, "~> 0.4", only: :dev},
       {:quokka, "~> 2.9", only: [:dev, :test], runtime: false},
 
       # core
       {:dns_cluster, "~> 0.2.0"},
       {:telemetry_poller, "~> 1.0"},
       {:telemetry_metrics, "~> 1.0"},
-      {:gettext, "~> 0.26"},
+      {:gettext, "~> 1.0"},
       {:sentry, "~> 11.0"},
       {:hackney, "~> 1.17", override: true},
       {:circular_buffer, "~> 1.0.0"},
@@ -82,7 +82,7 @@ defmodule Demo.MixProject do
 
       # assets
       {:esbuild, "~> 0.9", runtime: Mix.env() == :dev},
-      {:tailwind, "~> 0.3.1", runtime: Mix.env() == :dev},
+      {:tailwind, "~> 0.4.0", runtime: Mix.env() == :dev},
       {:heroicons, github: "tailwindlabs/heroicons", tag: "v2.2.0", sparse: "optimized", app: false, compile: false}
     ]
   end
