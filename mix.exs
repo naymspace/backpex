@@ -50,7 +50,7 @@ defmodule Backpex.MixProject do
 
       # core
       {:nimble_options, "~> 1.1"},
-      {:gettext, "~> 0.26"},
+      {:gettext, ">= 0.26.0"},
       {:jason, "~> 1.2"},
       {:number, "~> 1.0"},
       {:money, "~> 1.13"},
