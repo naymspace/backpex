@@ -10,7 +10,8 @@
     "github>pehbehbeh/renovate-config//customManagers/hexTailwind",
     ":reviewer(krns)",
     ":automergePatch",
-    "helpers:pinGitHubActionDigestsToSemver"
+    "helpers:pinGitHubActionDigestsToSemver",
+    "npm:unpublishSafe"
   ],
   "rebaseWhen": "behind-base-branch",
   "pinDigests": false,
