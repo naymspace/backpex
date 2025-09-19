@@ -6,7 +6,6 @@ Backpex automatically generates aliases for queries in your fields. However, if 
 
 To use a custom alias, define the `custom_alias` key in your field configuration. The value of the `custom_alias` key must be a unique atom that is not already in use by another field.
 
-
 ```elixir
 @impl Backpex.LiveResource
 def fields do
