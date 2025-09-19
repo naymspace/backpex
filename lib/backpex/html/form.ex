@@ -282,25 +282,14 @@ defmodule Backpex.HTML.Form do
           <input type="hidden" name={@field.name} value="" />
 
           <div class="my-2 w-full">
-            <label
+            <.multiselect_option
               :for={{label, value} <- @options}
-              class="mt-2 flex space-x-2"
-              phx-click="toggle-option"
-              phx-value-id={value}
-              phx-target={@event_target}
-            >
-              <input
-                type="checkbox"
-                name={@field.name<> "[]"}
-                class="checkbox checkbox-sm checkbox-primary"
-                checked={selected?(value, @selected)}
-                checked_value={value}
-                value={value}
-              />
-              <span class="text-md cursor-pointer">
-                {label}
-              </span>
-            </label>
+              label={label}
+              value={value}
+              event_target={@event_target}
+              field={@field}
+              selected={@selected}
+            />
           </div>
 
           <button
@@ -317,6 +306,53 @@ defmodule Backpex.HTML.Form do
     </div>
 
     <.help_text :if={@help_text} class="mt-1">{@help_text}</.help_text>
+    """
+  end
+
+  attr :event_target, :any, required: true, doc: "the target that handles the events of this component"
+  attr :field, :any, required: true, doc: "form field the select should be for"
+  attr :selected, :list, required: true, doc: "the selected values"
+  attr :label, :string, required: true
+  attr :value, :string, required: true
+
+  defp multiselect_option(%{value: value} = assigns) when is_list(value) or is_map(value) do
+    ~H"""
+    <div class="not-first:mt-2">
+      <span class="font-medium">{@label}</span>
+      <div class="ml-4">
+        <.multiselect_option
+          :for={{lab, val} <- @value}
+          label={lab}
+          value={val}
+          event_target={@event_target}
+          field={@field}
+          selected={@selected}
+        />
+      </div>
+    </div>
+    """
+  end
+
+  defp multiselect_option(assigns) do
+    ~H"""
+    <label
+      class="mt-2 flex space-x-2"
+      phx-click="toggle-option"
+      phx-value-id={@value}
+      phx-target={@event_target}
+    >
+      <input
+        type="checkbox"
+        name={@field.name<> "[]"}
+        class="checkbox checkbox-sm checkbox-primary"
+        checked={selected?(@value, @selected)}
+        checked_value={@value}
+        value={@value}
+      />
+      <span class="text-md cursor-pointer">
+        {@label}
+      </span>
+    </label>
     """
   end
 
