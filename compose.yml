@@ -11,6 +11,7 @@ services:
       - STARTUP_COMMAND_2=yarn install --pure-lockfile
       - STARTUP_COMMAND_3=yarn playwright install chromium --with-deps
       - STARTUP_COMMAND_4=mix assets.setup
+      - STARTUP_COMMAND_5=cd .. && mix deps.get && yarn install --pure-lockfile && cd demo
     volumes:
       - .:/opt/app
     ports:
