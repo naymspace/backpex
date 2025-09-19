@@ -13,7 +13,6 @@
     "helpers:pinGitHubActionDigestsToSemver",
     "npm:unpublishSafe"
   ],
-  "rebaseWhen": "behind-base-branch",
   "pinDigests": false,
   "lockFileMaintenance": {
     "enabled": true,
