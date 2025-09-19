@@ -19,7 +19,7 @@ defmodule Backpex.Fields.Email do
   ]
 
   @moduledoc """
-  A field for handling a email value.
+  A field for handling an email value.
 
   ## Field-specific options
 
