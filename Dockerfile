@@ -41,6 +41,8 @@ ENV PATH=/opt/scripts/:/opt/app/_build/prod/rel/demo/bin:$PATH
 ARG MIX_ENV=prod
 ENV MIX_ENV=$MIX_ENV
 
+# Install root-level (Backpex) dependencies
+COPY package.json yarn.lock ./
 RUN yarn install --pure-lockfile
 
 RUN mkdir demo
