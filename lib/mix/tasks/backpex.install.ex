@@ -154,9 +154,11 @@ if Code.ensure_loaded?(Igniter) do
         Igniter.exists?(igniter, ts_path) ->
           Mix.shell().info("Detected TypeScript app file: #{ts_path}")
           ts_path
+
         Igniter.exists?(igniter, js_path) ->
           Mix.shell().info("Detected JavaScript app file: #{js_path}")
           js_path
+
         true ->
           Mix.shell().info("No app.js or app.ts found, defaulting to: #{js_path}")
           js_path
