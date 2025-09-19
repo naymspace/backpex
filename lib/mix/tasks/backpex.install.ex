@@ -21,7 +21,7 @@ defmodule Mix.Tasks.Backpex.Install.Docs do
     ## What this installer does:
 
     - Sets up [Global Configuration](installation.html#global-configuration) by configuring the PubSub server
-    - Adds [Backpex Hooks](installation.html#backpex-hooks) to your app.js file
+    - Adds [Backpex Hooks](installation.html#backpex-hooks) to your app.js or app.ts file (auto-detected)
     - Installs [daisyUI](installation.html#daisyui) via npm (with your permission)
     - Sets up the [formatter configuration](installation.html#setup-formatter)
     - Adds [Backpex files to Tailwind content](installation.html#add-files-to-tailwind-content)
@@ -38,7 +38,7 @@ defmodule Mix.Tasks.Backpex.Install.Docs do
 
     ## Options
 
-    * `--app-js-path` - Path to your app.js file (default: "assets/js/app.js")
+    * `--app-js-path` - Path to your app.js or app.ts file (auto-detected by default)
     * `--app-css-path` - Path to your app.css file (default: "assets/css/app.css")
     * `--no-layout` - Skip generating the admin layout
     """
@@ -63,7 +63,6 @@ if Code.ensure_loaded?(Igniter) do
     alias Igniter.Util.Warning
     alias IgniterJs.Parsers.Javascript.Parser
 
-    @default_app_js_path Path.join(["assets", "js", "app.js"])
     @default_app_css_path Path.join(["assets", "css", "app.css"])
     @hooks "...BackpexHooks"
     @imports "import { Hooks as BackpexHooks } from 'backpex'"
@@ -75,7 +74,7 @@ if Code.ensure_loaded?(Igniter) do
         adds_deps: [igniter_js: "~> 0.4"],
         example: __MODULE__.Docs.example(),
         schema: [app_js_path: :string, app_css_path: :string, no_layout: :boolean],
-        defaults: [app_js_path: @default_app_js_path, app_css_path: @default_app_css_path, no_layout: false]
+        defaults: [app_js_path: nil, app_css_path: @default_app_css_path, no_layout: false]
       }
     end
 
@@ -133,15 +132,36 @@ if Code.ensure_loaded?(Igniter) do
     # Backpex hooks
 
     defp install_backpex_hooks(igniter) do
-      app_js_path = igniter.args.options[:app_js_path]
+      app_js_path = igniter.args.options[:app_js_path] || detect_app_file_path(igniter)
 
       with {:ok, content} <- IgniterJs.Helpers.read_and_validate_file(app_js_path),
            {:ok, _fun, content} <- Parser.insert_imports(content, @imports, :content),
            {:ok, _fun, content} <- Parser.extend_hook_object(content, @hooks, :content) do
         Igniter.create_new_file(igniter, app_js_path, content, on_exists: :overwrite)
       else
-        {:error, _fun, error} -> Mix.raise("Failed to modify app.js: #{error}")
-        {:error, error} -> Mix.raise("Could not read app.js: #{error}")
+        {:error, _fun, error} -> Mix.raise("Failed to modify app file: #{error}")
+        {:error, error} -> Mix.raise("Could not read app file: #{error}")
+      end
+    end
+
+    # Auto-detect app.js or app.ts file
+
+    defp detect_app_file_path(igniter) do
+      js_path = Path.join(["assets", "js", "app.js"])
+      ts_path = Path.join(["assets", "js", "app.ts"])
+
+      cond do
+        Igniter.exists?(igniter, ts_path) ->
+          Mix.shell().info("Detected TypeScript app file: #{ts_path}")
+          ts_path
+
+        Igniter.exists?(igniter, js_path) ->
+          Mix.shell().info("Detected JavaScript app file: #{js_path}")
+          js_path
+
+        true ->
+          Mix.shell().info("No app.js or app.ts found, defaulting to: #{js_path}")
+          js_path
       end
     end
 
