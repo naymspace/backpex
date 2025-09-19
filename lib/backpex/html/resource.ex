@@ -102,7 +102,7 @@ defmodule Backpex.HTML.Resource do
   attr :fields, :list, required: true, doc: "list of all fields provided by the resource configuration"
 
   def resource_field(assigns) do
-    %{name: name, item: item, fields: fields, live_resource: live_resource} = assigns
+    %{name: name, item: item, live_resource: live_resource, fields: fields} = assigns
 
     {_name, field_options} = field = Enum.find(fields, fn {field_name, _field_options} -> field_name == name end)
 
@@ -212,9 +212,9 @@ defmodule Backpex.HTML.Resource do
     computed = [
       filter_count: Enum.count(assigns.filter_options),
       filter_icon_class:
-        if(assigns.filter_options != %{},
-          do: "text-primary group-hover:text-primary-content",
-          else: "text-primary/75 group-hover:text-primary-content"
+        if(assigns.filter_options == %{},
+          do: "text-primary/75 group-hover:text-primary-content",
+          else: "text-primary group-hover:text-primary-content"
         )
     ]
 
@@ -450,10 +450,14 @@ defmodule Backpex.HTML.Resource do
 
   defp pagination_item(%{type: :number} = assigns) do
     pagination_link = get_pagination_link(assigns.path, assigns.number)
-    assigns = assign(assigns, :href, pagination_link)
+
+    assigns =
+      assigns
+      |> assign(:btn_class, pagination_btn_class())
+      |> assign(:link, pagination_link)
 
     ~H"""
-    <.link href={@href} class={[pagination_btn_class(), @current_page == @number && "bg-base-300", @class]}>
+    <.link patch={@link} class={[@btn_class, @current_page == @number && "bg-base-300", @class]}>
       {Integer.to_string(@number)}
     </.link>
     """
@@ -461,29 +465,39 @@ defmodule Backpex.HTML.Resource do
 
   defp pagination_item(%{type: :prev} = assigns) do
     pagination_link = get_pagination_link(assigns.path, assigns.current_page - 1)
-    assigns = assign(assigns, :href, pagination_link)
+
+    assigns =
+      assigns
+      |> assign(:btn_class, pagination_btn_class())
+      |> assign(:link, pagination_link)
 
     ~H"""
-    <.link href={@href} class={[pagination_btn_class(), @class]} aria-label={@previous_page_label}>
-      <Backpex.HTML.CoreComponents.icon name="hero-chevron-left" class="h-4 w-4" />
+    <.link patch={@link} class={[@btn_class, @class]} aria-label={@previous_page_label}>
+      <Backpex.HTML.CoreComponents.icon name="hero-chevron-left" class="size-4" />
     </.link>
     """
   end
 
   defp pagination_item(%{type: :next} = assigns) do
     pagination_link = get_pagination_link(assigns.path, assigns.current_page + 1)
-    assigns = assign(assigns, :href, pagination_link)
+
+    assigns =
+      assigns
+      |> assign(:btn_class, pagination_btn_class())
+      |> assign(:link, pagination_link)
 
     ~H"""
-    <.link href={@href} class={[pagination_btn_class(), @class]} aria-label={@next_page_label}>
-      <Backpex.HTML.CoreComponents.icon name="hero-chevron-right" class="h-4 w-4" />
+    <.link patch={@link} class={[@btn_class, @class]} aria-label={@next_page_label}>
+      <Backpex.HTML.CoreComponents.icon name="hero-chevron-right" class="size-4" />
     </.link>
     """
   end
 
   defp pagination_item(%{type: :placeholder} = assigns) do
+    assigns = assign(assigns, :btn_class, pagination_btn_class())
+
     ~H"""
-    <button class={[pagination_btn_class(), @class]} aria-disable="true">
+    <button class={[@btn_class, @class]} aria-disable="true">
       ...
     </button>
     """

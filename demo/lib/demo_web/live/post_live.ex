@@ -110,7 +110,7 @@ defmodule DemoWeb.PostLive do
         module: Backpex.Fields.Textarea,
         label: "Body",
         rows: 10,
-        except: [:index, :resource_action],
+        except: [:index],
         align_label: :center
       },
       published: %{
@@ -123,7 +123,7 @@ defmodule DemoWeb.PostLive do
         module: Backpex.Fields.Boolean,
         label: "Show likes",
         select: dynamic([post: p], fragment("? > 0", p.likes)),
-        except: [:index, :resource_action, :show]
+        except: [:index, :show]
       },
       likes: %{
         module: Backpex.Fields.Number,

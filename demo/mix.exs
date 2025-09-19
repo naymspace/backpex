@@ -8,11 +8,12 @@ defmodule Demo.MixProject do
       elixir: "~> 1.12",
       elixirc_options: [warnings_as_errors: halt_on_warnings?(Mix.env())],
       elixirc_paths: elixirc_paths(Mix.env()),
-      compilers: Mix.compilers(),
+      compilers: [:phoenix_live_view] ++ Mix.compilers(),
       start_permanent: Mix.env() == :prod,
       deps: deps(),
       aliases: aliases(),
-      gettext: gettext()
+      gettext: gettext(),
+      listeners: [Phoenix.CodeReloader]
     ]
   end
 
@@ -39,35 +40,38 @@ defmodule Demo.MixProject do
       {:sobelow, "~> 0.13", only: [:dev, :test]},
       {:mix_audit, "~> 2.0", only: [:dev, :test], runtime: false},
       {:tailwind_formatter, "~> 0.4.0", only: [:dev, :test], runtime: false},
+      {:lazy_html, "~> 0.1.3", only: :test},
       {:ex_machina, "~> 2.3"},
       {:smokestack, "~> 0.9.2"},
       {:faker, "~> 0.18"},
-      {:phoenix_test, "~> 0.7.0", only: :test, runtime: false},
-      {:sourceror, "~> 1.7", only: [:dev, :test]},
+      {:phoenix_test, "~> 0.8.0", only: :test, runtime: false},
       {:phoenix_test_playwright, "~> 0.7.0", only: :test, runtime: false},
       {:a11y_audit, "~> 0.2.3", only: :test},
-      {:live_debugger, "~> 0.3", only: :dev},
+      {:live_debugger, "~> 0.4", only: :dev},
+      {:quokka, "~> 2.9", only: [:dev, :test], runtime: false},
 
       # core
       {:dns_cluster, "~> 0.2.0"},
       {:telemetry_poller, "~> 1.0"},
       {:telemetry_metrics, "~> 1.0"},
-      {:gettext, "~> 0.26"},
+      {:gettext, "~> 1.0"},
       {:sentry, "~> 11.0"},
       {:hackney, "~> 1.17", override: true},
       {:circular_buffer, "~> 1.0.0"},
 
       # phoenix
       {:bandit, "~> 1.0"},
-      {:phoenix, "~> 1.7.6"},
+      {:phoenix, "~> 1.8.0"},
       {:phoenix_pubsub, "~> 2.0"},
-      {:phoenix_live_view, "~> 1.0"},
+      {:phoenix_live_view, "~> 1.1"},
       {:phoenix_live_dashboard, "~> 0.8"},
       {:phoenix_live_reload, "~> 1.2", only: :dev},
 
       # application
       {:backpex, path: "../."},
       {:phoenix_ecto, "~> 4.0"},
+      {:igniter, "~> 0.6"},
+      {:igniter_js, "~> 0.4"},
       {:ecto_sql, "~> 3.1"},
       {:postgrex, ">= 0.0.0"},
       {:ecto_psql_extras, "~> 0.8"},
@@ -78,7 +82,7 @@ defmodule Demo.MixProject do
 
       # assets
       {:esbuild, "~> 0.9", runtime: Mix.env() == :dev},
-      {:tailwind, "~> 0.3.1", runtime: Mix.env() == :dev},
+      {:tailwind, "~> 0.4.0", runtime: Mix.env() == :dev},
       {:heroicons, github: "tailwindlabs/heroicons", tag: "v2.2.0", sparse: "optimized", app: false, compile: false}
     ]
   end
@@ -91,12 +95,17 @@ defmodule Demo.MixProject do
       "ecto.reset": ["ecto.rollback --all", "ecto.setup"],
       test: ["ecto.create --quiet", "ecto.migrate --quiet", "test --warnings-as-errors"],
       "assets.setup": ["tailwind.install --if-missing", "esbuild.install --if-missing"],
-      "assets.build": ["tailwind default", "esbuild default"],
-      "assets.deploy": ["tailwind default --minify", "esbuild default --minify", "phx.digest"]
+      "assets.build": ["tailwind default", "esbuild backpex", "esbuild default"],
+      "assets.deploy": [
+        "tailwind default --minify",
+        "esbuild backpex --minify",
+        "esbuild default --minify",
+        "phx.digest"
+      ]
     ]
   end
 
-  defp gettext() do
+  defp gettext do
     [
       write_reference_comments: false,
       sort_by_msgid: :case_insensitive

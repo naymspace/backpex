@@ -7,7 +7,7 @@ defmodule DemoWeb.UserLive do
       create_changeset: &Demo.User.changeset/3,
       item_query: &__MODULE__.item_query/3
     ],
-    layout: {DemoWeb.Layouts, :admin},
+    layout: &DemoWeb.Layouts.admin/1,
     init_order: &__MODULE__.init_order/1
 
   import Ecto.Query, warn: false
@@ -48,7 +48,7 @@ defmodule DemoWeb.UserLive do
   @impl Backpex.LiveResource
   def item_actions(default_actions) do
     default_actions
-    |> Keyword.drop([:delete])
+    |> Keyword.delete(:delete)
     |> Enum.concat(user_soft_delete: %{module: DemoWeb.ItemActions.UserSoftDelete})
   end
 

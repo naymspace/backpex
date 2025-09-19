@@ -22,6 +22,7 @@ erl_crash.dump
 demo-*.tar
 /priv/cert
 /priv/static/assets/
+/priv/static/js
 /priv/static/cache_manifest.json
 report.*.json
 openapi.json

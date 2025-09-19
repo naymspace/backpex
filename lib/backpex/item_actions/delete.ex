@@ -1,6 +1,6 @@
 defmodule Backpex.ItemActions.Delete do
   @moduledoc """
-  Inline item action to redirect to show view.
+  Inline item action to delete the item.
   """
 
   use BackpexWeb, :item_action
@@ -75,11 +75,7 @@ defmodule Backpex.ItemActions.Delete do
     )
   end
 
-  defp error_message(
-         assigns,
-         %Postgrex.Error{postgres: %{code: :foreign_key_violation}},
-         [_item] = items
-       ) do
+  defp error_message(assigns, %Postgrex.Error{postgres: %{code: :foreign_key_violation}}, [_item] = items) do
     "#{error_message(assigns, :error, items)} #{Backpex.__("The item is used elsewhere.", assigns.live_resource)}"
   end
 
