@@ -377,8 +377,6 @@ defmodule Backpex.Fields.HasMany do
     link =
       if link_assocs and field_options.live_resource.can?(assigns, :show, item) do
         Router.get_path(socket, Map.get(field_options, :live_resource), params, :show, item)
-      else
-        nil
       end
 
     assign(assigns, :link, link)

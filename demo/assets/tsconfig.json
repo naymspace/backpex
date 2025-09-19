@@ -1,0 +1,10 @@
+{
+  "compilerOptions": {
+    "baseUrl": ".",
+    "allowJs": true,
+    "noEmit": true
+  },
+  "include": [
+    "js/**/*"
+  ]
+}

@@ -128,14 +128,14 @@ end
 
 It does not matter where you place the [`backpex_routes/0`](Backpex.Router.html#backpex_routes/0) macro in your router file. You can insert it in every scope you want to, but we recommend placing it in the scope you want to use backpex in, e.g. `/admin`. But always make sure that the scope you put it in pipes through the `:browser` pipeline: `pipe_through :browser`.
 
-## Create a default admin layout
+## Create a default admin layout component
 
-Although Backpex does not ship with a predefined layout, it does provide components that you can use to build your own layout. You can find all Backpex components in the [`lib/backpex/html`](https://github.com/naymspace/backpex/tree/main/lib/backpex/html) directory of our GitHub repository (see the snippet below for a pre-built layout that you can copy & paste into your application). 
+Although Backpex does not ship with a predefined layout component, it does provide components that you can use to build your own layout component. You can find all Backpex components in the [`lib/backpex/html`](https://github.com/naymspace/backpex/tree/main/lib/backpex/html) directory of our GitHub repository (see the snippet below for a pre-built layout that you can copy & paste into your application). 
 
 > #### Warning {: .warning}
 > Note that some components are tied to Backpex and therefore might not be used outside of it. Our goal is to make them more generic in the future so all Backpex components can easily be used in custom views, too.
 
-To get you started quickly, we provide a layout you can copy & paste into your application. Place it as a file in your `lib/myapp_web/templates/layout` directory. You can name it whatever you like, but we recommend using `admin.html.heex`. You can also use this layout as the only layout in your application if your application consists of only an admin interface. This layout uses the `Backpex.HTML.Layout.app_shell/1` component, which can be used to easily add an app shell layout to your application.
+To get you started quickly, we provide a layout component you can copy & paste into your application. Place it as a file in your `lib/myapp_web/templates/layout` directory. You can name it whatever you like, but we recommend using `admin.html.heex`. You can also use this component as the only layout in your application if your application consists of only an admin interface. This layout component uses the `Backpex.HTML.Layout.app_shell/1` component, which can be used to easily add an app shell layout to your application.
 
 ```heex
 <Backpex.HTML.Layout.app_shell fluid={@fluid?}>
@@ -160,13 +160,31 @@ To get you started quickly, we provide a layout you can copy & paste into your a
     <!-- Sidebar Content -->
   </:sidebar>
   <Backpex.HTML.Layout.flash_messages flash={@flash} />
-  {@inner_content}
+  {render_slot(@inner_block)}
 </Backpex.HTML.Layout.app_shell>
 ```
 
-Make sure to always add the `Backpex.HTML.Layout.flash_messages` component to display flash messages in your layout and do not forget to add the `@inner_content` variable to render the content of the LiveView.
+In addition we recommend to add a bodyless function definition and to configure declarative assigns for your layout component.
 
-We use the `icon/1` component to render icons in the layout. This component is part of the `core_components` module that ships with new Phoenix projects. See (`core_components.ex`)(https://github.com/phoenixframework/phoenix/blob/main/priv/templates/phx.gen.live/core_components.ex). Feel free to use your own icon component or library.
+```elixir
+defmodule MyAppWeb.Layouts do
+  use MyAppWeb, :html
+
+  embed_templates "layouts/*"
+
+  attr :flash, :map, required: true, doc: "the map of flash messages"
+  attr :fluid?, :boolean, default: true, doc: "if the content uses full width"
+  attr :current_url, :string, required: true, doc: "the current url"
+
+  slot :inner_block, required: true
+
+  def admin(assigns)
+end
+```
+
+Make sure to always add the `Backpex.HTML.Layout.flash_messages` component to display flash messages in your layout component and do not forget to render the `:inner_content` slot to insert the content of the LiveView.
+
+We use the `icon/1` component to render icons in the layout component. The `icon/1` component is part of the `core_components` module that ships with new Phoenix projects. See (`core_components.ex`)(https://github.com/phoenixframework/phoenix/blob/main/priv/templates/phx.gen.live/core_components.ex). Feel free to use your own icon component or library.
 
 > #### Information {: .info}
 >
@@ -216,7 +234,7 @@ $ mix ecto.migrate
 
 These commands will generate a `Post` schema and a migration file. The migration file will create a `blog_posts` table in your database.
 
-You are now prepared to set up the Backpex layout and a LiveResource for the `Post` resource.
+You are now prepared to set up the Backpex layout component and a LiveResource for the `Post` resource.
 
 ## Configure LiveResource
 
@@ -239,7 +257,7 @@ end
 
 All options you can see in the above example are required:
 
-- The `layout` option tells Backpex which layout to use for the LiveResource. In this case, we use the `:admin`(`admin.html.heex`) layout created in the previous step.
+- The `layout` option tells Backpex which layout component to use for the LiveResource. In this case, we use the `:admin`(`admin.html.heex`) component created in the previous step.
 - The `schema` option tells Backpex which schema to use for the resource.
 - The `repo` option tells Backpex which repo to use for the resource.
 - The `update_changeset` and `create_changeset` options tell Backpex which changesets to use for updating and creating the resource.
@@ -308,7 +326,7 @@ The `fields/0` function returns a list of fields to display in the LiveResource.
 
 To make LiveResources accessible in your application, you need to add routes for them. Backpex makes it easy to add the required routes to your router by providing the [`live_resources/3`](Backpex.Router.html#live_resources/3) macro.
 
-Furthermore, Backpex provides a `Backpex.InitAssigns` module / hook. This will attach the `current_url` to the LiveView. Backpex needs it to highlight the current sidebar item in the layout. You can also use your own init assigns module if you want to attach more assigns to the LiveView, but make sure to add the `current_url` to the assigns.
+Furthermore, Backpex provides a `Backpex.InitAssigns` module / hook. This will attach the `current_url` to the LiveView. Backpex needs it to highlight the current sidebar item in the layout component. You can also use your own init assigns module if you want to attach more assigns to the LiveView, but make sure to add the `current_url` to the assigns.
 
 In the following example, we use the `Phoenix.LiveView.Router.live_session/3` function to add the `Backpex.InitAssigns` Hook to all LiveViews in the `/admin` scope. This is our recommended way, but you could also add the `on_mount` Hook to manually to your LiveResources.
 
@@ -335,7 +353,7 @@ The [`live_resources/3`](Backpex.Router.html#live_resources/3) macro will add th
 
 You probably also want to add link to your created LiveResource in the sidebar. For this, Backpex provides the `Backpex.HTML.Layout.sidebar_item/1` component.
 
-If you copied the provided layout from [the section above](#create-a-default-admin-layout), you can just use the `sidebar_item/1` component inside the sidebar slot like this:
+If you copied the provided layout component from [the section above](#create-a-default-admin-layout), you can just use the `sidebar_item/1` component inside the sidebar slot like this:
 
 ```heex
 <Backpex.HTML.Layout.app_shell fluid={@fluid?}>
@@ -492,7 +510,7 @@ For example, to render the `user` icon, you can use the following code:
 
 ## Set daisyUI theme
 
-Backpex supports daisyUI themes. The following steps will guide you through setting up daisyUI themes in your application and optionally adding a theme selector to your layout.
+Backpex supports daisyUI themes. The following steps will guide you through setting up daisyUI themes in your application and optionally adding a theme selector to your layout component.
 
 **1. Add the themes to your application.**
 
@@ -515,7 +533,7 @@ First, you need to add the themes to your stylesheet. You can add the themes to 
 
 The full list of themes can be found at the [daisyUI website](https://daisyui.com/docs/themes/).
 
-**2. Set the assign and the default daisyUI theme in your layout.**
+**2. Set the assign and the default daisyUI theme in your root layout.**
 
 We fetch the theme from the assigns and set the `data-theme` attribute on the `html` tag. If no theme is set, we default to the `light` theme.
 
@@ -550,7 +568,7 @@ To add the saved theme to the assigns, you can add the `Backpex.ThemeSelectorPlu
 
 **4. Add the theme selector component to the app shell**
 
-You can add a theme selector to your layout to allow users to change the theme. The following example shows how to add a theme selector to the `admin.html.heex` layout. The list of themes should match the themes you added to your stylesheet.
+You can add a theme selector to your layout component to allow users to change the theme. The following example shows how to add a theme selector to the `admin` component. The list of themes should match the themes you added to your stylesheet.
 
 ```heex
 <Backpex.HTML.Layout.app_shell fluid={@fluid?}>

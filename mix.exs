@@ -1,7 +1,7 @@
 defmodule Backpex.MixProject do
   use Mix.Project
 
-  @version "0.14.0"
+  @version "0.15.3"
 
   @source_url "https://github.com/naymspace/backpex"
   @changelog_url "https://github.com/naymspace/backpex/releases"
@@ -13,6 +13,7 @@ defmodule Backpex.MixProject do
       version: @version,
       elixir: "~> 1.16",
       elixirc_paths: elixirc_paths(Mix.env()),
+      compilers: [:phoenix_live_view] ++ Mix.compilers(),
       start_permanent: Mix.env() == :prod,
       deps: deps(),
       aliases: aliases(),
@@ -43,16 +44,18 @@ defmodule Backpex.MixProject do
       {:mix_audit, "~> 2.0", only: [:dev, :test], runtime: false},
       {:tailwind_formatter, "~> 0.4", only: [:dev, :test], runtime: false},
       {:sobelow, ">= 0.0.0", only: [:dev, :test]},
+      {:lazy_html, ">= 0.0.0", only: :test},
       {:esbuild, "~> 0.2", only: :dev},
+      {:quokka, "~> 2.9", only: [:dev, :test], runtime: false},
 
       # core
       {:nimble_options, "~> 1.1"},
-      {:gettext, "~> 0.26"},
+      {:gettext, ">= 0.26.0"},
       {:jason, "~> 1.2"},
       {:number, "~> 1.0"},
 
       # phoenix
-      {:phoenix, "~> 1.7.6"},
+      {:phoenix, ">= 1.7.6 and < 1.9.0"},
       {:phoenix_html, "~> 4.1"},
       {:phoenix_html_helpers, "~> 1.0"},
       {:phoenix_live_view, "~> 1.0"},
@@ -65,8 +68,8 @@ defmodule Backpex.MixProject do
       {:ash_postgres, "~> 2.0", optional: true},
 
       # generators
-      {:igniter, "~> 0.6"},
-      {:igniter_js, "~> 0.4"}
+      {:igniter, "~> 0.6", optional: true},
+      {:igniter_js, "~> 0.4", optional: true}
     ]
   end
 
@@ -95,7 +98,7 @@ defmodule Backpex.MixProject do
     ]
   end
 
-  defp docs() do
+  defp docs do
     [
       main: "readme",
       logo: "priv/static/images/logo.svg",
@@ -234,7 +237,7 @@ defmodule Backpex.MixProject do
     ]
   end
 
-  defp gettext() do
+  defp gettext do
     [
       write_reference_comments: false,
       sort_by_msgid: :case_insensitive

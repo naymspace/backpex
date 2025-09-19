@@ -4,6 +4,7 @@
   "license": "MIT",
   "type": "module",
   "main": "./priv/static/js/backpex.cjs.js",
+  "module": "./priv/static/js/backpex.esm.js",
   "exports": {
     "import": {
       "default": "./priv/static/js/backpex.esm.js"

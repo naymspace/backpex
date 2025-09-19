@@ -4,7 +4,6 @@ defmodule Backpex.LiveResource.Show do
 
   import Phoenix.Component
 
-  alias Backpex.LiveResource
   alias Backpex.Resource
   alias Backpex.Router
   alias Phoenix.LiveView
@@ -22,9 +21,9 @@ defmodule Backpex.LiveResource.Show do
     |> assign(:live_resource, live_resource)
     |> assign(:panels, live_resource.panels())
     |> assign(:fluid?, live_resource.config(:fluid?))
+    |> assign(:fields, live_resource.fields(:show, socket.assigns))
     |> assign(:page_title, live_resource.singular_name())
     |> assign(:params, params)
-    |> assign_fields()
     |> assign_item()
     |> ok()
   end
@@ -52,25 +51,15 @@ defmodule Backpex.LiveResource.Show do
   end
 
   defp assign_item(socket) do
-    %{live_resource: live_resource, params: params} = socket.assigns
-
+    %{live_resource: live_resource, fields: fields, params: params} = socket.assigns
     backpex_id = Map.fetch!(params, "backpex_id")
     primary_value = URI.decode(backpex_id)
-
-    item = Resource.get!(primary_value, socket.assigns, live_resource)
+    item = Resource.get!(primary_value, fields, socket.assigns, live_resource)
 
     if not live_resource.can?(socket.assigns, :show, item), do: raise(Backpex.ForbiddenError)
 
     socket
     |> assign(:item, item)
     |> assign(:return_to, Router.get_path(socket, live_resource, params, :show, item))
-  end
-
-  defp assign_fields(socket) do
-    fields =
-      socket.assigns.live_resource.validated_fields()
-      |> LiveResource.filtered_fields_by_action(socket.assigns, :show)
-
-    assign(socket, :fields, fields)
   end
 end

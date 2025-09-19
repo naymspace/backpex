@@ -12,6 +12,8 @@ on:
       - develop
   release:
     types: [published]
+  merge_group:
+    types: [checks_requested]
 
 env:
   REGISTRY: ghcr.io
@@ -23,11 +25,15 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        elixir: ["1.17", "1.16"]
-        erlang: ["27.1", "26.2"]
-        exclude:
+        include:
           - elixir: "1.16"
-            erlang: "27.1"
+            otp: "26.2"
+
+          - elixir: "1.17"
+            otp: "27.3"
+
+          - elixir: "1.18"
+            otp: "28.0"
 
     steps:
       - name: Checkout code
@@ -35,14 +41,14 @@ jobs:
 
       - uses: erlef/setup-beam@e6d7c94229049569db56a7ad5a540c051a010af9 # v1.20.4
         with:
-          otp-version: ${{ matrix.erlang }}
+          otp-version: ${{ matrix.otp }}
           elixir-version: ${{ matrix.elixir }}
 
       - name: Setup node
-        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
         with:
-          node-version: 20
-          cache: 'yarn'
+          node-version: 22
+          cache: "yarn"
           cache-dependency-path: yarn.lock
 
       - name: Restore the deps and _build cache
@@ -54,8 +60,8 @@ jobs:
           path: |
             deps
             _build
-          key: ${{ runner.os }}-${{ matrix.elixir }}-${{ matrix.erlang }}-build-deps-mixlockhash-${{ env.MIX_LOCK_HASH }}
-          restore-keys:  ${{ runner.os }}-${{ matrix.elixir }}-${{ matrix.erlang }}-build-deps-
+          key: ${{ runner.os }}-${{ matrix.elixir }}-${{ matrix.otp }}-build-deps-mixlockhash-${{ env.MIX_LOCK_HASH }}
+          restore-keys: ${{ runner.os }}-${{ matrix.elixir }}-${{ matrix.otp }}-build-deps-
 
       - name: Install dependencies
         if: steps.restore-cache.outputs.cache-hit != 'true'
@@ -135,7 +141,7 @@ jobs:
 
     services:
       postgres:
-        image: postgres:16.10@sha256:66a5efb5677ffac1037774a0e141fd3a4c035c9c0c0e624c9cc980dfa10f45e5
+        image: postgres:16.10@sha256:b477759d38be47671d54a054d832791f8ddb9f0eaf6faf51ed17516087793a66
         env:
           POSTGRES_PASSWORD: postgres
         options: >-
@@ -158,10 +164,10 @@ jobs:
           version-type: strict
 
       - name: Setup node
-        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
         with:
-          node-version: 20
-          cache: 'yarn'
+          node-version: 22
+          cache: "yarn"
           cache-dependency-path: demo/yarn.lock
 
       - name: Restore the deps and _build cache
@@ -176,7 +182,7 @@ jobs:
             demo/deps
             demo/_build
           key: ${{ runner.os }}-${{ env.ELIXIR_VERSION }}-${{ env.OTP_VERSION }}-build-deps-demo-mixlockhash-${{ env.MIX_LOCK_HASH }}
-          restore-keys:  ${{ runner.os }}-${{ env.ELIXIR_VERSION }}-${{ env.OTP_VERSION }}-build-deps-demo-
+          restore-keys: ${{ runner.os }}-${{ env.ELIXIR_VERSION }}-${{ env.OTP_VERSION }}-build-deps-demo-
 
       - name: Install dependencies
         if: steps.restore-cache.outputs.cache-hit != 'true'

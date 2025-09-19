@@ -5,9 +5,9 @@
 # renovate: datasource=github-tags depName=elixir packageName=elixir-lang/elixir versioning=semver
 ARG ELIXIR_VERSION=1.18.4
 # renovate: datasource=github-tags depName=erlang packageName=erlang/otp versioning=regex:^(?<major>\d+?)\.(?<minor>\d+?)(\.(?<patch>\d+))?$ extractVersion=^OTP-(?<version>\S+)
-ARG OTP_VERSION=28.0.2
+ARG OTP_VERSION=28.0.4
 # renovate: datasource=docker depName=ubuntu packageName=ubuntu versioning=ubuntu
-ARG UBUNTU_VERSION=noble-20250716
+ARG UBUNTU_VERSION=noble-20250910
 
 ARG BUILDER_IMAGE="hexpm/elixir:${ELIXIR_VERSION}-erlang-${OTP_VERSION}-ubuntu-${UBUNTU_VERSION}"
 ARG RUNTIME_IMAGE="ubuntu:${UBUNTU_VERSION}"
@@ -66,6 +66,7 @@ RUN yarn install --pure-lockfile
 COPY demo/assets assets/
 COPY demo/lib lib/
 
+RUN mix compile
 RUN mix assets.deploy
 
 # Copy the rest of the application files

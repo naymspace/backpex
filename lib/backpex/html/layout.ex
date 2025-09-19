@@ -8,6 +8,16 @@ defmodule Backpex.HTML.Layout do
   alias Backpex.Router
   require Backpex
 
+  @doc false
+  slot :inner_content
+
+  def layout(assigns) do
+    case assigns.live_resource.config(:layout) do
+      {module, fun} -> apply(module, fun, [assigns])
+      fun when is_function(fun, 1) -> fun.(assigns)
+    end
+  end
+
   @doc """
   Renders an app shell representing the base of your layout.
   """
