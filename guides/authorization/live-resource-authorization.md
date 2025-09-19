@@ -4,7 +4,7 @@ You are able to define authorization rules for your resources. The authorization
 
 ## Configuration
 
-To define authorization rules for a resource, you need to implement the [`can/3`](Backpex.LiveResource.html#c:can?/3) callback in the resource configuration file.
+To define authorization rules for a resource, you need to implement the [`can?/3`](Backpex.LiveResource.html#c:can?/3) callback in the resource configuration file.
 
 ```elixir
 # in your resource configuration file
@@ -22,14 +22,14 @@ def can?(assigns, :show, item) do
     user = assigns.current_user
 
     item.user_id == user.id
-end‚
+end
 
 def can?(assigns, action, item), do: true
 ```
 
 The example above will deny access to the `show` action if the `user_id` of the item does not match the `id` of the current user.
 
-You can also use [`can/3`](Backpex.LiveResource.html#c:can?/3) to restrict access to item or resource actions.
+You can also use [`can?/3`](Backpex.LiveResource.html#c:can?/3) to restrict access to item or resource actions.
 
 ```elixir
 # in your resource configuration file
