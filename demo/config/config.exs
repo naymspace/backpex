@@ -37,8 +37,7 @@ config :esbuild,
   ],
   backpex: [
     args: ~w(../assets/js/backpex.js --bundle --format=esm --sourcemap --outfile=priv/static/js/backpex.esm.js),
-    cd: Path.expand("..", __DIR__),
-    env: %{"NODE_PATH" => Path.expand("../deps", __DIR__)}
+    cd: Path.expand("..", __DIR__)
   ]
 
 config :logger, :default_formatter,
