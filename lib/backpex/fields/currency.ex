@@ -11,24 +11,24 @@ defmodule Backpex.Fields.Currency do
     unit: [
       doc: "Unit to display with the currency value, e.g. '€'.",
       type: :string,
-      default: "€"
+      default: "$"
     ],
     unit_position: [
       doc: "Position of the unit relative to the value, either `:before` or `:after`.",
       type: {:in, [:before, :after]},
-      default: :after
+      default: :before
     ],
     radix: [
       doc:
         "Character used as the decimal separator, e.g. ',' or '.'. Make sure this value matches the one you've configured in your Money library.",
       type: :string,
-      default: ","
+      default: "."
     ],
     thousands_separator: [
       doc:
         "Character used as the thousands separator, e.g. '.' or ','. Make sure this value matches the one you've configured in your Money library.",
       type: :string,
-      default: "."
+      default: ","
     ]
   ]
 

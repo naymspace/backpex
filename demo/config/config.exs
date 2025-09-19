@@ -46,10 +46,10 @@ config :logger, :default_formatter,
   metadata: [:request_id]
 
 config :money,
-  default_currency: :EUR,
-  separator: ".",
-  delimiter: ",",
-  symbol_on_right: true,
+  default_currency: :USD,
+  separator: ",",
+  delimiter: ".",
+  symbol_on_right: false,
   symbol_space: true
 
 config :phoenix, :json_library, Jason
