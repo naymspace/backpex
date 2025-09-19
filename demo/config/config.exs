@@ -45,6 +45,13 @@ config :logger, :default_formatter,
   format: "$time $metadata[$level] $message\n",
   metadata: [:request_id]
 
+config :money,
+  default_currency: :EUR,
+  separator: ".",
+  delimiter: ",",
+  symbol_on_right: true,
+  symbol_space: true
+
 config :phoenix, :json_library, Jason
 
 config :sentry,
@@ -85,12 +92,5 @@ config :tailwind,
     ),
     cd: Path.expand("..", __DIR__)
   ]
-
-config :money,
-  default_currency: :EUR,
-  separator: ".",
-  delimiter: ",",
-  symbol_on_right: true,
-  symbol_space: true
 
 import_config "#{config_env()}.exs"
