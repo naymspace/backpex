@@ -26,6 +26,7 @@ The example above will enable index editable for the `name` text field.
 - `Backpex.Fields.BelongsTo`
 - `Backpex.Fields.Date`
 - `Backpex.Fields.DateTime`
+- `Backpex.Fields.Email`
 - `Backpex.Fields.Number`
 - `Backpex.Fields.Select`
 - `Backpex.Fields.Text`
