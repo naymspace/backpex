@@ -196,7 +196,11 @@ defmodule DemoWeb.UserLive do
       permissions: %{
         module: Backpex.Fields.MultiSelect,
         label: "Permissions",
-        options: fn _assigns -> [{"Delete", "delete"}, {"Edit", "edit"}, {"Show", "show"}] end
+        options: [
+          {"Foo", "foo"},
+          {"Item actions", [{"Delete", "delete"}, {"Edit", "edit"}, {"Show", "show"}]},
+          {"Other actions", [{"Can send email", "can_send_email"}]}
+        ]
       }
     ]
   end
