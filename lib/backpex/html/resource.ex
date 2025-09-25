@@ -228,7 +228,6 @@ defmodule Backpex.HTML.Resource do
         )}
       </.filter_badge>
     <% end %>
-
     """
   end
 
