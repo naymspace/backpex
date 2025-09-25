@@ -265,16 +265,30 @@ defmodule Backpex.HTML.Resource do
   end
 
   @doc """
-  Renders a filter badge.
+  Renders an active filter badge with its value and a clear button.
+
+  This component displays applied filters as visual badges that show both the filter label
+  and its current value. Each badge includes a clear button (×) that allows users to
+  remove individual filters.
+
+  ## Examples
+
+      <.filter_badge
+        filter_name="status"
+        label="Status"
+        live_resource={MyApp.UserLive}
+      >
+        Active
+      </.filter_badge>
   """
   @doc type: :component
 
-  attr :live_resource, :any, default: nil, doc: "module of the live resource"
-  attr :clear_event, :string, default: "clear-filter", doc: "event name for clearing the filter"
-  attr :filter_name, :string, required: true, doc: "name of the filter"
-  attr :label, :string, required: true, doc: "label of the filter"
+  attr :live_resource, :any, default: nil, doc: "live resource module"
+  attr :clear_event, :string, default: "clear-filter", doc: "event triggered when the clear button is clicked"
+  attr :filter_name, :string, required: true, doc: "unique identifier for the filter being displayed"
+  attr :label, :string, required: true, doc: "human-readable filter name displayed on the badge"
 
-  slot :inner_block, doc: "the filter value content"
+  slot :inner_block, required: true, doc: "rendered filter value content (typically from filter module's render/1 function)"
 
   def filter_badge(assigns) do
     ~H"""
