@@ -33,9 +33,6 @@
     "topbar": "3.0.0"
   },
   "dependencies": {
-    "daisyui": "^5.0.3",
-    "phoenix": "./deps/phoenix",
-    "phoenix_html": "./deps/phoenix_html",
-    "phoenix_live_view": "./deps/phoenix_live_view"
+    "daisyui": "^5.0.3"
   }
 }
