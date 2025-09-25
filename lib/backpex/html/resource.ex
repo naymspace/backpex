@@ -299,7 +299,12 @@ defmodule Backpex.HTML.Resource do
 
   defp maybe_clear_button(%{value: nil} = assigns), do: ~H""
 
-  defp maybe_clear_button(assigns) do
+  attr :clear_event, :string, doc: "the name of the "
+  attr :clear_event, :string, default: "clear-filter", doc: "event name for removing the badge"
+  attr :live_resource, :any, required: true, doc: "live resource module"
+  attr :field, :string, doc: "the name of "
+
+  defp filter_clear_button(assigns) do
     ~H"""
     <input
       value={Backpex.__("clear", @live_resource)}
