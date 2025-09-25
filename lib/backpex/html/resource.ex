@@ -302,7 +302,9 @@ defmodule Backpex.HTML.Resource do
   attr :filter_name, :string, required: true, doc: "unique identifier for the filter being displayed"
   attr :label, :string, required: true, doc: "human-readable filter name displayed on the badge"
 
-  slot :inner_block, required: true, doc: "rendered filter value content (typically from filter module's render/1 function)"
+  slot :inner_block,
+    required: true,
+    doc: "rendered filter value content (typically from filter module's render/1 function)"
 
   def filter_badge(assigns) do
     ~H"""
@@ -343,7 +345,12 @@ defmodule Backpex.HTML.Resource do
         <% presets = Map.get(filter, :presets, []) %>
         <% value = Map.get(@filter_options, Atom.to_string(field), nil) %>
 
-        <.filter_form_field live_resource={@live_resource} filter_name={field} label={label} show_clear_button={value != nil}>
+        <.filter_form_field
+          live_resource={@live_resource}
+          filter_name={field}
+          label={label}
+          show_clear_button={value != nil}
+        >
           {component(
             &filter.module.render_form/1,
             Map.merge(assigns, %{field: field, value: value, form: f, live_resource: @live_resource}),
@@ -385,7 +392,10 @@ defmodule Backpex.HTML.Resource do
   attr :clear_event, :string, default: "clear-filter", doc: "event name triggered when clearing the filter"
   attr :filter_name, :string, required: true, doc: "unique identifier for the filter field"
   attr :label, :string, required: true, doc: "human-readable label displayed above the filter"
-  attr :show_clear_button, :boolean, required: true, doc: "whether to show the clear button (typically when filter has a value)"
+
+  attr :show_clear_button, :boolean,
+    required: true,
+    doc: "whether to show the clear button (typically when filter has a value)"
 
   slot :inner_block, required: true, doc: "filter form inputs (selects, text inputs, etc.)"
   slot :presets, doc: "optional preset buttons for common filter values"
