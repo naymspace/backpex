@@ -759,7 +759,7 @@ defmodule Backpex.HTML.Resource do
         value={Map.get(@query_options, :search, "")}
         placeholder={@search_placeholder}
       />
-      <.index_filter
+      <.filter
         :if={LiveResource.active_filters(assigns) != []}
         live_resource={@live_resource}
         filter_options={LiveResource.get_filter_options(@query_options)}
