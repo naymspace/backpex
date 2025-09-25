@@ -232,14 +232,28 @@ defmodule Backpex.HTML.Resource do
   end
 
   @doc """
-  Renders the index filter dropdown.
+  Renders a dropdown button that typically contains filter forms for the resource index.
+
+  It provides the main filter interface with a button that shows a funnel icon and a "Filters" label.
+  When clicked, it opens a dropdown containing all available filter forms.
+  The button displays a badge with the count of active filters when any filters are applied.
+
+  ## Examples
+
+      <.filter_dropdown filter_count={@filter_count}>
+        <.form :let={f} for={@form} phx-change="change-filter" class="space-y-5">
+          <.filter_form_field filter_name={:status} label="Status" show_clear_button={@filter_opts[:status]}>
+            <.input type="select" prompt="Select status..." options={@status_options} />
+          </.filter_form_field>
+        </.form>
+      </.filter_dropdown>
   """
   @doc type: :component
 
-  attr :live_resource, :any, default: nil, doc: "module of the live resource"
-  attr :filter_count, :integer, doc: "number of active filters"
+  attr :live_resource, :any, default: nil, doc: "live resource module"
+  attr :filter_count, :integer, doc: "number of currently active filters (shows as badge when > 0)"
 
-  slot :inner_block, doc: "content of the filter dropdown"
+  slot :inner_block, required: true, doc: "filter forms content"
 
   def filter_dropdown(assigns) do
     ~H"""
