@@ -5,6 +5,7 @@ defmodule Backpex.HTML.Resource do
   use BackpexWeb, :html
 
   import Phoenix.LiveView.TagEngine
+  import Backpex.HTML.CoreComponents
   import Backpex.HTML.Form
   import Backpex.HTML.Layout
 
@@ -198,80 +199,135 @@ defmodule Backpex.HTML.Resource do
     """
   end
 
+  @doc false
+  attr :live_resource, :any, default: nil, doc: "module of the live resource"
+  attr :filter_options, :list, required: true, doc: "filter options"
+  attr :filters, :list, required: true, doc: "list of active filters"
+
+  def index_filter(assigns) do
+    assigns = assign(assigns, :filter_count, Enum.count(assigns.filter_options))
+
+    ~H"""
+    <.index_filter_dropdown :if={@filters != []} live_resource={@live_resource} filter_count={@filter_count}>
+      <.index_filter_forms filters={@filters} filter_options={@filter_options} live_resource={@live_resource} {assigns} />
+    </.index_filter_dropdown>
+    <%= for {key, value} <- @filter_options do %>
+      <% filter = Keyword.get(@filters, String.to_existing_atom(key)) %>
+      <% label = Map.get(filter, :label, filter.module.label()) %>
+
+      <.filter_badge
+        filter_name={key}
+        clear_event="clear-filter"
+        label={label}
+        live_resource={@live_resource}
+      >
+        {component(
+          &filter.module.render/1,
+          Map.merge(assigns, %{value: value}),
+          {__ENV__.module, __ENV__.function, __ENV__.file, __ENV__.line}
+        )}
+      </.filter_badge>
+    <% end %>
+
+    """
+  end
+
   @doc """
-  Renders the index filters if the `filter/0` callback is defined in the resource.
+  Renders the index filter dropdown.
   """
   @doc type: :component
 
-  attr :live_resource, :any, required: true, doc: "module of the live resource"
-  attr :filter_options, :map, required: true, doc: "filter options"
-  attr :filters, :list, required: true, doc: "list of active filters"
-  attr :label, :string, required: true
+  attr :live_resource, :any, default: nil, doc: "module of the live resource"
+  attr :filter_count, :integer, doc: "number of active filters"
 
-  def index_filter(assigns) do
-    computed = [
-      filter_count: Enum.count(assigns.filter_options),
-      filter_icon_class:
-        if(assigns.filter_options == %{},
-          do: "text-primary/75 group-hover:text-primary-content",
-          else: "text-primary group-hover:text-primary-content"
-        )
-    ]
+  slot :inner_block, doc: "content of the filter dropdown"
 
-    assigns = assign(assigns, computed)
-
+  def index_filter_dropdown(assigns) do
     ~H"""
-    <div :if={@filters != []} class="dropdown">
+    <div class="dropdown">
       <div class="indicator">
         <span :if={@filter_count > 0} class="indicator-item badge badge-sm badge-secondary rounded-selector">
           {@filter_count}
         </span>
-        <label tabindex="0" class="btn btn-sm btn-outline ring-base-content/10 border-0 ring-1">
-          <Backpex.HTML.CoreComponents.icon name="hero-funnel-solid" class={["mr-2 h-5 w-5", @filter_icon_class]} />
-          {@label}
+        <label tabindex="0" class="btn btn-sm btn-outline border-base-content/20 border-(length:--border)">
+          <Backpex.HTML.CoreComponents.icon name="hero-funnel-solid" class="size-5 text-primary mr-2" />
+          {Backpex.__("Filters", @live_resource)}
         </label>
       </div>
-      <div tabindex="0" class="dropdown-content z-[1] menu bg-base-100 rounded-box p-4 shadow">
-        <.index_filter_forms filters={@filters} filter_options={@filter_options} live_resource={@live_resource} {assigns} />
+      <div
+        role="button"
+        tabindex="0"
+        class="dropdown-content z-[1] menu bg-base-100 rounded-box outline-black/5 p-4 shadow outline-[length:var(--border)]"
+      >
+        {render_slot(@inner_block)}
       </div>
     </div>
-    <Backpex.HTML.CoreComponents.filter_badge
-      :for={{key, value} <- @filter_options}
-      filter_name={key}
-      clear_event="clear-filter"
-      label={Keyword.get(@filters, String.to_existing_atom(key)).module.label()}
-      live_resource={@live_resource}
-    >
-      {component(
-        &Keyword.get(@filters, String.to_existing_atom(key)).module.render/1,
-        Map.merge(assigns, %{value: value}),
-        {__ENV__.module, __ENV__.function, __ENV__.file, __ENV__.line}
-      )}
-    </Backpex.HTML.CoreComponents.filter_badge>
     """
   end
 
-  defp index_filter_forms(assigns) do
+  @doc """
+  Renders a filter badge.
+  """
+  @doc type: :component
+
+  attr :live_resource, :any, default: nil, doc: "module of the live resource"
+  attr :clear_event, :string, default: "clear-filter", doc: "event name for clearing the filter"
+  attr :filter_name, :string, required: true, doc: "name of the filter"
+  attr :label, :string, required: true, doc: "label of the filter"
+
+  slot :inner_block, doc: "the filter value content"
+
+  def filter_badge(assigns) do
+    ~H"""
+    <div class="indicator">
+      <div class="join">
+        <div class="btn btn-sm join-item bg-base-300 border-base-content/20 pointer-events-none font-semibold">
+          {@label}
+        </div>
+        <div class="btn btn-sm btn-outline join-item border-base-content/20 pointer-events-none border-l-transparent">
+          {render_slot(@inner_block)}
+        </div>
+      </div>
+      <button
+        type="button"
+        phx-click={@clear_event}
+        phx-value-field={@filter_name}
+        class="indicator-item bg-base-300 rounded-selector grid cursor-pointer place-items-center p-1 shadow-sm transition duration-75 hover:text-secondary hover:scale-110"
+        aria-label={Backpex.__({"Clear %{name} filter", %{name: @label}}, @live_resource)}
+      >
+        <.icon name="hero-x-mark" class="size-3" />
+      </button>
+    </div>
+    """
+  end
+
+  @doc false
+  attr :live_resource, :any, default: nil, doc: "live resource module"
+  attr :filters, :list, required: true, doc: "list of active filters"
+  attr :filter_options, :list, required: true, doc: "filter options"
+
+  def index_filter_forms(assigns) do
     ~H"""
     <div class="space-y-5">
       <div :for={{field, filter} <- @filters}>
+        <% label = Map.get(filter, :label, filter.module.label()) %>
+        <% presets = Map.get(filter, :presets, []) %>
         <% value = Map.get(@filter_options, Atom.to_string(field), nil) %>
+
         <.form :let={f} for={to_form(%{}, as: :filters)} phx-change="change-filter" phx-submit="change-filter">
-          <div>
-            <div class="relative flex w-full flex-wrap justify-start gap-2">
-              <div class="text-base-content text-sm font-medium">{Map.get(filter, :label, filter.module.label())}</div>
-              <.maybe_clear_button field={field} value={value} live_resource={@live_resource} />
+          <div class="flex space-x-2">
+            <div class="text-sm font-medium">{label}</div>
+            <.index_filter_clear_button :if={value != nil} live_resource={@live_resource} filter_name={field} />
+          </div>
+          <div class="flex space-x-4">
+            <div class="w-[240px]">
+              {component(
+                &filter.module.render_form/1,
+                Map.merge(assigns, %{field: field, value: value, form: f, live_resource: @live_resource}),
+                {__ENV__.module, __ENV__.function, __ENV__.file, __ENV__.line}
+              )}
             </div>
-            <div class="flex gap-4">
-              <div class="w-[240px]">
-                {component(
-                  &filter.module.render_form/1,
-                  Map.merge(assigns, %{field: field, value: value, form: f, live_resource: @live_resource}),
-                  {__ENV__.module, __ENV__.function, __ENV__.file, __ENV__.line}
-                )}
-              </div>
-              <.filter_presets field={field} presets={Map.get(filter, :presets)} />
-            </div>
+            <.index_filter_presets :if={presets != []} presets={presets} filter_name={field} />
           </div>
         </.form>
       </div>
@@ -279,17 +335,23 @@ defmodule Backpex.HTML.Resource do
     """
   end
 
-  defp filter_presets(%{presets: nil} = assigns), do: ~H""
+  @doc false
+  attr :select_filter_preset_event, :string,
+    default: "filter-preset-selected",
+    doc: "event name for selecting filter presets"
 
-  defp filter_presets(assigns) do
+  attr :presets, :list, required: true, doc: "list of presets"
+  attr :filter_name, :string, required: true, doc: "name of the filter"
+
+  def index_filter_presets(assigns) do
     ~H"""
     <div class="min-w-[80px] mt-2">
       <div
         :for={{preset, index} <- Enum.with_index(@presets)}
-        phx-click="filter-preset-selected"
-        phx-value-field={@field}
+        phx-click={@select_filter_preset_event}
+        phx-value-field={@filter_name}
         phx-value-preset-index={index}
-        class="text-primary mb-1 cursor-pointer truncate text-xs font-medium"
+        class="text-primary mb-1 cursor-pointer truncate text-xs font-medium hover:underline"
       >
         {preset.label}
       </div>
@@ -297,22 +359,21 @@ defmodule Backpex.HTML.Resource do
     """
   end
 
-  defp maybe_clear_button(%{value: nil} = assigns), do: ~H""
-
-  attr :clear_event, :string, doc: "the name of the "
-  attr :clear_event, :string, default: "clear-filter", doc: "event name for removing the badge"
+  @doc false
+  attr :clear_event, :string, default: "clear-filter", doc: "event name for clearing the filter"
   attr :live_resource, :any, required: true, doc: "live resource module"
-  attr :field, :string, doc: "the name of "
+  attr :filter_name, :string, required: true, doc: "name of the filter"
 
-  defp filter_clear_button(assigns) do
+  def index_filter_clear_button(assigns) do
     ~H"""
-    <input
-      value={Backpex.__("clear", @live_resource)}
+    <button
       type="button"
-      phx-click="clear-filter"
-      phx-value-field={@field}
-      class="text-primary flex cursor-pointer items-center text-xs transition duration-75 hover:text-error hover:scale-105"
-    />
+      phx-click={@clear_event}
+      phx-value-field={@filter_name}
+      class="text-primary cursor-pointer text-xs font-medium hover:underline"
+    >
+      {Backpex.__("clear", @live_resource)}
+    </button>
     """
   end
 
@@ -700,10 +761,10 @@ defmodule Backpex.HTML.Resource do
         placeholder={@search_placeholder}
       />
       <.index_filter
+        :if={LiveResource.active_filters(assigns) != []}
         live_resource={@live_resource}
         filter_options={LiveResource.get_filter_options(@query_options)}
         filters={LiveResource.active_filters(assigns)}
-        label={Backpex.__("Filters", @live_resource)}
         {assigns}
       />
     </div>
