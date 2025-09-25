@@ -306,30 +306,78 @@ defmodule Backpex.HTML.Resource do
   attr :filter_options, :list, required: true, doc: "filter options"
 
   def filter_forms(assigns) do
+    assigns = assign(assigns, :form, to_form(%{}, as: :filters))
+
     ~H"""
-    <div class="space-y-5">
+    <.form :let={f} for={@form} phx-change="change-filter" phx-submit="change-filter" class="space-y-5">
       <div :for={{field, filter} <- @filters}>
         <% label = Map.get(filter, :label, filter.module.label()) %>
         <% presets = Map.get(filter, :presets, []) %>
         <% value = Map.get(@filter_options, Atom.to_string(field), nil) %>
 
-        <.form :let={f} for={to_form(%{}, as: :filters)} phx-change="change-filter" phx-submit="change-filter">
-          <div class="flex space-x-2">
-            <div class="text-sm font-medium">{label}</div>
-            <.filter_clear_button :if={value != nil} live_resource={@live_resource} filter_name={field} />
-          </div>
-          <div class="flex space-x-4">
-            <div class="w-[240px]">
-              {component(
-                &filter.module.render_form/1,
-                Map.merge(assigns, %{field: field, value: value, form: f, live_resource: @live_resource}),
-                {__ENV__.module, __ENV__.function, __ENV__.file, __ENV__.line}
-              )}
-            </div>
-            <.filter_presets :if={presets != []} presets={presets} filter_name={field} />
-          </div>
-        </.form>
+        <.filter_form_field live_resource={@live_resource} filter_name={field} label={label} show_clear_button={value != nil}>
+          {component(
+            &filter.module.render_form/1,
+            Map.merge(assigns, %{field: field, value: value, form: f, live_resource: @live_resource}),
+            {__ENV__.module, __ENV__.function, __ENV__.file, __ENV__.line}
+          )}
+          <:presets :if={presets != []}>
+            <.filter_presets presets={presets} filter_name={field} />
+          </:presets>
+        </.filter_form_field>
       </div>
+    </.form>
+    """
+  end
+
+  @doc """
+  Renders a filter field container with label, form inputs, and optional clear button.
+  Providing a structured layout for individual filter controls within the filter menu.
+
+  Typically used within `.filter_forms/1` to render each individual filter in the filter dropdown.
+  The form inputs are provided via the inner_block slot, while preset buttons are provided via
+  the presets slot.
+
+  ## Examples
+
+      <.filter_form_field
+        filter_name={:status}
+        label="Status"
+        show_clear_button={@has_status_filter}
+      >
+        <.input type="select" field={@form[:status]} options={@status_options} />
+        <:presets>
+          <.filter_presets presets={[{"Active", "active"}, {"Inactive", "inactive"}]} />
+        </:presets>
+      </.filter_form_field>
+  """
+  @doc type: :component
+
+  attr :live_resource, :any, default: nil, doc: "live resource module"
+  attr :clear_event, :string, default: "clear-filter", doc: "event name triggered when clearing the filter"
+  attr :filter_name, :string, required: true, doc: "unique identifier for the filter field"
+  attr :label, :string, required: true, doc: "human-readable label displayed above the filter"
+  attr :show_clear_button, :boolean, required: true, doc: "whether to show the clear button (typically when filter has a value)"
+
+  slot :inner_block, required: true, doc: "filter form inputs (selects, text inputs, etc.)"
+  slot :presets, doc: "optional preset buttons for common filter values"
+
+  def filter_form_field(assigns) do
+    ~H"""
+    <div class="flex space-x-2">
+      <p class="text-sm font-medium">{@label}</p>
+      <.filter_clear_button
+        :if={@show_clear_button}
+        clear_event={@clear_event}
+        live_resource={@live_resource}
+        filter_name={@filter_name}
+      />
+    </div>
+    <div class="flex space-x-4">
+      <div class="w-[240px]">
+        {render_slot(@inner_block)}
+      </div>
+      {render_slot(@presets)}
     </div>
     """
   end
