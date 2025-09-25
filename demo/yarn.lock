@@ -516,9 +516,7 @@ cssesc@^3.0.0:
   integrity sha512-/Tb/JcjK111nNScGob5MNtsntNM1aCNUDipB/TkwZFhyDrrE47SOx/18wF2bbjgc3ZzCSKW1T5nt5EbFoAz/Vg==
 
 daisyui@^5.0.3:
-  version "5.1.13"
-  resolved "https://registry.yarnpkg.com/daisyui/-/daisyui-5.1.13.tgz#88354e9209c256ed0690948e0bc00bd423b3e5d2"
-  integrity sha512-KWPF/4R+EHTJRqKZFNmSDPfAZ5xeS6YWB/2kS7Y6wGKg+atscUi2DOp6HoDD/OgGML0PJTtTpgwpTfeHVfjk7w==
+  version "5.1.14"
 
 data-view-buffer@^1.0.2:
   version "1.0.2"
