@@ -204,13 +204,13 @@ defmodule Backpex.HTML.Resource do
   attr :filter_options, :list, required: true, doc: "filter options"
   attr :filters, :list, required: true, doc: "list of active filters"
 
-  def index_filter(assigns) do
+  def filter(assigns) do
     assigns = assign(assigns, :filter_count, Enum.count(assigns.filter_options))
 
     ~H"""
-    <.index_filter_dropdown :if={@filters != []} live_resource={@live_resource} filter_count={@filter_count}>
-      <.index_filter_forms filters={@filters} filter_options={@filter_options} live_resource={@live_resource} {assigns} />
-    </.index_filter_dropdown>
+    <.filter_dropdown :if={@filters != []} live_resource={@live_resource} filter_count={@filter_count}>
+      <.filter_forms filters={@filters} filter_options={@filter_options} live_resource={@live_resource} {assigns} />
+    </.filter_dropdown>
     <%= for {key, value} <- @filter_options do %>
       <% filter = Keyword.get(@filters, String.to_existing_atom(key)) %>
       <% label = Map.get(filter, :label, filter.module.label()) %>
@@ -241,7 +241,7 @@ defmodule Backpex.HTML.Resource do
 
   slot :inner_block, doc: "content of the filter dropdown"
 
-  def index_filter_dropdown(assigns) do
+  def filter_dropdown(assigns) do
     ~H"""
     <div class="dropdown">
       <div class="indicator">
@@ -305,7 +305,7 @@ defmodule Backpex.HTML.Resource do
   attr :filters, :list, required: true, doc: "list of active filters"
   attr :filter_options, :list, required: true, doc: "filter options"
 
-  def index_filter_forms(assigns) do
+  def filter_forms(assigns) do
     ~H"""
     <div class="space-y-5">
       <div :for={{field, filter} <- @filters}>
@@ -316,7 +316,7 @@ defmodule Backpex.HTML.Resource do
         <.form :let={f} for={to_form(%{}, as: :filters)} phx-change="change-filter" phx-submit="change-filter">
           <div class="flex space-x-2">
             <div class="text-sm font-medium">{label}</div>
-            <.index_filter_clear_button :if={value != nil} live_resource={@live_resource} filter_name={field} />
+            <.filter_clear_button :if={value != nil} live_resource={@live_resource} filter_name={field} />
           </div>
           <div class="flex space-x-4">
             <div class="w-[240px]">
@@ -326,7 +326,7 @@ defmodule Backpex.HTML.Resource do
                 {__ENV__.module, __ENV__.function, __ENV__.file, __ENV__.line}
               )}
             </div>
-            <.index_filter_presets :if={presets != []} presets={presets} filter_name={field} />
+            <.filter_presets :if={presets != []} presets={presets} filter_name={field} />
           </div>
         </.form>
       </div>
@@ -342,7 +342,7 @@ defmodule Backpex.HTML.Resource do
   attr :presets, :list, required: true, doc: "list of presets"
   attr :filter_name, :string, required: true, doc: "name of the filter"
 
-  def index_filter_presets(assigns) do
+  def filter_presets(assigns) do
     ~H"""
     <div class="min-w-[80px] mt-2">
       <div
@@ -363,7 +363,7 @@ defmodule Backpex.HTML.Resource do
   attr :live_resource, :any, required: true, doc: "live resource module"
   attr :filter_name, :string, required: true, doc: "name of the filter"
 
-  def index_filter_clear_button(assigns) do
+  def filter_clear_button(assigns) do
     ~H"""
     <button
       type="button"
