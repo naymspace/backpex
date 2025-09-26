@@ -153,51 +153,51 @@
   resolved "https://registry.yarnpkg.com/@rtsao/scc/-/scc-1.1.0.tgz#927dd2fae9bc3361403ac2c7a00c32ddce9ad7e8"
   integrity sha512-zt6OdqaDoOnJ1ZYsCYGt9YmWzDXl4vQdKTyJev62gFhRGKdx7mcT54V9KIjg+d2wi9EXsPvAPKe7i7WjfVWB8g==
 
-"@sentry-internal/browser-utils@10.12.0":
-  version "10.12.0"
-  resolved "https://registry.yarnpkg.com/@sentry-internal/browser-utils/-/browser-utils-10.12.0.tgz#aa3a05653e530d2693e307c0131571ee8a97b60d"
-  integrity sha512-dozbx389jhKynj0d657FsgbBVOar7pX3mb6GjqCxslXF0VKpZH2Xks0U32RgDY/nK27O+o095IWz7YvjVmPkDw==
+"@sentry-internal/browser-utils@10.15.0":
+  version "10.15.0"
+  resolved "https://registry.yarnpkg.com/@sentry-internal/browser-utils/-/browser-utils-10.15.0.tgz#9aac3f19e1678729e8580c8c561a3364d05b0f0a"
+  integrity sha512-hJxo6rj3cMqiYlZd6PC8o/i2FG6hRnZdHcJkfm1HXgWCRgdCPilKghL6WU+B2H5dLyRKJ17nWjDAVQPRdCxO9w==
   dependencies:
-    "@sentry/core" "10.12.0"
+    "@sentry/core" "10.15.0"
 
-"@sentry-internal/feedback@10.12.0":
-  version "10.12.0"
-  resolved "https://registry.yarnpkg.com/@sentry-internal/feedback/-/feedback-10.12.0.tgz#a48039507f37fe62e19566128a894661a724ef0d"
-  integrity sha512-0+7ceO6yQPPqfxRc9ue/xoPHKcnB917ezPaehGQNfAFNQB9PNTG1y55+8mRu0Fw+ANbZeCt/HyoCmXuRdxmkpg==
+"@sentry-internal/feedback@10.15.0":
+  version "10.15.0"
+  resolved "https://registry.yarnpkg.com/@sentry-internal/feedback/-/feedback-10.15.0.tgz#3c0bdea017969ffd35853509b6629db67d4e3992"
+  integrity sha512-EP+NvdU9yfmepGzQwz0jnqhd0DBxHzrP16TsJIVXJe93QJ+gumdN3XQ0lvYtEC9zHuU08DghRLjfI1kLRfGzdQ==
   dependencies:
-    "@sentry/core" "10.12.0"
+    "@sentry/core" "10.15.0"
 
-"@sentry-internal/replay-canvas@10.12.0":
-  version "10.12.0"
-  resolved "https://registry.yarnpkg.com/@sentry-internal/replay-canvas/-/replay-canvas-10.12.0.tgz#f79dde92bcba67b4f706db6c217467e14d6348c5"
-  integrity sha512-W/z1/+69i3INNfPjD1KuinSNaRQaApjzwb37IFmiyF440F93hxmEYgXHk3poOlYYaigl2JMYbysGPWOiXnqUXA==
+"@sentry-internal/replay-canvas@10.15.0":
+  version "10.15.0"
+  resolved "https://registry.yarnpkg.com/@sentry-internal/replay-canvas/-/replay-canvas-10.15.0.tgz#60c937fd30e9b2fafe86d146a62251c2f22c3484"
+  integrity sha512-SXgUWArk+haUJ24W6pIm9IiwmIk3WxeQyFUxFfMUetSRb06CVAoNjPb0YuzKIeuFYJb6hDPGQ9UWhShnQpTmkw==
   dependencies:
-    "@sentry-internal/replay" "10.12.0"
-    "@sentry/core" "10.12.0"
+    "@sentry-internal/replay" "10.15.0"
+    "@sentry/core" "10.15.0"
 
-"@sentry-internal/replay@10.12.0":
-  version "10.12.0"
-  resolved "https://registry.yarnpkg.com/@sentry-internal/replay/-/replay-10.12.0.tgz#47ca89acdc621217991c7ed1d133fd37915a512d"
-  integrity sha512-/1093gSNGN5KlOBsuyAl33JkzGiG38kCnxswQLZWpPpR6LBbR1Ddb18HjhDpoQNNEZybJBgJC3a5NKl43C2TSQ==
+"@sentry-internal/replay@10.15.0":
+  version "10.15.0"
+  resolved "https://registry.yarnpkg.com/@sentry-internal/replay/-/replay-10.15.0.tgz#bb2c5dc53f029dcdbae0ef6a721b5f2fc406f94a"
+  integrity sha512-vHBAFVdDfa51oqPWyRCK4fOIFhFeE2mVlqBWrBb+S3vCNcmtpvqJUq6o4sjSYcQzdZQpMSp5/Lj8Y3a8x/ed7w==
   dependencies:
-    "@sentry-internal/browser-utils" "10.12.0"
-    "@sentry/core" "10.12.0"
+    "@sentry-internal/browser-utils" "10.15.0"
+    "@sentry/core" "10.15.0"
 
-"@sentry/browser@10.12.0":
-  version "10.12.0"
-  resolved "https://registry.yarnpkg.com/@sentry/browser/-/browser-10.12.0.tgz#79dffc88e1f9241b9fdb5def5a7c6809f41230b3"
-  integrity sha512-lKyaB2NFmr7SxPjmMTLLhQ7xfxaY3kdkMhpzuRI5qwOngtKt4+FtvNYHRuz+PTtEFv4OaHhNNbRn6r91gWguQg==
+"@sentry/browser@10.15.0":
+  version "10.15.0"
+  resolved "https://registry.yarnpkg.com/@sentry/browser/-/browser-10.15.0.tgz#962ea86cfb3af54414ac16b3eb7ef210a738f0fb"
+  integrity sha512-YV42VgW7xdmY23u7+nQLNJXDVilNTP0d5WWkHDxeI/uD6AAvn3GyKjx1YMG/KCulxva3dPDPEUunzDm3al26Sw==
   dependencies:
-    "@sentry-internal/browser-utils" "10.12.0"
-    "@sentry-internal/feedback" "10.12.0"
-    "@sentry-internal/replay" "10.12.0"
-    "@sentry-internal/replay-canvas" "10.12.0"
-    "@sentry/core" "10.12.0"
+    "@sentry-internal/browser-utils" "10.15.0"
+    "@sentry-internal/feedback" "10.15.0"
+    "@sentry-internal/replay" "10.15.0"
+    "@sentry-internal/replay-canvas" "10.15.0"
+    "@sentry/core" "10.15.0"
 
-"@sentry/core@10.12.0":
-  version "10.12.0"
-  resolved "https://registry.yarnpkg.com/@sentry/core/-/core-10.12.0.tgz#3f6a0f5c2f63f2c1761e3cf442a986d74adf6403"
-  integrity sha512-Jrf0Yo7DvmI/ZQcvBnA0xKNAFkJlVC/fMlvcin+5IrFNRcqOToZ2vtF+XqTgjRZymXQNE8s1QTD7IomPHk0TAw==
+"@sentry/core@10.15.0":
+  version "10.15.0"
+  resolved "https://registry.yarnpkg.com/@sentry/core/-/core-10.15.0.tgz#9b445d0d8bba1742eb76c53edb01b38e05702b00"
+  integrity sha512-J7WsQvb9G6nsVgWkTHwyX7wR2djtEACYCx19hAnRbSGIg+ysVG+7Ti3RL4bz9/VXfcxsz346cleKc7ljhynYlQ==
 
 "@types/json5@^0.0.29":
   version "0.0.29"
@@ -515,10 +515,10 @@ cssesc@^3.0.0:
   resolved "https://registry.yarnpkg.com/cssesc/-/cssesc-3.0.0.tgz#37741919903b868565e1c09ea747445cd18983ee"
   integrity sha512-/Tb/JcjK111nNScGob5MNtsntNM1aCNUDipB/TkwZFhyDrrE47SOx/18wF2bbjgc3ZzCSKW1T5nt5EbFoAz/Vg==
 
-daisyui@5.1.14:
-  version "5.1.14"
-  resolved "https://registry.yarnpkg.com/daisyui/-/daisyui-5.1.14.tgz#243d171059ecba70f022b9527f90707f9965fbc2"
-  integrity sha512-c9Op7tB8vLzzazFaLeyFsmmVMLrU8sYo1sHuStBGTbaAzLVxrulelGQBROo/lS2ZxWm/CnCb9NWdKbTL+MaKFA==
+daisyui@5.1.22:
+  version "5.1.22"
+  resolved "https://registry.yarnpkg.com/daisyui/-/daisyui-5.1.22.tgz#21e9e205a6e927bd9865876e8139995bf4bd624d"
+  integrity sha512-d91C+d53QTZIqjzaoQRYId7KJcXHAImmgtIUWukv7ebMpnkzbJVe/istaW3GGtTIl6YxQD0WwUcyQLgtbfuQwg==
 
 data-view-buffer@^1.0.2:
   version "1.0.2"
@@ -2025,17 +2025,17 @@ pkg-conf@^3.1.0:
     find-up "^3.0.0"
     load-json-file "^5.2.0"
 
-playwright-core@1.55.0:
-  version "1.55.0"
-  resolved "https://registry.yarnpkg.com/playwright-core/-/playwright-core-1.55.0.tgz#ec8a9f8ef118afb3e86e0f46f1393e3bea32adf4"
-  integrity sha512-GvZs4vU3U5ro2nZpeiwyb0zuFaqb9sUiAJuyrWpcGouD8y9/HLgGbNRjIph7zU9D3hnPaisMl9zG9CgFi/biIg==
+playwright-core@1.55.1:
+  version "1.55.1"
+  resolved "https://registry.yarnpkg.com/playwright-core/-/playwright-core-1.55.1.tgz#5d3bb1846bc4289d364ea1a9dcb33f14545802e9"
+  integrity sha512-Z6Mh9mkwX+zxSlHqdr5AOcJnfp+xUWLCt9uKV18fhzA8eyxUd8NUWzAjxUh55RZKSYwDGX0cfaySdhZJGMoJ+w==
 
-playwright@1.55.0:
-  version "1.55.0"
-  resolved "https://registry.yarnpkg.com/playwright/-/playwright-1.55.0.tgz#7aca7ac3ffd9e083a8ad8b2514d6f9ba401cc78b"
-  integrity sha512-sdCWStblvV1YU909Xqx0DhOjPZE4/5lJsIS84IfN9dAZfcl/CIZ5O8l3o0j7hPMjDvqoTF8ZUcc+i/GL5erstA==
+playwright@1.55.1:
+  version "1.55.1"
+  resolved "https://registry.yarnpkg.com/playwright/-/playwright-1.55.1.tgz#8a9954e9e61ed1ab479212af9be336888f8b3f0e"
+  integrity sha512-cJW4Xd/G3v5ovXtJJ52MAOclqeac9S/aGGgRzLabuF8TnIb6xHvMzKIa6JmrRzUkeXJgfL1MhukP0NK6l39h3A==
   dependencies:
-    playwright-core "1.55.0"
+    playwright-core "1.55.1"
   optionalDependencies:
     fsevents "2.3.2"
 
