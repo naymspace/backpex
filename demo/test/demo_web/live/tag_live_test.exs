@@ -52,9 +52,9 @@ defmodule DemoWeb.Live.TagLiveTest do
       conn
       |> visit(~p"/admin/tags/#{tag.id}/show")
       |> assert_has("h1", text: "Tag", exact: true)
-      |> assert_has("p", text: "Name", exact: true)
-      |> assert_has("p", text: "Inserted At", exact: true)
-      |> assert_has("p", text: tag.name, exact: true)
+      |> assert_has("dt", text: "Name", exact: true)
+      |> assert_has("dt", text: "Inserted At", exact: true)
+      |> assert_has("dd", text: tag.name, exact: true)
     end
   end
 
