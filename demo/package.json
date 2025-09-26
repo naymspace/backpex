@@ -33,6 +33,6 @@
     "topbar": "3.0.0"
   },
   "dependencies": {
-    "daisyui": "5.1.23"
+    "daisyui": "5.1.22"
   }
 }
