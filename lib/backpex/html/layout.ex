@@ -606,7 +606,7 @@ defmodule Backpex.HTML.Layout do
   def input_label(assigns) do
     assigns =
       case assigns.for do
-        field = %Phoenix.HTML.FormField{} -> assign(assigns, :rest, Map.put(assigns.rest, :for, field.id))
+        %Phoenix.HTML.FormField{} = field -> assign(assigns, :rest, Map.put(assigns.rest, :for, field.id))
         id -> assign(assigns, :rest, Map.put(assigns.rest, :for, id))
       end
 
