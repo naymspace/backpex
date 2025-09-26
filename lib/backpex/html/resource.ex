@@ -195,7 +195,8 @@ defmodule Backpex.HTML.Resource do
     assigns =
       assigns
       |> assign(:filter_count, Enum.count(assigns.filter_options))
-      |> assign(:filter_badges,
+      |> assign(
+        :filter_badges,
         for {key, value} <- assigns.filter_options do
           filter = Keyword.get(assigns.filters, String.to_existing_atom(key))
           label = Map.get(filter, :label, filter.module.label())
@@ -206,7 +207,8 @@ defmodule Backpex.HTML.Resource do
             filter: filter,
             label: label
           }
-        end)
+        end
+      )
 
     ~H"""
     <.filter_dropdown :if={@filters != []} live_resource={@live_resource} filter_count={@filter_count}>
@@ -336,7 +338,8 @@ defmodule Backpex.HTML.Resource do
     assigns =
       assigns
       |> assign(:form, to_form(%{}, as: :filters))
-      |> assign(:filter_fields,
+      |> assign(
+        :filter_fields,
         for {field, filter} <- assigns.filters do
           label = Map.get(filter, :label, filter.module.label())
           presets = Map.get(filter, :presets, [])
@@ -349,7 +352,8 @@ defmodule Backpex.HTML.Resource do
             presets: presets,
             value: value
           }
-        end)
+        end
+      )
 
     ~H"""
     <.form :let={f} for={@form} phx-change="change-filter" phx-submit="change-filter" class="space-y-5">
