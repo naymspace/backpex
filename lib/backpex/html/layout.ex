@@ -598,13 +598,22 @@ defmodule Backpex.HTML.Layout do
   """
   @doc type: :component
 
+  attr :as, :string, default: "label", doc: "html tag name"
   attr :text, :string, doc: "text of the label"
+  attr :for, :any, default: nil, doc: "form element the label is bound to"
+  attr :rest, :global
 
   def input_label(assigns) do
+    assigns =
+      case assigns.for do
+        %Phoenix.HTML.FormField{} = field -> assign(assigns, :rest, Map.put(assigns.rest, :for, field.id))
+        id -> assign(assigns, :rest, Map.put(assigns.rest, :for, id))
+      end
+
     ~H"""
-    <p class="text-content block break-words text-sm font-medium">
+    <.dynamic_tag tag_name={@as} class="text-content block break-words text-sm font-medium" {@rest}>
       {@text}
-    </p>
+    </.dynamic_tag>
     """
   end
 
