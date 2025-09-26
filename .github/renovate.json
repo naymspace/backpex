@@ -20,12 +20,13 @@
   },
   "patch": {
     "automerge": true,
-    "minimumReleaseAge": "14"
+    "minimumReleaseAge": "14 days"
   },
   "pin": {
     "automerge": true,
-    "minimumReleaseAge": "14"
+    "minimumReleaseAge": "14 days"
   },
+  "internalChecksFilter": "strict",
   "packageRules": [
     {
       "description": "Set Mix versioning strategy to update-lockfile",
@@ -50,7 +51,7 @@
       "matchManagers": ["github-actions"],
       "matchUpdateTypes": ["minor", "patch", "pin", "pinDigest"],
       "automerge": true,
-      "minimumReleaseAge": 14
+      "minimumReleaseAge": "14 days"
     },
     {
       "description": "Automerge some minor node package updates",
@@ -66,7 +67,7 @@
       "matchDatasources": ["npm"],
       "matchUpdateTypes": ["minor", "patch"],
       "automerge": true,
-      "minimumReleaseAge": 14
+      "minimumReleaseAge": "14 days"
     },
     {
       "description": "Label dependency updates in demo directory",
