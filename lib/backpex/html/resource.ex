@@ -244,24 +244,22 @@ defmodule Backpex.HTML.Resource do
 
   def filter_dropdown(assigns) do
     ~H"""
-    <div class="dropdown">
-      <div class="indicator">
-        <span :if={@filter_count > 0} class="indicator-item badge badge-sm badge-secondary rounded-selector">
-          {@filter_count}
-        </span>
-        <label tabindex="0" class="btn btn-sm btn-outline border-base-content/20 border-(length:--border)">
-          <Backpex.HTML.CoreComponents.icon name="hero-funnel-solid" class="size-5 text-primary mr-2" />
-          {Backpex.__("Filters", @live_resource)}
-        </label>
-      </div>
-      <div
-        role="button"
-        tabindex="0"
-        class="dropdown-content z-[1] menu bg-base-100 rounded-box outline-black/5 p-4 shadow outline-[length:var(--border)]"
-      >
+    <.dropdown id="filter-dropdown">
+      <:trigger>
+        <div class="indicator">
+          <span :if={@filter_count > 0} class="indicator-item badge badge-sm badge-secondary rounded-selector">
+            {@filter_count}
+          </span>
+          <div class="btn btn-sm btn-outline border-base-content/20 border-(length:--border)">
+            <.icon name="hero-funnel-solid" class="size-5 text-primary mr-2" />
+            {Backpex.__("Filters", @live_resource)}
+          </div>
+        </div>
+      </:trigger>
+      <:menu class="p-4">
         {render_slot(@inner_block)}
-      </div>
-    </div>
+      </:menu>
+    </.dropdown>
     """
   end
 
@@ -469,18 +467,14 @@ defmodule Backpex.HTML.Resource do
     assigns = assign(assigns, :form, form)
 
     ~H"""
-    <div class={["dropdown", @class]}>
-      <label tabindex="0" class="hover:cursor-pointer">
+    <.dropdown class={@class} id="toggle-columns-dropdown">
+      <:trigger class="hover:cursor-pointer">
+        <.icon name="hero-view-columns-solid" class="text-base-content/50 size-5 hover:text-base-content" />
         <span class="sr-only">
           {Backpex.__("Toggle columns", @live_resource)}
         </span>
-        <Backpex.HTML.CoreComponents.icon
-          name="hero-view-columns-solid"
-          aria-hidden="true"
-          class="text-base-content/50 h-5 w-5 hover:text-base-content"
-        />
-      </label>
-      <div tabindex="0" class="dropdown-content menu bg-base-100 rounded-box min-w-52 max-w-72 p-4 shadow">
+      </:trigger>
+      <:menu class="min-w-52 max-w-72 p-4">
         <.form class="w-full" method="POST" for={@form} action={Router.cookie_path(@socket)}>
           <input type="hidden" name={@form[:_resource].name} value={@form[:_resource].value} />
           <input type="hidden" name={@form[:_cookie_redirect_url].name} value={@form[:_cookie_redirect_url].value} />
@@ -489,8 +483,8 @@ defmodule Backpex.HTML.Resource do
             {Backpex.__("Save", @live_resource)}
           </button>
         </.form>
-      </div>
-    </div>
+      </:menu>
+    </.dropdown>
     """
   end
 
