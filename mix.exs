@@ -53,7 +53,6 @@ defmodule Backpex.MixProject do
       {:gettext, ">= 0.26.0"},
       {:jason, "~> 1.2"},
       {:number, "~> 1.0"},
-      {:money, "~> 1.13"},
 
       # phoenix
       {:phoenix, ">= 1.7.6 and < 1.9.0"},
@@ -195,6 +194,7 @@ defmodule Backpex.MixProject do
       "guides/translations/translations.md",
 
       # Upgrade Guides
+      "guides/upgrading/v0.16.md",
       "guides/upgrading/v0.15.md",
       "guides/upgrading/v0.14.md",
       "guides/upgrading/v0.13.md",
