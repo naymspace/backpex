@@ -146,6 +146,8 @@ defmodule Backpex.Fields.InlineCRUD do
                   id={"inline-crud-header-label-#{@name}-#{child_field_name}"}
                   class="mb-1 text-xs"
                 >
+                  {child_field_options.label}
+                </span>
                 <BackpexForm.input
                   type={input_type(child_field_options) |> Atom.to_string()}
                   field={f_nested[child_field_name]}
