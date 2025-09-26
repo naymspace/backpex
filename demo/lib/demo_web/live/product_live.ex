@@ -21,7 +21,7 @@ defmodule DemoWeb.ProductLive do
     [
       quantity: %{
         module: DemoWeb.Filters.ProductQuantityRange,
-        label: "Quantity"
+        label: "QTY"
       }
     ]
   end
