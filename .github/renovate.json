@@ -26,6 +26,7 @@
     "automerge": true,
     "minimumReleaseAge": "14 days"
   },
+  "internalChecksFilter": "strict",
   "packageRules": [
     {
       "description": "Set Mix versioning strategy to update-lockfile",
