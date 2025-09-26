@@ -515,10 +515,10 @@ cssesc@^3.0.0:
   resolved "https://registry.yarnpkg.com/cssesc/-/cssesc-3.0.0.tgz#37741919903b868565e1c09ea747445cd18983ee"
   integrity sha512-/Tb/JcjK111nNScGob5MNtsntNM1aCNUDipB/TkwZFhyDrrE47SOx/18wF2bbjgc3ZzCSKW1T5nt5EbFoAz/Vg==
 
-daisyui@5.1.14:
-  version "5.1.14"
-  resolved "https://registry.yarnpkg.com/daisyui/-/daisyui-5.1.14.tgz#243d171059ecba70f022b9527f90707f9965fbc2"
-  integrity sha512-c9Op7tB8vLzzazFaLeyFsmmVMLrU8sYo1sHuStBGTbaAzLVxrulelGQBROo/lS2ZxWm/CnCb9NWdKbTL+MaKFA==
+daisyui@5.1.23:
+  version "5.1.23"
+  resolved "https://registry.yarnpkg.com/daisyui/-/daisyui-5.1.23.tgz#9ed81c2adabc082a0f02e0be4553371a94b24419"
+  integrity sha512-HgxmDidqO0FrcrkMVRz7KYwQi+eoZarMVud2kx5cGhTmTlaJPne/gbsSEn4/vM1svbp40ENCMjJsbBldCXhrOA==
 
 data-view-buffer@^1.0.2:
   version "1.0.2"
