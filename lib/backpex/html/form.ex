@@ -111,9 +111,7 @@ defmodule Backpex.HTML.Form do
           name={@name}
           class={[
             @input_class || "select w-full",
-            @errors != [] &&
-              (@error_class ||
-                 "select-error text-error-content bg-error/10 [&.select::picker(select)]:bg-base-100 [&.select::picker(select)]:text-base-content")
+            @errors != [] && (@error_class || "select-error text-error-content bg-error/10")
           ]}
           multiple={@multiple}
           {@rest}
