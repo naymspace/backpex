@@ -23,9 +23,9 @@
     "gettext": "mix gettext.extract --merge"
   },
   "devDependencies": {
-    "@sentry/browser": "10.12.0",
+    "@sentry/browser": "10.15.0",
     "npm-run-all2": "8.0.4",
-    "playwright": "1.55.0",
+    "playwright": "1.55.1",
     "postcss": "8.5.6",
     "standard": "17.1.2",
     "stylelint": "16.24.0",
@@ -33,9 +33,6 @@
     "topbar": "3.0.0"
   },
   "dependencies": {
-    "daisyui": "^5.0.3",
-    "phoenix": "./deps/phoenix",
-    "phoenix_html": "./deps/phoenix_html",
-    "phoenix_live_view": "./deps/phoenix_live_view"
+    "daisyui": "5.1.22"
   }
 }

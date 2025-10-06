@@ -5,6 +5,7 @@ defmodule Backpex.HTML.Resource do
   use BackpexWeb, :html
 
   import Phoenix.LiveView.TagEngine
+  import Backpex.HTML.CoreComponents
   import Backpex.HTML.Form
   import Backpex.HTML.Layout
 
@@ -47,48 +48,35 @@ defmodule Backpex.HTML.Resource do
   attr :name, :atom, required: true, doc: "name of the column the link should change order for"
 
   def order_link(assigns) do
-    order_direction =
-      if assigns.name == assigns.query_options.order_by do
-        toggle_order_direction(assigns.query_options.order_direction)
-      else
-        :asc
+    next_order_direction =
+      cond do
+        assigns.name != assigns.query_options.order_by -> :asc
+        assigns.query_options.order_direction == :asc -> :desc
+        true -> :asc
       end
+
+    patch_link =
+      Router.get_path(
+        assigns.socket,
+        assigns.live_resource,
+        assigns.params,
+        :index,
+        Map.merge(assigns.query_options, %{order_direction: next_order_direction, order_by: assigns.name})
+      )
 
     assigns =
       assigns
-      |> assign(:next_order_direction, order_direction)
+      |> assign(:next_order_direction, next_order_direction)
+      |> assign(:patch_link, patch_link)
 
     ~H"""
-    <.link
-      class="flex items-center space-x-1"
-      patch={
-        Router.get_path(
-          @socket,
-          @live_resource,
-          @params,
-          :index,
-          Map.merge(@query_options, %{order_direction: @next_order_direction, order_by: @name})
-        )
-      }
-      replace
-    >
+    <.link class="flex items-center space-x-1" patch={@patch_link} replace>
       <p>{@label}</p>
       <%= if @name == @query_options.order_by do %>
-        {order_icon(assigns, @query_options.order_direction)}
+        <.icon :if={@next_order_direction == :asc} name="hero-arrow-down-solid" class="size-4" />
+        <.icon :if={@next_order_direction == :desc} name="hero-arrow-up-solid" class="size-4" />
       <% end %>
     </.link>
-    """
-  end
-
-  defp order_icon(assigns, :asc) do
-    ~H"""
-    <Backpex.HTML.CoreComponents.icon name="hero-arrow-up-solid" class="h-4 w-4" />
-    """
-  end
-
-  defp order_icon(assigns, :desc) do
-    ~H"""
-    <Backpex.HTML.CoreComponents.icon name="hero-arrow-down-solid" class="h-4 w-4" />
     """
   end
 
@@ -878,7 +866,7 @@ defmodule Backpex.HTML.Resource do
             <div :for={{name, %{label: label}} <- @panel_fields}>
               <.field_container>
                 <:label>
-                  <.input_label text={label} />
+                  <.input_label as="span" text={label} />
                 </:label>
                 <.resource_field name={name} {assigns} />
               </.field_container>
@@ -1046,7 +1034,4 @@ defmodule Backpex.HTML.Resource do
   defp align_class(:right), do: "justify-end text-right"
   defp align_class(:center), do: "justify-center text-center"
   defp align_class(_alignment), do: "justify-start text-left"
-
-  defp toggle_order_direction(:asc), do: :desc
-  defp toggle_order_direction(:desc), do: :asc
 end

@@ -9,7 +9,8 @@ config :phoenix_test,
   endpoint: DemoWeb.Endpoint,
   otp_app: :demo,
   playwright: [
-    cli: "node_modules/playwright/cli.js",
+    # directory containing node_modules
+    assets_dir: "./",
     browser: :chromium,
     browser_launch_timeout: 10_000,
     trace: System.get_env("PW_TRACE", "false") in ~w(t true)
