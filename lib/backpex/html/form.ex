@@ -199,6 +199,7 @@ defmodule Backpex.HTML.Form do
 
   attr :unit, :string, required: true
   attr :unit_position, :atom, required: true, values: ~w(before after)a
+  attr :symbol_space, :atom, default: false
   attr :radix, :string, default: "."
   attr :thousands_separator, :string, default: ","
 
@@ -217,7 +218,8 @@ defmodule Backpex.HTML.Form do
   end
 
   def currency_input(assigns) do
-    assigns = assign(assigns, :mask_pattern, build_mask_pattern(assigns.unit_position, assigns.unit))
+    assigns =
+      assign(assigns, :mask_pattern, build_mask_pattern(assigns.unit_position, assigns.symbol_space, assigns.unit))
 
     ~H"""
     <div class={["fieldset py-0", @class]}>
@@ -245,8 +247,10 @@ defmodule Backpex.HTML.Form do
     """
   end
 
-  defp build_mask_pattern(:before = _unit_position, unit), do: "#{unit} num"
-  defp build_mask_pattern(:after = _unit_position, unit), do: "num #{unit}"
+  defp build_mask_pattern(:before, true, unit), do: "#{unit} num"
+  defp build_mask_pattern(:before, false, unit), do: "#{unit}num"
+  defp build_mask_pattern(:after, true, unit), do: "num #{unit}"
+  defp build_mask_pattern(:after, false, unit), do: "num#{unit}"
 
   @doc """
   Generates a generic error message.

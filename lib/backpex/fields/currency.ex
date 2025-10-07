@@ -18,6 +18,11 @@ defmodule Backpex.Fields.Currency do
       type: {:in, [:before, :after]},
       default: :before
     ],
+    symbol_space: [
+      doc: "Add space between the symbol and the number.",
+      type: :boolean,
+      default: false
+    ],
     radix: [
       doc:
         "Character used as the decimal separator, e.g. ',' or '.'. Make sure this value matches the one you've configured in your Money library.",
@@ -101,6 +106,7 @@ defmodule Backpex.Fields.Currency do
           thousands_separator={@field_options[:thousands_separator]}
           unit={@field_options[:unit]}
           unit_position={@field_options[:unit_position]}
+          symbol_space={@field_options[:symbol_space]}
         />
       </Layout.field_container>
     </div>
