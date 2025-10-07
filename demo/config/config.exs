@@ -49,7 +49,7 @@ config :money,
   separator: ",",
   delimiter: ".",
   symbol_on_right: false,
-  symbol_space: true
+  symbol_space: false
 
 config :phoenix, :json_library, Jason
 
