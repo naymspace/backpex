@@ -165,6 +165,94 @@ defmodule Backpex.HTML.Form do
   end
 
   @doc """
+  Renders a masked input for currencies.
+
+  A `Phoenix.HTML.FormField` may be passed as argument, which is used to retrieve the input name, id, and values.
+  Otherwise all attributes may be passed explicitly.
+
+  ## Examples
+
+    <.currency_input field={@form[:amount]} unit="€" unit_position={:after} />
+    <.currency_input id="amount-input" name="amount" value="20" unit="$" unit_position={:before} readonly />
+  """
+  attr :id, :any, default: nil
+  attr :name, :any
+  attr :label, :string, default: nil
+  attr :help_text, :string, default: nil
+  attr :value, :any
+
+  attr :field, Phoenix.HTML.FormField, doc: "a form field struct retrieved from the form, for example: @form[:email]"
+
+  attr :errors, :list, default: []
+
+  attr :class, :any, default: nil, doc: "additional classes for the container element"
+
+  attr :input_class, :any,
+    default: nil,
+    doc: "the input class to use over defaults, note that this is applied to a wrapper span element
+          to allow for proper styling of the masked input"
+
+  attr :error_class, :any, default: nil, doc: "the input error class to use over defaults"
+
+  attr :translate_error_fun, :any, default: &Function.identity/1, doc: "a custom function to map form errors"
+  attr :hide_errors, :boolean, default: false, doc: "if errors should be hidden"
+
+  attr :unit, :string, required: true
+  attr :unit_position, :atom, required: true, values: ~w(before after)a
+  attr :symbol_space, :atom, default: false
+  attr :radix, :string, default: "."
+  attr :thousands_separator, :string, default: ","
+
+  attr :rest, :global, include: ~w(accept autocomplete capture cols disabled form list max maxlength min minlength
+              multiple pattern placeholder readonly required rows size step)
+
+  def currency_input(%{field: %Phoenix.HTML.FormField{} = field} = assigns) do
+    errors = if Phoenix.Component.used_input?(field), do: field.errors, else: []
+
+    assigns
+    |> assign(field: nil, id: assigns.id || field.id)
+    |> assign(:errors, translate_form_errors(errors, assigns.translate_error_fun))
+    |> assign_new(:name, fn -> field.name end)
+    |> assign_new(:value, fn -> field.value end)
+    |> currency_input()
+  end
+
+  def currency_input(assigns) do
+    assigns =
+      assign(assigns, :mask_pattern, build_mask_pattern(assigns.unit_position, assigns.symbol_space, assigns.unit))
+
+    ~H"""
+    <div class={["fieldset py-0", @class]}>
+      <span :if={@label} class="label mb-1">{@label}</span>
+      <div
+        id={@id}
+        phx-hook="BackpexCurrencyInput"
+        data-radix={@radix}
+        data-thousands-separator={@thousands_separator}
+        data-unit={@unit}
+        data-mask-pattern={@mask_pattern}
+      >
+        <%!-- As the input ignores updates, we need to wrap it in a span to apply the styles correctly --%>
+        <span class={[
+          @input_class || "[&_>_input]:input [&_>_input]:w-full",
+          @errors != [] && (@error_class || "[&_>_input]:input-error [&_>_input]:bg-error/10")
+        ]}>
+          <input id={"#{@id}_masked"} name={@name} data-masked-input phx-update="ignore" {@rest} />
+          <input type="hidden" value={@value} name={@name} data-hidden-input />
+        </span>
+      </div>
+      <.error :for={msg <- @errors} :if={not @hide_errors}>{msg}</.error>
+      <.help_text :if={@help_text}>{@help_text}</.help_text>
+    </div>
+    """
+  end
+
+  defp build_mask_pattern(:before, true, unit), do: "#{unit} num"
+  defp build_mask_pattern(:before, false, unit), do: "#{unit}num"
+  defp build_mask_pattern(:after, true, unit), do: "num #{unit}"
+  defp build_mask_pattern(:after, false, unit), do: "num#{unit}"
+
+  @doc """
   Generates a generic error message.
   """
   @doc type: :component

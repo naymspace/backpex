@@ -79,6 +79,7 @@ defmodule Demo.MixProject do
       {:jason, ">= 1.0.0"},
       {:ash, "~> 3.0"},
       {:ash_postgres, "~> 2.6.0"},
+      {:money, "~> 1.14"},
 
       # assets
       {:esbuild, "~> 0.9", runtime: Mix.env() == :dev},
