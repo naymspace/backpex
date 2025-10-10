@@ -348,7 +348,7 @@ defmodule Backpex.HTML.Form do
             />
 
             <%!-- Empty State --%>
-            <p :if={@options == []} class="w-full mt-2">{@not_found_text}</p>
+            <p :if={@options == []} class="mt-2 w-full">{@not_found_text}</p>
 
             <%!-- Toggle all button --%>
             <.multi_select_toggle_all
@@ -362,7 +362,7 @@ defmodule Backpex.HTML.Form do
             <%!-- Hidden input to make sure the change is always present, even if no options are selected --%>
             <input type="hidden" name={@field.name} value="" />
 
-             <%!-- Options --%>
+            <%!-- Options --%>
             <div class="mt-2 w-full">
               <.multi_select_option
                 :for={{label, value} <- @options}
