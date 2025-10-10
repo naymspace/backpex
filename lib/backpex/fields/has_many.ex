@@ -190,7 +190,13 @@ defmodule Backpex.Fields.HasMany do
               <input class="hidden" id={"has-many-#{@name}-hidden-input"} name={"#{@form[@name].name}[]"} value="" />
 
               <%!-- Hidden Options --%>
-              <.hidden_option :for={value <- @selected_ids} :if={value not in @options_ids} form={@form} value={value} name={@name} />
+              <.hidden_option
+                :for={value <- @selected_ids}
+                :if={value not in @options_ids}
+                form={@form}
+                value={value}
+                name={@name}
+              />
 
               <%!-- Options --%>
               <div class="my-2 w-full">
