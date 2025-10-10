@@ -48,6 +48,8 @@ defmodule Backpex.HTML.CoreComponents do
     attr :class, :any, doc: "additional classes for the wrapper of the menu"
   end
 
+  attr :rest, :global, include: ~w(phx-hook)
+
   def dropdown(assigns) do
     assigns =
       assigns
@@ -61,7 +63,7 @@ defmodule Backpex.HTML.CoreComponents do
       end)
 
     ~H"""
-    <div id={@id} class={["dropdown", @class]}>
+    <div id={@id} class={["dropdown", @class]} {@rest}>
       <div id={"#{@id}-trigger"} role="button" tabindex="0" aria-haspopup="true" class={@trigger && @trigger[:class]}>
         {render_slot(@trigger)}
       </div>
