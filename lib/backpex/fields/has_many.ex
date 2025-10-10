@@ -175,19 +175,18 @@ defmodule Backpex.Fields.HasMany do
               />
 
               <%!-- Empty State --%>
-              <p :if={@options == []} class="w-full">{@not_found_text}</p>
+              <p :if={@options == []} class="w-full mt-2">{@not_found_text}</p>
 
-              <%!-- Select/Deselect all button --%>
-              <.select_all_button
+              <%!-- Toggle all button --%>
+              <.toggle_all
                 :if={Enum.any?(@options)}
-                class="my-2"
                 live_resource={@live_resource}
                 name={@name}
                 all_selected={@all_selected}
               />
 
               <%!-- Hidden input to make sure the change is always present, even if no options are selected --%>
-              <input class="hidden" id={"has-many-#{@name}-hidden-input"} name={"#{@form[@name].name}[]"} value="" />
+              <input class="hidden" name={"#{@form[@name].name}[]"} value="" />
 
               <%!-- Hidden Options --%>
               <.hidden_option
@@ -206,12 +205,12 @@ defmodule Backpex.Fields.HasMany do
                   form={@form}
                   name={@name}
                   label={label}
-                  value={label}
-                  checked={value in @selected_ids}
+                  value={value}
+                  selected={value in @selected_ids}
                 />
               </div>
 
-              <.show_more_button :if={@show_more} live_resource={@live_resource} phx-click="show-more" phx-target={@myself} />
+              <.show_more_button :if={@show_more} live_resource={@live_resource} event_target={@myself} />
             </div>
           </:menu>
         </Backpex.HTML.CoreComponents.dropdown>
@@ -230,7 +229,7 @@ defmodule Backpex.Fields.HasMany do
   attr :label, :string, required: true
   attr :value, :string, required: true
   attr :name, :string, required: true
-  attr :checked, :boolean, required: true
+  attr :selected, :boolean, required: true
   attr :form, Phoenix.HTML.Form, required: true
 
   defp option(assigns) do
@@ -241,7 +240,7 @@ defmodule Backpex.Fields.HasMany do
         type="checkbox"
         name={"#{@form[@name].name}[]"}
         value={@value}
-        checked={@checked}
+        checked={@selected}
         class="checkbox checkbox-sm checkbox-primary"
       />
       <span class="label-text">
@@ -273,7 +272,7 @@ defmodule Backpex.Fields.HasMany do
   attr :all_selected, :boolean, required: true
   attr :name, :string, required: true
 
-  defp select_all_button(assigns) do
+  defp toggle_all(assigns) do
     hidden_input_name =
       if assigns.all_selected, do: "change[#{assigns.name}_deselect_all]", else: "change[#{assigns.name}_select_all]"
 
@@ -319,11 +318,11 @@ defmodule Backpex.Fields.HasMany do
   end
 
   attr :live_resource, :atom, required: true
-  attr :rest, :global, include: ~w(phx-click phx-target)
+  attr :event_target, :any, required: true
 
   defp show_more_button(assigns) do
     ~H"""
-    <button type="button" class="text-primary mb-2 cursor-pointer text-sm underline" {@rest}>
+    <button type="button" phx-click="show-more" phx-target={@event_target} class="text-primary mb-2 cursor-pointer text-sm underline">
       {Backpex.__("Show more", @live_resource)}
     </button>
     """
