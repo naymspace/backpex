@@ -192,29 +192,41 @@ defmodule Backpex.HTML.Resource do
   attr :filters, :list, required: true, doc: "list of active filters"
 
   def filter(assigns) do
-    assigns = assign(assigns, :filter_count, Enum.count(assigns.filter_options))
+    assigns =
+      assigns
+      |> assign(:filter_count, Enum.count(assigns.filter_options))
+      |> assign(
+        :filter_badges,
+        for {key, value} <- assigns.filter_options do
+          filter = Keyword.get(assigns.filters, String.to_existing_atom(key))
+          label = Map.get(filter, :label, filter.module.label())
+
+          %{
+            key: key,
+            value: value,
+            filter: filter,
+            label: label
+          }
+        end
+      )
 
     ~H"""
     <.filter_dropdown :if={@filters != []} live_resource={@live_resource} filter_count={@filter_count}>
       <.filter_forms filters={@filters} filter_options={@filter_options} live_resource={@live_resource} {assigns} />
     </.filter_dropdown>
-    <%= for {key, value} <- @filter_options do %>
-      <% filter = Keyword.get(@filters, String.to_existing_atom(key)) %>
-      <% label = Map.get(filter, :label, filter.module.label()) %>
-
-      <.filter_badge
-        filter_name={key}
-        clear_event="clear-filter"
-        label={label}
-        live_resource={@live_resource}
-      >
-        {component(
-          &filter.module.render/1,
-          Map.merge(assigns, %{value: value}),
-          {__ENV__.module, __ENV__.function, __ENV__.file, __ENV__.line}
-        )}
-      </.filter_badge>
-    <% end %>
+    <.filter_badge
+      :for={badge <- @filter_badges}
+      filter_name={badge.key}
+      clear_event="clear-filter"
+      label={badge.label}
+      live_resource={@live_resource}
+    >
+      {component(
+        &badge.filter.module.render/1,
+        Map.merge(assigns, %{value: badge.value}),
+        {__ENV__.module, __ENV__.function, __ENV__.file, __ENV__.line}
+      )}
+    </.filter_badge>
     """
   end
 
@@ -321,28 +333,42 @@ defmodule Backpex.HTML.Resource do
   attr :filter_options, :list, required: true, doc: "filter options"
 
   def filter_forms(assigns) do
-    assigns = assign(assigns, :form, to_form(%{}, as: :filters))
+    assigns =
+      assigns
+      |> assign(:form, to_form(%{}, as: :filters))
+      |> assign(
+        :filter_fields,
+        for {field, filter} <- assigns.filters do
+          label = Map.get(filter, :label, filter.module.label())
+          presets = Map.get(filter, :presets, [])
+          value = Map.get(assigns.filter_options, Atom.to_string(field), nil)
+
+          %{
+            field: field,
+            filter: filter,
+            label: label,
+            presets: presets,
+            value: value
+          }
+        end
+      )
 
     ~H"""
     <.form :let={f} for={@form} phx-change="change-filter" phx-submit="change-filter" class="space-y-5">
-      <div :for={{field, filter} <- @filters}>
-        <% label = Map.get(filter, :label, filter.module.label()) %>
-        <% presets = Map.get(filter, :presets, []) %>
-        <% value = Map.get(@filter_options, Atom.to_string(field), nil) %>
-
+      <div :for={field_data <- @filter_fields}>
         <.filter_form_field
           live_resource={@live_resource}
-          filter_name={field}
-          label={label}
-          show_clear_button={value != nil}
+          filter_name={field_data.field}
+          label={field_data.label}
+          show_clear_button={field_data.value != nil}
         >
           {component(
-            &filter.module.render_form/1,
-            Map.merge(assigns, %{field: field, value: value, form: f, live_resource: @live_resource}),
+            &field_data.filter.module.render_form/1,
+            Map.merge(assigns, %{field: field_data.field, value: field_data.value, form: f, live_resource: @live_resource}),
             {__ENV__.module, __ENV__.function, __ENV__.file, __ENV__.line}
           )}
-          <:presets :if={presets != []}>
-            <.filter_presets presets={presets} filter_name={field} />
+          <:presets :if={field_data.presets != []}>
+            <.filter_presets presets={field_data.presets} filter_name={field_data.field} />
           </:presets>
         </.filter_form_field>
       </div>
@@ -1010,7 +1036,7 @@ defmodule Backpex.HTML.Resource do
             <div :for={{name, %{label: label}} <- @panel_fields}>
               <.field_container>
                 <:label>
-                  <.input_label text={label} />
+                  <.input_label as="span" text={label} />
                 </:label>
                 <.resource_field name={name} {assigns} />
               </.field_container>
