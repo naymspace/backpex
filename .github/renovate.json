@@ -8,7 +8,7 @@
     "github>pehbehbeh/renovate-config//workarounds/mixGitVersioning",
     "github>pehbehbeh/renovate-config//customManagers/hexEsbuild",
     "github>pehbehbeh/renovate-config//customManagers/hexTailwind",
-    ":reviewer(krns)",
+    ":reviewer(Flo0807)",
     "helpers:pinGitHubActionDigestsToSemver",
     "security:minimumReleaseAgeNpm"
   ],
