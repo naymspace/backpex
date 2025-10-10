@@ -167,7 +167,7 @@ defmodule Backpex.Fields.HasMany do
               <input
                 type="search"
                 name={"#{@name}_search"}
-                class={["input input-sm mb-2 w-full", @class]}
+                class="input input-sm mb-2 w-full"
                 placeholder={Backpex.__("Search", @live_resource)}
                 value={@search_input}
                 phx-change="search"
@@ -190,13 +190,14 @@ defmodule Backpex.Fields.HasMany do
               <input class="hidden" id={"has-many-#{@name}-hidden-input"} name={"#{@form[@name].name}[]"} value="" />
 
               <%!-- Hidden Options --%>
-              <.hidden_option :for={value <- @selected_ids} :if={value not in @options_ids} value={value} name={@name} />
+              <.hidden_option :for={value <- @selected_ids} :if={value not in @options_ids} form={@form} value={value} name={@name} />
 
               <%!-- Options --%>
               <div class="my-2 w-full">
                 <.option
                   :for={{label, value} <- @options}
                   class="mt-2"
+                  form={@form}
                   name={@name}
                   label={label}
                   value={label}
@@ -224,6 +225,7 @@ defmodule Backpex.Fields.HasMany do
   attr :value, :string, required: true
   attr :name, :string, required: true
   attr :checked, :boolean, required: true
+  attr :form, Phoenix.HTML.Form, required: true
 
   defp option(assigns) do
     ~H"""
@@ -245,6 +247,7 @@ defmodule Backpex.Fields.HasMany do
 
   attr :value, :string, required: true
   attr :name, :string, required: true
+  attr :form, Phoenix.HTML.Form, required: true
 
   defp hidden_option(assigns) do
     ~H"""
