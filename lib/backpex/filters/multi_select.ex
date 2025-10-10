@@ -90,7 +90,7 @@ defmodule Backpex.Filters.MultiSelect do
     trigger_text =
       case assigns.value do
         v when is_nil(v) or v == [] -> assigns.prompt
-        _prompt ->"#{Enum.count(assigns.value)} #{Backpex.__("selected", assigns.live_resource)}"
+        _prompt -> "#{Enum.count(assigns.value)} #{Backpex.__("selected", assigns.live_resource)}"
       end
 
     assigns =
