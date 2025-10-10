@@ -48,7 +48,7 @@ defmodule Backpex.HTML.CoreComponents do
     attr :class, :any, doc: "additional classes for the wrapper of the menu"
   end
 
-  attr :rest, :global, include: ~w(phx-hook)
+  attr :rest, :global, include: ~w(phx-*)
 
   def dropdown(assigns) do
     assigns =
