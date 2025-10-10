@@ -41,11 +41,11 @@ defmodule Backpex.HTML.CoreComponents do
   attr :class, :any, default: nil, doc: "additional classes for the outer container element"
 
   slot :trigger, doc: "the trigger element to be used to toggle the dropdown menu" do
-    attr :class, :string, doc: "additional classes for the wrapper of the trigger"
+    attr :class, :any, doc: "additional classes for the wrapper of the trigger"
   end
 
   slot :menu, doc: "the dropdown menu" do
-    attr :class, :string, doc: "additional classes for the wrapper of the menu"
+    attr :class, :any, doc: "additional classes for the wrapper of the menu"
   end
 
   def dropdown(assigns) do
