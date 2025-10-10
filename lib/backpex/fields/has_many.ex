@@ -175,7 +175,7 @@ defmodule Backpex.Fields.HasMany do
               />
 
               <%!-- Empty State --%>
-              <p :if={@options == []} class="w-full mt-2">{@not_found_text}</p>
+              <p :if={@options == []} class="mt-2 w-full">{@not_found_text}</p>
 
               <%!-- Toggle all button --%>
               <.toggle_all
@@ -322,7 +322,12 @@ defmodule Backpex.Fields.HasMany do
 
   defp show_more_button(assigns) do
     ~H"""
-    <button type="button" phx-click="show-more" phx-target={@event_target} class="text-primary mb-2 cursor-pointer text-sm underline">
+    <button
+      type="button"
+      phx-click="show-more"
+      phx-target={@event_target}
+      class="text-primary mb-2 cursor-pointer text-sm underline"
+    >
       {Backpex.__("Show more", @live_resource)}
     </button>
     """
