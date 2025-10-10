@@ -393,7 +393,7 @@ defmodule Backpex.HTML.Layout do
 
   def topbar_dropdown(assigns) do
     ~H"""
-    <.dropdown id="user-menu" class="dropdown-end">
+    <.dropdown id="topbar-dropdown" class="dropdown-end">
       <:trigger>
         {render_slot(@label)}
       </:trigger>
