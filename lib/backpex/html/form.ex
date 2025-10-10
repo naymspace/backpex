@@ -348,7 +348,7 @@ defmodule Backpex.HTML.Form do
             />
 
             <%!-- Empty State --%>
-            <p :if={@options == []} class="w-full">{@not_found_text}</p>
+            <p :if={@options == []} class="w-full mt-2">{@not_found_text}</p>
 
             <%!-- Toggle all button --%>
             <.multi_select_toggle_all
