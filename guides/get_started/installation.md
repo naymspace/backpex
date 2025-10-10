@@ -144,9 +144,9 @@ To get you started quickly, we provide a layout component you can copy & paste i
 
     <Backpex.HTML.Layout.topbar_dropdown class="mr-2 md:mr-0">
       <:label>
-        <label tabindex="0" class="btn btn-square btn-ghost">
+        <div class="btn btn-square btn-ghost">
           <Backpex.HTML.CoreComponents.icon name="hero-user" class="size-6" />
-        </label>
+        </div>
       </:label>
       <li>
         <.link href="/" class="text-error flex justify-between hover:bg-base-200">
