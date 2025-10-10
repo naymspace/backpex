@@ -15,9 +15,7 @@ defmodule Demo.Product do
     field :manufacturer, :string
     field :images, {:array, :string}
 
-    field :price, Backpex.Ecto.Amount.Type,
-      currency: :EUR,
-      opts: [separator: ".", delimiter: ",", symbol_on_right: true, symbol_space: true]
+    field :price, Money.Ecto.Amount.Type
 
     has_many :suppliers, Supplier, on_replace: :delete, on_delete: :delete_all
     has_many :short_links, ShortLink, on_replace: :delete, on_delete: :delete_all, foreign_key: :product_id

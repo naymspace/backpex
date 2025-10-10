@@ -1042,7 +1042,7 @@ defmodule Backpex.HTML.Resource do
             <div :for={{name, %{label: label}} <- @panel_fields}>
               <.field_container>
                 <:label>
-                  <.input_label text={label} />
+                  <.input_label as="span" text={label} />
                 </:label>
                 <.resource_field name={name} {assigns} />
               </.field_container>
