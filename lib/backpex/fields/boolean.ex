@@ -73,6 +73,7 @@ defmodule Backpex.Fields.Boolean do
           phx-throttle={Backpex.Field.throttle(@field_options, assigns)}
           readonly={@readonly}
           hide_errors
+          aria-label={@field_options[:label]}
         />
       </.form>
     </div>
