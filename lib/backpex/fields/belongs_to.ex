@@ -184,6 +184,7 @@ defmodule Backpex.Fields.BelongsTo do
           ]}
           disabled={@readonly}
           hide_errors
+          aria-label={@field_options[:label]}
         />
       </.form>
     </div>
