@@ -26,6 +26,7 @@ defmodule Backpex.HTML.Layout do
   """
   @doc type: :component
 
+  attr :live_resource, :atom, default: nil, doc: "live resource module"
   attr :class, :string, default: nil, doc: "class added to the app shell container"
   attr :fluid, :boolean, default: false, doc: "toggles fluid layout"
 
@@ -44,21 +45,31 @@ defmodule Backpex.HTML.Layout do
   def app_shell(assigns) do
     ~H"""
     <div id="backpex-app-shell" class={["drawer", @class]} phx-hook="BackpexSidebarSections">
-      <input id="menu-drawer" type="checkbox" class="drawer-toggle" />
+      <input id="menu-drawer" type="checkbox" class="drawer-toggle" aria-hidden="true" />
       <div class="drawer-content">
         <div class="bg-base-200 fixed inset-0 -z-10 h-full w-full"></div>
-        <div class={[
-          "menu hidden overflow-y-scroll px-2 pt-5 pb-4 md:fixed md:inset-y-0 md:mt-16 md:block md:w-64",
-          build_slot_class(@sidebar)
-        ]}>
-          {render_slot(@sidebar)}
-        </div>
+        <nav
+          class={[
+            "menu hidden overflow-y-scroll px-2 pt-5 pb-4 md:fixed md:inset-y-0 md:mt-16 md:block md:w-64",
+            build_slot_class(@sidebar)
+          ]}
+          aria-label={Backpex.__("Main navigation", @live_resource)}
+        >
+          <ul>
+            {render_slot(@sidebar)}
+          </ul>
+        </nav>
 
         <div class={["flex flex-1 flex-col", length(@sidebar) > 0 && "md:pl-64"]}>
           <div class="fixed top-0 z-30 block w-full md:-ml-64">
             <.topbar class={build_slot_class(@topbar)}>
               {render_slot(@topbar)}
-              <label :if={@sidebar != []} for="menu-drawer" class="btn btn-square drawer-button btn-ghost md:hidden">
+              <label
+                :if={@sidebar != []}
+                for="menu-drawer"
+                class="btn btn-square drawer-button btn-ghost md:hidden"
+                aria-label={Backpex.__("Toggle menu", @live_resource)}
+              >
                 <.icon name="hero-bars-3-solid" class="h-6" />
               </label>
             </.topbar>
@@ -74,12 +85,17 @@ defmodule Backpex.HTML.Layout do
       </div>
       <div class="drawer-side z-40">
         <label for="menu-drawer" class="drawer-overlay"></label>
-        <div class={[
-          "bg-base-100 menu min-h-full w-64 flex-1 flex-col overflow-y-auto px-2 pt-5 pb-4",
-          build_slot_class(@sidebar)
-        ]}>
-          {render_slot(@sidebar)}
-        </div>
+        <nav
+          class={[
+            "bg-base-100 menu min-h-full w-64 flex-1 flex-col overflow-y-auto px-2 pt-5 pb-4",
+            build_slot_class(@sidebar)
+          ]}
+          aria-label={Backpex.__("Main navigation", @live_resource)}
+        >
+          <ul>
+            {render_slot(@sidebar)}
+          </ul>
+        </nav>
       </div>
     </div>
     """
