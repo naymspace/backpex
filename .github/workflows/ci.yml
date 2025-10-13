@@ -248,7 +248,6 @@ jobs:
           DB_PASSWORD: postgres
           DB_DATABASE: test
         run: yarn test:playwright
-        continue-on-error: true
 
       - name: Deps audit
         working-directory: demo
