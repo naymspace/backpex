@@ -46,7 +46,7 @@ defmodule Demo.MixProject do
       {:faker, "~> 0.18"},
       {:phoenix_test, "~> 0.8.0", only: :test, runtime: false},
       {:phoenix_test_playwright, "~> 0.8.0", only: :test, runtime: false},
-      {:a11y_audit, "~> 0.2.3", only: :test},
+      {:a11y_audit, "~> 0.3.0", only: :test},
       {:live_debugger, "~> 0.4", only: :dev},
       {:quokka, "~> 2.9", only: [:dev, :test], runtime: false},
 
