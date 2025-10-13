@@ -64,13 +64,13 @@ defmodule Backpex.HTML.CoreComponents do
 
     ~H"""
     <div id={@id} class={["dropdown", @class]} {@rest}>
-      <div id={"#{@id}-trigger"} role="button" tabindex="0" aria-haspopup="true" class={@trigger && @trigger[:class]}>
+      <div id={"#{@id}-trigger"} role="button" tabindex="0" aria-haspopup="menu" class={@trigger && @trigger[:class]}>
         {render_slot(@trigger)}
       </div>
 
       <div
         id={"#{@id}-menu"}
-        role="button"
+        role="menu"
         tabindex="0"
         aria-labelledby={"#{@id}-trigger"}
         class={[
