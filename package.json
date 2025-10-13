@@ -38,6 +38,6 @@
     "standard": "17.1.2"
   },
   "dependencies": {
-    "imask": "^7.6.1"
+    "imask": "7.6.1"
   }
 }
