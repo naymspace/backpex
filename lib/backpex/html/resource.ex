@@ -186,98 +186,270 @@ defmodule Backpex.HTML.Resource do
     """
   end
 
+  @doc false
+  attr :live_resource, :any, default: nil, doc: "module of the live resource"
+  attr :filter_options, :list, required: true, doc: "filter options"
+  attr :filters, :list, required: true, doc: "list of active filters"
+
+  def filter(assigns) do
+    assigns =
+      assigns
+      |> assign(:filter_count, Enum.count(assigns.filter_options))
+      |> assign(
+        :filter_badges,
+        for {key, value} <- assigns.filter_options do
+          filter = Keyword.get(assigns.filters, String.to_existing_atom(key))
+          label = Map.get(filter, :label, filter.module.label())
+
+          %{
+            key: key,
+            value: value,
+            filter: filter,
+            label: label
+          }
+        end
+      )
+
+    ~H"""
+    <.filter_dropdown :if={@filters != []} live_resource={@live_resource} filter_count={@filter_count}>
+      <.filter_forms filters={@filters} filter_options={@filter_options} live_resource={@live_resource} {assigns} />
+    </.filter_dropdown>
+    <.filter_badge
+      :for={badge <- @filter_badges}
+      filter_name={badge.key}
+      clear_event="clear-filter"
+      label={badge.label}
+      live_resource={@live_resource}
+    >
+      {component(
+        &badge.filter.module.render/1,
+        Map.merge(assigns, %{value: badge.value}),
+        {__ENV__.module, __ENV__.function, __ENV__.file, __ENV__.line}
+      )}
+    </.filter_badge>
+    """
+  end
+
   @doc """
-  Renders the index filters if the `filter/0` callback is defined in the resource.
+  Renders a dropdown button that typically contains filter forms for the resource index.
+
+  It provides the main filter interface with a button that shows a funnel icon and a "Filters" label.
+  When clicked, it opens a dropdown containing all available filter forms.
+  The button displays a badge with the count of active filters when any filters are applied.
+
+  ## Examples
+
+      <.filter_dropdown filter_count={@filter_count}>
+        <.form :let={f} for={@form} phx-change="change-filter" class="space-y-5">
+          <.filter_form_field filter_name={:status} label="Status" show_clear_button={@filter_opts[:status]}>
+            <.input type="select" prompt="Select status..." options={@status_options} />
+          </.filter_form_field>
+        </.form>
+      </.filter_dropdown>
   """
   @doc type: :component
 
-  attr :live_resource, :any, required: true, doc: "module of the live resource"
-  attr :filter_options, :map, required: true, doc: "filter options"
-  attr :filters, :list, required: true, doc: "list of active filters"
-  attr :label, :string, required: true
+  attr :live_resource, :any, default: nil, doc: "live resource module"
+  attr :filter_count, :integer, doc: "number of currently active filters (shows as badge when > 0)"
 
-  def index_filter(assigns) do
-    computed = [
-      filter_count: Enum.count(assigns.filter_options),
-      filter_icon_class:
-        if(assigns.filter_options == %{},
-          do: "text-primary/75 group-hover:text-primary-content",
-          else: "text-primary group-hover:text-primary-content"
-        )
-    ]
+  slot :inner_block, required: true, doc: "filter forms content"
 
-    assigns = assign(assigns, computed)
-
+  def filter_dropdown(assigns) do
     ~H"""
-    <div :if={@filters != []} class="dropdown">
+    <div class="dropdown">
       <div class="indicator">
         <span :if={@filter_count > 0} class="indicator-item badge badge-sm badge-secondary rounded-selector">
           {@filter_count}
         </span>
-        <label tabindex="0" class="btn btn-sm btn-outline ring-base-content/10 border-0 ring-1">
-          <Backpex.HTML.CoreComponents.icon name="hero-funnel-solid" class={["mr-2 h-5 w-5", @filter_icon_class]} />
-          {@label}
+        <label tabindex="0" class="btn btn-sm btn-outline border-base-content/20 border-(length:--border)">
+          <Backpex.HTML.CoreComponents.icon name="hero-funnel-solid" class="size-5 text-primary mr-2" />
+          {Backpex.__("Filters", @live_resource)}
         </label>
       </div>
-      <div tabindex="0" class="dropdown-content z-[1] menu bg-base-100 rounded-box p-4 shadow">
-        <.index_filter_forms filters={@filters} filter_options={@filter_options} live_resource={@live_resource} {assigns} />
+      <div
+        role="button"
+        tabindex="0"
+        class="dropdown-content z-[1] menu bg-base-100 rounded-box outline-black/5 p-4 shadow outline-[length:var(--border)]"
+      >
+        {render_slot(@inner_block)}
       </div>
     </div>
-    <Backpex.HTML.CoreComponents.filter_badge
-      :for={{key, value} <- @filter_options}
-      filter_name={key}
-      clear_event="clear-filter"
-      label={Keyword.get(@filters, String.to_existing_atom(key)).module.label()}
-      live_resource={@live_resource}
-    >
-      {component(
-        &Keyword.get(@filters, String.to_existing_atom(key)).module.render/1,
-        Map.merge(assigns, %{value: value}),
-        {__ENV__.module, __ENV__.function, __ENV__.file, __ENV__.line}
-      )}
-    </Backpex.HTML.CoreComponents.filter_badge>
     """
   end
 
-  defp index_filter_forms(assigns) do
+  @doc """
+  Renders an active filter badge with its value and a clear button.
+
+  This component displays applied filters as visual badges that show both the filter label
+  and its current value. Each badge includes a clear button (×) that allows users to
+  remove individual filters.
+
+  ## Examples
+
+      <.filter_badge
+        filter_name="status"
+        label="Status"
+        live_resource={MyApp.UserLive}
+      >
+        Active
+      </.filter_badge>
+  """
+  @doc type: :component
+
+  attr :live_resource, :any, default: nil, doc: "live resource module"
+  attr :clear_event, :string, default: "clear-filter", doc: "event triggered when the clear button is clicked"
+  attr :filter_name, :string, required: true, doc: "unique identifier for the filter being displayed"
+  attr :label, :string, required: true, doc: "human-readable filter name displayed on the badge"
+
+  slot :inner_block,
+    required: true,
+    doc: "rendered filter value content (typically from filter module's render/1 function)"
+
+  def filter_badge(assigns) do
     ~H"""
-    <div class="space-y-5">
-      <div :for={{field, filter} <- @filters}>
-        <% value = Map.get(@filter_options, Atom.to_string(field), nil) %>
-        <.form :let={f} for={to_form(%{}, as: :filters)} phx-change="change-filter" phx-submit="change-filter">
-          <div>
-            <div class="relative flex w-full flex-wrap justify-start gap-2">
-              <div class="text-base-content text-sm font-medium">{Map.get(filter, :label, filter.module.label())}</div>
-              <.maybe_clear_button field={field} value={value} live_resource={@live_resource} />
-            </div>
-            <div class="flex gap-4">
-              <div class="w-[240px]">
-                {component(
-                  &filter.module.render_form/1,
-                  Map.merge(assigns, %{field: field, value: value, form: f, live_resource: @live_resource}),
-                  {__ENV__.module, __ENV__.function, __ENV__.file, __ENV__.line}
-                )}
-              </div>
-              <.filter_presets field={field} presets={Map.get(filter, :presets)} />
-            </div>
-          </div>
-        </.form>
+    <div class="indicator">
+      <div class="join">
+        <div class="btn btn-sm join-item bg-base-300 border-base-content/20 pointer-events-none font-semibold">
+          {@label}
+        </div>
+        <div class="btn btn-sm btn-outline join-item border-base-content/20 pointer-events-none border-l-transparent">
+          {render_slot(@inner_block)}
+        </div>
       </div>
+      <button
+        type="button"
+        phx-click={@clear_event}
+        phx-value-field={@filter_name}
+        class="indicator-item bg-base-300 rounded-selector grid cursor-pointer place-items-center p-1 shadow-sm transition duration-75 hover:text-secondary hover:scale-110"
+        aria-label={Backpex.__({"Clear %{name} filter", %{name: @label}}, @live_resource)}
+      >
+        <.icon name="hero-x-mark" class="size-3" />
+      </button>
     </div>
     """
   end
 
-  defp filter_presets(%{presets: nil} = assigns), do: ~H""
+  @doc false
+  attr :live_resource, :any, default: nil, doc: "live resource module"
+  attr :filters, :list, required: true, doc: "list of active filters"
+  attr :filter_options, :list, required: true, doc: "filter options"
 
-  defp filter_presets(assigns) do
+  def filter_forms(assigns) do
+    assigns =
+      assigns
+      |> assign(:form, to_form(%{}, as: :filters))
+      |> assign(
+        :filter_fields,
+        for {field, filter} <- assigns.filters do
+          label = Map.get(filter, :label, filter.module.label())
+          presets = Map.get(filter, :presets, [])
+          value = Map.get(assigns.filter_options, Atom.to_string(field), nil)
+
+          %{
+            field: field,
+            filter: filter,
+            label: label,
+            presets: presets,
+            value: value
+          }
+        end
+      )
+
+    ~H"""
+    <.form :let={f} for={@form} phx-change="change-filter" phx-submit="change-filter" class="space-y-5">
+      <div :for={field_data <- @filter_fields}>
+        <.filter_form_field
+          live_resource={@live_resource}
+          filter_name={field_data.field}
+          label={field_data.label}
+          show_clear_button={field_data.value != nil}
+        >
+          {component(
+            &field_data.filter.module.render_form/1,
+            Map.merge(assigns, %{field: field_data.field, value: field_data.value, form: f, live_resource: @live_resource}),
+            {__ENV__.module, __ENV__.function, __ENV__.file, __ENV__.line}
+          )}
+          <:presets :if={field_data.presets != []}>
+            <.filter_presets presets={field_data.presets} filter_name={field_data.field} />
+          </:presets>
+        </.filter_form_field>
+      </div>
+    </.form>
+    """
+  end
+
+  @doc """
+  Renders a filter field container with label, form inputs, and optional clear button.
+  Providing a structured layout for individual filter controls within the filter menu.
+
+  Typically used within `.filter_forms/1` to render each individual filter in the filter dropdown.
+  The form inputs are provided via the inner_block slot, while preset buttons are provided via
+  the presets slot.
+
+  ## Examples
+
+      <.filter_form_field
+        filter_name={:status}
+        label="Status"
+        show_clear_button={@has_status_filter}
+      >
+        <.input type="select" field={@form[:status]} options={@status_options} />
+        <:presets>
+          <.filter_presets presets={[{"Active", "active"}, {"Inactive", "inactive"}]} />
+        </:presets>
+      </.filter_form_field>
+  """
+  @doc type: :component
+
+  attr :live_resource, :any, default: nil, doc: "live resource module"
+  attr :clear_event, :string, default: "clear-filter", doc: "event name triggered when clearing the filter"
+  attr :filter_name, :string, required: true, doc: "unique identifier for the filter field"
+  attr :label, :string, required: true, doc: "human-readable label displayed above the filter"
+
+  attr :show_clear_button, :boolean,
+    required: true,
+    doc: "whether to show the clear button (typically when filter has a value)"
+
+  slot :inner_block, required: true, doc: "filter form inputs (selects, text inputs, etc.)"
+  slot :presets, doc: "optional preset buttons for common filter values"
+
+  def filter_form_field(assigns) do
+    ~H"""
+    <div class="flex space-x-2">
+      <p class="text-sm font-medium">{@label}</p>
+      <.filter_clear_button
+        :if={@show_clear_button}
+        clear_event={@clear_event}
+        live_resource={@live_resource}
+        filter_name={@filter_name}
+      />
+    </div>
+    <div class="flex space-x-4">
+      <div class="w-[240px]">
+        {render_slot(@inner_block)}
+      </div>
+      {render_slot(@presets)}
+    </div>
+    """
+  end
+
+  @doc false
+  attr :select_filter_preset_event, :string,
+    default: "filter-preset-selected",
+    doc: "event name for selecting filter presets"
+
+  attr :presets, :list, required: true, doc: "list of presets"
+  attr :filter_name, :string, required: true, doc: "name of the filter"
+
+  def filter_presets(assigns) do
     ~H"""
     <div class="min-w-[80px] mt-2">
       <div
         :for={{preset, index} <- Enum.with_index(@presets)}
-        phx-click="filter-preset-selected"
-        phx-value-field={@field}
+        phx-click={@select_filter_preset_event}
+        phx-value-field={@filter_name}
         phx-value-preset-index={index}
-        class="text-primary mb-1 cursor-pointer truncate text-xs font-medium"
+        class="text-primary mb-1 cursor-pointer truncate text-xs font-medium hover:underline"
       >
         {preset.label}
       </div>
@@ -285,17 +457,21 @@ defmodule Backpex.HTML.Resource do
     """
   end
 
-  defp maybe_clear_button(%{value: nil} = assigns), do: ~H""
+  @doc false
+  attr :clear_event, :string, default: "clear-filter", doc: "event name for clearing the filter"
+  attr :live_resource, :any, required: true, doc: "live resource module"
+  attr :filter_name, :string, required: true, doc: "name of the filter"
 
-  defp maybe_clear_button(assigns) do
+  def filter_clear_button(assigns) do
     ~H"""
-    <input
-      value={Backpex.__("clear", @live_resource)}
+    <button
       type="button"
-      phx-click="clear-filter"
-      phx-value-field={@field}
-      class="text-primary flex cursor-pointer items-center text-xs transition duration-75 hover:text-error hover:scale-105"
-    />
+      phx-click={@clear_event}
+      phx-value-field={@filter_name}
+      class="text-primary cursor-pointer text-xs font-medium hover:underline"
+    >
+      {Backpex.__("clear", @live_resource)}
+    </button>
     """
   end
 
@@ -682,11 +858,11 @@ defmodule Backpex.HTML.Resource do
         value={Map.get(@query_options, :search, "")}
         placeholder={@search_placeholder}
       />
-      <.index_filter
+      <.filter
+        :if={LiveResource.active_filters(assigns) != []}
         live_resource={@live_resource}
         filter_options={LiveResource.get_filter_options(@query_options)}
         filters={LiveResource.active_filters(assigns)}
-        label={Backpex.__("Filters", @live_resource)}
         {assigns}
       />
     </div>
