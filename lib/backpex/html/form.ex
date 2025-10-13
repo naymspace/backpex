@@ -227,7 +227,7 @@ defmodule Backpex.HTML.Form do
     <div class={["fieldset py-0", @class]}>
       <span :if={@label} class="label mb-1">{@label}</span>
       <div
-        id={@id}
+        id={"#{@id}-wrapper"}
         phx-hook="BackpexCurrencyInput"
         data-radix={@radix}
         data-thousands-separator={@thousands_separator}
@@ -239,7 +239,7 @@ defmodule Backpex.HTML.Form do
           @input_class || "[&_>_input]:input [&_>_input]:w-full",
           @errors != [] && (@error_class || "[&_>_input]:input-error [&_>_input]:bg-error/10")
         ]}>
-          <input id={"#{@id}_masked"} name={@name} data-masked-input phx-update="ignore" {@rest} />
+          <input id={@id} name={@name} data-masked-input phx-update="ignore" {@rest} />
           <input type="hidden" value={@value} name={@name} data-hidden-input />
         </span>
       </div>
