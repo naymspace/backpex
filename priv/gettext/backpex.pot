@@ -28,6 +28,10 @@ msgid "(%{count} total)"
 msgstr ""
 
 #, elixir-autogen, elixir-format
+msgid "Actions"
+msgstr ""
+
+#, elixir-autogen, elixir-format
 msgid "Add entry"
 msgstr ""
 
@@ -124,6 +128,14 @@ msgid "Items %{from} to %{to}"
 msgstr ""
 
 #, elixir-autogen, elixir-format
+msgid "Items per page"
+msgstr ""
+
+#, elixir-autogen, elixir-format
+msgid "Main navigation"
+msgstr ""
+
+#, elixir-autogen, elixir-format
 msgid "New %{resource}"
 msgstr ""
 
@@ -213,6 +225,10 @@ msgstr ""
 
 #, elixir-autogen, elixir-format
 msgid "Toggle columns"
+msgstr ""
+
+#, elixir-autogen, elixir-format
+msgid "Toggle menu"
 msgstr ""
 
 #, elixir-autogen, elixir-format

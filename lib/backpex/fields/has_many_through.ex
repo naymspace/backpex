@@ -160,7 +160,9 @@ defmodule Backpex.Fields.HasManyThrough do
             <th :for={{_name, %{label: label}} <- action_fields(@field_options.pivot_fields, :index)} class="font-medium">
               {label}
             </th>
-            <th></th>
+            <th>
+              <span class="sr-only">{Backpex.__("Actions", @live_resource)}</span>
+            </th>
           </tr>
         </thead>
         <tbody class="text-base-content/75">
@@ -257,7 +259,9 @@ defmodule Backpex.Fields.HasManyThrough do
                 >
                   {label}
                 </th>
-                <th></th>
+                <th>
+                  <span class="sr-only">{Backpex.__("Actions", @live_resource)}</span>
+                </th>
               </tr>
             </thead>
             <tbody class="text-base-content/90">

@@ -762,6 +762,7 @@ defmodule Backpex.HTML.Resource do
   """
   @doc type: :component
 
+  attr :live_resource, :atom, default: nil, doc: "The LiveResource module."
   attr :options, :list, required: true, doc: "A list of per page options."
   attr :query_options, :map, default: %{}, doc: "The query options."
   attr :class, :string, default: "", doc: "Extra class to be added to the select."
@@ -776,7 +777,7 @@ defmodule Backpex.HTML.Resource do
 
     ~H"""
     <.form for={@form} class={@class} phx-change="select-page-size" phx-submit="select-page-size">
-      <select name={@form[:value].name} class="select select-sm">
+      <select name={@form[:value].name} class="select select-sm" aria-label={Backpex.__("Items per page", @live_resource)}>
         {Phoenix.HTML.Form.options_for_select(@options, @selected)}
       </select>
     </.form>
