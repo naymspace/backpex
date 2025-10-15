@@ -25,6 +25,9 @@ defmodule Backpex.Filters.MultiSelect do
   > When you `use Backpex.Filters.MultiSelect`, the `Backpex.Filters.MultiSelect` module will set `@behavior Backpex.Filters.Select`. In addition it will add a `render` and `render_form` function in order to display the corresponding filter.
   """
   use BackpexWeb, :filter
+
+  import Backpex.HTML.CoreComponents
+
   require Backpex
 
   @doc """
@@ -83,52 +86,42 @@ defmodule Backpex.Filters.MultiSelect do
 
   def render_form(assigns) do
     value = if is_nil(assigns.value), do: [], else: assigns.value
-    assigns = assign(assigns, :value, value)
+
+    trigger_text =
+      case assigns.value do
+        v when is_nil(v) or v == [] -> assigns.prompt
+        _prompt -> "#{Enum.count(assigns.value)} #{Backpex.__("selected", assigns.live_resource)}"
+      end
+
+    assigns =
+      assigns
+      |> assign(:value, value)
+      |> assign(:trigger_text, trigger_text)
 
     ~H"""
-    <div class="dropdown mt-2 w-full" phx-click={open_content()} phx-click-away={close_content()}>
-      <div tabindex="0" role="button" class="select select-sm">
-        <%= if @value == [] do %>
-          {@prompt}
-        <% else %>
-          {"#{Enum.count(@value)} #{Backpex.__("selected", assigns.live_resource)}"}
-        <% end %>
-      </div>
-      <ul
-        tabindex="0"
-        class="dropdown-content z-[1] menu bg-base-100 rounded-box min-w-60 hidden max-h-96 w-max overflow-y-auto p-2 shadow"
-      >
-        <div class="space-y-2">
+    <.dropdown id={"multi-select-#{@form.id}"} class="mt-2 w-full">
+      <:trigger class="select select-sm">
+        {@trigger_text}
+      </:trigger>
+      <:menu class="min-w-60 w-max max-h-96 overflow-y-auto">
+        <div class="space-y-2 p-2">
           <input type="hidden" name={@form[@field].name} value="" />
-          <%= for {label, v} <- @options do %>
-            <label class="flex cursor-pointer items-center gap-x-2">
-              <input
-                id={"#{@form[@field].name}[]-#{v}"}
-                type="checkbox"
-                name={@form[@field].name <> "[]"}
-                class="checkbox checkbox-sm checkbox-primary"
-                value={v}
-                checked={to_string(v) in @value}
-              />
-              <span class="label-text">
-                {label}
-              </span>
-            </label>
-          <% end %>
+          <label :for={{label, v} <- @options} class="flex cursor-pointer items-center gap-x-2">
+            <input
+              type="checkbox"
+              name={@form[@field].name <> "[]"}
+              class="checkbox checkbox-sm checkbox-primary"
+              value={v}
+              checked={to_string(v) in @value}
+            />
+            <span class="label-text">
+              {label}
+            </span>
+          </label>
         </div>
-      </ul>
-    </div>
+      </:menu>
+    </.dropdown>
     """
-  end
-
-  defp open_content(js \\ %JS{}) do
-    js
-    |> JS.remove_class("hidden", to: {:inner, ".dropdown-content"})
-  end
-
-  defp close_content(js \\ %JS{}) do
-    js
-    |> JS.add_class("hidden", to: {:inner, ".dropdown-content"})
   end
 
   def query(query, _attribute, [], _assigns), do: query
