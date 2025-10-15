@@ -22,37 +22,64 @@ defmodule Backpex.HTML.CoreComponents do
   end
 
   @doc """
-  Renders a filter_badge component.
+  Renders a dropdown menu component with a trigger and menu content.
+
+  ## Examples
+
+      <.dropdown id="user-menu">
+        <:trigger class="btn btn-primary btn-sm">
+          User Menu
+        </:trigger>
+        <:menu>
+          <li><.link navigate={~p"/profile"} class="menu-item">Profile</.link></li>
+          <li><.link navigate={~p"/settings"}>Settings</.link></li>
+          <li><.link navigate={~p"/logout"}>Logout</.link></li>
+        </:menu>
+      </.dropdown>
   """
-  @doc type: :component
+  attr :id, :string, required: true, doc: "unique identifier for the dropdown"
+  attr :class, :any, default: nil, doc: "additional classes for the outer container element"
 
-  attr :clear_event, :string, default: "clear-filter", doc: "event name for removing the badge"
-  attr :filter_name, :string, required: true
-  attr :label, :string, required: true
-  attr :live_resource, :atom, default: nil
+  slot :trigger, doc: "the trigger element to be used to toggle the dropdown menu" do
+    attr :class, :any, doc: "additional classes for the wrapper of the trigger"
+  end
 
-  slot :inner_block
+  slot :menu, doc: "the dropdown menu" do
+    attr :class, :any, doc: "additional classes for the wrapper of the menu"
+  end
 
-  def filter_badge(assigns) do
+  attr :rest, :global, include: ~w(phx-*)
+
+  def dropdown(assigns) do
+    assigns =
+      assigns
+      |> update(:trigger, fn
+        [trigger] -> trigger
+        _trigger -> nil
+      end)
+      |> update(:menu, fn
+        [menu] -> menu
+        _trigger -> nil
+      end)
+
     ~H"""
-    <div class="indicator">
-      <div class="join">
-        <div class="btn btn-sm join-item bg-base-300 border-base-content/10 pointer-events-none font-semibold">
-          {@label}
-        </div>
-        <div class="btn btn-sm btn-outline join-item border-base-content/10 pointer-events-none border-l-transparent">
-          {render_slot(@inner_block)}
-        </div>
+    <div id={@id} class={["dropdown", @class]} {@rest}>
+      <div id={"#{@id}-trigger"} role="button" tabindex="0" aria-haspopup="menu" class={@trigger && @trigger[:class]}>
+        {render_slot(@trigger)}
       </div>
-      <button
-        type="button"
-        phx-click={@clear_event}
-        phx-value-field={@filter_name}
-        class="indicator-item bg-base-300 rounded-selector grid cursor-pointer place-items-center p-1 shadow-sm transition duration-75 hover:text-secondary hover:scale-110"
-        aria-label={Backpex.__({"Clear %{name} filter", %{name: @label}}, @live_resource)}
+
+      <div
+        id={"#{@id}-menu"}
+        role="menu"
+        tabindex="0"
+        aria-labelledby={"#{@id}-trigger"}
+        class={[
+          "menu dropdown-content z-[1] bg-base-100 rounded-box outline-black/5 shadow outline-[length:var(--border)]",
+          @menu && @menu[:class]
+        ]}
       >
-        <.icon name="hero-x-mark" class="h-3 w-3" />
-      </button>
+        {render_slot(@menu)}
+      </div>
     </div>
     """
   end

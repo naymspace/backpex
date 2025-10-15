@@ -8,49 +8,74 @@
     "github>pehbehbeh/renovate-config//workarounds/mixGitVersioning",
     "github>pehbehbeh/renovate-config//customManagers/hexEsbuild",
     "github>pehbehbeh/renovate-config//customManagers/hexTailwind",
-    ":reviewer(krns)",
-    ":automergePatch",
-    "helpers:pinGitHubActionDigestsToSemver"
+    ":reviewer(Flo0807)",
+    "helpers:pinGitHubActionDigestsToSemver",
+    "security:minimumReleaseAgeNpm"
   ],
-  "rebaseWhen": "behind-base-branch",
+  "additionalBranchPrefix": "{{packageFileDir}}-",
   "pinDigests": false,
   "lockFileMaintenance": {
     "enabled": true,
-    "extends": ["schedule:weekly"]
+    "extends": [
+      "schedule:weekly"
+    ]
   },
-  "additionalBranchPrefix": "{{packageFileDir}}-",
+  "patch": {
+    "automerge": true,
+    "minimumReleaseAge": "14 days"
+  },
+  "pin": {
+    "automerge": true,
+    "minimumReleaseAge": "14 days"
+  },
+  "internalChecksFilter": "strict",
   "packageRules": [
     {
       "description": "Set Mix versioning strategy to update-lockfile",
-      "matchManagers": ["mix"],
+      "matchManagers": [
+        "mix"
+      ],
       "rangeStrategy": "update-lockfile"
     },
     {
       "description": "Group dependency updates to the Elixir base image",
       "groupName": "Base Image",
-      "matchDepNames": ["erlang", "elixir", "ubuntu"],
+      "matchDepNames": [
+        "erlang",
+        "elixir",
+        "ubuntu"
+      ],
       "pinDigests": false
     },
     {
       "description": "Disable ubuntu major updates",
-      "matchDatasources": ["docker"],
-      "matchDepNames": ["ubuntu"],
-      "matchUpdateTypes": ["major"],
+      "matchDatasources": [
+        "docker"
+      ],
+      "matchDepNames": [
+        "ubuntu"
+      ],
+      "matchUpdateTypes": [
+        "major"
+      ],
       "enabled": false
     },
     {
-      "description": "Disable automerge for docker data source",
-      "matchDatasources": ["docker"],
-      "automerge": true
+      "description": "Automerge non-major github actions updates",
+      "matchManagers": [
+        "github-actions"
+      ],
+      "matchUpdateTypes": [
+        "minor",
+        "patch",
+        "pin",
+        "pinDigest"
+      ],
+      "automerge": true,
+      "minimumReleaseAge": "14 days"
     },
     {
-      "description": "Automatically merge non-major github actions updates",
-      "matchManagers": ["github-actions"],
-      "matchUpdateTypes": ["minor", "patch", "pin", "pinDigest"],
-      "automerge": true
-    },
-    {
-      "description": "Automerge some non-major node package updates",
+      "description": "Automerge some minor node package updates",
       "matchDepNames": [
         "@sentry/browser",
         "stylelint",
@@ -60,20 +85,44 @@
         "topbar",
         "npm-run-all2"
       ],
-      "matchDatasources": ["npm"],
-      "matchUpdateTypes": ["minor", "patch"],
-      "automerge": true
+      "matchDatasources": [
+        "npm"
+      ],
+      "matchUpdateTypes": [
+        "minor",
+        "patch"
+      ],
+      "automerge": true,
+      "minimumReleaseAge": "14 days"
     },
     {
       "description": "Label dependency updates in demo directory",
-      "matchFileNames": ["demo/**", "Dockerfile", "compose.yml"],
-      "labels": ["ignore-for-release", "demo", "dependencies", "{{categories}}"]
+      "matchFileNames": [
+        "demo/**",
+        "Dockerfile",
+        "compose.yml"
+      ],
+      "labels": [
+        "ignore-for-release",
+        "demo",
+        "dependencies",
+        "{{categories}}"
+      ]
     },
     {
       "description": "Label dependency updates in ci.yml",
-      "matchFileNames": [".github/workflows/ci.yml"],
-      "labels": ["ignore-for-release", "dependencies", "{{categories}}"]
+      "matchFileNames": [
+        ".github/workflows/ci.yml"
+      ],
+      "labels": [
+        "ignore-for-release",
+        "dependencies",
+        "{{categories}}"
+      ]
     }
   ],
-  "labels": ["dependencies", "{{categories}}"]
+  "labels": [
+    "dependencies",
+    "{{categories}}"
+  ]
 }

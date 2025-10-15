@@ -238,11 +238,11 @@ defmodule Backpex.Fields.HasManyThrough do
     <div>
       <Layout.field_container>
         <:label align={Backpex.Field.align_label(@field_options, assigns, :top)}>
-          <Layout.input_label text={@field_options[:label]} />
+          <Layout.input_label id={"has-many-through-label-#{@name}"} as="span" text={@field_options[:label]} />
         </:label>
 
         <div :if={@listables != []} class="ring-base-content/10 rounded-box mb-4 overflow-x-auto ring-1">
-          <table class="table">
+          <table class="table" aria-labelledby={"has-many-through-label-#{@name}"}>
             <thead class="bg-base-200/50 text-base-content uppercase">
               <tr>
                 <th
@@ -535,7 +535,7 @@ defmodule Backpex.Fields.HasManyThrough do
     ~H"""
     <Layout.field_container>
       <:label>
-        <Layout.input_label text={@label} />
+        <Layout.input_label for={@form[@owner_key]} text={@label} />
       </:label>
       <BackpexForm.input
         type="select"

@@ -1,4 +1,4 @@
-defmodule Backpex.Fields.Text do
+defmodule Backpex.Fields.Email do
   @config_schema [
     placeholder: [
       doc: "Placeholder value or function that receives the assigns.",
@@ -19,7 +19,7 @@ defmodule Backpex.Fields.Text do
   ]
 
   @moduledoc """
-  A field for handling a text value.
+  A field for handling an email value.
 
   ## Field-specific options
 
@@ -47,7 +47,7 @@ defmodule Backpex.Fields.Text do
           <Layout.input_label for={@form[@name]} text={@field_options[:label]} />
         </:label>
         <BackpexForm.input
-          type="text"
+          type="email"
           field={@form[@name]}
           placeholder={@field_options[:placeholder]}
           translate_error_fun={Backpex.Field.translate_error_fun(@field_options, assigns)}
@@ -76,7 +76,7 @@ defmodule Backpex.Fields.Text do
       <.form for={@form} class="relative" phx-change="update-field" phx-submit="update-field" phx-target={@myself}>
         <BackpexForm.input
           id={"index-form-input-#{@name}-#{LiveResource.primary_value(@item, @live_resource)}"}
-          type="text"
+          type="email"
           field={@form[:value]}
           placeholder={@field_options[:placeholder]}
           input_class={["input input-sm", @valid && "not-hover:input-ghost", !@valid && "input-error bg-error/10"]}

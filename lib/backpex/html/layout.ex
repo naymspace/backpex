@@ -4,8 +4,11 @@ defmodule Backpex.HTML.Layout do
   """
 
   use BackpexWeb, :html
-  alias Backpex.HTML.CoreComponents
+
+  import Backpex.HTML.CoreComponents
+
   alias Backpex.Router
+
   require Backpex
 
   @doc false
@@ -56,7 +59,7 @@ defmodule Backpex.HTML.Layout do
             <.topbar class={build_slot_class(@topbar)}>
               {render_slot(@topbar)}
               <label :if={@sidebar != []} for="menu-drawer" class="btn btn-square drawer-button btn-ghost md:hidden">
-                <Backpex.HTML.CoreComponents.icon name="hero-bars-3-solid" class="h-6" />
+                <.icon name="hero-bars-3-solid" class="h-6" />
               </label>
             </.topbar>
           </div>
@@ -131,7 +134,7 @@ defmodule Backpex.HTML.Layout do
           phx-disconnected={JS.remove_class("hidden", to: ".phx-client-error #client-error")}
           phx-connected={JS.add_class("hidden")}
         >
-          <:icon><CoreComponents.icon name="hero-arrow-path" class="size-5 motion-safe:animate-spin" /></:icon>
+          <:icon><.icon name="hero-arrow-path" class="size-5 motion-safe:animate-spin" /></:icon>
           {Backpex.__("Attempting to reconnect...")}
         </.alert>
         <.alert
@@ -143,7 +146,7 @@ defmodule Backpex.HTML.Layout do
           phx-disconnected={JS.remove_class("hidden", to: ".phx-server-error #server-error")}
           phx-connected={JS.add_class("hidden")}
         >
-          <:icon><CoreComponents.icon name="hero-arrow-path" class="size-5 motion-safe:animate-spin" /></:icon>
+          <:icon><.icon name="hero-arrow-path" class="size-5 motion-safe:animate-spin" /></:icon>
           {Backpex.__("Hang in there while we get back on track...")}
         </.alert>
       </div>
@@ -182,10 +185,10 @@ defmodule Backpex.HTML.Layout do
       {@rest}
     >
       <%= if @icon == [] do %>
-        <CoreComponents.icon :if={@kind === :info} name="hero-information-circle" class="size-5" />
-        <CoreComponents.icon :if={@kind === :success} name="hero-check-circle" class="size-5" />
-        <CoreComponents.icon :if={@kind === :warning} name="hero-exclamation-triangle" class="size-5" />
-        <CoreComponents.icon :if={@kind === :error} name="hero-x-circle" class="size-5" />
+        <.icon :if={@kind === :info} name="hero-information-circle" class="size-5" />
+        <.icon :if={@kind === :success} name="hero-check-circle" class="size-5" />
+        <.icon :if={@kind === :warning} name="hero-exclamation-triangle" class="size-5" />
+        <.icon :if={@kind === :error} name="hero-x-circle" class="size-5" />
       <% else %>
         {render_slot(@icon)}
       <% end %>
@@ -205,7 +208,7 @@ defmodule Backpex.HTML.Layout do
           phx-click={JS.exec("data-close", to: {:closest, ".alert"})}
           aria-label={@close_label}
         >
-          <Backpex.HTML.CoreComponents.icon name="hero-x-mark" class="h-5 w-5" />
+          <.icon name="hero-x-mark" class="h-5 w-5" />
         </button>
       </div>
     </div>
@@ -280,41 +283,37 @@ defmodule Backpex.HTML.Layout do
 
   def theme_selector(assigns) do
     ~H"""
-    <div
-      id="backpex-theme-selector"
-      phx-hook="BackpexThemeSelector"
-      class={["dropdown dropdown-bottom dropdown-end", @class]}
-    >
-      <%!-- Desktop Icon --%>
-      <div tabindex="0" role="button" class="btn btn-ghost hidden md:flex">
-        {@label}
-        <Backpex.HTML.CoreComponents.icon name="hero-chevron-down" class="h-3 w-3" />
-      </div>
-      <%!-- Mobile Icon --%>
-      <div tabindex="0" role="button" class="btn btn-square btn-ghost md:hidden">
-        <Backpex.HTML.CoreComponents.icon name="hero-swatch" class="size-6 md:hidden" />
-      </div>
-      <form
-        id="backpex-theme-selector-form"
-        class="dropdown-content bg-base-300 rounded-box max-h-96 overflow-y-scroll"
-        data-cookie-path={Router.cookie_path(@socket)}
-      >
-        <ul tabindex="0" class="rounded-box z-1 menu w-48 outline-hidden">
-          <li :for={{label, theme_name} <- @themes} class="w-full">
-            <label class="has-checked:bg-neutral has-checked:text-neutral-content">
-              <input
-                type="radio"
-                name="theme-selector"
-                class="theme-controller hidden"
-                phx-click={JS.dispatch("backpex:theme-change")}
-                value={theme_name}
-              />
-              {label}
-            </label>
-          </li>
-        </ul>
-      </form>
-    </div>
+    <.dropdown id="backpex-theme-selector" phx-hook="BackpexThemeSelector" class={["dropdown-end", @class]}>
+      <:trigger>
+        <%!-- Desktop Icon --%>
+        <div class="btn btn-ghost hidden md:flex">
+          {@label}
+          <.icon name="hero-chevron-down" class="h-3 w-3" />
+        </div>
+        <%!-- Mobile Icon --%>
+        <div class="btn btn-square btn-ghost md:hidden">
+          <.icon name="hero-swatch" class="size-6 md:hidden" />
+        </div>
+      </:trigger>
+      <:menu class="w-48 max-h-96 overflow-y-scroll">
+        <form id="backpex-theme-selector-form" data-cookie-path={Router.cookie_path(@socket)}>
+          <ul>
+            <li :for={{label, theme_name} <- @themes} class="w-full">
+              <label class="has-checked:bg-neutral has-checked:text-neutral-content">
+                <input
+                  type="radio"
+                  name="theme-selector"
+                  class="theme-controller hidden"
+                  phx-click={JS.dispatch("backpex:theme-change")}
+                  value={theme_name}
+                />
+                {label}
+              </label>
+            </li>
+          </ul>
+        </form>
+      </:menu>
+    </.dropdown>
     """
   end
 
@@ -390,12 +389,14 @@ defmodule Backpex.HTML.Layout do
 
   def topbar_dropdown(assigns) do
     ~H"""
-    <div class={["dropdown dropdown-end", @class]}>
-      {render_slot(@label)}
-      <ul tabindex="0" class="dropdown-content z-[1] menu bg-base-100 rounded-box w-52 p-2 shadow">
+    <.dropdown id="topbar-dropdown" class="dropdown-end">
+      <:trigger>
+        {render_slot(@label)}
+      </:trigger>
+      <:menu class="w-52 p-2">
         {render_slot(@inner_block)}
-      </ul>
-    </div>
+      </:menu>
+    </.dropdown>
     """
   end
 
@@ -500,7 +501,7 @@ defmodule Backpex.HTML.Layout do
   """
   @doc type: :component
 
-  attr :class, :string, default: "", doc: "extra classes to be added"
+  attr :class, :any, default: nil, doc: "extra classes to be added"
 
   slot :label, required: true do
     attr :align, :atom, values: [:top, :center, :bottom]
@@ -509,16 +510,22 @@ defmodule Backpex.HTML.Layout do
   slot :inner_block
 
   def field_container(assigns) do
-    ~H"""
-    <div class={"#{@class} flex flex-col items-stretch space-y-2 px-6 py-4 sm:flex-row sm:space-y-0 sm:py-3"}>
-      <div :for={label <- @label} class={"#{get_align_class(label[:align])} hyphens-auto break-words pr-2 sm:w-1/4"}>
-        {render_slot(@label)}
-      </div>
+    assigns =
+      update(assigns, :label, fn
+        [label] -> label
+        _other -> raise ArgumentError, "Expected a single label slot, got: #{inspect(assigns.label)}"
+      end)
 
-      <div class="w-full sm:w-3/4">
+    ~H"""
+    <dl class={["flex flex-col items-stretch space-y-2 px-6 py-4 sm:flex-row sm:space-y-0 sm:py-3", @class]}>
+      <dt class={["hyphens-auto break-words pr-2 sm:w-1/4", get_align_class(@label[:align])]}>
+        {render_slot(@label)}
+      </dt>
+
+      <dd class="w-full sm:w-3/4">
         {render_slot(@inner_block)}
-      </div>
-    </div>
+      </dd>
+    </dl>
     """
   end
 
@@ -561,7 +568,7 @@ defmodule Backpex.HTML.Layout do
             class="btn btn-sm btn-circle btn-ghost absolute top-3 right-3"
             phx-click={JS.exec("data-cancel", to: "##{@id}")}
           >
-            <Backpex.HTML.CoreComponents.icon name="hero-x-mark" class="size-5" />
+            <.icon name="hero-x-mark" class="size-5" />
           </button>
           <div :if={@title} class="0 text-base-content text-xl font-semibold">
             {@title}
@@ -592,13 +599,22 @@ defmodule Backpex.HTML.Layout do
   """
   @doc type: :component
 
+  attr :as, :string, default: "label", doc: "html tag name"
   attr :text, :string, doc: "text of the label"
+  attr :for, :any, default: nil, doc: "form element the label is bound to"
+  attr :rest, :global
 
   def input_label(assigns) do
+    assigns =
+      case assigns.for do
+        %Phoenix.HTML.FormField{} = field -> assign(assigns, :rest, Map.put(assigns.rest, :for, field.id))
+        id -> assign(assigns, :rest, Map.put(assigns.rest, :for, id))
+      end
+
     ~H"""
-    <p class="text-content block break-words text-sm font-medium">
+    <.dynamic_tag tag_name={@as} class="text-content block break-words text-sm font-medium" {@rest}>
       {@text}
-    </p>
+    </.dynamic_tag>
     """
   end
 

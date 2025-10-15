@@ -44,9 +44,9 @@ defmodule Demo.MixProject do
       {:ex_machina, "~> 2.3"},
       {:smokestack, "~> 0.9.2"},
       {:faker, "~> 0.18"},
-      {:phoenix_test, "~> 0.7.1", only: :test, runtime: false},
-      {:phoenix_test_playwright, "~> 0.7.0", only: :test, runtime: false},
-      {:a11y_audit, "~> 0.2.3", only: :test},
+      {:phoenix_test, "~> 0.8.0", only: :test, runtime: false},
+      {:phoenix_test_playwright, "~> 0.8.0", only: :test, runtime: false},
+      {:a11y_audit, "~> 0.3.0", only: :test},
       {:live_debugger, "~> 0.4", only: :dev},
       {:quokka, "~> 2.9", only: [:dev, :test], runtime: false},
 
@@ -79,6 +79,7 @@ defmodule Demo.MixProject do
       {:jason, ">= 1.0.0"},
       {:ash, "~> 3.0"},
       {:ash_postgres, "~> 2.6.0"},
+      {:money, "~> 1.14"},
 
       # assets
       {:esbuild, "~> 0.9", runtime: Mix.env() == :dev},

@@ -1,6 +1,6 @@
 defmodule Backpex.ItemActions.Delete do
   @moduledoc """
-  Inline item action to redirect to show view.
+  Inline item action to delete the item.
   """
 
   use BackpexWeb, :item_action

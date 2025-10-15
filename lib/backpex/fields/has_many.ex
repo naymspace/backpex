@@ -76,10 +76,13 @@ defmodule Backpex.Fields.HasMany do
       end
   """
   use Backpex.Field, config_schema: @config_schema
+
   import Ecto.Query
+
   alias Backpex.Adapters.Ecto, as: EctoAdapter
   alias Backpex.HTML.Form
   alias Backpex.Router
+
   require Backpex
 
   @impl Phoenix.LiveComponent
@@ -132,121 +135,201 @@ defmodule Backpex.Fields.HasMany do
 
   @impl Backpex.Field
   def render_form(assigns) do
+    assigns = assign(assigns, :help_text, Backpex.Field.help_text(assigns.field_options, assigns))
+
     ~H"""
-    <div id={@name}>
+    <div id={"has-many-#{@name}"}>
       <Layout.field_container>
         <:label align={Backpex.Field.align_label(@field_options, assigns)}>
-          <Layout.input_label text={@field_options[:label]} />
+          <Layout.input_label as="span" text={@field_options[:label]} />
         </:label>
-        <div class="dropdown w-full">
-          <label
-            tabindex="0"
-            class={[
-              "input block h-fit w-full p-2",
-              @errors == [] && "bg-transparent",
-              @errors != [] && "input-error bg-error/10"
-            ]}
-          >
-            <div class="flex h-full w-full flex-wrap items-center gap-1 px-2">
-              <p :if={@selected == []} class="p-0.5 text-sm">
-                {@prompt}
-              </p>
 
-              <div
+        <Backpex.HTML.CoreComponents.dropdown id={"has-many-dropdown-#{@name}"} class="w-full">
+          <:trigger class={[
+            "input block h-fit w-full p-2",
+            @errors == [] && "bg-transparent",
+            @errors != [] && "input-error bg-error/10"
+          ]}>
+            <div class="flex h-full w-full flex-wrap items-center gap-1 px-2">
+              <p :if={@selected == []} class="p-0.5 text-sm">{@prompt}</p>
+              <.badge
                 :for={{label, value} <- @selected}
-                class="badge badge-sm badge-soft badge-primary pointer-events-auto pr-0"
-              >
-                <span>{label}</span>
-                <label
-                  class="flex cursor-pointer items-center pr-2"
-                  role="button"
-                  for={"has-many-#{@name}-checkbox-value-#{value}"}
-                  aria-label={Backpex.__({"Unselect %{label}", %{label: label}}, @live_resource)}
-                >
-                  <Backpex.HTML.CoreComponents.icon name="hero-x-mark" class="size-4 scale-105 hover:scale-110" />
-                </label>
-              </div>
+                live_resource={@live_resource}
+                label={label}
+                value={value}
+                name={@name}
+              />
             </div>
-          </label>
-          <Form.error :for={msg <- @errors} class="mt-1">{msg}</Form.error>
-          <div tabindex="0" class="dropdown-content z-[1] menu bg-base-100 rounded-box w-full overflow-y-auto shadow">
+          </:trigger>
+          <:menu class="w-full overflow-y-auto">
             <div class="max-h-72 p-2">
+              <%!-- Search Input --%>
               <input
                 type="search"
                 name={"#{@name}_search"}
                 class="input input-sm mb-2 w-full"
-                phx-change="search"
-                phx-target={@myself}
                 placeholder={Backpex.__("Search", @live_resource)}
                 value={@search_input}
+                phx-change="search"
+                phx-target={@myself}
               />
-              <p :if={@options == []} class="w-full">
-                {@not_found_text}
-              </p>
 
-              <label :if={Enum.any?(@options)}>
-                <input
-                  type="checkbox"
-                  class="hidden"
-                  name={if @all_selected, do: "change[#{@name}_deselect_all]", else: "change[#{@name}_select_all]"}
-                  value=""
-                />
-                <span role="button" class="text-primary my-2 cursor-pointer text-sm underline">
-                  <%= if @all_selected do %>
-                    {Backpex.__("Deselect all", @live_resource)}
-                  <% else %>
-                    {Backpex.__("Select all", @live_resource)}
-                  <% end %>
-                </span>
-              </label>
+              <%!-- Empty State --%>
+              <p :if={@options == []} class="mt-2 w-full">{@not_found_text}</p>
 
-              <input class="hidden" id={"has-many-#{@name}-hidden-input"} name={"#{@form[@name].name}[]"} value="" />
+              <%!-- Toggle all button --%>
+              <.toggle_all
+                :if={Enum.any?(@options)}
+                live_resource={@live_resource}
+                name={@name}
+                all_selected={@all_selected}
+              />
 
-              <input
+              <%!-- Hidden input to make sure the change is always present, even if no options are selected --%>
+              <input class="hidden" name={"#{@form[@name].name}[]"} value="" />
+
+              <%!-- Hidden Options --%>
+              <.hidden_option
                 :for={value <- @selected_ids}
                 :if={value not in @options_ids}
-                id={"has-many-#{@name}-checkbox-value-#{value}"}
-                type="checkbox"
+                form={@form}
                 value={value}
-                name={"#{@form[@name].name}[]"}
-                class="hidden"
-                checked
+                name={@name}
               />
 
+              <%!-- Options --%>
               <div class="my-2 w-full">
-                <label :for={{label, value} <- @options} class={["mt-2 flex cursor-pointer items-center gap-x-2"]}>
-                  <input
-                    id={"has-many-#{@name}-checkbox-value-#{value}"}
-                    type="checkbox"
-                    name={"#{@form[@name].name}[]"}
-                    value={value}
-                    checked={value in @selected_ids}
-                    class="checkbox checkbox-sm checkbox-primary"
-                  />
-                  <span class="label-text">
-                    {label}
-                  </span>
-                </label>
+                <.option
+                  :for={{label, value} <- @options}
+                  class="mt-2"
+                  form={@form}
+                  name={@name}
+                  label={label}
+                  value={value}
+                  selected={value in @selected_ids}
+                />
               </div>
 
-              <button
-                :if={@show_more}
-                type="button"
-                class="text-primary mb-2 cursor-pointer text-sm underline"
-                phx-click="show-more"
-                phx-target={@myself}
-              >
-                {Backpex.__("Show more", @live_resource)}
-              </button>
+              <.show_more_button :if={@show_more} live_resource={@live_resource} event_target={@myself} />
             </div>
-          </div>
-        </div>
+          </:menu>
+        </Backpex.HTML.CoreComponents.dropdown>
 
-        <%= if help_text = Backpex.Field.help_text(@field_options, assigns) do %>
-          <Backpex.HTML.Form.help_text class="mt-1">{help_text}</Backpex.HTML.Form.help_text>
-        <% end %>
+        <Form.error :for={msg <- @errors} class="mt-1">{msg}</Form.error>
+
+        <Backpex.HTML.Form.help_text :if={@help_text} class="mt-1">
+          {@help_text}
+        </Backpex.HTML.Form.help_text>
       </Layout.field_container>
     </div>
+    """
+  end
+
+  attr :class, :any, default: nil
+  attr :label, :string, required: true
+  attr :value, :string, required: true
+  attr :name, :string, required: true
+  attr :selected, :boolean, required: true
+  attr :form, Phoenix.HTML.Form, required: true
+
+  defp option(assigns) do
+    ~H"""
+    <label class={["flex cursor-pointer items-center gap-x-2", @class]}>
+      <input
+        id={"has-many-#{@name}-checkbox-value-#{@value}"}
+        type="checkbox"
+        name={"#{@form[@name].name}[]"}
+        value={@value}
+        checked={@selected}
+        class="checkbox checkbox-sm checkbox-primary"
+      />
+      <span class="label-text">
+        {@label}
+      </span>
+    </label>
+    """
+  end
+
+  attr :value, :string, required: true
+  attr :name, :string, required: true
+  attr :form, Phoenix.HTML.Form, required: true
+
+  defp hidden_option(assigns) do
+    ~H"""
+    <input
+      id={"has-many-#{@name}-checkbox-value-#{@value}"}
+      type="checkbox"
+      value={@value}
+      name={"#{@form[@name].name}[]"}
+      class="hidden"
+      checked
+    />
+    """
+  end
+
+  attr :class, :any, default: nil
+  attr :live_resource, :atom, required: true
+  attr :all_selected, :boolean, required: true
+  attr :name, :string, required: true
+
+  defp toggle_all(assigns) do
+    hidden_input_name =
+      if assigns.all_selected, do: "change[#{assigns.name}_deselect_all]", else: "change[#{assigns.name}_select_all]"
+
+    button_text =
+      if assigns.all_selected,
+        do: Backpex.__("Deselect all", assigns.live_resource),
+        else: Backpex.__("Select all", assigns.live_resource)
+
+    assigns =
+      assigns
+      |> assign(:hidden_input_name, hidden_input_name)
+      |> assign(:button_text, button_text)
+
+    ~H"""
+    <label class={@class}>
+      <input type="checkbox" class="hidden" name={@hidden_input_name} value="" />
+      <div role="button" class="text-primary cursor-pointer text-sm underline">
+        {@button_text}
+      </div>
+    </label>
+    """
+  end
+
+  attr :live_resource, :atom, required: true
+  attr :name, :string, required: true
+  attr :label, :string, required: true
+  attr :value, :string, required: true
+
+  defp badge(assigns) do
+    ~H"""
+    <div class="badge badge-sm badge-soft badge-primary pointer-events-auto pr-0">
+      <span>{@label}</span>
+      <label
+        class="flex cursor-pointer items-center pr-2"
+        role="button"
+        for={"has-many-#{@name}-checkbox-value-#{@value}"}
+        aria-label={Backpex.__({"Unselect %{label}", %{label: @label}}, @live_resource)}
+      >
+        <Backpex.HTML.CoreComponents.icon name="hero-x-mark" class="size-4 scale-105 hover:scale-110" />
+      </label>
+    </div>
+    """
+  end
+
+  attr :live_resource, :atom, required: true
+  attr :event_target, :any, required: true
+
+  defp show_more_button(assigns) do
+    ~H"""
+    <button
+      type="button"
+      phx-click="show-more"
+      phx-target={@event_target}
+      class="text-primary mb-2 cursor-pointer text-sm underline"
+    >
+      {Backpex.__("Show more", @live_resource)}
+    </button>
     """
   end
 

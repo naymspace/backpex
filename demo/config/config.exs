@@ -28,7 +28,7 @@ config :demo,
   generators: [binary_id: true]
 
 config :esbuild,
-  version: "0.25.9",
+  version: "0.25.10",
   default: [
     args:
       ~w(js/app.js --bundle --target=es2022 --outdir=../priv/static/assets/js --external:/fonts/* --external:/images/* --alias:@=. --alias:backpex=/opt/app),
@@ -37,13 +37,19 @@ config :esbuild,
   ],
   backpex: [
     args: ~w(../assets/js/backpex.js --bundle --format=esm --sourcemap --outfile=priv/static/js/backpex.esm.js),
-    cd: Path.expand("..", __DIR__),
-    env: %{"NODE_PATH" => Path.expand("../deps", __DIR__)}
+    cd: Path.expand("..", __DIR__)
   ]
 
 config :logger, :default_formatter,
   format: "$time $metadata[$level] $message\n",
   metadata: [:request_id]
+
+config :money,
+  default_currency: :USD,
+  separator: ",",
+  delimiter: ".",
+  symbol_on_right: false,
+  symbol_space: false
 
 config :phoenix, :json_library, Jason
 
