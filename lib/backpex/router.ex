@@ -131,8 +131,12 @@ defmodule Backpex.Router do
     %{path: path} = URI.parse(current_path)
 
     case {path, to_path} do
-      {nil, _to} -> false
-      {path, "/" = to} -> String.equivalent?(path, to)
+      {nil, _to} ->
+        false
+
+      {path, "/" = to} ->
+        String.equivalent?(path, to)
+
       {path, to} ->
         normalized_to = String.trim_trailing(to, "/")
 
