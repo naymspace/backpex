@@ -4,8 +4,6 @@ defmodule Backpex.HTML.Form do
   """
   use BackpexWeb, :html
 
-  import Backpex.HTML.CoreComponents
-
   alias Phoenix.HTML.Form
 
   require Backpex
@@ -315,142 +313,125 @@ defmodule Backpex.HTML.Form do
     assigns = assign(assigns, :errors, translate_form_errors(errors, translate_error_fun))
 
     ~H"""
-    <div>
-      <.dropdown id={"multi-select-#{@field.id}"} class="w-full">
-        <:trigger class={[
-          "input block h-fit w-full p-2",
-          @errors == [] && "bg-transparent",
-          @errors != [] && "input-error bg-error/10"
-        ]}>
-          <div class="flex h-full w-full flex-wrap items-center gap-1 px-2">
-            <p :if={@selected == []} class="p-0.5 text-sm">{@prompt}</p>
-            <.multi_select_badge
-              :for={{label, value} <- @selected}
-              live_resource={@live_resource}
+    <div class="dropdown w-full">
+      <label tabindex="0" class="input block h-fit w-full p-2">
+        <div class="flex h-full w-full flex-wrap items-center gap-1 px-2">
+          <p :if={@selected == []} class="text-base-content p-0.5 text-sm">
+            {@prompt}
+          </p>
+
+          <div :for={{label, value} <- @selected} class="badge badge-sm badge-soft badge-primary pointer-events-auto pr-0">
+            {label}
+            <div
+              class="flex cursor-pointer items-center pr-2"
+              role="button"
+              phx-click="toggle-option"
+              phx-value-id={value}
+              phx-target={@event_target}
+              aria-label={Backpex.__({"Unselect %{label}", %{label: label}}, @live_resource)}
+            >
+              <Backpex.HTML.CoreComponents.icon name="hero-x-mark" class="size-4 scale-105 hover:scale-110" />
+            </div>
+          </div>
+        </div>
+      </label>
+      <.error :for={msg <- @errors} :if={not @hide_errors} class="mt-1">{msg}</.error>
+      <div tabindex="0" class="dropdown-content z-[1] menu bg-base-100 rounded-box w-full overflow-y-auto shadow">
+        <div class="max-h-72 p-2">
+          <input
+            :if={not @hide_search}
+            type="search"
+            name={@field.name <> "_search"}
+            class="input input-sm mb-2 w-full"
+            placeholder={Backpex.__("Search", @live_resource)}
+            value={@search_input}
+            phx-change={@search_event}
+            phx-target={@event_target}
+          />
+          <p :if={@options == []} class="w-full">
+            {@not_found_text}
+          </p>
+
+          <button
+            :if={Enum.any?(@options)}
+            type="button"
+            class="text-primary my-2 text-sm underline hover:cursor-pointer"
+            phx-click="toggle-select-all"
+            phx-value-field-name={@field.name}
+            phx-target={@event_target}
+          >
+            <%= if @show_select_all do %>
+              {Backpex.__("Select all", @live_resource)}
+            <% else %>
+              {Backpex.__("Deselect all", @live_resource)}
+            <% end %>
+          </button>
+
+          <input type="hidden" name={@field.name} value="" />
+
+          <div class="my-2 w-full">
+            <.multiselect_option
+              :for={{label, value} <- @options}
               label={label}
               value={value}
               event_target={@event_target}
-            />
-          </div>
-        </:trigger>
-        <:menu class="w-full overflow-y-auto">
-          <div class="max-h-72 p-2">
-            <%!-- Search Input --%>
-            <input
-              :if={not @hide_search}
-              type="search"
-              name={@field.name <> "_search"}
-              class="input input-sm mb-2 w-full"
-              placeholder={Backpex.__("Search", @live_resource)}
-              value={@search_input}
-              phx-change={@search_event}
-              phx-target={@event_target}
-            />
-
-            <%!-- Empty State --%>
-            <p :if={@options == []} class="mt-2 w-full">{@not_found_text}</p>
-
-            <%!-- Toggle all button --%>
-            <.multi_select_toggle_all
-              :if={Enum.any?(@options)}
-              show_select_all={@show_select_all}
-              live_resource={@live_resource}
               field={@field}
-              event_target={@event_target}
+              selected={@selected}
             />
-
-            <%!-- Hidden input to make sure the change is always present, even if no options are selected --%>
-            <input type="hidden" name={@field.name} value="" />
-
-            <%!-- Options --%>
-            <div class="mt-2 w-full">
-              <.multi_select_option
-                :for={{label, value} <- @options}
-                class="mt-2"
-                label={label}
-                value={value}
-                field={@field}
-                selected={@selected}
-                event_target={@event_target}
-              />
-            </div>
-
-            <.multi_select_show_more :if={@show_more} live_resource={@live_resource} event_target={@event_target} />
           </div>
-        </:menu>
-      </.dropdown>
 
-      <.error :for={msg <- @errors} :if={not @hide_errors} class="mt-1">{msg}</.error>
-      <.help_text :if={@help_text} class="mt-1">{@help_text}</.help_text>
+          <button
+            :if={@show_more}
+            type="button"
+            class="text-primary mb-2 text-sm underline hover:cursor-pointer"
+            phx-click="show-more"
+            phx-target={@event_target}
+          >
+            {Backpex.__("Show more", @live_resource)}
+          </button>
+        </div>
+      </div>
     </div>
+
+    <.help_text :if={@help_text} class="mt-1">{@help_text}</.help_text>
     """
   end
 
-  attr :live_resource, :atom, required: true
+  attr :event_target, :any, required: true, doc: "the target that handles the events of this component"
+  attr :field, :any, required: true, doc: "form field the select should be for"
+  attr :selected, :list, required: true, doc: "the selected values"
   attr :label, :string, required: true
-  attr :value, :any, required: true
-  attr :event_target, :any, required: true
+  attr :value, :string, required: true
 
-  defp multi_select_badge(assigns) do
+  defp multiselect_option(%{value: value} = assigns) when is_list(value) or is_map(value) do
     ~H"""
-    <div class="badge badge-sm badge-soft badge-primary pointer-events-auto pr-0">
-      {@label}
-      <div
-        class="flex cursor-pointer items-center pr-2"
-        role="button"
-        phx-click="toggle-option"
-        phx-value-id={@value}
-        phx-target={@event_target}
-        aria-label={Backpex.__({"Unselect %{label}", %{label: @label}}, @live_resource)}
-      >
-        <.icon name="hero-x-mark" class="size-4 scale-105 hover:scale-110" />
+    <div class="not-first:mt-2">
+      <span class="font-medium">{@label}</span>
+      <div class="ml-4">
+        <.multiselect_option
+          :for={{lab, val} <- @value}
+          label={lab}
+          value={val}
+          event_target={@event_target}
+          field={@field}
+          selected={@selected}
+        />
       </div>
     </div>
     """
   end
 
-  attr :class, :any, default: nil
-  attr :show_select_all, :boolean, required: true
-  attr :live_resource, :atom, required: true
-  attr :field, :any, required: true
-  attr :event_target, :any, required: true
-
-  defp multi_select_toggle_all(assigns) do
-    ~H"""
-    <button
-      type="button"
-      class={["text-primary text-sm underline hover:cursor-pointer", @class]}
-      phx-click="toggle-select-all"
-      phx-value-field-name={@field.name}
-      phx-target={@event_target}
-    >
-      <%= if @show_select_all do %>
-        {Backpex.__("Select all", @live_resource)}
-      <% else %>
-        {Backpex.__("Deselect all", @live_resource)}
-      <% end %>
-    </button>
-    """
-  end
-
-  attr :class, :any, default: nil
-  attr :label, :string, required: true
-  attr :value, :any, required: true
-  attr :field, :any, required: true
-  attr :selected, :list, required: true
-  attr :event_target, :any, required: true
-
-  defp multi_select_option(assigns) do
+  defp multiselect_option(assigns) do
     ~H"""
     <label
-      class={["flex space-x-2", @class]}
+      class="mt-2 flex space-x-2"
       phx-click="toggle-option"
       phx-value-id={@value}
       phx-target={@event_target}
     >
       <input
         type="checkbox"
-        name={@field.name <> "[]"}
+        name={@field.name<> "[]"}
         class="checkbox checkbox-sm checkbox-primary"
         checked={selected?(@value, @selected)}
         checked_value={@value}
@@ -460,22 +441,6 @@ defmodule Backpex.HTML.Form do
         {@label}
       </span>
     </label>
-    """
-  end
-
-  attr :live_resource, :atom, required: true
-  attr :event_target, :any, required: true
-
-  defp multi_select_show_more(assigns) do
-    ~H"""
-    <button
-      type="button"
-      class="text-primary mb-2 text-sm underline hover:cursor-pointer"
-      phx-click="show-more"
-      phx-target={@event_target}
-    >
-      {Backpex.__("Show more", @live_resource)}
-    </button>
     """
   end
 

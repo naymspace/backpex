@@ -1,8 +1,8 @@
 defmodule Backpex.Fields.MultiSelect do
   @config_schema [
     options: [
-      doc: "List of options or function that receives the assigns.",
-      type: {:or, [{:list, :any}, {:fun, 1}]},
+      doc: "List of possibly grouped options or function that receives the assigns.",
+      type: {:or, [{:list, :any}, {:map, :any, :any}, {:fun, 1}]},
       required: true
     ],
     prompt: [
@@ -66,49 +66,63 @@ defmodule Backpex.Fields.MultiSelect do
     %{assigns: %{field_options: field_options} = assigns} = socket
 
     options =
-      assigns
-      |> field_options.options.()
+      case Map.get(field_options, :options) do
+        options when is_function(options) -> options.(assigns)
+        options -> options
+      end
+
+    options =
+      options
       |> Enum.map(fn {label, value} ->
-        {to_string(label), to_string(value)}
+        case value do
+          value when is_list(value) or is_map(value) ->
+            {to_string(label), Enum.map(value, fn {lab, val} -> {to_string(lab), to_string(val)} end)}
+
+          _ ->
+            {to_string(label), to_string(value)}
+        end
       end)
 
     assign(socket, :options, options)
   end
 
+  defp flatten_options(options) do
+    Enum.map(options, fn {_label, value} = option ->
+      case value do
+        value when is_list(value) or is_map(value) -> value
+        _ -> option
+      end
+    end)
+    |> List.flatten()
+  end
+
   defp assign_selected(socket) do
     %{assigns: %{type: type, options: options, item: item, name: name} = assigns} = socket
 
+    options = flatten_options(options)
+
     selected_ids =
       if type == :form do
-        values =
-          case PhoenixForm.input_value(assigns.form, name) do
-            value when is_binary(value) -> [value]
-            value when is_list(value) -> value
-            _value -> []
-          end
-
-        Enum.map(values, &to_string/1)
+        case PhoenixForm.input_value(assigns.form, name) do
+          value when is_binary(value) -> [value]
+          value when is_list(value) -> value
+          _value -> []
+        end
       else
-        value = Map.get(item, name)
-
-        if value, do: value, else: []
+        Map.get(item, name, []) || []
       end
 
-    selected =
-      Enum.reduce(options, [], fn {_label, value} = option, acc ->
-        if value in selected_ids do
-          [option | acc]
-        else
-          acc
-        end
-      end)
-      |> Enum.reverse()
+    selected_ids = Enum.map(selected_ids, &to_string/1)
+
+    selected = Enum.filter(options, fn {_label, value} -> value in selected_ids end)
 
     assign(socket, :selected, selected)
   end
 
   defp maybe_assign_form(%{assigns: %{type: :form} = assigns} = socket) do
     %{selected: selected, options: options} = assigns
+
+    options = flatten_options(options)
 
     show_select_all = length(selected) != length(options)
 
@@ -167,21 +181,20 @@ defmodule Backpex.Fields.MultiSelect do
 
   @impl Phoenix.LiveComponent
   def handle_event("toggle-option", %{"id" => id}, socket) do
-    %{assigns: %{selected: selected, options: options, field_options: field_options}} = socket
+    %{assigns: %{selected: selected, options: options}} = socket
 
-    selected_item = Enum.find(selected, fn {_label, value} -> value == id end)
+    options = flatten_options(options)
+
+    clicked_item = Enum.find(options, fn {_label, value} -> value == id end)
 
     new_selected =
-      if selected_item do
-        Enum.reject(selected, fn {_label, value} -> value == id end)
+      if clicked_item in selected do
+        selected -- [clicked_item]
       else
-        selected
-        |> Enum.reverse()
-        |> Kernel.then(&[Enum.find(options, fn {_label, value} -> value == id end) | &1])
-        |> Enum.reverse()
+        selected ++ [clicked_item]
       end
 
-    show_select_all = length(new_selected) != length(field_options.options.(socket.assigns))
+    show_select_all = length(new_selected) != length(options)
 
     socket
     |> assign(:selected, new_selected)
@@ -191,13 +204,12 @@ defmodule Backpex.Fields.MultiSelect do
 
   @impl Phoenix.LiveComponent
   def handle_event("search", params, socket) do
-    %{assigns: %{name: name, field_options: field_options} = assigns} = socket
+    socket = assign_options(socket)
+    %{assigns: %{name: name, options: options}} = socket
 
     search_input = Map.get(params, "change[#{name}]_search")
 
-    options =
-      field_options.options.(assigns)
-      |> maybe_apply_search(search_input)
+    options = maybe_apply_search(options, search_input)
 
     socket
     |> assign(:options, options)
@@ -207,9 +219,11 @@ defmodule Backpex.Fields.MultiSelect do
 
   @impl Phoenix.LiveComponent
   def handle_event("toggle-select-all", _params, socket) do
-    %{assigns: %{field_options: field_options, show_select_all: show_select_all} = assigns} = socket
+    %{assigns: %{options: options, show_select_all: show_select_all}} = socket
 
-    new_selected = if show_select_all, do: field_options.options.(assigns), else: []
+    options = flatten_options(options)
+
+    new_selected = if show_select_all, do: options, else: []
 
     socket
     |> assign(:selected, new_selected)
@@ -223,10 +237,19 @@ defmodule Backpex.Fields.MultiSelect do
     else
       search_input_downcase = String.downcase(search_input)
 
-      Enum.filter(options, fn {label, _value} ->
-        String.downcase(label)
-        |> String.contains?(search_input_downcase)
+      keep? = fn label -> String.downcase(label) |> String.contains?(search_input_downcase) end
+
+      Enum.map(options, fn {label, value} ->
+        case value do
+          value when is_list(value) or is_map(value) ->
+            filtered = Enum.filter(value, fn {_lab, val} -> keep?.(val) end)
+            if not Enum.empty?(filtered), do: {label, filtered}
+
+          _ ->
+            if keep?.(label), do: {label, value}
+        end
       end)
+      |> Enum.filter(& &1)
     end
   end
 
