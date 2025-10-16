@@ -133,7 +133,11 @@ defmodule Backpex.Router do
     case {path, to_path} do
       {nil, _to} -> false
       {path, "/" = to} -> String.equivalent?(path, to)
-      {path, to} -> String.starts_with?(path, to)
+      {path, to} ->
+        normalized_to = String.trim_trailing(to, "/")
+
+        String.equivalent?(path, normalized_to) or
+          String.starts_with?(path, normalized_to <> "/")
     end
   end
 
