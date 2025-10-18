@@ -61,6 +61,10 @@ defmodule Demo.EctoFactory do
       quantity: Enum.random(0..1_000),
       manufacturer: "https://example.com/",
       price: Enum.random(50..5_000_000),
+      more_info: %{
+        weight: Enum.random(1..100),
+        goes_well_with: Faker.Food.description()
+      },
       suppliers: build_list(Enum.random(0..5), :supplier),
       short_links: build_list(Enum.random(0..5), :short_link)
     }

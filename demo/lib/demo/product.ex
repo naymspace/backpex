@@ -19,6 +19,11 @@ defmodule Demo.Product do
       currency: :EUR,
       opts: [separator: ".", delimiter: ",", symbol_on_right: true, symbol_space: true]
 
+    embeds_one :more_info, MoreInfo do
+      field :weight, :integer
+      field :goes_well_with, :string
+    end
+
     has_many :suppliers, Supplier, on_replace: :delete, on_delete: :delete_all
     has_many :short_links, ShortLink, on_replace: :delete, on_delete: :delete_all, foreign_key: :product_id
 
@@ -31,6 +36,9 @@ defmodule Demo.Product do
   def changeset(product, attrs, _metadata \\ []) do
     product
     |> cast(attrs, @required_fields ++ @optional_fields)
+    |> cast_embed(:more_info,
+      with: &more_info_changeset/2
+    )
     |> cast_assoc(:suppliers,
       with: &Demo.Supplier.changeset/2,
       sort_param: :suppliers_order,
@@ -44,4 +52,10 @@ defmodule Demo.Product do
     |> validate_required(@required_fields)
     |> validate_length(:images, max: 2)
   end
+
+  def more_info_changeset(more_info, attrs) do
+    more_info
+    |> cast(attrs, [ :weight, :goes_well_with])
+    |> validate_required([:weight])
+   end
 end

@@ -1,7 +1,7 @@
 defmodule Backpex.Fields.InlineCRUD do
   @config_schema [
     type: [
-      doc: "The type of the field.",
+      doc: "The type of the field. One of `:embed`, `:embed_one` or `:assoc`.",
       type: {:in, [:embed, :assoc, :embed_one]},
       required: true
     ],
@@ -20,7 +20,7 @@ defmodule Backpex.Fields.InlineCRUD do
   ]
 
   @moduledoc """
-  A field to handle inline CRUD operations. It can be used with either an `embeds_many` or `has_many` (association) type column.
+  A field to handle inline CRUD operations. It can be used with either an `embeds_many`, `embeds_one`, or `has_many` (association) type column.
 
   ## Field-specific options
 
@@ -43,8 +43,8 @@ defmodule Backpex.Fields.InlineCRUD do
         ...
         |> cast_embed(:your_field,
           with: &your_field_changeset/2,
-          sort_param: :your_field_order,
-          drop_param: :your_field_delete
+          sort_param: :your_field_order, # not required for embeds_one
+          drop_param: :your_field_delete # not required for embeds_one
         )
         ...
       end
@@ -99,7 +99,10 @@ defmodule Backpex.Fields.InlineCRUD do
   def render_value(assigns) do
     assigns =
       assigns
-      |> assign(:value, if(assigns[:field_options].type == :embed_one, do: [assigns[:value]], else: assigns[:value]))
+      |> assign(
+        :value,
+        if(assigns[:field_options].type == :embed_one, do: [get_value(assigns, :value)], else: assigns[:value])
+      )
 
     ~H"""
     <div class="ring-base-content/10 rounded-box overflow-x-auto ring-1">
@@ -202,7 +205,7 @@ defmodule Backpex.Fields.InlineCRUD do
 
   @impl Backpex.Field
   def association?({_name, %{type: :assoc}} = _field), do: true
-  def association?({_name, %{type: _}} = _field), do: false
+  def association?({_name, %{type: _type}} = _field), do: false
 
   @impl Backpex.Field
   def schema({name, _field_options}, schema) do
@@ -218,4 +221,11 @@ defmodule Backpex.Fields.InlineCRUD do
     do: input_type
 
   defp input_type(_child_field_options), do: :text
+
+  defp get_value(assigns, field) do
+    case Map.get(assigns, field, %{}) do
+      nil -> %{}
+      value -> value
+    end
+  end
 end
