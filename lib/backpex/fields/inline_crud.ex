@@ -1,8 +1,8 @@
 defmodule Backpex.Fields.InlineCRUD do
   @config_schema [
     type: [
-      doc: "The type of the field.",
-      type: {:in, [:embed, :assoc]},
+      doc: "The type of the field. One of `:embed`, `:embed_one` or `:assoc`.",
+      type: {:in, [:embed, :assoc, :embed_one]},
       required: true
     ],
     child_fields: [
@@ -20,7 +20,7 @@ defmodule Backpex.Fields.InlineCRUD do
   ]
 
   @moduledoc """
-  A field to handle inline CRUD operations. It can be used with either an `embeds_many` or `has_many` (association) type column.
+  A field to handle inline CRUD operations. It can be used with either an `embeds_many`, `embeds_one`, or `has_many` (association) type column.
 
   ## Field-specific options
 
@@ -32,7 +32,7 @@ defmodule Backpex.Fields.InlineCRUD do
   >
   > Everything is currently handled by plain text input.
 
-  ### EmbedsMany
+  ### EmbedsMany and EmbedsOne
 
   The field in the migration must be of type `:map`. You also need to use ecto's `cast_embed/2` in the changeset.
 
@@ -43,8 +43,8 @@ defmodule Backpex.Fields.InlineCRUD do
         ...
         |> cast_embed(:your_field,
           with: &your_field_changeset/2,
-          sort_param: :your_field_order,
-          drop_param: :your_field_delete
+          sort_param: :your_field_order, # not required for embeds_one
+          drop_param: :your_field_delete # not required for embeds_one
         )
         ...
       end
@@ -97,6 +97,13 @@ defmodule Backpex.Fields.InlineCRUD do
 
   @impl Backpex.Field
   def render_value(assigns) do
+    assigns =
+      assigns
+      |> assign(
+        :value,
+        if(assigns[:field_options].type == :embed_one, do: [get_value(assigns, :value)], else: assigns[:value])
+      )
+
     ~H"""
     <div class="ring-base-content/10 rounded-box overflow-x-auto ring-1">
       <table class="table">
@@ -157,34 +164,37 @@ defmodule Backpex.Fields.InlineCRUD do
                   phx-throttle={Backpex.Field.throttle(child_field_options, assigns)}
                 />
               </div>
+              <%= if @field_options.type != :embed_one do %>
+                <div class={if f_nested.index == 0, do: "mt-5", else: nil}>
+                  <label for={"#{@name}-checkbox-delete-#{f_nested.index}"}>
+                    <input
+                      id={"#{@name}-checkbox-delete-#{f_nested.index}"}
+                      type="checkbox"
+                      name={"change[#{@name}_delete][]"}
+                      value={f_nested.index}
+                      class="hidden"
+                    />
 
-              <div class={if f_nested.index == 0, do: "mt-5", else: nil}>
-                <label for={"#{@name}-checkbox-delete-#{f_nested.index}"}>
-                  <input
-                    id={"#{@name}-checkbox-delete-#{f_nested.index}"}
-                    type="checkbox"
-                    name={"change[#{@name}_delete][]"}
-                    value={f_nested.index}
-                    class="hidden"
-                  />
-
-                  <div class="btn btn-outline btn-error" aria-label={Backpex.__("Delete", @live_resource)}>
-                    <Backpex.HTML.CoreComponents.icon name="hero-trash" class="h-5 w-5" />
-                  </div>
-                </label>
-              </div>
+                    <div class="btn btn-outline btn-error" aria-label={Backpex.__("Delete", @live_resource)}>
+                      <Backpex.HTML.CoreComponents.icon name="hero-trash" class="h-5 w-5" />
+                    </div>
+                  </label>
+                </div>
+              <% end %>
             </div>
           </.inputs_for>
-
-          <input type="hidden" name={"change[#{@name}_delete][]"} />
+          <%= if @field_options.type != :embed_one do %>
+            <input type="hidden" name={"change[#{@name}_delete][]"} />
+          <% end %>
         </div>
-        <input
-          name={"change[#{@name}_order][]"}
-          type="checkbox"
-          aria-label={Backpex.__("Add entry", @live_resource)}
-          class="btn btn-outline btn-sm btn-primary"
-        />
-
+        <%= if @field_options.type != :embed_one do %>
+          <input
+            name={"change[#{@name}_order][]"}
+            type="checkbox"
+            aria-label={Backpex.__("Add entry", @live_resource)}
+            class="btn btn-outline btn-sm btn-primary"
+          />
+        <% end %>
         <%= if help_text = Backpex.Field.help_text(@field_options, assigns) do %>
           <Backpex.HTML.Form.help_text class="mt-1">{help_text}</Backpex.HTML.Form.help_text>
         <% end %>
@@ -195,7 +205,7 @@ defmodule Backpex.Fields.InlineCRUD do
 
   @impl Backpex.Field
   def association?({_name, %{type: :assoc}} = _field), do: true
-  def association?({_name, %{type: :embed}} = _field), do: false
+  def association?({_name, %{type: _type}} = _field), do: false
 
   @impl Backpex.Field
   def schema({name, _field_options}, schema) do
@@ -211,4 +221,11 @@ defmodule Backpex.Fields.InlineCRUD do
     do: input_type
 
   defp input_type(_child_field_options), do: :text
+
+  defp get_value(assigns, field) do
+    case Map.get(assigns, field, %{}) do
+      nil -> %{}
+      value -> value
+    end
+  end
 end
