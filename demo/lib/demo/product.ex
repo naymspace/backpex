@@ -53,7 +53,7 @@ defmodule Demo.Product do
 
   def more_info_changeset(more_info, attrs) do
     more_info
-    |> cast(attrs, [ :weight, :goes_well_with])
+    |> cast(attrs, [:weight, :goes_well_with])
     |> validate_required([:weight])
-   end
+  end
 end

@@ -86,23 +86,22 @@ defmodule DemoWeb.ProductLive do
         align: :right
       },
       more_info: %{
-              module: Backpex.Fields.InlineCRUD,
-              label: "More Info",
-              type: :embed_one,
-              except: [:index],
-              child_fields: [
-
-                weight: %{
-                  module: Backpex.Fields.Text,
-                  label: "Ave. Weight (kg)"
-                },
-                goes_well_with: %{
-                  module: Backpex.Fields.Textarea,
-                  label: "Goes well with",
-                  input_type: :textarea,
-                  rows: 5
-                }
-              ],
+        module: Backpex.Fields.InlineCRUD,
+        label: "More Info",
+        type: :embed_one,
+        except: [:index],
+        child_fields: [
+          weight: %{
+            module: Backpex.Fields.Text,
+            label: "Ave. Weight (kg)"
+          },
+          goes_well_with: %{
+            module: Backpex.Fields.Textarea,
+            label: "Goes well with",
+            input_type: :textarea,
+            rows: 5
+          }
+        ]
       },
       suppliers: %{
         module: Backpex.Fields.InlineCRUD,
