@@ -29,7 +29,7 @@
     "postcss": "8.5.6",
     "standard": "17.1.2",
     "stylelint": "16.25.0",
-    "stylelint-config-standard": "39.0.0",
+    "stylelint-config-standard": "39.0.1",
     "topbar": "3.0.0"
   },
   "dependencies": {
