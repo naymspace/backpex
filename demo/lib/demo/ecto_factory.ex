@@ -106,4 +106,18 @@ defmodule Demo.EctoFactory do
       %{label: Enum.at(labels, index), url: "https://example.com/"}
     end
   end
+
+  def entities_factory do
+    Demo.Repo.insert(%Demo.Entity{
+      identity: "René Descartes",
+      type: "person",
+      fields: %{"email" => "descartes@philosophers.fr", "phone" => "+33-14325-7123", "age" => 53}
+    })
+
+    Demo.Repo.insert(%Demo.Entity{
+      identity: "BMW 320i",
+      type: "car",
+      fields: %{"engine_size" => 2000, "colour" => "Metalic Sliver", "year" => 1984}
+    })
+  end
 end
