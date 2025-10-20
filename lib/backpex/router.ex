@@ -119,13 +119,6 @@ defmodule Backpex.Router do
 
   @doc """
   Checks whether the to path is the same as the current path
-
-  ## Examples
-
-      iex> Backpex.Router.active?(URI.new!("https://example.com/admin/events"), "/admin/events")
-      true
-      iex> Backpex.Router.active?(URI.new!("https://example.com/admin/events"), "/admin/users")
-      false
   """
   def active?(current_path, to_path) do
     %{path: path} = URI.parse(current_path)

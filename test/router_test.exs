@@ -187,4 +187,107 @@ defmodule Backpex.RouterTest do
       assert length(backpex_routes) == 1
     end
   end
+
+  describe "active?/2" do
+    test "returns true for path matches" do
+      assert Backpex.Router.active?(URI.new!("https://example.com/admin/events"), "/admin/events")
+      assert Backpex.Router.active?(URI.new!("https://example.com/admin/products"), "/admin/products")
+
+      assert Backpex.Router.active?(
+               URI.new!("https://example.com/admin/products-tags"),
+               "/admin/products-tags"
+             )
+    end
+
+    test "handles trailing slashes correctly" do
+      assert Backpex.Router.active?(
+               URI.new!("https://example.com/admin/events/"),
+               "/admin/events"
+             )
+
+      assert Backpex.Router.active?(
+               URI.new!("https://example.com/admin/events"),
+               "/admin/events/"
+             )
+
+      assert Backpex.Router.active?(
+               URI.new!("https://example.com/admin/events/"),
+               "/admin/events/"
+             )
+    end
+
+    test "handles root path correctly" do
+      assert Backpex.Router.active?(URI.new!("https://example.com/"), "/")
+      refute Backpex.Router.active?(URI.new!("https://example.com/admin"), "/")
+    end
+
+    test "returns false for different routes" do
+      refute Backpex.Router.active?(
+               URI.new!("https://example.com/admin/events"),
+               "/admin/users"
+             )
+
+      refute Backpex.Router.active?(URI.new!("https://example.com/admin"), "/dashboard")
+    end
+
+    test "similar path names do not match" do
+      refute Backpex.Router.active?(
+               URI.new!("https://example.com/admin/products"),
+               "/admin/products-tags"
+             )
+
+      refute Backpex.Router.active?(
+               URI.new!("https://example.com/admin/products-tags"),
+               "/admin/products"
+             )
+
+      refute Backpex.Router.active?(
+               URI.new!("https://example.com/admin/user_profile"),
+               "/admin/user"
+             )
+    end
+
+    test "query and fragment parameters do not affect matching" do
+      assert Backpex.Router.active?(
+               URI.new!("https://example.com/admin/events?page=2"),
+               "/admin/events"
+             )
+
+      assert Backpex.Router.active?(
+               URI.new!("https://example.com/admin/events?page=2&sort=name"),
+               "/admin/events"
+             )
+
+      assert Backpex.Router.active?(
+               URI.new!("https://example.com/admin/products?filter=active&limit=50"),
+               "/admin/products"
+             )
+
+      assert Backpex.Router.active?(
+               URI.new!("https://example.com/admin/events#section"),
+               "/admin/events"
+             )
+
+      assert Backpex.Router.active?(
+               URI.new!("https://example.com/admin/products#top"),
+               "/admin/products"
+             )
+    end
+
+    test "handles empty string paths" do
+      refute Backpex.Router.active?(URI.new!("https://example.com"), "/admin/products")
+    end
+
+    test "case sensitive path matching" do
+      refute Backpex.Router.active?(
+               URI.new!("https://example.com/Admin/Events"),
+               "/admin/events"
+             )
+
+      refute Backpex.Router.active?(
+               URI.new!("https://example.com/admin/events"),
+               "/Admin/Events"
+             )
+    end
+  end
 end
