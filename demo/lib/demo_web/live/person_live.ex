@@ -1,5 +1,4 @@
 defmodule DemoWeb.PersonLive do
-alias Backpex.Fields.InlineCRUD
   use Backpex.LiveResource,
     adapter_config: [
       schema: Demo.Entity,
@@ -37,7 +36,7 @@ alias Backpex.Fields.InlineCRUD
   #
   # Added the changeset function to create a changeset for a person entity
   #
-  def changeset(entity, params, metadata \\ []) do
+  def changeset(entity, params, _metadata \\ []) do
     entity
     |> Demo.Entity.changeset(params |> Map.put("type", "person"))
   end

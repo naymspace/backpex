@@ -12,6 +12,7 @@ defmodule Demo.EctoFactory do
   alias Demo.Supplier
   alias Demo.Tag
   alias Demo.User
+  alias Demo.Entity
 
   def user_factory do
     %User{
@@ -106,6 +107,47 @@ defmodule Demo.EctoFactory do
       %{label: Enum.at(labels, index), url: "https://example.com/"}
     end
   end
+
+  def user_factory do
+    %Entity{
+      identity: Faker.Name.name(),
+      type: "user",
+      fields: %{
+        "email" => Faker.Internet.email(),
+        "phone" => Faker.Phone.number(),
+        "age" => Enum.random(18..65)
+      }
+    }
+  end
+
+  def car_factory do
+    %Entity{
+      identity: Faker.Vehicle.En.make_and_model(),
+      type: "car",
+      fields: %{
+        "engine_size" => Enum.random([1800,2000,2300,2500,3000,3400,4000,5000]),
+        "colour" => Faker.Color.En.name(),
+        "year" => Enum.random(1900..2025)
+      }
+    }
+  end
+
+  def person_factory do
+    first_name = Faker.Person.first_name()
+    last_name = Faker.Person.last_name()
+    %Entity{
+      identity: "#{first_name} #{last_name}",
+      type: "person",
+      fields: %{
+      "email" => "#{first_name}.#{last_name}@#{Faker.Internet.domain_name()}",
+      "phone" => Faker.Phone.EnUs.phone(),
+      "age" => Enum.random(18..85),
+      "weight" => Enum.random(45..130),
+      }
+    }
+  end
+
+
 
   def entities_factory do
     Demo.Repo.insert(%Demo.Entity{
