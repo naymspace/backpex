@@ -340,6 +340,7 @@ defmodule Backpex.Fields.HasManyThrough do
             {hidden_inputs_for(e)}
             <.select_relational_field
               form={e}
+              hide_label={@hide_label}
               label={@field_options.live_resource.singular_name()}
               field_options={@field}
               owner_key={@owner_key}
@@ -538,7 +539,7 @@ defmodule Backpex.Fields.HasManyThrough do
   defp select_relational_field(assigns) do
     ~H"""
     <Layout.field_container>
-      <:label>
+      <:label :if={not @hide_label}>
         <Layout.input_label for={@form[@owner_key]} text={@label} />
       </:label>
       <BackpexForm.input

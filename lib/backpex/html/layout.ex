@@ -520,11 +520,19 @@ defmodule Backpex.HTML.Layout do
 
   attr :class, :any, default: nil, doc: "extra classes to be added"
 
-  slot :label, required: true do
+  slot :label do
     attr :align, :atom, values: [:top, :center, :bottom]
   end
 
   slot :inner_block
+
+  def field_container(%{label: []} = assigns) do
+    ~H"""
+    <div class="w-full">
+      {render_slot(@inner_block)}
+    </div>
+    """
+  end
 
   def field_container(assigns) do
     assigns =

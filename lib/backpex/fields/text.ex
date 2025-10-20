@@ -43,7 +43,7 @@ defmodule Backpex.Fields.Text do
     ~H"""
     <div>
       <Layout.field_container>
-        <:label align={Backpex.Field.align_label(@field_options, assigns, :center)}>
+        <:label :if={not @hide_label} align={Backpex.Field.align_label(@field_options, assigns, :center)}>
           <Layout.input_label for={@form[@name]} text={@field_options[:label]} />
         </:label>
         <BackpexForm.input

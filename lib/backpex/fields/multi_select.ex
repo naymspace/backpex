@@ -142,7 +142,7 @@ defmodule Backpex.Fields.MultiSelect do
     ~H"""
     <div id={@name}>
       <Layout.field_container>
-        <:label align={Backpex.Field.align_label(@field_options, assigns)}>
+        <:label :if={not @hide_label} align={Backpex.Field.align_label(@field_options, assigns)}>
           <Layout.input_label as="span" text={@field_options[:label]} />
         </:label>
         <Form.multi_select
