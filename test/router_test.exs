@@ -1,6 +1,8 @@
 defmodule Backpex.RouterTest do
   use ExUnit.Case, async: true
 
+  alias Backpex.Router
+
   describe "live_resources/3 macro" do
     defmodule UserLive do
       def resource_actions, do: []
@@ -189,105 +191,61 @@ defmodule Backpex.RouterTest do
   end
 
   describe "active?/2" do
-    test "returns true for path matches" do
-      assert Backpex.Router.active?(URI.new!("https://example.com/admin/events"), "/admin/events")
-      assert Backpex.Router.active?(URI.new!("https://example.com/admin/products"), "/admin/products")
-
-      assert Backpex.Router.active?(
-               URI.new!("https://example.com/admin/products-tags"),
-               "/admin/products-tags"
-             )
+    test "returns true for exact path matches" do
+      assert_routes("https://example.com/admin/events", "/admin/events")
+      assert_routes("https://example.com/admin/products", "/admin/products")
+      assert_routes("https://example.com/admin/products-tags", "/admin/products-tags")
     end
 
     test "handles trailing slashes correctly" do
-      assert Backpex.Router.active?(
-               URI.new!("https://example.com/admin/events/"),
-               "/admin/events"
-             )
-
-      assert Backpex.Router.active?(
-               URI.new!("https://example.com/admin/events"),
-               "/admin/events/"
-             )
-
-      assert Backpex.Router.active?(
-               URI.new!("https://example.com/admin/events/"),
-               "/admin/events/"
-             )
+      assert_routes("https://example.com/admin/events/", "/admin/events")
+      assert_routes("https://example.com/admin/events", "/admin/events/")
+      assert_routes("https://example.com/admin/events/", "/admin/events/")
     end
 
     test "handles root path correctly" do
-      assert Backpex.Router.active?(URI.new!("https://example.com/"), "/")
-      refute Backpex.Router.active?(URI.new!("https://example.com/admin"), "/")
+      assert_routes("https://example.com/", "/")
+      assert_routes("https://example.com", "/admin/products", false)
+      assert_routes("https://example.com/admin", "/", false)
     end
 
     test "returns false for different routes" do
-      refute Backpex.Router.active?(
-               URI.new!("https://example.com/admin/events"),
-               "/admin/users"
-             )
+      assert_routes("https://example.com/admin/events", "/admin/users", false)
+      assert_routes("https://example.com/admin", "/dashboard", false)
+    end
 
-      refute Backpex.Router.active?(URI.new!("https://example.com/admin"), "/dashboard")
+    test "child routes match parent routes" do
+      assert_routes("https://example.com/admin/products/new", "/admin/products")
+      assert_routes("https://example.com/admin/users/123/edit", "/admin/users")
     end
 
     test "similar path names do not match" do
-      refute Backpex.Router.active?(
-               URI.new!("https://example.com/admin/products"),
-               "/admin/products-tags"
-             )
-
-      refute Backpex.Router.active?(
-               URI.new!("https://example.com/admin/products-tags"),
-               "/admin/products"
-             )
-
-      refute Backpex.Router.active?(
-               URI.new!("https://example.com/admin/user_profile"),
-               "/admin/user"
-             )
+      assert_routes("https://example.com/admin/products", "/admin/products-tags", false)
+      assert_routes("https://example.com/admin/products-tags", "/admin/products", false)
+      assert_routes("https://example.com/admin/user_profile", "/admin/user", false)
     end
 
     test "query and fragment parameters do not affect matching" do
-      assert Backpex.Router.active?(
-               URI.new!("https://example.com/admin/events?page=2"),
-               "/admin/events"
-             )
-
-      assert Backpex.Router.active?(
-               URI.new!("https://example.com/admin/events?page=2&sort=name"),
-               "/admin/events"
-             )
-
-      assert Backpex.Router.active?(
-               URI.new!("https://example.com/admin/products?filter=active&limit=50"),
-               "/admin/products"
-             )
-
-      assert Backpex.Router.active?(
-               URI.new!("https://example.com/admin/events#section"),
-               "/admin/events"
-             )
-
-      assert Backpex.Router.active?(
-               URI.new!("https://example.com/admin/products#top"),
-               "/admin/products"
-             )
-    end
-
-    test "handles empty string paths" do
-      refute Backpex.Router.active?(URI.new!("https://example.com"), "/admin/products")
+      assert_routes("https://example.com/admin/events?page=2", "/admin/events")
+      assert_routes("https://example.com/admin/events?page=2&sort=name", "/admin/events")
+      assert_routes("https://example.com/admin/products?filter=active&limit=50", "/admin/products")
+      assert_routes("https://example.com/admin/events#section", "/admin/events")
+      assert_routes("https://example.com/admin/products#top", "/admin/products")
     end
 
     test "case sensitive path matching" do
-      refute Backpex.Router.active?(
-               URI.new!("https://example.com/Admin/Events"),
-               "/admin/events"
-             )
+      assert_routes("https://example.com/Admin/Events", "/admin/events", false)
+      assert_routes("https://example.com/admin/events", "/Admin/Events", false)
+    end
+  end
 
-      refute Backpex.Router.active?(
-               URI.new!("https://example.com/admin/events"),
-               "/Admin/Events"
-             )
+  defp assert_routes(current, to, equal \\ true) do
+    current = URI.new!(current)
+
+    if equal do
+      assert Router.active?(current, to)
+    else
+      refute Router.active?(current, to)
     end
   end
 end
