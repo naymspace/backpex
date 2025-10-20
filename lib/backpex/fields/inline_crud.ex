@@ -351,17 +351,31 @@ defmodule Backpex.Fields.InlineCRUD do
             |> Ecto.Changeset.cast(Ecto.Changeset.get_field(form_changeset, map_field), Map.keys(types))
             |> validator.()
 
-          fields_changeset.errors
-          |> Enum.reduce(form_changeset, fn {map_field, {msg, _opts}}, form_changeset ->
-            Ecto.Changeset.add_error(form_changeset, map_field, msg)
-          end)
+          form_changeset
+          |> copy_errors(fields_changeset)
+          |> copy_values(fields_changeset)
           |> Ecto.Changeset.put_change(
             map_field,
-            Ecto.Changeset.apply_changes(fields_changeset)
-            |> Map.new(fn {k, v} -> {Atom.to_string(k), v} end)
+            values
           )
       end
     end
+  end
+
+  def copy_errors(dest_changeset, src_changeset) do
+    Enum.reduce(src_changeset.errors, form_changeset, fn {field, error}, form_changeset ->
+      {msg, _opts} = error
+      Ecto.Changeset.add_error(form_changeset, field, msg)
+    end)
+  end
+
+  def copy_values(dest_changeset, src_changeset) do
+    dest_changeset
+    |> Ecto.Changeset.put_change(
+      map_field,
+      Ecto.Changeset.apply_changes(fields_changeset)
+      |> Map.new(fn {k, v} -> {Atom.to_string(k), v} end)
+    )
   end
 
   defp changeset_value(assigns, field) when is_atom(field), do: changeset_value(assigns, Atom.to_string(field))
