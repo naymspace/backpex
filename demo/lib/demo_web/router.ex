@@ -45,6 +45,9 @@ defmodule DemoWeb.Router do
       live_resources "/film-reviews", FilmReviewLive
       live_resources "/short-links", ShortLinkLive
       live_resources "/tickets", TicketLive
+      live_resources "/entities", EntityLive
+      live_resources "/persons", PersonLive
+      live_resources "/cars", CarLive
     end
   end
 end
