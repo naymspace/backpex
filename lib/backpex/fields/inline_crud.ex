@@ -273,7 +273,7 @@ defmodule Backpex.Fields.InlineCRUD do
               </div>
             </div>
           <% end %>
-          <%= if @field_options.type in [:emded, :assoc] do %>
+          <%= if @field_options.type in [:embed, :assoc] do %>
             <input
               name={"change[#{@name}_order][]"}
               type="checkbox"
