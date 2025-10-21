@@ -94,7 +94,7 @@ defmodule Backpex.Fields.InlineCRUD do
       end
   ### Map
 
-  By using the `:map` type you can use the `InlineCRUD` to control waht fields can be stored in a `map`.
+  By using the `:map` type you can use the `InlineCRUD` to control what fields can be stored in a `map`.
   With the `:map` type the InlineCRUD uses the `input_type` option to build out the `types` map needed
   to create a changeset. If the `input_type` is not set, it defaults to `:string`.
   Another option is the `validate` callback that you can add to `fields` settings to
