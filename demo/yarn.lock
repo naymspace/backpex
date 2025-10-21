@@ -118,11 +118,11 @@
   integrity sha512-93zYdMES/c1D69yZiKDBj0V24vqNzB/koF26KPaagAfd3P/4gUlh3Dys5ogAK+Exi9QyzlD8x/08Zt7wIKcDcA==
 
 "@keyv/bigmap@^1.0.2":
-  version "1.0.3"
-  resolved "https://registry.yarnpkg.com/@keyv/bigmap/-/bigmap-1.0.3.tgz#845aafa65cd72bdd5fcc1a0e3fe707894c47d7a4"
-  integrity sha512-jUEkNlnE9tYzX2AIBeoSe1gVUvSOfIOQ5EFPL5Un8cFHGvjD9L/fxpxlS1tEivRLHgapO2RZJ3D93HYAa049pg==
+  version "1.1.0"
+  resolved "https://registry.yarnpkg.com/@keyv/bigmap/-/bigmap-1.1.0.tgz#e22ca78123d898b4317854854f3cc9cac8e9af74"
+  integrity sha512-MX7XIUNwVRK+hjZcAbNJ0Z8DREo+Weu9vinBOjGU1thEi9F6vPhICzBbk4CCf3eEefKRz7n6TfZXwUFZTSgj8Q==
   dependencies:
-    hookified "^1.12.1"
+    hookified "^1.12.2"
 
 "@keyv/serialize@^1.1.1":
   version "1.1.1"
@@ -409,14 +409,14 @@ builtins@^5.0.1:
     semver "^7.0.0"
 
 cacheable@^2.1.0:
-  version "2.1.0"
-  resolved "https://registry.yarnpkg.com/cacheable/-/cacheable-2.1.0.tgz#539a24a71d16302d09636702bbae1ab6fb7b159b"
-  integrity sha512-zzL1BxdnqwD69JRT0dihnawAcLkBMwAH+hZSKjUzeBbPedVhk3qYPjRw9VOMYWwt5xRih5xd8S+3kEdGohZm/g==
+  version "2.1.1"
+  resolved "https://registry.yarnpkg.com/cacheable/-/cacheable-2.1.1.tgz#b42c08c6136bd860c6a78e98d4db1747777e8875"
+  integrity sha512-LmF4AXiSNdiRbI2UjH8pAp9NIXxeQsTotpEaegPiDcnN0YPygDJDV3l/Urc0mL72JWdATEorKqIHEx55nDlONg==
   dependencies:
     "@cacheable/memoize" "^2.0.3"
     "@cacheable/memory" "^2.0.3"
     "@cacheable/utils" "^2.1.0"
-    hookified "^1.12.1"
+    hookified "^1.12.2"
     keyv "^5.5.3"
     qified "^0.5.0"
 
@@ -1296,10 +1296,10 @@ hasown@^2.0.2:
   dependencies:
     function-bind "^1.1.2"
 
-hookified@^1.12.0, hookified@^1.12.1:
-  version "1.12.1"
-  resolved "https://registry.yarnpkg.com/hookified/-/hookified-1.12.1.tgz#b0de0116ca346fd6c4e55db901f52d5cd728ef00"
-  integrity sha512-xnKGl+iMIlhrZmGHB729MqlmPoWBznctSQTYCpFKqNsCgimJQmithcW0xSQMMFzYnV2iKUh25alswn6epgxS0Q==
+hookified@^1.12.0, hookified@^1.12.1, hookified@^1.12.2:
+  version "1.12.2"
+  resolved "https://registry.yarnpkg.com/hookified/-/hookified-1.12.2.tgz#7002b17a98f6d594648df088f8c48a292eb241f7"
+  integrity sha512-aokUX1VdTpI0DUsndvW+OiwmBpKCu/NgRsSSkuSY0zq8PY6Q6a+lmOfAFDXAAOtBqJELvcWY9L1EVtzjbQcMdg==
 
 html-tags@^3.3.1:
   version "3.3.1"
@@ -1401,7 +1401,7 @@ is-callable@^1.2.7:
   resolved "https://registry.yarnpkg.com/is-callable/-/is-callable-1.2.7.tgz#3bc2a85ea742d9e36205dcacdd72ca1fdc51b055"
   integrity sha512-1BC0BVFhS/p0qtw6enp8e+8OD0UrK0oFLztSjNzhcKA3WDuJxxAPXzPuPtKkjEY9UUoEWlX/8fgKeu2S8i9JTA==
 
-is-core-module@^2.11.0, is-core-module@^2.13.0, is-core-module@^2.16.0, is-core-module@^2.16.1:
+is-core-module@^2.11.0, is-core-module@^2.13.0, is-core-module@^2.16.1:
   version "2.16.1"
   resolved "https://registry.yarnpkg.com/is-core-module/-/is-core-module-2.16.1.tgz#2a98801a849f43e2add644fbb6bc6229b19a4ef4"
   integrity sha512-UfoeMA6fIJ8wTYFEUjelnaGI67v6+N7qXJEvQuIGa99l4xsCruSYOVSQ0uPANn4dAzm8lkYPaKLrrijLq7x23w==
@@ -2105,11 +2105,11 @@ punycode@^2.1.0:
   integrity sha512-vYt7UD1U9Wg6138shLtLOvdAu+8DsC/ilFtEVHcH+wydcSpNE20AfSOduf6MkRFahL5FY7X1oU7nKVZFtfq8Fg==
 
 qified@^0.5.0:
-  version "0.5.0"
-  resolved "https://registry.yarnpkg.com/qified/-/qified-0.5.0.tgz#2e0a1f8bdf2321764b976402da9fbfc1a205785f"
-  integrity sha512-Zj6Q/Vc/SQ+Fzc87N90jJUzBzxD7MVQ2ZvGyMmYtnl2u1a07CejAhvtk4ZwASos+SiHKCAIylyGHJKIek75QBw==
+  version "0.5.1"
+  resolved "https://registry.yarnpkg.com/qified/-/qified-0.5.1.tgz#496088b33bf6b29382343b1312c4e5bc4cf22f50"
+  integrity sha512-+BtFN3dCP+IaFA6IYNOu/f/uK1B8xD2QWyOeCse0rjtAebBmkzgd2d1OAXi3ikAzJMIBSdzZDNZ3wZKEUDQs5w==
   dependencies:
-    hookified "^1.12.1"
+    hookified "^1.12.2"
 
 queue-microtask@^1.2.2:
   version "1.2.3"
@@ -2176,11 +2176,11 @@ resolve-from@^5.0.0:
   integrity sha512-qYg9KP24dD5qka9J47d0aVky0N+b4fTU89LN9iDnjB5waksiC49rvMB0PrUJQGoTmH50XPiqOvAjDfaijGxYZw==
 
 resolve@^1.22.1, resolve@^1.22.4:
-  version "1.22.10"
-  resolved "https://registry.yarnpkg.com/resolve/-/resolve-1.22.10.tgz#b663e83ffb09bbf2386944736baae803029b8b39"
-  integrity sha512-NPRy+/ncIMeDlTAsuqwKIiferiawhefFJtkNSW0qZJEqMEb+qBt/77B/jGeeek+F0uOeN05CDa6HXbbIgtVX4w==
+  version "1.22.11"
+  resolved "https://registry.yarnpkg.com/resolve/-/resolve-1.22.11.tgz#aad857ce1ffb8bfa9b0b1ac29f1156383f68c262"
+  integrity sha512-RfqAvLnMl313r7c9oclB1HhUEAezcpLjz95wFH4LVuhk9JF/r22qmVP9AMmOU4vMX7Q8pN8jwNg/CSpdFnMjTQ==
   dependencies:
-    is-core-module "^2.16.0"
+    is-core-module "^2.16.1"
     path-parse "^1.0.7"
     supports-preserve-symlinks-flag "^1.0.0"
 
