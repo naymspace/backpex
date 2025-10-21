@@ -353,11 +353,7 @@ defmodule Backpex.Fields.InlineCRUD do
 
           form_changeset
           |> copy_errors(fields_changeset)
-          |> copy_values(fields_changeset)
-          |> Ecto.Changeset.put_change(
-            map_field,
-            values
-          )
+          |> copy_values(map_field, fields_changeset)
       end
     end
   end
@@ -369,11 +365,11 @@ defmodule Backpex.Fields.InlineCRUD do
     end)
   end
 
-  def copy_values(dest_changeset, src_changeset) do
+  def copy_values(dest_changeset, map_field, src_changeset) do
     dest_changeset
     |> Ecto.Changeset.put_change(
       map_field,
-      Ecto.Changeset.apply_changes(fields_changeset)
+      Ecto.Changeset.apply_changes(src_changeset)
       |> Map.new(fn {k, v} -> {Atom.to_string(k), v} end)
     )
   end
