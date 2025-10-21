@@ -129,7 +129,7 @@ defmodule Backpex.Fields.InlineCRUD do
               input_type: :integer
             }
           ],
-          validate: fn changeset->
+          validate: fn changeset ->
             changeset
             |> Ecto.Changeset.validate_required([:colour, :year])
             |> Ecto.Changeset.validate_number(:year,
