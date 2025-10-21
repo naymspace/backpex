@@ -180,7 +180,7 @@ defmodule Backpex.Fields.InlineCRUD do
               {HTML.pretty_value(
                 Map.get(
                   row,
-                  if @field_options.type == :map, do: Atom.to_string(name), else: name
+                  if(@field_options.type == :map, do: Atom.to_string(name), else: name)
                 )
               )}
             </td>
@@ -382,7 +382,10 @@ defmodule Backpex.Fields.InlineCRUD do
   defp changeset_value(assigns, field) when is_atom(field), do: changeset_value(assigns, Atom.to_string(field))
 
   defp changeset_value(assigns, field) when is_binary(field) do
-    case Ecto.Changeset.get_field(assigns.changeset, assigns.name) do nil -> nil; map -> Map.get(map, field) end
+    case Ecto.Changeset.get_field(assigns.changeset, assigns.name) do
+      nil -> nil
+      map -> Map.get(map, field)
+    end
   end
 
   defp changeset_errors(assigns, field) when is_binary(field),
