@@ -108,18 +108,6 @@ defmodule Demo.EctoFactory do
     end
   end
 
-  def user_factory do
-    %Entity{
-      identity: Faker.Name.name(),
-      type: "user",
-      fields: %{
-        "email" => Faker.Internet.email(),
-        "phone" => Faker.Phone.number(),
-        "age" => Enum.random(18..65)
-      }
-    }
-  end
-
   def car_factory do
     %Entity{
       identity: Faker.Vehicle.En.make_and_model(),
