@@ -365,8 +365,8 @@ defmodule Backpex.Fields.InlineCRUD do
 
   def copy_errors(dest_changeset, src_changeset) do
     Enum.reduce(src_changeset.errors, dest_changeset, fn {field, error}, acc ->
-      {msg, _opts} = error
-      Ecto.Changeset.add_error(acc, field, msg)
+      {msg, opts} = error
+      Ecto.Changeset.add_error(acc, field, msg, opts)
     end)
   end
 
@@ -382,8 +382,7 @@ defmodule Backpex.Fields.InlineCRUD do
   defp changeset_value(assigns, field) when is_atom(field), do: changeset_value(assigns, Atom.to_string(field))
 
   defp changeset_value(assigns, field) when is_binary(field) do
-    Ecto.Changeset.get_field(assigns.changeset, assigns.name)
-    |> Map.get(field)
+    case Ecto.Changeset.get_field(assigns.changeset, assigns.name) do nil -> nil; map -> Map.get(map, field) end
   end
 
   defp changeset_errors(assigns, field) when is_binary(field),

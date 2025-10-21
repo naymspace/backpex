@@ -80,7 +80,7 @@ defmodule DemoWeb.CarLive do
           |> Ecto.Changeset.validate_required([:colour, :year])
           |> Ecto.Changeset.validate_number(:year,
             greater_than: 1900,
-            less_than: Date.utc_today().year,
+            less_than: Date.utc_today().year+1,
             message: "must be between 1900 and #{Date.utc_today().year}"
           )
         end

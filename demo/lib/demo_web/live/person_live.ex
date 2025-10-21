@@ -30,7 +30,7 @@ defmodule DemoWeb.PersonLive do
   #
   def item_query(query, _, _assigns) do
     query
-    |> where([entity], entity.type=="person")
+    |> where([entity], entity.type == "person")
   end
 
   #
