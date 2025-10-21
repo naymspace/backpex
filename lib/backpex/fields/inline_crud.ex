@@ -28,7 +28,7 @@ defmodule Backpex.Fields.InlineCRUD do
   ]
 
   @moduledoc """
-  A field to handle inline CRUD operations. It can be used with with columns of type `map`, `embeds_many`, `embeds_one`, or `has_many` (for associations).
+  A field to handle inline CRUD operations. It can be used with columns of type `map`, `embeds_many`, `embeds_one`, or `has_many` (for associations).
 
   ## Field-specific options
 
