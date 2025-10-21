@@ -177,7 +177,12 @@ defmodule Backpex.Fields.InlineCRUD do
         <tbody class="text-base-content/75">
           <tr :for={row <- @value} class="border-base-content/10 border-b last:border-b-0">
             <td :for={{name, _field_options} <- @field_options.child_fields}>
-              {HTML.pretty_value(Map.get(row, Atom.to_string(name)))}
+              {HTML.pretty_value(
+                Map.get(
+                  row,
+                  if @field_options.type == :map, do: Atom.to_string(name), else: name
+                )
+              )}
             </td>
           </tr>
         </tbody>
