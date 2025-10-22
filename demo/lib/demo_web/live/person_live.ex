@@ -71,7 +71,7 @@ defmodule DemoWeb.PersonLive do
             label: "Weight (kg)"
           }
         ]
-      },
+      }
     ]
   end
 end
