@@ -127,7 +127,7 @@ defmodule Demo.EctoFactory do
       identity: "#{first_name} #{last_name}",
       type: "person",
       fields: %{
-      "email" => "#{first_name}.#{last_name}@#{Faker.Internet.domain_name()}",
+      "email" => Faker.Internet.email(),
       "phone" => Faker.Phone.EnUs.phone(),
       "age" => Enum.random(18..85),
       "weight" => Enum.random(45..130),
