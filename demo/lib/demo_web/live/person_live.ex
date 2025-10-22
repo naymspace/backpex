@@ -15,7 +15,6 @@ defmodule DemoWeb.PersonLive do
   It also demos how you can use the power of `Backpex` to do a poor man's polymorphism by using `Backpex.LiveResource`
   to control the values entered into the generic `:map` field while  reusing the same schema
   for different entity types.
-  I
   """
   import Ecto.Query, only: [where: 3]
 
