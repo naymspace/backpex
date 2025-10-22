@@ -5,7 +5,7 @@ defmodule DemoWeb.PersonLive do
       repo: Demo.Repo,
       update_changeset: &__MODULE__.changeset/3,
       create_changeset: &__MODULE__.changeset/3,
-       item_query: &__MODULE__.item_query/3
+      item_query: &__MODULE__.item_query/3
     ],
     layout: {DemoWeb.Layouts, :admin},
     fluid?: true
@@ -71,7 +71,7 @@ defmodule DemoWeb.PersonLive do
             label: "Weight (kg)"
           }
         ]
-      },
+      }
     ]
   end
 end
