@@ -5,6 +5,7 @@ defmodule Demo.EctoFactory do
 
   alias Demo.Address
   alias Demo.Category
+  alias Demo.Entity
   alias Demo.FilmReview
   alias Demo.Post
   alias Demo.Product
@@ -12,6 +13,8 @@ defmodule Demo.EctoFactory do
   alias Demo.Supplier
   alias Demo.Tag
   alias Demo.User
+
+  alias Faker.Phone.EnUs, as: FakerPhone
 
   def user_factory do
     %User{
@@ -61,6 +64,10 @@ defmodule Demo.EctoFactory do
       quantity: Enum.random(0..1_000),
       manufacturer: "https://example.com/",
       price: Enum.random(50..5_000_000),
+      more_info: %{
+        weight: Enum.random(1..100),
+        goes_well_with: Faker.Food.description()
+      },
       suppliers: build_list(Enum.random(0..5), :supplier),
       short_links: build_list(Enum.random(0..5), :short_link)
     }
@@ -101,5 +108,33 @@ defmodule Demo.EctoFactory do
     for index <- 0..Enum.random(0..3) do
       %{label: Enum.at(labels, index), url: "https://example.com/"}
     end
+  end
+
+  def car_factory do
+    %Entity{
+      identity: Faker.Vehicle.En.make_and_model(),
+      type: "car",
+      fields: %{
+        "engine_size" => Enum.random([1800, 2000, 2300, 2500, 3000, 3400, 4000, 5000]),
+        "colour" => Faker.Color.En.name(),
+        "year" => Enum.random(1900..2025)
+      }
+    }
+  end
+
+  def person_factory do
+    first_name = Faker.Person.first_name()
+    last_name = Faker.Person.last_name()
+
+    %Entity{
+      identity: "#{first_name} #{last_name}",
+      type: "person",
+      fields: %{
+        "email" => Faker.Internet.email(),
+        "phone" => FakerPhone.phone(),
+        "age" => Enum.random(18..85),
+        "weight" => Enum.random(45..130)
+      }
+    }
   end
 end

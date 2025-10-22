@@ -23,6 +23,10 @@ insert_list(10, :product)
 
 insert_list(10, :address)
 
+insert_list(10, :car)
+
+insert_list(10, :person)
+
 insert!(Demo.Helpdesk.Ticket, count: 10)
 
 :code.priv_dir(:demo)
