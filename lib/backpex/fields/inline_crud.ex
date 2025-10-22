@@ -21,7 +21,7 @@ defmodule Backpex.Fields.InlineCRUD do
       doc: """
       An optional validation function used to validate `:map` child fields. It takes the changeset
       and returns a changeset. You can use it to validate the `child_fields`
-      of a `map`, see the examples .
+      of a `map`, see the examples.
       """,
       type: {:fun, 1}
     ]
