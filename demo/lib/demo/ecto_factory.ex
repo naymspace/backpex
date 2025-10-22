@@ -131,7 +131,7 @@ defmodule Demo.EctoFactory do
       type: "person",
       fields: %{
         "email" => Faker.Internet.email(),
-        "phone" => FakerPhone.number(),
+        "phone" => FakerPhone.phone(),
         "age" => Enum.random(18..85),
         "weight" => Enum.random(45..130)
       }
