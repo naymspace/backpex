@@ -129,7 +129,7 @@ defmodule Demo.EctoFactory do
       type: "person",
       fields: %{
         "email" => Faker.Internet.email(),
-        "phone" => Faker.Phone.number(),
+        "phone" => Faker.Phone.Hy.number(),
         "age" => Enum.random(18..85),
         "weight" => Enum.random(45..130)
       }
