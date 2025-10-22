@@ -1,4 +1,10 @@
 defmodule DemoWeb.PersonLive do
+  @moduledoc """
+  This module just demos the use of a InlineCRUD set for type `:map`.
+  It also demos how you can use the power of `Backpex` to do a poor man's polymorphism by using `Backpex.LiveResource`
+  to control the values entered into the generic `:map` field while  reusing the same schema
+  for different entity types.
+  """
   use Backpex.LiveResource,
     adapter_config: [
       schema: Demo.Entity,
@@ -10,13 +16,9 @@ defmodule DemoWeb.PersonLive do
     layout: {DemoWeb.Layouts, :admin},
     fluid?: true
 
-  @moduledoc """
-  This module just demos the use of a InlineCRUD set for type `:map`.
-  It also demos how you can use the power of `Backpex` to do a poor man's polymorphism by using `Backpex.LiveResource`
-  to control the values entered into the generic `:map` field while  reusing the same schema
-  for different entity types.
-  """
   import Ecto.Query, only: [where: 3]
+
+  alias Demo.Entity
 
   @impl Backpex.LiveResource
   def singular_name, do: "Person"
@@ -27,7 +29,7 @@ defmodule DemoWeb.PersonLive do
   #
   # Added the item_query function to filter entities by type
   #
-  def item_query(query, _, _assigns) do
+  def item_query(query, _view, _assigns) do
     query
     |> where([entity], entity.type == "person")
   end
@@ -37,7 +39,7 @@ defmodule DemoWeb.PersonLive do
   #
   def changeset(entity, params, _metadata \\ []) do
     entity
-    |> Demo.Entity.changeset(params |> Map.put("type", "person"))
+    |> Entity.changeset(params |> Map.put("type", "person"))
   end
 
   @impl Backpex.LiveResource

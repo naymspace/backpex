@@ -5,6 +5,7 @@ defmodule Demo.EctoFactory do
 
   alias Demo.Address
   alias Demo.Category
+  alias Demo.Entity
   alias Demo.FilmReview
   alias Demo.Post
   alias Demo.Product
@@ -12,7 +13,6 @@ defmodule Demo.EctoFactory do
   alias Demo.Supplier
   alias Demo.Tag
   alias Demo.User
-  alias Demo.Entity
 
   def user_factory do
     %User{
@@ -129,7 +129,7 @@ defmodule Demo.EctoFactory do
       type: "person",
       fields: %{
         "email" => Faker.Internet.email(),
-        "phone" => Faker.Phone.EnUs.phone(),
+        "phone" => Faker.Phone.number(),
         "age" => Enum.random(18..85),
         "weight" => Enum.random(45..130)
       }
