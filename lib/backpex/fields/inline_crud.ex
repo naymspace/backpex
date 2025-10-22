@@ -21,7 +21,7 @@ defmodule Backpex.Fields.InlineCRUD do
       doc: """
       An optional validation function used to validate `:map` child fields. It takes the changeset
       and returns a changeset. You can use it to validate the `child_fields`
-      of a `map`, see the examples .
+      of a `map`, see the examples.
       """,
       type: {:fun, 1}
     ]
@@ -135,7 +135,7 @@ defmodule Backpex.Fields.InlineCRUD do
             |> Ecto.Changeset.validate_number(:year,
                   greater_than: 1900,
                   less_than: Date.utc_today().year + 1,
-                  message: "must be between 1900 and #{Date.utc_today().year + 1}"
+                  message: "must be between 1901 and #{Date.utc_today().year}"
                   )
           end
         }

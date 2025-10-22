@@ -95,6 +95,9 @@ jobs:
       - name: Run tests
         run: mix test
 
+      - name: Run doc tests
+        run: mix test test/doc_test.exs
+
       - name: Deps Audit
         continue-on-error: true
         run: mix deps.audit

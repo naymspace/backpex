@@ -355,23 +355,22 @@ defmodule Backpex.HTML.Resource do
 
     ~H"""
     <.form :let={f} for={@form} phx-change="change-filter" phx-submit="change-filter" class="space-y-5">
-      <div :for={field_data <- @filter_fields}>
-        <.filter_form_field
-          live_resource={@live_resource}
-          filter_name={field_data.field}
-          label={field_data.label}
-          show_clear_button={field_data.value != nil}
-        >
-          {component(
-            &field_data.filter.module.render_form/1,
-            Map.merge(assigns, %{field: field_data.field, value: field_data.value, form: f, live_resource: @live_resource}),
-            {__ENV__.module, __ENV__.function, __ENV__.file, __ENV__.line}
-          )}
-          <:presets :if={field_data.presets != []}>
-            <.filter_presets presets={field_data.presets} filter_name={field_data.field} />
-          </:presets>
-        </.filter_form_field>
-      </div>
+      <.filter_form_field
+        :for={field_data <- @filter_fields}
+        live_resource={@live_resource}
+        filter_name={field_data.field}
+        label={field_data.label}
+        show_clear_button={field_data.value != nil}
+      >
+        {component(
+          &field_data.filter.module.render_form/1,
+          Map.merge(assigns, %{field: field_data.field, value: field_data.value, form: f, live_resource: @live_resource}),
+          {__ENV__.module, __ENV__.function, __ENV__.file, __ENV__.line}
+        )}
+        <:presets :if={field_data.presets != []}>
+          <.filter_presets presets={field_data.presets} filter_name={field_data.field} />
+        </:presets>
+      </.filter_form_field>
     </.form>
     """
   end
@@ -413,20 +412,22 @@ defmodule Backpex.HTML.Resource do
 
   def filter_form_field(assigns) do
     ~H"""
-    <div class="flex space-x-2">
-      <p class="text-sm font-medium">{@label}</p>
-      <.filter_clear_button
-        :if={@show_clear_button}
-        clear_event={@clear_event}
-        live_resource={@live_resource}
-        filter_name={@filter_name}
-      />
-    </div>
-    <div class="flex space-x-4">
-      <div class="w-[240px]">
-        {render_slot(@inner_block)}
+    <div>
+      <div class="flex space-x-2">
+        <p class="text-sm font-medium">{@label}</p>
+        <.filter_clear_button
+          :if={@show_clear_button}
+          clear_event={@clear_event}
+          live_resource={@live_resource}
+          filter_name={@filter_name}
+        />
       </div>
-      {render_slot(@presets)}
+      <div class="flex space-x-4">
+        <div class="w-[240px]">
+          {render_slot(@inner_block)}
+        </div>
+        {render_slot(@presets)}
+      </div>
     </div>
     """
   end
