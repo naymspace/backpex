@@ -113,7 +113,7 @@ defmodule Demo.EctoFactory do
       identity: Faker.Vehicle.En.make_and_model(),
       type: "car",
       fields: %{
-        "engine_size" => Enum.random([1800,2000,2300,2500,3000,3400,4000,5000]),
+        "engine_size" => Enum.random([1800, 2000, 2300, 2500, 3000, 3400, 4000, 5000]),
         "colour" => Faker.Color.En.name(),
         "year" => Enum.random(1900..2025)
       }
