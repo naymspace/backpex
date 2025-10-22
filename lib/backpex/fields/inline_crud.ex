@@ -363,14 +363,14 @@ defmodule Backpex.Fields.InlineCRUD do
     end
   end
 
-  def copy_errors(dest_changeset, src_changeset) do
+  defp copy_errors(dest_changeset, src_changeset) do
     Enum.reduce(src_changeset.errors, dest_changeset, fn {field, error}, acc ->
       {msg, opts} = error
       Ecto.Changeset.add_error(acc, field, msg, opts)
     end)
   end
 
-  def copy_values(dest_changeset, map_field, src_changeset) do
+  defp copy_values(dest_changeset, map_field, src_changeset) do
     dest_changeset
     |> Ecto.Changeset.put_change(
       map_field,
