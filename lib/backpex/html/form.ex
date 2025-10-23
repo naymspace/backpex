@@ -231,7 +231,7 @@ defmodule Backpex.HTML.Form do
           @input_class || "[&_>_input]:input [&_>_input]:w-full",
           @errors != [] && (@error_class || "[&_>_input]:input-error [&_>_input]:bg-error/10")
         ]}>
-          <input id={@id} name={@name} data-masked-input phx-update="ignore" {@rest} />
+          <input id={@id} data-masked-input phx-update="ignore" {@rest} />
           <input type="hidden" value={@value} name={@name} data-hidden-input tabindex="-1" aria-hidden="true" />
         </span>
       </div>
