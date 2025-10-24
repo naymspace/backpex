@@ -63,7 +63,7 @@ defmodule Backpex.HTML.Form do
     ~H"""
     <div class={["fieldset py-0", @class]}>
       <label class="label cursor-pointer">
-        <input type="hidden" name={@name} value="false" />
+        <input type="hidden" name={@name} value="false" tabindex="-1" aria-hidden="true" />
         <input
           type="checkbox"
           id={@id}
@@ -86,7 +86,7 @@ defmodule Backpex.HTML.Form do
     ~H"""
     <div class={["fieldset py-0", @class]}>
       <label class="label cursor-pointer">
-        <input type="hidden" name={@name} value="false" />
+        <input type="hidden" name={@name} value="false" tabindex="-1" aria-hidden="true" />
         <input
           type="checkbox"
           id={@id}
@@ -240,7 +240,7 @@ defmodule Backpex.HTML.Form do
           @errors != [] && (@error_class || "[&_>_input]:input-error [&_>_input]:bg-error/10")
         ]}>
           <input id={@id} name={@name} data-masked-input phx-update="ignore" {@rest} />
-          <input type="hidden" value={@value} name={@name} data-hidden-input />
+          <input type="hidden" value={@value} name={@name} data-hidden-input tabindex="-1" aria-hidden="true" />
         </span>
       </div>
       <.error :for={msg <- @errors} :if={not @hide_errors}>{msg}</.error>
@@ -363,7 +363,7 @@ defmodule Backpex.HTML.Form do
             />
 
             <%!-- Hidden input to make sure the change is always present, even if no options are selected --%>
-            <input type="hidden" name={@field.name} value="" />
+            <input type="hidden" name={@field.name} value="" tabindex="-1" aria-hidden="true" />
 
             <%!-- Options --%>
             <div class="mt-2 w-full">

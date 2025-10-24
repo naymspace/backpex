@@ -503,8 +503,20 @@ defmodule Backpex.HTML.Resource do
       </:trigger>
       <:menu class="min-w-52 max-w-72 p-4">
         <.form class="w-full" method="POST" for={@form} action={Router.cookie_path(@socket)}>
-          <input type="hidden" name={@form[:_resource].name} value={@form[:_resource].value} />
-          <input type="hidden" name={@form[:_cookie_redirect_url].name} value={@form[:_cookie_redirect_url].value} />
+          <input
+            type="hidden"
+            name={@form[:_resource].name}
+            value={@form[:_resource].value}
+            tabindex="-1"
+            aria-hidden="true"
+          />
+          <input
+            type="hidden"
+            name={@form[:_cookie_redirect_url].name}
+            value={@form[:_cookie_redirect_url].value}
+            tabindex="-1"
+            aria-hidden="true"
+          />
           <.toggle_columns_inputs active_fields={@active_fields} form={@form} />
           <button class="btn btn-sm btn-primary mt-4">
             {Backpex.__("Save", @live_resource)}
@@ -528,7 +540,7 @@ defmodule Backpex.HTML.Resource do
     <div class="flex flex-col space-y-1">
       <div :for={{name, %{active: active, label: label}} <- @active_fields}>
         <label class="flex cursor-pointer items-center">
-          <input type="hidden" name={@form[name].name} value="false" />
+          <input type="hidden" name={@form[name].name} value="false" tabindex="-1" aria-hidden="true" />
           <input type="checkbox" name={@form[name].name} class="checkbox checkbox-sm checkbox-primary" checked={active} />
           <span class="label-text truncate pl-2">
             {label}
@@ -1146,8 +1158,14 @@ defmodule Backpex.HTML.Resource do
     ~H"""
     <div :if={length(@metrics) > 0}>
       <.form method="POST" for={@form} action={Router.cookie_path(@socket)}>
-        <input type="hidden" name={@form[:_resource].name} value={@form[:_resource].value} />
-        <input type="hidden" name={@form[:_cookie_redirect_url].name} value={@form[:_cookie_redirect_url].value} />
+        <input type="hidden" name={@form[:_resource].name} value={@form[:_resource].value} tabindex="-1" aria-hidden="true" />
+        <input
+          type="hidden"
+          name={@form[:_cookie_redirect_url].name}
+          value={@form[:_cookie_redirect_url].value}
+          tabindex="-1"
+          aria-hidden="true"
+        />
         <div
           id="toggle-metrics-button"
           phx-hook="BackpexTooltip"
