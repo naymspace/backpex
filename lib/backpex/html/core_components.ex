@@ -42,6 +42,7 @@ defmodule Backpex.HTML.CoreComponents do
 
   slot :trigger, doc: "the trigger element to be used to toggle the dropdown menu" do
     attr :class, :any, doc: "additional classes for the wrapper of the trigger"
+    attr :aria_label, :string, doc: "accessible label for screen readers"
   end
 
   slot :menu, doc: "the dropdown menu" do
@@ -69,6 +70,7 @@ defmodule Backpex.HTML.CoreComponents do
         role="button"
         tabindex="0"
         aria-haspopup="true"
+        aria-label={@trigger && @trigger[:aria_label]}
         class={@trigger && @trigger[:class]}
         {@rest}
       >

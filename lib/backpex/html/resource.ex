@@ -257,7 +257,7 @@ defmodule Backpex.HTML.Resource do
   def filter_dropdown(assigns) do
     ~H"""
     <.dropdown id="filter-dropdown">
-      <:trigger>
+      <:trigger aria_label={Backpex.__("Filters", @live_resource)}>
         <div class="indicator">
           <span :if={@filter_count > 0} class="indicator-item badge badge-sm badge-secondary rounded-selector">
             {@filter_count}
@@ -495,7 +495,7 @@ defmodule Backpex.HTML.Resource do
 
     ~H"""
     <.dropdown class={@class} id="toggle-columns-dropdown">
-      <:trigger class="hover:cursor-pointer">
+      <:trigger aria_label={Backpex.__("Toggle columns", @live_resource)} class="hover:cursor-pointer">
         <.icon name="hero-view-columns-solid" class="text-base-content/50 size-5 hover:text-base-content" />
         <span class="sr-only">
           {Backpex.__("Toggle columns", @live_resource)}

@@ -100,7 +100,7 @@ defmodule Backpex.Filters.MultiSelect do
 
     ~H"""
     <.dropdown id={"multi-select-#{@form.id}"} class="mt-2 w-full">
-      <:trigger class="select select-sm">
+      <:trigger aria_label={@trigger_text} class="select select-sm">
         {@trigger_text}
       </:trigger>
       <:menu class="min-w-60 w-max max-h-96 overflow-y-auto">

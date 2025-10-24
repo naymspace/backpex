@@ -300,11 +300,11 @@ defmodule Backpex.HTML.Layout do
   def theme_selector(assigns) do
     ~H"""
     <.dropdown id="backpex-theme-selector" phx-hook="BackpexThemeSelector" class={["dropdown-end", @class]}>
-      <:trigger>
+      <:trigger aria_label={@label}>
         <%!-- Desktop Icon --%>
         <div class="btn btn-ghost hidden md:flex">
           {@label}
-          <.icon name="hero-chevron-down" class="h-3 w-3" />
+          <.icon name="hero-chevron-down" class="size-3" />
         </div>
         <%!-- Mobile Icon --%>
         <div class="btn btn-square btn-ghost md:hidden">
@@ -400,13 +400,14 @@ defmodule Backpex.HTML.Layout do
   @doc type: :component
 
   attr :class, :string, required: false, default: nil, doc: "additional class that will be added to the component"
+  attr :aria_label, :string, required: false, default: "User menu", doc: "accessible label for screen readers"
 
   slot :label, required: true, doc: "label of the dropdown"
 
   def topbar_dropdown(assigns) do
     ~H"""
     <.dropdown id="topbar-dropdown" class="dropdown-end">
-      <:trigger>
+      <:trigger aria_label={@aria_label}>
         {render_slot(@label)}
       </:trigger>
       <:menu class="w-52 p-2">

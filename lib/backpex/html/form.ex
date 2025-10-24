@@ -317,11 +317,14 @@ defmodule Backpex.HTML.Form do
     ~H"""
     <div>
       <.dropdown id={"multi-select-#{@field.id}"} class="w-full">
-        <:trigger class={[
-          "input block h-fit w-full p-2",
-          @errors == [] && "bg-transparent",
-          @errors != [] && "input-error bg-error/10"
-        ]}>
+        <:trigger
+          aria_label={@prompt}
+          class={[
+            "input block h-fit w-full p-2",
+            @errors == [] && "bg-transparent",
+            @errors != [] && "input-error bg-error/10"
+          ]}
+        >
           <div class="flex h-full w-full flex-wrap items-center gap-1 px-2">
             <p :if={@selected == []} class="p-0.5 text-sm">{@prompt}</p>
             <.multi_select_badge
