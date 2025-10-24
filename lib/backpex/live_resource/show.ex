@@ -6,7 +6,6 @@ defmodule Backpex.LiveResource.Show do
 
   alias Backpex.Resource
   alias Backpex.Router
-  alias Phoenix.LiveView
 
   require Backpex
 
