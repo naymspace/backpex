@@ -1085,7 +1085,7 @@ defmodule Backpex.HTML.Resource do
         <div class="first:pt-3 last:pb-3">
           <fieldset :for={{panel, i} <- Enum.with_index(@panel)} class={Map.get(panel, :class)}>
             <div :if={panel[:label]}>
-              <hr :if={i != 0} class="border border-base-200 mb-8" />
+              <hr :if={i != 0} class="border-base-200 mb-8 border" />
 
               <legend class="mb-4 px-6 text-lg font-semibold">
                 {panel[:label]}
