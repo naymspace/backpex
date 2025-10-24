@@ -47,6 +47,7 @@ defmodule Backpex.MixProject do
       {:lazy_html, ">= 0.0.0", only: :test},
       {:esbuild, "~> 0.2", only: :dev},
       {:quokka, "~> 2.9", only: [:dev, :test], runtime: false},
+      {:usage_rules, "~> 0.1", only: [:dev]},
 
       # core
       {:nimble_options, "~> 1.1"},
@@ -88,7 +89,7 @@ defmodule Backpex.MixProject do
 
   defp aliases do
     [
-      lint: ["format --check-formatted", "credo", "sobelow --config"],
+      lint: ["compile --warning-as-errors", "deps.unlock --unused", "format", "credo", "test"],
       "assets.build": [
         "esbuild module",
         "esbuild main"
