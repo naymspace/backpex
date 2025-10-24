@@ -30,13 +30,128 @@ Backpex is a highly customizable administration panel for Phoenix LiveView appli
 
 ## Architecture
 
-TODO:
-- include file structure
-- explain difference between demo and backpex
+Backpex follows a modular architecture that separates the library code from the demonstration application. The project is structured as an Elixir library that can be integrated into Phoenix LiveView applications.
+
+### Project Structure
+
+The repository contains two main parts:
+
+**1. Backpex Library (`/`)**
+
+The root directory contains the Backpex library itself, which is published as a Hex package. Key directories:
+
+```
+lib/backpex/
+├── adapters/          # Data layer adapters (Ecto, Ash)
+├── controllers/       # Phoenix controllers (cookie management)
+├── fields/            # Built-in field types (Text, Number, Date, BelongsTo, HasMany, etc.)
+├── filters/           # Built-in filter types (Boolean, Select, Range, etc.)
+├── html/              # Phoenix Components for UI rendering
+│   ├── core_components.ex    # Base UI components
+│   ├── layout.ex              # Layout components
+│   ├── form.ex                # Form components
+│   └── resource.ex            # Resource-specific components
+├── item_actions/      # Built-in item actions (Edit, Delete, Show)
+├── live_components/   # LiveView components
+├── live_resource/     # Core LiveResource views (Index, Form, Show)
+├── metrics/           # Metric types (Value metrics)
+├── plugs/             # Phoenix plugs (ThemeSelector)
+├── adapter.ex         # Adapter behavior
+├── field.ex           # Field behavior and config schema
+├── live_resource.ex   # LiveResource macro and core logic
+├── resource.ex        # Resource data manipulation
+└── router.ex          # Routing helpers and macros
+
+priv/
+├── gettext/           # Translation files
+├── static/            # Static assets (compiled JS, images)
+└── templates/         # Default layout templates
+
+assets/js/             # JavaScript for LiveView hooks
+```
+
+The library provides:
+- **Core abstractions**: `LiveResource`, `Field`, `Filter`, `ItemAction`, `ResourceAction`, `Metric`
+- **Adapter system**: Pluggable data layer support (Ecto, Ash)
+- **UI components**: Reusable Phoenix Components for rendering admin interfaces
+- **Routing helpers**: Macros for defining RESTful LiveView routes
+
+**2. Demo Application (`/demo`)**
+
+The demo directory contains a full Phoenix application that demonstrates Backpex capabilities:
+
+```
+demo/
+├── lib/
+│   ├── demo/              # Application logic (schemas, contexts)
+│   │   └── helpdesk/      # Example domain (Tickets)
+│   └── demo_web/          # Web layer
+│       ├── components/    # App-specific components
+│       ├── live/          # LiveResource implementations
+│       │   ├── user_live.ex
+│       │   ├── post_live.ex
+│       │   ├── product_live.ex
+│       │   └── ...
+│       ├── filters/       # Custom filter implementations
+│       ├── item_actions/  # Custom item actions
+│       ├── resource_actions/  # Custom resource actions
+│       └── router.ex      # Route definitions
+├── priv/
+│   ├── repo/              # Database migrations and seeds
+│   └── static/            # Static assets
+├── test/                  # Tests (including browser tests with Phoenix.Test.Playwright)
+└── assets/                # Frontend assets (JS, CSS)
+```
+
+The demo serves multiple purposes:
+- **Example implementation**: Shows how to use Backpex in a real application
+- **Development environment**: Used for testing new features during development
+- **Documentation**: Live examples for documentation and screenshots
+- **Testing**: Comprehensive test suite including accessibility tests
+
+### Difference Between Demo and Backpex
+
+| Aspect | Backpex (Library) | Demo (Application) |
+|--------|-------------------|-------------------|
+| **Purpose** | Reusable library package | Example implementation & testing |
+| **Location** | Root `/lib/backpex`, `/priv`, `/assets` | `/demo` directory |
+| **Deployment** | Published to Hex.pm | Runs locally (Docker) |
+| **Dependencies** | Minimal (Phoenix, Ecto, Gettext) | Includes Backpex + app-specific deps |
+| **Code** | Generic, configurable abstractions | Specific LiveResource implementations |
+| **Assets** | Compiled JS (hooks) published with package | Full asset pipeline with Tailwind/esbuild |
+| **Tests** | Unit tests for library code | Browser tests, integration tests, a11y tests |
+
+### Backpex is designed to be extended
+
+1. **Custom Fields**: Implement `Backpex.Field` behavior (see `demo/lib/demo_web/fields/`)
+2. **Custom Filters**: Implement `Backpex.Filter` behavior (see `demo/lib/demo_web/filters/`)
+3. **Custom Actions**: Implement `Backpex.ItemAction` or `Backpex.ResourceAction` behaviors
+4. **Custom Layouts**: Provide your own layout components
+5. **LiveView Hooks**: Add client-side JavaScript behavior (see `assets/js/`)
+6. **Adapters**: Implement `Backpex.Adapter` for new data layers
 
 ## LiveResource
 
 A *LiveResource* in Backpex is a module that contains the configuration for a resource. This module is responsible for defining the resource's schema, the actions that can be performed on it, and the fields that will be rendered. See `demo/lib/demo_web/live/post_live.ex` for an example LiveResource.
+
+Example structure:
+```elixir
+defmodule MyApp.UserLive do
+  use Backpex.LiveResource,
+    adapter_config: [...],
+    layout: {MyAppWeb.Layouts, :admin}
+  
+  # Callbacks define the resource
+  def fields, do: [...]
+  def filters, do: [...]
+  def can?(assigns, action, item), do: true
+end
+```
+
+This generates:
+- `MyApp.UserLive.Index` - List view with search, filters, sorting
+- `MyApp.UserLive.Form` - Create/edit form (handles both :new and :edit actions)
+- `MyApp.UserLive.Show` - Detail view
 
 ## Development Guidelines
 
