@@ -26,7 +26,7 @@ Backpex is a highly customizable administration panel for Phoenix LiveView appli
 ### Styling
 
 - **Tailwind CSS**: utility-first CSS framework
-- **daisyUI**: Tailwind CSS plugin and component librarx
+- **daisyUI**: Tailwind CSS plugin and component library
 
 ## Architecture
 
