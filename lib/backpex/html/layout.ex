@@ -45,7 +45,7 @@ defmodule Backpex.HTML.Layout do
   def app_shell(assigns) do
     ~H"""
     <div id="backpex-app-shell" class={["drawer", @class]} phx-hook="BackpexSidebarSections">
-      <input id="menu-drawer" type="checkbox" class="drawer-toggle" aria-hidden="true" />
+      <input id="menu-drawer" type="checkbox" class="drawer-toggle" aria-hidden="true" tabindex="-1" />
       <div class="drawer-content">
         <div class="bg-base-200 fixed inset-0 -z-10 h-full w-full"></div>
         <nav
@@ -53,7 +53,7 @@ defmodule Backpex.HTML.Layout do
             "menu hidden overflow-y-scroll px-2 pt-5 pb-4 md:fixed md:inset-y-0 md:mt-16 md:block md:w-64",
             build_slot_class(@sidebar)
           ]}
-          aria-label={Backpex.__("Main navigation", @live_resource)}
+          aria-label={Backpex.__("Main navigation (desktop)", @live_resource)}
         >
           <ul>
             {render_slot(@sidebar)}
@@ -90,7 +90,7 @@ defmodule Backpex.HTML.Layout do
             "bg-base-100 menu min-h-full w-64 flex-1 flex-col overflow-y-auto px-2 pt-5 pb-4",
             build_slot_class(@sidebar)
           ]}
-          aria-label={Backpex.__("Main navigation", @live_resource)}
+          aria-label={Backpex.__("Main navigation (mobile)", @live_resource)}
         >
           <ul>
             {render_slot(@sidebar)}
