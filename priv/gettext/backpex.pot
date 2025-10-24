@@ -132,7 +132,11 @@ msgid "Items per page"
 msgstr ""
 
 #, elixir-autogen, elixir-format
-msgid "Main navigation"
+msgid "Main navigation (desktop)"
+msgstr ""
+
+#, elixir-autogen, elixir-format
+msgid "Main navigation (mobile)"
 msgstr ""
 
 #, elixir-autogen, elixir-format
