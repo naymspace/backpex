@@ -284,7 +284,7 @@ defmodule Backpex.LiveResource.Index do
   defp open_action_confirm_modal(socket, action, key) do
     if_result =
       if Backpex.ItemAction.has_form?(action) do
-        changeset_function = &action.module.changeset/3
+        changeset_function = fn item, changes, metadata -> action.module.changeset(item, changes, metadata) end
         base_schema = action.module.base_schema(socket.assigns)
 
         metadata = Resource.build_changeset_metadata(socket.assigns)
@@ -421,7 +421,7 @@ defmodule Backpex.LiveResource.Index do
 
     if not live_resource.can?(socket.assigns, id, nil), do: raise(Backpex.ForbiddenError)
 
-    changeset_function = &action.module.changeset/3
+    changeset_function = fn item, changes, metadata -> action.module.changeset(item, changes, metadata) end
     item = action.module.base_schema(socket.assigns)
 
     socket
