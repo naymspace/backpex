@@ -159,7 +159,7 @@ defmodule Backpex.Fields.InlineCRUD do
               </div>
 
               <div class={if f_nested.index == 0, do: "mt-5", else: nil}>
-                <label for={"#{@name}-checkbox-delete-#{f_nested.index}"} aria-label={Backpex.__("Delete", @live_resource)}>
+                <label for={"#{@name}-checkbox-delete-#{f_nested.index}"}>
                   <input
                     id={"#{@name}-checkbox-delete-#{f_nested.index}"}
                     type="checkbox"
@@ -169,7 +169,8 @@ defmodule Backpex.Fields.InlineCRUD do
                   />
 
                   <div class="btn btn-outline btn-error">
-                    <Backpex.HTML.CoreComponents.icon name="hero-trash" class="h-5 w-5" />
+                    <span class="sr-only">{Backpex.__("Delete", @live_resource)}</span>
+                    <Backpex.HTML.CoreComponents.icon name="hero-trash" class="size-5" />
                   </div>
                 </label>
               </div>
