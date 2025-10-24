@@ -27,7 +27,7 @@ defmodule Backpex.HTML.CoreComponents do
   ## Examples
 
       <.dropdown id="user-menu">
-        <:trigger class="btn btn-primary btn-sm">
+        <:trigger class="btn btn-primary btn-sm" aria-label="User Menu">
           User Menu
         </:trigger>
         <:menu>
