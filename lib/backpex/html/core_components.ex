@@ -77,7 +77,6 @@ defmodule Backpex.HTML.CoreComponents do
 
       <div
         id={"#{@id}-menu"}
-        role="menu"
         tabindex="-1"
         aria-labelledby={"#{@id}-trigger"}
         class={[
