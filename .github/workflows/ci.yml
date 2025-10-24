@@ -32,6 +32,9 @@ jobs:
           - elixir: "1.18"
             otp: "28.0"
 
+          - elixir: "1.19"
+            otp: "28.1"
+
     steps:
       - name: Checkout code
         uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
