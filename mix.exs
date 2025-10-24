@@ -89,7 +89,7 @@ defmodule Backpex.MixProject do
 
   defp aliases do
     [
-      lint: ["format --check-formatted", "credo", "sobelow --config"],
+      lint: ["compile --warning-as-errors", "deps.unlock --unused", "format", "credo", "test"],
       "assets.build": [
         "esbuild module",
         "esbuild main"
