@@ -935,4 +935,16 @@ defmodule Backpex.LiveResource do
 
   defp maybe_to_atom(nil), do: nil
   defp maybe_to_atom(value), do: String.to_existing_atom(value)
+
+  @doc """
+  Subscribes to PubSub if the socket is connected.
+  """
+  def maybe_subscribe_to_pubsub(socket, live_resource) do
+    if Phoenix.LiveView.connected?(socket) do
+      [server: server, topic: topic] = live_resource.pubsub()
+      Phoenix.PubSub.subscribe(server, topic)
+    end
+
+    socket
+  end
 end

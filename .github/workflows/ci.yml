@@ -32,6 +32,9 @@ jobs:
           - elixir: "1.18"
             otp: "28.0"
 
+          - elixir: "1.19"
+            otp: "28.1"
+
     steps:
       - name: Checkout code
         uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
@@ -44,7 +47,7 @@ jobs:
       - name: Setup node
         uses: actions/setup-node@2028fbc5c25fe9cf00d9f06a71cc4710d4507903 # v6.0.0
         with:
-          node-version: 22
+          node-version: 24
           cache: "yarn"
           cache-dependency-path: yarn.lock
 
@@ -71,7 +74,17 @@ jobs:
       - name: Compile with warnings as errors
         run: mix compile --warnings-as-errors --force
 
+      - name: Cache node modules
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+        id: yarn-cache
+        with:
+          path: node_modules
+          key: ${{ runner.os }}-node-24-yarn-${{ hashFiles('yarn.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-node-24-yarn-
+
       - name: Install node dependencies
+        if: steps.yarn-cache.outputs.cache-hit != 'true'
         run: yarn install --pure-lockfile
 
       - name: Check formatting
@@ -109,7 +122,7 @@ jobs:
         run: mix assets.check
 
   publish:
-    needs: test
+    needs: [test, test-demo]
     if: github.event_name == 'release'
     name: "Publish package on hex.pm"
     runs-on: ubuntu-latest
@@ -166,7 +179,7 @@ jobs:
       - name: Setup node
         uses: actions/setup-node@2028fbc5c25fe9cf00d9f06a71cc4710d4507903 # v6.0.0
         with:
-          node-version: 22
+          node-version: 24
           cache: "yarn"
           cache-dependency-path: demo/yarn.lock
 
@@ -198,7 +211,17 @@ jobs:
         working-directory: demo
         run: mix compile --warnings-as-errors --force
 
+      - name: Cache node modules
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+        id: yarn-cache
+        with:
+          path: demo/node_modules
+          key: ${{ runner.os }}-node-24-yarn-demo-${{ hashFiles('demo/yarn.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-node-24-yarn-demo-
+
       - name: Install node dependencies
+        if: steps.yarn-cache.outputs.cache-hit != 'true'
         working-directory: demo
         run: yarn install --pure-lockfile
 
@@ -239,7 +262,17 @@ jobs:
           DB_DATABASE: test
         run: yarn test
 
+      - name: Cache Playwright browsers
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+        id: playwright-cache
+        with:
+          path: ~/.cache/ms-playwright
+          key: ${{ runner.os }}-playwright-${{ hashFiles('demo/yarn.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-playwright-
+
       - name: Install playwright
+        if: steps.playwright-cache.outputs.cache-hit != 'true'
         working-directory: demo
         run: yarn playwright install chromium --with-deps --only-shell
 
@@ -260,7 +293,7 @@ jobs:
   build-runtime:
     name: "Build and push image (Demo)"
     runs-on: ubuntu-latest
-    needs: [test-demo]
+    needs: [test, test-demo]
     env:
       PUSH_IMAGE: ${{ github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop') }}
 

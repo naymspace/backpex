@@ -93,15 +93,7 @@ defmodule Backpex.Resource do
   * TODO: docs
   """
   def insert(item, attrs, fields, assigns, live_resource, opts) do
-    {after_save_fun, opts} = Keyword.pop(opts, :after_save_fun, &{:ok, &1})
-
-    adapter = live_resource.config(:adapter)
-
-    item
-    |> change(attrs, fields, assigns, live_resource, Keyword.put(opts, :action, :insert))
-    |> adapter.insert(live_resource)
-    |> after_save(after_save_fun)
-    |> broadcast("created", live_resource)
+    persist_item(item, attrs, fields, assigns, live_resource, opts, :insert, "created")
   end
 
   @doc """
@@ -114,15 +106,21 @@ defmodule Backpex.Resource do
   * TODO: docs
   """
   def update(item, attrs, fields, assigns, live_resource, opts \\ []) do
+    persist_item(item, attrs, fields, assigns, live_resource, opts, :update, "updated")
+  end
+
+  defp persist_item(item, attrs, fields, assigns, live_resource, opts, action, event_name) do
     {after_save_fun, opts} = Keyword.pop(opts, :after_save_fun, &{:ok, &1})
 
     adapter = live_resource.config(:adapter)
 
     item
-    |> change(attrs, fields, assigns, live_resource, Keyword.put(opts, :action, :update))
-    |> adapter.update(live_resource)
+    |> change(attrs, fields, assigns, live_resource, Keyword.put(opts, :action, action))
+    |> then(fn changeset ->
+      if action == :insert, do: adapter.insert(changeset, live_resource), else: adapter.update(changeset, live_resource)
+    end)
     |> after_save(after_save_fun)
-    |> broadcast("updated", live_resource)
+    |> broadcast(event_name, live_resource)
   end
 
   @doc """
