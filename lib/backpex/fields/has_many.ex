@@ -186,7 +186,7 @@ defmodule Backpex.Fields.HasMany do
               />
 
               <%!-- Hidden input to make sure the change is always present, even if no options are selected --%>
-              <input class="hidden" name={"#{@form[@name].name}[]"} value="" />
+              <input class="hidden" name={"#{@form[@name].name}[]"} value="" aria-hidden="true" />
 
               <%!-- Hidden Options --%>
               <.hidden_option
