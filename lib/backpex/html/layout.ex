@@ -53,7 +53,7 @@ defmodule Backpex.HTML.Layout do
             "menu hidden overflow-y-scroll px-2 pt-5 pb-4 md:fixed md:inset-y-0 md:mt-16 md:block md:w-64",
             build_slot_class(@sidebar)
           ]}
-          aria-label={Backpex.__("Main navigation (desktop)", @live_resource)}
+          aria-label={Backpex.__("Main desktop navigation", @live_resource)}
         >
           <ul>
             {render_slot(@sidebar)}
@@ -90,7 +90,7 @@ defmodule Backpex.HTML.Layout do
             "bg-base-100 menu min-h-full w-64 flex-1 flex-col overflow-y-auto px-2 pt-5 pb-4",
             build_slot_class(@sidebar)
           ]}
-          aria-label={Backpex.__("Main navigation (mobile)", @live_resource)}
+          aria-label={Backpex.__("Main mobile navigation", @live_resource)}
         >
           <ul>
             {render_slot(@sidebar)}
