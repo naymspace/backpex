@@ -222,7 +222,7 @@ defmodule Backpex.HTML.Resource do
       live_resource={@live_resource}
     >
       {component(
-        &badge.filter.module.render/1,
+        fn assigns -> badge.filter.module.render(assigns) end,
         Map.merge(assigns, %{value: badge.value}),
         {__ENV__.module, __ENV__.function, __ENV__.file, __ENV__.line}
       )}
@@ -363,7 +363,7 @@ defmodule Backpex.HTML.Resource do
         show_clear_button={field_data.value != nil}
       >
         {component(
-          &field_data.filter.module.render_form/1,
+          fn assigns -> field_data.filter.module.render_form(assigns) end,
           Map.merge(assigns, %{field: field_data.field, value: field_data.value, form: f, live_resource: @live_resource}),
           {__ENV__.module, __ENV__.function, __ENV__.file, __ENV__.line}
         )}
@@ -1121,7 +1121,7 @@ defmodule Backpex.HTML.Resource do
     <div :if={length(@metrics) > 0 and @visible} class="items-center gap-4 lg:flex">
       <%= for {_key, metric} <- @metrics do %>
         {component(
-          &metric.module.render/1,
+          fn assigns -> metric.module.render(assigns) end,
           [metric: metric],
           {__ENV__.module, __ENV__.function, __ENV__.file, __ENV__.line}
         )}

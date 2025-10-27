@@ -78,7 +78,10 @@ defmodule Backpex.FormComponent do
 
   def handle_event("validate", %{"change" => change, "_target" => target}, %{assigns: %{action_type: :item}} = socket) do
     %{assigns: %{item: item, fields: fields} = assigns} = socket
-    changeset_function = &assigns.action_to_confirm.module.changeset/3
+
+    changeset_function = fn item, changes, metadata ->
+      assigns.action_to_confirm.module.changeset(item, changes, metadata)
+    end
 
     target = Enum.at(target, 1)
 
@@ -358,7 +361,9 @@ defmodule Backpex.FormComponent do
 
     result =
       if Backpex.ItemAction.has_form?(action_to_confirm) do
-        changeset_function = &action_to_confirm.module.changeset/3
+        changeset_function = fn item, changes, metadata ->
+          action_to_confirm.module.changeset(item, changes, metadata)
+        end
 
         metadata = Resource.build_changeset_metadata(assigns)
 

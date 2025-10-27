@@ -47,13 +47,9 @@ defmodule Backpex.HTML.Form do
   slot :inner_block
 
   def input(%{field: %Phoenix.HTML.FormField{} = field} = assigns) do
-    errors = if Phoenix.Component.used_input?(field), do: field.errors, else: []
-
     assigns
-    |> assign(field: nil, id: assigns.id || field.id)
-    |> assign(:errors, translate_form_errors(errors, assigns.translate_error_fun))
+    |> prepare_field_assigns(field, assigns.translate_error_fun)
     |> assign_new(:name, fn -> if assigns.multiple, do: field.name <> "[]", else: field.name end)
-    |> assign_new(:value, fn -> field.value end)
     |> input()
   end
 
@@ -209,13 +205,9 @@ defmodule Backpex.HTML.Form do
               multiple pattern placeholder readonly required rows size step)
 
   def currency_input(%{field: %Phoenix.HTML.FormField{} = field} = assigns) do
-    errors = if Phoenix.Component.used_input?(field), do: field.errors, else: []
-
     assigns
-    |> assign(field: nil, id: assigns.id || field.id)
-    |> assign(:errors, translate_form_errors(errors, assigns.translate_error_fun))
+    |> prepare_field_assigns(field, assigns.translate_error_fun)
     |> assign_new(:name, fn -> field.name end)
-    |> assign_new(:value, fn -> field.value end)
     |> currency_input()
   end
 
@@ -489,6 +481,15 @@ defmodule Backpex.HTML.Form do
       |> translate_error_fun.()
       |> Backpex.translate_error()
     end)
+  end
+
+  defp prepare_field_assigns(assigns, field, translate_error_fun) do
+    errors = if Phoenix.Component.used_input?(field), do: field.errors, else: []
+
+    assigns
+    |> assign(field: nil, id: assigns.id || field.id)
+    |> assign(:errors, translate_form_errors(errors, translate_error_fun))
+    |> assign_new(:value, fn -> field.value end)
   end
 
   defp selected?(id, selected), do: Enum.any?(selected, fn {_label, value} -> id == value end)

@@ -35,7 +35,7 @@ defmodule Demo.MixProject do
   defp deps do
     [
       # development
-      {:ex_doc, "~> 0.38", only: [:dev, :test], runtime: false},
+      {:ex_doc, "~> 0.39", only: [:dev, :test], runtime: false},
       {:credo, "~> 1.7.5", only: [:dev, :test], runtime: false},
       {:sobelow, "~> 0.13", only: [:dev, :test]},
       {:mix_audit, "~> 2.0", only: [:dev, :test], runtime: false},
@@ -45,10 +45,11 @@ defmodule Demo.MixProject do
       {:smokestack, "~> 0.9.2"},
       {:faker, "~> 0.18"},
       {:phoenix_test, "~> 0.8.0", only: :test, runtime: false},
-      {:phoenix_test_playwright, "~> 0.8.0", only: :test, runtime: false},
+      {:phoenix_test_playwright, "~> 0.9.0", only: :test, runtime: false},
       {:a11y_audit, "~> 0.3.0", only: :test},
       {:live_debugger, "~> 0.4", only: :dev},
       {:quokka, "~> 2.9", only: [:dev, :test], runtime: false},
+      {:tidewave, "~> 0.5", only: [:dev]},
 
       # core
       {:dns_cluster, "~> 0.2.0"},

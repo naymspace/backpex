@@ -4,8 +4,8 @@
     "#backpex": "./priv/static/js/backpex.esm.js"
   },
   "scripts": {
-    "test": "env $(cat .env.test | xargs) mix test",
-    "test:playwright": "env $(cat .env.test | xargs) mix test --include playwright:true",
+    "test": "env $(cat .env.test | xargs) mix test --warnings-as-errors",
+    "test:playwright": "yarn test --only playwright",
     "erd": "env $(cat .env.test | xargs) mix ecto.gen.erd --output-path=ecto_erd.puml",
     "lint": "run-p lint:*",
     "lint:mix": "mix format --check-formatted",
@@ -22,9 +22,9 @@
     "gettext": "mix gettext.extract --merge"
   },
   "devDependencies": {
-    "@sentry/browser": "10.17.0",
+    "@sentry/browser": "10.19.0",
     "npm-run-all2": "8.0.4",
-    "playwright": "1.55.1",
+    "playwright": "1.56.0",
     "postcss": "8.5.6",
     "standard": "17.1.2",
     "stylelint": "16.25.0",
@@ -32,6 +32,6 @@
     "topbar": "3.0.0"
   },
   "dependencies": {
-    "daisyui": "5.1.25"
+    "daisyui": "5.3.7"
   }
 }
