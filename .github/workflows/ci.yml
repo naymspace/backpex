@@ -225,6 +225,9 @@ jobs:
         working-directory: demo
         run: yarn install --pure-lockfile
 
+      - name: Install Backpex node dependencies
+        run: yarn install --pure-lockfile
+
       - name: Setup assets
         working-directory: demo
         run: mix assets.setup
