@@ -226,9 +226,11 @@ jobs:
         run: yarn install --pure-lockfile
 
       - name: Setup assets
+        working-directory: demo
         run: mix assets.setup
 
       - name: Build assets
+        working-directory: demo
         run: mix assets.build
 
       - name: lint:mix
