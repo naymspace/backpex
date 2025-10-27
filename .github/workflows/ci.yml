@@ -225,7 +225,17 @@ jobs:
         working-directory: demo
         run: yarn install --pure-lockfile
 
+      - name: Cache Backpex node modules
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+        id: yarn-cache-backpex
+        with:
+          path: node_modules
+          key: ${{ runner.os }}-node-24-yarn-backpex-${{ hashFiles('yarn.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-node-24-yarn-backpex-
+
       - name: Install Backpex node dependencies
+        if: steps.yarn-cache-backpex.outputs.cache-hit != 'true'
         run: yarn install --pure-lockfile
 
       - name: Setup assets
