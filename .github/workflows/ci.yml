@@ -259,6 +259,11 @@ jobs:
         working-directory: demo
         run: yarn lint:gettext
 
+      - name: Deps audit
+        working-directory: demo
+        continue-on-error: true
+        run: mix deps.audit
+
       - name: Run test
         working-directory: demo
         env:
@@ -289,13 +294,16 @@ jobs:
           DB_USERNAME: postgres
           DB_PASSWORD: postgres
           DB_DATABASE: test
-        run: yarn test:playwright
+        run: yarn test:playwright || if [[ $? = 2 ]]; then PW_TRACE=true yarn test:playwright --max-cases 1 --failed; else false; fi
         continue-on-error: true
 
-      - name: Deps audit
-        working-directory: demo
-        continue-on-error: true
-        run: mix deps.audit
+      - name: Upload Playwright traces
+        if: failure()
+        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
+        with:
+          name: playwright-traces
+          path: tmp/
+          retention-days: 7
 
   build-runtime:
     name: "Build and push image (Demo)"
