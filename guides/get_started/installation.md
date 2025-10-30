@@ -367,7 +367,7 @@ If you copied the provided layout component from [the section above](#create-a-d
     </Backpex.HTML.Layout.sidebar_item>
   </:sidebar>
   <Backpex.HTML.Layout.flash_messages flash={@flash} />
-  {@inner_content}
+  {render_slot(@inner_block)}
 </Backpex.HTML.Layout.app_shell>
 ```
 
