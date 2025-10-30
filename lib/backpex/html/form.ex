@@ -442,6 +442,7 @@ defmodule Backpex.HTML.Form do
       <div class="ml-4">
         <.multi_select_option
           :for={{lab, val} <- @value}
+          class="mt-2"
           label={lab}
           value={val}
           event_target={@event_target}
