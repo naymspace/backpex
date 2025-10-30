@@ -134,7 +134,7 @@ defmodule Backpex.Fields.InlineCRUD do
 
         <div class="flex flex-col">
           <.inputs_for :let={f_nested} field={@form[@name]}>
-            <input type="hidden" name={"change[#{@name}_order][]"} value={f_nested.index} />
+            <input type="hidden" name={"change[#{@name}_order][]"} value={f_nested.index} tabindex="-1" aria-hidden="true" />
 
             <div class="mb-3 flex items-start gap-x-4">
               <div
@@ -168,15 +168,16 @@ defmodule Backpex.Fields.InlineCRUD do
                     class="hidden"
                   />
 
-                  <div class="btn btn-outline btn-error" aria-label={Backpex.__("Delete", @live_resource)}>
-                    <Backpex.HTML.CoreComponents.icon name="hero-trash" class="h-5 w-5" />
+                  <div class="btn btn-outline btn-error">
+                    <span class="sr-only">{Backpex.__("Delete", @live_resource)}</span>
+                    <Backpex.HTML.CoreComponents.icon name="hero-trash" class="size-5" />
                   </div>
                 </label>
               </div>
             </div>
           </.inputs_for>
 
-          <input type="hidden" name={"change[#{@name}_delete][]"} />
+          <input type="hidden" name={"change[#{@name}_delete][]"} tabindex="-1" aria-hidden="true" />
         </div>
         <input
           name={"change[#{@name}_order][]"}

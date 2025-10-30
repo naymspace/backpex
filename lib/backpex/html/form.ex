@@ -59,7 +59,7 @@ defmodule Backpex.HTML.Form do
     ~H"""
     <div class={["fieldset py-0", @class]}>
       <label class="label cursor-pointer">
-        <input type="hidden" name={@name} value="false" />
+        <input type="hidden" name={@name} value="false" tabindex="-1" aria-hidden="true" />
         <input
           type="checkbox"
           id={@id}
@@ -82,7 +82,7 @@ defmodule Backpex.HTML.Form do
     ~H"""
     <div class={["fieldset py-0", @class]}>
       <label class="label cursor-pointer">
-        <input type="hidden" name={@name} value="false" />
+        <input type="hidden" name={@name} value="false" tabindex="-1" aria-hidden="true" />
         <input
           type="checkbox"
           id={@id}
@@ -219,7 +219,7 @@ defmodule Backpex.HTML.Form do
     <div class={["fieldset py-0", @class]}>
       <span :if={@label} class="label mb-1">{@label}</span>
       <div
-        id={@id}
+        id={"#{@id}-wrapper"}
         phx-hook="BackpexCurrencyInput"
         data-radix={@radix}
         data-thousands-separator={@thousands_separator}
@@ -231,8 +231,8 @@ defmodule Backpex.HTML.Form do
           @input_class || "[&_>_input]:input [&_>_input]:w-full",
           @errors != [] && (@error_class || "[&_>_input]:input-error [&_>_input]:bg-error/10")
         ]}>
-          <input id={"#{@id}_masked"} name={@name} data-masked-input phx-update="ignore" {@rest} />
-          <input type="hidden" value={@value} name={@name} data-hidden-input />
+          <input id={@id} name={@name} data-masked-input phx-update="ignore" {@rest} />
+          <input type="hidden" value={@value} name={@name} data-hidden-input tabindex="-1" aria-hidden="true" />
         </span>
       </div>
       <.error :for={msg <- @errors} :if={not @hide_errors}>{msg}</.error>
@@ -309,11 +309,14 @@ defmodule Backpex.HTML.Form do
     ~H"""
     <div>
       <.dropdown id={"multi-select-#{@field.id}"} class="w-full">
-        <:trigger class={[
-          "input block h-fit w-full p-2",
-          @errors == [] && "bg-transparent",
-          @errors != [] && "input-error bg-error/10"
-        ]}>
+        <:trigger
+          aria_label={@prompt}
+          class={[
+            "input block h-fit w-full p-2",
+            @errors == [] && "bg-transparent",
+            @errors != [] && "input-error bg-error/10"
+          ]}
+        >
           <div class="flex h-full w-full flex-wrap items-center gap-1 px-2">
             <p :if={@selected == []} class="p-0.5 text-sm">{@prompt}</p>
             <.multi_select_badge
@@ -352,7 +355,7 @@ defmodule Backpex.HTML.Form do
             />
 
             <%!-- Hidden input to make sure the change is always present, even if no options are selected --%>
-            <input type="hidden" name={@field.name} value="" />
+            <input type="hidden" name={@field.name} value="" tabindex="-1" aria-hidden="true" />
 
             <%!-- Options --%>
             <div class="mt-2 w-full">

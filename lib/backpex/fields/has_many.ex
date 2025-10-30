@@ -186,7 +186,7 @@ defmodule Backpex.Fields.HasMany do
               />
 
               <%!-- Hidden input to make sure the change is always present, even if no options are selected --%>
-              <input class="hidden" name={"#{@form[@name].name}[]"} value="" />
+              <input class="hidden" name={"#{@form[@name].name}[]"} value="" tabindex="-1" aria-hidden="true" />
 
               <%!-- Hidden Options --%>
               <.hidden_option
@@ -263,6 +263,8 @@ defmodule Backpex.Fields.HasMany do
       name={"#{@form[@name].name}[]"}
       class="hidden"
       checked
+      tabindex="-1"
+      aria-hidden="true"
     />
     """
   end
@@ -288,7 +290,7 @@ defmodule Backpex.Fields.HasMany do
 
     ~H"""
     <label class={@class}>
-      <input type="checkbox" class="hidden" name={@hidden_input_name} value="" />
+      <input type="checkbox" class="hidden" name={@hidden_input_name} value="" tabindex="-1" aria-hidden="true" />
       <div role="button" class="text-primary cursor-pointer text-sm underline">
         {@button_text}
       </div>
@@ -307,7 +309,6 @@ defmodule Backpex.Fields.HasMany do
       <span>{@label}</span>
       <label
         class="flex cursor-pointer items-center pr-2"
-        role="button"
         for={"has-many-#{@name}-checkbox-value-#{@value}"}
         aria-label={Backpex.__({"Unselect %{label}", %{label: @label}}, @live_resource)}
       >

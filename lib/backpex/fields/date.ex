@@ -140,6 +140,7 @@ defmodule Backpex.Fields.Date do
           phx-debounce="100"
           readonly={@readonly}
           hide_errors
+          aria-label={@field_options[:label]}
         />
       </.form>
     </div>

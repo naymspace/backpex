@@ -310,7 +310,6 @@ jobs:
           DB_PASSWORD: postgres
           DB_DATABASE: test
         run: yarn test:playwright || if [[ $? = 2 ]]; then PW_TRACE=true yarn test:playwright --max-cases 1 --failed; else false; fi
-        continue-on-error: true
 
       - name: Upload Playwright traces
         if: failure()

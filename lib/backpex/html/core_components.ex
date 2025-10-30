@@ -27,7 +27,7 @@ defmodule Backpex.HTML.CoreComponents do
   ## Examples
 
       <.dropdown id="user-menu">
-        <:trigger class="btn btn-primary btn-sm">
+        <:trigger class="btn btn-primary btn-sm" aria-label="User Menu">
           User Menu
         </:trigger>
         <:menu>
@@ -42,6 +42,7 @@ defmodule Backpex.HTML.CoreComponents do
 
   slot :trigger, doc: "the trigger element to be used to toggle the dropdown menu" do
     attr :class, :any, doc: "additional classes for the wrapper of the trigger"
+    attr :aria_label, :string, doc: "accessible label for screen readers"
   end
 
   slot :menu, doc: "the dropdown menu" do
@@ -64,17 +65,23 @@ defmodule Backpex.HTML.CoreComponents do
 
     ~H"""
     <div id={@id} class={["dropdown", @class]} {@rest}>
-      <div id={"#{@id}-trigger"} role="button" tabindex="0" aria-haspopup="menu" class={@trigger && @trigger[:class]}>
+      <div
+        id={"#{@id}-trigger"}
+        role="button"
+        tabindex="0"
+        aria-haspopup="true"
+        aria-label={@trigger && @trigger[:aria_label]}
+        class={@trigger && @trigger[:class]}
+      >
         {render_slot(@trigger)}
       </div>
 
       <div
         id={"#{@id}-menu"}
-        role="menu"
-        tabindex="0"
+        tabindex="-1"
         aria-labelledby={"#{@id}-trigger"}
         class={[
-          "menu dropdown-content z-[1] bg-base-100 rounded-box outline-black/5 shadow outline-[length:var(--border)]",
+          "menu dropdown-content z-1 bg-base-100 rounded-box outline-black/5 shadow outline-[length:var(--border)]",
           @menu && @menu[:class]
         ]}
       >
