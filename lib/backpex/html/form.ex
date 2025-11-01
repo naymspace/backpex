@@ -300,6 +300,7 @@ defmodule Backpex.HTML.Form do
   attr :hide_search, :boolean, default: false, doc: "if search should be hidden"
   attr :hide_errors, :boolean, default: false, doc: "if errors should be hidden"
   attr :live_resource, :atom, default: nil, doc: "the live resource module"
+  attr :"aria-labelledby", :string, doc: "accessible labelledby for screen readers"
 
   def multi_select(assigns) do
     errors = if Phoenix.Component.used_input?(assigns.field), do: assigns.field.errors, else: []
@@ -316,6 +317,7 @@ defmodule Backpex.HTML.Form do
             @errors == [] && "bg-transparent",
             @errors != [] && "input-error bg-error/10"
           ]}
+          aria-labelledby={Map.get(assigns, :"aria-labelledby")}
         >
           <div class="flex h-full w-full flex-wrap items-center gap-1 px-2">
             <p :if={@selected == []} class="p-0.5 text-sm">{@prompt}</p>

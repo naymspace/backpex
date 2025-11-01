@@ -159,6 +159,7 @@ defmodule Backpex.Fields.MultiSelect do
           search_event="search"
           live_resource={@live_resource}
           help_text={Backpex.Field.help_text(@field_options, assigns)}
+          aria-labelledby={Map.get(assigns, :"aria-labelledby")}
         />
       </Layout.field_container>
     </div>

@@ -165,6 +165,7 @@ defmodule Backpex.Fields.InlineCRUD do
                 {Backpex.HTML.Resource.resource_form_field(
                   assign(assigns,
                     hide_label: true,
+                    "aria-labelledby": "inline-crud-label-#{@name} inline-crud-header-label-#{@name}-#{child_field_name}",
                     fields: @child_fields,
                     name: child_field_name,
                     form: f_nested

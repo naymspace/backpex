@@ -66,6 +66,7 @@ defmodule Backpex.Fields.Textarea do
           phx-throttle={Backpex.Field.throttle(@field_options, assigns)}
           readonly={@readonly}
           disabled={@readonly}
+          aria-labelledby={Map.get(assigns, :"aria-labelledby")}
         />
       </Layout.field_container>
     </div>
