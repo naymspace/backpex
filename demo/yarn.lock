@@ -12,9 +12,9 @@
     picocolors "^1.1.1"
 
 "@babel/helper-validator-identifier@^7.27.1":
-  version "7.27.1"
-  resolved "https://registry.yarnpkg.com/@babel/helper-validator-identifier/-/helper-validator-identifier-7.27.1.tgz#a7054dcc145a967dd4dc8fee845a57c1316c9df8"
-  integrity sha512-D2hP9eA+Sqx1kBZgzxZh0y1trbuU+JoDkiEwqhQ36nodYqJwyEIhPSdMNd7lOm/4io72luTPWH20Yda0xOuUow==
+  version "7.28.5"
+  resolved "https://registry.yarnpkg.com/@babel/helper-validator-identifier/-/helper-validator-identifier-7.28.5.tgz#010b6938fab7cb7df74aa2bbc06aa503b8fe5fb4"
+  integrity sha512-qSs4ifwzKJSV39ucNjsvc6WVHs6b7S03sOh2OcHF9UHfVPqWWALUsNUVzhSBiItjRZoLHx7nIarVjqKVusUZ1Q==
 
 "@cacheable/memoize@^2.0.3":
   version "2.0.3"
@@ -24,20 +24,19 @@
     "@cacheable/utils" "^2.0.3"
 
 "@cacheable/memory@^2.0.3":
-  version "2.0.3"
-  resolved "https://registry.yarnpkg.com/@cacheable/memory/-/memory-2.0.3.tgz#8d8fa1644b32b85f27c7e4e16e14f36a8460735c"
-  integrity sha512-R3UKy/CKOyb1LZG/VRCTMcpiMDyLH7SH3JrraRdK6kf3GweWCOU3sgvE13W3TiDRbxnDKylzKJvhUAvWl9LQOA==
+  version "2.0.4"
+  resolved "https://registry.yarnpkg.com/@cacheable/memory/-/memory-2.0.4.tgz#f1bddf450d2c62285eb49c175190407b7925ee28"
+  integrity sha512-cCmJKCKlT1t7hNBI1+gFCwmKFd9I4pS3zqBeNGXTSODnpa0EeDmORHY8oEMTuozfdg3cgsVh8ojLaPYb6eC7Cg==
   dependencies:
-    "@cacheable/memoize" "^2.0.3"
-    "@cacheable/utils" "^2.0.3"
-    "@keyv/bigmap" "^1.0.2"
-    hookified "^1.12.1"
+    "@cacheable/utils" "^2.2.0"
+    "@keyv/bigmap" "^1.1.0"
+    hookified "^1.12.2"
     keyv "^5.5.3"
 
-"@cacheable/utils@^2.0.3", "@cacheable/utils@^2.1.0":
-  version "2.1.0"
-  resolved "https://registry.yarnpkg.com/@cacheable/utils/-/utils-2.1.0.tgz#fbef92c5bfe720eadbdbf516c5fa64dee794d35d"
-  integrity sha512-ZdxfOiaarMqMj+H7qwlt5EBKWaeGihSYVHdQv5lUsbn8MJJOTW82OIwirQ39U5tMZkNvy3bQE+ryzC+xTAb9/g==
+"@cacheable/utils@^2.0.3", "@cacheable/utils@^2.1.0", "@cacheable/utils@^2.2.0":
+  version "2.2.0"
+  resolved "https://registry.yarnpkg.com/@cacheable/utils/-/utils-2.2.0.tgz#00f454fc27f1376dc1c3c3d5b85f90ee36c9b5fb"
+  integrity sha512-7xaQayO3msdVcxXLYcLU5wDqJBNdQcPPPHr6mdTEIQI7N7TbtSVVTpWOTfjyhg0L6AQwQdq7miKdWtTDBoBldQ==
   dependencies:
     keyv "^5.5.3"
 
@@ -74,9 +73,9 @@
     eslint-visitor-keys "^3.4.3"
 
 "@eslint-community/regexpp@^4.6.1":
-  version "4.12.1"
-  resolved "https://registry.yarnpkg.com/@eslint-community/regexpp/-/regexpp-4.12.1.tgz#cfc6cffe39df390a3841cde2abccf92eaa7ae0e0"
-  integrity sha512-CCZCDJuduB9OUkFkY2IgppNZMi2lBQgD2qzwXkEia16cge2pijY/aXi96CJMquDMn3nJdlPV1A5KrJEXwfLNzQ==
+  version "4.12.2"
+  resolved "https://registry.yarnpkg.com/@eslint-community/regexpp/-/regexpp-4.12.2.tgz#bccdf615bcf7b6e8db830ec0b8d21c9a25de597b"
+  integrity sha512-EriSTlt5OC9/7SXkRSCAhfSxxoSUgBm33OH+IkwbdpgoqsSsUg7y3uh+IICI/Qg4BBWr3U2i39RpmycbxMq4ew==
 
 "@eslint/eslintrc@^2.1.4":
   version "2.1.4"
@@ -117,7 +116,7 @@
   resolved "https://registry.yarnpkg.com/@humanwhocodes/object-schema/-/object-schema-2.0.3.tgz#4a2868d75d6d6963e423bcf90b7fd1be343409d3"
   integrity sha512-93zYdMES/c1D69yZiKDBj0V24vqNzB/koF26KPaagAfd3P/4gUlh3Dys5ogAK+Exi9QyzlD8x/08Zt7wIKcDcA==
 
-"@keyv/bigmap@^1.0.2":
+"@keyv/bigmap@^1.1.0":
   version "1.1.0"
   resolved "https://registry.yarnpkg.com/@keyv/bigmap/-/bigmap-1.1.0.tgz#e22ca78123d898b4317854854f3cc9cac8e9af74"
   integrity sha512-MX7XIUNwVRK+hjZcAbNJ0Z8DREo+Weu9vinBOjGU1thEi9F6vPhICzBbk4CCf3eEefKRz7n6TfZXwUFZTSgj8Q==
@@ -1296,7 +1295,7 @@ hasown@^2.0.2:
   dependencies:
     function-bind "^1.1.2"
 
-hookified@^1.12.0, hookified@^1.12.1, hookified@^1.12.2:
+hookified@^1.12.0, hookified@^1.12.2:
   version "1.12.2"
   resolved "https://registry.yarnpkg.com/hookified/-/hookified-1.12.2.tgz#7002b17a98f6d594648df088f8c48a292eb241f7"
   integrity sha512-aokUX1VdTpI0DUsndvW+OiwmBpKCu/NgRsSSkuSY0zq8PY6Q6a+lmOfAFDXAAOtBqJELvcWY9L1EVtzjbQcMdg==
