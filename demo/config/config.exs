@@ -83,7 +83,7 @@ config :spark,
   ]
 
 config :tailwind,
-  version: "4.1.16",
+  version: "4.1.17",
   default: [
     args: ~w(
       --input=assets/css/app.css
