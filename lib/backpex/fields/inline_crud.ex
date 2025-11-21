@@ -155,13 +155,13 @@ defmodule Backpex.Fields.InlineCRUD do
                 :for={{child_field_name, child_field_options} <- @child_fields}
                 class={child_field_class(child_field_options, assigns)}
               >
-                <span
+                <div
                   :if={f_nested.index == 0}
                   id={"inline-crud-header-label-#{@name}-#{child_field_name}"}
-                  class="mb-1 text-xs"
+                  class="mb-2 text-xs"
                 >
                   {child_field_options.label}
-                </span>
+                </div>
                 {Backpex.HTML.Resource.resource_form_field(
                   assign(assigns,
                     hide_label: true,
