@@ -130,11 +130,15 @@ defmodule Backpex.Fields.Select do
 
   defp get_label(value, options) do
     options =
-      Enum.map(options, fn {_label, value} = option ->
-        case value do
-          value when is_list(value) or is_map(value) -> value
-          _value -> option
-        end
+      Enum.map(options, fn
+        {_label, value} = option ->
+          case value do
+            value when is_list(value) or is_map(value) -> value
+            _value -> option
+          end
+
+        option ->
+          option
       end)
       |> List.flatten()
 
