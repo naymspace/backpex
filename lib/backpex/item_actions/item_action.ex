@@ -2,6 +2,7 @@ defmodule Backpex.ItemAction do
   @moduledoc """
   Behaviour implemented by all item actions.
   """
+  import Phoenix.Component
 
   @doc """
   Action icon
@@ -223,6 +224,28 @@ defmodule Backpex.ItemAction do
 
         Item Actions with no form fields must return {:ok, socket}.
         """
+    end
+  end
+
+  @doc """
+  Prepares the socket for opening an action confirmation modal.
+
+  If the action has a form, it creates a changeset and assigns it along with the base schema.
+  Otherwise, it assigns an empty changeset.
+  """
+  def assign_action_changeset(socket, action) do
+    if has_form?(action) do
+      changeset_function = fn item, changes, metadata -> action.module.changeset(item, changes, metadata) end
+      base_schema = action.module.base_schema(socket.assigns)
+
+      metadata = Backpex.Resource.build_changeset_metadata(socket.assigns)
+      changeset = changeset_function.(base_schema, %{}, metadata)
+
+      socket
+      |> assign(:item, base_schema)
+      |> assign(:changeset, changeset)
+    else
+      assign(socket, :changeset, %{})
     end
   end
 end

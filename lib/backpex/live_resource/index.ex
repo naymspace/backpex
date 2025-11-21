@@ -277,22 +277,8 @@ defmodule Backpex.LiveResource.Index do
   end
 
   defp open_action_confirm_modal(socket, action, key) do
-    if_result =
-      if Backpex.ItemAction.has_form?(action) do
-        changeset_function = fn item, changes, metadata -> action.module.changeset(item, changes, metadata) end
-        base_schema = action.module.base_schema(socket.assigns)
-
-        metadata = Resource.build_changeset_metadata(socket.assigns)
-        changeset = changeset_function.(base_schema, %{}, metadata)
-
-        socket
-        |> assign(:item, base_schema)
-        |> assign(:changeset, changeset)
-      else
-        assign(socket, :changeset, %{})
-      end
-
-    if_result
+    socket
+    |> Backpex.ItemAction.assign_action_changeset(action)
     |> assign(:action_to_confirm, Map.put(action, :key, key))
     |> noreply()
   end

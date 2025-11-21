@@ -93,24 +93,9 @@ defmodule Backpex.LiveResource.Show do
     index_path = Router.get_path(socket, live_resource, params, :index)
 
     # Assign selected_items early so it's available in base_schema callback
-    socket = assign(socket, :selected_items, [item])
-
-    if_result =
-      if Backpex.ItemAction.has_form?(action) do
-        changeset_function = fn item, changes, metadata -> action.module.changeset(item, changes, metadata) end
-        base_schema = action.module.base_schema(socket.assigns)
-
-        metadata = Resource.build_changeset_metadata(socket.assigns)
-        changeset = changeset_function.(base_schema, %{}, metadata)
-
-        socket
-        |> assign(:item, base_schema)
-        |> assign(:changeset, changeset)
-      else
-        assign(socket, :changeset, %{})
-      end
-
-    if_result
+    socket
+    |> assign(:selected_items, [item])
+    |> Backpex.ItemAction.assign_action_changeset(action)
     |> assign(:return_to, index_path)
     |> assign(:action_to_confirm, Map.put(action, :key, key))
     |> noreply()
