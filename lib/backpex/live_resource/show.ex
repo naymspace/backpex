@@ -91,7 +91,6 @@ defmodule Backpex.LiveResource.Show do
     %{item: item, live_resource: live_resource, params: params} = socket.assigns
     index_path = Router.get_path(socket, live_resource, params, :index)
 
-    # Assign selected_items early so it's available in base_schema callback
     socket
     |> assign(:selected_items, [item])
     |> Backpex.ItemAction.assign_action_changeset(action)
