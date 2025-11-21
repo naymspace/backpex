@@ -118,30 +118,14 @@ defmodule Backpex.LiveResource.Show do
 
   defp handle_item_action(socket, action, key, item) do
     %{live_resource: live_resource, params: params} = socket.assigns
+    index_path = Router.get_path(socket, live_resource, params, :index)
 
-    if live_resource.can?(socket.assigns, key, item) do
-      case action.module.handle(socket, [item], %{}) do
-        {:ok, socket} ->
-          index_path = Router.get_path(socket, live_resource, params, :index)
-
-          socket
-          |> assign(action_to_confirm: nil)
-          |> maybe_navigate(index_path)
-          |> noreply()
-
-        unexpected_return ->
-          raise ArgumentError, """
-          Invalid return value from #{inspect(action.module)}.handle/3.
-
-          Expected: {:ok, socket}
-          Got: #{inspect(unexpected_return)}
-
-          Item Actions with no form fields must return {:ok, socket}.
-          """
-      end
-    else
-      noreply(socket)
-    end
+    Backpex.ItemAction.handle_item_action(socket, action, key, [item], fn socket ->
+      socket
+      |> assign(action_to_confirm: nil)
+      |> maybe_navigate(index_path)
+      |> noreply()
+    end)
   end
 
   defp maybe_navigate(%{redirected: nil} = socket, path) do
