@@ -437,6 +437,25 @@ defmodule Backpex.HTML.Form do
   attr :selected, :list, required: true
   attr :event_target, :any, required: true
 
+  defp multi_select_option(%{value: value} = assigns) when is_list(value) or is_map(value) do
+    ~H"""
+    <div class="not-first:mt-2">
+      <span class="font-medium">{@label}</span>
+      <div class="ml-4">
+        <.multi_select_option
+          :for={{lab, val} <- @value}
+          class="mt-2"
+          label={lab}
+          value={val}
+          event_target={@event_target}
+          field={@field}
+          selected={@selected}
+        />
+      </div>
+    </div>
+    """
+  end
+
   defp multi_select_option(assigns) do
     ~H"""
     <label
