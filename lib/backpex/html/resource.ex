@@ -118,12 +118,49 @@ defmodule Backpex.HTML.Resource do
   end
 
   @doc """
+  Renders an inlined field.
+  """
+  @doc type: :component
+
+  attr :id, :string, required: true
+  attr :hide_label, :boolean, default: false, doc: "whether to hide the label (left column)"
+  attr :name, :string, required: true, doc: "name / key of the item field"
+  attr :item, :map, required: true, doc: "the item which provides the value to be rendered"
+  attr :fields, :list, required: true, doc: "list of all fields provided by the resource configuration"
+
+  def inlined_resource_field(assigns) do
+    %{name: name, item: item, fields: fields} = assigns
+
+    {_name, field_options} = field = Enum.find(fields, fn {field_name, _field_options} -> field_name == name end)
+
+    readonly = Backpex.Field.readonly?(field_options, assigns)
+
+    assigns =
+      assigns
+      |> assign(:field, field)
+      |> assign(:field_options, field_options)
+      |> assign(:value, Map.get(item, name))
+      |> assign(:type, :index)
+      |> assign(:readonly, readonly)
+
+    ~H"""
+    <.live_component
+      id={@id}
+      module={@field_options.module}
+      type={@type}
+      {Map.drop(assigns, [:socket, :flash, :myself, :uploads])}
+    />
+    """
+  end
+
+  @doc """
   Renders a resource form field.
   """
   @doc type: :component
 
   attr :name, :string, required: true, doc: "name / key of the item field"
   attr :form, :map, required: true, doc: "form that will be used by the form field"
+  attr :hide_label, :boolean, default: false, doc: "whether to hide the label (left column)"
   attr :repo, :any, required: false, doc: "ecto repo"
   attr :uploads, :map, required: false, default: %{}, doc: "map that contains upload information"
   attr :fields, :list, required: true, doc: "list of all fields provided by the resource configuration"
@@ -142,7 +179,7 @@ defmodule Backpex.HTML.Resource do
 
     ~H"""
     <.live_component
-      id={"resource_#{@name}"}
+      id={"resource_#{@form[@name].id}"}
       module={@field_options.module}
       lv_uploads={assigns[:uploads]}
       type={@type}

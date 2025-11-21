@@ -140,16 +140,19 @@ defmodule Backpex.Fields.HasMany do
     ~H"""
     <div id={"has-many-#{@name}"}>
       <Layout.field_container>
-        <:label align={Backpex.Field.align_label(@field_options, assigns)}>
+        <:label :if={not @hide_label} align={Backpex.Field.align_label(@field_options, assigns)}>
           <Layout.input_label as="span" text={@field_options[:label]} />
         </:label>
 
         <Backpex.HTML.CoreComponents.dropdown id={"has-many-dropdown-#{@name}"} class="w-full">
-          <:trigger class={[
-            "input block h-fit w-full p-2",
-            @errors == [] && "bg-transparent",
-            @errors != [] && "input-error bg-error/10"
-          ]}>
+          <:trigger
+            class={[
+              "input block h-fit w-full p-2",
+              @errors == [] && "bg-transparent",
+              @errors != [] && "input-error bg-error/10"
+            ]}
+            aria_labelledby={Map.get(assigns, :aria_labelledby)}
+          >
             <div class="flex h-full w-full flex-wrap items-center gap-1 px-2">
               <p :if={@selected == []} class="p-0.5 text-sm">{@prompt}</p>
               <.badge

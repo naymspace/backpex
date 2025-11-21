@@ -35,7 +35,7 @@ defmodule Backpex.HTML.Form do
   attr :multiple, :boolean, default: false, doc: "the multiple flag for select inputs"
 
   attr :rest, :global, include: ~w(accept autocomplete capture cols disabled form list max maxlength min minlength
-                multiple pattern placeholder readonly required rows size step)
+                multiple pattern placeholder readonly required rows size step aria-*)
 
   attr :class, :any, default: nil, doc: "additional classes for the container element"
   attr :input_class, :any, default: nil, doc: "the input class to use over defaults"
@@ -231,7 +231,7 @@ defmodule Backpex.HTML.Form do
           @input_class || "[&_>_input]:input [&_>_input]:w-full",
           @errors != [] && (@error_class || "[&_>_input]:input-error [&_>_input]:bg-error/10")
         ]}>
-          <input id={@id} name={@name} data-masked-input phx-update="ignore" {@rest} />
+          <input id={@id} data-masked-input phx-update="ignore" {@rest} />
           <input type="hidden" value={@value} name={@name} data-hidden-input tabindex="-1" aria-hidden="true" />
         </span>
       </div>
@@ -300,6 +300,7 @@ defmodule Backpex.HTML.Form do
   attr :hide_search, :boolean, default: false, doc: "if search should be hidden"
   attr :hide_errors, :boolean, default: false, doc: "if errors should be hidden"
   attr :live_resource, :atom, default: nil, doc: "the live resource module"
+  attr :aria_labelledby, :string, doc: "accessible labelledby for screen readers added to the trigger element"
 
   def multi_select(assigns) do
     errors = if Phoenix.Component.used_input?(assigns.field), do: assigns.field.errors, else: []
@@ -311,6 +312,7 @@ defmodule Backpex.HTML.Form do
       <.dropdown id={"multi-select-#{@field.id}"} class="w-full">
         <:trigger
           aria_label={@prompt}
+          aria_labelledby={Map.get(assigns, :aria_labelledby)}
           class={[
             "input block h-fit w-full p-2",
             @errors == [] && "bg-transparent",

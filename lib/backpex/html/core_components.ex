@@ -27,7 +27,7 @@ defmodule Backpex.HTML.CoreComponents do
   ## Examples
 
       <.dropdown id="user-menu">
-        <:trigger class="btn btn-primary btn-sm" aria-label="User Menu">
+        <:trigger class="btn btn-primary btn-sm" aria_label="User Menu">
           User Menu
         </:trigger>
         <:menu>
@@ -43,6 +43,7 @@ defmodule Backpex.HTML.CoreComponents do
   slot :trigger, doc: "the trigger element to be used to toggle the dropdown menu" do
     attr :class, :any, doc: "additional classes for the wrapper of the trigger"
     attr :aria_label, :string, doc: "accessible label for screen readers"
+    attr :aria_labelledby, :string, doc: "accessible labelledby for screen readers"
   end
 
   slot :menu, doc: "the dropdown menu" do
@@ -71,6 +72,7 @@ defmodule Backpex.HTML.CoreComponents do
         tabindex="0"
         aria-haspopup="true"
         aria-label={@trigger && @trigger[:aria_label]}
+        aria-labelledby={@trigger && Map.get(@trigger, :aria_labelledby)}
         class={@trigger && @trigger[:class]}
       >
         {render_slot(@trigger)}
