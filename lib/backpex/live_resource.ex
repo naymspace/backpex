@@ -411,7 +411,7 @@ defmodule Backpex.LiveResource do
           {@page_title}
           <div class="flex items-center space-x-2">
             <button
-              :for={{key, action} <- Backpex.HTML.Resource.show_item_actions(@item_actions)}
+              :for={{key, action} <- Backpex.HTML.Resource.filter_item_actions(@item_actions, :show)}
               :if={@live_resource.can?(assigns, key, @item)}
               id={"item-action-#{key}"}
               type="button"

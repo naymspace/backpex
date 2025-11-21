@@ -867,7 +867,7 @@ defmodule Backpex.HTML.Resource do
       <div :if={display_divider?(assigns)} class="border-base-300 my-0.5 border-r-2 border-solid" />
 
       <button
-        :for={{key, action} <- index_item_actions(@item_actions)}
+        :for={{key, action} <- filter_item_actions(@item_actions, :index)}
         class="btn btn-sm btn-outline btn-primary"
         disabled={action_disabled?(assigns, key, @selected_items)}
         phx-click="item-action"
@@ -929,28 +929,23 @@ defmodule Backpex.HTML.Resource do
   end
 
   defp display_divider?(assigns) do
-    index_item_actions = index_item_actions(assigns.item_actions)
+    index_actions = filter_item_actions(assigns.item_actions, :index)
     resource_actions = resource_actions(assigns, assigns.resource_actions)
 
-    Enum.any?(index_item_actions) &&
+    Enum.any?(index_actions) &&
       (Enum.any?(resource_actions) || assigns.live_resource.can?(assigns, :new, nil))
   end
 
-  defp index_item_actions(item_actions) do
-    Enum.filter(item_actions, fn {_key, action} ->
-      action_on_index?(action)
-    end)
-  end
+  @doc """
+  Filters item actions based on visibility type.
 
-  defp row_item_actions(item_actions) do
+  ## Examples
+      iex> filter_item_actions(item_actions, :row)
+      [edit: %{...}, delete: %{...}]
+  """
+  def filter_item_actions(item_actions, type) when type in [:index, :row, :show] do
     Enum.filter(item_actions, fn {_key, action} ->
-      action_on_row?(action)
-    end)
-  end
-
-  def show_item_actions(item_actions) do
-    Enum.filter(item_actions, fn {_key, action} ->
-      action_on_show?(action)
+      action_visible?(action, type)
     end)
   end
 
@@ -961,17 +956,12 @@ defmodule Backpex.HTML.Resource do
     |> Enum.empty?()
   end
 
-  defp action_on_row?(%{only: only}), do: :row in only
-  defp action_on_row?(%{except: except}), do: :row not in except
-  defp action_on_row?(_action), do: true
-
-  defp action_on_index?(%{only: only}), do: :index in only
-  defp action_on_index?(%{except: except}), do: :index not in except
-  defp action_on_index?(_action), do: true
-
-  defp action_on_show?(%{only: only}), do: :show in only
-  defp action_on_show?(%{except: except}), do: :show not in except
-  defp action_on_show?(_action), do: true
+  @doc """
+  Checks if an action should be visible for the given type.
+  """
+  def action_visible?(%{only: only}, type), do: type in only
+  def action_visible?(%{except: except}, type), do: type not in except
+  def action_visible?(_action, _type), do: true
 
   @doc """
   Renders an info block to indicate that no items are found.
