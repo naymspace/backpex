@@ -1,4 +1,4 @@
-<div>
+<.layout {assigns}>
   <.modal
     :if={@action_to_confirm}
     id="action-confirm-modal"
@@ -27,4 +27,4 @@
   {@live_resource.render_resource_slot(assigns, :show, :before_main)}
   {@live_resource.render_resource_slot(assigns, :show, :main)}
   {@live_resource.render_resource_slot(assigns, :show, :after_main)}
-</div>
+</.layout>

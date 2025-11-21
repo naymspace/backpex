@@ -4,29 +4,22 @@ defmodule Backpex.LiveResource.Show do
 
   import Phoenix.LiveView
 
-  alias Backpex.LiveResource
   alias Backpex.Resource
   alias Backpex.Router
-  alias Phoenix.LiveView
 
   require Backpex
 
   def mount(params, _session, socket, live_resource) do
-    if LiveView.connected?(socket) do
-      [server: server, topic: topic] = live_resource.pubsub()
-
-      Phoenix.PubSub.subscribe(server, topic)
-    end
-
     socket
+    |> Backpex.LiveResource.maybe_subscribe_to_pubsub(live_resource)
     |> assign(:live_resource, live_resource)
     |> assign(:panels, live_resource.panels())
     |> assign(:fluid?, live_resource.config(:fluid?))
+    |> assign(:fields, live_resource.fields(:show, socket.assigns))
     |> assign(:page_title, live_resource.singular_name())
     |> assign(:selected_items, [])
     |> assign(:action_to_confirm, nil)
     |> assign(:params, params)
-    |> assign_fields()
     |> assign_item()
     |> assign_item_actions()
     |> ok()
@@ -64,8 +57,7 @@ defmodule Backpex.LiveResource.Show do
   end
 
   def handle_event(_event, _params, socket) do
-    socket
-    |> noreply()
+    noreply(socket)
   end
 
   def render(assigns) do
@@ -73,12 +65,11 @@ defmodule Backpex.LiveResource.Show do
   end
 
   defp assign_item(socket) do
-    %{live_resource: live_resource, params: params} = socket.assigns
-
+    %{live_resource: live_resource, fields: fields, params: params} = socket.assigns
     backpex_id = Map.fetch!(params, "backpex_id")
     primary_value = URI.decode(backpex_id)
 
-    case Resource.get(primary_value, socket.assigns, live_resource) do
+    case Resource.get(primary_value, fields, socket.assigns, live_resource) do
       {:ok, %{} = item} ->
         if not live_resource.can?(socket.assigns, :show, item), do: raise(Backpex.ForbiddenError)
 
@@ -86,19 +77,11 @@ defmodule Backpex.LiveResource.Show do
         |> assign(:item, item)
         |> assign(:return_to, Router.get_path(socket, live_resource, params, :show, item))
 
-      _ ->
+      _item ->
         socket
         |> put_flash(:error, "The resource does not exist.")
         |> push_navigate(to: Router.get_path(socket, live_resource, params, :index))
     end
-  end
-
-  defp assign_fields(socket) do
-    fields =
-      socket.assigns.live_resource.validated_fields()
-      |> LiveResource.filtered_fields_by_action(socket.assigns, :show)
-
-    assign(socket, :fields, fields)
   end
 
   defp assign_item_actions(socket) do
@@ -119,19 +102,22 @@ defmodule Backpex.LiveResource.Show do
   end
 
   defp open_action_confirm_modal(socket, action, key) do
-    if Backpex.ItemAction.has_form?(action) do
-      changeset_function = &action.module.changeset/3
-      base_schema = action.module.base_schema(socket.assigns)
+    if_result =
+      if Backpex.ItemAction.has_form?(action) do
+        changeset_function = &action.module.changeset/3
+        base_schema = action.module.base_schema(socket.assigns)
 
-      metadata = Resource.build_changeset_metadata(socket.assigns)
-      changeset = changeset_function.(base_schema, %{}, metadata)
+        metadata = Resource.build_changeset_metadata(socket.assigns)
+        changeset = changeset_function.(base_schema, %{}, metadata)
 
-      socket
-      |> assign(:form_item, base_schema)
-      |> assign(:changeset, changeset)
-    else
-      assign(socket, :changeset, %{})
-    end
+        socket
+        |> assign(:form_item, base_schema)
+        |> assign(:changeset, changeset)
+      else
+        assign(socket, :changeset, %{})
+      end
+
+    if_result
     |> assign(:action_to_confirm, Map.put(action, :key, key))
   end
 

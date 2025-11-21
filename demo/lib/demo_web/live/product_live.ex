@@ -21,7 +21,7 @@ defmodule DemoWeb.ProductLive do
     [
       quantity: %{
         module: DemoWeb.Filters.ProductQuantityRange,
-        label: "Quantity"
+        label: "QTY"
       }
     ]
   end
@@ -51,8 +51,7 @@ defmodule DemoWeb.ProductLive do
           assigns ->
             ~H"<p>{Backpex.HTML.pretty_value(@value)}</p>"
         end,
-        except: [:index, :resource_action],
-        align: :center
+        except: [:index]
       },
       name: %{
         module: Backpex.Fields.Text,

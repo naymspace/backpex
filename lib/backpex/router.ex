@@ -6,13 +6,45 @@ defmodule Backpex.Router do
 
   alias Plug.Conn.Query
 
+  @live_resources_options [
+    only: [
+      type: {:or, [nil, {:list, :atom}]},
+      doc: "Only generate routes for these actions, e.g. `[:index, :show]`",
+      default: nil
+    ],
+    except: [
+      type: {:or, [nil, {:list, :atom}]},
+      doc: "Generate routes for all actions except these, e.g. `[:edit]`",
+      default: nil
+    ],
+    container: [
+      type: :any,
+      doc: "An optional tuple for the HTML tag and DOM attributes for the LiveView container",
+      default: nil
+    ],
+    as: [
+      type: {:or, [nil, :atom]},
+      doc: "Optionally configures the named helper",
+      default: nil
+    ],
+    metadata: [
+      type: {:or, [nil, :map]},
+      doc: "A map to optional feed metadata used on telemetry events and route info",
+      default: nil
+    ],
+    private: [
+      type: {:or, [nil, :map]},
+      doc: "An optional map of private data to put in the plug connection",
+      default: nil
+    ]
+  ]
+
   @doc """
   Defines "RESTful" routes for a Backpex resource.
 
   ## Options
 
-    * `:only` - List of actions to generate routes for, for example: `[:index, :show]`.
-    * `:except` - List of actions to exclude generated routes from, for example: `[:edit]`.
+  #{NimbleOptions.docs(@live_resources_options)}
 
   ## Example
 
@@ -24,6 +56,7 @@ defmodule Backpex.Router do
 
           live_session :default, on_mount: Backpex.InitAssigns do
             live_resources("/users", UserLive, only: [:index])
+            live_resources("/users", UserLive, only: [:index], metadata: %{route_name: :foo, access: :user}
           end
         end
       end
@@ -31,33 +64,41 @@ defmodule Backpex.Router do
   defmacro live_resources(path, live_resource, options \\ []) do
     alias Backpex.Router
 
-    only = Keyword.get(options, :only)
-    except = Keyword.get(options, :except)
+    quote bind_quoted: [
+            path: path,
+            live_resource: live_resource,
+            options: options,
+            live_resources_options: @live_resources_options
+          ] do
+      validated_options = NimbleOptions.validate!(options, live_resources_options)
 
-    quote do
+      only = Keyword.get(options, :only)
+      except = Keyword.get(options, :except)
+
+      live_options = Keyword.take(options, [:container, :as, :metadata, :private])
+
       actions =
         [:index, :new, :edit, :show]
-        |> Router.filter_actions(unquote(only), unquote(except))
+        |> Router.filter_actions(only, except)
 
-      path = unquote(path)
-      live_resource = unquote(live_resource)
+      if Enum.member?(actions, :index),
+        do: live("#{path}/", String.to_atom("#{live_resource}.Index"), :index, live_options)
 
-      if Enum.member?(actions, :index), do: live("#{path}/", String.to_atom("#{live_resource}.Index"), :index)
-      if Enum.member?(actions, :new), do: live("#{path}/new", String.to_atom("#{live_resource}.Form"), :new)
+      if Enum.member?(actions, :new),
+        do: live("#{path}/new", String.to_atom("#{live_resource}.Form"), :new, live_options)
 
       if Enum.member?(actions, :edit),
-        do: live("#{path}/:backpex_id/edit", String.to_atom("#{live_resource}.Form"), :edit)
+        do: live("#{path}/:backpex_id/edit", String.to_atom("#{live_resource}.Form"), :edit, live_options)
 
       if Enum.member?(actions, :show),
-        do: live("#{path}/:backpex_id/show", String.to_atom("#{live_resource}.Show"), :show)
-
-      resource_module = Phoenix.Router.scoped_alias(__MODULE__, live_resource)
+        do: live("#{path}/:backpex_id/show", String.to_atom("#{live_resource}.Show"), :show, live_options)
 
       if Router.has_resource_actions?(__MODULE__, live_resource) do
         live(
           "#{path}/:backpex_id/resource-action",
           String.to_atom("#{live_resource}.Index"),
-          :resource_action
+          :resource_action,
+          live_options
         )
       end
     end
@@ -65,7 +106,7 @@ defmodule Backpex.Router do
 
   def has_resource_actions?(module, live_resource) do
     resource_module = Phoenix.Router.scoped_alias(module, live_resource)
-    Enum.count(resource_module.resource_actions()) > 0
+    not Enum.empty?(resource_module.resource_actions())
   end
 
   defmacro backpex_routes do
@@ -78,21 +119,22 @@ defmodule Backpex.Router do
 
   @doc """
   Checks whether the to path is the same as the current path
-
-  ## Examples
-
-      iex> Backpex.Router.active?(URI.new!("https://example.com/admin/events"), "/admin/events")
-      true
-      iex> Backpex.Router.active?(URI.new!("https://example.com/admin/events"), "/admin/users")
-      false
   """
   def active?(current_path, to_path) do
     %{path: path} = URI.parse(current_path)
 
     case {path, to_path} do
-      {nil, _to} -> false
-      {path, "/" = to} -> String.equivalent?(path, to)
-      {path, to} -> String.starts_with?(path, to)
+      {nil, _to} ->
+        false
+
+      {path, "/" = to} ->
+        String.equivalent?(path, to)
+
+      {path, to} ->
+        normalized_to = String.trim_trailing(to, "/")
+
+        String.equivalent?(path, normalized_to) or
+          String.starts_with?(path, normalized_to <> "/")
     end
   end
 

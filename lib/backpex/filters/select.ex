@@ -1,6 +1,6 @@
 defmodule Backpex.Filters.Select do
   @moduledoc """
-  Tbe select filter renders a select box for the implemented `options/0` and `prompt/0` callbacks. The `prompt/0` callback defines the key for the `nil` value added as first option.
+  The select filter renders a select box for the implemented `options/1` and `prompt/0` callbacks. The `prompt/0` callback defines the key for the `nil` value added as first option.
 
   See the following example for an implementation of an event status filter.
 
@@ -14,7 +14,7 @@ defmodule Backpex.Filters.Select do
         def prompt, do: "Select an option..."
 
         @impl Backpex.Filters.Select
-        def options, do: [
+        def options(_assigns), do: [
           {"Open", :open},
           {"Close", :close},
         ]
@@ -93,7 +93,7 @@ defmodule Backpex.Filters.Select do
 
   def render_form(assigns) do
     ~H"""
-    <select name={@form[@field].name} class="select select-sm mt-2">
+    <select name={@form[@field].name} class="select select-sm mt-2" aria-label={@prompt}>
       <option value="">{@prompt}</option>
       {Phoenix.HTML.Form.options_for_select(@options, selected(@value))}
     </select>

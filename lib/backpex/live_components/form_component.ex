@@ -21,11 +21,26 @@ defmodule Backpex.FormComponent do
     |> ok()
   end
 
+  # item action
   defp update_assigns(%{assigns: %{action_type: :item}} = socket) do
+    %{action_to_confirm: action_to_confirm} = socket.assigns
+
     socket
-    |> assign_fields()
+    |> assign_new(:fields, fn -> action_to_confirm.module.fields() end)
+    |> assign(:save_label, action_to_confirm.module.confirm_label(socket.assigns))
   end
 
+  # resource action
+  defp update_assigns(%{assigns: %{action_type: :resource}} = socket) do
+    %{resource_action: resource_action} = socket.assigns
+
+    socket
+    |> assign_new(:fields, fn -> resource_action.module.fields() end)
+    |> assign(:save_label, ResourceAction.name(resource_action, :label))
+    |> maybe_assign_uploads()
+  end
+
+  # default form
   defp update_assigns(%{assigns: assigns} = socket) do
     socket
     |> apply_action(assigns.live_action)
@@ -41,24 +56,10 @@ defmodule Backpex.FormComponent do
     assign_new(socket, :removed_uploads, fn -> Keyword.new() end)
   end
 
-  defp assign_fields(%{assigns: %{action_to_confirm: action_to_confirm}} = socket) do
-    socket
-    |> assign_new(:fields, fn -> action_to_confirm.module.fields() end)
-    |> assign(:save_label, action_to_confirm.module.confirm_label(socket.assigns))
-  end
-
   defp apply_action(socket, action) when action in [:edit, :new] do
     socket
     |> assign(:save_label, Backpex.__("Save", socket.assigns.live_resource))
     |> maybe_assign_continue_label()
-  end
-
-  defp apply_action(socket, :resource_action) do
-    %{assigns: %{resource_action: resource_action}} = socket
-
-    socket
-    |> assign(:save_label, ResourceAction.name(resource_action, :label))
-    |> assign(:fields, resource_action.module.fields())
   end
 
   defp maybe_assign_continue_label(socket) do
@@ -78,7 +79,9 @@ defmodule Backpex.FormComponent do
   def handle_event("validate", %{"change" => change, "_target" => target}, %{assigns: %{action_type: :item}} = socket) do
     %{assigns: %{form_item: item, fields: fields} = assigns} = socket
 
-    changeset_function = &assigns.action_to_confirm.module.changeset/3
+    changeset_function = fn item, changes, metadata ->
+      assigns.action_to_confirm.module.changeset(item, changes, metadata)
+    end
 
     target = Enum.at(target, 1)
 
@@ -149,7 +152,7 @@ defmodule Backpex.FormComponent do
     upload_key = String.to_existing_atom(upload_key)
 
     field =
-      socket.assigns.fields()
+      socket.assigns.fields
       |> Enum.find(fn {_name, field_options} ->
         Map.has_key?(field_options, :upload_key) and Map.get(field_options, :upload_key) == upload_key
       end)
@@ -207,7 +210,8 @@ defmodule Backpex.FormComponent do
   defp handle_save(socket, key, params, save_type \\ "save")
 
   defp handle_save(socket, :new, params, save_type) do
-    %{assigns: %{live_resource: live_resource, form_item: item, live_action: live_action} = assigns} = socket
+    %{assigns: %{live_resource: live_resource, fields: fields, form_item: item, live_action: live_action} = assigns} =
+      socket
 
     opts = [
       assocs: Map.get(assigns, :assocs, []),
@@ -219,7 +223,7 @@ defmodule Backpex.FormComponent do
       end
     ]
 
-    case Resource.insert(item, params, socket.assigns, live_resource, opts) do
+    case Resource.insert(item, params, fields, socket.assigns, live_resource, opts) do
       {:ok, item} ->
         return_to = return_to_path(save_type, live_resource, socket, socket.assigns, live_action, item)
 
@@ -236,7 +240,7 @@ defmodule Backpex.FormComponent do
         |> push_navigate(to: return_to)
         |> noreply()
 
-      {:error, %Ecto.Changeset{} = changeset} ->
+      {:error, changeset} when is_struct(changeset) ->
         form = Phoenix.Component.to_form(changeset, as: :change)
 
         send(self(), {:update_changeset, changeset})
@@ -283,7 +287,7 @@ defmodule Backpex.FormComponent do
         |> push_navigate(to: return_to)
         |> noreply()
 
-      {:error, %Ecto.Changeset{} = changeset} ->
+      {:error, changeset} when is_struct(changeset) ->
         form = Phoenix.Component.to_form(changeset, as: :change)
 
         send(self(), {:update_changeset, changeset})
@@ -300,6 +304,7 @@ defmodule Backpex.FormComponent do
       assigns:
         %{
           live_resource: live_resource,
+          fields: fields,
           resource_action: resource_action,
           form_item: item,
           return_to: return_to,
@@ -351,9 +356,11 @@ defmodule Backpex.FormComponent do
       assigns:
         %{
           live_resource: live_resource,
+          fields: fields,
           selected_items: selected_items,
           action_to_confirm: action_to_confirm,
-          fields: fields
+          fields: fields,
+          return_to: return_to
         } = assigns
     } = socket
 
@@ -361,7 +368,9 @@ defmodule Backpex.FormComponent do
 
     result =
       if Backpex.ItemAction.has_form?(action_to_confirm) do
-        changeset_function = &action_to_confirm.module.changeset/3
+        changeset_function = fn item, changes, metadata ->
+          action_to_confirm.module.changeset(item, changes, metadata)
+        end
 
         metadata = Resource.build_changeset_metadata(assigns)
 
@@ -374,7 +383,7 @@ defmodule Backpex.FormComponent do
       end
 
     with {:ok, data} <- result,
-         selected_items <- Enum.filter(selected_items, &live_resource.can?(socket.assigns, action_key, &1)),
+         selected_items = Enum.filter(selected_items, &live_resource.can?(socket.assigns, action_key, &1)),
          {:ok, socket} <- action_to_confirm.module.handle(socket, selected_items, data) do
       socket
       |> assign(:show_form_errors, false)

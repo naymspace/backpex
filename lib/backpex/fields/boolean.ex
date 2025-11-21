@@ -37,7 +37,7 @@ defmodule Backpex.Fields.Boolean do
     <div>
       <Layout.field_container>
         <:label align={Backpex.Field.align_label(@field_options, assigns, :top)}>
-          <Layout.input_label text={@field_options[:label]} />
+          <Layout.input_label for={@form[@name]} text={@field_options[:label]} />
         </:label>
         <BackpexForm.input
           type="toggle"
@@ -68,11 +68,12 @@ defmodule Backpex.Fields.Boolean do
           id={"index-form-input-#{@name}-#{LiveResource.primary_value(@item, @live_resource)}"}
           type="toggle"
           field={@form[:value]}
-          input_class={["toggle toggle-sm toggle-success", "hover:input-bordered"]}
+          input_class={["toggle toggle-sm", @valid && "toggle-primary", !@valid && "toggle-error"]}
           phx-debounce={Backpex.Field.debounce(@field_options, assigns)}
           phx-throttle={Backpex.Field.throttle(@field_options, assigns)}
           readonly={@readonly}
           hide_errors
+          aria-label={@field_options[:label]}
         />
       </.form>
     </div>

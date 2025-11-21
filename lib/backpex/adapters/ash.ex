@@ -29,11 +29,11 @@ if Code.ensure_loaded?(Ash) do
     Returns `nil` if no result was found.
     """
     @impl Backpex.Adapter
-    def get(primary_value, _assigns, live_resource) do
-      config = live_resource.config(:adapter_config)
+    def get(primary_value, _fields, _assigns, live_resource) do
+      resource = live_resource.adapter_config(:resource)
       primary_key = live_resource.config(:primary_key)
 
-      config[:resource]
+      resource
       |> Ash.Query.filter(^Ash.Expr.ref(primary_key) == ^primary_value)
       |> Ash.read_one()
     end
@@ -42,10 +42,8 @@ if Code.ensure_loaded?(Ash) do
     Returns a list of items by given criteria.
     """
     @impl Backpex.Adapter
-    def list(_criteria, _assigns, live_resource) do
-      config = live_resource.config(:adapter_config)
-
-      config[:resource]
+    def list(_criteria, _fields, _assigns, live_resource) do
+      live_resource.adapter_config(:resource)
       |> Ash.read()
     end
 
@@ -53,10 +51,8 @@ if Code.ensure_loaded?(Ash) do
     Returns the number of items matching the given criteria.
     """
     @impl Backpex.Adapter
-    def count(_criteria, _assigns, live_resource) do
-      config = live_resource.config(:adapter_config)
-
-      config[:resource]
+    def count(_criteria, _fields, _assigns, live_resource) do
+      live_resource.adapter_config(:resource)
       |> Ash.count()
     end
 
@@ -65,13 +61,11 @@ if Code.ensure_loaded?(Ash) do
     """
     @impl Backpex.Adapter
     def delete_all(items, live_resource) do
-      config = live_resource.config(:adapter_config)
       primary_key = live_resource.config(:primary_key)
-
       ids = Enum.map(items, &Map.fetch!(&1, primary_key))
 
       result =
-        config[:resource]
+        live_resource.adapter_config(:resource)
         |> Ash.Query.filter(^Ash.Expr.ref(primary_key) in ^ids)
         |> Ash.bulk_destroy(:destroy, %{}, return_records?: true)
 

@@ -18,7 +18,7 @@ use Backpex.LiveResource,
   on_mount: {__MODULE__, :my_hook}
 
 def on_mount(:my_hook, _params, _session, socket) do
-  attach_hook(socket, :handle_event_callback, :handle_event, &handle_event/3)
+  socket = Phoenix.LiveView.attach_hook(socket, :handle_event_callback, :handle_event, &handle_event/3)
 
   {:cont, socket}
 end

@@ -38,9 +38,7 @@ defmodule DemoWeb do
 
   def controller do
     quote do
-      use Phoenix.Controller,
-        formats: [:html, :json],
-        layouts: [html: DemoWeb.Layouts]
+      use Phoenix.Controller, formats: [:html, :json]
 
       use Gettext, backend: DemoWeb.Gettext
 
@@ -50,16 +48,9 @@ defmodule DemoWeb do
     end
   end
 
-  def live_view(opts \\ []) do
+  def live_view do
     quote do
-      @opts Keyword.merge(
-              [
-                layout: {DemoWeb.Layouts, :app},
-                container: {:div, class: "h-full"}
-              ],
-              unquote(opts)
-            )
-      use Phoenix.LiveView, @opts
+      use Phoenix.LiveView
 
       unquote(html_helpers())
     end
@@ -94,7 +85,8 @@ defmodule DemoWeb do
       # Core UI components and translation
       import DemoWeb.CoreComponents
 
-      # Shortcut for generating JS commands
+      # Common modules used in templates
+      alias DemoWeb.Layouts
       alias Phoenix.LiveView.JS
 
       # Routes generation with the ~p sigil

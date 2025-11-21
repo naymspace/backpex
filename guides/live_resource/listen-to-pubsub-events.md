@@ -12,11 +12,11 @@ You may overwrite the PubSub configuration for your Posts *LiveResource* like th
 
 ```elixir
 use Backpex.LiveResource,
-    ...,
-    pubsub: [
-        server: Demo.PubSub
-        topic: "posts"
-    ]
+  ...,
+  pubsub: [
+    server: Demo.PubSub
+    topic: "posts"
+  ]
 ```
 
 If you do not set a topic yourself, we take the stringified version of the live resource name as the default topic.
@@ -26,28 +26,42 @@ iex(1)> to_string(DemoWeb.UserLive)
 "Elixir.DemoWeb.UserLive"
 ```
 
+The server can be configured in your `config.exs`:
+
+```elixir
+config :backpex, pubsub_server: Demo.PubSub,
+```
+
 ### Listen to events
 
-You can listen for Backpex PubSub events by implementing the Phoenix.LiveView [`handle_info/2`](Phoenix.LiveView.html#c:handle_info/2) callback in your *LiveResource* module:
+You can listen for Backpex PubSub events by implementing the Phoenix.LiveView [`handle_info/2`](Phoenix.LiveView.html#c:handle_info/2) callback in your *LiveResource* module. You can attach this callback via an [`on_mount` hook](https://hexdocs.pm/phoenix_live_view/Phoenix.LiveView.html#on_mount/1) by setting the `on_mount` option in your LiveResource.
 
 ```elixir
 # in your resource configuration file
+use Backpex.LiveResource,
+  on_mount: __MODULE__,
+  ...
 
-@impl Phoenix.LiveView
-def handle_info({"created", item}, socket) do
-    # make something in response to the event
-    {:noreply, socket}
-end
+  def on_mount(:default, _params, _session, socket) do
+    socket = Phoenix.LiveView.attach_hook(socket, :handle_pubsub_messages, :handle_info, &handle_info/2)
+    {:cont, socket}
+  end
 
-@impl Phoenix.LiveView
-def handle_info({"updated", item}, socket) do
+  def handle_info({"created", item}, socket) do
     # make something in response to the event
-    {:noreply, socket}
-end
+    {:halt, socket}
+  end
 
-@impl Phoenix.LiveView
-def handle_info({"deleted", item}, socket) do
+  def handle_info({"updated", item}, socket) do
     # make something in response to the event
-    {:noreply, socket}
+    {:halt, socket}
+  end
+
+  def handle_info({"deleted", item}, socket) do
+    # make something in response to the event
+    {:halt, socket}
+  end
+
+  ...
 end
 ```

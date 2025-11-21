@@ -52,8 +52,8 @@ defmodule DemoWeb.Live.CategoryLiveTest do
       conn
       |> visit(~p"/admin/categories/#{category.id}/show")
       |> assert_has("h1", text: "Category", exact: true)
-      |> assert_has("p", text: "Name", exact: true)
-      |> assert_has("p", text: category.name, exact: true)
+      |> assert_has("dt", text: "Name", exact: true)
+      |> assert_has("dd", text: category.name, exact: true)
     end
   end
 

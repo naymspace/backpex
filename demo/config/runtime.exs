@@ -2,10 +2,6 @@ import Config
 import System, only: [get_env: 1, get_env: 2, fetch_env!: 1]
 import String, only: [to_integer: 1, to_atom: 1, to_existing_atom: 1]
 
-config :demo,
-  dns_cluster_query: get_env("DNS_CLUSTER_QUERY"),
-  analytics: get_env("ANALYTICS", "false") |> to_existing_atom()
-
 config :demo, Demo.Repo,
   hostname: get_env("DB_HOSTNAME", "postgres"),
   username: get_env("DB_USERNAME", "postgres"),
@@ -13,6 +9,11 @@ config :demo, Demo.Repo,
   database: get_env("DB_DATABASE", "postgres"),
   port: get_env("DB_PORT", "5432") |> to_integer(),
   pool_size: get_env("DB_POOL_SIZE", "5") |> to_integer()
+
+config :demo, DemoWeb.DashboardAuthPlug,
+  enabled: get_env("DASHBOARD_AUTH_ENABLED", "false") |> to_existing_atom(),
+  username: get_env("DASHBOARD_AUTH_USERNAME", "backpex"),
+  password: get_env("DASHBOARD_AUTH_PASSWORD", "backpex")
 
 config :demo, DemoWeb.Endpoint,
   http: [
@@ -28,10 +29,9 @@ config :demo, DemoWeb.Endpoint,
     signing_salt: fetch_env!("LIVE_VIEW_SIGNING_SALT")
   ]
 
-config :demo, DemoWeb.DashboardAuthPlug,
-  enabled: get_env("DASHBOARD_AUTH_ENABLED", "false") |> to_existing_atom(),
-  username: get_env("DASHBOARD_AUTH_USERNAME", "backpex"),
-  password: get_env("DASHBOARD_AUTH_PASSWORD", "backpex")
+config :demo,
+  dns_cluster_query: get_env("DNS_CLUSTER_QUERY"),
+  analytics: get_env("ANALYTICS", "false") |> to_existing_atom()
 
 config :logger, level: get_env("LOGGER_LEVEL", "debug") |> to_atom()
 

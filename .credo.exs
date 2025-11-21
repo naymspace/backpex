@@ -12,6 +12,10 @@ overwrite_checks = [
   {Credo.Check.Warning.LazyLogging, false}
 ]
 
+other_checks = [
+  {PhoenixTest.Credo.NoOpenBrowser, []}
+]
+
 all_checks =
   Code.eval_file("deps/credo/.credo.exs")
   |> get_in([Access.elem(0), :configs, Access.at(0), :checks])
@@ -19,8 +23,9 @@ all_checks =
 
 project_checks =
   Enum.reduce(overwrite_checks, all_checks, fn {check, config}, acc ->
-    Keyword.replace(acc, check, config)
+    Keyword.replace!(acc, check, config)
   end)
+  |> Enum.concat(other_checks)
 
 %{
   configs: [
@@ -35,7 +40,7 @@ project_checks =
         excluded: [~r"/_build/", ~r"/deps/", ~r"/node_modules/"]
       },
       plugins: [],
-      requires: [],
+      requires: ["./deps/phoenix_test/lib/phoenix_test/credo/**/*.ex"],
       strict: true,
       parse_timeout: 5000,
       color: true,

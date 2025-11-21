@@ -129,24 +129,29 @@ defmodule Backpex.Fields.InlineCRUD do
     <div>
       <Layout.field_container>
         <:label align={Backpex.Field.align_label(@field_options, assigns, :top)}>
-          <Layout.input_label text={@field_options[:label]} />
+          <Layout.input_label id={"inline-crud-label-#{@name}"} as="span" text={@field_options[:label]} />
         </:label>
 
         <div class="flex flex-col">
           <.inputs_for :let={f_nested} field={@form[@name]}>
-            <input type="hidden" name={"change[#{@name}_order][]"} value={f_nested.index} />
+            <input type="hidden" name={"change[#{@name}_order][]"} value={f_nested.index} tabindex="-1" aria-hidden="true" />
 
             <div class="mb-3 flex items-start gap-x-4">
               <div
                 :for={{child_field_name, child_field_options} <- @child_fields}
                 class={child_field_class(child_field_options, assigns)}
               >
-                <p :if={f_nested.index == 0} class="mb-1 text-xs">
+                <span
+                  :if={f_nested.index == 0}
+                  id={"inline-crud-header-label-#{@name}-#{child_field_name}"}
+                  class="mb-1 text-xs"
+                >
                   {child_field_options.label}
-                </p>
+                </span>
                 <BackpexForm.input
                   type={input_type(child_field_options) |> Atom.to_string()}
                   field={f_nested[child_field_name]}
+                  aria-labelledby={"inline-crud-header-label-#{@name}-#{child_field_name} inline-crud-label-#{@name}"}
                   translate_error_fun={Backpex.Field.translate_error_fun(child_field_options, assigns)}
                   phx-debounce={Backpex.Field.debounce(child_field_options, assigns)}
                   phx-throttle={Backpex.Field.throttle(child_field_options, assigns)}
@@ -163,15 +168,16 @@ defmodule Backpex.Fields.InlineCRUD do
                     class="hidden"
                   />
 
-                  <div class="btn btn-outline btn-error" aria-label={Backpex.__("Delete", @live_resource)}>
-                    <Backpex.HTML.CoreComponents.icon name="hero-trash" class="h-5 w-5" />
+                  <div class="btn btn-outline btn-error">
+                    <span class="sr-only">{Backpex.__("Delete", @live_resource)}</span>
+                    <Backpex.HTML.CoreComponents.icon name="hero-trash" class="size-5" />
                   </div>
                 </label>
               </div>
             </div>
           </.inputs_for>
 
-          <input type="hidden" name={"change[#{@name}_delete][]"} />
+          <input type="hidden" name={"change[#{@name}_delete][]"} tabindex="-1" aria-hidden="true" />
         </div>
         <input
           name={"change[#{@name}_order][]"}

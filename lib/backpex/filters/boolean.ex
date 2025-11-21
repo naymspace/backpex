@@ -104,7 +104,7 @@ defmodule Backpex.Filters.Boolean do
 
     ~H"""
     <div class="mt-2 flex flex-col space-y-2">
-      <input type="hidden" name={@form[@field].name} value="" />
+      <input type="hidden" name={@form[@field].name} value="" tabindex="-1" aria-hidden="true" />
       <%= for {label, v} <- @options do %>
         <label class="flex cursor-pointer items-center gap-x-2">
           <input
@@ -152,7 +152,7 @@ defmodule Backpex.Filters.Boolean do
   end
 
   def predicates(options) do
-    Enum.map(options, fn %{predicate: p, key: k} -> {k, p} end)
-    |> Enum.into(%{})
+    options
+    |> Map.new(fn %{predicate: p, key: k} -> {k, p} end)
   end
 end

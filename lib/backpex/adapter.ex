@@ -27,41 +27,51 @@ defmodule Backpex.Adapter do
 
   Should return `nil` if no result was found.
   """
-  @callback get(term(), map(), module()) :: {:ok, struct() | nil} | {:error, term()}
+  @callback get(primary_value :: term(), fields :: list(), assigns :: map(), live_resource :: module()) ::
+              {:ok, struct() | nil} | {:error, term()}
 
   @doc """
   Returns a list of items by given criteria.
   """
-  @callback list(keyword(), map(), module()) :: {:ok, list()}
+  @callback list(criteria :: keyword(), fields :: list(), assigns :: map(), live_resource :: module()) :: {:ok, list()}
 
   @doc """
   Gets the total count of the current live_resource.
   Possibly being constrained the item query and the search- and filter options.
   """
-  @callback count(keyword(), map(), module()) :: {:ok, non_neg_integer()}
+  @callback count(criteria :: keyword(), fields :: list(), assigns :: map(), live_resource :: module()) ::
+              {:ok, non_neg_integer()}
 
   @doc """
   Inserts given item.
   """
-  @callback insert(struct(), module()) :: {:ok, struct()} | {:error, term()}
+  @callback insert(item :: struct(), live_resource :: module()) :: {:ok, struct()} | {:error, term()}
 
   @doc """
   Updates given item.
   """
-  @callback update(struct(), module()) :: {:ok, struct()} | {:error, term()}
+  @callback update(item :: struct(), live_resource :: module()) :: {:ok, struct()} | {:error, term()}
 
   @doc """
   Updates given items.
   """
-  @callback update_all(list(struct()), keyword(), module()) :: {:ok, non_neg_integer()}
+  @callback update_all(items :: list(struct()), updates :: keyword(), live_resource :: module()) ::
+              {:ok, non_neg_integer()}
 
   @doc """
   Applies a change to a given item.
   """
-  @callback change(struct(), map(), term(), list(), module(), keyword()) :: Ecto.Changeset.t()
+  @callback change(
+              item :: struct(),
+              attrs :: map(),
+              fields :: term(),
+              assigns :: list(),
+              live_resource :: module(),
+              opts :: keyword()
+            ) :: Ecto.Changeset.t()
 
   @doc """
   Deletes multiple items.
   """
-  @callback delete_all(list(struct()), module()) :: {:ok, term()} | {:error, term()}
+  @callback delete_all(items :: list(struct()), live_resource :: module()) :: {:ok, term()} | {:error, term()}
 end
