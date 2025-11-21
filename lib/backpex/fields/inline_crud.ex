@@ -7,8 +7,12 @@ defmodule Backpex.Fields.InlineCRUD do
     ],
     child_fields: [
       doc: """
-      A list of child input fields. All field types except `Backpex.Fields.HasManyThrough`, `Backpex.Fields.InlineCRUD`
-      and `Backpex.Fields.Upload` are supported.
+      A list of child input fields.
+
+      The following fields are **not** supported:
+      - `Backpex.Fields.HasManyThrough`
+      - `Backpex.Fields.InlineCRUD`
+      - `Backpex.Fields.Upload`
 
       You can add additional classes to child field inputs by setting the class option in the list of `child_fields`.
       The class can be a string or a function that takes the assigns and must return a string.
