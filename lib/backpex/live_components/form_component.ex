@@ -355,7 +355,6 @@ defmodule Backpex.FormComponent do
       assigns:
         %{
           live_resource: live_resource,
-          fields: fields,
           selected_items: selected_items,
           action_to_confirm: action_to_confirm,
           fields: fields,
