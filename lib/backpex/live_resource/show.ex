@@ -38,8 +38,7 @@ defmodule Backpex.LiveResource.Show do
   end
 
   def handle_event("item-action", %{"action-key" => key}, socket) do
-    socket
-    |> maybe_handle_item_action(key)
+    maybe_handle_item_action(socket, key)
   end
 
   def handle_event("cancel-action-confirm", _params, socket) do
