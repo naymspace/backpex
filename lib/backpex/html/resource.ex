@@ -938,10 +938,6 @@ defmodule Backpex.HTML.Resource do
 
   @doc """
   Filters item actions based on visibility type.
-
-  ## Examples
-      iex> filter_item_actions(item_actions, :row)
-      [edit: %{...}, delete: %{...}]
   """
   def filter_item_actions(item_actions, type) when type in [:index, :row, :show] do
     Enum.filter(item_actions, fn {_key, action} ->
