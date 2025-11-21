@@ -382,7 +382,7 @@ defmodule Backpex.FormComponent do
       |> assign(:show_form_errors, false)
       |> assign(:selected_items, [])
       |> assign(:select_all, false)
-      |> push_patch(to: return_to)
+      |> push_navigate(to: return_to)
       |> noreply()
     else
       {:error, changeset} ->

@@ -948,6 +948,12 @@ defmodule Backpex.HTML.Resource do
     end)
   end
 
+  def show_item_actions(item_actions) do
+    Enum.filter(item_actions, fn {_key, action} ->
+      action_on_show?(action)
+    end)
+  end
+
   defp action_disabled?(assigns, action_key, items) do
     Enum.filter(items, fn item ->
       assigns.live_resource.can?(assigns, action_key, item)
@@ -962,6 +968,10 @@ defmodule Backpex.HTML.Resource do
   defp action_on_index?(%{only: only}), do: :index in only
   defp action_on_index?(%{except: except}), do: :index not in except
   defp action_on_index?(_action), do: true
+
+  defp action_on_show?(%{only: only}), do: :show in only
+  defp action_on_show?(%{except: except}), do: :show not in except
+  defp action_on_show?(_action), do: true
 
   @doc """
   Renders an info block to indicate that no items are found.
