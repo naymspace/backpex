@@ -11,7 +11,7 @@ defmodule Demo.Address do
     field :street, :string
     field :zip, :string
     field :city, :string
-    field :country, Ecto.Enum, values: [:de, :at, :ch]
+    field :country, Ecto.Enum, values: [:de, :at, :ch, :us, :ca]
     field :full_address, :string, virtual: true
 
     timestamps()

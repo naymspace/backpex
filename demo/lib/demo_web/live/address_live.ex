@@ -36,7 +36,10 @@ defmodule DemoWeb.AddressLive do
       country: %{
         module: Backpex.Fields.Select,
         label: "Country",
-        options: [Germany: "de", Austria: "at", Switzerland: "ch"]
+        options: %{
+          "Europe" => [Germany: "de", Austria: "at", Switzerland: "ch"],
+          "North America" => [USA: "us", Canada: "ca"]
+        }
       }
     ]
   end
