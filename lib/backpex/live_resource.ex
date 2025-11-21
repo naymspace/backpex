@@ -409,7 +409,7 @@ defmodule Backpex.LiveResource do
         ~H"""
         <.main_title class="flex items-center justify-between">
           {@page_title}
-          <div class={["flex items-center justify-end space-x-2"]}>
+          <div class="flex items-center justify-end space-x-2">
             <button
               :for={{key, action} <- item_actions_for(:show, @item_actions)}
               :if={@live_resource.can?(assigns, key, @item)}
