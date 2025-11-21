@@ -24,8 +24,8 @@ defmodule Backpex.HTML.ItemAction do
       id="action-confirm-modal"
       title={@action_to_confirm.module.label(assigns, nil)}
       on_cancel={JS.push("cancel-action-confirm")}
-      open={true}
       close_label={Backpex.__("Close modal", @live_resource)}
+      open
     >
       <div class="px-5 py-3">
         {@action_to_confirm.module.confirm(assigns)}
