@@ -304,7 +304,6 @@ defmodule Backpex.FormComponent do
       assigns:
         %{
           live_resource: live_resource,
-          fields: fields,
           resource_action: resource_action,
           form_item: item,
           return_to: return_to,
