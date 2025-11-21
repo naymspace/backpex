@@ -170,7 +170,7 @@ defmodule Backpex.FormComponent do
 
   def handle_event("save", %{"action-key" => key, "change" => change}, %{assigns: %{action_type: :item}} = socket) do
     key = String.to_existing_atom(key)
-    handle_item_action(socket, key, change)
+    handle_form_item_action(socket, key, change)
   end
 
   def handle_event("save", %{"change" => change, "save-type" => save_type}, socket) do
@@ -187,7 +187,7 @@ defmodule Backpex.FormComponent do
 
   def handle_event("save", %{"action-key" => key}, socket) do
     key = String.to_existing_atom(key)
-    handle_item_action(socket, key, %{})
+    handle_form_item_action(socket, key, %{})
   end
 
   def handle_event("save", _params, socket) do
@@ -345,7 +345,7 @@ defmodule Backpex.FormComponent do
     end
   end
 
-  defp handle_item_action(socket, action_key, params) do
+  defp handle_form_item_action(socket, action_key, params) do
     %{
       assigns:
         %{
