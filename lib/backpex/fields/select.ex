@@ -81,7 +81,7 @@ defmodule Backpex.Fields.Select do
           help_text={Backpex.Field.help_text(@field_options, assigns)}
           phx-debounce={Backpex.Field.debounce(@field_options, assigns)}
           phx-throttle={Backpex.Field.throttle(@field_options, assigns)}
-          aria-labelledby={Map.get(assigns, :"aria-labelledby")}
+          aria-labelledby={Map.get(assigns, :aria_labelledby)}
         />
       </Layout.field_container>
     </div>

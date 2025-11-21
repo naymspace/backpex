@@ -151,7 +151,7 @@ defmodule Backpex.Fields.HasMany do
               @errors == [] && "bg-transparent",
               @errors != [] && "input-error bg-error/10"
             ]}
-            aria-labelledby={Map.get(assigns, :"aria-labelledby")}
+            aria_labelledby={Map.get(assigns, :aria_labelledby)}
           >
             <div class="flex h-full w-full flex-wrap items-center gap-1 px-2">
               <p :if={@selected == []} class="p-0.5 text-sm">{@prompt}</p>

@@ -107,7 +107,7 @@ defmodule Backpex.Fields.Currency do
           unit={@field_options[:unit]}
           unit_position={@field_options[:unit_position]}
           symbol_space={@field_options[:symbol_space]}
-          aria-labelledby={Map.get(assigns, :"aria-labelledby")}
+          aria-labelledby={Map.get(assigns, :aria_labelledby)}
         />
       </Layout.field_container>
     </div>

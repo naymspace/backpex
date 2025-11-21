@@ -35,7 +35,7 @@ defmodule Backpex.HTML.Form do
   attr :multiple, :boolean, default: false, doc: "the multiple flag for select inputs"
 
   attr :rest, :global, include: ~w(accept autocomplete capture cols disabled form list max maxlength min minlength
-                multiple pattern placeholder readonly required rows size step)
+                multiple pattern placeholder readonly required rows size step aria-*)
 
   attr :class, :any, default: nil, doc: "additional classes for the container element"
   attr :input_class, :any, default: nil, doc: "the input class to use over defaults"
@@ -300,7 +300,7 @@ defmodule Backpex.HTML.Form do
   attr :hide_search, :boolean, default: false, doc: "if search should be hidden"
   attr :hide_errors, :boolean, default: false, doc: "if errors should be hidden"
   attr :live_resource, :atom, default: nil, doc: "the live resource module"
-  attr :"aria-labelledby", :string, doc: "accessible labelledby for screen readers"
+  attr :aria_labelledby, :string, doc: "accessible labelledby for screen readers added to the trigger element"
 
   def multi_select(assigns) do
     errors = if Phoenix.Component.used_input?(assigns.field), do: assigns.field.errors, else: []
@@ -312,12 +312,12 @@ defmodule Backpex.HTML.Form do
       <.dropdown id={"multi-select-#{@field.id}"} class="w-full">
         <:trigger
           aria_label={@prompt}
+          aria_labelledby={Map.get(assigns, :aria_labelledby)}
           class={[
             "input block h-fit w-full p-2",
             @errors == [] && "bg-transparent",
             @errors != [] && "input-error bg-error/10"
           ]}
-          aria-labelledby={Map.get(assigns, :"aria-labelledby")}
         >
           <div class="flex h-full w-full flex-wrap items-center gap-1 px-2">
             <p :if={@selected == []} class="p-0.5 text-sm">{@prompt}</p>
