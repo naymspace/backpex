@@ -42,7 +42,6 @@ defmodule Demo.MixProject do
       {:tailwind_formatter, "~> 0.4.0", only: [:dev, :test], runtime: false},
       {:lazy_html, "~> 0.1.3", only: :test},
       {:ex_machina, "~> 2.3"},
-      {:smokestack, "~> 0.9.2"},
       {:faker, "~> 0.18"},
       {:phoenix_test, "~> 0.9.0", only: :test, runtime: false},
       {:phoenix_test_playwright, "~> 0.9.0", only: :test, runtime: false},
@@ -78,8 +77,6 @@ defmodule Demo.MixProject do
       {:ecto_psql_extras, "~> 0.8"},
       {:csv, "~> 3.2.0"},
       {:jason, ">= 1.0.0"},
-      {:ash, "~> 3.0"},
-      {:ash_postgres, "~> 2.6.0"},
       {:money, "~> 1.14"},
 
       # assets

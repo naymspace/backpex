@@ -65,8 +65,6 @@ defmodule Backpex.MixProject do
       {:ecto_sql, "~> 3.6"},
       {:postgrex, ">= 0.0.0"},
       {:phoenix_ecto, "~> 4.4"},
-      {:ash, "~> 3.0", optional: true},
-      {:ash_postgres, "~> 2.0", optional: true},
 
       # generators
       {:igniter, "~> 0.6", optional: true},

@@ -42,7 +42,7 @@ The root directory contains the Backpex library itself, which is published as a 
 
 ```
 lib/backpex/
-├── adapters/          # Data layer adapters (Ecto, Ash)
+├── adapters/          # Data layer adapters (Ecto)
 ├── controllers/       # Phoenix controllers (cookie management)
 ├── fields/            # Built-in field types (Text, Number, Date, BelongsTo, HasMany, etc.)
 ├── filters/           # Built-in filter types (Boolean, Select, Range, etc.)
@@ -72,7 +72,7 @@ assets/js/             # JavaScript for LiveView hooks
 
 The library provides:
 - **Core abstractions**: `LiveResource`, `Field`, `Filter`, `ItemAction`, `ResourceAction`, `Metric`
-- **Adapter system**: Pluggable data layer support (Ecto, Ash)
+- **Adapter system**: Pluggable data layer support (Ecto by default, Ash via community project [ash_backpex](https://github.com/enoonan/ash_backpex))
 - **UI components**: Reusable Phoenix Components for rendering admin interfaces
 - **Routing helpers**: Macros for defining RESTful LiveView routes
 
