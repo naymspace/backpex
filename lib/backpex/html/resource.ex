@@ -175,7 +175,13 @@ defmodule Backpex.HTML.Resource do
       |> assign(:field, field)
       |> assign(:field_options, field_options)
       |> assign(:type, :form)
-      |> assign(:readonly, Backpex.Field.readonly?(field_options, assigns))
+
+    assigns =
+      if assigns[:readonly] == true do
+        assigns
+      else
+        assign(assigns, :readonly, Backpex.Field.readonly?(field_options, assigns))
+      end
 
     ~H"""
     <.live_component

@@ -47,6 +47,13 @@ defmodule Backpex.HTML.Form do
   slot :inner_block
 
   def input(%{field: %Phoenix.HTML.FormField{} = field} = assigns) do
+    assigns =
+      if Map.has_key?(assigns.rest, :disabled) do
+        assigns
+      else
+        put_in(assigns, [:rest, :disabled], Map.get(assigns.rest, :readonly) || false)
+      end
+
     assigns
     |> prepare_field_assigns(field, assigns.translate_error_fun)
     |> assign_new(:name, fn -> if assigns.multiple, do: field.name <> "[]", else: field.name end)
@@ -205,6 +212,13 @@ defmodule Backpex.HTML.Form do
               multiple pattern placeholder readonly required rows size step)
 
   def currency_input(%{field: %Phoenix.HTML.FormField{} = field} = assigns) do
+    assigns =
+      if Map.has_key?(assigns.rest, :disabled) do
+        assigns
+      else
+        put_in(assigns, [:rest, :disabled], Map.get(assigns.rest, :readonly) || false)
+      end
+
     assigns
     |> prepare_field_assigns(field, assigns.translate_error_fun)
     |> assign_new(:name, fn -> field.name end)
@@ -286,6 +300,7 @@ defmodule Backpex.HTML.Form do
   @doc type: :component
 
   attr :prompt, :string, required: true, doc: "string that will be shown when no option is selected"
+  attr :readonly, :boolean, default: false
   attr :help_text, :string, default: nil, doc: "help text to be displayed below input"
   attr :not_found_text, :string, required: true, doc: "string that will be shown when there are no options"
   attr :options, :list, required: true, doc: "a list of options for the select"
@@ -309,7 +324,7 @@ defmodule Backpex.HTML.Form do
 
     ~H"""
     <div>
-      <.dropdown id={"multi-select-#{@field.id}"} class="w-full">
+      <.dropdown id={"multi-select-#{@field.id}"} class="w-full" readonly={@readonly}>
         <:trigger
           aria_label={@prompt}
           aria_labelledby={Map.get(assigns, :aria_labelledby)}
@@ -320,13 +335,14 @@ defmodule Backpex.HTML.Form do
           ]}
         >
           <div class="flex h-full w-full flex-wrap items-center gap-1 px-2">
-            <p :if={@selected == []} class="p-0.5 text-sm">{@prompt}</p>
+            <p :if={@selected == []} class={["p-0.5 text-sm", @readonly && "text-base-content/40"]}>{@prompt}</p>
             <.multi_select_badge
               :for={{label, value} <- @selected}
               live_resource={@live_resource}
               label={label}
               value={value}
               event_target={@event_target}
+              readonly={@readonly}
             />
           </div>
         </:trigger>
@@ -384,9 +400,16 @@ defmodule Backpex.HTML.Form do
   end
 
   attr :live_resource, :atom, required: true
+  attr :readonly, :boolean, default: false
   attr :label, :string, required: true
   attr :value, :any, required: true
   attr :event_target, :any, required: true
+
+  defp multi_select_badge(%{readonly: true} = assigns) do
+    ~H"""
+    <span class="badge badge-sm badge-soft">{@label}</span>
+    """
+  end
 
   defp multi_select_badge(assigns) do
     ~H"""

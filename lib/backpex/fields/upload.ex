@@ -661,22 +661,28 @@ defmodule Backpex.Fields.Upload do
         <div
           id={"#{@name}-drop-target"}
           class="w-full max-w-lg"
-          phx-hook="BackpexDragHover"
+          phx-hook={not @readonly && "BackpexDragHover"}
           phx-drop-target={if @uploads_allowed, do: @upload.ref}
         >
           <div class={[
             "rounded-field flex justify-center border-2 border-dashed px-6 pt-5 pb-6",
             @errors == [] && "border-base-content/25",
-            @errors != [] && "border-error bg-error/10"
+            @errors != [] && "border-error bg-error/10",
+            @readonly && "bg-base-200 cursor-not-allowed"
           ]}>
             <div class="flex flex-col items-center space-y-1 text-center">
               <Backpex.HTML.CoreComponents.icon name="hero-document-arrow-up" class="text-base-content/50 h-8 w-8" />
               <div class="flex text-sm">
                 <label>
-                  <a class="link link-hover link-primary font-medium">
+                  <a class={not @readonly && "link link-hover link-primary font-medium"}>
                     {Backpex.__("Upload a file", @live_resource)}
                   </a>
-                  <.live_file_input :if={@uploads_allowed} upload={@upload} phx-target="#form-component" class="hidden" />
+                  <.live_file_input
+                    :if={@uploads_allowed and not @readonly}
+                    upload={@upload}
+                    phx-target="#form-component"
+                    class="hidden"
+                  />
                 </label>
                 <input
                   type="hidden"

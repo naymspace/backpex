@@ -16,10 +16,6 @@ defmodule Backpex.Fields.Textarea do
       doc: "Number of visible text lines for the control.",
       type: :non_neg_integer,
       default: 2
-    ],
-    readonly: [
-      doc: "Sets the field to readonly. Also see the [panels](/guides/fields/readonly.md) guide.",
-      type: {:or, [:boolean, {:fun, 1}]}
     ]
   ]
 

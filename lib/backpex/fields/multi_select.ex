@@ -161,6 +161,7 @@ defmodule Backpex.Fields.MultiSelect do
         </:label>
         <Form.multi_select
           field={@form[@name]}
+          readonly={@readonly}
           prompt={@prompt}
           not_found_text={@not_found_text}
           options={@options}

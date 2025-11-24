@@ -259,7 +259,7 @@ defmodule Backpex.Fields.HasManyThrough do
                 >
                   {label}
                 </th>
-                <th>
+                <th :if={not @readonly}>
                   <span class="sr-only">{Backpex.__("Actions", @live_resource)}</span>
                 </th>
               </tr>
@@ -289,7 +289,7 @@ defmodule Backpex.Fields.HasManyThrough do
                     {assigns}
                   />
                 </td>
-                <td>
+                <td :if={not @readonly}>
                   <div class="flex items-center space-x-2">
                     <button
                       class="cursor-pointer"
@@ -360,7 +360,13 @@ defmodule Backpex.Fields.HasManyThrough do
           </div>
         </.modal>
 
-        <button type="button" class="btn btn-sm btn-outline btn-primary" phx-click="new-relational" phx-target={@myself}>
+        <button
+          disabled={@readonly}
+          type="button"
+          class="btn btn-sm btn-outline btn-primary"
+          phx-click="new-relational"
+          phx-target={@myself}
+        >
           {@relational_title}
         </button>
 

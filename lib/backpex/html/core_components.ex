@@ -38,6 +38,7 @@ defmodule Backpex.HTML.CoreComponents do
       </.dropdown>
   """
   attr :id, :string, required: true, doc: "unique identifier for the dropdown"
+  attr :readonly, :boolean, default: false
   attr :class, :any, default: nil, doc: "additional classes for the outer container element"
 
   slot :trigger, doc: "the trigger element to be used to toggle the dropdown menu" do
@@ -64,8 +65,24 @@ defmodule Backpex.HTML.CoreComponents do
         _trigger -> nil
       end)
 
+    trigger_class = (assigns.trigger && assigns.trigger[:class]) || ""
+
+    trigger_class =
+      if assigns.readonly do
+        ["cursor-not-allowed bg-base-200"] ++
+          (trigger_class
+           |> Enum.join(" ")
+           |> String.split()
+           |> List.delete("bg-transparent")
+           |> List.delete("input"))
+      else
+        trigger_class
+      end
+
+    assigns = assign(assigns, trigger_class: trigger_class)
+
     ~H"""
-    <div id={@id} class={["dropdown", @class]} {@rest}>
+    <div id={@id} class={[not @readonly && "dropdown", @class]} {@rest}>
       <div
         id={"#{@id}-trigger"}
         role="button"
@@ -73,12 +90,13 @@ defmodule Backpex.HTML.CoreComponents do
         aria-haspopup="true"
         aria-label={@trigger && @trigger[:aria_label]}
         aria-labelledby={@trigger && Map.get(@trigger, :aria_labelledby)}
-        class={@trigger && @trigger[:class]}
+        class={@trigger_class}
       >
         {render_slot(@trigger)}
       </div>
 
       <div
+        :if={not @readonly}
         id={"#{@id}-menu"}
         tabindex="-1"
         aria-labelledby={"#{@id}-trigger"}

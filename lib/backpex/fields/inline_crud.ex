@@ -187,7 +187,7 @@ defmodule Backpex.Fields.InlineCRUD do
                     class="hidden"
                   />
 
-                  <div class="btn btn-outline btn-error">
+                  <div class={["btn btn-outline btn-error", @readonly && "btn-disabled"]}>
                     <span class="sr-only">{Backpex.__("Delete", @live_resource)}</span>
                     <Backpex.HTML.CoreComponents.icon name="hero-trash" class="size-5" />
                   </div>
@@ -199,6 +199,7 @@ defmodule Backpex.Fields.InlineCRUD do
           <input type="hidden" name={"change[#{@name}_delete][]"} tabindex="-1" aria-hidden="true" />
         </div>
         <input
+          disabled={@readonly}
           name={"change[#{@name}_order][]"}
           type="checkbox"
           aria-label={Backpex.__("Add entry", @live_resource)}
