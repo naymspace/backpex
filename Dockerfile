@@ -3,9 +3,9 @@
 ########################################################################
 
 # renovate: datasource=github-tags depName=elixir packageName=elixir-lang/elixir versioning=semver
-ARG ELIXIR_VERSION=1.19.2
+ARG ELIXIR_VERSION=1.19.3
 # renovate: datasource=github-tags depName=erlang packageName=erlang/otp versioning=regex:^(?<major>\d+?)\.(?<minor>\d+?)(\.(?<patch>\d+))?$ extractVersion=^OTP-(?<version>\S+)
-ARG OTP_VERSION=28.1.1
+ARG OTP_VERSION=28.2
 # renovate: datasource=docker depName=ubuntu packageName=ubuntu versioning=ubuntu
 ARG UBUNTU_VERSION=noble-20251013
 
