@@ -8,6 +8,10 @@ defmodule Backpex.Adapter do
   > Backpex started out as `Ecto`-only and this is still deeply embedded in the core. We are working on changing this.
   > Do not rely on the current API to build new adapters, as the callbacks will still change significantly. This will be
   > an iterative process over the next few releases.
+
+  ## Community Adapters
+
+  - **Ash**: Ash support for Backpex is maintained as a separate community project: [ash_backpex](https://github.com/enoonan/ash_backpex)
   """
 
   defmacro __using__(opts) do
