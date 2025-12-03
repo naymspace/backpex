@@ -46,7 +46,7 @@ defmodule Demo.MixProject do
       {:phoenix_test, "~> 0.9.0", only: :test, runtime: false},
       {:phoenix_test_playwright, "~> 0.9.0", only: :test, runtime: false},
       {:a11y_audit, "~> 0.3.0", only: :test},
-      {:live_debugger, "~> 0.4", only: :dev},
+      {:live_debugger, "~> 0.5", only: :dev},
       {:quokka, "~> 2.9", only: [:dev, :test], runtime: false},
       {:tidewave, "~> 0.5", only: [:dev]},
 
