@@ -407,8 +407,10 @@ defmodule Backpex.LiveResource do
       @impl Backpex.LiveResource
       def render_resource_slot(var!(assigns), :show, :page_title) do
         ~H"""
-        <.main_title class="flex items-center justify-between">
-          {@page_title}
+        <div class="flex items-center justify-between">
+          <.main_title>
+            {@page_title}
+          </.main_title>
           <div class="flex items-center space-x-2">
             <button
               :for={{key, action} <- Backpex.HTML.Resource.filter_item_actions(@item_actions, :show)}
@@ -420,12 +422,12 @@ defmodule Backpex.LiveResource do
               aria-label={action.module.label(assigns, @item)}
               phx-hook="BackpexTooltip"
               data-tooltip={action.module.label(assigns, @item)}
-              class="cursor-pointer transition duration-75 hover:text-primary hover:scale-110"
+              class="cursor-pointer leading-none"
             >
               {action.module.icon(assigns, @item)}
             </button>
           </div>
-        </.main_title>
+        </div>
         """
       end
 
