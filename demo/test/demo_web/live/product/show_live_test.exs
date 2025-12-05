@@ -5,7 +5,13 @@ defmodule DemoWeb.Live.Product.ShowLiveTest do
 
   describe "products live resource show" do
     test "is rendered", %{conn: conn} do
-      product = insert(:product, %{name: "Test Product", quantity: 100, manufacturer: "https://example.com", price: Money.new(1500, :USD)})
+      product =
+        insert(:product, %{
+          name: "Test Product",
+          quantity: 100,
+          manufacturer: "https://example.com",
+          price: Money.new(1500, :USD)
+        })
 
       conn
       |> visit(~p"/admin/products/#{product.id}/show")

@@ -16,7 +16,13 @@ defmodule DemoWeb.Live.Product.EditLiveTest do
     end
 
     test "submit form", %{conn: conn} do
-      product = insert(:product, %{name: "Old Widget", quantity: 50, manufacturer: "https://example.com", price: Money.new(1000, :USD)})
+      product =
+        insert(:product, %{
+          name: "Old Widget",
+          quantity: 50,
+          manufacturer: "https://example.com",
+          price: Money.new(1000, :USD)
+        })
 
       conn
       |> visit(~p"/admin/products/#{product.id}/edit")

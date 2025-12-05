@@ -7,7 +7,13 @@ defmodule DemoWeb.Live.Product.EditItemActionLiveTest do
 
   describe "edit item action on index view" do
     test "redirects to index view", %{conn: conn} do
-      product = insert(:product, name: "Widget", quantity: 100, manufacturer: "https://example.com", price: Money.new(1000, :USD))
+      product =
+        insert(:product,
+          name: "Widget",
+          quantity: 100,
+          manufacturer: "https://example.com",
+          price: Money.new(1000, :USD)
+        )
 
       test_edit_from_index_save(
         conn,
@@ -20,7 +26,13 @@ defmodule DemoWeb.Live.Product.EditItemActionLiveTest do
     end
 
     test "redirects to index view on cancel", %{conn: conn} do
-      product = insert(:product, name: "Widget", quantity: 100, manufacturer: "https://example.com", price: Money.new(1000, :USD))
+      product =
+        insert(:product,
+          name: "Widget",
+          quantity: 100,
+          manufacturer: "https://example.com",
+          price: Money.new(1000, :USD)
+        )
 
       test_edit_from_index_cancel(
         conn,
@@ -34,7 +46,13 @@ defmodule DemoWeb.Live.Product.EditItemActionLiveTest do
 
   describe "edit item action on show view" do
     test "redirects to show view", %{conn: conn} do
-      product = insert(:product, name: "Widget", quantity: 100, manufacturer: "https://example.com", price: Money.new(1000, :USD))
+      product =
+        insert(:product,
+          name: "Widget",
+          quantity: 100,
+          manufacturer: "https://example.com",
+          price: Money.new(1000, :USD)
+        )
 
       test_edit_from_show_save(
         conn,
@@ -47,7 +65,13 @@ defmodule DemoWeb.Live.Product.EditItemActionLiveTest do
     end
 
     test "redirects to show view on cancel", %{conn: conn} do
-      product = insert(:product, name: "Widget", quantity: 100, manufacturer: "https://example.com", price: Money.new(1000, :USD))
+      product =
+        insert(:product,
+          name: "Widget",
+          quantity: 100,
+          manufacturer: "https://example.com",
+          price: Money.new(1000, :USD)
+        )
 
       test_edit_from_show_cancel(
         conn,

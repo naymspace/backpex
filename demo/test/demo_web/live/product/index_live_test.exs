@@ -19,8 +19,19 @@ defmodule DemoWeb.Live.Product.IndexLiveTest do
     end
 
     test "search for items", %{conn: conn} do
-      insert(:product, %{name: "Widget", quantity: 100, manufacturer: "https://example.com", price: Money.new(1000, :USD)})
-      insert(:product, %{name: "Gadget", quantity: 200, manufacturer: "https://example.com", price: Money.new(2000, :USD)})
+      insert(:product, %{
+        name: "Widget",
+        quantity: 100,
+        manufacturer: "https://example.com",
+        price: Money.new(1000, :USD)
+      })
+
+      insert(:product, %{
+        name: "Gadget",
+        quantity: 200,
+        manufacturer: "https://example.com",
+        price: Money.new(2000, :USD)
+      })
 
       conn
       |> visit(~p"/admin/products")
@@ -36,9 +47,26 @@ defmodule DemoWeb.Live.Product.IndexLiveTest do
     end
 
     test "filter by quantity range - both start and end", %{conn: conn} do
-      insert(:product, %{name: "Low Stock", quantity: 10, manufacturer: "https://example.com", price: Money.new(1000, :USD)})
-      insert(:product, %{name: "Medium Stock", quantity: 50, manufacturer: "https://example.com", price: Money.new(2000, :USD)})
-      insert(:product, %{name: "High Stock", quantity: 100, manufacturer: "https://example.com", price: Money.new(3000, :USD)})
+      insert(:product, %{
+        name: "Low Stock",
+        quantity: 10,
+        manufacturer: "https://example.com",
+        price: Money.new(1000, :USD)
+      })
+
+      insert(:product, %{
+        name: "Medium Stock",
+        quantity: 50,
+        manufacturer: "https://example.com",
+        price: Money.new(2000, :USD)
+      })
+
+      insert(:product, %{
+        name: "High Stock",
+        quantity: 100,
+        manufacturer: "https://example.com",
+        price: Money.new(3000, :USD)
+      })
 
       conn
       |> visit(~p"/admin/products")
@@ -55,9 +83,26 @@ defmodule DemoWeb.Live.Product.IndexLiveTest do
     end
 
     test "filter by quantity range - only start value", %{conn: conn} do
-      insert(:product, %{name: "Low Stock", quantity: 10, manufacturer: "https://example.com", price: Money.new(1000, :USD)})
-      insert(:product, %{name: "Medium Stock", quantity: 50, manufacturer: "https://example.com", price: Money.new(2000, :USD)})
-      insert(:product, %{name: "High Stock", quantity: 100, manufacturer: "https://example.com", price: Money.new(3000, :USD)})
+      insert(:product, %{
+        name: "Low Stock",
+        quantity: 10,
+        manufacturer: "https://example.com",
+        price: Money.new(1000, :USD)
+      })
+
+      insert(:product, %{
+        name: "Medium Stock",
+        quantity: 50,
+        manufacturer: "https://example.com",
+        price: Money.new(2000, :USD)
+      })
+
+      insert(:product, %{
+        name: "High Stock",
+        quantity: 100,
+        manufacturer: "https://example.com",
+        price: Money.new(3000, :USD)
+      })
 
       conn
       |> visit(~p"/admin/products")
@@ -74,9 +119,26 @@ defmodule DemoWeb.Live.Product.IndexLiveTest do
     end
 
     test "filter by quantity range - only end value", %{conn: conn} do
-      insert(:product, %{name: "Low Stock", quantity: 10, manufacturer: "https://example.com", price: Money.new(1000, :USD)})
-      insert(:product, %{name: "Medium Stock", quantity: 50, manufacturer: "https://example.com", price: Money.new(2000, :USD)})
-      insert(:product, %{name: "High Stock", quantity: 100, manufacturer: "https://example.com", price: Money.new(3000, :USD)})
+      insert(:product, %{
+        name: "Low Stock",
+        quantity: 10,
+        manufacturer: "https://example.com",
+        price: Money.new(1000, :USD)
+      })
+
+      insert(:product, %{
+        name: "Medium Stock",
+        quantity: 50,
+        manufacturer: "https://example.com",
+        price: Money.new(2000, :USD)
+      })
+
+      insert(:product, %{
+        name: "High Stock",
+        quantity: 100,
+        manufacturer: "https://example.com",
+        price: Money.new(3000, :USD)
+      })
 
       conn
       |> visit(~p"/admin/products")
@@ -93,8 +155,19 @@ defmodule DemoWeb.Live.Product.IndexLiveTest do
     end
 
     test "clear filter resets results", %{conn: conn} do
-      insert(:product, %{name: "Low Stock", quantity: 10, manufacturer: "https://example.com", price: Money.new(1000, :USD)})
-      insert(:product, %{name: "High Stock", quantity: 100, manufacturer: "https://example.com", price: Money.new(2000, :USD)})
+      insert(:product, %{
+        name: "Low Stock",
+        quantity: 10,
+        manufacturer: "https://example.com",
+        price: Money.new(1000, :USD)
+      })
+
+      insert(:product, %{
+        name: "High Stock",
+        quantity: 100,
+        manufacturer: "https://example.com",
+        price: Money.new(2000, :USD)
+      })
 
       conn
       |> visit(~p"/admin/products")
