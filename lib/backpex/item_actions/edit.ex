@@ -22,7 +22,13 @@ defmodule Backpex.ItemActions.Edit do
 
   @impl Backpex.ItemAction
   def handle(socket, [item | _items], _data) do
-    path = Router.get_path(socket, socket.assigns.live_resource, socket.assigns.params, :edit, item)
+    query_params =
+      case Map.get(socket.assigns, :return_to) do
+        nil -> %{}
+        return_to -> %{return_to: return_to}
+      end
+
+    path = Router.get_path(socket, socket.assigns.live_resource, socket.assigns.params, :edit, item, query_params)
 
     {:ok, Phoenix.LiveView.push_navigate(socket, to: path)}
   end
