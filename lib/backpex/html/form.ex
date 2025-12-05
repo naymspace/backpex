@@ -23,7 +23,7 @@ defmodule Backpex.HTML.Form do
 
   attr :type, :string,
     default: "text",
-    values: ~w(checkbox color date datetime-local email file hidden month number password
+    values: ~w(checkbox checkgroup color date datetime-local email file hidden month number password
                range radio search select tel text textarea time toggle url week)
 
   attr :field, Phoenix.HTML.FormField, doc: "a form field struct retrieved from the form, for example: @form[:email]"
@@ -136,6 +136,31 @@ defmodule Backpex.HTML.Form do
           {@rest}
         >{Phoenix.HTML.Form.normalize_value("textarea", @value)}</textarea>
       </label>
+      <.error :for={msg <- @errors} :if={not @hide_errors}>{msg}</.error>
+      <.help_text :if={@help_text}>{@help_text}</.help_text>
+    </div>
+    """
+  end
+
+  def input(%{type: "checkgroup"} = assigns) do
+    ~H"""
+    <div class={["fieldset py-0", @class]}>
+      <span :if={@label} class="label mb-1">{@label}</span>
+      <div class="space-y-2">
+        <input type="hidden" name={@name} value="" tabindex="-1" aria-hidden="true" />
+        <label :for={{label, value} <- @options} for={"#{@id}-#{value}"} class="flex cursor-pointer items-center space-x-2">
+          <input
+            type="checkbox"
+            id={"#{@id}-#{value}"}
+            name={@name <> "[]"}
+            value={value}
+            checked={value in List.wrap(@value)}
+            class={["checkbox checkbox-sm checkbox-primary", @errors != [] && "checkbox-error"]}
+            {@rest}
+          />
+          <span class="text-sm">{label}</span>
+        </label>
+      </div>
       <.error :for={msg <- @errors} :if={not @hide_errors}>{msg}</.error>
       <.help_text :if={@help_text}>{@help_text}</.help_text>
     </div>
