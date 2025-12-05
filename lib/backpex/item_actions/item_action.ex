@@ -242,7 +242,7 @@ defmodule Backpex.ItemAction do
       changeset = changeset_function.(base_schema, %{}, metadata)
 
       socket
-      |> assign(:item, base_schema)
+      |> assign(:action_item, base_schema)
       |> assign(:changeset, changeset)
     else
       assign(socket, :changeset, %{})

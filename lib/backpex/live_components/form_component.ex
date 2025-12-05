@@ -77,7 +77,7 @@ defmodule Backpex.FormComponent do
   end
 
   def handle_event("validate", %{"change" => change, "_target" => target}, %{assigns: %{action_type: :item}} = socket) do
-    %{assigns: %{item: item, fields: fields} = assigns} = socket
+    %{assigns: %{action_item: action_item, fields: fields} = assigns} = socket
 
     changeset_function = fn item, changes, metadata ->
       assigns.action_to_confirm.module.changeset(item, changes, metadata)
@@ -93,7 +93,7 @@ defmodule Backpex.FormComponent do
     metadata = Resource.build_changeset_metadata(socket.assigns, target)
 
     changeset =
-      item
+      action_item
       |> changeset_function.(change, metadata)
       |> Map.put(:action, :validate)
 
@@ -367,7 +367,7 @@ defmodule Backpex.FormComponent do
 
         metadata = Resource.build_changeset_metadata(assigns)
 
-        assigns.item
+        assigns.action_item
         |> changeset_function.(params, metadata)
         |> Map.put(:action, :insert)
         |> Ecto.Changeset.apply_action(:insert)
