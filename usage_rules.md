@@ -62,7 +62,7 @@ usage rules to understand the correct patterns, conventions, and best practices.
 ## Mix guidelines
 
 - Read the docs and options before using tasks (by using `mix help task_name`)
-- To debug test failures, run tests in a specific file with `mix test test/my_test.exs` or run all previously failed tests with `mix test --failed`
+- To debug test failures, run tests in a specific file with `docker compose exec -T app yarn test test/my_test.exs` or run all previously failed tests with `docker compose exec -T app yarn test --failed`
 - `mix deps.clean --all` is **almost never needed**. **Avoid** using it unless you have good reason
 
 <!-- phoenix:elixir-end -->
@@ -398,9 +398,9 @@ mix usage_rules.search_docs "Enum.zip" --query-by title
 - Read the docs and options fully before using tasks
 
 ## Testing
-- Run tests in a specific file with `mix test test/my_test.exs` and a specific test with the line number `mix test path/to/test.exs:123`
-- Limit the number of failed tests with `mix test --max-failures n`
-- Use `@tag` to tag specific tests, and `mix test --only tag` to run only those tests
+- Run tests in a specific file with `docker compose exec -T app yarn test test/my_test.exs` and a specific test with the line number `docker compose exec -T app yarn test path/to/test.exs:123`
+- Limit the number of failed tests with `docker compose exec -T app yarn test --max-failures n`
+- Use `@tag` to tag specific tests, and `docker compose exec -T app yarn test --only tag` to run only those tests
 - Use `assert_raise` for testing expected exceptions: `assert_raise ArgumentError, fn -> invalid_function() end`
 - Use `mix help test` to for full documentation on running tests
 
