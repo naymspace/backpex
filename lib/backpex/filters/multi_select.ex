@@ -100,12 +100,12 @@ defmodule Backpex.Filters.MultiSelect do
 
     ~H"""
     <.dropdown id={"multi-select-#{@form.id}"} class="mt-2 w-full">
-      <:trigger class="select select-sm">
+      <:trigger aria_label={@trigger_text} class="select select-sm">
         {@trigger_text}
       </:trigger>
       <:menu class="min-w-60 w-max max-h-96 overflow-y-auto">
         <div class="space-y-2 p-2">
-          <input type="hidden" name={@form[@field].name} value="" />
+          <input type="hidden" name={@form[@field].name} value="" tabindex="-1" aria-hidden="true" />
           <label :for={{label, v} <- @options} class="flex cursor-pointer items-center gap-x-2">
             <input
               type="checkbox"

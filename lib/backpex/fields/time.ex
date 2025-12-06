@@ -87,6 +87,7 @@ defmodule Backpex.Fields.Time do
           phx-throttle={Backpex.Field.throttle(@field_options, assigns)}
           readonly={@readonly}
           disabled={@readonly}
+          aria-labelledby={Map.get(assigns, :aria_labelledby)}
         />
       </Layout.field_container>
     </div>
@@ -113,6 +114,7 @@ defmodule Backpex.Fields.Time do
           phx-debounce="100"
           readonly={@readonly}
           hide_errors
+          aria-label={@field_options[:label]}
         />
       </.form>
     </div>

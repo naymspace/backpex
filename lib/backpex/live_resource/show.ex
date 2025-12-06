@@ -6,18 +6,12 @@ defmodule Backpex.LiveResource.Show do
 
   alias Backpex.Resource
   alias Backpex.Router
-  alias Phoenix.LiveView
 
   require Backpex
 
   def mount(params, _session, socket, live_resource) do
-    if LiveView.connected?(socket) do
-      [server: server, topic: topic] = live_resource.pubsub()
-
-      Phoenix.PubSub.subscribe(server, topic)
-    end
-
     socket
+    |> Backpex.LiveResource.maybe_subscribe_to_pubsub(live_resource)
     |> assign(:live_resource, live_resource)
     |> assign(:panels, live_resource.panels())
     |> assign(:fluid?, live_resource.config(:fluid?))

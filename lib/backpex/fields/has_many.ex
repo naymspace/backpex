@@ -140,16 +140,19 @@ defmodule Backpex.Fields.HasMany do
     ~H"""
     <div id={"has-many-#{@name}"}>
       <Layout.field_container>
-        <:label align={Backpex.Field.align_label(@field_options, assigns)}>
+        <:label :if={not @hide_label} align={Backpex.Field.align_label(@field_options, assigns)}>
           <Layout.input_label as="span" text={@field_options[:label]} />
         </:label>
 
         <Backpex.HTML.CoreComponents.dropdown id={"has-many-dropdown-#{@name}"} class="w-full">
-          <:trigger class={[
-            "input block h-fit w-full p-2",
-            @errors == [] && "bg-transparent",
-            @errors != [] && "input-error bg-error/10"
-          ]}>
+          <:trigger
+            class={[
+              "input block h-fit w-full p-2",
+              @errors == [] && "bg-transparent",
+              @errors != [] && "input-error bg-error/10"
+            ]}
+            aria_labelledby={Map.get(assigns, :aria_labelledby)}
+          >
             <div class="flex h-full w-full flex-wrap items-center gap-1 px-2">
               <p :if={@selected == []} class="p-0.5 text-sm">{@prompt}</p>
               <.badge
@@ -186,7 +189,7 @@ defmodule Backpex.Fields.HasMany do
               />
 
               <%!-- Hidden input to make sure the change is always present, even if no options are selected --%>
-              <input class="hidden" name={"#{@form[@name].name}[]"} value="" />
+              <input class="hidden" name={"#{@form[@name].name}[]"} value="" tabindex="-1" aria-hidden="true" />
 
               <%!-- Hidden Options --%>
               <.hidden_option
@@ -263,6 +266,8 @@ defmodule Backpex.Fields.HasMany do
       name={"#{@form[@name].name}[]"}
       class="hidden"
       checked
+      tabindex="-1"
+      aria-hidden="true"
     />
     """
   end
@@ -288,7 +293,7 @@ defmodule Backpex.Fields.HasMany do
 
     ~H"""
     <label class={@class}>
-      <input type="checkbox" class="hidden" name={@hidden_input_name} value="" />
+      <input type="checkbox" class="hidden" name={@hidden_input_name} value="" tabindex="-1" aria-hidden="true" />
       <div role="button" class="text-primary cursor-pointer text-sm underline">
         {@button_text}
       </div>
@@ -307,7 +312,6 @@ defmodule Backpex.Fields.HasMany do
       <span>{@label}</span>
       <label
         class="flex cursor-pointer items-center pr-2"
-        role="button"
         for={"has-many-#{@name}-checkbox-value-#{@value}"}
         aria-label={Backpex.__({"Unselect %{label}", %{label: @label}}, @live_resource)}
       >
