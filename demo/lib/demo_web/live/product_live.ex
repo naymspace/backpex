@@ -99,7 +99,6 @@ defmodule DemoWeb.ProductLive do
                 goes_well_with: %{
                   module: Backpex.Fields.Textarea,
                   label: "Goes well with",
-                  input_type: :textarea,
                   rows: 5
                 }
               ],
