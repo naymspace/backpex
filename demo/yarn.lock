@@ -511,10 +511,10 @@ cssesc@^3.0.0:
   resolved "https://registry.yarnpkg.com/cssesc/-/cssesc-3.0.0.tgz#37741919903b868565e1c09ea747445cd18983ee"
   integrity sha512-/Tb/JcjK111nNScGob5MNtsntNM1aCNUDipB/TkwZFhyDrrE47SOx/18wF2bbjgc3ZzCSKW1T5nt5EbFoAz/Vg==
 
-daisyui@5.5.5:
-  version "5.5.5"
-  resolved "https://registry.yarnpkg.com/daisyui/-/daisyui-5.5.5.tgz#900ae8a83fc46fbf7db02b0230988d5801c56d74"
-  integrity sha512-ekvI93ZkWIJoCOtDl0D2QMxnWvTejk9V5nWBqRv+7t0xjiBXqAK5U6o6JE2RPvlIC3EqwNyUoIZSdHX9MZK3nw==
+daisyui@5.5.7:
+  version "5.5.7"
+  resolved "https://registry.yarnpkg.com/daisyui/-/daisyui-5.5.7.tgz#328b46e5c713a9aebec4b4ab6048dd30ac61d7d8"
+  integrity sha512-XXpGjzlCV2ui4ONtM8pK3znYRxrQRJZLwmyRt/SPpVAP+e9ErTXMFl9JICQmZ+7HD8ilsuo9Sd3TrTmSYqVmQA==
 
 data-view-buffer@^1.0.2:
   version "1.0.2"
