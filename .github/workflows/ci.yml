@@ -32,9 +32,12 @@ jobs:
           - elixir: "1.18"
             otp: "28.0"
 
+          - elixir: "1.19"
+            otp: "28.1"
+
     steps:
       - name: Checkout code
-        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+        uses: actions/checkout@1af3b93b6815bc44a9784bd300feb67ff0d1eeb3 # v6.0.0
 
       - uses: erlef/setup-beam@e6d7c94229049569db56a7ad5a540c051a010af9 # v1.20.4
         with:
@@ -44,7 +47,7 @@ jobs:
       - name: Setup node
         uses: actions/setup-node@2028fbc5c25fe9cf00d9f06a71cc4710d4507903 # v6.0.0
         with:
-          node-version: 22
+          node-version: 24
           cache: "yarn"
           cache-dependency-path: yarn.lock
 
@@ -71,7 +74,17 @@ jobs:
       - name: Compile with warnings as errors
         run: mix compile --warnings-as-errors --force
 
+      - name: Cache node modules
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+        id: yarn-cache
+        with:
+          path: node_modules
+          key: ${{ runner.os }}-node-24-yarn-${{ hashFiles('yarn.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-node-24-yarn-
+
       - name: Install node dependencies
+        if: steps.yarn-cache.outputs.cache-hit != 'true'
         run: yarn install --pure-lockfile
 
       - name: Check formatting
@@ -95,6 +108,9 @@ jobs:
       - name: Run tests
         run: mix test
 
+      - name: Run doc tests
+        run: mix test test/doc_test.exs
+
       - name: Deps Audit
         continue-on-error: true
         run: mix deps.audit
@@ -106,14 +122,14 @@ jobs:
         run: mix assets.check
 
   publish:
-    needs: test
+    needs: [test, test-demo]
     if: github.event_name == 'release'
     name: "Publish package on hex.pm"
     runs-on: ubuntu-latest
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+        uses: actions/checkout@1af3b93b6815bc44a9784bd300feb67ff0d1eeb3 # v6.0.0
 
       - uses: erlef/setup-beam@e6d7c94229049569db56a7ad5a540c051a010af9 # v1.20.4
         id: beam
@@ -138,7 +154,7 @@ jobs:
 
     services:
       postgres:
-        image: postgres:16.10@sha256:fb9aa6d07b0fe53e94e8470977f316d1cdb39b8cdb33c45279ff0bbe32067c25
+        image: postgres:16.11@sha256:cf2a05fe40887b721e4b3dbac8fd32673c08292dcc8ba6b62b52b7f640433bd0
         env:
           POSTGRES_PASSWORD: postgres
         options: >-
@@ -151,7 +167,7 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+        uses: actions/checkout@1af3b93b6815bc44a9784bd300feb67ff0d1eeb3 # v6.0.0
 
       - name: Setup beam
         uses: erlef/setup-beam@e6d7c94229049569db56a7ad5a540c051a010af9 # v1.20.4
@@ -163,7 +179,7 @@ jobs:
       - name: Setup node
         uses: actions/setup-node@2028fbc5c25fe9cf00d9f06a71cc4710d4507903 # v6.0.0
         with:
-          node-version: 22
+          node-version: 24
           cache: "yarn"
           cache-dependency-path: demo/yarn.lock
 
@@ -195,9 +211,40 @@ jobs:
         working-directory: demo
         run: mix compile --warnings-as-errors --force
 
+      - name: Cache node modules
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+        id: yarn-cache
+        with:
+          path: demo/node_modules
+          key: ${{ runner.os }}-node-24-yarn-demo-${{ hashFiles('demo/yarn.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-node-24-yarn-demo-
+
       - name: Install node dependencies
+        if: steps.yarn-cache.outputs.cache-hit != 'true'
         working-directory: demo
         run: yarn install --pure-lockfile
+
+      - name: Cache Backpex node modules
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+        id: yarn-cache-backpex
+        with:
+          path: node_modules
+          key: ${{ runner.os }}-node-24-yarn-backpex-${{ hashFiles('yarn.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-node-24-yarn-backpex-
+
+      - name: Install Backpex node dependencies
+        if: steps.yarn-cache-backpex.outputs.cache-hit != 'true'
+        run: yarn install --pure-lockfile
+
+      - name: Setup assets
+        working-directory: demo
+        run: mix assets.setup
+
+      - name: Build assets
+        working-directory: demo
+        run: mix assets.build
 
       - name: lint:mix
         working-directory: demo
@@ -227,6 +274,11 @@ jobs:
         working-directory: demo
         run: yarn lint:gettext
 
+      - name: Deps audit
+        working-directory: demo
+        continue-on-error: true
+        run: mix deps.audit
+
       - name: Run test
         working-directory: demo
         env:
@@ -236,7 +288,17 @@ jobs:
           DB_DATABASE: test
         run: yarn test
 
+      - name: Cache Playwright browsers
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+        id: playwright-cache
+        with:
+          path: ~/.cache/ms-playwright
+          key: ${{ runner.os }}-playwright-${{ hashFiles('demo/yarn.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-playwright-
+
       - name: Install playwright
+        if: steps.playwright-cache.outputs.cache-hit != 'true'
         working-directory: demo
         run: yarn playwright install chromium --with-deps --only-shell
 
@@ -247,18 +309,20 @@ jobs:
           DB_USERNAME: postgres
           DB_PASSWORD: postgres
           DB_DATABASE: test
-        run: yarn test:playwright
-        continue-on-error: true
+        run: yarn test:playwright || if [[ $? = 2 ]]; then PW_TRACE=true yarn test:playwright --max-cases 1 --failed; else false; fi
 
-      - name: Deps audit
-        working-directory: demo
-        continue-on-error: true
-        run: mix deps.audit
+      - name: Upload Playwright traces
+        if: failure()
+        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
+        with:
+          name: playwright-traces
+          path: tmp/
+          retention-days: 7
 
   build-runtime:
     name: "Build and push image (Demo)"
     runs-on: ubuntu-latest
-    needs: [test-demo]
+    needs: [test, test-demo]
     env:
       PUSH_IMAGE: ${{ github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop') }}
 
@@ -268,7 +332,7 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+        uses: actions/checkout@1af3b93b6815bc44a9784bd300feb67ff0d1eeb3 # v6.0.0
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@e468171a9de216ec08956ac3ada2f0791b6bd435 # v3.11.1
@@ -283,7 +347,7 @@ jobs:
 
       - name: Extract metadata (tags, labels) for Docker
         id: meta
-        uses: docker/metadata-action@c1e51972afc2121e065aed6d45c65596fe445f3f # v5.8.0
+        uses: docker/metadata-action@318604b99e75e41977312d83839a89be02ca4893 # v5.9.0
         with:
           images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME_RUNTIME }}
 

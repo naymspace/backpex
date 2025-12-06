@@ -160,7 +160,9 @@ defmodule Backpex.Fields.HasManyThrough do
             <th :for={{_name, %{label: label}} <- action_fields(@field_options.pivot_fields, :index)} class="font-medium">
               {label}
             </th>
-            <th></th>
+            <th>
+              <span class="sr-only">{Backpex.__("Actions", @live_resource)}</span>
+            </th>
           </tr>
         </thead>
         <tbody class="text-base-content/75">
@@ -257,7 +259,9 @@ defmodule Backpex.Fields.HasManyThrough do
                 >
                   {label}
                 </th>
-                <th></th>
+                <th>
+                  <span class="sr-only">{Backpex.__("Actions", @live_resource)}</span>
+                </th>
               </tr>
             </thead>
             <tbody class="text-base-content/90">
@@ -336,6 +340,7 @@ defmodule Backpex.Fields.HasManyThrough do
             {hidden_inputs_for(e)}
             <.select_relational_field
               form={e}
+              hide_label={@hide_label}
               label={@field_options.live_resource.singular_name()}
               field_options={@field}
               owner_key={@owner_key}
@@ -534,7 +539,7 @@ defmodule Backpex.Fields.HasManyThrough do
   defp select_relational_field(assigns) do
     ~H"""
     <Layout.field_container>
-      <:label>
+      <:label :if={not @hide_label}>
         <Layout.input_label for={@form[@owner_key]} text={@label} />
       </:label>
       <BackpexForm.input

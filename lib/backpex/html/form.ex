@@ -35,7 +35,7 @@ defmodule Backpex.HTML.Form do
   attr :multiple, :boolean, default: false, doc: "the multiple flag for select inputs"
 
   attr :rest, :global, include: ~w(accept autocomplete capture cols disabled form list max maxlength min minlength
-                multiple pattern placeholder readonly required rows size step)
+                multiple pattern placeholder readonly required rows size step aria-*)
 
   attr :class, :any, default: nil, doc: "additional classes for the container element"
   attr :input_class, :any, default: nil, doc: "the input class to use over defaults"
@@ -47,13 +47,9 @@ defmodule Backpex.HTML.Form do
   slot :inner_block
 
   def input(%{field: %Phoenix.HTML.FormField{} = field} = assigns) do
-    errors = if Phoenix.Component.used_input?(field), do: field.errors, else: []
-
     assigns
-    |> assign(field: nil, id: assigns.id || field.id)
-    |> assign(:errors, translate_form_errors(errors, assigns.translate_error_fun))
+    |> prepare_field_assigns(field, assigns.translate_error_fun)
     |> assign_new(:name, fn -> if assigns.multiple, do: field.name <> "[]", else: field.name end)
-    |> assign_new(:value, fn -> field.value end)
     |> input()
   end
 
@@ -63,7 +59,7 @@ defmodule Backpex.HTML.Form do
     ~H"""
     <div class={["fieldset py-0", @class]}>
       <label class="label cursor-pointer">
-        <input type="hidden" name={@name} value="false" />
+        <input type="hidden" name={@name} value="false" tabindex="-1" aria-hidden="true" />
         <input
           type="checkbox"
           id={@id}
@@ -86,7 +82,7 @@ defmodule Backpex.HTML.Form do
     ~H"""
     <div class={["fieldset py-0", @class]}>
       <label class="label cursor-pointer">
-        <input type="hidden" name={@name} value="false" />
+        <input type="hidden" name={@name} value="false" tabindex="-1" aria-hidden="true" />
         <input
           type="checkbox"
           id={@id}
@@ -209,13 +205,9 @@ defmodule Backpex.HTML.Form do
               multiple pattern placeholder readonly required rows size step)
 
   def currency_input(%{field: %Phoenix.HTML.FormField{} = field} = assigns) do
-    errors = if Phoenix.Component.used_input?(field), do: field.errors, else: []
-
     assigns
-    |> assign(field: nil, id: assigns.id || field.id)
-    |> assign(:errors, translate_form_errors(errors, assigns.translate_error_fun))
+    |> prepare_field_assigns(field, assigns.translate_error_fun)
     |> assign_new(:name, fn -> field.name end)
-    |> assign_new(:value, fn -> field.value end)
     |> currency_input()
   end
 
@@ -227,7 +219,7 @@ defmodule Backpex.HTML.Form do
     <div class={["fieldset py-0", @class]}>
       <span :if={@label} class="label mb-1">{@label}</span>
       <div
-        id={@id}
+        id={"#{@id}-wrapper"}
         phx-hook="BackpexCurrencyInput"
         data-radix={@radix}
         data-thousands-separator={@thousands_separator}
@@ -239,8 +231,8 @@ defmodule Backpex.HTML.Form do
           @input_class || "[&_>_input]:input [&_>_input]:w-full",
           @errors != [] && (@error_class || "[&_>_input]:input-error [&_>_input]:bg-error/10")
         ]}>
-          <input id={"#{@id}_masked"} name={@name} data-masked-input phx-update="ignore" {@rest} />
-          <input type="hidden" value={@value} name={@name} data-hidden-input />
+          <input id={@id} data-masked-input phx-update="ignore" {@rest} />
+          <input type="hidden" value={@value} name={@name} data-hidden-input tabindex="-1" aria-hidden="true" />
         </span>
       </div>
       <.error :for={msg <- @errors} :if={not @hide_errors}>{msg}</.error>
@@ -308,6 +300,7 @@ defmodule Backpex.HTML.Form do
   attr :hide_search, :boolean, default: false, doc: "if search should be hidden"
   attr :hide_errors, :boolean, default: false, doc: "if errors should be hidden"
   attr :live_resource, :atom, default: nil, doc: "the live resource module"
+  attr :aria_labelledby, :string, doc: "accessible labelledby for screen readers added to the trigger element"
 
   def multi_select(assigns) do
     errors = if Phoenix.Component.used_input?(assigns.field), do: assigns.field.errors, else: []
@@ -317,11 +310,15 @@ defmodule Backpex.HTML.Form do
     ~H"""
     <div>
       <.dropdown id={"multi-select-#{@field.id}"} class="w-full">
-        <:trigger class={[
-          "input block h-fit w-full p-2",
-          @errors == [] && "bg-transparent",
-          @errors != [] && "input-error bg-error/10"
-        ]}>
+        <:trigger
+          aria_label={@prompt}
+          aria_labelledby={Map.get(assigns, :aria_labelledby)}
+          class={[
+            "input block h-fit w-full p-2",
+            @errors == [] && "bg-transparent",
+            @errors != [] && "input-error bg-error/10"
+          ]}
+        >
           <div class="flex h-full w-full flex-wrap items-center gap-1 px-2">
             <p :if={@selected == []} class="p-0.5 text-sm">{@prompt}</p>
             <.multi_select_badge
@@ -360,7 +357,7 @@ defmodule Backpex.HTML.Form do
             />
 
             <%!-- Hidden input to make sure the change is always present, even if no options are selected --%>
-            <input type="hidden" name={@field.name} value="" />
+            <input type="hidden" name={@field.name} value="" tabindex="-1" aria-hidden="true" />
 
             <%!-- Options --%>
             <div class="mt-2 w-full">
@@ -440,6 +437,25 @@ defmodule Backpex.HTML.Form do
   attr :selected, :list, required: true
   attr :event_target, :any, required: true
 
+  defp multi_select_option(%{value: value} = assigns) when is_list(value) or is_map(value) do
+    ~H"""
+    <div class="not-first:mt-2">
+      <span class="font-medium">{@label}</span>
+      <div class="ml-4">
+        <.multi_select_option
+          :for={{lab, val} <- @value}
+          class="mt-2"
+          label={lab}
+          value={val}
+          event_target={@event_target}
+          field={@field}
+          selected={@selected}
+        />
+      </div>
+    </div>
+    """
+  end
+
   defp multi_select_option(assigns) do
     ~H"""
     <label
@@ -489,6 +505,15 @@ defmodule Backpex.HTML.Form do
       |> translate_error_fun.()
       |> Backpex.translate_error()
     end)
+  end
+
+  defp prepare_field_assigns(assigns, field, translate_error_fun) do
+    errors = if Phoenix.Component.used_input?(field), do: field.errors, else: []
+
+    assigns
+    |> assign(field: nil, id: assigns.id || field.id)
+    |> assign(:errors, translate_form_errors(errors, translate_error_fun))
+    |> assign_new(:value, fn -> field.value end)
   end
 
   defp selected?(id, selected), do: Enum.any?(selected, fn {_label, value} -> id == value end)

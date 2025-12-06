@@ -1,3 +1,4 @@
+# credo:disable-for-this-file Credo.Check.Design.DuplicatedCode
 defmodule DemoWeb.UserLive do
   use Backpex.LiveResource,
     adapter_config: [
@@ -196,7 +197,11 @@ defmodule DemoWeb.UserLive do
       permissions: %{
         module: Backpex.Fields.MultiSelect,
         label: "Permissions",
-        options: fn _assigns -> [{"Delete", "delete"}, {"Edit", "edit"}, {"Show", "show"}] end
+        options: [
+          {"Can access admin panel", "can_access_admin_panel"},
+          {"Item actions", [{"Delete", "delete"}, {"Edit", "edit"}, {"Show", "show"}]},
+          {"Other actions", [{"Can send email", "can_send_email"}]}
+        ]
       }
     ]
   end

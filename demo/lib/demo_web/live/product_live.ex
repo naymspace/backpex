@@ -115,8 +115,26 @@ defmodule DemoWeb.ProductLive do
             label: "Name"
           },
           url: %{
-            module: Backpex.Fields.Text,
+            module: Backpex.Fields.URL,
             label: "URL"
+          },
+          country: %{
+            module: Backpex.Fields.Select,
+            label: "Country",
+            prompt: "—",
+            options: Demo.Supplier.countries()
+          },
+          contract_date: %{
+            module: Backpex.Fields.Date,
+            label: "Contract Date"
+          },
+          minimum_order: %{
+            module: Backpex.Fields.Currency,
+            label: "Minimum Order"
+          },
+          preferred: %{
+            module: Backpex.Fields.Boolean,
+            label: "Preferred"
           }
         ]
       },

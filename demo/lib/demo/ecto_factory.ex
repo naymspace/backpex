@@ -51,7 +51,11 @@ defmodule Demo.EctoFactory do
   def supplier_factory do
     %Supplier{
       name: Faker.Company.name(),
-      url: "https://example.com/"
+      url: "https://example.com/",
+      country: Enum.random(Supplier.countries()),
+      contract_date: Faker.Date.backward(365 * 3),
+      minimum_order: Enum.random([100_000, 200_000, 300_000, 400_000, 500_000]),
+      preferred: boolean()
     }
   end
 

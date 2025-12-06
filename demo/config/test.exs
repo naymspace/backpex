@@ -13,5 +13,6 @@ config :phoenix_test,
     assets_dir: "./",
     browser: :chromium,
     browser_launch_timeout: 10_000,
-    trace: System.get_env("PW_TRACE", "false") in ~w(t true)
+    trace: System.get_env("PW_TRACE", "false") in ~w(t true),
+    trace_dir: "tmp"
   ]
