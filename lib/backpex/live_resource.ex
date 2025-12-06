@@ -415,7 +415,7 @@ defmodule Backpex.LiveResource do
             phx-hook="BackpexTooltip"
             data-tooltip={Backpex.__("Edit", @live_resource)}
             aria-label={Backpex.__("Edit", @live_resource)}
-            patch={Router.get_path(@socket, @live_resource, @params, :edit, @item)}
+            patch={Router.get_path(@socket, @live_resource, @params, :edit, @item, %{return_to: @return_to})}
           >
             <Backpex.HTML.CoreComponents.icon
               name="hero-pencil-square"
