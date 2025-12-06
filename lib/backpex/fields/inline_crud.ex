@@ -197,9 +197,9 @@ defmodule Backpex.Fields.InlineCRUD do
                       value={f_nested.index}
                       class="hidden"
                     />
-
-                    <div class="btn btn-outline btn-error" aria-label={Backpex.__("Delete", @live_resource)}>
-                      <Backpex.HTML.CoreComponents.icon name="hero-trash" class="h-5 w-5" />
+                    <div class="btn btn-outline btn-error">
+                      <span class="sr-only">{Backpex.__("Delete", @live_resource)}</span>
+                      <Backpex.HTML.CoreComponents.icon name="hero-trash" class="size-5" />
                     </div>
                   </label>
                 </div>
@@ -207,7 +207,7 @@ defmodule Backpex.Fields.InlineCRUD do
             </div>
           </.inputs_for>
           <%= if @field_options.type != :embed_one do %>
-            <input type="hidden" name={"change[#{@name}_delete][]"} />
+            <input type="hidden" name={"change[#{@name}_delete][]"} tabindex="-1" aria-hidden="true" />
           <% end %>
         </div>
         <%= if @field_options.type != :embed_one do %>
