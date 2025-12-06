@@ -240,11 +240,6 @@ defmodule Backpex.Fields.InlineCRUD do
   defp child_field_class(%{class: class} = _child_field_options, _assigns) when is_binary(class), do: class
   defp child_field_class(_child_field_options, _assigns), do: "flex-1"
 
-  defp input_type(%{input_type: input_type} = _child_field_options) when input_type in [:text, :textarea],
-    do: input_type
-
-  defp input_type(_child_field_options), do: :text
-
   defp get_value(assigns, field) do
     case Map.get(assigns, field, %{}) do
       nil -> %{}
