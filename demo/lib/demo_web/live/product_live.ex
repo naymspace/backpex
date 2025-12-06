@@ -86,6 +86,7 @@ defmodule DemoWeb.ProductLive do
         align: :right
       },
       more_info: %{
+<<<<<<< HEAD
         module: Backpex.Fields.InlineCRUD,
         label: "More Info",
         type: :embed_one,
@@ -102,6 +103,24 @@ defmodule DemoWeb.ProductLive do
             rows: 5
           }
         ]
+=======
+              module: Backpex.Fields.InlineCRUD,
+              label: "More Info",
+              type: :embed_one,
+              except: [:index],
+              child_fields: [
+
+                weight: %{
+                  module: Backpex.Fields.Text,
+                  label: "Ave. Weight (kg)"
+                },
+                goes_well_with: %{
+                  module: Backpex.Fields.Textarea,
+                  label: "Goes well with",
+                  rows: 5
+                }
+              ],
+>>>>>>> naymspace-develop
       },
       suppliers: %{
         module: Backpex.Fields.InlineCRUD,
