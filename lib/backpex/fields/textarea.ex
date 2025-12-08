@@ -52,8 +52,8 @@ defmodule Backpex.Fields.Textarea do
     ~H"""
     <div>
       <Layout.field_container>
-        <:label align={Backpex.Field.align_label(@field_options, assigns, :top)}>
-          <Layout.input_label text={@field_options[:label]} />
+        <:label :if={not @hide_label} align={Backpex.Field.align_label(@field_options, assigns, :top)}>
+          <Layout.input_label for={@form[@name]} text={@field_options[:label]} />
         </:label>
         <BackpexForm.input
           type="textarea"
@@ -66,6 +66,7 @@ defmodule Backpex.Fields.Textarea do
           phx-throttle={Backpex.Field.throttle(@field_options, assigns)}
           readonly={@readonly}
           disabled={@readonly}
+          aria-labelledby={Map.get(assigns, :aria_labelledby)}
         />
       </Layout.field_container>
     </div>

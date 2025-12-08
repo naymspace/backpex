@@ -3,11 +3,11 @@
 ########################################################################
 
 # renovate: datasource=github-tags depName=elixir packageName=elixir-lang/elixir versioning=semver
-ARG ELIXIR_VERSION=1.18.4
+ARG ELIXIR_VERSION=1.19.3
 # renovate: datasource=github-tags depName=erlang packageName=erlang/otp versioning=regex:^(?<major>\d+?)\.(?<minor>\d+?)(\.(?<patch>\d+))?$ extractVersion=^OTP-(?<version>\S+)
-ARG OTP_VERSION=28.0.2
+ARG OTP_VERSION=28.2
 # renovate: datasource=docker depName=ubuntu packageName=ubuntu versioning=ubuntu
-ARG UBUNTU_VERSION=noble-20250716
+ARG UBUNTU_VERSION=noble-20251013
 
 ARG BUILDER_IMAGE="hexpm/elixir:${ELIXIR_VERSION}-erlang-${OTP_VERSION}-ubuntu-${UBUNTU_VERSION}"
 ARG RUNTIME_IMAGE="ubuntu:${UBUNTU_VERSION}"
@@ -41,6 +41,10 @@ ENV PATH=/opt/scripts/:/opt/app/_build/prod/rel/demo/bin:$PATH
 ARG MIX_ENV=prod
 ENV MIX_ENV=$MIX_ENV
 
+# Install root-level (Backpex) dependencies
+COPY package.json yarn.lock ./
+RUN yarn install --pure-lockfile
+
 RUN mkdir demo
 WORKDIR $APP_HOME/demo
 
@@ -64,6 +68,7 @@ RUN yarn install --pure-lockfile
 COPY demo/assets assets/
 COPY demo/lib lib/
 
+RUN mix compile
 RUN mix assets.deploy
 
 # Copy the rest of the application files

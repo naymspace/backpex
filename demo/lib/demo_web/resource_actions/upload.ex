@@ -1,3 +1,4 @@
+# credo:disable-for-this-file Credo.Check.Design.DuplicatedCode
 defmodule DemoWeb.ResourceActions.Upload do
   @moduledoc false
 

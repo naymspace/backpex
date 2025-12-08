@@ -6,4 +6,4 @@ Backpex is built on top of Phoenix LiveView and provides a rich set of features 
 
 Whether you want to quickly scaffold CRUD views for your existing data or build a full-fledged administration panel, Backpex has you covered.
 
-TODO: add screenshots of key features here
+

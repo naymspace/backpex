@@ -11,6 +11,13 @@ defmodule Backpex.Field do
       type: :string,
       required: true
     ],
+    class: [
+      type: {:or, [:string, {:fun, 1}]},
+      doc: """
+      Class or classes to be applied when the field is used as a child field in `Backpex.Fields.InlineCRUD`. The class
+      can be a string or a function that takes the assigns and must return a string.
+      """
+    ],
     help_text: [
       doc: "A text to be displayed below the input on form views.",
       type: {:or, [:string, {:fun, 1}]}
@@ -93,11 +100,11 @@ defmodule Backpex.Field do
     ],
     only: [
       doc: "Define the only views where this field should be visible.",
-      type: {:list, {:in, [:new, :edit, :show, :index, :resource_action]}}
+      type: {:list, {:in, [:new, :edit, :show, :index]}}
     ],
     except: [
       doc: "Define the views where this field should not be visible.",
-      type: {:list, {:in, [:new, :edit, :show, :index, :resource_action]}}
+      type: {:list, {:in, [:new, :edit, :show, :index]}}
     ],
     translate_error: [
       doc: """
@@ -291,7 +298,7 @@ defmodule Backpex.Field do
       def search_condition(schema_name, field_name, search_string) do
         dynamic(
           [{^schema_name, schema_name}],
-          ilike(schema_name |> field(^field_name), ^search_string)
+          schema_name |> field(^field_name) |> ilike(^search_string)
         )
       end
 
@@ -387,18 +394,16 @@ defmodule Backpex.Field do
   Returns a map of types from a list of fields used for the Ecto changeset.
   """
   def changeset_types(fields) do
-    fields
-    |> Enum.map(fn {name, field_options} ->
+    Map.new(fields, fn {name, field_options} ->
       {name, field_options.type}
     end)
-    |> Enum.into(%{})
   end
 
   @doc """
   Handles index editable.
   """
   def handle_index_editable(socket, value, change) do
-    %{assigns: %{item: item, live_resource: live_resource, fields: fields} = assigns} = socket
+    %{assigns: %{item: item, fields: fields, live_resource: live_resource} = assigns} = socket
 
     if not live_resource.can?(assigns, :edit, item) do
       raise Backpex.ForbiddenError
@@ -414,14 +419,15 @@ defmodule Backpex.Field do
 
     result = Backpex.Resource.update(item, change, fields, assigns, live_resource, opts)
 
-    socket =
+    valid =
       case result do
-        {:ok, _item} ->
-          assign(socket, :valid, true)
-
-        _error ->
-          assign(socket, :valid, false)
+        {:ok, _item} -> true
+        _error -> false
       end
+
+    socket =
+      socket
+      |> assign(:valid, valid)
       |> assign(:form, Phoenix.Component.to_form(%{"value" => value}, as: :index_form))
 
     {:noreply, socket}

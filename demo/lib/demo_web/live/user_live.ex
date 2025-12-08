@@ -1,3 +1,4 @@
+# credo:disable-for-this-file Credo.Check.Design.DuplicatedCode
 defmodule DemoWeb.UserLive do
   use Backpex.LiveResource,
     adapter_config: [
@@ -7,7 +8,7 @@ defmodule DemoWeb.UserLive do
       create_changeset: &Demo.User.changeset/3,
       item_query: &__MODULE__.item_query/3
     ],
-    layout: {DemoWeb.Layouts, :admin},
+    layout: &DemoWeb.Layouts.admin/1,
     init_order: &__MODULE__.init_order/1
 
   import Ecto.Query, warn: false
@@ -48,7 +49,7 @@ defmodule DemoWeb.UserLive do
   @impl Backpex.LiveResource
   def item_actions(default_actions) do
     default_actions
-    |> Keyword.drop([:delete])
+    |> Keyword.delete(:delete)
     |> Enum.concat(user_soft_delete: %{module: DemoWeb.ItemActions.UserSoftDelete})
   end
 
@@ -196,7 +197,11 @@ defmodule DemoWeb.UserLive do
       permissions: %{
         module: Backpex.Fields.MultiSelect,
         label: "Permissions",
-        options: fn _assigns -> [{"Delete", "delete"}, {"Edit", "edit"}, {"Show", "show"}] end
+        options: [
+          {"Can access admin panel", "can_access_admin_panel"},
+          {"Item actions", [{"Delete", "delete"}, {"Edit", "edit"}, {"Show", "show"}]},
+          {"Other actions", [{"Can send email", "can_send_email"}]}
+        ]
       }
     ]
   end

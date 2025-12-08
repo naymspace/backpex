@@ -49,7 +49,7 @@ defmodule DemoWeb.TagLive do
       [
         duplicate: %{
           module: DemoWeb.ItemActions.DuplicateTag,
-          only: [:row]
+          only: [:row, :show]
         }
       ],
       default_actions

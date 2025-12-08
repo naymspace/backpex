@@ -32,7 +32,7 @@ defmodule Backpex.LiveResource do
     ],
     layout: [
       doc: "Layout to be used by the LiveResource.",
-      type: :mod_arg,
+      type: {:or, [:mod_arg, {:fun, 1}]},
       required: true
     ],
     pubsub: [
@@ -274,7 +274,7 @@ defmodule Backpex.LiveResource do
 
       def pubsub, do: LiveResource.pubsub(__MODULE__)
 
-      def validated_fields, do: LiveResource.validated_fields(__MODULE__)
+      def fields(live_action, assigns), do: LiveResource.fields(__MODULE__, live_action, assigns)
 
       @impl Backpex.LiveResource
       def can?(_assigns, _action, _item), do: true
@@ -312,7 +312,7 @@ defmodule Backpex.LiveResource do
         defmodule String.to_atom("#{__MODULE__}.#{action}") do
           @resource_opts NimbleOptions.validate!(opts, options_schema)
 
-          use Phoenix.LiveView, layout: @resource_opts[:layout]
+          use Phoenix.LiveView
 
           @action_module String.to_existing_atom("Elixir.Backpex.LiveResource.#{action}")
 
@@ -407,22 +407,27 @@ defmodule Backpex.LiveResource do
       @impl Backpex.LiveResource
       def render_resource_slot(var!(assigns), :show, :page_title) do
         ~H"""
-        <.main_title class="flex items-center justify-between">
-          {@page_title}
-          <.link
-            :if={@live_resource.can?(assigns, :edit, @item)}
-            id={"#{@live_resource.singular_name()}-edit-link"}
-            phx-hook="BackpexTooltip"
-            data-tooltip={Backpex.__("Edit", @live_resource)}
-            aria-label={Backpex.__("Edit", @live_resource)}
-            patch={Router.get_path(@socket, @live_resource, @params, :edit, @item)}
-          >
-            <Backpex.HTML.CoreComponents.icon
-              name="hero-pencil-square"
-              class="h-6 w-6 cursor-pointer transition duration-75 hover:text-primary hover:scale-110"
-            />
-          </.link>
-        </.main_title>
+        <div class="flex items-center justify-between">
+          <.main_title>
+            {@page_title}
+          </.main_title>
+          <div class="flex items-center space-x-2">
+            <button
+              :for={{key, action} <- Backpex.HTML.Resource.filter_item_actions(@item_actions, :show)}
+              :if={@live_resource.can?(assigns, key, @item)}
+              id={"item-action-#{key}"}
+              type="button"
+              phx-click="item-action"
+              phx-value-action-key={key}
+              aria-label={action.module.label(assigns, @item)}
+              phx-hook="BackpexTooltip"
+              data-tooltip={action.module.label(assigns, @item)}
+              class="cursor-pointer leading-none"
+            >
+              {action.module.icon(assigns, @item)}
+            </button>
+          </div>
+        </div>
         """
       end
 
@@ -474,13 +479,23 @@ defmodule Backpex.LiveResource do
   end
 
   @doc """
-  Returns the fields of the given `Backpex.LiveResource` validated against each fields config schema.
+  Returns the fields of the given `Backpex.LiveResource`.
+
+  Each field is validated against each fields config schema and filtered by the `live_action` and
+  the fields `can?` options.
   """
-  def validated_fields(live_resource) do
+  def fields(live_resource, live_action, assigns) do
+    live_resource
+    |> validated_fields()
+    |> fields_by_action(live_action)
+    |> fields_by_can(assigns)
+  end
+
+  defp validated_fields(live_resource) do
     live_resource.fields()
     |> Enum.map(fn {name, options} = field ->
       options.module.validate_config!(field, live_resource)
-      |> Enum.into(%{})
+      |> Map.new()
       |> then(&{name, &1})
     end)
   end
@@ -612,17 +627,40 @@ defmodule Backpex.LiveResource do
   Returns filtered fields by a certain action.
 
   ## Example
-      iex> Backpex.LiveResource.filtered_fields_by_action([field1: %{label: "Field1"}, field2: %{label: "Field2"}], %{}, :index)
+      iex> Backpex.LiveResource.fields_by_action([field1: %{label: "Field1"}, field2: %{label: "Field2"}], :index)
       [field1: %{label: "Field1"}, field2: %{label: "Field2"}]
-      iex> Backpex.LiveResource.filtered_fields_by_action([field1: %{label: "Field1", except: [:show]}, field2: %{label: "Field2"}], %{}, :show)
+      iex> Backpex.LiveResource.fields_by_action([field1: %{label: "Field1", except: [:show]}, field2: %{label: "Field2"}], :show)
       [field2: %{label: "Field2"}]
-      iex> Backpex.LiveResource.filtered_fields_by_action([field1: %{label: "Field1", only: [:index]}, field2: %{label: "Field2"}], %{}, :show)
+      iex> Backpex.LiveResource.fields_by_action([field1: %{label: "Field1", only: [:index]}, field2: %{label: "Field2"}], :show)
       [field2: %{label: "Field2"}]
   """
-  def filtered_fields_by_action(fields, assigns, action) do
+  def fields_by_action(fields, :resource_action), do: fields_by_action(fields, :index)
+
+  def fields_by_action(fields, action) do
     fields
     |> Keyword.filter(fn {_name, field_options} ->
-      can_view_field?(field_options, assigns) and filter_field_by_action(field_options, action)
+      filter_field_by_action(field_options, action)
+    end)
+  end
+
+  @doc """
+  Returns filtered fields by the result of the implemented `can?` function.
+
+  ## Example
+      > Backpex.LiveResource.fields_by_can([field1: %{label: "Field1"}], %{})
+      [field1: %{label: "Field1"}]
+      > Backpex.LiveResource.fields_by_can([field1: %{label: "Field1", can?: fn _assigns -> true end}, field2: %{label: "Field2", can?: fn _assigns -> true end}], %{})
+      [field1: %{label: "Field1"}, field2: %{label: "Field2"}]
+      > Backpex.LiveResource.fields_by_can([field1: %{label: "Field1", can?: fn _assigns -> false end}, field2: %{label: "Field2", can?: fn _assigns -> true end}], %{})
+      [field2: %{label: "Field2"}]
+      > Backpex.LiveResource.fields_by_can([field1: %{label: "Field1", can?: fn _assigns -> false end}], %{})
+      []
+
+  """
+  def fields_by_can(fields, assigns) do
+    fields
+    |> Keyword.filter(fn {_name, field_options} ->
+      can_view_field?(field_options, assigns)
     end)
   end
 
@@ -650,8 +688,7 @@ defmodule Backpex.LiveResource do
   @doc """
   Returns all filter options.
   """
-  def filter_options(%{"filters" => filters}, filter_configs),
-    do: filter_options(%{filters: filters}, filter_configs)
+  def filter_options(%{"filters" => filters}, filter_configs), do: filter_options(%{filters: filters}, filter_configs)
 
   def filter_options(%{filters: ""}, _filter_configs), do: %{}
   def filter_options(%{filters: nil}, _filter_configs), do: %{}
@@ -692,13 +729,14 @@ defmodule Backpex.LiveResource do
   def build_criteria(assigns) do
     %{
       live_resource: live_resource,
-      fields: fields,
       filters: filters,
       query_options: query_options,
-      init_order: init_order
+      init_order: init_order,
+      fields: fields
     } = assigns
 
     schema = live_resource.adapter_config(:schema)
+
     field = Enum.find(fields, fn {name, _field_options} -> name == query_options.order_by end)
 
     order =
@@ -821,8 +859,7 @@ defmodule Backpex.LiveResource do
       iex> Backpex.LiveResource.calculate_total_pages(25, 6)
       5
   """
-  def calculate_total_pages(items_length, per_page),
-    do: ceil(items_length / per_page)
+  def calculate_total_pages(items_length, per_page), do: ceil(items_length / per_page)
 
   @doc """
   Validates a page number.
@@ -865,7 +902,7 @@ defmodule Backpex.LiveResource do
   def get_filter_options(query_options) do
     query_options
     |> Map.get(:filters, %{})
-    |> Map.drop([Atom.to_string(empty_filter_key())])
+    |> Map.delete(Atom.to_string(empty_filter_key()))
   end
 
   @doc """
@@ -903,4 +940,16 @@ defmodule Backpex.LiveResource do
 
   defp maybe_to_atom(nil), do: nil
   defp maybe_to_atom(value), do: String.to_existing_atom(value)
+
+  @doc """
+  Subscribes to PubSub if the socket is connected.
+  """
+  def maybe_subscribe_to_pubsub(socket, live_resource) do
+    if Phoenix.LiveView.connected?(socket) do
+      [server: server, topic: topic] = live_resource.pubsub()
+      Phoenix.PubSub.subscribe(server, topic)
+    end
+
+    socket
+  end
 end

@@ -106,7 +106,7 @@ defmodule Backpex.Router do
 
   def has_resource_actions?(module, live_resource) do
     resource_module = Phoenix.Router.scoped_alias(module, live_resource)
-    Enum.count(resource_module.resource_actions()) > 0
+    not Enum.empty?(resource_module.resource_actions())
   end
 
   defmacro backpex_routes do
@@ -119,21 +119,22 @@ defmodule Backpex.Router do
 
   @doc """
   Checks whether the to path is the same as the current path
-
-  ## Examples
-
-      iex> Backpex.Router.active?(URI.new!("https://example.com/admin/events"), "/admin/events")
-      true
-      iex> Backpex.Router.active?(URI.new!("https://example.com/admin/events"), "/admin/users")
-      false
   """
   def active?(current_path, to_path) do
     %{path: path} = URI.parse(current_path)
 
     case {path, to_path} do
-      {nil, _to} -> false
-      {path, "/" = to} -> String.equivalent?(path, to)
-      {path, to} -> String.starts_with?(path, to)
+      {nil, _to} ->
+        false
+
+      {path, "/" = to} ->
+        String.equivalent?(path, to)
+
+      {path, to} ->
+        normalized_to = String.trim_trailing(to, "/")
+
+        String.equivalent?(path, normalized_to) or
+          String.starts_with?(path, normalized_to <> "/")
     end
   end
 
@@ -187,7 +188,7 @@ defmodule Backpex.Router do
     if Map.has_key?(params_or_item, id_field) do
       id = params_or_item |> Map.get(id_field) |> to_string() |> URI.encode_www_form()
 
-      put_route_params(route_path, Map.put(params, "backpex_id", maybe_to_string(id)))
+      put_route_params(route_path, Map.put(params, "backpex_id", id))
     else
       query_params = Query.encode(params_or_item)
       put_route_params(route_path, params) |> maybe_put_query_params(query_params)
@@ -205,7 +206,7 @@ defmodule Backpex.Router do
     route_path = get_route_path(socket, module, action)
     query_params = Query.encode(query_params)
 
-    put_route_params(route_path, Map.put(params, "backpex_id", maybe_to_string(id_serializable)))
+    put_route_params(route_path, Map.put(params, "backpex_id", to_string(id_serializable)))
     |> maybe_put_query_params(query_params)
   end
 
@@ -307,7 +308,4 @@ defmodule Backpex.Router do
         """
     end
   end
-
-  defp maybe_to_string(value) when is_atom(value), do: Atom.to_string(value)
-  defp maybe_to_string(value), do: value
 end

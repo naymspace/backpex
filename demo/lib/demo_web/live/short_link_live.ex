@@ -22,6 +22,7 @@ defmodule DemoWeb.ShortLinkLive do
   def can?(_assigns, :delete, _item), do: false
   def can?(_assigns, _action, _item), do: true
 
+  @impl Backpex.LiveResource
   def return_to(_socket, _assigns, :edit, _form_action, _item) do
     # since the primary key might be updated, we go to the index page
     ~p"/admin/short-links"

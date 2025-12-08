@@ -8,10 +8,11 @@
     "github>pehbehbeh/renovate-config//workarounds/mixGitVersioning",
     "github>pehbehbeh/renovate-config//customManagers/hexEsbuild",
     "github>pehbehbeh/renovate-config//customManagers/hexTailwind",
-    ":reviewer(krns)",
-    ":automergePatch",
-    "helpers:pinGitHubActionDigestsToSemver"
+    ":reviewer(Flo0807)",
+    "helpers:pinGitHubActionDigestsToSemver",
+    "security:minimumReleaseAgeNpm"
   ],
+  "additionalBranchPrefix": "{{packageFileDir}}-",
   "pinDigests": false,
   "lockFileMaintenance": {
     "enabled": true,
@@ -19,7 +20,15 @@
       "schedule:weekly"
     ]
   },
-  "additionalBranchPrefix": "{{packageFileDir}}-",
+  "patch": {
+    "automerge": true,
+    "minimumReleaseAge": "14 days"
+  },
+  "pin": {
+    "automerge": true,
+    "minimumReleaseAge": "14 days"
+  },
+  "internalChecksFilter": "strict",
   "packageRules": [
     {
       "description": "Set Mix versioning strategy to update-lockfile",
@@ -52,14 +61,7 @@
       "enabled": false
     },
     {
-      "description": "Disable automerge for docker data source",
-      "matchDatasources": [
-        "docker"
-      ],
-      "automerge": true
-    },
-    {
-      "description": "Automatically merge non-major github actions updates",
+      "description": "Automerge non-major github actions updates",
       "matchManagers": [
         "github-actions"
       ],
@@ -69,10 +71,11 @@
         "pin",
         "pinDigest"
       ],
-      "automerge": true
+      "automerge": true,
+      "minimumReleaseAge": "14 days"
     },
     {
-      "description": "Automerge some non-major node package updates",
+      "description": "Automerge some minor node package updates",
       "matchDepNames": [
         "@sentry/browser",
         "stylelint",
@@ -89,7 +92,8 @@
         "minor",
         "patch"
       ],
-      "automerge": true
+      "automerge": true,
+      "minimumReleaseAge": "14 days"
     },
     {
       "description": "Label dependency updates in demo directory",
