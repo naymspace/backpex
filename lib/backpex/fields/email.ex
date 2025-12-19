@@ -43,7 +43,7 @@ defmodule Backpex.Fields.Email do
     ~H"""
     <div>
       <Layout.field_container>
-        <:label align={Backpex.Field.align_label(@field_options, assigns, :center)}>
+        <:label :if={not @hide_label} align={Backpex.Field.align_label(@field_options, assigns, :center)}>
           <Layout.input_label for={@form[@name]} text={@field_options[:label]} />
         </:label>
         <BackpexForm.input
@@ -56,6 +56,7 @@ defmodule Backpex.Fields.Email do
           phx-throttle={Backpex.Field.throttle(@field_options, assigns)}
           readonly={@readonly}
           disabled={@readonly}
+          aria-labelledby={Map.get(assigns, :aria_labelledby)}
         />
       </Layout.field_container>
     </div>
@@ -83,6 +84,7 @@ defmodule Backpex.Fields.Email do
           phx-debounce="100"
           readonly={@readonly}
           hide_errors
+          aria-label={@field_options[:label]}
         />
       </.form>
     </div>

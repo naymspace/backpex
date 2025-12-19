@@ -97,4 +97,205 @@ defmodule Demo.Support.LiveResourceTests do
       |> assert_path("#{base_path}/#{first_item_id}/edit")
     end
   end
+
+  @doc """
+  Tests edit item action from index view with save and redirect back to index.
+  """
+  defmacro test_edit_from_index_save(conn, base_path, item, change_field, old_value, new_value) do
+    quote do
+      conn = unquote(conn)
+      base_path = unquote(base_path)
+      item = unquote(item)
+      change_field = unquote(change_field)
+      old_value = unquote(old_value)
+      new_value = unquote(new_value)
+
+      conn
+      |> visit(base_path)
+      |> assert_has("td", text: old_value, exact: true)
+      |> unwrap(fn view ->
+        view
+        |> element("button[aria-label='Edit'][phx-value-item-id='#{item.id}']")
+        |> render_click()
+      end)
+      |> assert_path("#{base_path}/#{item.id}/edit")
+      |> unwrap(fn view ->
+        view
+        |> form("#resource-form", change: %{change_field => new_value})
+        |> put_submitter("button[value=save]")
+        |> render_submit()
+      end)
+      |> assert_path(base_path)
+      |> assert_has("td", text: new_value, exact: true)
+    end
+  end
+
+  @doc """
+  Tests edit item action from index view with cancel and redirect back to index.
+  """
+  defmacro test_edit_from_index_cancel(conn, base_path, item, display_field, display_value) do
+    quote do
+      conn = unquote(conn)
+      base_path = unquote(base_path)
+      item = unquote(item)
+      display_field = unquote(display_field)
+      display_value = unquote(display_value)
+
+      conn
+      |> visit(base_path)
+      |> assert_has("td", text: display_value, exact: true)
+      |> unwrap(fn view ->
+        view
+        |> element("button[aria-label='Edit'][phx-value-item-id='#{item.id}']")
+        |> render_click()
+      end)
+      |> assert_path("#{base_path}/#{item.id}/edit")
+      |> unwrap(fn view ->
+        view
+        |> element("a:has(button[value='cancel'])")
+        |> render_click()
+      end)
+      |> assert_path(base_path)
+      |> assert_has("td", text: display_value, exact: true)
+    end
+  end
+
+  @doc """
+  Tests edit item action from show view with save and redirect back to show.
+  """
+  defmacro test_edit_from_show_save(conn, base_path, item, change_field, old_value, new_value) do
+    quote do
+      conn = unquote(conn)
+      base_path = unquote(base_path)
+      item = unquote(item)
+      change_field = unquote(change_field)
+      old_value = unquote(old_value)
+      new_value = unquote(new_value)
+
+      conn
+      |> visit("#{base_path}/#{item.id}/show")
+      |> assert_has("dd", text: old_value, exact: true)
+      |> assert_has("#item-action-edit")
+      |> unwrap(fn view ->
+        view
+        |> element("#item-action-edit")
+        |> render_click()
+      end)
+      |> assert_path("#{base_path}/#{item.id}/edit")
+      |> unwrap(fn view ->
+        view
+        |> form("#resource-form", change: %{change_field => new_value})
+        |> put_submitter("button[value=save]")
+        |> render_submit()
+      end)
+      |> assert_path("#{base_path}/#{item.id}/show")
+      |> assert_has("dd", text: new_value, exact: true)
+    end
+  end
+
+  @doc """
+  Tests edit item action from show view with cancel and redirect back to show.
+  """
+  defmacro test_edit_from_show_cancel(conn, base_path, item, display_field, display_value) do
+    quote do
+      conn = unquote(conn)
+      base_path = unquote(base_path)
+      item = unquote(item)
+      display_field = unquote(display_field)
+      display_value = unquote(display_value)
+
+      conn
+      |> visit("#{base_path}/#{item.id}/show")
+      |> assert_has("dd", text: display_value, exact: true)
+      |> assert_has("#item-action-edit")
+      |> unwrap(fn view ->
+        view
+        |> element("#item-action-edit")
+        |> render_click()
+      end)
+      |> assert_path("#{base_path}/#{item.id}/edit")
+      |> unwrap(fn view ->
+        view
+        |> element("a:has(button[value='cancel'])")
+        |> render_click()
+      end)
+      |> assert_path("#{base_path}/#{item.id}/show")
+      |> assert_has("dd", text: display_value, exact: true)
+    end
+  end
+
+  @doc """
+  Tests delete item action from index view.
+  """
+  defmacro test_delete_from_index(conn, base_path, item, display_field, display_value, success_message \\ nil) do
+    quote do
+      conn = unquote(conn)
+      base_path = unquote(base_path)
+      item = unquote(item)
+      display_field = unquote(display_field)
+      display_value = unquote(display_value)
+      success_message = unquote(success_message)
+
+      result =
+        conn
+        |> visit(base_path)
+        |> assert_has("td", text: display_value, exact: true)
+        |> unwrap(fn view ->
+          view
+          |> element("button[aria-label='Delete'][phx-value-item-id='#{item.id}']")
+          |> render_click()
+        end)
+        |> unwrap(fn view ->
+          view
+          |> form("#resource-form")
+          |> render_submit()
+        end)
+        |> assert_path(base_path)
+        |> refute_has("td", text: display_value, exact: true)
+
+      if success_message do
+        result |> assert_has("div", text: success_message, exact: true)
+      else
+        result
+      end
+    end
+  end
+
+  @doc """
+  Tests delete item action from show view.
+  """
+  defmacro test_delete_from_show(conn, base_path, item, display_field, display_value, success_message \\ nil) do
+    quote do
+      conn = unquote(conn)
+      base_path = unquote(base_path)
+      item = unquote(item)
+      display_field = unquote(display_field)
+      display_value = unquote(display_value)
+      success_message = unquote(success_message)
+
+      result =
+        conn
+        |> visit("#{base_path}/#{item.id}/show")
+        |> assert_has("dd", text: display_value, exact: true)
+        |> assert_has("#item-action-delete")
+        |> unwrap(fn view ->
+          view
+          |> element("#item-action-delete")
+          |> render_click()
+        end)
+        |> unwrap(fn view ->
+          view
+          |> form("#resource-form")
+          |> render_submit()
+        end)
+        |> assert_path(base_path)
+        |> refute_has("td", text: display_value, exact: true)
+
+      if success_message do
+        result |> assert_has("div", text: success_message, exact: true)
+      else
+        result
+      end
+    end
+  end
 end

@@ -2,6 +2,7 @@ defmodule Backpex.ItemAction do
   @moduledoc """
   Behaviour implemented by all item actions.
   """
+  import Phoenix.Component
 
   @doc """
   Action icon
@@ -198,5 +199,53 @@ defmodule Backpex.ItemAction do
         only: [:row, :index, :show]
       }
     ]
+  end
+
+  @doc """
+  Handles an item action by executing the action's handle function.
+
+  This function filters items based on authorization, executes the action,
+  and allows customization of post-action behavior via the `after_handle` callback.
+  """
+  def handle_item_action(socket, action, key, items, after_handle) do
+    live_resource = socket.assigns.live_resource
+    authorized_items = Enum.filter(items, fn item -> live_resource.can?(socket.assigns, key, item) end)
+
+    case action.module.handle(socket, authorized_items, %{}) do
+      {:ok, socket} ->
+        after_handle.(socket)
+
+      unexpected_return ->
+        raise ArgumentError, """
+        Invalid return value from #{inspect(action.module)}.handle/3.
+
+        Expected: {:ok, socket}
+        Got: #{inspect(unexpected_return)}
+
+        Item Actions with no form fields must return {:ok, socket}.
+        """
+    end
+  end
+
+  @doc """
+  Prepares the socket for opening an action confirmation modal.
+
+  If the action has a form, it creates a changeset and assigns it along with the base schema.
+  Otherwise, it assigns an empty changeset.
+  """
+  def assign_action_changeset(socket, action) do
+    if has_form?(action) do
+      changeset_function = fn item, changes, metadata -> action.module.changeset(item, changes, metadata) end
+      base_schema = action.module.base_schema(socket.assigns)
+
+      metadata = Backpex.Resource.build_changeset_metadata(socket.assigns)
+      changeset = changeset_function.(base_schema, %{}, metadata)
+
+      socket
+      |> assign(:action_item, base_schema)
+      |> assign(:changeset, changeset)
+    else
+      assign(socket, :changeset, %{})
+    end
   end
 end

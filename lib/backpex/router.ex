@@ -188,7 +188,7 @@ defmodule Backpex.Router do
     if Map.has_key?(params_or_item, id_field) do
       id = params_or_item |> Map.get(id_field) |> to_string() |> URI.encode_www_form()
 
-      put_route_params(route_path, Map.put(params, "backpex_id", maybe_to_string(id)))
+      put_route_params(route_path, Map.put(params, "backpex_id", id))
     else
       query_params = Query.encode(params_or_item)
       put_route_params(route_path, params) |> maybe_put_query_params(query_params)
@@ -206,7 +206,7 @@ defmodule Backpex.Router do
     route_path = get_route_path(socket, module, action)
     query_params = Query.encode(query_params)
 
-    put_route_params(route_path, Map.put(params, "backpex_id", maybe_to_string(id_serializable)))
+    put_route_params(route_path, Map.put(params, "backpex_id", to_string(id_serializable)))
     |> maybe_put_query_params(query_params)
   end
 
@@ -308,7 +308,4 @@ defmodule Backpex.Router do
         """
     end
   end
-
-  defp maybe_to_string(value) when is_atom(value), do: Atom.to_string(value)
-  defp maybe_to_string(value), do: value
 end

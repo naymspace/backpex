@@ -118,12 +118,49 @@ defmodule Backpex.HTML.Resource do
   end
 
   @doc """
+  Renders an inlined field.
+  """
+  @doc type: :component
+
+  attr :id, :string, required: true
+  attr :hide_label, :boolean, default: false, doc: "whether to hide the label (left column)"
+  attr :name, :string, required: true, doc: "name / key of the item field"
+  attr :item, :map, required: true, doc: "the item which provides the value to be rendered"
+  attr :fields, :list, required: true, doc: "list of all fields provided by the resource configuration"
+
+  def inlined_resource_field(assigns) do
+    %{name: name, item: item, fields: fields} = assigns
+
+    {_name, field_options} = field = Enum.find(fields, fn {field_name, _field_options} -> field_name == name end)
+
+    readonly = Backpex.Field.readonly?(field_options, assigns)
+
+    assigns =
+      assigns
+      |> assign(:field, field)
+      |> assign(:field_options, field_options)
+      |> assign(:value, Map.get(item, name))
+      |> assign(:type, :index)
+      |> assign(:readonly, readonly)
+
+    ~H"""
+    <.live_component
+      id={@id}
+      module={@field_options.module}
+      type={@type}
+      {Map.drop(assigns, [:socket, :flash, :myself, :uploads])}
+    />
+    """
+  end
+
+  @doc """
   Renders a resource form field.
   """
   @doc type: :component
 
   attr :name, :string, required: true, doc: "name / key of the item field"
   attr :form, :map, required: true, doc: "form that will be used by the form field"
+  attr :hide_label, :boolean, default: false, doc: "whether to hide the label (left column)"
   attr :repo, :any, required: false, doc: "ecto repo"
   attr :uploads, :map, required: false, default: %{}, doc: "map that contains upload information"
   attr :fields, :list, required: true, doc: "list of all fields provided by the resource configuration"
@@ -142,7 +179,7 @@ defmodule Backpex.HTML.Resource do
 
     ~H"""
     <.live_component
-      id={"resource_#{@name}"}
+      id={"resource_#{@form[@name].id}"}
       module={@field_options.module}
       lv_uploads={assigns[:uploads]}
       type={@type}
@@ -257,7 +294,7 @@ defmodule Backpex.HTML.Resource do
   def filter_dropdown(assigns) do
     ~H"""
     <.dropdown id="filter-dropdown">
-      <:trigger>
+      <:trigger aria_label={Backpex.__("Filters", @live_resource)}>
         <div class="indicator">
           <span :if={@filter_count > 0} class="indicator-item badge badge-sm badge-secondary rounded-selector">
             {@filter_count}
@@ -495,7 +532,7 @@ defmodule Backpex.HTML.Resource do
 
     ~H"""
     <.dropdown class={@class} id="toggle-columns-dropdown">
-      <:trigger class="hover:cursor-pointer">
+      <:trigger aria_label={Backpex.__("Toggle columns", @live_resource)} class="hover:cursor-pointer">
         <.icon name="hero-view-columns-solid" class="text-base-content/50 size-5 hover:text-base-content" />
         <span class="sr-only">
           {Backpex.__("Toggle columns", @live_resource)}
@@ -503,8 +540,20 @@ defmodule Backpex.HTML.Resource do
       </:trigger>
       <:menu class="min-w-52 max-w-72 p-4">
         <.form class="w-full" method="POST" for={@form} action={Router.cookie_path(@socket)}>
-          <input type="hidden" name={@form[:_resource].name} value={@form[:_resource].value} />
-          <input type="hidden" name={@form[:_cookie_redirect_url].name} value={@form[:_cookie_redirect_url].value} />
+          <input
+            type="hidden"
+            name={@form[:_resource].name}
+            value={@form[:_resource].value}
+            tabindex="-1"
+            aria-hidden="true"
+          />
+          <input
+            type="hidden"
+            name={@form[:_cookie_redirect_url].name}
+            value={@form[:_cookie_redirect_url].value}
+            tabindex="-1"
+            aria-hidden="true"
+          />
           <.toggle_columns_inputs active_fields={@active_fields} form={@form} />
           <button class="btn btn-sm btn-primary mt-4">
             {Backpex.__("Save", @live_resource)}
@@ -528,7 +577,7 @@ defmodule Backpex.HTML.Resource do
     <div class="flex flex-col space-y-1">
       <div :for={{name, %{active: active, label: label}} <- @active_fields}>
         <label class="flex cursor-pointer items-center">
-          <input type="hidden" name={@form[name].name} value="false" />
+          <input type="hidden" name={@form[name].name} value="false" tabindex="-1" aria-hidden="true" />
           <input type="checkbox" name={@form[name].name} class="checkbox checkbox-sm checkbox-primary" checked={active} />
           <span class="label-text truncate pl-2">
             {label}
@@ -763,6 +812,7 @@ defmodule Backpex.HTML.Resource do
   """
   @doc type: :component
 
+  attr :live_resource, :atom, default: nil, doc: "The LiveResource module."
   attr :options, :list, required: true, doc: "A list of per page options."
   attr :query_options, :map, default: %{}, doc: "The query options."
   attr :class, :string, default: "", doc: "Extra class to be added to the select."
@@ -777,7 +827,7 @@ defmodule Backpex.HTML.Resource do
 
     ~H"""
     <.form for={@form} class={@class} phx-change="select-page-size" phx-submit="select-page-size">
-      <select name={@form[:value].name} class="select select-sm">
+      <select name={@form[:value].name} class="select select-sm" aria-label={Backpex.__("Items per page", @live_resource)}>
         {Phoenix.HTML.Form.options_for_select(@options, @selected)}
       </select>
     </.form>
@@ -817,7 +867,7 @@ defmodule Backpex.HTML.Resource do
       <div :if={display_divider?(assigns)} class="border-base-300 my-0.5 border-r-2 border-solid" />
 
       <button
-        :for={{key, action} <- index_item_actions(@item_actions)}
+        :for={{key, action} <- filter_item_actions(@item_actions, :index)}
         class="btn btn-sm btn-outline btn-primary"
         disabled={action_disabled?(assigns, key, @selected_items)}
         phx-click="item-action"
@@ -879,22 +929,19 @@ defmodule Backpex.HTML.Resource do
   end
 
   defp display_divider?(assigns) do
-    index_item_actions = index_item_actions(assigns.item_actions)
+    index_actions = filter_item_actions(assigns.item_actions, :index)
     resource_actions = resource_actions(assigns, assigns.resource_actions)
 
-    Enum.any?(index_item_actions) &&
+    Enum.any?(index_actions) &&
       (Enum.any?(resource_actions) || assigns.live_resource.can?(assigns, :new, nil))
   end
 
-  defp index_item_actions(item_actions) do
+  @doc """
+  Filters item actions based on visibility type.
+  """
+  def filter_item_actions(item_actions, type) when type in [:index, :row, :show] do
     Enum.filter(item_actions, fn {_key, action} ->
-      action_on_index?(action)
-    end)
-  end
-
-  defp row_item_actions(item_actions) do
-    Enum.filter(item_actions, fn {_key, action} ->
-      action_on_row?(action)
+      action_visible?(action, type)
     end)
   end
 
@@ -905,13 +952,12 @@ defmodule Backpex.HTML.Resource do
     |> Enum.empty?()
   end
 
-  defp action_on_row?(%{only: only}), do: :row in only
-  defp action_on_row?(%{except: except}), do: :row not in except
-  defp action_on_row?(_action), do: true
-
-  defp action_on_index?(%{only: only}), do: :index in only
-  defp action_on_index?(%{except: except}), do: :index not in except
-  defp action_on_index?(_action), do: true
+  @doc """
+  Checks if an action should be visible for the given type.
+  """
+  def action_visible?(%{only: only}, type), do: type in only
+  def action_visible?(%{except: except}, type), do: type not in except
+  def action_visible?(_action, _type), do: true
 
   @doc """
   Renders an info block to indicate that no items are found.
@@ -1084,7 +1130,7 @@ defmodule Backpex.HTML.Resource do
         <div class="first:pt-3 last:pb-3">
           <fieldset :for={{panel, i} <- Enum.with_index(@panel)} class={Map.get(panel, :class)}>
             <div :if={panel[:label]}>
-              <hr :if={i != 0} class="border-1 border-base-200 mb-8" />
+              <hr :if={i != 0} class="border-base-200 mb-8 border" />
 
               <legend class="mb-4 px-6 text-lg font-semibold">
                 {panel[:label]}
@@ -1145,8 +1191,14 @@ defmodule Backpex.HTML.Resource do
     ~H"""
     <div :if={length(@metrics) > 0}>
       <.form method="POST" for={@form} action={Router.cookie_path(@socket)}>
-        <input type="hidden" name={@form[:_resource].name} value={@form[:_resource].value} />
-        <input type="hidden" name={@form[:_cookie_redirect_url].name} value={@form[:_cookie_redirect_url].value} />
+        <input type="hidden" name={@form[:_resource].name} value={@form[:_resource].value} tabindex="-1" aria-hidden="true" />
+        <input
+          type="hidden"
+          name={@form[:_cookie_redirect_url].name}
+          value={@form[:_cookie_redirect_url].value}
+          tabindex="-1"
+          aria-hidden="true"
+        />
         <div
           id="toggle-metrics-button"
           phx-hook="BackpexTooltip"

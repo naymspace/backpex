@@ -1,8 +1,8 @@
 defmodule Backpex.Fields.Select do
   @config_schema [
     options: [
-      doc: "List of options or function that receives the assigns.",
-      type: {:or, [{:list, :any}, {:fun, 1}]},
+      doc: "List of possibly grouped options or function that receives the assigns.",
+      type: {:or, [{:list, :any}, {:map, :any, :any}, {:fun, 1}]},
       required: true
     ],
     prompt: [
@@ -69,7 +69,7 @@ defmodule Backpex.Fields.Select do
     ~H"""
     <div>
       <Layout.field_container>
-        <:label align={Backpex.Field.align_label(@field_options, assigns)}>
+        <:label :if={not @hide_label} align={Backpex.Field.align_label(@field_options, assigns)}>
           <Layout.input_label for={@form[@name]} text={@field_options[:label]} />
         </:label>
         <BackpexForm.input
@@ -81,6 +81,7 @@ defmodule Backpex.Fields.Select do
           help_text={Backpex.Field.help_text(@field_options, assigns)}
           phx-debounce={Backpex.Field.debounce(@field_options, assigns)}
           phx-throttle={Backpex.Field.throttle(@field_options, assigns)}
+          aria-labelledby={Map.get(assigns, :aria_labelledby)}
         />
       </Layout.field_container>
     </div>
@@ -115,6 +116,7 @@ defmodule Backpex.Fields.Select do
           ]}
           disabled={@readonly}
           hide_errors
+          aria-label={@field_options[:label]}
         />
       </.form>
     </div>
@@ -127,6 +129,19 @@ defmodule Backpex.Fields.Select do
   end
 
   defp get_label(value, options) do
+    options =
+      Enum.map(options, fn
+        {_label, value} = option ->
+          case value do
+            value when is_list(value) or is_map(value) -> value
+            _value -> option
+          end
+
+        option ->
+          option
+      end)
+      |> List.flatten()
+
     case Enum.find(options, fn option -> value?(option, value) end) do
       nil -> value
       {label, _value} -> label

@@ -5,7 +5,7 @@ locals_without_parens = [
 
 [
   line_length: 120,
-  import_deps: [:ecto, :phoenix, :ash, :ash_postgres],
+  import_deps: [:ecto, :phoenix],
   plugins: [TailwindFormatter, Phoenix.LiveView.HTMLFormatter, Quokka],
   inputs: ["*.{heex,ex,exs}", "priv/*/seeds.exs", "{config,lib,test}/**/*.{heex,ex,exs}"],
   locals_without_parens: locals_without_parens,

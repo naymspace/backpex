@@ -277,48 +277,20 @@ defmodule Backpex.LiveResource.Index do
   end
 
   defp open_action_confirm_modal(socket, action, key) do
-    if_result =
-      if Backpex.ItemAction.has_form?(action) do
-        changeset_function = fn item, changes, metadata -> action.module.changeset(item, changes, metadata) end
-        base_schema = action.module.base_schema(socket.assigns)
-
-        metadata = Resource.build_changeset_metadata(socket.assigns)
-        changeset = changeset_function.(base_schema, %{}, metadata)
-
-        socket
-        |> assign(:item, base_schema)
-        |> assign(:changeset, changeset)
-      else
-        assign(socket, :changeset, %{})
-      end
-
-    if_result
+    socket
+    |> Backpex.ItemAction.assign_action_changeset(action)
     |> assign(:action_to_confirm, Map.put(action, :key, key))
     |> noreply()
   end
 
   defp handle_item_action(socket, action, key, items) do
-    %{live_resource: live_resource} = socket.assigns
-    items = Enum.filter(items, fn item -> live_resource.can?(socket.assigns, key, item) end)
-
-    case action.module.handle(socket, items, %{}) do
-      {:ok, socket} ->
-        socket
-        |> assign(action_to_confirm: nil)
-        |> assign(selected_items: [])
-        |> assign(select_all: false)
-        |> noreply()
-
-      unexpected_return ->
-        raise ArgumentError, """
-        Invalid return value from #{inspect(action.module)}.handle/3.
-
-        Expected: {:ok, socket}
-        Got: #{inspect(unexpected_return)}
-
-        Item Actions with no form fields must return {:ok, socket}.
-        """
-    end
+    Backpex.ItemAction.handle_item_action(socket, action, key, items, fn socket ->
+      socket
+      |> assign(action_to_confirm: nil)
+      |> assign(selected_items: [])
+      |> assign(select_all: false)
+      |> noreply()
+    end)
   end
 
   defp find_item_by_primary_value(items, primary_value, live_resource) do

@@ -11,6 +11,13 @@ defmodule Backpex.Field do
       type: :string,
       required: true
     ],
+    class: [
+      type: {:or, [:string, {:fun, 1}]},
+      doc: """
+      Class or classes to be applied when the field is used as a child field in `Backpex.Fields.InlineCRUD`. The class
+      can be a string or a function that takes the assigns and must return a string.
+      """
+    ],
     help_text: [
       doc: "A text to be displayed below the input on form views.",
       type: {:or, [:string, {:fun, 1}]}
