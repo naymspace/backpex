@@ -38,7 +38,7 @@ defmodule Backpex.HTML.CoreComponents do
       </.dropdown>
   """
   attr :id, :string, required: true, doc: "unique identifier for the dropdown"
-  attr :readonly, :boolean, default: false
+  attr :readonly, :boolean, default: false, doc: "whether the dropdown is readonly"
   attr :class, :any, default: nil, doc: "additional classes for the outer container element"
 
   slot :trigger, doc: "the trigger element to be used to toggle the dropdown menu" do

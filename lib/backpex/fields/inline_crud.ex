@@ -180,6 +180,7 @@ defmodule Backpex.Fields.InlineCRUD do
               <div class={if f_nested.index == 0, do: "mt-5", else: nil}>
                 <label for={"#{@name}-checkbox-delete-#{f_nested.index}"}>
                   <input
+                    :if={not @readonly}
                     id={"#{@name}-checkbox-delete-#{f_nested.index}"}
                     type="checkbox"
                     name={"change[#{@name}_delete][]"}

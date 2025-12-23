@@ -176,8 +176,9 @@ defmodule Backpex.HTML.Resource do
       |> assign(:field_options, field_options)
       |> assign(:type, :form)
 
+    # this is needed to apply `:readonly` to individual fields in `Backpex.Fields.InlineCRUD`
     assigns =
-      if assigns[:readonly] == true do
+      if assigns[:readonly] do
         assigns
       else
         assign(assigns, :readonly, Backpex.Field.readonly?(field_options, assigns))

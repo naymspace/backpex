@@ -47,13 +47,6 @@ defmodule Backpex.HTML.Form do
   slot :inner_block
 
   def input(%{field: %Phoenix.HTML.FormField{} = field} = assigns) do
-    assigns =
-      if Map.has_key?(assigns.rest, :disabled) do
-        assigns
-      else
-        put_in(assigns, [:rest, :disabled], Map.get(assigns.rest, :readonly) || false)
-      end
-
     assigns
     |> prepare_field_assigns(field, assigns.translate_error_fun)
     |> assign_new(:name, fn -> if assigns.multiple, do: field.name <> "[]", else: field.name end)
@@ -212,13 +205,6 @@ defmodule Backpex.HTML.Form do
               multiple pattern placeholder readonly required rows size step)
 
   def currency_input(%{field: %Phoenix.HTML.FormField{} = field} = assigns) do
-    assigns =
-      if Map.has_key?(assigns.rest, :disabled) do
-        assigns
-      else
-        put_in(assigns, [:rest, :disabled], Map.get(assigns.rest, :readonly) || false)
-      end
-
     assigns
     |> prepare_field_assigns(field, assigns.translate_error_fun)
     |> assign_new(:name, fn -> field.name end)
@@ -300,7 +286,7 @@ defmodule Backpex.HTML.Form do
   @doc type: :component
 
   attr :prompt, :string, required: true, doc: "string that will be shown when no option is selected"
-  attr :readonly, :boolean, default: false
+  attr :readonly, :boolean, default: false, doc: "whether the dropdown is readonly"
   attr :help_text, :string, default: nil, doc: "help text to be displayed below input"
   attr :not_found_text, :string, required: true, doc: "string that will be shown when there are no options"
   attr :options, :list, required: true, doc: "a list of options for the select"
