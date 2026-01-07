@@ -86,7 +86,7 @@ defmodule Demo.User do
   defp validate_posts(changeset) do
     posts = get_field(changeset, :posts) || []
 
-    if length(posts) < 1 do
+    if posts == [] do
       add_error(changeset, :posts, "must have at least one post")
     else
       changeset
