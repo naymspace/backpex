@@ -180,7 +180,13 @@ defmodule Backpex.Router do
   @doc """
   Finds the raw path by the given socket and module and puts the path params into the raw path.
   """
-  def get_path(socket, module, params, action, params_or_item \\ %{}) do
+  def get_path(socket, module, params, action, params_or_item \\ %{})
+
+  def get_path(socket, module, params, action, nil) do
+    get_path(socket, module, params, action, %{})
+  end
+
+  def get_path(socket, module, params, action, params_or_item) do
     route_path = get_route_path(socket, module, action)
 
     id_field = module.config(:primary_key)
