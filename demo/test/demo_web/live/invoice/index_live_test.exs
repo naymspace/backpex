@@ -1,7 +1,8 @@
 defmodule DemoWeb.Live.Invoice.IndexLiveTest do
   use DemoWeb.ConnCase, async: false
 
-  alias Demo.{Invoice, Repo}
+  alias Demo.Invoice
+  alias Demo.Repo
 
   describe "invoices live resource index" do
     setup do
