@@ -1,4 +1,4 @@
-<Backpex.HTML.Layout.app_shell fluid={@fluid?}>
+<Backpex.HTML.Layout.app_shell fluid={@fluid?} live_resource={@live_resource}>
   <:topbar>
     <Backpex.HTML.Layout.topbar_branding />
 
@@ -42,16 +42,18 @@
     />
     <Backpex.HTML.Layout.topbar_dropdown class="mr-2 md:mr-0">
       <:label>
-        <label tabindex="0" class="btn btn-square btn-ghost">
+        <div class="btn btn-square btn-ghost">
           <Backpex.HTML.CoreComponents.icon name="hero-user" class="size-6" />
-        </label>
+        </div>
       </:label>
-      <li>
-        <.link href="https://backpex.live" class="text-error flex justify-between hover:bg-base-200">
-          <p>Logout</p>
-          <Backpex.HTML.CoreComponents.icon name="hero-arrow-right-on-rectangle" class="size-5" />
-        </.link>
-      </li>
+      <ul>
+        <li>
+          <.link href="https://backpex.live" class="text-error flex justify-between hover:bg-base-200">
+            <p>Logout</p>
+            <Backpex.HTML.CoreComponents.icon name="hero-arrow-right-on-rectangle" class="size-5" />
+          </.link>
+        </li>
+      </ul>
     </Backpex.HTML.Layout.topbar_dropdown>
   </:topbar>
   <:sidebar>
@@ -83,12 +85,6 @@
       </Backpex.HTML.Layout.sidebar_item>
       <Backpex.HTML.Layout.sidebar_item current_url={@current_url} navigate="/admin/tags">
         <Backpex.HTML.CoreComponents.icon name="hero-tag" class="size-5" /> Tags
-      </Backpex.HTML.Layout.sidebar_item>
-    </Backpex.HTML.Layout.sidebar_section>
-    <Backpex.HTML.Layout.sidebar_section id="helpdesk">
-      <:label>Helpdesk</:label>
-      <Backpex.HTML.Layout.sidebar_item current_url={@current_url} navigate="/admin/tickets">
-        <Backpex.HTML.CoreComponents.icon name="hero-book-open" class="size-5" /> Tickets
       </Backpex.HTML.Layout.sidebar_item>
     </Backpex.HTML.Layout.sidebar_section>
   </:sidebar>

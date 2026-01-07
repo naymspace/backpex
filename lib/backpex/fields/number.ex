@@ -44,8 +44,8 @@ defmodule Backpex.Fields.Number do
     ~H"""
     <div>
       <Layout.field_container>
-        <:label align={Backpex.Field.align_label(@field_options, assigns)}>
-          <Layout.input_label text={@field_options[:label]} />
+        <:label :if={not @hide_label} align={Backpex.Field.align_label(@field_options, assigns)}>
+          <Layout.input_label for={@form[@name]} text={@field_options[:label]} />
         </:label>
         <BackpexForm.input
           type="number"
@@ -56,6 +56,7 @@ defmodule Backpex.Fields.Number do
           phx-throttle={Backpex.Field.throttle(@field_options, assigns)}
           readonly={@readonly}
           disabled={@readonly}
+          aria-labelledby={Map.get(assigns, :aria_labelledby)}
         />
       </Layout.field_container>
     </div>
@@ -83,6 +84,7 @@ defmodule Backpex.Fields.Number do
           phx-debounce="100"
           readonly={@readonly}
           hide_errors
+          aria-label={@field_options[:label]}
         />
       </.form>
     </div>

@@ -11,6 +11,7 @@ services:
       - STARTUP_COMMAND_2=yarn install --pure-lockfile
       - STARTUP_COMMAND_3=yarn playwright install chromium --with-deps
       - STARTUP_COMMAND_4=mix assets.setup
+      - STARTUP_COMMAND_5=cd .. && mix deps.get && yarn install --pure-lockfile && cd demo
     volumes:
       - .:/opt/app
     ports:
@@ -20,7 +21,7 @@ services:
       postgres:
         condition: service_healthy
   postgres:
-    image: postgres:16.10@sha256:fd4208c8aadb92850e7e86a584fe8b1f2a6af8949feeb1ac8e12e72324573676
+    image: postgres:16.11@sha256:056b54f00419b49289227ab12d09df508543883f407fe9935a2cec430ef8aa8d
     environment:
       - POSTGRES_PASSWORD=postgres
     ports:

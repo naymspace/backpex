@@ -1,7 +1,7 @@
 defmodule Backpex.MixProject do
   use Mix.Project
 
-  @version "0.15.3"
+  @version "0.17.0"
 
   @source_url "https://github.com/naymspace/backpex"
   @changelog_url "https://github.com/naymspace/backpex/releases"
@@ -37,23 +37,22 @@ defmodule Backpex.MixProject do
   defp deps do
     [
       # development
-      {:ex_doc, "~> 0.38", only: [:dev, :test], runtime: false},
+      {:ex_doc, "~> 0.39", only: [:dev, :test], runtime: false},
       {:makeup_eex, "~> 2.0", only: [:dev, :test], runtime: false},
       {:makeup_syntect, "~> 0.1.3", only: [:dev, :test], runtime: false},
       {:credo, ">= 0.0.0", only: [:dev, :test], runtime: false},
       {:mix_audit, "~> 2.0", only: [:dev, :test], runtime: false},
-      {:tailwind_formatter, "~> 0.4", only: [:dev, :test], runtime: false},
       {:sobelow, ">= 0.0.0", only: [:dev, :test]},
       {:lazy_html, ">= 0.0.0", only: :test},
       {:esbuild, "~> 0.2", only: :dev},
       {:quokka, "~> 2.9", only: [:dev, :test], runtime: false},
+      {:usage_rules, "~> 0.1", only: [:dev]},
 
       # core
       {:nimble_options, "~> 1.1"},
       {:gettext, ">= 0.26.0"},
       {:jason, "~> 1.2"},
       {:number, "~> 1.0"},
-      {:money, "~> 1.13"},
 
       # phoenix
       {:phoenix, ">= 1.7.6 and < 1.9.0"},
@@ -65,8 +64,6 @@ defmodule Backpex.MixProject do
       {:ecto_sql, "~> 3.6"},
       {:postgrex, ">= 0.0.0"},
       {:phoenix_ecto, "~> 4.4"},
-      {:ash, "~> 3.0", optional: true},
-      {:ash_postgres, "~> 2.0", optional: true},
 
       # generators
       {:igniter, "~> 0.6", optional: true},
@@ -89,7 +86,7 @@ defmodule Backpex.MixProject do
 
   defp aliases do
     [
-      lint: ["format --check-formatted", "credo", "sobelow --config"],
+      lint: ["compile --warning-as-errors", "deps.unlock --unused", "format", "credo", "test"],
       "assets.build": [
         "esbuild module",
         "esbuild main"
@@ -195,6 +192,8 @@ defmodule Backpex.MixProject do
       "guides/translations/translations.md",
 
       # Upgrade Guides
+      "guides/upgrading/v0.17.md",
+      "guides/upgrading/v0.16.md",
       "guides/upgrading/v0.15.md",
       "guides/upgrading/v0.14.md",
       "guides/upgrading/v0.13.md",

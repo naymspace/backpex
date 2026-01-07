@@ -138,15 +138,15 @@ Although Backpex does not ship with a predefined layout component, it does provi
 To get you started quickly, we provide a layout component you can copy & paste into your application. Place it as a file in your `lib/myapp_web/templates/layout` directory. You can name it whatever you like, but we recommend using `admin.html.heex`. You can also use this component as the only layout in your application if your application consists of only an admin interface. This layout component uses the `Backpex.HTML.Layout.app_shell/1` component, which can be used to easily add an app shell layout to your application.
 
 ```heex
-<Backpex.HTML.Layout.app_shell fluid={@fluid?}>
+<Backpex.HTML.Layout.app_shell fluid={@fluid?} live_resource={@live_resource}>
   <:topbar>
     <Backpex.HTML.Layout.topbar_branding />
 
     <Backpex.HTML.Layout.topbar_dropdown class="mr-2 md:mr-0">
       <:label>
-        <label tabindex="0" class="btn btn-square btn-ghost">
+        <div class="btn btn-square btn-ghost">
           <Backpex.HTML.CoreComponents.icon name="hero-user" class="size-6" />
-        </label>
+        </div>
       </:label>
       <li>
         <.link href="/" class="text-error flex justify-between hover:bg-base-200">
@@ -356,7 +356,7 @@ You probably also want to add link to your created LiveResource in the sidebar. 
 If you copied the provided layout component from [the section above](#create-a-default-admin-layout), you can just use the `sidebar_item/1` component inside the sidebar slot like this:
 
 ```heex
-<Backpex.HTML.Layout.app_shell fluid={@fluid?}>
+<Backpex.HTML.Layout.app_shell fluid={@fluid?} live_resource={@live_resource}>
   <:topbar>
     <!-- Topbar Content -->
   </:topbar>
@@ -367,7 +367,7 @@ If you copied the provided layout component from [the section above](#create-a-d
     </Backpex.HTML.Layout.sidebar_item>
   </:sidebar>
   <Backpex.HTML.Layout.flash_messages flash={@flash} />
-  {@inner_content}
+  {render_slot(@inner_block)}
 </Backpex.HTML.Layout.app_shell>
 ```
 
@@ -571,7 +571,7 @@ To add the saved theme to the assigns, you can add the `Backpex.ThemeSelectorPlu
 You can add a theme selector to your layout component to allow users to change the theme. The following example shows how to add a theme selector to the `admin` component. The list of themes should match the themes you added to your stylesheet.
 
 ```heex
-<Backpex.HTML.Layout.app_shell fluid={@fluid?}>
+<Backpex.HTML.Layout.app_shell fluid={@fluid?} live_resource={@live_resource}>
   <:topbar>
     <Backpex.HTML.Layout.topbar_branding />
 

@@ -1,6 +1,8 @@
 defmodule Backpex.RouterTest do
   use ExUnit.Case, async: true
 
+  alias Backpex.Router
+
   describe "live_resources/3 macro" do
     defmodule UserLive do
       def resource_actions, do: []
@@ -185,6 +187,65 @@ defmodule Backpex.RouterTest do
         end)
 
       assert length(backpex_routes) == 1
+    end
+  end
+
+  describe "active?/2" do
+    test "returns true for exact path matches" do
+      assert_routes("https://example.com/admin/events", "/admin/events")
+      assert_routes("https://example.com/admin/products", "/admin/products")
+      assert_routes("https://example.com/admin/products-tags", "/admin/products-tags")
+    end
+
+    test "handles trailing slashes correctly" do
+      assert_routes("https://example.com/admin/events/", "/admin/events")
+      assert_routes("https://example.com/admin/events", "/admin/events/")
+      assert_routes("https://example.com/admin/events/", "/admin/events/")
+    end
+
+    test "handles root path correctly" do
+      assert_routes("https://example.com/", "/")
+      assert_routes("https://example.com", "/admin/products", false)
+      assert_routes("https://example.com/admin", "/", false)
+    end
+
+    test "returns false for different routes" do
+      assert_routes("https://example.com/admin/events", "/admin/users", false)
+      assert_routes("https://example.com/admin", "/dashboard", false)
+    end
+
+    test "child routes match parent routes" do
+      assert_routes("https://example.com/admin/products/new", "/admin/products")
+      assert_routes("https://example.com/admin/users/123/edit", "/admin/users")
+    end
+
+    test "similar path names do not match" do
+      assert_routes("https://example.com/admin/products", "/admin/products-tags", false)
+      assert_routes("https://example.com/admin/products-tags", "/admin/products", false)
+      assert_routes("https://example.com/admin/user_profile", "/admin/user", false)
+    end
+
+    test "query and fragment parameters do not affect matching" do
+      assert_routes("https://example.com/admin/events?page=2", "/admin/events")
+      assert_routes("https://example.com/admin/events?page=2&sort=name", "/admin/events")
+      assert_routes("https://example.com/admin/products?filter=active&limit=50", "/admin/products")
+      assert_routes("https://example.com/admin/events#section", "/admin/events")
+      assert_routes("https://example.com/admin/products#top", "/admin/products")
+    end
+
+    test "case sensitive path matching" do
+      assert_routes("https://example.com/Admin/Events", "/admin/events", false)
+      assert_routes("https://example.com/admin/events", "/Admin/Events", false)
+    end
+  end
+
+  defp assert_routes(current, to, equal \\ true) do
+    current = URI.new!(current)
+
+    if equal do
+      assert Router.active?(current, to)
+    else
+      refute Router.active?(current, to)
     end
   end
 end

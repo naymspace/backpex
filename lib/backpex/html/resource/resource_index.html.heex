@@ -16,27 +16,12 @@
     />
   </.modal>
 
-  <.modal
-    :if={@action_to_confirm}
-    id="action-confirm-modal"
-    title={@action_to_confirm.module.label(assigns, nil)}
-    on_cancel={JS.push("cancel-action-confirm")}
-    open={true}
-    close_label={Backpex.__("Close modal", @live_resource)}
-  >
-    <div class="px-5 py-3">
-      {@action_to_confirm.module.confirm(assigns)}
-    </div>
-    <div>
-      <.live_component
-        module={Backpex.FormComponent}
-        id={:item_action_modal}
-        live_resource={@live_resource}
-        action_type={:item}
-        {Map.drop(assigns, [:socket, :flash, :fields])}
-      />
-    </div>
-  </.modal>
+  <Backpex.HTML.ItemAction.action_confirm_modal
+    :if={Map.get(assigns, :action_to_confirm)}
+    action_to_confirm={@action_to_confirm}
+    live_resource={@live_resource}
+    {assigns}
+  />
 
   {@live_resource.render_resource_slot(assigns, :index, :before_page_title)}
   {@live_resource.render_resource_slot(assigns, :index, :page_title)}

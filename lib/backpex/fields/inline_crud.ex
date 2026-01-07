@@ -7,12 +7,15 @@ defmodule Backpex.Fields.InlineCRUD do
     ],
     child_fields: [
       doc: """
-      A list of input fields to be used. Currently only support `Backpex.Fields.Text` fields.
+      A list of child input fields.
+
+      The following fields are **not** supported:
+      - `Backpex.Fields.HasManyThrough`
+      - `Backpex.Fields.InlineCRUD`
+      - `Backpex.Fields.Upload`
 
       You can add additional classes to child field inputs by setting the class option in the list of `child_fields`.
-      The class can be a string or a function that takes the assigns and must return a string. In addition, you can
-      optionally specify the input type of child field inputs with the `input_type` option. We currently support `:text`
-      and `:textarea`. The `input_type` defaults to `:text`.
+      The class can be a string or a function that takes the assigns and must return a string.
       """,
       type: :keyword_list,
       required: true
@@ -27,10 +30,6 @@ defmodule Backpex.Fields.InlineCRUD do
   See `Backpex.Field` for general field options.
 
   #{NimbleOptions.docs(@config_schema)}
-
-  > #### Important {: .info}
-  >
-  > Everything is currently handled by plain text input.
 
   ### EmbedsMany
 
@@ -89,10 +88,26 @@ defmodule Backpex.Fields.InlineCRUD do
   require Backpex
 
   @impl Phoenix.LiveComponent
-  def update(assigns, socket) do
+  def update(%{field: {name, field_options}} = assigns, socket) do
+    child_fields =
+      field_options.child_fields
+      |> validated_fields(name)
+      |> Backpex.LiveResource.fields_by_action(assigns.live_action)
+      |> Backpex.LiveResource.fields_by_can(assigns)
+
     socket
     |> assign(assigns)
+    |> assign(child_fields: child_fields)
     |> ok()
+  end
+
+  defp validated_fields(fields, parent_name) do
+    fields
+    |> Enum.map(fn {name, options} = field ->
+      options.module.validate_config!(field, parent_name)
+      |> Map.new()
+      |> then(&{name, &1})
+    end)
   end
 
   @impl Backpex.Field
@@ -102,15 +117,22 @@ defmodule Backpex.Fields.InlineCRUD do
       <table class="table">
         <thead class="bg-base-200/50 text-base-content uppercase">
           <tr>
-            <th :for={{_name, %{label: label}} <- @field_options.child_fields} class="font-medium">
+            <th :for={{_name, %{label: label}} <- @child_fields} class="font-medium">
               {label}
             </th>
           </tr>
         </thead>
         <tbody class="text-base-content/75">
-          <tr :for={row <- @value} class="border-base-content/10 border-b last:border-b-0">
-            <td :for={{name, _field_options} <- @field_options.child_fields}>
-              {HTML.pretty_value(Map.get(row, name))}
+          <tr :for={{row, index} <- Enum.with_index(@value)} class="border-base-content/10 border-b last:border-b-0">
+            <td :for={{name, field_options} <- @child_fields}>
+              {Backpex.HTML.Resource.inlined_resource_field(
+                assign(assigns,
+                  id: "inlined_#{Map.get(@item, @live_resource.config(:primary_key))}_#{@name}_#{name}_#{index}",
+                  fields: @child_fields,
+                  name: name,
+                  item: row
+                )
+              )}
             </td>
           </tr>
         </tbody>
@@ -121,36 +143,38 @@ defmodule Backpex.Fields.InlineCRUD do
 
   @impl Backpex.Field
   def render_form(assigns) do
-    assigns =
-      assigns
-      |> assign(:child_fields, assigns.field_options.child_fields)
-
     ~H"""
     <div>
       <Layout.field_container>
         <:label align={Backpex.Field.align_label(@field_options, assigns, :top)}>
-          <Layout.input_label text={@field_options[:label]} />
+          <Layout.input_label id={"inline-crud-label-#{@name}"} as="span" text={@field_options[:label]} />
         </:label>
 
         <div class="flex flex-col">
           <.inputs_for :let={f_nested} field={@form[@name]}>
-            <input type="hidden" name={"change[#{@name}_order][]"} value={f_nested.index} />
+            <input type="hidden" name={"change[#{@name}_order][]"} value={f_nested.index} tabindex="-1" aria-hidden="true" />
 
             <div class="mb-3 flex items-start gap-x-4">
               <div
                 :for={{child_field_name, child_field_options} <- @child_fields}
                 class={child_field_class(child_field_options, assigns)}
               >
-                <p :if={f_nested.index == 0} class="mb-1 text-xs">
+                <div
+                  :if={f_nested.index == 0}
+                  id={"inline-crud-header-label-#{@name}-#{child_field_name}"}
+                  class="mb-2 text-xs"
+                >
                   {child_field_options.label}
-                </p>
-                <BackpexForm.input
-                  type={input_type(child_field_options) |> Atom.to_string()}
-                  field={f_nested[child_field_name]}
-                  translate_error_fun={Backpex.Field.translate_error_fun(child_field_options, assigns)}
-                  phx-debounce={Backpex.Field.debounce(child_field_options, assigns)}
-                  phx-throttle={Backpex.Field.throttle(child_field_options, assigns)}
-                />
+                </div>
+                {Backpex.HTML.Resource.resource_form_field(
+                  assign(assigns,
+                    hide_label: true,
+                    aria_labelledby: "inline-crud-label-#{@name} inline-crud-header-label-#{@name}-#{child_field_name}",
+                    fields: @child_fields,
+                    name: child_field_name,
+                    form: f_nested
+                  )
+                )}
               </div>
 
               <div class={if f_nested.index == 0, do: "mt-5", else: nil}>
@@ -163,15 +187,16 @@ defmodule Backpex.Fields.InlineCRUD do
                     class="hidden"
                   />
 
-                  <div class="btn btn-outline btn-error" aria-label={Backpex.__("Delete", @live_resource)}>
-                    <Backpex.HTML.CoreComponents.icon name="hero-trash" class="h-5 w-5" />
+                  <div class="btn btn-outline btn-error">
+                    <span class="sr-only">{Backpex.__("Delete", @live_resource)}</span>
+                    <Backpex.HTML.CoreComponents.icon name="hero-trash" class="size-5" />
                   </div>
                 </label>
               </div>
             </div>
           </.inputs_for>
 
-          <input type="hidden" name={"change[#{@name}_delete][]"} />
+          <input type="hidden" name={"change[#{@name}_delete][]"} tabindex="-1" aria-hidden="true" />
         </div>
         <input
           name={"change[#{@name}_order][]"}
@@ -200,10 +225,5 @@ defmodule Backpex.Fields.InlineCRUD do
 
   defp child_field_class(%{class: class} = _child_field_options, assigns) when is_function(class), do: class.(assigns)
   defp child_field_class(%{class: class} = _child_field_options, _assigns) when is_binary(class), do: class
-  defp child_field_class(_child_field_options, _assigns), do: "grow"
-
-  defp input_type(%{input_type: input_type} = _child_field_options) when input_type in [:text, :textarea],
-    do: input_type
-
-  defp input_type(_child_field_options), do: :text
+  defp child_field_class(_child_field_options, _assigns), do: "flex-1"
 end

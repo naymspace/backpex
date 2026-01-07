@@ -35,20 +35,19 @@ defmodule Demo.MixProject do
   defp deps do
     [
       # development
-      {:ex_doc, "~> 0.38", only: [:dev, :test], runtime: false},
+      {:ex_doc, "~> 0.39", only: [:dev, :test], runtime: false},
       {:credo, "~> 1.7.5", only: [:dev, :test], runtime: false},
       {:sobelow, "~> 0.13", only: [:dev, :test]},
       {:mix_audit, "~> 2.0", only: [:dev, :test], runtime: false},
-      {:tailwind_formatter, "~> 0.4.0", only: [:dev, :test], runtime: false},
       {:lazy_html, "~> 0.1.3", only: :test},
       {:ex_machina, "~> 2.3"},
-      {:smokestack, "~> 0.9.2"},
       {:faker, "~> 0.18"},
-      {:phoenix_test, "~> 0.8.0", only: :test, runtime: false},
-      {:phoenix_test_playwright, "~> 0.8.0", only: :test, runtime: false},
-      {:a11y_audit, "~> 0.2.3", only: :test},
-      {:live_debugger, "~> 0.4", only: :dev},
+      {:phoenix_test, "~> 0.9.0", only: :test, runtime: false},
+      {:phoenix_test_playwright, "~> 0.9.0", only: :test, runtime: false},
+      {:a11y_audit, "~> 0.3.0", only: :test},
+      {:live_debugger, "~> 0.5", only: :dev},
       {:quokka, "~> 2.9", only: [:dev, :test], runtime: false},
+      {:tidewave, "~> 0.5", only: [:dev]},
 
       # core
       {:dns_cluster, "~> 0.2.0"},
@@ -70,15 +69,14 @@ defmodule Demo.MixProject do
       # application
       {:backpex, path: "../."},
       {:phoenix_ecto, "~> 4.0"},
-      {:igniter, "~> 0.6"},
+      {:igniter, "~> 0.7"},
       {:igniter_js, "~> 0.4"},
       {:ecto_sql, "~> 3.1"},
       {:postgrex, ">= 0.0.0"},
       {:ecto_psql_extras, "~> 0.8"},
       {:csv, "~> 3.2.0"},
       {:jason, ">= 1.0.0"},
-      {:ash, "~> 3.0"},
-      {:ash_postgres, "~> 2.6.0"},
+      {:money, "~> 1.14"},
 
       # assets
       {:esbuild, "~> 0.9", runtime: Mix.env() == :dev},

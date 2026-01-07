@@ -4,8 +4,11 @@ defmodule Backpex.HTML.Layout do
   """
 
   use BackpexWeb, :html
-  alias Backpex.HTML.CoreComponents
+
+  import Backpex.HTML.CoreComponents
+
   alias Backpex.Router
+
   require Backpex
 
   @doc false
@@ -23,6 +26,7 @@ defmodule Backpex.HTML.Layout do
   """
   @doc type: :component
 
+  attr :live_resource, :atom, default: nil, doc: "live resource module"
   attr :class, :string, default: nil, doc: "class added to the app shell container"
   attr :fluid, :boolean, default: false, doc: "toggles fluid layout"
 
@@ -41,22 +45,32 @@ defmodule Backpex.HTML.Layout do
   def app_shell(assigns) do
     ~H"""
     <div id="backpex-app-shell" class={["drawer", @class]} phx-hook="BackpexSidebarSections">
-      <input id="menu-drawer" type="checkbox" class="drawer-toggle" />
+      <input id="menu-drawer" type="checkbox" class="drawer-toggle" aria-hidden="true" tabindex="-1" />
       <div class="drawer-content">
         <div class="bg-base-200 fixed inset-0 -z-10 h-full w-full"></div>
-        <div class={[
-          "menu hidden overflow-y-scroll px-2 pt-5 pb-4 md:fixed md:inset-y-0 md:mt-16 md:block md:w-64",
-          build_slot_class(@sidebar)
-        ]}>
-          {render_slot(@sidebar)}
-        </div>
+        <nav
+          class={[
+            "menu hidden overflow-y-scroll px-2 pt-5 pb-4 md:fixed md:inset-y-0 md:mt-16 md:block md:w-64",
+            build_slot_class(@sidebar)
+          ]}
+          aria-label={Backpex.__("Main desktop navigation", @live_resource)}
+        >
+          <ul>
+            {render_slot(@sidebar)}
+          </ul>
+        </nav>
 
         <div class={["flex flex-1 flex-col", length(@sidebar) > 0 && "md:pl-64"]}>
           <div class="fixed top-0 z-30 block w-full md:-ml-64">
             <.topbar class={build_slot_class(@topbar)}>
               {render_slot(@topbar)}
-              <label :if={@sidebar != []} for="menu-drawer" class="btn btn-square drawer-button btn-ghost md:hidden">
-                <Backpex.HTML.CoreComponents.icon name="hero-bars-3-solid" class="h-6" />
+              <label
+                :if={@sidebar != []}
+                for="menu-drawer"
+                class="btn btn-square drawer-button btn-ghost md:hidden"
+                aria-label={Backpex.__("Toggle menu", @live_resource)}
+              >
+                <.icon name="hero-bars-3-solid" class="h-6" />
               </label>
             </.topbar>
           </div>
@@ -71,12 +85,17 @@ defmodule Backpex.HTML.Layout do
       </div>
       <div class="drawer-side z-40">
         <label for="menu-drawer" class="drawer-overlay"></label>
-        <div class={[
-          "bg-base-100 menu min-h-full w-64 flex-1 flex-col overflow-y-auto px-2 pt-5 pb-4",
-          build_slot_class(@sidebar)
-        ]}>
-          {render_slot(@sidebar)}
-        </div>
+        <nav
+          class={[
+            "bg-base-100 menu min-h-full w-64 flex-1 flex-col overflow-y-auto px-2 pt-5 pb-4",
+            build_slot_class(@sidebar)
+          ]}
+          aria-label={Backpex.__("Main mobile navigation", @live_resource)}
+        >
+          <ul>
+            {render_slot(@sidebar)}
+          </ul>
+        </nav>
       </div>
     </div>
     """
@@ -131,7 +150,7 @@ defmodule Backpex.HTML.Layout do
           phx-disconnected={JS.remove_class("hidden", to: ".phx-client-error #client-error")}
           phx-connected={JS.add_class("hidden")}
         >
-          <:icon><CoreComponents.icon name="hero-arrow-path" class="size-5 motion-safe:animate-spin" /></:icon>
+          <:icon><.icon name="hero-arrow-path" class="size-5 motion-safe:animate-spin" /></:icon>
           {Backpex.__("Attempting to reconnect...")}
         </.alert>
         <.alert
@@ -143,7 +162,7 @@ defmodule Backpex.HTML.Layout do
           phx-disconnected={JS.remove_class("hidden", to: ".phx-server-error #server-error")}
           phx-connected={JS.add_class("hidden")}
         >
-          <:icon><CoreComponents.icon name="hero-arrow-path" class="size-5 motion-safe:animate-spin" /></:icon>
+          <:icon><.icon name="hero-arrow-path" class="size-5 motion-safe:animate-spin" /></:icon>
           {Backpex.__("Hang in there while we get back on track...")}
         </.alert>
       </div>
@@ -182,10 +201,10 @@ defmodule Backpex.HTML.Layout do
       {@rest}
     >
       <%= if @icon == [] do %>
-        <CoreComponents.icon :if={@kind === :info} name="hero-information-circle" class="size-5" />
-        <CoreComponents.icon :if={@kind === :success} name="hero-check-circle" class="size-5" />
-        <CoreComponents.icon :if={@kind === :warning} name="hero-exclamation-triangle" class="size-5" />
-        <CoreComponents.icon :if={@kind === :error} name="hero-x-circle" class="size-5" />
+        <.icon :if={@kind === :info} name="hero-information-circle" class="size-5" />
+        <.icon :if={@kind === :success} name="hero-check-circle" class="size-5" />
+        <.icon :if={@kind === :warning} name="hero-exclamation-triangle" class="size-5" />
+        <.icon :if={@kind === :error} name="hero-x-circle" class="size-5" />
       <% else %>
         {render_slot(@icon)}
       <% end %>
@@ -205,7 +224,7 @@ defmodule Backpex.HTML.Layout do
           phx-click={JS.exec("data-close", to: {:closest, ".alert"})}
           aria-label={@close_label}
         >
-          <Backpex.HTML.CoreComponents.icon name="hero-x-mark" class="h-5 w-5" />
+          <.icon name="hero-x-mark" class="h-5 w-5" />
         </button>
       </div>
     </div>
@@ -280,41 +299,37 @@ defmodule Backpex.HTML.Layout do
 
   def theme_selector(assigns) do
     ~H"""
-    <div
-      id="backpex-theme-selector"
-      phx-hook="BackpexThemeSelector"
-      class={["dropdown dropdown-bottom dropdown-end", @class]}
-    >
-      <%!-- Desktop Icon --%>
-      <div tabindex="0" role="button" class="btn btn-ghost hidden md:flex">
-        {@label}
-        <Backpex.HTML.CoreComponents.icon name="hero-chevron-down" class="h-3 w-3" />
-      </div>
-      <%!-- Mobile Icon --%>
-      <div tabindex="0" role="button" class="btn btn-square btn-ghost md:hidden">
-        <Backpex.HTML.CoreComponents.icon name="hero-swatch" class="size-6 md:hidden" />
-      </div>
-      <form
-        id="backpex-theme-selector-form"
-        class="dropdown-content bg-base-300 rounded-box max-h-96 overflow-y-scroll"
-        data-cookie-path={Router.cookie_path(@socket)}
-      >
-        <ul tabindex="0" class="rounded-box z-1 menu w-48 outline-hidden">
-          <li :for={{label, theme_name} <- @themes} class="w-full">
-            <label class="has-checked:bg-neutral has-checked:text-neutral-content">
-              <input
-                type="radio"
-                name="theme-selector"
-                class="theme-controller hidden"
-                phx-click={JS.dispatch("backpex:theme-change")}
-                value={theme_name}
-              />
-              {label}
-            </label>
-          </li>
-        </ul>
-      </form>
-    </div>
+    <.dropdown id="backpex-theme-selector" phx-hook="BackpexThemeSelector" class={["dropdown-end", @class]}>
+      <:trigger aria_label={@label}>
+        <%!-- Desktop Icon --%>
+        <div class="btn btn-ghost hidden md:flex">
+          {@label}
+          <.icon name="hero-chevron-down" class="size-3" />
+        </div>
+        <%!-- Mobile Icon --%>
+        <div class="btn btn-square btn-ghost md:hidden">
+          <.icon name="hero-swatch" class="size-6 md:hidden" />
+        </div>
+      </:trigger>
+      <:menu class="w-48 max-h-96 overflow-y-scroll">
+        <form id="backpex-theme-selector-form" data-cookie-path={Router.cookie_path(@socket)}>
+          <ul>
+            <li :for={{label, theme_name} <- @themes} class="w-full">
+              <label class="has-checked:bg-neutral has-checked:text-neutral-content">
+                <input
+                  type="radio"
+                  name="theme-selector"
+                  class="theme-controller hidden"
+                  phx-click={JS.dispatch("backpex:theme-change")}
+                  value={theme_name}
+                />
+                {label}
+              </label>
+            </li>
+          </ul>
+        </form>
+      </:menu>
+    </.dropdown>
     """
   end
 
@@ -385,17 +400,20 @@ defmodule Backpex.HTML.Layout do
   @doc type: :component
 
   attr :class, :string, required: false, default: nil, doc: "additional class that will be added to the component"
+  attr :aria_label, :string, required: false, default: "User menu", doc: "accessible label for screen readers"
 
   slot :label, required: true, doc: "label of the dropdown"
 
   def topbar_dropdown(assigns) do
     ~H"""
-    <div class={["dropdown dropdown-end", @class]}>
-      {render_slot(@label)}
-      <ul tabindex="0" class="dropdown-content z-[1] menu bg-base-100 rounded-box w-52 p-2 shadow">
+    <.dropdown id="topbar-dropdown" class="dropdown-end">
+      <:trigger aria_label={@aria_label}>
+        {render_slot(@label)}
+      </:trigger>
+      <:menu class="w-52 p-2">
         {render_slot(@inner_block)}
-      </ul>
-    </div>
+      </:menu>
+    </.dropdown>
     """
   end
 
@@ -500,25 +518,39 @@ defmodule Backpex.HTML.Layout do
   """
   @doc type: :component
 
-  attr :class, :string, default: "", doc: "extra classes to be added"
+  attr :class, :any, default: nil, doc: "extra classes to be added"
 
-  slot :label, required: true do
+  slot :label do
     attr :align, :atom, values: [:top, :center, :bottom]
   end
 
   slot :inner_block
 
-  def field_container(assigns) do
+  def field_container(%{label: []} = assigns) do
     ~H"""
-    <div class={"#{@class} flex flex-col items-stretch space-y-2 px-6 py-4 sm:flex-row sm:space-y-0 sm:py-3"}>
-      <div :for={label <- @label} class={"#{get_align_class(label[:align])} hyphens-auto break-words pr-2 sm:w-1/4"}>
-        {render_slot(@label)}
-      </div>
-
-      <div class="w-full sm:w-3/4">
-        {render_slot(@inner_block)}
-      </div>
+    <div class="w-full">
+      {render_slot(@inner_block)}
     </div>
+    """
+  end
+
+  def field_container(assigns) do
+    assigns =
+      update(assigns, :label, fn
+        [label] -> label
+        _other -> raise ArgumentError, "Expected a single label slot, got: #{inspect(assigns.label)}"
+      end)
+
+    ~H"""
+    <dl class={["flex flex-col items-stretch space-y-2 px-6 py-4 sm:flex-row sm:space-y-0 sm:py-3", @class]}>
+      <dt class={["hyphens-auto break-words pr-2 sm:w-1/4", get_align_class(@label[:align])]}>
+        {render_slot(@label)}
+      </dt>
+
+      <dd class="w-full sm:w-3/4">
+        {render_slot(@inner_block)}
+      </dd>
+    </dl>
     """
   end
 
@@ -561,7 +593,7 @@ defmodule Backpex.HTML.Layout do
             class="btn btn-sm btn-circle btn-ghost absolute top-3 right-3"
             phx-click={JS.exec("data-cancel", to: "##{@id}")}
           >
-            <Backpex.HTML.CoreComponents.icon name="hero-x-mark" class="size-5" />
+            <.icon name="hero-x-mark" class="size-5" />
           </button>
           <div :if={@title} class="0 text-base-content text-xl font-semibold">
             {@title}
@@ -592,13 +624,22 @@ defmodule Backpex.HTML.Layout do
   """
   @doc type: :component
 
+  attr :as, :string, default: "label", doc: "html tag name"
   attr :text, :string, doc: "text of the label"
+  attr :for, :any, default: nil, doc: "form element the label is bound to"
+  attr :rest, :global
 
   def input_label(assigns) do
+    assigns =
+      case assigns.for do
+        %Phoenix.HTML.FormField{} = field -> assign(assigns, :rest, Map.put(assigns.rest, :for, field.id))
+        id -> assign(assigns, :rest, Map.put(assigns.rest, :for, id))
+      end
+
     ~H"""
-    <p class="text-content block break-words text-sm font-medium">
+    <.dynamic_tag tag_name={@as} class="text-content block break-words text-sm font-medium" {@rest}>
       {@text}
-    </p>
+    </.dynamic_tag>
     """
   end
 
