@@ -390,6 +390,9 @@ defmodule Backpex.Adapters.EctoTest do
 
         @impl Backpex.Filter
         def render_form(assigns), do: assigns
+
+        @impl Backpex.Filter
+        def can?(_assigns), do: true
       end
 
       base_query = from(TestUser, as: ^EctoAdapter.name_by_schema(TestUser))
