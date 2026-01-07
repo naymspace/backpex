@@ -16,7 +16,7 @@ defmodule DemoWeb.Live.Post.EditLiveTest do
     end
 
     test "submit form", %{conn: conn} do
-      post = insert(:post, %{title: "Old Title"})
+      post = insert(:post, %{title: "Old Title", published: true})
 
       conn
       |> visit(~p"/admin/posts/#{post.id}/edit")
@@ -26,6 +26,7 @@ defmodule DemoWeb.Live.Post.EditLiveTest do
         |> put_submitter("button[value=save]")
         |> render_submit()
       end)
+      |> assert_path(~p"/admin/posts")
       |> assert_has("table tbody tr", count: 1)
       |> assert_has("p", text: "New Title", exact: true)
     end
