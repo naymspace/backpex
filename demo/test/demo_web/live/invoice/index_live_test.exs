@@ -6,9 +6,9 @@ defmodule DemoWeb.Live.Invoice.IndexLiveTest do
   describe "invoices live resource index" do
     setup do
       # Insert test invoices directly since there's no factory
-      {:ok, invoice1} = Repo.insert(%Invoice{company: "Acme Corp", amount: 150000})
-      {:ok, invoice2} = Repo.insert(%Invoice{company: "Tech Inc", amount: 250000})
-      {:ok, invoice3} = Repo.insert(%Invoice{company: "Global Ltd", amount: 350000})
+      {:ok, invoice1} = Repo.insert(%Invoice{company: "Acme Corp", amount: 150_000})
+      {:ok, invoice2} = Repo.insert(%Invoice{company: "Tech Inc", amount: 250_000})
+      {:ok, invoice3} = Repo.insert(%Invoice{company: "Global Ltd", amount: 350_000})
 
       %{invoices: [invoice1, invoice2, invoice3]}
     end
@@ -58,5 +58,4 @@ defmodule DemoWeb.Live.Invoice.IndexLiveTest do
       |> assert_has("td", text: "1,500")
     end
   end
-
 end

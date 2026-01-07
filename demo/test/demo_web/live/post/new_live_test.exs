@@ -23,12 +23,14 @@ defmodule DemoWeb.Live.Post.NewLiveTest do
       |> visit(~p"/admin/posts/new")
       |> unwrap(fn view ->
         view
-        |> form("#resource-form", change: %{
-          title: "New Test Post",
-          body: "This is the post body content",
-          user_id: user.id,
-          category_id: category.id
-        })
+        |> form("#resource-form",
+          change: %{
+            title: "New Test Post",
+            body: "This is the post body content",
+            user_id: user.id,
+            category_id: category.id
+          }
+        )
         |> put_submitter("button[value=save]")
         |> render_submit()
       end)
