@@ -39,7 +39,6 @@ defmodule Demo.MixProject do
       {:credo, "~> 1.7.5", only: [:dev, :test], runtime: false},
       {:sobelow, "~> 0.13", only: [:dev, :test]},
       {:mix_audit, "~> 2.0", only: [:dev, :test], runtime: false},
-      {:tailwind_formatter, "~> 0.4.0", only: [:dev, :test], runtime: false},
       {:lazy_html, "~> 0.1.3", only: :test},
       {:ex_machina, "~> 2.3"},
       {:faker, "~> 0.18"},
