@@ -2,6 +2,7 @@ defmodule DemoWeb.Live.User.EditLiveTest do
   use DemoWeb.ConnCase, async: false
 
   import Demo.EctoFactory
+  import Phoenix.LiveViewTest
 
   describe "users live resource edit" do
     test "is rendered", %{conn: conn} do
@@ -34,6 +35,21 @@ defmodule DemoWeb.Live.User.EditLiveTest do
       |> assert_has("input[name='change[last_name]']")
       |> assert_has("input[name='change[age]']")
       |> assert_has("select[name='change[role]']")
+    end
+
+    test "editing with invalid data shows error", %{conn: conn} do
+      user = insert(:user, %{username: "testuser", first_name: "Test", last_name: "User", age: 25})
+
+      conn
+      |> visit(~p"/admin/users/#{user.id}/edit")
+      |> unwrap(fn view ->
+        view
+        |> form("#resource-form", change: %{username: ""})
+        |> put_submitter("button[value=save]")
+        |> render_submit()
+      end)
+      |> assert_has("form#resource-form")
+      |> assert_has("p", text: "can't be blank")
     end
   end
 end

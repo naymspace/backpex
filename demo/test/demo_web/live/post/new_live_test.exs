@@ -70,5 +70,18 @@ defmodule DemoWeb.Live.Post.NewLiveTest do
       # Initially show_likes is false, so likes field should not be visible
       |> refute_has("input[name='change[likes]']")
     end
+
+    test "title required shows error on submit", %{conn: conn} do
+      conn
+      |> visit(~p"/admin/posts/new")
+      |> unwrap(fn view ->
+        view
+        |> form("#resource-form", change: %{title: ""})
+        |> put_submitter("button[value=save]")
+        |> render_submit()
+      end)
+      |> assert_has("form#resource-form")
+      |> assert_has("p", text: "can't be blank")
+    end
   end
 end

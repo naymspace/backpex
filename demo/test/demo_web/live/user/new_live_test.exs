@@ -44,5 +44,18 @@ defmodule DemoWeb.Live.User.NewLiveTest do
       # The Names panel should group username, first_name, last_name fields
       |> assert_has("div", text: "Names")
     end
+
+    test "username required shows error on submit", %{conn: conn} do
+      conn
+      |> visit(~p"/admin/users/new")
+      |> unwrap(fn view ->
+        view
+        |> form("#resource-form", change: %{username: "", first_name: "Test", last_name: "User", age: 25})
+        |> put_submitter("button[value=save]")
+        |> render_submit()
+      end)
+      |> assert_has("form#resource-form")
+      |> assert_has("p", text: "can't be blank")
+    end
   end
 end
