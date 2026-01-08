@@ -55,7 +55,7 @@ COPY demo/mix.exs demo/mix.lock ./
 RUN mix deps.get --only $MIX_ENV
 
 COPY demo/config/config.exs demo/config/${MIX_ENV}.exs config/
-RUN mix do deps.compile
+RUN mix deps.compile
 
 COPY demo/priv priv/
 COPY demo/package.json demo/yarn.lock demo/.stylelintrc.json ./
@@ -87,7 +87,7 @@ FROM builder AS release
 ENV MIX_ENV=prod
 
 # Compile and create the release
-RUN mix do deps.get, deps.compile, assets.deploy, sentry.package_source_code, release --overwrite
+RUN mix do deps.get + deps.compile + assets.deploy + sentry.package_source_code + release --overwrite
 
 ########################################################################
 # Stage: runtime
