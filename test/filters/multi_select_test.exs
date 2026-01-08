@@ -64,5 +64,4 @@ defmodule Backpex.Filters.MultiSelectTest do
       assert match?({:in, _, _}, where_expr)
     end
   end
-
 end

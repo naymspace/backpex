@@ -46,5 +46,4 @@ defmodule Backpex.Filters.SelectTest do
       assert match?({:==, _, _}, where_expr)
     end
   end
-
 end

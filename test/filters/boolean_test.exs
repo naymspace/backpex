@@ -100,5 +100,4 @@ defmodule Backpex.Filters.BooleanTest do
       assert [%{expr: _where_expr}] = query.wheres
     end
   end
-
 end
