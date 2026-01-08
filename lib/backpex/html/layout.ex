@@ -44,58 +44,77 @@ defmodule Backpex.HTML.Layout do
 
   def app_shell(assigns) do
     ~H"""
-    <div id="backpex-app-shell" class={["drawer", @class]} phx-hook="BackpexSidebarSections">
-      <input id="menu-drawer" type="checkbox" class="drawer-toggle" aria-hidden="true" tabindex="-1" />
-      <div class="drawer-content">
-        <div class="bg-base-200 fixed inset-0 -z-10 h-full w-full"></div>
-        <nav
-          class={[
-            "menu hidden overflow-y-scroll px-2 pt-5 pb-4 md:fixed md:inset-y-0 md:mt-16 md:block md:w-64",
-            build_slot_class(@sidebar)
-          ]}
-          aria-label={Backpex.__("Main desktop navigation", @live_resource)}
-        >
-          <ul>
-            {render_slot(@sidebar)}
-          </ul>
-        </nav>
-
-        <div class={["flex flex-1 flex-col", length(@sidebar) > 0 && "md:pl-64"]}>
-          <div class="fixed top-0 z-30 block w-full md:-ml-64">
-            <.topbar class={build_slot_class(@topbar)}>
-              {render_slot(@topbar)}
-              <label
-                :if={@sidebar != []}
-                for="menu-drawer"
-                class="btn btn-square drawer-button btn-ghost md:hidden"
-                aria-label={Backpex.__("Toggle menu", @live_resource)}
-              >
-                <.icon name="hero-bars-3-solid" class="h-6" />
-              </label>
-            </.topbar>
-          </div>
-          <main class="h-[calc(100vh-4rem)] mt-[4rem]">
-            <div class={["mx-auto mt-5 px-4 sm:px-6 md:px-8", !@fluid && "max-w-7xl"]}>
-              {render_slot(@inner_block)}
-            </div>
-            {render_slot(@footer)}
-            <.footer :if={@footer == []} />
-          </main>
+    <div id="backpex-app-shell" class={["min-h-screen", @class]} phx-hook="BackpexSidebar">
+      <%!-- Sidebar (single element for both mobile and desktop) --%>
+      <aside
+        :if={@sidebar != []}
+        id="backpex-sidebar"
+        class={[
+          "fixed inset-y-0 left-0 z-40 flex w-64 flex-col",
+          "bg-base-100 border-base-300 border-r",
+          "transition-transform duration-300 ease-in-out",
+          "translate-x-0",
+          build_slot_class(@sidebar)
+        ]}
+        aria-label={Backpex.__("Main navigation", @live_resource)}
+      >
+        <%!-- Sidebar header with branding --%>
+        <div class="flex h-14 shrink-0 items-center gap-2 px-4">
+          <.backpex_logo class="w-6" />
+          <span class="text-base-content font-semibold">Backpex</span>
         </div>
-      </div>
-      <div class="drawer-side z-40">
-        <label for="menu-drawer" class="drawer-overlay"></label>
-        <nav
-          class={[
-            "bg-base-100 menu min-h-full w-64 flex-1 flex-col overflow-y-auto px-2 pt-5 pb-4",
-            build_slot_class(@sidebar)
-          ]}
-          aria-label={Backpex.__("Main mobile navigation", @live_resource)}
-        >
-          <ul>
+        <nav class="menu w-full flex-1 overflow-y-auto px-2 py-2">
+          <ul class="w-full">
             {render_slot(@sidebar)}
           </ul>
         </nav>
+      </aside>
+
+      <%!-- Overlay for mobile --%>
+      <div
+        :if={@sidebar != []}
+        id="backpex-sidebar-overlay"
+        class="fixed inset-0 z-30 bg-black/50 opacity-0 pointer-events-none transition-opacity duration-300 md:hidden"
+        aria-hidden="true"
+      >
+      </div>
+
+      <%!-- Main container --%>
+      <div
+        id="backpex-main"
+        class={[
+          "flex min-h-screen flex-col",
+          "transition-[margin] duration-300 ease-in-out",
+          length(@sidebar) > 0 && "md:ml-64"
+        ]}
+      >
+        <%!-- Background --%>
+        <div class="bg-base-200 fixed inset-0 -z-10 h-full w-full"></div>
+
+        <%!-- Topbar --%>
+        <.topbar class={build_slot_class(@topbar)}>
+          <button
+            :if={@sidebar != []}
+            type="button"
+            id="backpex-sidebar-toggle"
+            class="btn btn-square btn-ghost mr-2"
+            aria-label={Backpex.__("Toggle sidebar", @live_resource)}
+            aria-expanded="true"
+            aria-controls="backpex-sidebar"
+          >
+            <.icon name="hero-bars-3-solid" class="h-6 w-6" />
+          </button>
+          {render_slot(@topbar)}
+        </.topbar>
+
+        <%!-- Main content --%>
+        <main class="flex-1">
+          <div class={["mx-auto mt-5 px-4 sm:px-6 md:px-8", !@fluid && "max-w-7xl"]}>
+            {render_slot(@inner_block)}
+          </div>
+          {render_slot(@footer)}
+          <.footer :if={@footer == []} />
+        </main>
       </div>
     </div>
     """
@@ -114,7 +133,12 @@ defmodule Backpex.HTML.Layout do
 
   def topbar(assigns) do
     ~H"""
-    <header class={["border-base-300 bg-base-100 text-base-content flex h-16 w-full items-center border-b px-4", @class]}>
+    <header class={[
+      "sticky top-0 z-20",
+      "border-base-300 bg-base-100 text-base-content",
+      "flex h-16 w-full items-center border-b px-4",
+      @class
+    ]}>
       {render_slot(@inner_block)}
     </header>
     """
