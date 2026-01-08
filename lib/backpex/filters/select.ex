@@ -100,6 +100,24 @@ defmodule Backpex.Filters.Select do
     """
   end
 
+  @doc """
+  Converts empty string to nil, returns other values as-is.
+
+  ## Examples
+
+      iex> Backpex.Filters.Select.selected("")
+      nil
+
+      iex> Backpex.Filters.Select.selected("open")
+      "open"
+
+      iex> Backpex.Filters.Select.selected(:open)
+      :open
+
+      iex> Backpex.Filters.Select.selected(1)
+      1
+
+  """
   def selected(""), do: nil
   def selected(value), do: value
 
@@ -107,6 +125,37 @@ defmodule Backpex.Filters.Select do
     where(query, [x], field(x, ^attribute) == ^value)
   end
 
+  @doc """
+  Finds the label for a given option value.
+
+  Returns nil if the value is not found.
+
+  ## Examples
+
+      iex> options = [{"Open", :open}, {"Closed", :closed}]
+      iex> Backpex.Filters.Select.option_value_to_label(options, "open")
+      "Open"
+
+      iex> options = [{"Open", :open}]
+      iex> Backpex.Filters.Select.option_value_to_label(options, :open)
+      "Open"
+
+      iex> options = [{"Open", :open}]
+      iex> Backpex.Filters.Select.option_value_to_label(options, "unknown")
+      nil
+
+      iex> options = [{"Active", "active"}, {"Inactive", "inactive"}]
+      iex> Backpex.Filters.Select.option_value_to_label(options, "active")
+      "Active"
+
+      iex> options = [{"Active", "active"}]
+      iex> Backpex.Filters.Select.option_value_to_label(options, :active)
+      "Active"
+
+      iex> Backpex.Filters.Select.option_value_to_label([], "value")
+      nil
+
+  """
   def option_value_to_label(options, value) do
     Enum.find_value(options, fn {option_label, option_value} ->
       if to_string(option_value) == to_string(value), do: option_label

@@ -5,6 +5,8 @@ defmodule Backpex.Filters.MultiSelectTest do
 
   alias Backpex.Filters.MultiSelect, as: MultiSelectFilter
 
+  doctest MultiSelectFilter
+
   defmodule TestItem do
     use Ecto.Schema
 
@@ -15,12 +17,6 @@ defmodule Backpex.Filters.MultiSelectTest do
       field :category, :string
     end
   end
-
-  @test_options [
-    {"John Doe", "acdd1860-65ce-4ed6-a37c-433851cf68d7"},
-    {"Jane Doe", "9d78ce5e-9334-4a6c-a076-f1e72522de2"},
-    {"Bob Smith", "a1b2c3d4-e5f6-7890-abcd-ef1234567890"}
-  ]
 
   describe "query/4" do
     test "returns original query when value is empty list" do
@@ -69,67 +65,4 @@ defmodule Backpex.Filters.MultiSelectTest do
     end
   end
 
-  describe "option_value_to_label/2" do
-    test "returns labels for selected values with comma separator" do
-      values = ["acdd1860-65ce-4ed6-a37c-433851cf68d7", "9d78ce5e-9334-4a6c-a076-f1e72522de2"]
-
-      result = MultiSelectFilter.option_value_to_label(@test_options, values)
-
-      assert result == ["John Doe", ", ", "Jane Doe"]
-    end
-
-    test "returns single label for single value" do
-      result = MultiSelectFilter.option_value_to_label(@test_options, ["acdd1860-65ce-4ed6-a37c-433851cf68d7"])
-
-      assert result == ["John Doe"]
-    end
-
-    test "returns empty list for empty values" do
-      result = MultiSelectFilter.option_value_to_label(@test_options, [])
-
-      assert result == []
-    end
-
-    test "returns empty string for unknown key" do
-      result = MultiSelectFilter.option_value_to_label(@test_options, ["unknown-uuid"])
-
-      assert result == [""]
-    end
-
-    test "handles three values correctly" do
-      values = [
-        "acdd1860-65ce-4ed6-a37c-433851cf68d7",
-        "9d78ce5e-9334-4a6c-a076-f1e72522de2",
-        "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
-      ]
-
-      result = MultiSelectFilter.option_value_to_label(@test_options, values)
-
-      assert result == ["John Doe", ", ", "Jane Doe", ", ", "Bob Smith"]
-    end
-  end
-
-  describe "find_option_label/2" do
-    test "finds label for existing key" do
-      assert MultiSelectFilter.find_option_label(@test_options, "acdd1860-65ce-4ed6-a37c-433851cf68d7") ==
-               "John Doe"
-
-      assert MultiSelectFilter.find_option_label(@test_options, "9d78ce5e-9334-4a6c-a076-f1e72522de2") == "Jane Doe"
-    end
-
-    test "returns empty string for unknown key" do
-      assert MultiSelectFilter.find_option_label(@test_options, "unknown") == ""
-    end
-
-    test "handles atom keys by converting to string" do
-      options = [{"Active", :active}, {"Inactive", :inactive}]
-
-      assert MultiSelectFilter.find_option_label(options, :active) == "Active"
-      assert MultiSelectFilter.find_option_label(options, "active") == "Active"
-    end
-
-    test "returns empty string for nil key" do
-      assert MultiSelectFilter.find_option_label(@test_options, nil) == ""
-    end
-  end
 end

@@ -5,6 +5,8 @@ defmodule Backpex.Filters.BooleanTest do
 
   alias Backpex.Filters.Boolean, as: BooleanFilter
 
+  doctest BooleanFilter
+
   defmodule TestItem do
     use Ecto.Schema
 
@@ -99,62 +101,4 @@ defmodule Backpex.Filters.BooleanTest do
     end
   end
 
-  describe "option_value_to_label/2" do
-    test "returns labels for selected values" do
-      result = BooleanFilter.option_value_to_label(test_options(), ["published", "featured"])
-
-      assert result == ["Published", ", ", "Featured"]
-    end
-
-    test "returns single label for single value" do
-      result = BooleanFilter.option_value_to_label(test_options(), ["published"])
-
-      assert result == ["Published"]
-    end
-
-    test "returns empty list for empty values" do
-      result = BooleanFilter.option_value_to_label(test_options(), [])
-
-      assert result == []
-    end
-
-    test "returns empty string for unknown key" do
-      result = BooleanFilter.option_value_to_label(test_options(), ["unknown"])
-
-      assert result == [""]
-    end
-  end
-
-  describe "find_option_label/2" do
-    test "finds label for existing key" do
-      assert BooleanFilter.find_option_label(test_options(), "published") == "Published"
-      assert BooleanFilter.find_option_label(test_options(), "not_published") == "Not published"
-      assert BooleanFilter.find_option_label(test_options(), "featured") == "Featured"
-    end
-
-    test "returns empty string for unknown key" do
-      assert BooleanFilter.find_option_label(test_options(), "unknown") == ""
-    end
-
-    test "handles atom keys by converting to string" do
-      assert BooleanFilter.find_option_label(test_options(), :published) == "Published"
-    end
-  end
-
-  describe "predicates/1" do
-    test "returns map of key to predicate" do
-      result = BooleanFilter.predicates(test_options())
-
-      assert is_map(result)
-      assert Map.has_key?(result, "published")
-      assert Map.has_key?(result, "not_published")
-      assert Map.has_key?(result, "featured")
-    end
-
-    test "returns empty map for empty options" do
-      result = BooleanFilter.predicates([])
-
-      assert result == %{}
-    end
-  end
 end

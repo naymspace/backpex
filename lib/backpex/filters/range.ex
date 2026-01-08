@@ -150,10 +150,67 @@ defmodule Backpex.Filters.Range do
     where(query, [x], field(x, ^attribute) >= ^start_at and field(x, ^attribute) <= ^end_at)
   end
 
+  @doc """
+  Parses both start and end values for a range filter.
+
+  ## Examples
+
+      iex> Backpex.Filters.Range.maybe_parse_range(:number, "10", "100")
+      {10, 100}
+
+      iex> Backpex.Filters.Range.maybe_parse_range(:number, "", "100")
+      {nil, 100}
+
+      iex> Backpex.Filters.Range.maybe_parse_range(:number, "10", "")
+      {10, nil}
+
+      iex> Backpex.Filters.Range.maybe_parse_range(:date, "2024-01-01", "2024-12-31")
+      {"2024-01-01", "2024-12-31"}
+
+      iex> Backpex.Filters.Range.maybe_parse_range(:datetime, "2024-01-01", "2024-12-31")
+      {"2024-01-01T00:00:00+00:00", "2024-12-31T23:59:59+00:00"}
+
+  """
   def maybe_parse_range(type, start_at, end_at) do
     {maybe_parse(type, start_at), maybe_parse(type, end_at, true)}
   end
 
+  @doc """
+  Parses a single value based on the specified type.
+
+  The third parameter `is_end?` determines whether to treat the value as an end boundary
+  (which affects datetime parsing by adding 23:59:59 instead of 00:00:00).
+
+  ## Examples
+
+      iex> Backpex.Filters.Range.maybe_parse(:number, "")
+      nil
+
+      iex> Backpex.Filters.Range.maybe_parse(:date, "")
+      nil
+
+      iex> Backpex.Filters.Range.maybe_parse(:datetime, "")
+      nil
+
+      iex> Backpex.Filters.Range.maybe_parse(:date, "2024-06-15")
+      "2024-06-15"
+
+      iex> Backpex.Filters.Range.maybe_parse(:date, "not-a-date")
+      nil
+
+      iex> Backpex.Filters.Range.maybe_parse(:date, "2024-13-45")
+      nil
+
+      iex> Backpex.Filters.Range.maybe_parse(:datetime, "2024-01-01", false)
+      "2024-01-01T00:00:00+00:00"
+
+      iex> Backpex.Filters.Range.maybe_parse(:datetime, "2024-12-31", true)
+      "2024-12-31T23:59:59+00:00"
+
+      iex> Backpex.Filters.Range.maybe_parse(:datetime, "invalid")
+      nil
+
+  """
   def maybe_parse(type, value, is_end? \\ false)
 
   def maybe_parse(_type, "", _is_end?), do: nil
@@ -172,6 +229,44 @@ defmodule Backpex.Filters.Range do
 
   def maybe_parse(:number, value, _is_end?), do: parse_float_or_int(value)
 
+  @doc """
+  Parses a string value as either an integer or float.
+
+  Prefers integer representation for whole numbers.
+
+  ## Examples
+
+      iex> Backpex.Filters.Range.parse_float_or_int("42")
+      42
+
+      iex> Backpex.Filters.Range.parse_float_or_int("-10")
+      -10
+
+      iex> Backpex.Filters.Range.parse_float_or_int("0")
+      0
+
+      iex> Backpex.Filters.Range.parse_float_or_int("3.14")
+      3.14
+
+      iex> Backpex.Filters.Range.parse_float_or_int("-2.5")
+      -2.5
+
+      iex> Backpex.Filters.Range.parse_float_or_int("0.0")
+      0.0
+
+      iex> Backpex.Filters.Range.parse_float_or_int("not-a-number")
+      nil
+
+      iex> Backpex.Filters.Range.parse_float_or_int("abc123")
+      nil
+
+      iex> Backpex.Filters.Range.parse_float_or_int("12abc")
+      nil
+
+      iex> Backpex.Filters.Range.parse_float_or_int("")
+      nil
+
+  """
   def parse_float_or_int(value) do
     case {Integer.parse(value), Float.parse(value)} do
       {{value, ""}, _parsed_float} -> value
@@ -180,6 +275,33 @@ defmodule Backpex.Filters.Range do
     end
   end
 
+  @doc """
+  Checks if a string is a valid ISO 8601 date.
+
+  ## Examples
+
+      iex> Backpex.Filters.Range.date?("2024-01-01")
+      true
+
+      iex> Backpex.Filters.Range.date?("2023-12-31")
+      true
+
+      iex> Backpex.Filters.Range.date?("2000-06-15")
+      true
+
+      iex> Backpex.Filters.Range.date?("not-a-date")
+      false
+
+      iex> Backpex.Filters.Range.date?("2024-13-01")
+      false
+
+      iex> Backpex.Filters.Range.date?("2024-01-32")
+      false
+
+      iex> Backpex.Filters.Range.date?("")
+      false
+
+  """
   def date?(date) do
     case Date.from_iso8601(date) do
       {:ok, _date} -> true
@@ -187,6 +309,23 @@ defmodule Backpex.Filters.Range do
     end
   end
 
+  @doc """
+  Returns the render type for form inputs.
+
+  Converts `:datetime` to `:date` since HTML date inputs are used for datetime filters.
+
+  ## Examples
+
+      iex> Backpex.Filters.Range.render_type(:datetime)
+      :date
+
+      iex> Backpex.Filters.Range.render_type(:date)
+      :date
+
+      iex> Backpex.Filters.Range.render_type(:number)
+      :number
+
+  """
   def render_type(:datetime = _type), do: :date
   def render_type(type), do: type
 end
