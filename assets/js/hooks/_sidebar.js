@@ -91,9 +91,10 @@ export default {
     this.sidebar.classList.toggle('-translate-x-full', !sidebarVisible)
     this.sidebar.classList.toggle('translate-x-0', sidebarVisible)
 
-    // Main content margin (desktop only)
-    this.main.classList.toggle('md:ml-64', isDesktop && this.desktopOpen)
-    this.main.classList.toggle('md:ml-0', !isDesktop || !this.desktopOpen)
+    // Main content margin (desktop only, uses CSS variable)
+    const showMargin = isDesktop && this.desktopOpen
+    this.main.classList.toggle('ml-(--sidebar-width)', showMargin)
+    this.main.classList.toggle('ml-0', !showMargin)
 
     // Overlay (mobile only)
     const showOverlay = !isDesktop && this.mobileOpen

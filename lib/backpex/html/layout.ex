@@ -50,7 +50,7 @@ defmodule Backpex.HTML.Layout do
         :if={@sidebar != []}
         id="backpex-sidebar"
         class={[
-          "fixed inset-y-0 left-0 z-40 flex w-64 flex-col",
+          "fixed inset-y-0 left-0 z-40 flex w-(--sidebar-width) flex-col",
           "bg-base-100 border-base-300 border-r",
           "transition-transform duration-300 ease-in-out",
           "translate-x-0",
@@ -75,8 +75,7 @@ defmodule Backpex.HTML.Layout do
         id="backpex-main"
         class={[
           "flex min-h-screen flex-col",
-          "transition-[margin] duration-300 ease-in-out",
-          length(@sidebar) > 0 && "md:ml-64"
+          "transition-[margin] duration-300 ease-in-out"
         ]}
       >
         <%!-- Background --%>
