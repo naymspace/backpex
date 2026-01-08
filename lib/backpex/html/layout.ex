@@ -58,16 +58,7 @@ defmodule Backpex.HTML.Layout do
         ]}
         aria-label={Backpex.__("Main navigation", @live_resource)}
       >
-        <%!-- Sidebar header with branding --%>
-        <div class="flex h-14 shrink-0 items-center gap-2 px-4">
-          <.backpex_logo class="w-6" />
-          <span class="text-base-content font-semibold">Backpex</span>
-        </div>
-        <nav class="menu w-full flex-1 overflow-y-auto px-2 py-2">
-          <ul class="w-full">
-            {render_slot(@sidebar)}
-          </ul>
-        </nav>
+        {render_slot(@sidebar)}
       </aside>
 
       <%!-- Overlay for mobile --%>
@@ -283,7 +274,7 @@ defmodule Backpex.HTML.Layout do
   defp version, do: Application.spec(:backpex, :vsn) |> to_string()
 
   @doc """
-  Renders the topbar branding.
+  Renders the sidebar branding.
   """
   @doc type: :component
 
@@ -293,16 +284,16 @@ defmodule Backpex.HTML.Layout do
 
   slot :logo, doc: "the logo of the branding"
 
-  def topbar_branding(assigns) do
+  def sidebar_branding(assigns) do
     ~H"""
-    <div class={"#{@class} text-base-content flex shrink-0 flex-grow items-center space-x-2"}>
+    <div class={["flex h-14 shrink-0 items-center gap-2 px-4", @class]}>
       <%= if @logo === [] do %>
-        <.backpex_logo class="w-8" />
+        <.backpex_logo class="w-6" />
       <% else %>
         {render_slot(@logo)}
       <% end %>
       <%= unless @hide_title do %>
-        <p class="font-semibold">{@title}</p>
+        <span class="text-base-content font-semibold">{@title}</span>
       <% end %>
     </div>
     """
