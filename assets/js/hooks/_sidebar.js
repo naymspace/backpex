@@ -37,6 +37,7 @@ export default {
   },
 
   updated () {
+    this.applyState()
     this.initializeSections()
   },
 
