@@ -6,6 +6,7 @@
  */
 export default {
   MOBILE_BREAKPOINT: 768,
+  STORAGE_KEY: "backpex-sidebar-open",
 
   mounted() {
     this.sidebar = document.getElementById("backpex-sidebar");
@@ -13,9 +14,9 @@ export default {
     this.main = document.getElementById("backpex-main");
     this.toggleBtn = document.getElementById("backpex-sidebar-toggle");
 
-    // State: mobile closed by default, desktop open by default
+    // State: mobile closed by default, desktop state from localStorage (default open)
     this.mobileOpen = false;
-    this.desktopOpen = true;
+    this.desktopOpen = this.loadDesktopState();
 
     // Apply initial state (CSS sets visible by default, JS hides on mobile)
     this.applyState();
@@ -46,10 +47,21 @@ export default {
   handleToggle() {
     if (this.isDesktop()) {
       this.desktopOpen = !this.desktopOpen;
+      this.saveDesktopState();
     } else {
       this.mobileOpen = !this.mobileOpen;
     }
     this.applyState();
+  },
+
+  loadDesktopState() {
+    const stored = localStorage.getItem(this.STORAGE_KEY);
+    // Default to open if no stored value
+    return stored === null ? true : stored === "true";
+  },
+
+  saveDesktopState() {
+    localStorage.setItem(this.STORAGE_KEY, this.desktopOpen.toString());
   },
 
   closeMobile() {
