@@ -1,3 +1,5 @@
+import { BackpexPreferences } from './_preferences'
+
 /**
  * Manages sidebar open/close state for mobile and desktop and handles sidebar section expand/collapse.
  *
@@ -6,7 +8,6 @@
  */
 export default {
   MOBILE_BREAKPOINT: 768,
-  STORAGE_KEY: 'backpex-sidebar-open',
 
   mounted () {
     this.sidebar = document.getElementById('backpex-sidebar')
@@ -14,9 +15,9 @@ export default {
     this.main = document.getElementById('backpex-main')
     this.toggleBtn = document.getElementById('backpex-sidebar-toggle')
 
-    // State: mobile closed by default, desktop state from localStorage (default open)
+    // State: mobile closed by default, desktop state from server-rendered data attribute
     this.mobileOpen = false
-    this.desktopOpen = this.loadDesktopState()
+    this.desktopOpen = this.el.dataset.sidebarOpen === 'true'
 
     // Apply initial state (CSS sets visible by default, JS hides on mobile)
     this.applyState()
@@ -48,21 +49,12 @@ export default {
   handleToggle () {
     if (this.isDesktop()) {
       this.desktopOpen = !this.desktopOpen
-      this.saveDesktopState()
+      // Persist to cookie via BackpexPreferences
+      BackpexPreferences.set('global.sidebar_open', this.desktopOpen)
     } else {
       this.mobileOpen = !this.mobileOpen
     }
     this.applyState()
-  },
-
-  loadDesktopState () {
-    const stored = localStorage.getItem(this.STORAGE_KEY)
-    // Default to open if no stored value
-    return stored === null ? true : stored === 'true'
-  },
-
-  saveDesktopState () {
-    localStorage.setItem(this.STORAGE_KEY, this.desktopOpen.toString())
   },
 
   closeMobile () {
@@ -113,24 +105,16 @@ export default {
     const sections = this.el.querySelectorAll('[data-section-id]')
 
     sections.forEach((section) => {
-      const sectionId = section.dataset.sectionId
       const toggle = section.querySelector('[data-menu-dropdown-toggle]')
       const content = section.querySelector('[data-menu-dropdown-content]')
 
+      // Hide sections without content
       if (!this.hasContent(content)) {
-        content.style.display = 'none'
+        section.style.display = 'none'
         return
       }
 
-      const isOpen =
-        localStorage.getItem(`sidebar-section-${sectionId}`) === 'true'
-      if (!isOpen) {
-        toggle.classList.remove('menu-dropdown-show')
-        content.style.display = 'none'
-      }
-
-      section.classList.remove('hidden')
-
+      // State is already server-rendered, just attach click handler
       toggle.removeEventListener('click', toggle._handler)
       toggle._handler = (e) => this.handleSectionToggle(e)
       toggle.addEventListener('click', toggle._handler)
@@ -160,6 +144,7 @@ export default {
     content.style.display = content.style.display === 'none' ? 'block' : 'none'
 
     const isNowOpen = toggle.classList.contains('menu-dropdown-show')
-    localStorage.setItem(`sidebar-section-${sectionId}`, isNowOpen)
+    // Persist to cookie via BackpexPreferences
+    BackpexPreferences.set(`global.sidebar_section.${sectionId}`, isNowOpen)
   }
 }

@@ -112,7 +112,7 @@ defmodule Backpex.Router do
   defmacro backpex_routes do
     quote do
       scope "/", alias: false, as: false do
-        post "/backpex_cookies", Backpex.CookieController, :update
+        post "/backpex_preferences", Backpex.PreferencesController, :update
       end
     end
   end
@@ -294,12 +294,12 @@ defmodule Backpex.Router do
   end
 
   @doc """
-  Finds the cookie path by the given socket.
+  Finds the preferences path by the given socket.
   """
-  def cookie_path(socket) do
+  def preferences_path(socket) do
     route =
       Enum.find(Map.get(socket, :router).__routes__(), fn element ->
-        element[:plug] == Backpex.CookieController and element[:plug_opts] == :update
+        element[:plug] == Backpex.PreferencesController and element[:plug_opts] == :update
       end)
 
     case route do
@@ -308,7 +308,7 @@ defmodule Backpex.Router do
 
       nil ->
         raise ArgumentError, """
-        Could not find backpex_cookies route. Make sure you have added backpex_routes to your router.
+        Could not find backpex_preferences route. Make sure you have added backpex_routes to your router.
 
         See: https://hexdocs.pm/backpex/installation.html#add-backpex-routes
         """

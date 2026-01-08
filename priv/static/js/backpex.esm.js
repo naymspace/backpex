@@ -10,6 +10,7 @@ __export(hooks_exports, {
   BackpexCancelEntry: () => cancel_entry_default,
   BackpexCurrencyInput: () => currency_input_default,
   BackpexDragHover: () => drag_hover_default,
+  BackpexPreferencesHook: () => preferences_default,
   BackpexSidebar: () => sidebar_default,
   BackpexStickyActions: () => sticky_actions_default,
   BackpexThemeSelector: () => theme_selector_default,
@@ -54,17 +55,74 @@ var drag_hover_default = {
   }
 };
 
+// js/hooks/_preferences.js
+var BackpexPreferences = {
+  cookiePath: null,
+  csrfToken: null,
+  /**
+   * Initialize the preference manager.
+   * Called by the LiveView hook on mount.
+   */
+  init(cookiePath) {
+    this.cookiePath = cookiePath;
+    this.csrfToken = document.querySelector("meta[name='csrf-token']")?.content;
+  },
+  /**
+   * Set a preference value and persist immediately.
+   * Called directly by JS hooks or via LiveView push_event.
+   *
+   * @param {string} key - Dot-notation key (e.g., "global.theme")
+   * @param {any} value - Value to store
+   */
+  set(key, value) {
+    this.persist(key, value);
+  },
+  /**
+   * Persist a preference to the server immediately.
+   * Uses keepalive to ensure request completes even during page navigation.
+   */
+  persist(key, value) {
+    if (!this.cookiePath) {
+      console.warn("BackpexPreferences: cookiePath not initialized");
+      return;
+    }
+    if (!this.csrfToken) {
+      console.warn("BackpexPreferences: CSRF token not found");
+      return;
+    }
+    fetch(this.cookiePath, {
+      method: "POST",
+      keepalive: true,
+      headers: {
+        "Content-Type": "application/json",
+        "x-csrf-token": this.csrfToken
+      },
+      body: JSON.stringify({ key, value })
+    }).catch((error) => {
+      console.error("BackpexPreferences: failed to persist", error);
+    });
+  }
+};
+var BackpexPreferencesHook = {
+  mounted() {
+    BackpexPreferences.init(this.el.dataset.preferencesPath);
+    this.handleEvent("backpex:set_preference", ({ key, value }) => {
+      BackpexPreferences.set(key, value);
+    });
+  }
+};
+var preferences_default = BackpexPreferencesHook;
+
 // js/hooks/_sidebar.js
 var sidebar_default = {
   MOBILE_BREAKPOINT: 768,
-  STORAGE_KEY: "backpex-sidebar-open",
   mounted() {
     this.sidebar = document.getElementById("backpex-sidebar");
     this.overlay = document.getElementById("backpex-sidebar-overlay");
     this.main = document.getElementById("backpex-main");
     this.toggleBtn = document.getElementById("backpex-sidebar-toggle");
     this.mobileOpen = false;
-    this.desktopOpen = this.loadDesktopState();
+    this.desktopOpen = this.el.dataset.sidebarOpen === "true";
     this.applyState();
     this.toggleBtn.addEventListener("click", () => this.handleToggle());
     this.overlay.addEventListener("click", () => this.closeMobile());
@@ -85,18 +143,11 @@ var sidebar_default = {
   handleToggle() {
     if (this.isDesktop()) {
       this.desktopOpen = !this.desktopOpen;
-      this.saveDesktopState();
+      BackpexPreferences.set("global.sidebar_open", this.desktopOpen);
     } else {
       this.mobileOpen = !this.mobileOpen;
     }
     this.applyState();
-  },
-  loadDesktopState() {
-    const stored = localStorage.getItem(this.STORAGE_KEY);
-    return stored === null ? true : stored === "true";
-  },
-  saveDesktopState() {
-    localStorage.setItem(this.STORAGE_KEY, this.desktopOpen.toString());
   },
   closeMobile() {
     this.mobileOpen = false;
@@ -132,19 +183,12 @@ var sidebar_default = {
   initializeSections() {
     const sections = this.el.querySelectorAll("[data-section-id]");
     sections.forEach((section) => {
-      const sectionId = section.dataset.sectionId;
       const toggle = section.querySelector("[data-menu-dropdown-toggle]");
       const content = section.querySelector("[data-menu-dropdown-content]");
       if (!this.hasContent(content)) {
-        content.style.display = "none";
+        section.style.display = "none";
         return;
       }
-      const isOpen = localStorage.getItem(`sidebar-section-${sectionId}`) === "true";
-      if (!isOpen) {
-        toggle.classList.remove("menu-dropdown-show");
-        content.style.display = "none";
-      }
-      section.classList.remove("hidden");
       toggle.removeEventListener("click", toggle._handler);
       toggle._handler = (e) => this.handleSectionToggle(e);
       toggle.addEventListener("click", toggle._handler);
@@ -170,7 +214,7 @@ var sidebar_default = {
     toggle.classList.toggle("menu-dropdown-show");
     content.style.display = content.style.display === "none" ? "block" : "none";
     const isNowOpen = toggle.classList.contains("menu-dropdown-show");
-    localStorage.setItem(`sidebar-section-${sectionId}`, isNowOpen);
+    BackpexPreferences.set(`global.sidebar_section.${sectionId}`, isNowOpen);
   }
 };
 
@@ -201,50 +245,22 @@ var sticky_actions_default = {
 // js/hooks/_theme_selector.js
 var theme_selector_default = {
   mounted() {
-    const form = document.querySelector("#backpex-theme-selector-form");
-    const storedTheme = window.localStorage.getItem("backpexTheme");
-    if (storedTheme != null) {
-      const activeThemeRadio = form.querySelector(
-        `input[name='theme-selector'][value='${storedTheme}']`
-      );
-      activeThemeRadio.checked = true;
-    }
-    window.addEventListener("backpex:theme-change", this.handleThemeChange.bind(this));
+    this.boundHandleThemeChange = this.handleThemeChange.bind(this);
+    window.addEventListener("backpex:theme-change", this.boundHandleThemeChange);
   },
-  // Event listener that handles the theme changes and store
-  // the selected theme in the session and also in localStorage
-  async handleThemeChange() {
+  handleThemeChange() {
     const form = document.querySelector("#backpex-theme-selector-form");
-    const csrfToken = document.querySelector("meta[name='csrf-token']").getAttribute("content");
-    const cookiePath = form.dataset.cookiePath;
+    if (!form) return;
     const selectedTheme = form.querySelector(
       'input[name="theme-selector"]:checked'
     );
     if (selectedTheme) {
-      window.localStorage.setItem("backpexTheme", selectedTheme.value);
-      document.documentElement.setAttribute(
-        "data-theme",
-        selectedTheme.value
-      );
-      await fetch(cookiePath, {
-        body: `select_theme=${selectedTheme.value}`,
-        method: "POST",
-        headers: {
-          "Content-type": "application/x-www-form-urlencoded",
-          "x-csrf-token": csrfToken
-        }
-      });
-    }
-  },
-  // Call this from your app.js as soon as possible to minimize flashes with the old theme in some situations.
-  setStoredTheme() {
-    const storedTheme = window.localStorage.getItem("backpexTheme");
-    if (storedTheme != null) {
-      document.documentElement.setAttribute("data-theme", storedTheme);
+      document.documentElement.setAttribute("data-theme", selectedTheme.value);
+      BackpexPreferences.set("global.theme", selectedTheme.value);
     }
   },
   destroyed() {
-    window.removeEventListener("backpex:theme-change", this.handleThemeChange.bind(this));
+    window.removeEventListener("backpex:theme-change", this.boundHandleThemeChange);
   }
 };
 

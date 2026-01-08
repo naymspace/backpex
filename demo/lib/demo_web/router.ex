@@ -11,7 +11,7 @@ defmodule DemoWeb.Router do
     plug :put_root_layout, {DemoWeb.Layouts, :root}
     plug :protect_from_forgery
     plug :put_secure_browser_headers
-    plug Backpex.ThemeSelectorPlug
+    plug DemoWeb.ThemePlug
   end
 
   scope "/", DemoWeb do

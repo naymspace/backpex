@@ -264,6 +264,47 @@ defmodule Backpex.LiveResource.Index do
     |> noreply()
   end
 
+  def handle_event("toggle_column", %{"field" => field}, socket) do
+    field_atom = String.to_existing_atom(field)
+    active_fields = socket.assigns.active_fields
+
+    updated_fields =
+      Enum.map(active_fields, fn
+        {^field_atom, config} -> {field_atom, %{config | active: !config.active}}
+        other -> other
+      end)
+
+    columns =
+      Map.new(updated_fields, fn {k, %{active: v}} ->
+        {Atom.to_string(k), v}
+      end)
+
+    live_resource = socket.assigns.live_resource
+    resource_key = "resource.#{live_resource}.columns"
+
+    socket
+    |> assign(:active_fields, updated_fields)
+    |> LiveView.push_event("backpex:set_preference", %{key: resource_key, value: columns})
+    |> noreply()
+  end
+
+  def handle_event("toggle_metrics", _params, socket) do
+    %{live_resource: live_resource, metric_visibility: metric_visibility} = socket.assigns
+
+    resource_key_str = to_string(live_resource)
+    current_visible = Map.get(metric_visibility, resource_key_str, true)
+    new_visible = !current_visible
+
+    updated_visibility = Map.put(metric_visibility, resource_key_str, new_visible)
+    resource_key = "resource.#{live_resource}.metrics_visible"
+
+    socket
+    |> assign(:metric_visibility, updated_visibility)
+    |> LiveView.push_event("backpex:set_preference", %{key: resource_key, value: new_visible})
+    |> maybe_assign_metrics()
+    |> noreply()
+  end
+
   defp maybe_handle_item_action(socket, key) do
     key = String.to_existing_atom(key)
     action = socket.assigns.item_actions[key]
@@ -310,26 +351,16 @@ defmodule Backpex.LiveResource.Index do
   defp assign_active_fields(socket, session) do
     %{fields: fields, live_resource: live_resource} = socket.assigns
 
-    saved_fields = get_in(session, ["backpex", "column_toggle", "#{live_resource}"]) || %{}
+    resource_key = "resource.#{live_resource}.columns"
+    saved_columns = Backpex.Preferences.get(session, resource_key, default: %{})
 
     active_fields =
       Enum.map(fields, fn {name, %{label: label}} ->
-        {name,
-         %{
-           active: field_active?(name, saved_fields),
-           label: label
-         }}
+        active = Map.get(saved_columns, Atom.to_string(name), true)
+        {name, %{active: active, label: label}}
       end)
 
     assign(socket, :active_fields, active_fields)
-  end
-
-  defp field_active?(name, saved_fields) do
-    case Map.get(saved_fields, Atom.to_string(name)) do
-      "true" -> true
-      "false" -> false
-      _other -> true
-    end
   end
 
   defp update_item(socket, item) do
@@ -352,10 +383,11 @@ defmodule Backpex.LiveResource.Index do
   end
 
   defp assign_metrics_visibility(socket, session) do
-    value = get_in(session, ["backpex", "metric_visibility"]) || %{}
+    %{live_resource: live_resource} = socket.assigns
+    resource_key = "resource.#{live_resource}.metrics_visible"
+    visible = Backpex.Preferences.get(session, resource_key, default: true)
 
-    socket
-    |> assign(metric_visibility: value)
+    assign(socket, :metric_visibility, %{to_string(live_resource) => visible})
   end
 
   defp assign_filters_changed_status(socket, params) do

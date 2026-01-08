@@ -24,11 +24,6 @@ window.addEventListener('phx:page-loading-start', _info => topbar.show(250))
 window.addEventListener('phx:page-loading-stop', _info => topbar.hide())
 
 /**
- * Theme Selector
- */
-BackpexHooks.BackpexThemeSelector.setStoredTheme()
-
-/**
  * phoenix_live_view
  */
 const csrfToken = document.querySelector("meta[name='csrf-token']").getAttribute('content')

@@ -4,10 +4,8 @@
       <div class="overflow-x-auto">
         <%= if assigns.item_count > 0 do %>
           <.toggle_columns
-            socket={@socket}
             active_fields={@active_fields}
             live_resource={@live_resource}
-            current_url={@current_url}
             class="absolute top-2 right-6 z-20 flex justify-end pt-1 font-medium normal-case"
           />
           <.resource_index_table {assigns} />
