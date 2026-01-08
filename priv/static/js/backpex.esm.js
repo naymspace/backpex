@@ -76,6 +76,7 @@ var sidebar_default = {
     this.initializeSections();
   },
   updated() {
+    this.applyState();
     this.initializeSections();
   },
   isDesktop() {
@@ -117,8 +118,9 @@ var sidebar_default = {
     const sidebarVisible = isDesktop ? this.desktopOpen : this.mobileOpen;
     this.sidebar.classList.toggle("-translate-x-full", !sidebarVisible);
     this.sidebar.classList.toggle("translate-x-0", sidebarVisible);
-    this.main.classList.toggle("md:ml-64", isDesktop && this.desktopOpen);
-    this.main.classList.toggle("md:ml-0", !isDesktop || !this.desktopOpen);
+    const showMargin = isDesktop && this.desktopOpen;
+    this.main.classList.toggle("ml-(--sidebar-width)", showMargin);
+    this.main.classList.toggle("ml-0", !showMargin);
     const showOverlay = !isDesktop && this.mobileOpen;
     this.overlay.classList.toggle("opacity-0", !showOverlay);
     this.overlay.classList.toggle("pointer-events-none", !showOverlay);
