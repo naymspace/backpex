@@ -93,4 +93,16 @@ defmodule DemoWeb.Live.User.IndexLiveTest do
       test_edit_action_redirect(conn, ~p"/admin/users", users)
     end
   end
+
+  describe "user authorization (admin cannot be soft-deleted)" do
+    test "delete button rendered for regular users", %{conn: conn} do
+      user = insert(:user, %{role: :user})
+      test_action_available(conn, ~p"/admin/users", user, "Delete")
+    end
+
+    test "delete button NOT rendered for admin users", %{conn: conn} do
+      admin = insert(:user, %{role: :admin})
+      test_action_not_available(conn, ~p"/admin/users", admin, "Delete")
+    end
+  end
 end
