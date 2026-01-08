@@ -6,158 +6,158 @@
  */
 export default {
   MOBILE_BREAKPOINT: 768,
-  STORAGE_KEY: "backpex-sidebar-open",
+  STORAGE_KEY: 'backpex-sidebar-open',
 
-  mounted() {
-    this.sidebar = document.getElementById("backpex-sidebar");
-    this.overlay = document.getElementById("backpex-sidebar-overlay");
-    this.main = document.getElementById("backpex-main");
-    this.toggleBtn = document.getElementById("backpex-sidebar-toggle");
+  mounted () {
+    this.sidebar = document.getElementById('backpex-sidebar')
+    this.overlay = document.getElementById('backpex-sidebar-overlay')
+    this.main = document.getElementById('backpex-main')
+    this.toggleBtn = document.getElementById('backpex-sidebar-toggle')
 
     // State: mobile closed by default, desktop state from localStorage (default open)
-    this.mobileOpen = false;
-    this.desktopOpen = this.loadDesktopState();
+    this.mobileOpen = false
+    this.desktopOpen = this.loadDesktopState()
 
     // Apply initial state (CSS sets visible by default, JS hides on mobile)
-    this.applyState();
+    this.applyState()
 
     // Event listeners
-    this.toggleBtn.addEventListener("click", () => this.handleToggle());
-    this.overlay.addEventListener("click", () => this.closeMobile());
+    this.toggleBtn.addEventListener('click', () => this.handleToggle())
+    this.overlay.addEventListener('click', () => this.closeMobile())
 
     this.mediaQuery = window.matchMedia(
-      `(min-width: ${this.MOBILE_BREAKPOINT}px)`,
-    );
-    this.mediaQuery.addEventListener("change", (e) => this.handleResize(e));
+      `(min-width: ${this.MOBILE_BREAKPOINT}px)`
+    )
+    this.mediaQuery.addEventListener('change', (e) => this.handleResize(e))
 
-    document.addEventListener("keydown", (e) => this.handleKeydown(e));
+    document.addEventListener('keydown', (e) => this.handleKeydown(e))
 
     // Initialize sidebar sections
-    this.initializeSections();
+    this.initializeSections()
   },
 
-  updated() {
-    this.initializeSections();
+  updated () {
+    this.initializeSections()
   },
 
-  isDesktop() {
-    return window.innerWidth >= this.MOBILE_BREAKPOINT;
+  isDesktop () {
+    return window.innerWidth >= this.MOBILE_BREAKPOINT
   },
 
-  handleToggle() {
+  handleToggle () {
     if (this.isDesktop()) {
-      this.desktopOpen = !this.desktopOpen;
-      this.saveDesktopState();
+      this.desktopOpen = !this.desktopOpen
+      this.saveDesktopState()
     } else {
-      this.mobileOpen = !this.mobileOpen;
+      this.mobileOpen = !this.mobileOpen
     }
-    this.applyState();
+    this.applyState()
   },
 
-  loadDesktopState() {
-    const stored = localStorage.getItem(this.STORAGE_KEY);
+  loadDesktopState () {
+    const stored = localStorage.getItem(this.STORAGE_KEY)
     // Default to open if no stored value
-    return stored === null ? true : stored === "true";
+    return stored === null ? true : stored === 'true'
   },
 
-  saveDesktopState() {
-    localStorage.setItem(this.STORAGE_KEY, this.desktopOpen.toString());
+  saveDesktopState () {
+    localStorage.setItem(this.STORAGE_KEY, this.desktopOpen.toString())
   },
 
-  closeMobile() {
-    this.mobileOpen = false;
-    this.applyState();
+  closeMobile () {
+    this.mobileOpen = false
+    this.applyState()
   },
 
-  handleResize(event) {
+  handleResize (event) {
     if (event.matches) {
-      this.mobileOpen = false;
+      this.mobileOpen = false
     }
-    this.applyState();
+    this.applyState()
   },
 
-  handleKeydown(event) {
-    if (event.key === "Escape" && this.mobileOpen && !this.isDesktop()) {
-      this.closeMobile();
+  handleKeydown (event) {
+    if (event.key === 'Escape' && this.mobileOpen && !this.isDesktop()) {
+      this.closeMobile()
     }
   },
 
-  applyState() {
-    const isDesktop = this.isDesktop();
-    const sidebarVisible = isDesktop ? this.desktopOpen : this.mobileOpen;
+  applyState () {
+    const isDesktop = this.isDesktop()
+    const sidebarVisible = isDesktop ? this.desktopOpen : this.mobileOpen
 
     // Sidebar transform
-    this.sidebar.classList.toggle("-translate-x-full", !sidebarVisible);
-    this.sidebar.classList.toggle("translate-x-0", sidebarVisible);
+    this.sidebar.classList.toggle('-translate-x-full', !sidebarVisible)
+    this.sidebar.classList.toggle('translate-x-0', sidebarVisible)
 
     // Main content margin (desktop only)
-    this.main.classList.toggle("md:ml-64", isDesktop && this.desktopOpen);
-    this.main.classList.toggle("md:ml-0", !isDesktop || !this.desktopOpen);
+    this.main.classList.toggle('md:ml-64', isDesktop && this.desktopOpen)
+    this.main.classList.toggle('md:ml-0', !isDesktop || !this.desktopOpen)
 
     // Overlay (mobile only)
-    const showOverlay = !isDesktop && this.mobileOpen;
-    this.overlay.classList.toggle("opacity-0", !showOverlay);
-    this.overlay.classList.toggle("pointer-events-none", !showOverlay);
-    this.overlay.classList.toggle("opacity-100", showOverlay);
-    this.overlay.classList.toggle("pointer-events-auto", showOverlay);
+    const showOverlay = !isDesktop && this.mobileOpen
+    this.overlay.classList.toggle('opacity-0', !showOverlay)
+    this.overlay.classList.toggle('pointer-events-none', !showOverlay)
+    this.overlay.classList.toggle('opacity-100', showOverlay)
+    this.overlay.classList.toggle('pointer-events-auto', showOverlay)
 
     // ARIA
-    this.toggleBtn.setAttribute("aria-expanded", sidebarVisible.toString());
+    this.toggleBtn.setAttribute('aria-expanded', sidebarVisible.toString())
   },
 
   // Sidebar Sections
 
-  initializeSections() {
-    const sections = this.el.querySelectorAll("[data-section-id]");
+  initializeSections () {
+    const sections = this.el.querySelectorAll('[data-section-id]')
 
     sections.forEach((section) => {
-      const sectionId = section.dataset.sectionId;
-      const toggle = section.querySelector("[data-menu-dropdown-toggle]");
-      const content = section.querySelector("[data-menu-dropdown-content]");
+      const sectionId = section.dataset.sectionId
+      const toggle = section.querySelector('[data-menu-dropdown-toggle]')
+      const content = section.querySelector('[data-menu-dropdown-content]')
 
       if (!this.hasContent(content)) {
-        content.style.display = "none";
-        return;
+        content.style.display = 'none'
+        return
       }
 
       const isOpen =
-        localStorage.getItem(`sidebar-section-${sectionId}`) === "true";
+        localStorage.getItem(`sidebar-section-${sectionId}`) === 'true'
       if (!isOpen) {
-        toggle.classList.remove("menu-dropdown-show");
-        content.style.display = "none";
+        toggle.classList.remove('menu-dropdown-show')
+        content.style.display = 'none'
       }
 
-      section.classList.remove("hidden");
+      section.classList.remove('hidden')
 
-      toggle.removeEventListener("click", toggle._handler);
-      toggle._handler = (e) => this.handleSectionToggle(e);
-      toggle.addEventListener("click", toggle._handler);
-    });
+      toggle.removeEventListener('click', toggle._handler)
+      toggle._handler = (e) => this.handleSectionToggle(e)
+      toggle.addEventListener('click', toggle._handler)
+    })
   },
 
-  hasContent(element) {
-    if (!element || element.children.length === 0) return false;
+  hasContent (element) {
+    if (!element || element.children.length === 0) return false
     for (const child of element.children) {
-      const childContent = child.querySelector("[data-menu-dropdown-content]");
+      const childContent = child.querySelector('[data-menu-dropdown-content]')
       if (childContent) {
-        if (this.hasContent(childContent)) return true;
+        if (this.hasContent(childContent)) return true
       } else {
-        return true;
+        return true
       }
     }
-    return false;
+    return false
   },
 
-  handleSectionToggle(event) {
-    const section = event.currentTarget.closest("[data-section-id]");
-    const sectionId = section.dataset.sectionId;
-    const toggle = section.querySelector("[data-menu-dropdown-toggle]");
-    const content = section.querySelector("[data-menu-dropdown-content]");
+  handleSectionToggle (event) {
+    const section = event.currentTarget.closest('[data-section-id]')
+    const sectionId = section.dataset.sectionId
+    const toggle = section.querySelector('[data-menu-dropdown-toggle]')
+    const content = section.querySelector('[data-menu-dropdown-content]')
 
-    toggle.classList.toggle("menu-dropdown-show");
-    content.style.display = content.style.display === "none" ? "block" : "none";
+    toggle.classList.toggle('menu-dropdown-show')
+    content.style.display = content.style.display === 'none' ? 'block' : 'none'
 
-    const isNowOpen = toggle.classList.contains("menu-dropdown-show");
-    localStorage.setItem(`sidebar-section-${sectionId}`, isNowOpen);
-  },
-};
+    const isNowOpen = toggle.classList.contains('menu-dropdown-show')
+    localStorage.setItem(`sidebar-section-${sectionId}`, isNowOpen)
+  }
+}

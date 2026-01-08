@@ -1,7 +1,7 @@
-export { default as BackpexCancelEntry } from "./_cancel_entry";
-export { default as BackpexDragHover } from "./_drag_hover";
-export { default as BackpexSidebar } from "./_sidebar";
-export { default as BackpexStickyActions } from "./_sticky_actions";
-export { default as BackpexThemeSelector } from "./_theme_selector";
-export { default as BackpexTooltip } from "./_tooltip";
-export { default as BackpexCurrencyInput } from "./_currency_input";
+export { default as BackpexCancelEntry } from './_cancel_entry'
+export { default as BackpexDragHover } from './_drag_hover'
+export { default as BackpexSidebar } from './_sidebar'
+export { default as BackpexStickyActions } from './_sticky_actions'
+export { default as BackpexThemeSelector } from './_theme_selector'
+export { default as BackpexTooltip } from './_tooltip'
+export { default as BackpexCurrencyInput } from './_currency_input'
