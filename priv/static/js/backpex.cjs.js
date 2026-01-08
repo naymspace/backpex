@@ -76,13 +76,14 @@ var drag_hover_default = {
 // js/hooks/_sidebar.js
 var sidebar_default = {
   MOBILE_BREAKPOINT: 768,
+  STORAGE_KEY: "backpex-sidebar-open",
   mounted() {
     this.sidebar = document.getElementById("backpex-sidebar");
     this.overlay = document.getElementById("backpex-sidebar-overlay");
     this.main = document.getElementById("backpex-main");
     this.toggleBtn = document.getElementById("backpex-sidebar-toggle");
     this.mobileOpen = false;
-    this.desktopOpen = true;
+    this.desktopOpen = this.loadDesktopState();
     this.applyState();
     this.toggleBtn.addEventListener("click", () => this.handleToggle());
     this.overlay.addEventListener("click", () => this.closeMobile());
@@ -102,10 +103,18 @@ var sidebar_default = {
   handleToggle() {
     if (this.isDesktop()) {
       this.desktopOpen = !this.desktopOpen;
+      this.saveDesktopState();
     } else {
       this.mobileOpen = !this.mobileOpen;
     }
     this.applyState();
+  },
+  loadDesktopState() {
+    const stored = localStorage.getItem(this.STORAGE_KEY);
+    return stored === null ? true : stored === "true";
+  },
+  saveDesktopState() {
+    localStorage.setItem(this.STORAGE_KEY, this.desktopOpen.toString());
   },
   closeMobile() {
     this.mobileOpen = false;
