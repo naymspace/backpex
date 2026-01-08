@@ -29,7 +29,7 @@ __export(hooks_exports, {
   BackpexCancelEntry: () => cancel_entry_default,
   BackpexCurrencyInput: () => currency_input_default,
   BackpexDragHover: () => drag_hover_default,
-  BackpexSidebarSections: () => sidebar_sections_default,
+  BackpexSidebar: () => sidebar_default,
   BackpexStickyActions: () => sticky_actions_default,
   BackpexThemeSelector: () => theme_selector_default,
   BackpexTooltip: () => tooltip_default
@@ -73,37 +73,70 @@ var drag_hover_default = {
   }
 };
 
-// js/hooks/_sidebar_sections.js
-var sidebar_sections_default = {
+// js/hooks/_sidebar.js
+var sidebar_default = {
+  MOBILE_BREAKPOINT: 768,
   mounted() {
+    this.sidebar = document.getElementById("backpex-sidebar");
+    this.overlay = document.getElementById("backpex-sidebar-overlay");
+    this.main = document.getElementById("backpex-main");
+    this.toggleBtn = document.getElementById("backpex-sidebar-toggle");
+    this.mobileOpen = false;
+    this.desktopOpen = true;
+    this.applyState();
+    this.toggleBtn.addEventListener("click", () => this.handleToggle());
+    this.overlay.addEventListener("click", () => this.closeMobile());
+    this.mediaQuery = window.matchMedia(
+      `(min-width: ${this.MOBILE_BREAKPOINT}px)`
+    );
+    this.mediaQuery.addEventListener("change", (e) => this.handleResize(e));
+    document.addEventListener("keydown", (e) => this.handleKeydown(e));
     this.initializeSections();
   },
   updated() {
     this.initializeSections();
   },
-  destroyed() {
-    const sections = this.el.querySelectorAll("[data-section-id]");
-    sections.forEach((section) => {
-      const toggle = section.querySelector("[data-menu-dropdown-toggle]");
-      toggle.removeEventListener("click", this.handleToggle.bind(this));
-    });
+  isDesktop() {
+    return window.innerWidth >= this.MOBILE_BREAKPOINT;
   },
-  hasContent(element) {
-    if (!element || element.children.length === 0) {
-      return false;
+  handleToggle() {
+    if (this.isDesktop()) {
+      this.desktopOpen = !this.desktopOpen;
+    } else {
+      this.mobileOpen = !this.mobileOpen;
     }
-    for (const child of element.children) {
-      const childContent = child.querySelector("[data-menu-dropdown-content]");
-      if (childContent) {
-        if (this.hasContent(childContent)) {
-          return true;
-        }
-      } else {
-        return true;
-      }
-    }
-    return false;
+    this.applyState();
   },
+  closeMobile() {
+    this.mobileOpen = false;
+    this.applyState();
+  },
+  handleResize(event) {
+    if (event.matches) {
+      this.mobileOpen = false;
+    }
+    this.applyState();
+  },
+  handleKeydown(event) {
+    if (event.key === "Escape" && this.mobileOpen && !this.isDesktop()) {
+      this.closeMobile();
+    }
+  },
+  applyState() {
+    const isDesktop = this.isDesktop();
+    const sidebarVisible = isDesktop ? this.desktopOpen : this.mobileOpen;
+    this.sidebar.classList.toggle("-translate-x-full", !sidebarVisible);
+    this.sidebar.classList.toggle("translate-x-0", sidebarVisible);
+    this.main.classList.toggle("md:ml-64", isDesktop && this.desktopOpen);
+    this.main.classList.toggle("md:ml-0", !isDesktop || !this.desktopOpen);
+    const showOverlay = !isDesktop && this.mobileOpen;
+    this.overlay.classList.toggle("opacity-0", !showOverlay);
+    this.overlay.classList.toggle("pointer-events-none", !showOverlay);
+    this.overlay.classList.toggle("opacity-100", showOverlay);
+    this.overlay.classList.toggle("pointer-events-auto", showOverlay);
+    this.toggleBtn.setAttribute("aria-expanded", sidebarVisible.toString());
+  },
+  // Sidebar Sections
   initializeSections() {
     const sections = this.el.querySelectorAll("[data-section-id]");
     sections.forEach((section) => {
@@ -120,10 +153,24 @@ var sidebar_sections_default = {
         content.style.display = "none";
       }
       section.classList.remove("hidden");
-      toggle.addEventListener("click", this.handleToggle.bind(this));
+      toggle.removeEventListener("click", toggle._handler);
+      toggle._handler = (e) => this.handleSectionToggle(e);
+      toggle.addEventListener("click", toggle._handler);
     });
   },
-  handleToggle(event) {
+  hasContent(element) {
+    if (!element || element.children.length === 0) return false;
+    for (const child of element.children) {
+      const childContent = child.querySelector("[data-menu-dropdown-content]");
+      if (childContent) {
+        if (this.hasContent(childContent)) return true;
+      } else {
+        return true;
+      }
+    }
+    return false;
+  },
+  handleSectionToggle(event) {
     const section = event.currentTarget.closest("[data-section-id]");
     const sectionId = section.dataset.sectionId;
     const toggle = section.querySelector("[data-menu-dropdown-toggle]");
