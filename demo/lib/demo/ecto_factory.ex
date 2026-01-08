@@ -6,6 +6,7 @@ defmodule Demo.EctoFactory do
   alias Demo.Address
   alias Demo.Category
   alias Demo.FilmReview
+  alias Demo.Invoice
   alias Demo.Post
   alias Demo.Product
   alias Demo.ShortLink
@@ -90,6 +91,13 @@ defmodule Demo.EctoFactory do
     %FilmReview{
       title: Faker.Lorem.word(),
       overview: Faker.Lorem.paragraph()
+    }
+  end
+
+  def invoice_factory do
+    %Invoice{
+      company: Faker.Company.name(),
+      amount: 100..5_000
     }
   end
 
