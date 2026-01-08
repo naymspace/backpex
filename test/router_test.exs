@@ -169,17 +169,17 @@ defmodule Backpex.RouterTest do
       end
     end
 
-    test "defines the cookie controller route" do
+    test "defines the preferences controller route" do
       routes = CookieRouter.__routes__()
 
-      cookie_route =
+      preferences_route =
         Enum.find(routes, fn route ->
-          route.path == "/backpex_cookies" && route.verb == :post
+          route.path == "/backpex_preferences" && route.verb == :post
         end)
 
-      assert cookie_route != nil
-      assert cookie_route.plug == Backpex.CookieController
-      assert cookie_route.plug_opts == :update
+      assert preferences_route != nil
+      assert preferences_route.plug == Backpex.PreferencesController
+      assert preferences_route.plug_opts == :update
 
       backpex_routes =
         Enum.filter(routes, fn route ->
