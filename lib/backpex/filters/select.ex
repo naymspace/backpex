@@ -52,6 +52,14 @@ defmodule Backpex.Filters.Select do
       @behaviour Backpex.Filters.Select
 
       @impl Backpex.Filter
+      def type(_assigns), do: :string
+
+      @impl Backpex.Filter
+      def changeset(changeset, field, assigns) do
+        SelectFilter.changeset(changeset, field, options(assigns))
+      end
+
+      @impl Backpex.Filter
       defdelegate query(query, attribute, value, assigns), to: SelectFilter
 
       @impl Backpex.Filter
@@ -70,7 +78,7 @@ defmodule Backpex.Filters.Select do
         SelectFilter.render_form(assigns)
       end
 
-      defoverridable query: 4, render: 1, render_form: 1
+      defoverridable type: 1, changeset: 3, query: 4, render: 1, render_form: 1
     end
   end
 
@@ -120,6 +128,23 @@ defmodule Backpex.Filters.Select do
   """
   def selected(""), do: nil
   def selected(value), do: value
+
+  @doc """
+  Validates that the selected value exists in the options list.
+
+  Returns the changeset unchanged if the value is valid, or adds an error if not found in options.
+  """
+  def changeset(changeset, field, options) do
+    valid_values = Enum.map(options, fn {_label, value} -> to_string(value) end) |> MapSet.new()
+
+    Ecto.Changeset.validate_change(changeset, field, fn _field, value ->
+      if is_nil(value) or value == "" or MapSet.member?(valid_values, to_string(value)) do
+        []
+      else
+        [{field, "is not a valid option"}]
+      end
+    end)
+  end
 
   def query(query, attribute, value, _assigns) do
     where(query, [x], field(x, ^attribute) == ^value)

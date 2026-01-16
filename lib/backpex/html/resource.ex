@@ -225,27 +225,36 @@ defmodule Backpex.HTML.Resource do
 
   @doc false
   attr :live_resource, :any, default: nil, doc: "module of the live resource"
-  attr :filter_options, :list, required: true, doc: "filter options"
+  attr :filter_options, :map, required: true, doc: "raw filter options from URL (for form display)"
+  attr :filter_values, :map, required: true, doc: "validated filter values (for badges)"
   attr :filters, :list, required: true, doc: "list of active filters"
 
   def filter(assigns) do
-    assigns =
-      assigns
-      |> assign(:filter_count, Enum.count(assigns.filter_options))
-      |> assign(
-        :filter_badges,
-        for {key, value} <- assigns.filter_options do
-          filter = Keyword.get(assigns.filters, String.to_existing_atom(key))
+    # Use filter_values (validated) for badges - only shows successfully applied filters
+    for_result =
+      for {field, value} <- assigns.filter_values do
+        filter = Keyword.get(assigns.filters, field)
+
+        if filter do
           label = Map.get(filter, :label, filter.module.label())
 
           %{
-            key: key,
+            key: Atom.to_string(field),
             value: value,
             filter: filter,
             label: label
           }
         end
-      )
+      end
+
+    filter_badges =
+      for_result
+      |> Enum.reject(&is_nil/1)
+
+    assigns =
+      assigns
+      |> assign(:filter_count, Enum.count(filter_badges))
+      |> assign(:filter_badges, filter_badges)
 
     ~H"""
     <.filter_dropdown :if={@filters != []} live_resource={@live_resource} filter_count={@filter_count}>
@@ -367,7 +376,7 @@ defmodule Backpex.HTML.Resource do
   @doc false
   attr :live_resource, :any, default: nil, doc: "live resource module"
   attr :filters, :list, required: true, doc: "list of active filters"
-  attr :filter_options, :list, required: true, doc: "filter options"
+  attr :filter_options, :map, required: true, doc: "raw filter options from URL params"
 
   def filter_forms(assigns) do
     assigns =
@@ -378,7 +387,10 @@ defmodule Backpex.HTML.Resource do
         for {field, filter} <- assigns.filters do
           label = Map.get(filter, :label, filter.module.label())
           presets = Map.get(filter, :presets, [])
-          value = Map.get(assigns.filter_options, Atom.to_string(field), nil)
+          # Handle both string and atom keys in filter_options
+          value =
+            Map.get(assigns.filter_options, Atom.to_string(field)) ||
+              Map.get(assigns.filter_options, field)
 
           %{
             field: field,
@@ -907,6 +919,7 @@ defmodule Backpex.HTML.Resource do
         :if={LiveResource.active_filters(assigns) != []}
         live_resource={@live_resource}
         filter_options={LiveResource.get_filter_options(@query_options)}
+        filter_values={Map.get(assigns, :filter_values, %{})}
         filters={LiveResource.active_filters(assigns)}
         {assigns}
       />

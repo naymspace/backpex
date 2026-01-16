@@ -57,6 +57,14 @@ defmodule Backpex.Filters.Boolean do
       @behaviour Backpex.Filters.Boolean
 
       @impl Backpex.Filter
+      def type(_assigns), do: {:array, :string}
+
+      @impl Backpex.Filter
+      def changeset(changeset, field, assigns) do
+        BooleanFilter.changeset(changeset, field, options(assigns))
+      end
+
+      @impl Backpex.Filter
       def query(query, attribute, value, assigns) do
         BooleanFilter.query(query, options(assigns), attribute, value, assigns)
       end
@@ -73,7 +81,7 @@ defmodule Backpex.Filters.Boolean do
         BooleanFilter.render_form(assigns)
       end
 
-      defoverridable query: 4, render: 1, render_form: 1
+      defoverridable type: 1, changeset: 3, query: 4, render: 1, render_form: 1
     end
   end
 
@@ -122,6 +130,29 @@ defmodule Backpex.Filters.Boolean do
       <% end %>
     </div>
     """
+  end
+
+  @doc """
+  Validates that all selected values exist in the options list.
+
+  Returns the changeset unchanged if all values are valid, or adds an error if any value is not found in options.
+  """
+  def changeset(changeset, field, options) do
+    valid_keys = Enum.map(options, fn %{key: k} -> to_string(k) end) |> MapSet.new()
+
+    Ecto.Changeset.validate_change(changeset, field, fn _field, values ->
+      values = values || []
+
+      invalid_values =
+        values
+        |> Enum.reject(fn v -> MapSet.member?(valid_keys, to_string(v)) end)
+
+      if Enum.empty?(invalid_values) do
+        []
+      else
+        [{field, "contains invalid options"}]
+      end
+    end)
   end
 
   def query(query, _options, _attribute, [], _assigns), do: query

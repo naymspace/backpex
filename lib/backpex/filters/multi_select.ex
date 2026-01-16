@@ -45,6 +45,14 @@ defmodule Backpex.Filters.MultiSelect do
       @behaviour Backpex.Filters.Select
 
       @impl Backpex.Filter
+      def type(_assigns), do: {:array, :string}
+
+      @impl Backpex.Filter
+      def changeset(changeset, field, assigns) do
+        MultiSelectFilter.changeset(changeset, field, options(assigns))
+      end
+
+      @impl Backpex.Filter
       defdelegate query(query, attribute, value, assigns), to: MultiSelectFilter
 
       @impl Backpex.Filter
@@ -63,7 +71,7 @@ defmodule Backpex.Filters.MultiSelect do
         MultiSelectFilter.render_form(assigns)
       end
 
-      defoverridable query: 4, render: 1, render_form: 1
+      defoverridable type: 1, changeset: 3, query: 4, render: 1, render_form: 1
     end
   end
 
@@ -122,6 +130,29 @@ defmodule Backpex.Filters.MultiSelect do
       </:menu>
     </.dropdown>
     """
+  end
+
+  @doc """
+  Validates that all selected values exist in the options list.
+
+  Returns the changeset unchanged if all values are valid, or adds an error if any value is not found in options.
+  """
+  def changeset(changeset, field, options) do
+    valid_values = Enum.map(options, fn {_label, value} -> to_string(value) end) |> MapSet.new()
+
+    Ecto.Changeset.validate_change(changeset, field, fn _field, values ->
+      values = values || []
+
+      invalid_values =
+        values
+        |> Enum.reject(fn v -> MapSet.member?(valid_values, to_string(v)) end)
+
+      if Enum.empty?(invalid_values) do
+        []
+      else
+        [{field, "contains invalid options"}]
+      end
+    end)
   end
 
   def query(query, _attribute, [], _assigns), do: query

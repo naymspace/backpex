@@ -173,6 +173,7 @@ defmodule Backpex.MixProject do
       "guides/filter/what-is-a-filter.md",
       "guides/filter/how-to-add-a-filter.md",
       "guides/filter/filter-presets.md",
+      "guides/filter/filter-validation.md",
       "guides/filter/custom-filter.md",
       "guides/filter/visibility-and-authorization.md",
 
@@ -192,6 +193,7 @@ defmodule Backpex.MixProject do
       "guides/translations/translations.md",
 
       # Upgrade Guides
+      "guides/upgrading/v0.18.md",
       "guides/upgrading/v0.17.md",
       "guides/upgrading/v0.16.md",
       "guides/upgrading/v0.15.md",

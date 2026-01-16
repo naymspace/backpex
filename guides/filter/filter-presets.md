@@ -15,31 +15,54 @@ See the example below for some preset examples. We add a preset for a date filte
 ```elixir
 @impl Backpex.LiveResource
 def filters, do: [
-    begins_at: %{
-        module: MyAppWeb.Filters.DateRange,
-        label: "Begins At",
-        presets: [
-            %{
-                label: "Last 7 Days",
-                values: fn -> %{
-                    "start" => Date.add(Date.utc_today(), -7),
-                    "end" => Date.utc_today()
-                } end
-            }
-        ]
-    },
-    published: %{
-        module: MyAppWeb.Filters.EventPublished,
-        presets: [
-            %{
-                label: "Both",
-                values: fn -> [:published, :not_published] end
-            },
-            %{
-                label: "Only published",
-                values: fn -> [:published] end
-            }
-        ]
-    }
+  begins_at: %{
+    module: MyAppWeb.Filters.DateRange,
+    label: "Begins At",
+    presets: [
+      %{
+        label: "Last 7 Days",
+        values: fn -> %{
+          "start" => Date.add(Date.utc_today(), -7),
+          "end" => Date.utc_today()
+        } end
+      }
+    ]
+  },
+  published: %{
+    module: MyAppWeb.Filters.EventPublished,
+    presets: [
+      %{
+        label: "Both",
+        values: fn -> [:published, :not_published] end
+      },
+      %{
+        label: "Only published",
+        values: fn -> [:published] end
+      }
+    ]
+  }
 ]
 ```
+
+## Preset Validation
+
+Preset values go through the same validation as manually entered filter values. This means:
+
+- Values are cast to the appropriate type based on the filter's `type/1` callback
+- Custom validations from `changeset/3` are applied
+- Invalid preset values will not be applied to the query
+
+When defining presets, ensure the values match the expected format for your filter type:
+
+| Filter Type | Expected Preset Value Format |
+|-------------|------------------------------|
+| Select | Single string value (e.g., `"active"`) |
+| Boolean | List of option keys (e.g., `[:published, :draft]`) |
+| MultiSelect | List of string values (e.g., `["user-1", "user-2"]`) |
+| Range | Map with `"start"` and `"end"` keys |
+
+## Related Guides
+
+- [Filter Validation](filter-validation.md) - Comprehensive validation documentation
+- [What is a Filter?](what-is-a-filter.md) - Overview of the filter system
+- [How to Add a Filter](how-to-add-a-filter.md) - Adding filters to your LiveResource

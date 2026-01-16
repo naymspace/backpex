@@ -292,11 +292,11 @@ defmodule Backpex.Adapters.EctoTest do
     end
   end
 
-  describe "apply_filters/4" do
+  describe "apply_filters/3" do
     test "returns original query when filters list is empty" do
       base_query = from(TestUser, as: ^EctoAdapter.name_by_schema(TestUser))
 
-      query = EctoAdapter.apply_filters(base_query, [], "", %{})
+      query = EctoAdapter.apply_filters(base_query, [], %{})
 
       assert query == base_query
     end
@@ -312,7 +312,7 @@ defmodule Backpex.Adapters.EctoTest do
         }
       ]
 
-      query = EctoAdapter.apply_filters(base_query, filters, "", %{})
+      query = EctoAdapter.apply_filters(base_query, filters, %{})
 
       assert [%{expr: where_expr}] = query.wheres
       assert match?({:==, _, _}, where_expr)
@@ -337,37 +337,10 @@ defmodule Backpex.Adapters.EctoTest do
         }
       ]
 
-      query = EctoAdapter.apply_filters(base_query, filters, "", %{})
+      query = EctoAdapter.apply_filters(base_query, filters, %{})
 
       # Should have 3 where clauses: active == true, age >= 18, age <= 65
       assert length(query.wheres) == 3
-    end
-
-    test "skips filters matching empty_filter_key" do
-      base_query = from(TestUser, as: ^EctoAdapter.name_by_schema(TestUser))
-
-      empty_filter_key = :empty
-
-      filters = [
-        %{
-          field: :empty,
-          value: "some_value",
-          filter_config: %{module: TestFilter}
-        },
-        %{
-          field: :active,
-          value: true,
-          filter_config: %{module: TestFilter}
-        }
-      ]
-
-      query = EctoAdapter.apply_filters(base_query, filters, empty_filter_key, %{})
-
-      # Should only have one where clause (the :active filter)
-      assert [%{expr: where_expr}] = query.wheres
-
-      expr_str = Macro.to_string(where_expr)
-      assert expr_str =~ "active"
     end
 
     test "passes assigns to filter query function" do
@@ -407,7 +380,7 @@ defmodule Backpex.Adapters.EctoTest do
 
       assigns = %{user_id: 42}
 
-      query = EctoAdapter.apply_filters(base_query, filters, "", assigns)
+      query = EctoAdapter.apply_filters(base_query, filters, assigns)
 
       assert [%{expr: _where_expr, params: params}] = query.wheres
       # The params should contain the user_id from assigns
