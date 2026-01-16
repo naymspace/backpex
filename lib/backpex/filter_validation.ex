@@ -11,7 +11,7 @@ defmodule Backpex.FilterValidation do
   @doc """
   Builds a changeset from filter params and configurations.
 
-  Returns a changeset that can be used with `Phoenix.HTML.Form.to_form/2`.
+  Returns a changeset that can be used with `Phoenix.Component.to_form/2`.
   The changeset includes all filter values, with validation errors for invalid ones.
 
   ## Parameters
