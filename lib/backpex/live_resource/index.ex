@@ -7,6 +7,7 @@ defmodule Backpex.LiveResource.Index do
   alias Backpex.Adapters.Ecto, as: EctoAdapter
   alias Backpex.FilterValidation
   alias Backpex.LiveResource
+  alias Backpex.QueryOptionsValidation
   alias Backpex.Resource
   alias Backpex.Router
 
@@ -401,9 +402,11 @@ defmodule Backpex.LiveResource.Index do
     per_page_options = live_resource.config(:per_page_options)
     per_page_default = live_resource.config(:per_page_default)
     init_order = live_resource.config(:init_order)
+    init_order = LiveResource.resolve_init_order(init_order, socket.assigns)
 
     filters = LiveResource.active_filters(socket.assigns)
     schema = live_resource.adapter_config(:schema)
+    orderable_fields = LiveResource.orderable_fields(fields)
 
     # Build filter changeset from URL params and extract valid values
     raw_filter_params = Map.get(params, "filters", %{})
@@ -411,28 +414,29 @@ defmodule Backpex.LiveResource.Index do
     filter_values = FilterValidation.valid_values(filter_changeset)
     filter_form = to_form(filter_changeset, as: :filters)
 
+    # Validate pagination and sorting params (page clamping happens after we know item_count)
+    query_options =
+      QueryOptionsValidation.build(params,
+        per_page_default: per_page_default,
+        per_page_options: per_page_options,
+        orderable_fields: orderable_fields,
+        init_order: init_order
+      )
+
     count_criteria = [
       search: LiveResource.search_options(params, fields, schema),
       filters: LiveResource.filter_options(filter_values, filters)
     ]
 
     {:ok, item_count} = Resource.count(count_criteria, fields, socket.assigns, live_resource)
+    total_pages = LiveResource.calculate_total_pages(item_count, query_options.per_page)
 
-    per_page =
-      params
-      |> LiveResource.parse_integer("per_page", per_page_default)
-      |> LiveResource.value_in_permitted_or_default(per_page_options, per_page_default)
-
-    total_pages = LiveResource.calculate_total_pages(item_count, per_page)
-
-    page = params |> LiveResource.parse_integer("page", 1) |> LiveResource.validate_page(total_pages)
-    page_options = %{page: page, per_page: per_page}
-
-    order_options = LiveResource.order_options_by_params(params, fields, init_order, socket.assigns)
+    # Clamp page to valid range now that we know total_pages
+    page = QueryOptionsValidation.clamp_page(query_options.page, total_pages)
+    query_options = %{query_options | page: page}
 
     query_options =
-      page_options
-      |> Map.merge(order_options)
+      query_options
       |> maybe_put_search(params)
       |> Map.put(:filters, raw_filter_params)
 
@@ -446,7 +450,7 @@ defmodule Backpex.LiveResource.Index do
     |> assign(:filters, filters)
     |> assign(:filter_form, filter_form)
     |> assign(:filter_values, filter_values)
-    |> assign(:orderable_fields, LiveResource.orderable_fields(fields))
+    |> assign(:orderable_fields, orderable_fields)
     |> assign(:searchable_fields, LiveResource.searchable_fields(fields))
     |> assign(:resource_actions, live_resource.resource_actions())
     |> assign(:action_to_confirm, nil)
@@ -530,7 +534,7 @@ defmodule Backpex.LiveResource.Index do
     {:ok, item_count} = Resource.count(count_criteria, fields, socket.assigns, live_resource)
     %{page: page, per_page: per_page} = query_options
     total_pages = LiveResource.calculate_total_pages(item_count, per_page)
-    new_query_options = Map.put(query_options, :page, LiveResource.validate_page(page, total_pages))
+    new_query_options = Map.put(query_options, :page, QueryOptionsValidation.clamp_page(page, total_pages))
 
     socket
     |> assign(:item_count, item_count)

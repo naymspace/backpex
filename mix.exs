@@ -147,6 +147,7 @@ defmodule Backpex.MixProject do
       "guides/live_resource/templates.md",
       "guides/live_resource/item-query.md",
       "guides/live_resource/ordering.md",
+      "guides/live_resource/pagination.md",
       "guides/live_resource/on_mount-hook.md",
       "guides/live_resource/hooks.md",
       "guides/live_resource/navigation.md",
