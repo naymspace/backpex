@@ -100,6 +100,7 @@ defmodule Backpex.Filters.Boolean do
   attr :field, :atom, required: true
   attr :value, :any, required: true
   attr :options, :list, required: true
+  attr :errors, :list, default: []
 
   def render_form(assigns) do
     value = if is_nil(assigns.value), do: [], else: assigns.value
@@ -129,6 +130,7 @@ defmodule Backpex.Filters.Boolean do
         </label>
       <% end %>
     </div>
+    <.error :for={msg <- @errors} class="mt-1">{msg}</.error>
     """
   end
 

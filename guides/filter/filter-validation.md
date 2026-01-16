@@ -325,7 +325,7 @@ defmodule MyAppWeb.Filters.PriceRange do
   def render_form(assigns) do
     ~H"""
     <div class="mt-2 space-y-2">
-      <label class="input input-sm">
+      <label class={["input input-sm", @errors != [] && "input-error bg-error/10"]}>
         <span class="text-base-content/50">Min</span>
         <input
           type="number"
@@ -335,7 +335,7 @@ defmodule MyAppWeb.Filters.PriceRange do
           step="0.01"
         />
       </label>
-      <label class="input input-sm">
+      <label class={["input input-sm", @errors != [] && "input-error bg-error/10"]}>
         <span class="text-base-content/50">Max</span>
         <input
           type="number"
@@ -346,6 +346,7 @@ defmodule MyAppWeb.Filters.PriceRange do
         />
       </label>
     </div>
+    <.error :for={msg <- @errors} class="mt-1">{msg}</.error>
     """
   end
 end
@@ -355,12 +356,36 @@ end
 
 When validation fails, the filter shows an error state in the UI:
 
-1. The filter input may show an error border/styling
+1. The filter input shows an error border/styling
 2. An error message appears below the input
 3. The filter badge does **not** appear (filter is not applied)
 4. Results show unfiltered data for that attribute
 
 This provides immediate feedback while keeping the application stable.
+
+### Displaying Errors in Custom Filters
+
+The `@errors` assign is passed to your filter's `render_form/1` callback, containing a list of translated error messages. Built-in filters automatically display these errors with appropriate styling. For custom filters, you can display errors using the `.error` component (available via `use BackpexWeb, :filter`):
+
+```elixir
+@impl Backpex.Filter
+def render_form(assigns) do
+  ~H"""
+  <input
+    type="text"
+    name={@form[@field].name}
+    value={@value}
+    class={["input input-sm mt-2", @errors != [] && "input-error bg-error/10"]}
+  />
+  <.error :for={msg <- @errors} class="mt-1">{msg}</.error>
+  """
+end
+```
+
+The error styling classes used:
+- `input-error` - Adds red border to the input
+- `bg-error/10` - Adds subtle red background
+- `.error` component - Renders red italic text for error messages
 
 ## Best Practices
 
@@ -370,3 +395,4 @@ This provides immediate feedback while keeping the application stable.
 4. **Keep `query/4` simple**: Since values are validated, focus on the query logic
 5. **Test validation**: Write unit tests for your `validate/2` to ensure edge cases are handled
 6. **Use Ecto validations**: Leverage `Ecto.Changeset` validation functions for consistency
+7. **Display errors in custom filters**: Use `@errors` in `render_form/1` to show validation feedback to users

@@ -91,12 +91,14 @@ defmodule Backpex.Filters.Range do
   attr :value, :any, required: true
   attr :type, :atom, required: true
   attr :live_resource, :atom, required: true
+  attr :errors, :list, default: []
 
   def render_form(assigns) do
     ~H"""
     <.inputs_for :let={f} field={@form[@field]}>
-      <.range_input_set form={f} type={@type} value={@value} live_resource={@live_resource} />
+      <.range_input_set form={f} type={@type} value={@value} live_resource={@live_resource} errors={@errors} />
     </.inputs_for>
+    <.error :for={msg <- @errors} class="mt-1">{msg}</.error>
     """
   end
 
@@ -104,15 +106,16 @@ defmodule Backpex.Filters.Range do
   attr :type, :atom, required: true
   attr :value, :any, required: true
   attr :live_resource, :atom, required: true
+  attr :errors, :list, default: []
 
   def range_input_set(%{type: :date} = assigns) do
     ~H"""
     <div class="mt-2">
-      <label class="input input-sm mb-2">
+      <label class={["input input-sm mb-2", @errors != [] && "input-error bg-error/10"]}>
         <span class="text-base-content/50 w-10">{Backpex.__("From", @live_resource)}</span>
         <input type="date" name={@form[:start].name} value={@value["start"]} class="inline-block" />
       </label>
-      <label class="input input-sm">
+      <label class={["input input-sm", @errors != [] && "input-error bg-error/10"]}>
         <span class="text-base-content/50 w-10">{Backpex.__("To", @live_resource)}</span>
         <input type="date" name={@form[:end].name} value={@value["end"]} class="inline-block" />
       </label>
@@ -123,11 +126,11 @@ defmodule Backpex.Filters.Range do
   def range_input_set(%{type: :number} = assigns) do
     ~H"""
     <div class="mt-2">
-      <label class="input input-sm mb-2">
+      <label class={["input input-sm mb-2", @errors != [] && "input-error bg-error/10"]}>
         <span class="text-base-content/50 w-10">{Backpex.__("From", @live_resource)}</span>
         <input type="number" name={@form[:start].name} value={@value["start"]} />
       </label>
-      <label class="input input-sm">
+      <label class={["input input-sm", @errors != [] && "input-error bg-error/10"]}>
         <span class="text-base-content/50 w-10">{Backpex.__("To", @live_resource)}</span>
         <input type="number" name={@form[:end].name} value={@value["end"]} />
       </label>

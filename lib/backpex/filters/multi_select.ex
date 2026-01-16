@@ -91,6 +91,7 @@ defmodule Backpex.Filters.MultiSelect do
   attr :value, :any, required: true
   attr :options, :list, required: true
   attr :prompt, :string, required: true
+  attr :errors, :list, default: []
 
   def render_form(assigns) do
     value = if is_nil(assigns.value), do: [], else: assigns.value
@@ -108,7 +109,13 @@ defmodule Backpex.Filters.MultiSelect do
 
     ~H"""
     <.dropdown id={"multi-select-#{@form.id}"} class="mt-2 w-full">
-      <:trigger aria_label={@trigger_text} class="select select-sm">
+      <:trigger
+        aria_label={@trigger_text}
+        class={[
+          "select select-sm",
+          @errors != [] && "select-error bg-error/10"
+        ]}
+      >
         {@trigger_text}
       </:trigger>
       <:menu class="min-w-60 w-max max-h-96 overflow-y-auto">
@@ -129,6 +136,7 @@ defmodule Backpex.Filters.MultiSelect do
         </div>
       </:menu>
     </.dropdown>
+    <.error :for={msg <- @errors} class="mt-1">{msg}</.error>
     """
   end
 

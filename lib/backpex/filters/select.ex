@@ -98,13 +98,22 @@ defmodule Backpex.Filters.Select do
   attr :value, :any, required: true
   attr :options, :list, required: true
   attr :prompt, :string, required: true
+  attr :errors, :list, default: []
 
   def render_form(assigns) do
     ~H"""
-    <select name={@form[@field].name} class="select select-sm mt-2" aria-label={@prompt}>
+    <select
+      name={@form[@field].name}
+      class={[
+        "select select-sm mt-2",
+        @errors != [] && "select-error bg-error/10"
+      ]}
+      aria-label={@prompt}
+    >
       <option value="">{@prompt}</option>
       {Phoenix.HTML.Form.options_for_select(@options, selected(@value))}
     </select>
+    <.error :for={msg <- @errors} class="mt-1">{msg}</.error>
     """
   end
 

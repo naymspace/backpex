@@ -51,6 +51,7 @@ defmodule BackpexWeb do
     quote do
       use Phoenix.Component
       import Ecto.Query, warn: false
+      import Backpex.HTML.Form, only: [error: 1]
       unquote(html_helpers())
     end
   end

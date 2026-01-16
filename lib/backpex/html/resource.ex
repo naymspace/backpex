@@ -377,8 +377,11 @@ defmodule Backpex.HTML.Resource do
   attr :live_resource, :any, default: nil, doc: "live resource module"
   attr :filters, :list, required: true, doc: "list of active filters"
   attr :filter_options, :map, required: true, doc: "raw filter options from URL params"
+  attr :filter_form, :any, default: nil, doc: "optional form backed by filter validation changeset"
 
   def filter_forms(assigns) do
+    error_changeset = get_filter_changeset(assigns[:filter_form])
+
     assigns =
       assigns
       |> assign(:form, to_form(%{}, as: :filters))
@@ -392,12 +395,15 @@ defmodule Backpex.HTML.Resource do
             Map.get(assigns.filter_options, Atom.to_string(field)) ||
               Map.get(assigns.filter_options, field)
 
+          errors = extract_filter_errors(error_changeset, field)
+
           %{
             field: field,
             filter: filter,
             label: label,
             presets: presets,
-            value: value
+            value: value,
+            errors: errors
           }
         end
       )
@@ -413,7 +419,13 @@ defmodule Backpex.HTML.Resource do
       >
         {component(
           fn assigns -> field_data.filter.module.render_form(assigns) end,
-          Map.merge(assigns, %{field: field_data.field, value: field_data.value, form: f, live_resource: @live_resource}),
+          Map.merge(assigns, %{
+            field: field_data.field,
+            value: field_data.value,
+            form: f,
+            live_resource: @live_resource,
+            errors: field_data.errors
+          }),
           {__ENV__.module, __ENV__.function, __ENV__.file, __ENV__.line}
         )}
         <:presets :if={field_data.presets != []}>
@@ -422,6 +434,18 @@ defmodule Backpex.HTML.Resource do
       </.filter_form_field>
     </.form>
     """
+  end
+
+  defp get_filter_changeset(nil), do: nil
+  defp get_filter_changeset(%{source: %Ecto.Changeset{} = changeset}), do: changeset
+  defp get_filter_changeset(_other), do: nil
+
+  defp extract_filter_errors(nil, _field), do: []
+
+  defp extract_filter_errors(changeset, field) do
+    changeset.errors
+    |> Keyword.get_values(field)
+    |> Enum.map(fn {msg, opts} -> Backpex.translate_error({msg, opts}) end)
   end
 
   @doc """
