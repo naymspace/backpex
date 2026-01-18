@@ -85,6 +85,7 @@ The `only` and `except` keys must provide a list and accept the following option
 
 * `:row` - displays an icon for each element in the table, clicking it triggers the item action for the corresponding element
 * `:index` - displays a button at the top of the resource table, clicking it will trigger the item action for selected items
+* `:show` - displays an icon on the show view near the page title, clicking it triggers the item action for the displayed item
 
 The following example shows how to place the `show` item action on the index table rows only.
 
@@ -103,7 +104,7 @@ end
 
 ## Confirmation Dialog
 
-By default an item action is triggered immediately when the user clicks on the corresponding icon in the resource table or in the show view, but an item actions also supports a confirmation dialog. To enable the confirmation dialog you need to implement the `c:Backpex.ItemAction.confirm/1` function and return a string that will be displayed in the confirmation dialog. The confirmation dialog will be displayed when the user clicks on the icon in the resource table.
+By default an item action is triggered immediately when the user clicks on the corresponding icon in the resource table or in the show view, but item actions also support a confirmation dialog. To enable the confirmation dialog you need to implement the `c:Backpex.ItemAction.confirm/1` function and return a string that will be displayed in the confirmation dialog. The confirmation dialog will be displayed when the user clicks on the icon in the resource table or on the show view.
 
 You might want to use the `c:Backpex.ItemAction.cancel_label/1` (defaults to "Cancel") and `c:Backpex.ItemAction.confirm_label/1` (defaults to "Apply") functions to set the labels of the buttons in the dialog.
 
