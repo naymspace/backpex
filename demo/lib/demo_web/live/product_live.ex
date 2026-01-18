@@ -92,7 +92,7 @@ defmodule DemoWeb.ProductLive do
         except: [:index],
         child_fields: [
           weight: %{
-            module: Backpex.Fields.Text,
+            module: Backpex.Fields.Number,
             label: "Ave. Weight (kg)"
           },
           goes_well_with: %{
