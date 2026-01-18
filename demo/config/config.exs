@@ -24,7 +24,7 @@ config :demo,
   generators: [binary_id: true]
 
 config :esbuild,
-  version: "0.27.1",
+  version: "0.27.2",
   default: [
     args:
       ~w(js/app.js --bundle --target=es2022 --outdir=../priv/static/assets/js --external:/fonts/* --external:/images/* --alias:@=. --alias:backpex=/opt/app),
@@ -54,7 +54,7 @@ config :sentry,
   root_source_code_paths: [File.cwd!()]
 
 config :tailwind,
-  version: "4.1.17",
+  version: "4.1.18",
   default: [
     args: ~w(
       --input=assets/css/app.css

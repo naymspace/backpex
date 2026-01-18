@@ -29,5 +29,20 @@ defmodule DemoWeb.Live.Category.EditLiveTest do
       |> assert_has("table tbody tr", count: 1)
       |> assert_has("p", text: "New", exact: true)
     end
+
+    test "editing with invalid data shows error", %{conn: conn} do
+      category = insert(:category, %{name: "Original Name"})
+
+      conn
+      |> visit(~p"/admin/categories/#{category.id}/edit")
+      |> unwrap(fn view ->
+        view
+        |> form("#resource-form", change: %{name: ""})
+        |> put_submitter("button[value=save]")
+        |> render_submit()
+      end)
+      |> assert_has("form#resource-form")
+      |> assert_has("p", text: "can't be blank")
+    end
   end
 end

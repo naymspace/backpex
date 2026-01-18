@@ -37,7 +37,7 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@1af3b93b6815bc44a9784bd300feb67ff0d1eeb3 # v6.0.0
+        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
 
       - uses: erlef/setup-beam@e6d7c94229049569db56a7ad5a540c051a010af9 # v1.20.4
         with:
@@ -45,14 +45,14 @@ jobs:
           elixir-version: ${{ matrix.elixir }}
 
       - name: Setup node
-        uses: actions/setup-node@2028fbc5c25fe9cf00d9f06a71cc4710d4507903 # v6.0.0
+        uses: actions/setup-node@395ad3262231945c25e8478fd5baf05154b1d79f # v6.1.0
         with:
           node-version: 24
           cache: "yarn"
           cache-dependency-path: yarn.lock
 
       - name: Restore the deps and _build cache
-        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+        uses: actions/cache@9255dc7a253b0ccc959486e2bca901246202afeb # v5.0.1
         id: restore-cache
         env:
           MIX_LOCK_HASH: ${{ hashFiles(format('{0}{1}', github.workspace, '/mix.lock')) }}
@@ -75,7 +75,7 @@ jobs:
         run: mix compile --warnings-as-errors --force
 
       - name: Cache node modules
-        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+        uses: actions/cache@9255dc7a253b0ccc959486e2bca901246202afeb # v5.0.1
         id: yarn-cache
         with:
           path: node_modules
@@ -129,7 +129,7 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@1af3b93b6815bc44a9784bd300feb67ff0d1eeb3 # v6.0.0
+        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
 
       - uses: erlef/setup-beam@e6d7c94229049569db56a7ad5a540c051a010af9 # v1.20.4
         id: beam
@@ -154,7 +154,7 @@ jobs:
 
     services:
       postgres:
-        image: postgres:16.11@sha256:cf2a05fe40887b721e4b3dbac8fd32673c08292dcc8ba6b62b52b7f640433bd0
+        image: postgres:16.11@sha256:f992505e18f114c1e5102ac4dcf00f791b44462f6a423d899320f0bbf80e386f
         env:
           POSTGRES_PASSWORD: postgres
         options: >-
@@ -167,7 +167,7 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@1af3b93b6815bc44a9784bd300feb67ff0d1eeb3 # v6.0.0
+        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
 
       - name: Setup beam
         uses: erlef/setup-beam@e6d7c94229049569db56a7ad5a540c051a010af9 # v1.20.4
@@ -177,14 +177,14 @@ jobs:
           version-type: strict
 
       - name: Setup node
-        uses: actions/setup-node@2028fbc5c25fe9cf00d9f06a71cc4710d4507903 # v6.0.0
+        uses: actions/setup-node@395ad3262231945c25e8478fd5baf05154b1d79f # v6.1.0
         with:
           node-version: 24
           cache: "yarn"
           cache-dependency-path: demo/yarn.lock
 
       - name: Restore the deps and _build cache
-        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+        uses: actions/cache@9255dc7a253b0ccc959486e2bca901246202afeb # v5.0.1
         id: restore-cache
         env:
           OTP_VERSION: ${{ steps.beam.outputs.otp-version }}
@@ -212,7 +212,7 @@ jobs:
         run: mix compile --warnings-as-errors --force
 
       - name: Cache node modules
-        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+        uses: actions/cache@9255dc7a253b0ccc959486e2bca901246202afeb # v5.0.1
         id: yarn-cache
         with:
           path: demo/node_modules
@@ -226,7 +226,7 @@ jobs:
         run: yarn install --pure-lockfile
 
       - name: Cache Backpex node modules
-        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+        uses: actions/cache@9255dc7a253b0ccc959486e2bca901246202afeb # v5.0.1
         id: yarn-cache-backpex
         with:
           path: node_modules
@@ -289,7 +289,7 @@ jobs:
         run: yarn test
 
       - name: Cache Playwright browsers
-        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+        uses: actions/cache@9255dc7a253b0ccc959486e2bca901246202afeb # v5.0.1
         id: playwright-cache
         with:
           path: ~/.cache/ms-playwright
@@ -313,7 +313,7 @@ jobs:
 
       - name: Upload Playwright traces
         if: failure()
-        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
         with:
           name: playwright-traces
           path: tmp/
@@ -332,10 +332,10 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@1af3b93b6815bc44a9784bd300feb67ff0d1eeb3 # v6.0.0
+        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
 
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@e468171a9de216ec08956ac3ada2f0791b6bd435 # v3.11.1
+        uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3.12.0
 
       - name: Log in to the container registry
         if: env.PUSH_IMAGE == 'true'

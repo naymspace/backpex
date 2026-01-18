@@ -298,4 +298,91 @@ defmodule Demo.Support.LiveResourceTests do
       end
     end
   end
+
+  @doc """
+  Tests that search filters results correctly.
+  Performs a search and verifies the expected number of rows remain.
+  """
+  defmacro test_search_filters_results(conn, base_path, search_term, expected_count) do
+    quote do
+      conn = unquote(conn)
+      base_path = unquote(base_path)
+      search_term = unquote(search_term)
+      expected_count = unquote(expected_count)
+
+      conn
+      |> visit(base_path)
+      |> unwrap(fn view ->
+        view
+        |> form("#index-search-form", index_search: %{value: search_term})
+        |> render_change()
+      end)
+      |> assert_has("table tbody tr", count: expected_count)
+    end
+  end
+
+  @doc """
+  Tests that a metric displays the expected label and value.
+  """
+  defmacro test_metric_displays(conn, base_path, metric_label, expected_value) do
+    quote do
+      conn = unquote(conn)
+      base_path = unquote(base_path)
+      metric_label = unquote(metric_label)
+      expected_value = unquote(expected_value)
+
+      conn
+      |> visit(base_path)
+      |> assert_has("div", text: metric_label)
+      |> assert_has("div", text: expected_value)
+    end
+  end
+
+  @doc """
+  Tests that an item action button is NOT available for an item.
+  Useful for testing authorization (can? returning false).
+  """
+  defmacro test_action_not_available(conn, base_path, item, action_label) do
+    quote do
+      conn = unquote(conn)
+      base_path = unquote(base_path)
+      item = unquote(item)
+      action_label = unquote(action_label)
+
+      conn
+      |> visit(base_path)
+      |> refute_has("button[aria-label='#{action_label}'][phx-value-item-id='#{item.id}']")
+    end
+  end
+
+  @doc """
+  Tests that an item action button IS available for an item.
+  """
+  defmacro test_action_available(conn, base_path, item, action_label) do
+    quote do
+      conn = unquote(conn)
+      base_path = unquote(base_path)
+      item = unquote(item)
+      action_label = unquote(action_label)
+
+      conn
+      |> visit(base_path)
+      |> assert_has("button[aria-label='#{action_label}'][phx-value-item-id='#{item.id}']")
+    end
+  end
+
+  @doc """
+  Tests that a resource button (like "New Resource") is NOT available.
+  """
+  defmacro test_resource_button_not_available(conn, base_path, button_text) do
+    quote do
+      conn = unquote(conn)
+      base_path = unquote(base_path)
+      button_text = unquote(button_text)
+
+      conn
+      |> visit(base_path)
+      |> refute_has("button", text: button_text)
+    end
+  end
 end
