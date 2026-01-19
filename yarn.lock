@@ -3,9 +3,9 @@
 
 
 "@babel/runtime-corejs3@^7.24.4":
-  version "7.28.4"
-  resolved "https://registry.yarnpkg.com/@babel/runtime-corejs3/-/runtime-corejs3-7.28.4.tgz#c25be39c7997ce2f130d70b9baecb8ed94df93fa"
-  integrity sha512-h7iEYiW4HebClDEhtvFObtPmIvrd1SSfpI9EhOeKk4CtIK/ngBWFpuhCzhdmRKtg71ylcue+9I6dv54XYO1epQ==
+  version "7.28.6"
+  resolved "https://registry.yarnpkg.com/@babel/runtime-corejs3/-/runtime-corejs3-7.28.6.tgz#f1e4a0da50f4856ceec1bb51c83f8ed0b202ed12"
+  integrity sha512-kz2fAQ5UzjV7X7D3ySxmj3vRq89dTpqOZWv76Z6pNPztkwb/0Yj1Mtx1xFrYj6mbIHysxtBot8J4o0JLCblcFw==
   dependencies:
     core-js-pure "^3.43.0"
 
@@ -2048,9 +2048,9 @@ which-collection@^1.0.2:
     is-weakset "^2.0.3"
 
 which-typed-array@^1.1.16, which-typed-array@^1.1.19:
-  version "1.1.19"
-  resolved "https://registry.yarnpkg.com/which-typed-array/-/which-typed-array-1.1.19.tgz#df03842e870b6b88e117524a4b364b6fc689f956"
-  integrity sha512-rEvr90Bck4WZt9HHFC4DJMsjvu7x+r6bImz0/BrbWb7A2djJ8hnZMrWnHo9F8ssv0OMErasDhftrfROTyqSDrw==
+  version "1.1.20"
+  resolved "https://registry.yarnpkg.com/which-typed-array/-/which-typed-array-1.1.20.tgz#3fdb7adfafe0ea69157b1509f3a1cd892bd1d122"
+  integrity sha512-LYfpUkmqwl0h9A2HL09Mms427Q1RZWuOHsukfVcKRq9q95iQxdw0ix1JQrqbcDR9PH1QDwf5Qo8OZb5lksZ8Xg==
   dependencies:
     available-typed-arrays "^1.0.7"
     call-bind "^1.0.8"
