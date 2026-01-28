@@ -8,6 +8,10 @@ defmodule Backpex.Fields.Currency do
       doc: "Timeout value (in milliseconds) or function that receives the assigns.",
       type: {:or, [:pos_integer, {:fun, 1}]}
     ],
+    readonly: [
+      doc: "Sets the field to readonly. Also see the [panels](/guides/fields/readonly.md) guide.",
+      type: {:or, [:boolean, {:fun, 1}]}
+    ],
     unit: [
       doc: "Unit to display with the currency value, e.g. '€'.",
       type: :string,
@@ -107,6 +111,8 @@ defmodule Backpex.Fields.Currency do
           unit={@field_options[:unit]}
           unit_position={@field_options[:unit_position]}
           symbol_space={@field_options[:symbol_space]}
+          readonly={@readonly}
+          disabled={@readonly}
           aria-labelledby={Map.get(assigns, :aria_labelledby)}
         />
       </Layout.field_container>

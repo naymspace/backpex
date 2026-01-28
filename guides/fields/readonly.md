@@ -14,6 +14,7 @@ On edit view, readonly is supported for:
 - `Backpex.Fields.Number`
 - `Backpex.Fields.Text`
 - `Backpex.Fields.Textarea`
+- `Backpex.Fields.Currency`
 
 ## Configuration
 
