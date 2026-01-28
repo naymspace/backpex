@@ -61,6 +61,11 @@ if Code.ensure_loaded?(Igniter) do
     alias Igniter.Project.Module
     alias Igniter.Util.IO, as: IgniterIO
     alias Igniter.Util.Warning
+
+    # IgniterJs is an optional dependency - suppress warnings when not installed
+    @compile {:no_warn_undefined, {IgniterJs.Helpers, :read_and_validate_file, 1}}
+    @compile {:no_warn_undefined, {IgniterJs.Parsers.Javascript.Parser, :insert_imports, 3}}
+    @compile {:no_warn_undefined, {IgniterJs.Parsers.Javascript.Parser, :extend_hook_object, 3}}
     alias IgniterJs.Parsers.Javascript.Parser
 
     @default_app_css_path Path.join(["assets", "css", "app.css"])
