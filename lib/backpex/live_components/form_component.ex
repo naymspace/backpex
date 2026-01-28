@@ -408,8 +408,8 @@ defmodule Backpex.FormComponent do
   defp drop_readonly_changes(change, fields, assigns) do
     read_only =
       fields
-      |> Enum.filter(&Backpex.Field.readonly?(&1, assigns))
-      |> Enum.map(&Atom.to_string(&1.name))
+      |> Enum.filter(fn {_name, options} -> Backpex.Field.readonly?(options, assigns) end)
+      |> Enum.map(fn {name, _options} -> Atom.to_string(name) end)
 
     Map.drop(change, read_only)
   end
