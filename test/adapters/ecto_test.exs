@@ -292,11 +292,11 @@ defmodule Backpex.Adapters.EctoTest do
     end
   end
 
-  describe "apply_filters/3" do
-    test "returns original query when filters list is empty" do
+  describe "apply_filters/4" do
+    test "returns original query when filter_values is empty" do
       base_query = from(TestUser, as: ^EctoAdapter.name_by_schema(TestUser))
 
-      query = EctoAdapter.apply_filters(base_query, [], %{})
+      query = EctoAdapter.apply_filters(base_query, %{}, [], %{})
 
       assert query == base_query
     end
@@ -304,15 +304,10 @@ defmodule Backpex.Adapters.EctoTest do
     test "applies single filter correctly" do
       base_query = from(TestUser, as: ^EctoAdapter.name_by_schema(TestUser))
 
-      filters = [
-        %{
-          field: :active,
-          value: true,
-          filter_config: %{module: TestFilter}
-        }
-      ]
+      filter_values = %{active: true}
+      filter_configs = [active: %{module: TestFilter}]
 
-      query = EctoAdapter.apply_filters(base_query, filters, %{})
+      query = EctoAdapter.apply_filters(base_query, filter_values, filter_configs, %{})
 
       assert [%{expr: where_expr}] = query.wheres
       assert match?({:==, _, _}, where_expr)
@@ -324,20 +319,17 @@ defmodule Backpex.Adapters.EctoTest do
     test "applies multiple filters with AND logic" do
       base_query = from(TestUser, as: ^EctoAdapter.name_by_schema(TestUser))
 
-      filters = [
-        %{
-          field: :active,
-          value: true,
-          filter_config: %{module: TestFilter}
-        },
-        %{
-          field: :age,
-          value: %{"start" => 18, "end" => 65},
-          filter_config: %{module: TestRangeFilter}
-        }
+      filter_values = %{
+        active: true,
+        age: %{"start" => 18, "end" => 65}
+      }
+
+      filter_configs = [
+        active: %{module: TestFilter},
+        age: %{module: TestRangeFilter}
       ]
 
-      query = EctoAdapter.apply_filters(base_query, filters, %{})
+      query = EctoAdapter.apply_filters(base_query, filter_values, filter_configs, %{})
 
       # Should have 3 where clauses: active == true, age >= 18, age <= 65
       assert length(query.wheres) == 3
@@ -370,21 +362,29 @@ defmodule Backpex.Adapters.EctoTest do
 
       base_query = from(TestUser, as: ^EctoAdapter.name_by_schema(TestUser))
 
-      filters = [
-        %{
-          field: :owner,
-          value: "any",
-          filter_config: %{module: AssignsCapturingFilter}
-        }
-      ]
+      filter_values = %{owner: "any"}
+      filter_configs = [owner: %{module: AssignsCapturingFilter}]
 
       assigns = %{user_id: 42}
 
-      query = EctoAdapter.apply_filters(base_query, filters, assigns)
+      query = EctoAdapter.apply_filters(base_query, filter_values, filter_configs, assigns)
 
       assert [%{expr: _where_expr, params: params}] = query.wheres
       # The params should contain the user_id from assigns
       assert Enum.any?(params, fn {val, _type} -> val == 42 end)
+    end
+
+    test "skips filters without matching config" do
+      base_query = from(TestUser, as: ^EctoAdapter.name_by_schema(TestUser))
+
+      filter_values = %{active: true, unknown: "value"}
+      filter_configs = [active: %{module: TestFilter}]
+
+      query = EctoAdapter.apply_filters(base_query, filter_values, filter_configs, %{})
+
+      # Only one filter applied (active), unknown is skipped
+      assert [%{expr: where_expr}] = query.wheres
+      assert match?({:==, _, _}, where_expr)
     end
   end
 

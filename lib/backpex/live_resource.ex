@@ -686,26 +686,6 @@ defmodule Backpex.LiveResource do
   end
 
   @doc """
-  Returns filter options from validated filter values.
-
-  Converts the validated filter values map into the format expected by the adapter's
-  `apply_filters/3` function.
-  """
-  def filter_options(filter_values, filter_configs) when is_map(filter_values) do
-    filter_values
-    |> Enum.map(fn {field, value} ->
-      %{
-        field: field,
-        value: value,
-        filter_config: Keyword.get(filter_configs, field)
-      }
-    end)
-    |> Enum.reject(fn %{filter_config: config} -> is_nil(config) end)
-  end
-
-  def filter_options(_filter_values, _filter_configs), do: []
-
-  @doc """
   Checks whether a field is orderable or not.
 
   ## Examples
@@ -758,7 +738,8 @@ defmodule Backpex.LiveResource do
       order: order,
       pagination: %{page: query_options.page, size: query_options.per_page},
       search: search_options(query_options, fields, schema),
-      filters: filter_options(filter_values, filters)
+      filter_values: filter_values,
+      filter_configs: filters
     ]
   end
 

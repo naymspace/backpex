@@ -425,7 +425,8 @@ defmodule Backpex.LiveResource.Index do
 
     count_criteria = [
       search: LiveResource.search_options(params, fields, schema),
-      filters: LiveResource.filter_options(filter_values, filters)
+      filter_values: filter_values,
+      filter_configs: filters
     ]
 
     {:ok, item_count} = Resource.count(count_criteria, fields, socket.assigns, live_resource)
@@ -528,7 +529,8 @@ defmodule Backpex.LiveResource.Index do
 
     count_criteria = [
       search: LiveResource.search_options(params, fields, schema),
-      filters: LiveResource.filter_options(filter_values, filters)
+      filter_values: filter_values,
+      filter_configs: filters
     ]
 
     {:ok, item_count} = Resource.count(count_criteria, fields, socket.assigns, live_resource)
@@ -564,7 +566,8 @@ defmodule Backpex.LiveResource.Index do
       |> Enum.map(fn {key, metric} ->
         criteria = [
           search: LiveResource.search_options(query_options, fields, schema),
-          filters: LiveResource.filter_options(filter_values, filters)
+          filter_values: filter_values,
+          filter_configs: filters
         ]
 
         query = EctoAdapter.list_query(criteria, fields, socket.assigns, live_resource)
