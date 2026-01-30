@@ -30,11 +30,10 @@ defmodule Backpex.FilterValidation do
 
   """
   def build_changeset(params, filter_configs, assigns) do
-    params = normalize_params(params)
     types = build_types(filter_configs, assigns)
 
     {%{}, types}
-    |> cast(params, Map.keys(types))
+    |> cast(normalize_empty_strings(params), Map.keys(types))
     |> apply_filter_changesets(filter_configs, assigns)
   end
 
@@ -77,33 +76,12 @@ defmodule Backpex.FilterValidation do
     end)
   end
 
-  # Normalizes params by converting string keys to atoms where they match filter names.
-  # Keeps unknown keys as-is to avoid atom exhaustion attacks.
-  defp normalize_params(params) when is_map(params) do
-    Enum.reduce(params, %{}, fn {key, value}, acc ->
-      atom_key =
-        if is_binary(key) do
-          try do
-            String.to_existing_atom(key)
-          rescue
-            ArgumentError -> nil
-          end
-        else
-          key
-        end
-
-      if atom_key do
-        Map.put(acc, atom_key, normalize_value(value))
-      else
-        acc
-      end
-    end)
+  defp normalize_empty_strings(params) when is_map(params) do
+    Map.new(params, fn {key, value} -> {key, normalize_value(value)} end)
   end
 
-  defp normalize_params(_params), do: %{}
+  defp normalize_empty_strings(_params), do: %{}
 
-  defp normalize_value(value) when is_map(value), do: value
-  defp normalize_value(value) when is_list(value), do: value
   defp normalize_value(""), do: nil
   defp normalize_value(value), do: value
 
@@ -118,7 +96,5 @@ defmodule Backpex.FilterValidation do
   defp empty_value?([]), do: true
   defp empty_value?(%{"start" => "", "end" => ""}), do: true
   defp empty_value?(%{"start" => nil, "end" => nil}), do: true
-  defp empty_value?(%{start: "", end: ""}), do: true
-  defp empty_value?(%{start: nil, end: nil}), do: true
   defp empty_value?(_value), do: false
 end

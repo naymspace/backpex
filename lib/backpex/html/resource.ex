@@ -388,11 +388,8 @@ defmodule Backpex.HTML.Resource do
         for {field, filter} <- assigns.filters do
           label = Map.get(filter, :label, filter.module.label())
           presets = Map.get(filter, :presets, [])
-          # Handle both string and atom keys in filter_options
-          value =
-            Map.get(assigns.filter_options, Atom.to_string(field)) ||
-              Map.get(assigns.filter_options, field)
-
+          # filter_options (from URL params) is always string-keyed
+          value = Map.get(assigns.filter_options, Atom.to_string(field))
           errors = extract_filter_errors(error_changeset, field)
 
           %{

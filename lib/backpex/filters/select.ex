@@ -142,17 +142,12 @@ defmodule Backpex.Filters.Select do
   Validates that the selected value exists in the options list.
 
   Returns the changeset unchanged if the value is valid, or adds an error if not found in options.
+  Empty string is allowed as it represents the "no selection" state.
   """
   def changeset(changeset, field, options) do
-    valid_values = Enum.map(options, fn {_label, value} -> to_string(value) end) |> MapSet.new()
+    valid_values = ["" | Enum.map(options, fn {_label, value} -> to_string(value) end)]
 
-    Ecto.Changeset.validate_change(changeset, field, fn _field, value ->
-      if is_nil(value) or value == "" or MapSet.member?(valid_values, to_string(value)) do
-        []
-      else
-        [{field, "is not a valid option"}]
-      end
-    end)
+    Ecto.Changeset.validate_inclusion(changeset, field, valid_values, message: "is not a valid option")
   end
 
   def query(query, attribute, value, _assigns) do
