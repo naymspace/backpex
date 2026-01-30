@@ -126,9 +126,9 @@ defmodule Backpex.QueryOptionsValidationTest do
       assert result.per_page == 50
     end
 
-    test "handles page with trailing text (parses first integer)" do
+    test "rejects page with trailing text (stricter than Integer.parse)" do
       result = QueryOptionsValidation.build(%{"page" => "5abc"}, @default_opts)
-      assert result.page == 5
+      assert result.page == 1
     end
 
     test "handles integer values (not strings)" do

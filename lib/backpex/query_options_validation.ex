@@ -116,11 +116,12 @@ defmodule Backpex.QueryOptionsValidation do
     types = %{page: :integer, per_page: :integer}
     defaults = %{page: 1, per_page: per_page_default}
 
-    normalized = normalize_integer_params(params)
+    # Filter out empty/nil values so Ecto treats them as missing (uses defaults)
+    filtered = Map.reject(params, fn {_k, v} -> v in [nil, ""] end)
 
     changeset =
       {defaults, types}
-      |> cast(normalized, [:page, :per_page])
+      |> cast(filtered, [:page, :per_page])
       |> validate_number(:page, greater_than: 0)
       |> validate_inclusion(:per_page, per_page_options)
 
@@ -134,35 +135,6 @@ defmodule Backpex.QueryOptionsValidation do
     order_direction = safe_get_atom(params, "order_direction", @permitted_directions, init_order.direction)
 
     %{order_by: order_by, order_direction: order_direction}
-  end
-
-  # Normalizes integer params from URL strings
-  defp normalize_integer_params(params) do
-    %{}
-    |> maybe_put_integer(params, "page", :page)
-    |> maybe_put_integer(params, "per_page", :per_page)
-  end
-
-  defp maybe_put_integer(acc, params, string_key, atom_key) do
-    case Map.get(params, string_key) do
-      nil ->
-        acc
-
-      "" ->
-        acc
-
-      value when is_binary(value) ->
-        case Integer.parse(value) do
-          {int, _rest} -> Map.put(acc, atom_key, int)
-          :error -> acc
-        end
-
-      value when is_integer(value) ->
-        Map.put(acc, atom_key, value)
-
-      _other ->
-        acc
-    end
   end
 
   # Safely gets an atom value from params, validating against allowed values
