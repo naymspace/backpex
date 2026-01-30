@@ -94,30 +94,7 @@ Built-in filters automatically validate their values:
 | `MultiSelect` | All selected values must exist in `options/1` |
 | `Range` | Valid formats, start must be <= end |
 
-### Custom Validation
-
-For custom filters, you can add validation via the `changeset/3` callback:
-
-```elixir
-defmodule MyAppWeb.Filters.AmountFilter do
-  use BackpexWeb, :filter
-
-  @impl Backpex.Filter
-  def type(_assigns), do: :integer
-
-  @impl Backpex.Filter
-  def changeset(changeset, field, _assigns) do
-    Ecto.Changeset.validate_number(changeset, field,
-      greater_than_or_equal_to: 0,
-      less_than_or_equal_to: 1000
-    )
-  end
-
-  # ... other callbacks
-end
-```
-
-See the [Filter Validation Guide](filter-validation.md) for comprehensive documentation on filter validation.
+For custom filters, you can add validation via the `changeset/3` callback. See the [Custom Filter](custom-filter.md) guide for examples and the [Filter Validation Guide](filter-validation.md) for comprehensive documentation.
 
 ## Related Guides
 
