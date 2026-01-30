@@ -212,27 +212,11 @@ end
 
 The `query/4` callback now receives already-validated and casted values. You no longer need to parse strings or handle invalid input:
 
-### Before (manual parsing)
-
 ```elixir
 def query(query, attribute, value, _assigns) do
-  case Integer.parse(value) do
-    {int_value, ""} ->
-      where(query, [x], field(x, ^attribute) == ^int_value)
-    _ ->
-      query  # Had to handle invalid values
-  end
-end
-```
-
-### After (validated values)
-
-```elixir
-def query(query, attribute, value, _assigns) do
-  # value is already an integer!
+  # value is already an integer
   where(query, [x], field(x, ^attribute) == ^value)
 end
-```
 
 ## Complete Custom Filter Example
 
