@@ -217,6 +217,7 @@ def query(query, attribute, value, _assigns) do
   # value is already an integer
   where(query, [x], field(x, ^attribute) == ^value)
 end
+```
 
 ## Complete Custom Filter Example
 
@@ -365,7 +366,6 @@ def render_form(assigns) do
   """
 end
 ```
-
 
 ## Best Practices
 
