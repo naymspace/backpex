@@ -190,6 +190,7 @@ defmodule Backpex.Filters.Range do
   defp validate_start_not_after_end(errors, start_parsed, end_parsed, type, field) do
     case compare_values(type, start_parsed, end_parsed) do
       :gt -> [{field, "start must be less than or equal to end"} | errors]
+      :error -> [{field, "has invalid date format"} | errors]
       _other -> errors
     end
   end
@@ -198,15 +199,15 @@ defmodule Backpex.Filters.Range do
   defp compare_values(:number, _start_val, _end_val), do: :lte
 
   defp compare_values(:date, start_val, end_val) do
-    start_date = Date.from_iso8601!(start_val)
-    end_date = Date.from_iso8601!(end_val)
-
-    case Date.compare(start_date, end_date) do
-      :gt -> :gt
-      _other -> :lte
+    with {:ok, start_date} <- Date.from_iso8601(start_val),
+         {:ok, end_date} <- Date.from_iso8601(end_val) do
+      case Date.compare(start_date, end_date) do
+        :gt -> :gt
+        _other -> :lte
+      end
+    else
+      {:error, _reason} -> :error
     end
-  rescue
-    _error -> :lte
   end
 
   defp compare_values(:datetime, start_val, end_val) do
