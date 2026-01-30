@@ -52,7 +52,7 @@ jobs:
           cache-dependency-path: yarn.lock
 
       - name: Restore the deps and _build cache
-        uses: actions/cache@9255dc7a253b0ccc959486e2bca901246202afeb # v5.0.1
+        uses: actions/cache@8b402f58fbc84540c8b491a91e594a4576fec3d7 # v5.0.2
         id: restore-cache
         env:
           MIX_LOCK_HASH: ${{ hashFiles(format('{0}{1}', github.workspace, '/mix.lock')) }}
@@ -75,7 +75,7 @@ jobs:
         run: mix compile --warnings-as-errors --force
 
       - name: Cache node modules
-        uses: actions/cache@9255dc7a253b0ccc959486e2bca901246202afeb # v5.0.1
+        uses: actions/cache@8b402f58fbc84540c8b491a91e594a4576fec3d7 # v5.0.2
         id: yarn-cache
         with:
           path: node_modules
@@ -184,7 +184,7 @@ jobs:
           cache-dependency-path: demo/yarn.lock
 
       - name: Restore the deps and _build cache
-        uses: actions/cache@9255dc7a253b0ccc959486e2bca901246202afeb # v5.0.1
+        uses: actions/cache@8b402f58fbc84540c8b491a91e594a4576fec3d7 # v5.0.2
         id: restore-cache
         env:
           OTP_VERSION: ${{ steps.beam.outputs.otp-version }}
@@ -212,7 +212,7 @@ jobs:
         run: mix compile --warnings-as-errors --force
 
       - name: Cache node modules
-        uses: actions/cache@9255dc7a253b0ccc959486e2bca901246202afeb # v5.0.1
+        uses: actions/cache@8b402f58fbc84540c8b491a91e594a4576fec3d7 # v5.0.2
         id: yarn-cache
         with:
           path: demo/node_modules
@@ -226,7 +226,7 @@ jobs:
         run: yarn install --pure-lockfile
 
       - name: Cache Backpex node modules
-        uses: actions/cache@9255dc7a253b0ccc959486e2bca901246202afeb # v5.0.1
+        uses: actions/cache@8b402f58fbc84540c8b491a91e594a4576fec3d7 # v5.0.2
         id: yarn-cache-backpex
         with:
           path: node_modules
@@ -289,7 +289,7 @@ jobs:
         run: yarn test
 
       - name: Cache Playwright browsers
-        uses: actions/cache@9255dc7a253b0ccc959486e2bca901246202afeb # v5.0.1
+        uses: actions/cache@8b402f58fbc84540c8b491a91e594a4576fec3d7 # v5.0.2
         id: playwright-cache
         with:
           path: ~/.cache/ms-playwright
