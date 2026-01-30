@@ -366,10 +366,6 @@ def render_form(assigns) do
 end
 ```
 
-The error styling classes used:
-- `input-error` - Adds red border to the input
-- `bg-error/10` - Adds subtle red background
-- `.error` component - Renders red italic text for error messages
 
 ## Best Practices
 
