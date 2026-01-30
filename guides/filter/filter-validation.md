@@ -210,7 +210,7 @@ end
 
 ## Query Receives Validated Values
 
-The `query/4` callback now receives already-validated and casted values. You no longer need to parse strings or handle invalid input:
+The `query/4` callback receives already-validated and casted values:
 
 ```elixir
 def query(query, attribute, value, _assigns) do
