@@ -94,7 +94,9 @@ defmodule Backpex.FilterValidation do
   defp empty_value?(nil), do: true
   defp empty_value?(""), do: true
   defp empty_value?([]), do: true
-  defp empty_value?(%{"start" => "", "end" => ""}), do: true
-  defp empty_value?(%{"start" => nil, "end" => nil}), do: true
+
+  defp empty_value?(%{"start" => start_val, "end" => end_val}) when start_val in ["", nil] and end_val in ["", nil],
+    do: true
+
   defp empty_value?(_value), do: false
 end
