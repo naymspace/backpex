@@ -156,7 +156,21 @@ defmodule Backpex.Filter do
         end
       end
 
-      defoverridable can?: 1, type: 1, changeset: 3, validate: 2
+      @impl Backpex.Filter
+      def query(_query, _attribute, _value, _assigns) do
+        raise """
+        You must implement the query/4 callback in your filter module.
+
+        Example:
+
+            @impl Backpex.Filter
+            def query(query, attribute, value, _assigns) do
+              Ecto.Query.where(query, [x], field(x, ^attribute) == ^value)
+            end
+        """
+      end
+
+      defoverridable can?: 1, type: 1, changeset: 3, validate: 2, query: 4
     end
   end
 end
