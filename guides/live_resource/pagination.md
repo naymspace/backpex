@@ -70,3 +70,12 @@ Invalid URL parameters won't crash the application. Instead, they are silently r
 ### Page Clamping
 
 If a user requests a page number that exceeds the total number of pages (e.g., `?page=999` when there are only 5 pages), Backpex automatically redirects to the last available page.
+
+> #### Two-Phase Page Validation {: .info}
+>
+> Page validation happens in two phases:
+>
+> 1. **Initial validation**: The `page` parameter is validated as a positive integer. Invalid values (negative numbers, non-integers) fall back to `1`.
+> 2. **Page clamping**: After counting the total items, the page is clamped to the valid range `[1, total_pages]`. This ensures users can't request pages beyond the available data.
+>
+> This two-phase approach is necessary because the total number of pages depends on the item count, which requires a database query with the current filters applied.
