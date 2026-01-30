@@ -247,9 +247,7 @@ defmodule Backpex.HTML.Resource do
         end
       end
 
-    filter_badges =
-      for_result
-      |> Enum.reject(&is_nil/1)
+    filter_badges = Enum.reject(for_result, &is_nil/1)
 
     assigns =
       assigns
