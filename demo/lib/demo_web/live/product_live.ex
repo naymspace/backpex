@@ -85,6 +85,23 @@ defmodule DemoWeb.ProductLive do
         label: "Price",
         align: :right
       },
+      more_info: %{
+        module: Backpex.Fields.InlineCRUD,
+        label: "More Info",
+        type: :embed_one,
+        except: [:index],
+        child_fields: [
+          weight: %{
+            module: Backpex.Fields.Number,
+            label: "Ave. Weight (kg)"
+          },
+          goes_well_with: %{
+            module: Backpex.Fields.Textarea,
+            label: "Goes well with",
+            rows: 5
+          }
+        ]
+      },
       suppliers: %{
         module: Backpex.Fields.InlineCRUD,
         label: "Suppliers",
