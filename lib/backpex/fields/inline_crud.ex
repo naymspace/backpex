@@ -99,9 +99,16 @@ defmodule Backpex.Fields.InlineCRUD do
     socket
     |> assign(assigns)
     |> assign(child_fields: child_fields)
-    |> assign_form_errors()
+    |> apply_action(assigns.type)
     |> ok()
   end
+
+  defp apply_action(socket, :form) do
+    socket
+    |> assign_form_errors()
+  end
+
+  defp apply_action(socket, _), do: socket
 
   defp validated_fields(fields, parent_name) do
     fields
