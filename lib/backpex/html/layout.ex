@@ -15,9 +15,13 @@ defmodule Backpex.HTML.Layout do
   slot :inner_content
 
   def layout(assigns) do
-    case assigns.live_resource.config(:layout) do
-      {module, fun} -> apply(module, fun, [assigns])
-      fun when is_function(fun, 1) -> fun.(assigns)
+    if assigns.live_resource.config(:layout) do
+      case assigns.live_resource.config(:layout) do
+        {module, fun} -> apply(module, fun, [assigns])
+        fun when is_function(fun, 1) -> fun.(assigns)
+      end
+    else
+      assigns.live_resource.layout(assigns)
     end
   end
 

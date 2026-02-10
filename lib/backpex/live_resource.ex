@@ -33,7 +33,7 @@ defmodule Backpex.LiveResource do
     layout: [
       doc: "Layout to be used by the LiveResource.",
       type: {:or, [:mod_arg, {:fun, 1}]},
-      required: true
+      required: false
     ],
     pubsub: [
       doc: "PubSub configuration.",
@@ -186,6 +186,12 @@ defmodule Backpex.LiveResource do
   @callback filters(assigns :: map()) :: keyword()
 
   @doc """
+  This function can be used to provide the layout at runtime rather than compile-time via
+  the `layout` option in `use Backpex.LiveResource`
+  """
+  @callback layout(assigns :: map()) :: %Phoenix.LiveView.Rendered{}
+
+  @doc """
   A list of metrics shown on the index view of your resource.
   """
   @callback metrics() :: keyword()
@@ -292,6 +298,9 @@ defmodule Backpex.LiveResource do
       def filters(_assigns), do: filters()
 
       @impl Backpex.LiveResource
+      def layout(assigns), do: nil
+
+      @impl Backpex.LiveResource
       def resource_actions, do: []
 
       @impl Backpex.LiveResource
@@ -301,6 +310,7 @@ defmodule Backpex.LiveResource do
                      fields: 0,
                      filters: 0,
                      filters: 1,
+                     layout: 1,
                      resource_actions: 0,
                      item_actions: 1,
                      index_row_class: 4
