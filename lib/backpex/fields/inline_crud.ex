@@ -85,6 +85,7 @@ defmodule Backpex.Fields.InlineCRUD do
       end
   """
   use Backpex.Field, config_schema: @config_schema
+
   require Backpex
 
   @impl Phoenix.LiveComponent
@@ -98,8 +99,15 @@ defmodule Backpex.Fields.InlineCRUD do
     socket
     |> assign(assigns)
     |> assign(child_fields: child_fields)
+    |> apply_action(assigns.type)
     |> ok()
   end
+
+  defp apply_action(socket, :form) do
+    assign_form_errors(socket)
+  end
+
+  defp apply_action(socket, _type), do: socket
 
   defp validated_fields(fields, parent_name) do
     fields
@@ -205,6 +213,8 @@ defmodule Backpex.Fields.InlineCRUD do
           class="btn btn-outline btn-sm btn-primary"
         />
 
+        <BackpexForm.error :for={msg <- @errors} class="mt-1">{msg}</BackpexForm.error>
+
         <%= if help_text = Backpex.Field.help_text(@field_options, assigns) do %>
           <Backpex.HTML.Form.help_text class="mt-1">{help_text}</Backpex.HTML.Form.help_text>
         <% end %>
@@ -226,4 +236,13 @@ defmodule Backpex.Fields.InlineCRUD do
   defp child_field_class(%{class: class} = _child_field_options, assigns) when is_function(class), do: class.(assigns)
   defp child_field_class(%{class: class} = _child_field_options, _assigns) when is_binary(class), do: class
   defp child_field_class(_child_field_options, _assigns), do: "flex-1"
+
+  defp assign_form_errors(socket) do
+    %{assigns: %{form: form, name: name, field_options: field_options}} = socket
+
+    errors = if Phoenix.Component.used_input?(form[name]), do: form[name].errors, else: []
+    translate_error_fun = Map.get(field_options, :translate_error, &Function.identity/1)
+
+    assign(socket, :errors, BackpexForm.translate_form_errors(errors, translate_error_fun))
+  end
 end
