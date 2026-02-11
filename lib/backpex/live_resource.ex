@@ -813,7 +813,10 @@ defmodule Backpex.LiveResource do
   """
   def parse_integer(map, key, default) do
     if Map.has_key?(map, key) do
-      case map |> Map.get(key) |> Integer.parse() do
+      map
+      |> Map.get(key)
+      |> Integer.parse()
+      |> case do
         {value, _reminder} -> value
         :error -> default
       end
