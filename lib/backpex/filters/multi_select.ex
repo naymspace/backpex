@@ -146,21 +146,17 @@ defmodule Backpex.Filters.MultiSelect do
   Returns the changeset unchanged if all values are valid, or adds an error if any value is not found in options.
   """
   def changeset(changeset, field, options) do
-    valid_values = Enum.map(options, fn {_label, value} -> to_string(value) end) |> MapSet.new()
+    valid_values = Enum.map(options, fn {_label, value} -> to_string(value) end)
 
     Ecto.Changeset.validate_change(changeset, field, fn _field, values ->
-      values = values || []
-
-      invalid_values =
-        values
-        |> Enum.reject(fn v -> MapSet.member?(valid_values, to_string(v)) end)
-
-      if Enum.empty?(invalid_values) do
-        []
-      else
-        [{field, "contains invalid options"}]
-      end
+      validate_subset(values || [], valid_values, field)
     end)
+  end
+
+  defp validate_subset(values, valid_values, field) do
+    if Enum.all?(values, &(to_string(&1) in valid_values)),
+      do: [],
+      else: [{field, "contains invalid options"}]
   end
 
   def query(query, _attribute, [], _assigns), do: query

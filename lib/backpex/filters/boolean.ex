@@ -140,21 +140,17 @@ defmodule Backpex.Filters.Boolean do
   Returns the changeset unchanged if all values are valid, or adds an error if any value is not found in options.
   """
   def changeset(changeset, field, options) do
-    valid_keys = Enum.map(options, fn %{key: k} -> to_string(k) end) |> MapSet.new()
+    valid_keys = Enum.map(options, fn %{key: k} -> to_string(k) end)
 
     Ecto.Changeset.validate_change(changeset, field, fn _field, values ->
-      values = values || []
-
-      invalid_values =
-        values
-        |> Enum.reject(fn v -> MapSet.member?(valid_keys, to_string(v)) end)
-
-      if Enum.empty?(invalid_values) do
-        []
-      else
-        [{field, "contains invalid options"}]
-      end
+      validate_subset(values || [], valid_keys, field)
     end)
+  end
+
+  defp validate_subset(values, valid_keys, field) do
+    if Enum.all?(values, &(to_string(&1) in valid_keys)),
+      do: [],
+      else: [{field, "contains invalid options"}]
   end
 
   def query(query, _options, _attribute, [], _assigns), do: query
