@@ -77,24 +77,7 @@ def filters, do: [
 
 ## Filter Validation
 
-All filters in Backpex use changeset-based validation. This means:
-
-1. **URL parameters are validated** before being applied to database queries
-2. **Invalid values show inline errors** in the filter UI
-3. **Invalid filters are not applied** - users see unfiltered results for that attribute
-
-### Built-in Filter Validation
-
-Built-in filters automatically validate their values:
-
-| Filter Type | Validation |
-|-------------|------------|
-| `Boolean` | Selected keys must exist in `options/1` |
-| `Select` | Selected value must exist in `options/1` |
-| `MultiSelect` | All selected values must exist in `options/1` |
-| `Range` | Valid formats, start must be <= end |
-
-For custom filters, you can add validation via the `changeset/3` callback. See the [Custom Filter](custom-filter.md) guide for examples and the [Filter Validation Guide](filter-validation.md) for comprehensive documentation.
+Built-in filters automatically validate their values. For custom filters, you can add validation via the `changeset/3` callback. See the [Filter Validation Guide](filter-validation.md) for details.
 
 ## Related Guides
 

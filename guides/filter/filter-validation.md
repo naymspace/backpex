@@ -100,18 +100,9 @@ end
 **Validate based on options (for select filters):**
 ```elixir
 def changeset(changeset, field, assigns) do
-  valid_values =
-    options(assigns)
-    |> Enum.map(fn {_label, value} -> to_string(value) end)
-    |> MapSet.new()
+  valid_values = Enum.map(options(assigns), fn {_label, value} -> to_string(value) end)
 
-  Ecto.Changeset.validate_change(changeset, field, fn _field, value ->
-    if MapSet.member?(valid_values, to_string(value)) do
-      []
-    else
-      [{field, "is not a valid option"}]
-    end
-  end)
+  Ecto.Changeset.validate_inclusion(changeset, field, valid_values)
 end
 ```
 
