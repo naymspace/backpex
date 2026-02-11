@@ -72,7 +72,11 @@ defmodule DemoWeb.Live.Post.OrderingLiveTest do
       insert(:post, title: "Second Post", published: true)
       insert(:post, title: "Third Post", published: true)
 
-      params = %{"order_by" => "nonexistent_field", "order_direction" => "asc", "filters" => %{"published" => ["published"]}}
+      params = %{
+        "order_by" => "nonexistent_field",
+        "order_direction" => "asc",
+        "filters" => %{"published" => ["published"]}
+      }
 
       conn
       |> visit(~p"/admin/posts?#{params}")

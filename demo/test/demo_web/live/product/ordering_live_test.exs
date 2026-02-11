@@ -65,9 +65,9 @@ defmodule DemoWeb.Live.Product.OrderingLiveTest do
     end
 
     test "orders by price ascending", %{conn: conn} do
-      insert(:product, name: "Expensive", price: Money.new(500_00, :USD))
+      insert(:product, name: "Expensive", price: Money.new(50_000, :USD))
       insert(:product, name: "Cheap", price: Money.new(10_00, :USD))
-      insert(:product, name: "Mid", price: Money.new(100_00, :USD))
+      insert(:product, name: "Mid", price: Money.new(10_000, :USD))
 
       params = %{"order_by" => "price", "order_direction" => "asc"}
 
