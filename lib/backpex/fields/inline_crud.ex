@@ -104,8 +104,7 @@ defmodule Backpex.Fields.InlineCRUD do
   end
 
   defp apply_action(socket, :form) do
-    socket
-    |> assign_form_errors()
+    assign_form_errors(socket)
   end
 
   defp apply_action(socket, _type), do: socket
