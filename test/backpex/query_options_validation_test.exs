@@ -194,32 +194,31 @@ defmodule Backpex.QueryOptionsValidationTest do
 
   describe "security" do
     test "does not create atoms for unknown order_by values" do
-      # Track atom count before
-      initial_atom_count = :erlang.system_info(:atom_count)
+      unknown_field = "this_should_not_create_an_atom_xyz123"
 
-      # Try to create a new atom through order_by
       _result =
         QueryOptionsValidation.build(
-          %{"order_by" => "this_should_not_create_an_atom_xyz123"},
+          %{"order_by" => unknown_field},
           @default_opts
         )
 
-      # Atom count should not have increased
-      final_atom_count = :erlang.system_info(:atom_count)
-      assert final_atom_count == initial_atom_count
+      assert_raise ArgumentError, fn ->
+        :erlang.binary_to_existing_atom(unknown_field, :utf8)
+      end
     end
 
     test "does not create atoms for unknown order_direction values" do
-      initial_atom_count = :erlang.system_info(:atom_count)
+      unknown_direction = "ascending_not_an_atom_abc789"
 
       _result =
         QueryOptionsValidation.build(
-          %{"order_direction" => "ascending_not_an_atom_abc789"},
+          %{"order_direction" => unknown_direction},
           @default_opts
         )
 
-      final_atom_count = :erlang.system_info(:atom_count)
-      assert final_atom_count == initial_atom_count
+      assert_raise ArgumentError, fn ->
+        :erlang.binary_to_existing_atom(unknown_direction, :utf8)
+      end
     end
   end
 
