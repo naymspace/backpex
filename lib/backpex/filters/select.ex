@@ -105,7 +105,7 @@ defmodule Backpex.Filters.Select do
     <select
       name={@form[@field].name}
       class={[
-        "select select-sm mt-2",
+        "select select-sm",
         @errors != [] && "select-error bg-error/10"
       ]}
       aria-label={@prompt}
