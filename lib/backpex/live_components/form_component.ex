@@ -478,6 +478,8 @@ defmodule Backpex.FormComponent do
     end
   end
 
+  defp handle_uploads(_socket, _item), do: :ok
+
   defp consume_and_remove_uploads(socket, item, upload_key, field_options) do
     %{consume_upload: consume_upload, remove_uploads: remove_uploads} = field_options
 
@@ -488,8 +490,6 @@ defmodule Backpex.FormComponent do
     removed_entries = Keyword.get(socket.assigns.removed_uploads, upload_key, [])
     remove_uploads.(socket, item, removed_entries)
   end
-
-  defp handle_uploads(_socket, _item), do: :ok
 
   def render(assigns) do
     Backpex.HTML.Resource.form_component(assigns)
