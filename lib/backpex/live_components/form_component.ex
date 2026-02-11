@@ -478,6 +478,8 @@ defmodule Backpex.FormComponent do
     end
   end
 
+  defp handle_uploads(_socket, _item), do: :ok
+
   defp consume_and_remove_uploads(socket, item, upload_key, field_options) do
     %{consume_upload: consume_upload, remove_uploads: remove_uploads} = field_options
 
