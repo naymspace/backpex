@@ -301,7 +301,7 @@ defmodule Backpex.Adapters.Ecto do
   def change(item, attrs, fields, assigns, live_resource, opts) do
     repo = live_resource.adapter_config(:repo)
     assocs = Keyword.get(opts, :assocs, [])
-    target = Keyword.get(opts, :target, nil)
+    target = Keyword.get(opts, :target)
     action = Keyword.get(opts, :action, :validate)
     metadata = Backpex.Resource.build_changeset_metadata(assigns, target)
     changeset_function = get_changeset_function(assigns.live_action, live_resource, assigns)

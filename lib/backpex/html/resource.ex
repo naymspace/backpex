@@ -378,7 +378,7 @@ defmodule Backpex.HTML.Resource do
         for {field, filter} <- assigns.filters do
           label = Map.get(filter, :label, filter.module.label())
           presets = Map.get(filter, :presets, [])
-          value = Map.get(assigns.filter_options, Atom.to_string(field), nil)
+          value = Map.get(assigns.filter_options, Atom.to_string(field))
 
           %{
             field: field,
