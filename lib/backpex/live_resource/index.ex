@@ -7,7 +7,7 @@ defmodule Backpex.LiveResource.Index do
   alias Backpex.Adapters.Ecto, as: EctoAdapter
   alias Backpex.FilterValidation
   alias Backpex.LiveResource
-  alias Backpex.QueryOptionsValidation
+  alias Backpex.PaginationValidation
   alias Backpex.Resource
   alias Backpex.Router
 
@@ -416,7 +416,7 @@ defmodule Backpex.LiveResource.Index do
 
     # Validate pagination and sorting params (page clamping happens after we know item_count)
     query_options =
-      QueryOptionsValidation.build(params,
+      PaginationValidation.build(params,
         per_page_default: per_page_default,
         per_page_options: per_page_options,
         orderable_fields: orderable_fields,
@@ -433,7 +433,7 @@ defmodule Backpex.LiveResource.Index do
     total_pages = LiveResource.calculate_total_pages(item_count, query_options.per_page)
 
     # Clamp page to valid range now that we know total_pages
-    page = QueryOptionsValidation.clamp_page(query_options.page, total_pages)
+    page = PaginationValidation.clamp_page(query_options.page, total_pages)
     query_options = %{query_options | page: page}
 
     query_options =
@@ -536,7 +536,7 @@ defmodule Backpex.LiveResource.Index do
     {:ok, item_count} = Resource.count(count_criteria, fields, socket.assigns, live_resource)
     %{page: page, per_page: per_page} = query_options
     total_pages = LiveResource.calculate_total_pages(item_count, per_page)
-    new_query_options = Map.put(query_options, :page, QueryOptionsValidation.clamp_page(page, total_pages))
+    new_query_options = Map.put(query_options, :page, PaginationValidation.clamp_page(page, total_pages))
 
     socket
     |> assign(:item_count, item_count)

@@ -1,9 +1,8 @@
-defmodule Backpex.QueryOptionsValidation do
+defmodule Backpex.PaginationValidation do
   @moduledoc """
-  Validates query options (pagination and sorting) from URL params.
+  Validates pagination and sorting parameters from URL params.
 
-  This module provides validation for pagination and sorting parameters,
-  ensuring invalid URL params don't crash the application and fall back
+  Ensures invalid URL params don't crash the application and fall back
   to sensible defaults.
 
   ## Validated Parameters
@@ -20,10 +19,9 @@ defmodule Backpex.QueryOptionsValidation do
   @permitted_directions [:asc, :desc]
 
   @doc """
-  Builds validated query options from URL params.
+  Builds validated pagination and sorting options from URL params.
 
-  Returns a map with validated pagination and sorting options.
-  Invalid values are replaced with defaults.
+  Returns a map with validated values. Invalid values are replaced with defaults.
 
   ## Parameters
 
@@ -54,13 +52,13 @@ defmodule Backpex.QueryOptionsValidation do
       ...>   orderable_fields: [:id, :title, :inserted_at],
       ...>   init_order: %{by: :id, direction: :asc}
       ...> ]
-      iex> Backpex.QueryOptionsValidation.build(params, opts)
+      iex> Backpex.PaginationValidation.build(params, opts)
       %{page: 2, per_page: 50, order_by: :title, order_direction: :desc}
 
       # Invalid values fall back to defaults
       iex> params = %{"page" => "invalid", "order_by" => "nonexistent"}
       iex> opts = [per_page_default: 15, per_page_options: [15, 50, 100], orderable_fields: [:id, :title], init_order: %{by: :id, direction: :asc}]
-      iex> Backpex.QueryOptionsValidation.build(params, opts)
+      iex> Backpex.PaginationValidation.build(params, opts)
       %{page: 1, per_page: 15, order_by: :id, order_direction: :asc}
 
   """
@@ -77,10 +75,7 @@ defmodule Backpex.QueryOptionsValidation do
       order_direction: init_order.direction
     }
 
-    # Validate pagination using Ecto changeset
     pagination = validate_pagination(params, per_page_default, per_page_options)
-
-    # Validate sorting (atoms handled separately to avoid Ecto atom casting issues)
     sorting = validate_sorting(params, orderable_fields, init_order)
 
     Map.merge(defaults, pagination) |> Map.merge(sorting)
@@ -93,11 +88,11 @@ defmodule Backpex.QueryOptionsValidation do
 
   ## Examples
 
-      iex> Backpex.QueryOptionsValidation.clamp_page(5, 3)
+      iex> Backpex.PaginationValidation.clamp_page(5, 3)
       3
-      iex> Backpex.QueryOptionsValidation.clamp_page(2, 5)
+      iex> Backpex.PaginationValidation.clamp_page(2, 5)
       2
-      iex> Backpex.QueryOptionsValidation.clamp_page(-1, 5)
+      iex> Backpex.PaginationValidation.clamp_page(-1, 5)
       1
 
   """
@@ -111,12 +106,10 @@ defmodule Backpex.QueryOptionsValidation do
     end
   end
 
-  # Validates pagination params (page, per_page) using Ecto changeset
   defp validate_pagination(params, per_page_default, per_page_options) do
     types = %{page: :integer, per_page: :integer}
     defaults = %{page: 1, per_page: per_page_default}
 
-    # Filter out empty/nil values so Ecto treats them as missing (uses defaults)
     filtered = Map.reject(params, fn {_k, v} -> v in [nil, ""] end)
 
     changeset =
@@ -128,50 +121,26 @@ defmodule Backpex.QueryOptionsValidation do
     extract_valid_values(changeset, defaults)
   end
 
-  # Validates sorting params (order_by, order_direction)
-  # Handles atom conversion safely without using Ecto atom types
   defp validate_sorting(params, orderable_fields, init_order) do
-    order_by = safe_get_atom(params, "order_by", orderable_fields, init_order.by)
-    order_direction = safe_get_atom(params, "order_direction", @permitted_directions, init_order.direction)
+    order_by = find_allowed_atom(params["order_by"], orderable_fields, init_order.by)
+    order_direction = find_allowed_atom(params["order_direction"], @permitted_directions, init_order.direction)
 
     %{order_by: order_by, order_direction: order_direction}
   end
 
-  # Safely gets an atom value from params, validating against allowed values
-  # Returns default if the value is missing, invalid, or not in allowed list
-  defp safe_get_atom(params, string_key, allowed_atoms, default) do
-    case Map.get(params, string_key) do
-      nil ->
-        default
+  defp find_allowed_atom(nil, _allowed, default), do: default
+  defp find_allowed_atom("", _allowed, default), do: default
 
-      "" ->
-        default
-
-      value when is_binary(value) ->
-        # Only convert to atom if it matches an allowed value
-        # This prevents atom exhaustion attacks
-        case safe_to_atom(value, allowed_atoms) do
-          nil -> default
-          atom -> atom
-        end
-
-      value when is_atom(value) ->
-        if value in allowed_atoms, do: value, else: default
-
-      _other ->
-        default
-    end
+  defp find_allowed_atom(value, allowed, default) when is_binary(value) do
+    Enum.find(allowed, default, &(Atom.to_string(&1) == value))
   end
 
-  # Safely converts a string to an atom only if it matches an allowed value.
-  # Returns nil if the string doesn't match any allowed atom.
-  defp safe_to_atom(string, allowed_atoms) do
-    Enum.find(allowed_atoms, fn allowed ->
-      Atom.to_string(allowed) == string
-    end)
+  defp find_allowed_atom(value, allowed, default) when is_atom(value) do
+    if value in allowed, do: value, else: default
   end
 
-  # Extracts valid values from changeset, using defaults for invalid fields.
+  defp find_allowed_atom(_value, _allowed, default), do: default
+
   defp extract_valid_values(changeset, defaults) do
     error_fields = Keyword.keys(changeset.errors) |> MapSet.new()
 
