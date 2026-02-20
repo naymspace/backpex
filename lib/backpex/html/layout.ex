@@ -175,7 +175,7 @@ defmodule Backpex.HTML.Layout do
   attr :id, :string, doc: "the optional id of alert container"
   attr :flash, :map, default: %{}, doc: "the map of flash messages to display"
   attr :class, :string, default: nil, doc: "additional class to be added to the component"
-  attr :kind, :atom, values: ~w(info success warning error)a, doc: "used for styling"
+  attr :kind, :atom, required: true, values: ~w(info success warning error)a, doc: "used for styling"
   attr :closable, :boolean, default: true, doc: "show or hide the close button"
   attr :on_close, JS, default: nil, doc: "optional event triggered on alert close"
   attr :close_label, :string, default: "Close alert"
