@@ -172,7 +172,7 @@ defmodule Backpex.HTML.Layout do
   """
   @doc type: :component
 
-  attr :id, :string, doc: "the optional id of alert container"
+  attr :id, :string, doc: "optional id of the alert container; when not provided, a default of \"flash-<kind>\" is used"
   attr :flash, :map, default: %{}, doc: "the map of flash messages to display"
   attr :class, :string, default: nil, doc: "additional class to be added to the component"
   attr :kind, :atom, required: true, values: ~w(info success warning error)a, doc: "used for styling"
