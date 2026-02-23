@@ -140,17 +140,85 @@ defmodule Backpex.Filters.Boolean do
   def maybe_query(nil, query), do: query
   def maybe_query(predicates, query), do: where(query, ^predicates)
 
+  @doc """
+  Converts a list of option values to their corresponding labels.
+
+  Returns a list with labels interspersed with commas for display.
+
+  ## Examples
+
+      iex> options = [
+      ...>   %{label: "Published", key: "published"},
+      ...>   %{label: "Featured", key: "featured"}
+      ...> ]
+      iex> Backpex.Filters.Boolean.option_value_to_label(options, ["published", "featured"])
+      ["Published", ", ", "Featured"]
+
+      iex> options = [%{label: "Published", key: "published"}]
+      iex> Backpex.Filters.Boolean.option_value_to_label(options, ["published"])
+      ["Published"]
+
+      iex> options = [%{label: "Published", key: "published"}]
+      iex> Backpex.Filters.Boolean.option_value_to_label(options, [])
+      []
+
+      iex> options = [%{label: "Published", key: "published"}]
+      iex> Backpex.Filters.Boolean.option_value_to_label(options, ["unknown"])
+      [""]
+
+  """
   def option_value_to_label(options, values) do
     Enum.map(values, fn key -> find_option_label(options, key) end)
     |> Enum.intersperse(", ")
   end
 
+  @doc """
+  Finds the label for a given option key.
+
+  Returns empty string if the key is not found.
+
+  ## Examples
+
+      iex> options = [
+      ...>   %{label: "Published", key: "published"},
+      ...>   %{label: "Not published", key: "not_published"}
+      ...> ]
+      iex> Backpex.Filters.Boolean.find_option_label(options, "published")
+      "Published"
+
+      iex> options = [%{label: "Published", key: "published"}]
+      iex> Backpex.Filters.Boolean.find_option_label(options, "unknown")
+      ""
+
+      iex> options = [%{label: "Published", key: "published"}]
+      iex> Backpex.Filters.Boolean.find_option_label(options, :published)
+      "Published"
+
+  """
   def find_option_label(options, key) do
     Enum.find_value(options, fn option ->
       if to_string(option.key) == to_string(key), do: option.label
     end) || ""
   end
 
+  @doc """
+  Transforms options list into a map of keys to predicates.
+
+  ## Examples
+
+      iex> import Ecto.Query
+      iex> options = [
+      ...>   %{label: "Published", key: "published", predicate: dynamic([x], x.published == true)},
+      ...>   %{label: "Featured", key: "featured", predicate: dynamic([x], x.featured == true)}
+      ...> ]
+      iex> result = Backpex.Filters.Boolean.predicates(options)
+      iex> is_map(result) and Map.has_key?(result, "published") and Map.has_key?(result, "featured")
+      true
+
+      iex> Backpex.Filters.Boolean.predicates([])
+      %{}
+
+  """
   def predicates(options) do
     options
     |> Map.new(fn %{predicate: p, key: k} -> {k, p} end)

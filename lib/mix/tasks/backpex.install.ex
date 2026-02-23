@@ -45,7 +45,7 @@ defmodule Mix.Tasks.Backpex.Install.Docs do
   end
 end
 
-if Code.ensure_loaded?(Igniter) do
+if Code.ensure_loaded?(Igniter) and Code.ensure_loaded?(IgniterJs) do
   defmodule Mix.Tasks.Backpex.Install do
     @shortdoc "#{__MODULE__.Docs.short_doc()}"
     @moduledoc __MODULE__.Docs.long_doc()
@@ -377,7 +377,7 @@ if Code.ensure_loaded?(Igniter) do
   end
 else
   defmodule Mix.Tasks.Backpex.Install do
-    @shortdoc "#{__MODULE__.Docs.short_doc()} | Install `igniter` to use"
+    @shortdoc "#{__MODULE__.Docs.short_doc()} | Install `igniter` and `igniter_js` to use"
 
     @moduledoc __MODULE__.Docs.long_doc()
 
@@ -385,7 +385,7 @@ else
 
     def run(_argv) do
       Mix.shell().error("""
-      The task 'backpex.install' requires igniter. Please install igniter and try again.
+      The task 'backpex.install' requires igniter and igniter_js. Please install igniter and try again.
 
       For more information, see: https://hexdocs.pm/igniter/readme.html#installation
       """)

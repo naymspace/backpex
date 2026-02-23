@@ -130,11 +130,66 @@ defmodule Backpex.Filters.MultiSelect do
     where(query, [x], field(x, ^attribute) in ^values)
   end
 
+  @doc """
+  Converts a list of option values to their corresponding labels.
+
+  Returns a list with labels interspersed with commas for display.
+
+  ## Examples
+
+      iex> options = [{"John Doe", "uuid-1"}, {"Jane Doe", "uuid-2"}]
+      iex> Backpex.Filters.MultiSelect.option_value_to_label(options, ["uuid-1", "uuid-2"])
+      ["John Doe", ", ", "Jane Doe"]
+
+      iex> options = [{"John Doe", "uuid-1"}]
+      iex> Backpex.Filters.MultiSelect.option_value_to_label(options, ["uuid-1"])
+      ["John Doe"]
+
+      iex> options = [{"John Doe", "uuid-1"}]
+      iex> Backpex.Filters.MultiSelect.option_value_to_label(options, [])
+      []
+
+      iex> options = [{"John Doe", "uuid-1"}]
+      iex> Backpex.Filters.MultiSelect.option_value_to_label(options, ["unknown-uuid"])
+      [""]
+
+      iex> options = [{"John Doe", "uuid-1"}, {"Jane Doe", "uuid-2"}, {"Bob Smith", "uuid-3"}]
+      iex> Backpex.Filters.MultiSelect.option_value_to_label(options, ["uuid-1", "uuid-2", "uuid-3"])
+      ["John Doe", ", ", "Jane Doe", ", ", "Bob Smith"]
+
+  """
   def option_value_to_label(options, values) do
     Enum.map(values, fn key -> find_option_label(options, key) end)
     |> Enum.intersperse(", ")
   end
 
+  @doc """
+  Finds the label for a given option key.
+
+  Returns empty string if the key is not found.
+
+  ## Examples
+
+      iex> options = [{"John Doe", "uuid-1"}, {"Jane Doe", "uuid-2"}]
+      iex> Backpex.Filters.MultiSelect.find_option_label(options, "uuid-1")
+      "John Doe"
+
+      iex> options = [{"John Doe", "uuid-1"}]
+      iex> Backpex.Filters.MultiSelect.find_option_label(options, "unknown")
+      ""
+
+      iex> options = [{"Active", :active}, {"Inactive", :inactive}]
+      iex> Backpex.Filters.MultiSelect.find_option_label(options, :active)
+      "Active"
+
+      iex> options = [{"Active", :active}]
+      iex> Backpex.Filters.MultiSelect.find_option_label(options, "active")
+      "Active"
+
+      iex> Backpex.Filters.MultiSelect.find_option_label([{"Test", "value"}], nil)
+      ""
+
+  """
   def find_option_label(options, key) do
     Enum.find_value(options, fn {l, k} ->
       if to_string(k) == to_string(key), do: l
