@@ -409,10 +409,12 @@ defmodule Backpex.LiveResource.Index do
     orderable_fields = LiveResource.orderable_fields(fields)
 
     # Build filter changeset from URL params and extract valid values
-    raw_filter_params = case Map.get(params, "filters") do
-      value when is_map(value) -> value
-      _other -> %{}
-    end
+    raw_filter_params =
+      case Map.get(params, "filters") do
+        value when is_map(value) -> value
+        _other -> %{}
+      end
+
     filter_changeset = FilterValidation.build_changeset(raw_filter_params, filters, socket.assigns)
     filter_values = FilterValidation.valid_values(filter_changeset)
     filter_form = to_form(filter_changeset, as: :filters)
