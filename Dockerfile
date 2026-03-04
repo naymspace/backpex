@@ -7,7 +7,7 @@ ARG ELIXIR_VERSION=1.19.5
 # renovate: datasource=github-tags depName=erlang packageName=erlang/otp versioning=regex:^(?<major>\d+?)\.(?<minor>\d+?)(\.(?<patch>\d+))?$ extractVersion=^OTP-(?<version>\S+)
 ARG OTP_VERSION=28.3.1
 # renovate: datasource=docker depName=ubuntu packageName=ubuntu versioning=ubuntu
-ARG UBUNTU_VERSION=noble-20260113
+ARG UBUNTU_VERSION=noble-20260210.1
 
 ARG BUILDER_IMAGE="hexpm/elixir:${ELIXIR_VERSION}-erlang-${OTP_VERSION}-ubuntu-${UBUNTU_VERSION}"
 ARG RUNTIME_IMAGE="ubuntu:${UBUNTU_VERSION}"
