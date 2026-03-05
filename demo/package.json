@@ -25,7 +25,7 @@
     "@sentry/browser": "10.39.0",
     "npm-run-all2": "8.0.4",
     "playwright": "1.58.2",
-    "postcss": "8.5.6",
+    "postcss": "8.5.8",
     "standard": "17.1.2",
     "stylelint": "17.3.0",
     "stylelint-config-standard": "40.0.0",
