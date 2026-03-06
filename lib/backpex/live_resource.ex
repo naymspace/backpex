@@ -412,32 +412,34 @@ defmodule Backpex.LiveResource do
             {@page_title}
           </.main_title>
           <div class="flex items-center space-x-2">
-            <.link
-              :for={{key, action} <- Backpex.HTML.Resource.filter_item_actions(@item_actions, :show)}
-              :if={Backpex.ItemAction.has_link?(action) and @live_resource.can?(assigns, key, @item)}
-              id={"item-action-#{key}"}
-              navigate={action.module.link(assigns, @item)}
-              aria-label={action.module.label(assigns, @item)}
-              phx-hook="BackpexTooltip"
-              data-tooltip={action.module.label(assigns, @item)}
-              class="cursor-pointer leading-none"
-            >
-              {action.module.icon(assigns, @item)}
-            </.link>
-            <button
-              :for={{key, action} <- Backpex.HTML.Resource.filter_item_actions(@item_actions, :show)}
-              :if={not Backpex.ItemAction.has_link?(action) and @live_resource.can?(assigns, key, @item)}
-              id={"item-action-#{key}"}
-              type="button"
-              phx-click="item-action"
-              phx-value-action-key={key}
-              aria-label={action.module.label(assigns, @item)}
-              phx-hook="BackpexTooltip"
-              data-tooltip={action.module.label(assigns, @item)}
-              class="cursor-pointer leading-none"
-            >
-              {action.module.icon(assigns, @item)}
-            </button>
+            <%= for {key, action} <- Backpex.HTML.Resource.filter_item_actions(@item_actions, :show),
+                    @live_resource.can?(assigns, key, @item) do %>
+              <%= if Backpex.ItemAction.has_link?(action) do %>
+                <.link
+                  id={"item-action-#{key}"}
+                  navigate={action.module.link(assigns, @item)}
+                  aria-label={action.module.label(assigns, @item)}
+                  phx-hook="BackpexTooltip"
+                  data-tooltip={action.module.label(assigns, @item)}
+                  class="cursor-pointer leading-none"
+                >
+                  {action.module.icon(assigns, @item)}
+                </.link>
+              <% else %>
+                <button
+                  id={"item-action-#{key}"}
+                  type="button"
+                  phx-click="item-action"
+                  phx-value-action-key={key}
+                  aria-label={action.module.label(assigns, @item)}
+                  phx-hook="BackpexTooltip"
+                  data-tooltip={action.module.label(assigns, @item)}
+                  class="cursor-pointer leading-none"
+                >
+                  {action.module.icon(assigns, @item)}
+                </button>
+              <% end %>
+            <% end %>
           </div>
         </div>
         """
