@@ -189,7 +189,8 @@ defmodule Backpex.LiveResource do
   Defines the layout to be used by the LiveResource.
 
   Can be used instead of the `layout` option in `use Backpex.LiveResource` to avoid
-  compile-time dependencies on layout modules. By default, returns the value of the `layout` option.
+  compile-time dependencies on layout modules. By default, returns the value of the `layout` option
+  and raises if neither is configured.
 
   Must return either a `{module, function_name}` tuple or a function with arity 1.
   """
@@ -302,7 +303,17 @@ defmodule Backpex.LiveResource do
       def filters(_assigns), do: filters()
 
       @impl Backpex.LiveResource
-      def layout(_assigns), do: config(:layout)
+      def layout(_assigns) do
+        case config(:layout) do
+          nil ->
+            raise ArgumentError,
+                  "No layout configured for #{inspect(__MODULE__)}. " <>
+                    "Define a layout/1 callback in #{inspect(__MODULE__)}."
+
+          value ->
+            value
+        end
+      end
 
       @impl Backpex.LiveResource
       def resource_actions, do: []
