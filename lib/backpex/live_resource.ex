@@ -186,10 +186,14 @@ defmodule Backpex.LiveResource do
   @callback filters(assigns :: map()) :: keyword()
 
   @doc """
-  This function can be used to provide the layout at runtime rather than compile-time via
-  the `layout` option in `use Backpex.LiveResource`
+  Defines the layout to be used by the LiveResource.
+
+  Can be used instead of the `layout` option in `use Backpex.LiveResource` to avoid
+  compile-time dependencies on layout modules. By default, returns the value of the `layout` option.
+
+  Must return either a `{module, function_name}` tuple or a function with arity 1.
   """
-  @callback layout(assigns :: map()) :: %Phoenix.LiveView.Rendered{}
+  @callback layout(assigns :: map()) :: {module(), atom()} | (map() -> Phoenix.LiveView.Rendered.t())
 
   @doc """
   A list of metrics shown on the index view of your resource.
@@ -298,7 +302,7 @@ defmodule Backpex.LiveResource do
       def filters(_assigns), do: filters()
 
       @impl Backpex.LiveResource
-      def layout(assigns), do: nil
+      def layout(_assigns), do: config(:layout)
 
       @impl Backpex.LiveResource
       def resource_actions, do: []
