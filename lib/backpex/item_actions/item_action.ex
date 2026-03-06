@@ -176,8 +176,8 @@ defmodule Backpex.ItemAction do
   end
 
   defp validate_handle_or_link!(env) do
-    handle_function? = Module.defines?(env.module, {:handle, 3})
-    link_function? = Module.defines?(env.module, {:link, 2})
+    handle_function? = Module.defines?(env.module, {:handle, 3}, :def)
+    link_function? = Module.defines?(env.module, {:link, 2}, :def)
 
     cond do
       not handle_function? and not link_function? ->
