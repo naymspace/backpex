@@ -24,10 +24,4 @@ defmodule Backpex.ItemActions.Show do
   def link(assigns, item) do
     Router.get_path(assigns.socket, assigns.live_resource, assigns.params, :show, item)
   end
-
-  @impl Backpex.ItemAction
-  def handle(socket, [item | _items], _data) do
-    path = Router.get_path(socket, socket.assigns.live_resource, socket.assigns.params, :show, item)
-    {:ok, Phoenix.LiveView.push_navigate(socket, to: path)}
-  end
 end
