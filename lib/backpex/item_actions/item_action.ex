@@ -212,7 +212,7 @@ defmodule Backpex.ItemAction do
   def has_link?(item_action) do
     module = Map.fetch!(item_action, :module)
 
-    function_exported?(module, :link, 2)
+    Code.ensure_loaded?(module) and function_exported?(module, :link, 2)
   end
 
   @doc """
