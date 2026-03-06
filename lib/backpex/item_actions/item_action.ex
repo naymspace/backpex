@@ -58,6 +58,13 @@ defmodule Backpex.ItemAction do
   @callback label(assigns :: map(), item :: struct() | nil) :: binary()
 
   @doc """
+  Returns a URL path for the item action. When implemented, the action renders as a `<.link navigate={path}>`
+  instead of a `<button>`. This enables standard browser link behavior such as Ctrl+click to open in a new tab
+  and right-click context menus.
+  """
+  @callback link(assigns :: map(), item :: struct()) :: binary()
+
+  @doc """
   Confirm button label
   """
   @callback confirm_label(assigns :: map()) :: binary()
@@ -90,7 +97,7 @@ defmodule Backpex.ItemAction do
   @callback handle(socket :: Phoenix.LiveView.Socket.t(), items :: list(map()), params :: map() | struct()) ::
               {:ok, Phoenix.LiveView.Socket.t()} | {:error, Ecto.Changeset.t()}
 
-  @optional_callbacks confirm: 1, confirm_label: 1, cancel_label: 1, changeset: 3, fields: 0
+  @optional_callbacks confirm: 1, confirm_label: 1, cancel_label: 1, changeset: 3, fields: 0, link: 2
 
   @doc """
   Defines `Backpex.ItemAction` behaviour and provides default implementations.
@@ -179,6 +186,15 @@ defmodule Backpex.ItemAction do
     module = Map.fetch!(item_action, :module)
 
     module.fields() != []
+  end
+
+  @doc """
+  Checks whether item action has a link callback.
+  """
+  def has_link?(item_action) do
+    module = Map.fetch!(item_action, :module)
+
+    function_exported?(module, :link, 2)
   end
 
   @doc """

@@ -21,6 +21,17 @@ defmodule Backpex.ItemActions.Edit do
   def label(assigns, _item), do: Backpex.__("Edit", assigns.live_resource)
 
   @impl Backpex.ItemAction
+  def link(assigns, item) do
+    query_params =
+      case Map.get(assigns, :return_to) do
+        nil -> %{}
+        return_to -> %{return_to: return_to}
+      end
+
+    Router.get_path(assigns.socket, assigns.live_resource, assigns.params, :edit, item, query_params)
+  end
+
+  @impl Backpex.ItemAction
   def handle(socket, [item | _items], _data) do
     query_params =
       case Map.get(socket.assigns, :return_to) do

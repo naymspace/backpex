@@ -65,7 +65,7 @@ defmodule Demo.Support.LiveResourceTests do
       |> visit(base_path)
       |> unwrap(fn view ->
         view
-        |> element("button[aria-label='Show'][phx-value-item-id='#{first_item_id}']")
+        |> element("#item-action-show-#{first_item_id}")
         |> render_click()
       end)
       |> assert_path("#{base_path}/#{first_item_id}/show")
@@ -91,7 +91,7 @@ defmodule Demo.Support.LiveResourceTests do
       |> visit(base_path)
       |> unwrap(fn view ->
         view
-        |> element("button[aria-label='Edit'][phx-value-item-id='#{first_item_id}']")
+        |> element("#item-action-edit-#{first_item_id}")
         |> render_click()
       end)
       |> assert_path("#{base_path}/#{first_item_id}/edit")
@@ -115,7 +115,7 @@ defmodule Demo.Support.LiveResourceTests do
       |> assert_has("td", text: old_value, exact: true)
       |> unwrap(fn view ->
         view
-        |> element("button[aria-label='Edit'][phx-value-item-id='#{item.id}']")
+        |> element("#item-action-edit-#{item.id}")
         |> render_click()
       end)
       |> assert_path("#{base_path}/#{item.id}/edit")
@@ -146,7 +146,7 @@ defmodule Demo.Support.LiveResourceTests do
       |> assert_has("td", text: display_value, exact: true)
       |> unwrap(fn view ->
         view
-        |> element("button[aria-label='Edit'][phx-value-item-id='#{item.id}']")
+        |> element("#item-action-edit-#{item.id}")
         |> render_click()
       end)
       |> assert_path("#{base_path}/#{item.id}/edit")
