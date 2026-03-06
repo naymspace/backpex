@@ -84,8 +84,8 @@ defmodule Backpex.ItemAction do
   @doc """
   Performs the action. It takes the socket, the list of affected items, and the casted and validated data (received from [`Ecto.Changeset.apply_action/2`](https://hexdocs.pm/ecto/Ecto.Changeset.html#apply_action/2)).
 
-  This callback is optional when `c:link/2` is implemented (link-based actions navigate directly without a server round-trip).
-  An item action must implement at least one of `c:handle/3` or `c:link/2`.
+  Exactly one of `c:handle/3` or `c:link/2` must be implemented for each item action.
+  If `c:link/2` is implemented, `c:handle/3` must not be defined, and vice versa. Link-based actions navigate directly without a server round-trip.
 
   You must return either `{:ok, socket}` or `{:error, changeset}`.
 
