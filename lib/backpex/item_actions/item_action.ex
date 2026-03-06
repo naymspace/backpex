@@ -115,20 +115,7 @@ defmodule Backpex.ItemAction do
   end
 
   defmacro __before_compile__(env) do
-    handle_function? = Module.defines?(env.module, {:handle, 3})
-    link_function? = Module.defines?(env.module, {:link, 2})
-
-    if not handle_function? and not link_function? do
-      raise CompileError,
-        file: env.file,
-        line: env.line,
-        description: """
-        ItemAction #{inspect(env.module)} must implement at least one of handle/3 or link/2.
-
-        Implement handle/3 for actions that perform server-side operations,
-        or link/2 for actions that navigate to a URL.
-        """
-    end
+    validate_handle_or_link!(env)
 
     quote do
       @after_compile Backpex.ItemAction
@@ -185,6 +172,39 @@ defmodule Backpex.ItemAction do
     else
       # fields/0 is not defined, which means it will use the default empty list
       :ok
+    end
+  end
+
+  defp validate_handle_or_link!(env) do
+    handle_function? = Module.defines?(env.module, {:handle, 3})
+    link_function? = Module.defines?(env.module, {:link, 2})
+
+    cond do
+      not handle_function? and not link_function? ->
+        raise CompileError,
+          file: env.file,
+          line: env.line,
+          description: """
+          ItemAction #{inspect(env.module)} must implement either handle/3 or link/2.
+
+          Implement handle/3 for actions that perform server-side operations,
+          or link/2 for actions that navigate to a URL.
+          """
+
+      handle_function? and link_function? ->
+        raise CompileError,
+          file: env.file,
+          line: env.line,
+          description: """
+          ItemAction #{inspect(env.module)} implements both handle/3 and link/2.
+
+          An item action must implement exactly one of these callbacks.
+          Use handle/3 for actions that perform server-side operations,
+          or link/2 for actions that navigate to a URL.
+          """
+
+      true ->
+        :ok
     end
   end
 
