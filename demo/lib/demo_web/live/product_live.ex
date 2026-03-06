@@ -124,6 +124,7 @@ defmodule DemoWeb.ProductLive do
         label: "Short Links",
         type: :assoc,
         except: [:index],
+        live_resource: DemoWeb.ShortLinkLive,
         child_fields: [
           short_key: %{
             module: Backpex.Fields.Text,
