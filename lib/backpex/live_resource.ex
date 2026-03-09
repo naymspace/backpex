@@ -12,8 +12,6 @@ defmodule Backpex.LiveResource do
   alias Backpex.Resource
   alias Backpex.Router
 
-  require Backpex
-
   @options_schema [
     adapter: [
       doc: "The data layer adapter to use.",
