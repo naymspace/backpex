@@ -111,14 +111,6 @@ defmodule Backpex.ItemAction do
       @behaviour Backpex.ItemAction
 
       require Backpex
-    end
-  end
-
-  defmacro __before_compile__(env) do
-    validate_handle_or_link!(env)
-
-    quote do
-      @after_compile Backpex.ItemAction
 
       @impl Backpex.ItemAction
       def confirm_label(assigns), do: Backpex.__("Apply", assigns.live_resource)
@@ -135,6 +127,16 @@ defmodule Backpex.ItemAction do
 
         {%{}, types}
       end
+
+      defoverridable confirm_label: 1, cancel_label: 1, fields: 0, base_schema: 1
+    end
+  end
+
+  defmacro __before_compile__(env) do
+    validate_handle_or_link!(env)
+
+    quote do
+      @after_compile Backpex.ItemAction
     end
   end
 
