@@ -2640,10 +2640,10 @@ to-regex-range@^5.0.1:
   dependencies:
     is-number "^7.0.0"
 
-topbar@3.0.0:
-  version "3.0.0"
-  resolved "https://registry.yarnpkg.com/topbar/-/topbar-3.0.0.tgz#7353f10852778f6352feac2f92015b673b5e96eb"
-  integrity sha512-mhczD7KfYi1anfoMPKRdl0wPSWiYc0YOK4KyycYs3EaNT15pVVNDG5CtfgZcEBWIPJEdfR7r8K4hTXDD2ECBVQ==
+topbar@3.0.1:
+  version "3.0.1"
+  resolved "https://registry.yarnpkg.com/topbar/-/topbar-3.0.1.tgz#00245cc6d495346167754c8cbc32cadaf9005640"
+  integrity sha512-3CFWdkUC4KLsyLpW8IcX5EXskFtJtNl9O2/qNO/4Ncd/lWgipY/pmyv0D8bw2bTepl/+MUGhNhu2n3IitUuQNA==
 
 tsconfig-paths@^3.15.0:
   version "3.15.0"
