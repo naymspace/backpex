@@ -13,11 +13,11 @@ defmodule Demo.Release do
   @doc """
   Migrate the database.
   """
-  def migrate(direction \\ :up) do
+  def migrate do
     init([:ssl])
 
     for repo <- repos() do
-      {:ok, _fun_return, _apps} = Ecto.Migrator.with_repo(repo, &Ecto.Migrator.run(&1, direction, all: true))
+      {:ok, _fun_return, _apps} = Ecto.Migrator.with_repo(repo, &Ecto.Migrator.run(&1, :up, all: true))
     end
   end
 
@@ -26,7 +26,7 @@ defmodule Demo.Release do
   """
   # sobelow_skip ["RCE.CodeModule"]
   def seed do
-    init([:crypto, :ssl, :myxql, :ecto, :ecto_sql, :faker])
+    init([:crypto, :ssl, :postgrex, :ecto, :ecto_sql, :faker])
 
     Enum.each(repos(), & &1.start_link(pool_size: 1))
 
@@ -36,10 +36,19 @@ defmodule Demo.Release do
   end
 
   @doc """
-  Reset the application.
+  Reset the application by dropping and recreating the public schema.
   """
   def reset do
-    migrate(:down)
+    init([:ssl])
+
+    for repo <- repos() do
+      {:ok, _fun_return, _apps} =
+        Ecto.Migrator.with_repo(repo, fn repo ->
+          repo.query!("DROP SCHEMA public CASCADE")
+          repo.query!("CREATE SCHEMA public")
+        end)
+    end
+
     migrate()
     seed()
   end
