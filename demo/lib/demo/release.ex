@@ -42,7 +42,7 @@ defmodule Demo.Release do
     init([:ssl])
 
     for repo <- repos() do
-      {:ok, _, _} =
+      {:ok, _fun_return, _apps} =
         Ecto.Migrator.with_repo(repo, fn repo ->
           repo.query!("DROP SCHEMA public CASCADE")
           repo.query!("CREATE SCHEMA public")
