@@ -30,6 +30,10 @@ defmodule DemoWeb.ShortLinkLive do
     ~p"/admin/short-links"
   end
 
+  def return_to(socket, assigns, live_action, form_action, item) do
+    super(socket, assigns, live_action, form_action, item)
+  end
+
   @impl Backpex.LiveResource
   def fields do
     [

@@ -40,6 +40,10 @@ defmodule DemoWeb.UserLive do
   def translate({"Cancel", _opts}), do: "Go back"
   def translate({"Save", _opts}), do: "Save User"
 
+  def translate({msg, opts}) do
+    super({msg, opts})
+  end
+
   @impl Backpex.LiveResource
   def resource_actions do
     [
