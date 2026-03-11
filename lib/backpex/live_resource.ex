@@ -33,7 +33,8 @@ defmodule Backpex.LiveResource do
     layout: [
       doc: "Layout to be used by the LiveResource.",
       type: {:or, [:mod_arg, {:fun, 1}]},
-      required: true
+      required: false,
+      deprecated: "Use the layout/1 callback instead to avoid compile-time dependencies."
     ],
     pubsub: [
       doc: "PubSub configuration.",
@@ -186,6 +187,17 @@ defmodule Backpex.LiveResource do
   @callback filters(assigns :: map()) :: keyword()
 
   @doc """
+  Defines the layout to be used by the LiveResource.
+
+  Can be used instead of the `layout` option in `use Backpex.LiveResource` to avoid
+  compile-time dependencies on layout modules. By default, returns the value of the `layout` option
+  and raises if neither is configured.
+
+  Must return either a `{module, function_name}` tuple or a function with arity 1.
+  """
+  @callback layout(assigns :: map()) :: {module(), atom()} | (map() -> Phoenix.LiveView.Rendered.t())
+
+  @doc """
   A list of metrics shown on the index view of your resource.
   """
   @callback metrics() :: keyword()
@@ -292,6 +304,19 @@ defmodule Backpex.LiveResource do
       def filters(_assigns), do: filters()
 
       @impl Backpex.LiveResource
+      def layout(_assigns) do
+        case config(:layout) do
+          nil ->
+            raise ArgumentError,
+                  "No layout configured for #{inspect(__MODULE__)}. " <>
+                    "Define a layout/1 callback in #{inspect(__MODULE__)}."
+
+          value ->
+            value
+        end
+      end
+
+      @impl Backpex.LiveResource
       def resource_actions, do: []
 
       @impl Backpex.LiveResource
@@ -301,6 +326,7 @@ defmodule Backpex.LiveResource do
                      fields: 0,
                      filters: 0,
                      filters: 1,
+                     layout: 1,
                      resource_actions: 0,
                      item_actions: 1,
                      index_row_class: 4
