@@ -58,6 +58,13 @@ defmodule Backpex.ItemAction do
   @callback label(assigns :: map(), item :: struct() | nil) :: binary()
 
   @doc """
+  Returns a URL path for the item action. When implemented, the action renders as a `<.link navigate={path}>`
+  instead of a `<button>`. This enables standard browser link behavior such as Ctrl+click to open in a new tab
+  and right-click context menus.
+  """
+  @callback link(assigns :: map(), item :: struct()) :: binary()
+
+  @doc """
   Confirm button label
   """
   @callback confirm_label(assigns :: map()) :: binary()
@@ -77,6 +84,9 @@ defmodule Backpex.ItemAction do
   @doc """
   Performs the action. It takes the socket, the list of affected items, and the casted and validated data (received from [`Ecto.Changeset.apply_action/2`](https://hexdocs.pm/ecto/Ecto.Changeset.html#apply_action/2)).
 
+  Exactly one of `c:handle/3` or `c:link/2` must be implemented for each item action.
+  If `c:link/2` is implemented, `c:handle/3` must not be defined, and vice versa. Link-based actions navigate directly without a server round-trip.
+
   You must return either `{:ok, socket}` or `{:error, changeset}`.
 
   If `{:ok, socket}` is returned, the action is considered successful by Backpex and the action modal is closed. However, you can add an error flash message to the socket to indicate that something has gone wrong.
@@ -90,7 +100,7 @@ defmodule Backpex.ItemAction do
   @callback handle(socket :: Phoenix.LiveView.Socket.t(), items :: list(map()), params :: map() | struct()) ::
               {:ok, Phoenix.LiveView.Socket.t()} | {:error, Ecto.Changeset.t()}
 
-  @optional_callbacks confirm: 1, confirm_label: 1, cancel_label: 1, changeset: 3, fields: 0
+  @optional_callbacks confirm: 1, confirm_label: 1, cancel_label: 1, changeset: 3, fields: 0, link: 2, handle: 3
 
   @doc """
   Defines `Backpex.ItemAction` behaviour and provides default implementations.
@@ -104,7 +114,9 @@ defmodule Backpex.ItemAction do
     end
   end
 
-  defmacro __before_compile__(_env) do
+  defmacro __before_compile__(env) do
+    validate_handle_or_link!(env)
+
     quote do
       @after_compile Backpex.ItemAction
 
@@ -163,6 +175,39 @@ defmodule Backpex.ItemAction do
     end
   end
 
+  defp validate_handle_or_link!(env) do
+    handle_function? = Module.defines?(env.module, {:handle, 3}, :def)
+    link_function? = Module.defines?(env.module, {:link, 2}, :def)
+
+    cond do
+      not handle_function? and not link_function? ->
+        raise CompileError,
+          file: env.file,
+          line: env.line,
+          description: """
+          ItemAction #{inspect(env.module)} must implement either handle/3 or link/2.
+
+          Implement handle/3 for actions that perform server-side operations,
+          or link/2 for actions that navigate to a URL.
+          """
+
+      handle_function? and link_function? ->
+        raise CompileError,
+          file: env.file,
+          line: env.line,
+          description: """
+          ItemAction #{inspect(env.module)} implements both handle/3 and link/2.
+
+          An item action must implement exactly one of these callbacks.
+          Use handle/3 for actions that perform server-side operations,
+          or link/2 for actions that navigate to a URL.
+          """
+
+      true ->
+        :ok
+    end
+  end
+
   @doc """
   Checks whether item action has confirmation modal.
   """
@@ -179,6 +224,15 @@ defmodule Backpex.ItemAction do
     module = Map.fetch!(item_action, :module)
 
     module.fields() != []
+  end
+
+  @doc """
+  Checks whether item action has a link callback.
+  """
+  def has_link?(item_action) do
+    module = Map.fetch!(item_action, :module)
+
+    Code.ensure_loaded?(module) and function_exported?(module, :link, 2)
   end
 
   @doc """
