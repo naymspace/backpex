@@ -33,7 +33,8 @@ defmodule Backpex.LiveResource do
     layout: [
       doc: "Layout to be used by the LiveResource.",
       type: {:or, [:mod_arg, {:fun, 1}]},
-      required: false
+      required: false,
+      deprecated: "Use the layout/1 callback instead to avoid compile-time dependencies."
     ],
     pubsub: [
       doc: "PubSub configuration.",
