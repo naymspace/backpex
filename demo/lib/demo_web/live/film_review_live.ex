@@ -6,8 +6,10 @@ defmodule DemoWeb.FilmReviewLive do
       update_changeset: &Demo.FilmReview.update_changeset/3,
       create_changeset: &Demo.FilmReview.create_changeset/3
     ],
-    layout: {DemoWeb.Layouts, :admin},
     full_text_search: :generated_tsvector
+
+  @impl Backpex.LiveResource
+  def layout(_assigns), do: {DemoWeb.Layouts, :admin}
 
   @impl Backpex.LiveResource
   def singular_name, do: "Film Review"

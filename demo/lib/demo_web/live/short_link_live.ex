@@ -8,8 +8,10 @@ defmodule DemoWeb.ShortLinkLive do
       update_changeset: &Demo.ShortLink.changeset/3,
       create_changeset: &Demo.ShortLink.changeset/3
     ],
-    primary_key: :short_key,
-    layout: {DemoWeb.Layouts, :admin}
+    primary_key: :short_key
+
+  @impl Backpex.LiveResource
+  def layout(_assigns), do: {DemoWeb.Layouts, :admin}
 
   @impl Backpex.LiveResource
   def singular_name, do: "Short Link"
