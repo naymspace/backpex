@@ -262,8 +262,8 @@ defmodule Backpex.LiveResource do
   #{NimbleOptions.docs(@options_schema)}
   """
   defmacro __using__(opts) do
+    # credo:disable-for-next-line Credo.Check.Refactor.LongQuoteBlocks
     quote bind_quoted: [opts: opts, options_schema: @options_schema] do
-      @before_compile Backpex.LiveResource
       @behaviour Backpex.LiveResource
 
       @resource_opts NimbleOptions.validate!(opts, options_schema)
@@ -320,76 +320,10 @@ defmodule Backpex.LiveResource do
       @impl Backpex.LiveResource
       def item_actions(default_actions), do: default_actions
 
-      defoverridable can?: 3,
-                     fields: 0,
-                     filters: 0,
-                     filters: 1,
-                     layout: 1,
-                     resource_actions: 0,
-                     item_actions: 1,
-                     index_row_class: 4
-
-      live_resource = __MODULE__
-
-      for action <- ~w(Index Form Show)a do
-        # credo:disable-for-next-line Credo.Check.Warning.UnsafeToAtom
-        defmodule String.to_atom("#{__MODULE__}.#{action}") do
-          @resource_opts NimbleOptions.validate!(opts, options_schema)
-
-          use Phoenix.LiveView
-
-          @action_module String.to_existing_atom("Elixir.Backpex.LiveResource.#{action}")
-
-          insert_on_mount_hooks(@resource_opts[:on_mount])
-
-          def mount(params, session, socket), do: @action_module.mount(params, session, socket, unquote(live_resource))
-          def handle_params(params, url, socket), do: @action_module.handle_params(params, url, socket)
-          def render(assigns), do: @action_module.render(assigns)
-          def handle_info(msg, socket), do: @action_module.handle_info(msg, socket)
-          def handle_event(event, params, socket), do: @action_module.handle_event(event, params, socket)
-        end
-      end
-    end
-  end
-
-  defmacro insert_on_mount_hooks(hooks) do
-    quote bind_quoted: [hooks: hooks] do
-      case hooks do
-        hooks when is_nil(hooks) -> nil
-        hooks when is_list(hooks) -> for hook <- hooks, do: on_mount(hook)
-        hook -> on_mount hook
-      end
-    end
-  end
-
-  # credo:disable-for-next-line Credo.Check.Refactor.CyclomaticComplexity
-  defmacro __before_compile__(_env) do
-    quote do
       import Backpex.HTML.Layout
       import Backpex.HTML.Resource
 
-      alias Backpex.LiveResource
       alias Backpex.Router
-
-      @impl Backpex.LiveResource
-      def panels, do: []
-
-      @impl Backpex.LiveResource
-      def metrics, do: []
-
-      @impl Backpex.LiveResource
-      def on_item_created(socket, _item), do: socket
-
-      @impl Backpex.LiveResource
-      def on_item_updated(socket, _item), do: socket
-
-      @impl Backpex.LiveResource
-      def on_item_deleted(socket, _item), do: socket
-
-      @impl Backpex.LiveResource
-      def return_to(socket, assigns, _live_action, _form_action, _item) do
-        Map.get(assigns, :return_to, Router.get_path(socket, assigns.live_resource, assigns.params, :index))
-      end
 
       @impl Backpex.LiveResource
       def render_resource_slot(var!(assigns), :index, :page_title) do
@@ -512,7 +446,75 @@ defmodule Backpex.LiveResource do
       def render_resource_slot(var!(assigns), _action, _position), do: ~H""
 
       @impl Backpex.LiveResource
+      def panels, do: []
+
+      @impl Backpex.LiveResource
+      def metrics, do: []
+
+      @impl Backpex.LiveResource
+      def on_item_created(socket, _item), do: socket
+
+      @impl Backpex.LiveResource
+      def on_item_updated(socket, _item), do: socket
+
+      @impl Backpex.LiveResource
+      def on_item_deleted(socket, _item), do: socket
+
+      @impl Backpex.LiveResource
+      def return_to(socket, assigns, _live_action, _form_action, _item) do
+        Map.get(assigns, :return_to, Router.get_path(socket, assigns.live_resource, assigns.params, :index))
+      end
+
+      @impl Backpex.LiveResource
       def translate({msg, opts}), do: Backpex.translate({msg, opts})
+
+      defoverridable can?: 3,
+                     fields: 0,
+                     filters: 0,
+                     filters: 1,
+                     layout: 1,
+                     resource_actions: 0,
+                     item_actions: 1,
+                     index_row_class: 4,
+                     render_resource_slot: 3,
+                     panels: 0,
+                     metrics: 0,
+                     on_item_created: 2,
+                     on_item_updated: 2,
+                     on_item_deleted: 2,
+                     return_to: 5,
+                     translate: 1
+
+      live_resource = __MODULE__
+
+      for action <- ~w(Index Form Show)a do
+        # credo:disable-for-next-line Credo.Check.Warning.UnsafeToAtom
+        defmodule String.to_atom("#{__MODULE__}.#{action}") do
+          @resource_opts NimbleOptions.validate!(opts, options_schema)
+
+          use Phoenix.LiveView
+
+          @action_module String.to_existing_atom("Elixir.Backpex.LiveResource.#{action}")
+
+          insert_on_mount_hooks(@resource_opts[:on_mount])
+
+          def mount(params, session, socket), do: @action_module.mount(params, session, socket, unquote(live_resource))
+          def handle_params(params, url, socket), do: @action_module.handle_params(params, url, socket)
+          def render(assigns), do: @action_module.render(assigns)
+          def handle_info(msg, socket), do: @action_module.handle_info(msg, socket)
+          def handle_event(event, params, socket), do: @action_module.handle_event(event, params, socket)
+        end
+      end
+    end
+  end
+
+  defmacro insert_on_mount_hooks(hooks) do
+    quote bind_quoted: [hooks: hooks] do
+      case hooks do
+        hooks when is_nil(hooks) -> nil
+        hooks when is_list(hooks) -> for hook <- hooks, do: on_mount(hook)
+        hook -> on_mount hook
+      end
     end
   end
 
