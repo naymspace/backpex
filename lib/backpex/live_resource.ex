@@ -726,30 +726,6 @@ defmodule Backpex.LiveResource do
   end
 
   @doc """
-  Returns all filter options.
-  """
-  def filter_options(%{"filters" => filters}, filter_configs), do: filter_options(%{filters: filters}, filter_configs)
-
-  def filter_options(%{filters: ""}, _filter_configs), do: %{}
-  def filter_options(%{filters: nil}, _filter_configs), do: %{}
-
-  def filter_options(%{filters: filters}, filter_configs) do
-    Enum.map(filters, fn {key, value} ->
-      key_as_atom = String.to_existing_atom(key)
-
-      %{
-        field: String.to_existing_atom(key),
-        value: value,
-        filter_config: filter_configs |> Keyword.get(key_as_atom)
-      }
-    end)
-  end
-
-  def filter_options(_no_filters_present, _filter_configs), do: %{}
-
-  def empty_filter_key, do: :empty_filter
-
-  @doc """
   Checks whether a field is orderable or not.
 
   ## Examples
@@ -775,6 +751,9 @@ defmodule Backpex.LiveResource do
       fields: fields
     } = assigns
 
+    # Get validated filter values from assigns, falling back to empty map
+    filter_values = Map.get(assigns, :filter_values, %{})
+
     schema = live_resource.adapter_config(:schema)
 
     field = Enum.find(fields, fn {name, _field_options} -> name == query_options.order_by end)
@@ -799,7 +778,8 @@ defmodule Backpex.LiveResource do
       order: order,
       pagination: %{page: query_options.page, size: query_options.per_page},
       search: search_options(query_options, fields, schema),
-      filters: filter_options(query_options, filters)
+      filter_values: filter_values,
+      filter_configs: filters
     ]
   end
 
@@ -942,46 +922,28 @@ defmodule Backpex.LiveResource do
   end
 
   @doc """
-  Returns list of filter options from query options
+  Returns the raw filter options map from query options.
+
+  This returns the filter values as stored in query_options, which may include
+  both valid and invalid filter values (for form display purposes).
   """
   def get_filter_options(query_options) do
-    query_options
-    |> Map.get(:filters, %{})
-    |> Map.delete(Atom.to_string(empty_filter_key()))
+    Map.get(query_options, :filters, %{})
   end
 
   @doc """
   Returns list of active filters.
+
+  Active filters are those defined in the LiveResource that the current user
+  has permission to use (based on the filter's `can?/1` callback).
   """
   def active_filters(assigns) do
     filters = assigns.live_resource.filters(assigns)
 
-    Enum.filter(filters, fn {key, option} ->
-      empty_filter_key() != key and option.module.can?(assigns)
+    Enum.filter(filters, fn {_key, option} ->
+      option.module.can?(assigns)
     end)
   end
-
-  def get_valid_filters_from_params(%{"filters" => filters} = params, valid_filters, empty_filter_key) do
-    valid_filters = Keyword.put(valid_filters, empty_filter_key, %{})
-
-    filters =
-      valid_filters
-      |> Enum.reduce(%{}, fn {key, _val}, acc ->
-        string_key = Atom.to_string(key)
-
-        if Map.has_key?(filters, string_key) do
-          value = Map.get(filters, string_key)
-
-          Map.put(acc, string_key, value)
-        else
-          acc
-        end
-      end)
-
-    Map.put(params, "filters", filters)
-  end
-
-  def get_valid_filters_from_params(_params, _valid_filters, _empty_filter_key), do: %{}
 
   defp maybe_to_atom(nil), do: nil
   defp maybe_to_atom(value), do: String.to_existing_atom(value)

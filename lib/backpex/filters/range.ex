@@ -43,6 +43,14 @@ defmodule Backpex.Filters.Range do
       @behaviour RangeFilter
 
       @impl Backpex.Filter
+      def type(_assigns), do: :map
+
+      @impl Backpex.Filter
+      def changeset(changeset, field, _assigns) do
+        RangeFilter.changeset(changeset, field, type())
+      end
+
+      @impl Backpex.Filter
       def query(query, attribute, params, assigns) do
         RangeFilter.query(query, type(), attribute, params, assigns)
       end
@@ -59,7 +67,7 @@ defmodule Backpex.Filters.Range do
         Backpex.Filters.Range.render_form(assigns)
       end
 
-      defoverridable query: 4, render: 1, render_form: 1
+      defoverridable type: 1, changeset: 3, query: 4, render: 1, render_form: 1
     end
   end
 
@@ -83,12 +91,14 @@ defmodule Backpex.Filters.Range do
   attr :value, :any, required: true
   attr :type, :atom, required: true
   attr :live_resource, :atom, required: true
+  attr :errors, :list, default: []
 
   def render_form(assigns) do
     ~H"""
     <.inputs_for :let={f} field={@form[@field]}>
-      <.range_input_set form={f} type={@type} value={@value} live_resource={@live_resource} />
+      <.range_input_set form={f} type={@type} value={@value} live_resource={@live_resource} errors={@errors} />
     </.inputs_for>
+    <.error :for={msg <- @errors} class="mt-1">{msg}</.error>
     """
   end
 
@@ -96,15 +106,16 @@ defmodule Backpex.Filters.Range do
   attr :type, :atom, required: true
   attr :value, :any, required: true
   attr :live_resource, :atom, required: true
+  attr :errors, :list, default: []
 
   def range_input_set(%{type: :date} = assigns) do
     ~H"""
     <div class="mt-2">
-      <label class="input input-sm mb-2">
+      <label class={["input input-sm mb-2", @errors != [] && "input-error bg-error/10"]}>
         <span class="text-base-content/50 w-10">{Backpex.__("From", @live_resource)}</span>
         <input type="date" name={@form[:start].name} value={@value["start"]} class="inline-block" />
       </label>
-      <label class="input input-sm">
+      <label class={["input input-sm", @errors != [] && "input-error bg-error/10"]}>
         <span class="text-base-content/50 w-10">{Backpex.__("To", @live_resource)}</span>
         <input type="date" name={@form[:end].name} value={@value["end"]} class="inline-block" />
       </label>
@@ -115,16 +126,95 @@ defmodule Backpex.Filters.Range do
   def range_input_set(%{type: :number} = assigns) do
     ~H"""
     <div class="mt-2">
-      <label class="input input-sm mb-2">
+      <label class={["input input-sm mb-2", @errors != [] && "input-error bg-error/10"]}>
         <span class="text-base-content/50 w-10">{Backpex.__("From", @live_resource)}</span>
         <input type="number" name={@form[:start].name} value={@value["start"]} />
       </label>
-      <label class="input input-sm">
+      <label class={["input input-sm", @errors != [] && "input-error bg-error/10"]}>
         <span class="text-base-content/50 w-10">{Backpex.__("To", @live_resource)}</span>
         <input type="number" name={@form[:end].name} value={@value["end"]} />
       </label>
     </div>
     """
+  end
+
+  @doc """
+  Validates range filter values based on the filter type.
+
+  Validates that:
+  - Date values are valid ISO 8601 dates (for :date and :datetime types)
+  - Number values are valid integers or floats (for :number type)
+  - Start is not greater than end when both are provided
+  """
+  def changeset(changeset, field, range_type) do
+    Ecto.Changeset.validate_change(changeset, field, fn _field, value ->
+      validate_range(value, range_type, field)
+    end)
+  end
+
+  defp validate_range(nil, _type, _field), do: []
+  defp validate_range(%{"start" => "", "end" => ""}, _type, _field), do: []
+  defp validate_range(%{"start" => nil, "end" => nil}, _type, _field), do: []
+
+  defp validate_range(%{"start" => start_val, "end" => end_val}, type, field) do
+    start_parsed = maybe_parse(type, start_val || "")
+    end_parsed = maybe_parse(type, end_val || "", true)
+
+    []
+    |> validate_start_format(start_val, start_parsed, field)
+    |> validate_end_format(end_val, end_parsed, field)
+    |> validate_start_not_after_end(start_parsed, end_parsed, type, field)
+  end
+
+  defp validate_range(_value, _type, _field), do: []
+
+  defp validate_start_format(errors, start_val, start_parsed, field) do
+    if start_val not in ["", nil] and is_nil(start_parsed) do
+      [{field, "has invalid start value"} | errors]
+    else
+      errors
+    end
+  end
+
+  defp validate_end_format(errors, end_val, end_parsed, field) do
+    if end_val not in ["", nil] and is_nil(end_parsed) do
+      [{field, "has invalid end value"} | errors]
+    else
+      errors
+    end
+  end
+
+  defp validate_start_not_after_end(errors, nil, _end_parsed, _type, _field), do: errors
+  defp validate_start_not_after_end(errors, _start_parsed, nil, _type, _field), do: errors
+
+  defp validate_start_not_after_end(errors, start_parsed, end_parsed, type, field) do
+    case compare_values(type, start_parsed, end_parsed) do
+      :gt -> [{field, "start must be less than or equal to end"} | errors]
+      :error -> [{field, "has invalid date format"} | errors]
+      _other -> errors
+    end
+  end
+
+  defp compare_values(:number, start_val, end_val) when start_val > end_val, do: :gt
+  defp compare_values(:number, _start_val, _end_val), do: :lte
+
+  defp compare_values(:date, start_val, end_val) do
+    with {:ok, start_date} <- Date.from_iso8601(start_val),
+         {:ok, end_date} <- Date.from_iso8601(end_val) do
+      case Date.compare(start_date, end_date) do
+        :gt -> :gt
+        _other -> :lte
+      end
+    else
+      {:error, _reason} -> :error
+    end
+  end
+
+  defp compare_values(:datetime, start_val, end_val) do
+    # Extract date portion from datetime strings for comparison
+    start_date = String.slice(start_val, 0, 10)
+    end_date = String.slice(end_val, 0, 10)
+    compare_values(:date, start_date, end_date)
   end
 
   def query(query, type, attribute, %{"start" => start_at, "end" => end_at}, _assigns) do

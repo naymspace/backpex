@@ -147,6 +147,7 @@ defmodule Backpex.MixProject do
       "guides/live_resource/templates.md",
       "guides/live_resource/item-query.md",
       "guides/live_resource/ordering.md",
+      "guides/live_resource/pagination.md",
       "guides/live_resource/on_mount-hook.md",
       "guides/live_resource/hooks.md",
       "guides/live_resource/navigation.md",
@@ -173,6 +174,7 @@ defmodule Backpex.MixProject do
       "guides/filter/what-is-a-filter.md",
       "guides/filter/how-to-add-a-filter.md",
       "guides/filter/filter-presets.md",
+      "guides/filter/filter-validation.md",
       "guides/filter/custom-filter.md",
       "guides/filter/visibility-and-authorization.md",
 
@@ -192,6 +194,7 @@ defmodule Backpex.MixProject do
       "guides/translations/translations.md",
 
       # Upgrade Guides
+      "guides/upgrading/v0.18.md",
       "guides/upgrading/v0.17.md",
       "guides/upgrading/v0.16.md",
       "guides/upgrading/v0.15.md",

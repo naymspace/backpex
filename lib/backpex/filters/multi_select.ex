@@ -45,6 +45,14 @@ defmodule Backpex.Filters.MultiSelect do
       @behaviour Backpex.Filters.Select
 
       @impl Backpex.Filter
+      def type(_assigns), do: {:array, :string}
+
+      @impl Backpex.Filter
+      def changeset(changeset, field, assigns) do
+        MultiSelectFilter.changeset(changeset, field, options(assigns))
+      end
+
+      @impl Backpex.Filter
       defdelegate query(query, attribute, value, assigns), to: MultiSelectFilter
 
       @impl Backpex.Filter
@@ -63,7 +71,7 @@ defmodule Backpex.Filters.MultiSelect do
         MultiSelectFilter.render_form(assigns)
       end
 
-      defoverridable query: 4, render: 1, render_form: 1
+      defoverridable type: 1, changeset: 3, query: 4, render: 1, render_form: 1
     end
   end
 
@@ -83,6 +91,7 @@ defmodule Backpex.Filters.MultiSelect do
   attr :value, :any, required: true
   attr :options, :list, required: true
   attr :prompt, :string, required: true
+  attr :errors, :list, default: []
 
   def render_form(assigns) do
     value = if is_nil(assigns.value), do: [], else: assigns.value
@@ -100,7 +109,13 @@ defmodule Backpex.Filters.MultiSelect do
 
     ~H"""
     <.dropdown id={"multi-select-#{@form.id}"} class="mt-2 w-full">
-      <:trigger aria_label={@trigger_text} class="select select-sm">
+      <:trigger
+        aria_label={@trigger_text}
+        class={[
+          "select select-sm",
+          @errors != [] && "select-error bg-error/10"
+        ]}
+      >
         {@trigger_text}
       </:trigger>
       <:menu class="min-w-60 w-max max-h-96 overflow-y-auto">
@@ -121,7 +136,27 @@ defmodule Backpex.Filters.MultiSelect do
         </div>
       </:menu>
     </.dropdown>
+    <.error :for={msg <- @errors} class="mt-1">{msg}</.error>
     """
+  end
+
+  @doc """
+  Validates that all selected values exist in the options list.
+
+  Returns the changeset unchanged if all values are valid, or adds an error if any value is not found in options.
+  """
+  def changeset(changeset, field, options) do
+    valid_values = Enum.map(options, fn {_label, value} -> to_string(value) end)
+
+    Ecto.Changeset.validate_change(changeset, field, fn _field, values ->
+      validate_subset(values || [], valid_values, field)
+    end)
+  end
+
+  defp validate_subset(values, valid_values, field) do
+    if Enum.all?(values, &(to_string(&1) in valid_values)),
+      do: [],
+      else: [{field, "contains invalid options"}]
   end
 
   def query(query, _attribute, [], _assigns), do: query

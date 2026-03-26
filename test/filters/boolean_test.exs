@@ -100,4 +100,66 @@ defmodule Backpex.Filters.BooleanTest do
       assert [%{expr: _where_expr}] = query.wheres
     end
   end
+
+  describe "changeset/3" do
+    test "validates selected keys exist in options" do
+      changeset = {%{}, %{filter: {:array, :string}}} |> Ecto.Changeset.cast(%{filter: ["published"]}, [:filter])
+
+      result = BooleanFilter.changeset(changeset, :filter, test_options())
+
+      assert result.valid?
+    end
+
+    test "validates multiple selected keys exist in options" do
+      changeset =
+        {%{}, %{filter: {:array, :string}}}
+        |> Ecto.Changeset.cast(%{filter: ["published", "featured"]}, [:filter])
+
+      result = BooleanFilter.changeset(changeset, :filter, test_options())
+
+      assert result.valid?
+    end
+
+    test "returns error for invalid option key" do
+      changeset =
+        {%{}, %{filter: {:array, :string}}}
+        |> Ecto.Changeset.cast(%{filter: ["invalid_key"]}, [:filter])
+
+      result = BooleanFilter.changeset(changeset, :filter, test_options())
+
+      refute result.valid?
+      assert Keyword.has_key?(result.errors, :filter)
+    end
+
+    test "returns error when mix of valid and invalid keys" do
+      changeset =
+        {%{}, %{filter: {:array, :string}}}
+        |> Ecto.Changeset.cast(%{filter: ["published", "invalid_key"]}, [:filter])
+
+      result = BooleanFilter.changeset(changeset, :filter, test_options())
+
+      refute result.valid?
+      assert Keyword.has_key?(result.errors, :filter)
+    end
+
+    test "accepts empty list" do
+      changeset =
+        {%{}, %{filter: {:array, :string}}}
+        |> Ecto.Changeset.cast(%{filter: []}, [:filter])
+
+      result = BooleanFilter.changeset(changeset, :filter, test_options())
+
+      assert result.valid?
+    end
+
+    test "accepts nil value" do
+      changeset =
+        {%{}, %{filter: {:array, :string}}}
+        |> Ecto.Changeset.cast(%{}, [:filter])
+
+      result = BooleanFilter.changeset(changeset, :filter, test_options())
+
+      assert result.valid?
+    end
+  end
 end
