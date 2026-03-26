@@ -9,7 +9,8 @@ overwrite_checks = [
   {Credo.Check.Refactor.ModuleDependencies, false},
   {Credo.Check.Refactor.PipeChainStart, false},
   {Credo.Check.Refactor.VariableRebinding, false},
-  {Credo.Check.Warning.LazyLogging, false}
+  {Credo.Check.Warning.LazyLogging, false},
+  {Credo.Check.Refactor.CondInsteadOfIfElse, false}
 ]
 
 other_checks = [
