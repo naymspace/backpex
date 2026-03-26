@@ -6,11 +6,13 @@ defmodule DemoWeb.PostLive do
       update_changeset: &Demo.Post.update_changeset/3,
       create_changeset: &Demo.Post.create_changeset/3
     ],
-    layout: {DemoWeb.Layouts, :admin},
     fluid?: true,
     save_and_continue_button?: true
 
   import Ecto.Query, warn: false
+
+  @impl Backpex.LiveResource
+  def layout(_assigns), do: {DemoWeb.Layouts, :admin}
 
   @impl Backpex.LiveResource
   def singular_name, do: "Post"

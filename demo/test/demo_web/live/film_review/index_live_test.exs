@@ -54,7 +54,7 @@ defmodule DemoWeb.Live.FilmReview.IndexLiveTest do
 
       conn
       |> visit(~p"/admin/film-reviews")
-      |> assert_has("button[aria-label='Show'][phx-value-item-id='#{film_review.id}']")
+      |> assert_has("#item-action-show-#{film_review.id}")
     end
 
     test "edit action is available", %{conn: conn} do
@@ -62,7 +62,7 @@ defmodule DemoWeb.Live.FilmReview.IndexLiveTest do
 
       conn
       |> visit(~p"/admin/film-reviews")
-      |> assert_has("button[aria-label='Edit'][phx-value-item-id='#{film_review.id}']")
+      |> assert_has("#item-action-edit-#{film_review.id}")
     end
   end
 

@@ -33,7 +33,8 @@ defmodule Backpex.LiveResource do
     layout: [
       doc: "Layout to be used by the LiveResource.",
       type: {:or, [:mod_arg, {:fun, 1}]},
-      required: true
+      required: false,
+      deprecated: "Use the layout/1 callback instead to avoid compile-time dependencies."
     ],
     pubsub: [
       doc: "PubSub configuration.",
@@ -186,6 +187,17 @@ defmodule Backpex.LiveResource do
   @callback filters(assigns :: map()) :: keyword()
 
   @doc """
+  Defines the layout to be used by the LiveResource.
+
+  Can be used instead of the `layout` option in `use Backpex.LiveResource` to avoid
+  compile-time dependencies on layout modules. By default, returns the value of the `layout` option
+  and raises if neither is configured.
+
+  Must return either a `{module, function_name}` tuple or a function with arity 1.
+  """
+  @callback layout(assigns :: map()) :: {module(), atom()} | (map() -> Phoenix.LiveView.Rendered.t())
+
+  @doc """
   A list of metrics shown on the index view of your resource.
   """
   @callback metrics() :: keyword()
@@ -292,6 +304,19 @@ defmodule Backpex.LiveResource do
       def filters(_assigns), do: filters()
 
       @impl Backpex.LiveResource
+      def layout(_assigns) do
+        case config(:layout) do
+          nil ->
+            raise ArgumentError,
+                  "No layout configured for #{inspect(__MODULE__)}. " <>
+                    "Define a layout/1 callback in #{inspect(__MODULE__)}."
+
+          value ->
+            value
+        end
+      end
+
+      @impl Backpex.LiveResource
       def resource_actions, do: []
 
       @impl Backpex.LiveResource
@@ -301,6 +326,7 @@ defmodule Backpex.LiveResource do
                      fields: 0,
                      filters: 0,
                      filters: 1,
+                     layout: 1,
                      resource_actions: 0,
                      item_actions: 1,
                      index_row_class: 4
@@ -412,20 +438,34 @@ defmodule Backpex.LiveResource do
             {@page_title}
           </.main_title>
           <div class="flex items-center space-x-2">
-            <button
-              :for={{key, action} <- Backpex.HTML.Resource.filter_item_actions(@item_actions, :show)}
-              :if={@live_resource.can?(assigns, key, @item)}
-              id={"item-action-#{key}"}
-              type="button"
-              phx-click="item-action"
-              phx-value-action-key={key}
-              aria-label={action.module.label(assigns, @item)}
-              phx-hook="BackpexTooltip"
-              data-tooltip={action.module.label(assigns, @item)}
-              class="cursor-pointer leading-none"
-            >
-              {action.module.icon(assigns, @item)}
-            </button>
+            <%= for {key, action} <- Backpex.HTML.Resource.filter_item_actions(@item_actions, :show),
+                    @live_resource.can?(assigns, key, @item) do %>
+              <%= if Backpex.ItemAction.has_link?(action) do %>
+                <.link
+                  id={"item-action-#{key}"}
+                  navigate={action.module.link(assigns, @item)}
+                  aria-label={action.module.label(assigns, @item)}
+                  phx-hook="BackpexTooltip"
+                  data-tooltip={action.module.label(assigns, @item)}
+                  class="cursor-pointer leading-none"
+                >
+                  {action.module.icon(assigns, @item)}
+                </.link>
+              <% else %>
+                <button
+                  id={"item-action-#{key}"}
+                  type="button"
+                  phx-click="item-action"
+                  phx-value-action-key={key}
+                  aria-label={action.module.label(assigns, @item)}
+                  phx-hook="BackpexTooltip"
+                  data-tooltip={action.module.label(assigns, @item)}
+                  class="cursor-pointer leading-none"
+                >
+                  {action.module.icon(assigns, @item)}
+                </button>
+              <% end %>
+            <% end %>
           </div>
         </div>
         """
@@ -686,30 +726,6 @@ defmodule Backpex.LiveResource do
   end
 
   @doc """
-  Returns all filter options.
-  """
-  def filter_options(%{"filters" => filters}, filter_configs), do: filter_options(%{filters: filters}, filter_configs)
-
-  def filter_options(%{filters: ""}, _filter_configs), do: %{}
-  def filter_options(%{filters: nil}, _filter_configs), do: %{}
-
-  def filter_options(%{filters: filters}, filter_configs) do
-    Enum.map(filters, fn {key, value} ->
-      key_as_atom = String.to_existing_atom(key)
-
-      %{
-        field: String.to_existing_atom(key),
-        value: value,
-        filter_config: filter_configs |> Keyword.get(key_as_atom)
-      }
-    end)
-  end
-
-  def filter_options(_no_filters_present, _filter_configs), do: %{}
-
-  def empty_filter_key, do: :empty_filter
-
-  @doc """
   Checks whether a field is orderable or not.
 
   ## Examples
@@ -735,6 +751,9 @@ defmodule Backpex.LiveResource do
       fields: fields
     } = assigns
 
+    # Get validated filter values from assigns, falling back to empty map
+    filter_values = Map.get(assigns, :filter_values, %{})
+
     schema = live_resource.adapter_config(:schema)
 
     field = Enum.find(fields, fn {name, _field_options} -> name == query_options.order_by end)
@@ -759,7 +778,8 @@ defmodule Backpex.LiveResource do
       order: order,
       pagination: %{page: query_options.page, size: query_options.per_page},
       search: search_options(query_options, fields, schema),
-      filters: filter_options(query_options, filters)
+      filter_values: filter_values,
+      filter_configs: filters
     ]
   end
 
@@ -902,46 +922,28 @@ defmodule Backpex.LiveResource do
   end
 
   @doc """
-  Returns list of filter options from query options
+  Returns the raw filter options map from query options.
+
+  This returns the filter values as stored in query_options, which may include
+  both valid and invalid filter values (for form display purposes).
   """
   def get_filter_options(query_options) do
-    query_options
-    |> Map.get(:filters, %{})
-    |> Map.delete(Atom.to_string(empty_filter_key()))
+    Map.get(query_options, :filters, %{})
   end
 
   @doc """
   Returns list of active filters.
+
+  Active filters are those defined in the LiveResource that the current user
+  has permission to use (based on the filter's `can?/1` callback).
   """
   def active_filters(assigns) do
     filters = assigns.live_resource.filters(assigns)
 
-    Enum.filter(filters, fn {key, option} ->
-      empty_filter_key() != key and option.module.can?(assigns)
+    Enum.filter(filters, fn {_key, option} ->
+      option.module.can?(assigns)
     end)
   end
-
-  def get_valid_filters_from_params(%{"filters" => filters} = params, valid_filters, empty_filter_key) do
-    valid_filters = Keyword.put(valid_filters, empty_filter_key, %{})
-
-    filters =
-      valid_filters
-      |> Enum.reduce(%{}, fn {key, _val}, acc ->
-        string_key = Atom.to_string(key)
-
-        if Map.has_key?(filters, string_key) do
-          value = Map.get(filters, string_key)
-
-          Map.put(acc, string_key, value)
-        else
-          acc
-        end
-      end)
-
-    Map.put(params, "filters", filters)
-  end
-
-  def get_valid_filters_from_params(_params, _valid_filters, _empty_filter_key), do: %{}
 
   defp maybe_to_atom(nil), do: nil
   defp maybe_to_atom(value), do: String.to_existing_atom(value)

@@ -34,7 +34,7 @@ defmodule DemoWeb.Live.Invoice.IndexLiveTest do
     test "no edit action available", %{conn: conn, invoices: [invoice | _]} do
       conn
       |> visit(~p"/admin/invoices")
-      |> refute_has("button[aria-label='Edit'][phx-value-item-id='#{invoice.id}']")
+      |> refute_has("#item-action-edit-#{invoice.id}")
     end
 
     test "no delete action available", %{conn: conn, invoices: [invoice | _]} do
@@ -47,7 +47,7 @@ defmodule DemoWeb.Live.Invoice.IndexLiveTest do
       conn
       |> visit(~p"/admin/invoices")
       # Show action is not available because routes are only: [:index]
-      |> refute_has("button[aria-label='Show'][phx-value-item-id='#{invoice.id}']")
+      |> refute_has("#item-action-show-#{invoice.id}")
     end
 
     test "currency field formats amount correctly", %{conn: conn} do

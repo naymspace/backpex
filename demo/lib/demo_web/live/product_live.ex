@@ -5,10 +5,12 @@ defmodule DemoWeb.ProductLive do
       repo: Demo.Repo,
       update_changeset: &Demo.Product.changeset/3,
       create_changeset: &Demo.Product.changeset/3
-    ],
-    layout: {DemoWeb.Layouts, :admin}
+    ]
 
   import Ecto.Query, warn: false
+
+  @impl Backpex.LiveResource
+  def layout(_assigns), do: {DemoWeb.Layouts, :admin}
 
   @impl Backpex.LiveResource
   def singular_name, do: "Product"
@@ -124,6 +126,7 @@ defmodule DemoWeb.ProductLive do
         label: "Short Links",
         type: :assoc,
         except: [:index],
+        live_resource: DemoWeb.ShortLinkLive,
         child_fields: [
           short_key: %{
             module: Backpex.Fields.Text,

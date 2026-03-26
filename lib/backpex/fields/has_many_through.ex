@@ -528,7 +528,8 @@ defmodule Backpex.Fields.HasManyThrough do
       column_names
       |> Enum.map(&{&1, Map.get(item.child, &1)})
       |> Keyword.values()
-      |> Enum.join()
+      |> Enum.map_join(&to_string/1)
+      |> String.downcase()
     end)
   end
 

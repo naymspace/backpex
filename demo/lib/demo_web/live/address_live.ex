@@ -6,8 +6,10 @@ defmodule DemoWeb.AddressLive do
       update_changeset: &Demo.Address.update_changeset/3,
       create_changeset: &Demo.Address.create_changeset/3
     ],
-    layout: {DemoWeb.Layouts, :admin},
     fluid?: true
+
+  @impl Backpex.LiveResource
+  def layout(_assigns), do: {DemoWeb.Layouts, :admin}
 
   @impl Backpex.LiveResource
   def singular_name, do: "Address"
