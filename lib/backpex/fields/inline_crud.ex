@@ -19,6 +19,11 @@ defmodule Backpex.Fields.InlineCRUD do
       """,
       type: :keyword_list,
       required: true
+    ],
+    live_resource: [
+      doc:
+        "The live resource of the association. When provided, a link to each item's show page is rendered in the read-only view.",
+      type: :atom
     ]
   ]
 
@@ -86,6 +91,8 @@ defmodule Backpex.Fields.InlineCRUD do
   """
   use Backpex.Field, config_schema: @config_schema
 
+  alias Backpex.Router
+
   require Backpex
 
   @impl Phoenix.LiveComponent
@@ -128,6 +135,9 @@ defmodule Backpex.Fields.InlineCRUD do
             <th :for={{_name, %{label: label}} <- @child_fields} class="font-medium">
               {label}
             </th>
+            <th :if={@field_options[:live_resource]} class="font-medium">
+              <span class="sr-only">{Backpex.__("Actions", @live_resource)}</span>
+            </th>
           </tr>
         </thead>
         <tbody class="text-base-content/75">
@@ -142,6 +152,20 @@ defmodule Backpex.Fields.InlineCRUD do
                 )
               )}
             </td>
+            <%= if link = get_link(assigns, row) do %>
+              <td>
+                <div class="tooltip" data-tip={Backpex.__("Show", @live_resource)}>
+                  <.link navigate={link} aria-label={Backpex.__("Show", @live_resource)}>
+                    <Backpex.HTML.CoreComponents.icon
+                      name="hero-eye"
+                      class="h-5 w-5 cursor-pointer transition duration-75 hover:text-success hover:scale-110"
+                    />
+                  </.link>
+                </div>
+              </td>
+            <% else %>
+              <td :if={@field_options[:live_resource]} />
+            <% end %>
           </tr>
         </tbody>
       </table>
@@ -231,6 +255,14 @@ defmodule Backpex.Fields.InlineCRUD do
   def schema({name, _field_options}, schema) do
     schema.__schema__(:association, name)
     |> Map.get(:queryable)
+  end
+
+  defp get_link(assigns, row) do
+    live_resource = Map.get(assigns.field_options, :live_resource)
+
+    if live_resource && live_resource.can?(assigns, :show, row) do
+      Router.get_path(assigns.socket, live_resource, assigns.params, :show, row)
+    end
   end
 
   defp child_field_class(%{class: class} = _child_field_options, assigns) when is_function(class), do: class.(assigns)
