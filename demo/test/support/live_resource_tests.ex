@@ -296,7 +296,7 @@ defmodule Demo.Support.LiveResourceTests do
           result
 
         message ->
-          result |> assert_has("div", text: message, exact: true)
+          assert_has(result, "div", text: message, exact: true)
       end
     end
   end
