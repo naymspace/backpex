@@ -42,11 +42,9 @@ jobs:
           restore-keys: ${{ runner.os }}-elixir-${{ env.ELIXIR_VERSION }}-otp-${{ env.OTP_VERSION }}-build-deps-
 
       - name: Install dependencies
-        if: steps.restore-cache.outputs.cache-hit != 'true'
         run: mix deps.get
 
       - name: Compile dependencies
-        if: steps.restore-cache.outputs.cache-hit != 'true'
         run: mix deps.compile
 
       - name: Compile with warnings as errors
