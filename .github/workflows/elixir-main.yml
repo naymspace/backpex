@@ -15,6 +15,7 @@ jobs:
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
       - uses: erlef/setup-beam@9d5b75ddfda22fb979d2270283237aef8aa68d6b # v1.22.0
+        id: beam
         with:
           otp-version: "28"
           elixir-version: "main"
@@ -30,13 +31,15 @@ jobs:
         uses: actions/cache@cdf6c1fa76f9f475f3d7449005a359c84ca0f306 # v5.0.3
         id: restore-cache
         env:
+          OTP_VERSION: ${{ steps.beam.outputs.otp-version }}
+          ELIXIR_VERSION: ${{ steps.beam.outputs.elixir-version }}
           MIX_LOCK_HASH: ${{ hashFiles(format('{0}{1}', github.workspace, '/mix.lock')) }}
         with:
           path: |
             deps
             _build
-          key: ${{ runner.os }}-elixir-main-otp-28-build-deps-mixlockhash-${{ env.MIX_LOCK_HASH }}
-          restore-keys: ${{ runner.os }}-elixir-main-otp-28-build-deps-
+          key: ${{ runner.os }}-elixir-${{ env.ELIXIR_VERSION }}-otp-${{ env.OTP_VERSION }}-build-deps-mixlockhash-${{ env.MIX_LOCK_HASH }}
+          restore-keys: ${{ runner.os }}-elixir-${{ env.ELIXIR_VERSION }}-otp-${{ env.OTP_VERSION }}-build-deps-
 
       - name: Install dependencies
         if: steps.restore-cache.outputs.cache-hit != 'true'
