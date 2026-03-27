@@ -259,7 +259,7 @@ defmodule Backpex.Field do
   end
 
   defmacro __before_compile__(_env) do
-    quote do
+    quote generated: true do
       import Ecto.Query
 
       @impl Phoenix.LiveComponent

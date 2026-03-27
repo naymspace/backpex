@@ -12,8 +12,6 @@ defmodule Backpex.LiveResource do
   alias Backpex.Resource
   alias Backpex.Router
 
-  require Backpex
-
   @options_schema [
     adapter: [
       doc: "The data layer adapter to use.",
@@ -366,7 +364,7 @@ defmodule Backpex.LiveResource do
 
   # credo:disable-for-next-line Credo.Check.Refactor.CyclomaticComplexity
   defmacro __before_compile__(_env) do
-    quote do
+    quote generated: true do
       import Backpex.HTML.Layout
       import Backpex.HTML.Resource
 

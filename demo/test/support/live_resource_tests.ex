@@ -234,7 +234,6 @@ defmodule Demo.Support.LiveResourceTests do
       item = unquote(item)
       display_field = unquote(display_field)
       display_value = unquote(display_value)
-      success_message = unquote(success_message)
 
       result =
         conn
@@ -253,10 +252,12 @@ defmodule Demo.Support.LiveResourceTests do
         |> assert_path(base_path)
         |> refute_has("td", text: display_value, exact: true)
 
-      if success_message do
-        result |> assert_has("div", text: success_message, exact: true)
-      else
-        result
+      case unquote(success_message) do
+        message when is_nil(message) ->
+          result
+
+        message ->
+          assert_has(result, "div", text: message, exact: true)
       end
     end
   end
@@ -271,7 +272,6 @@ defmodule Demo.Support.LiveResourceTests do
       item = unquote(item)
       display_field = unquote(display_field)
       display_value = unquote(display_value)
-      success_message = unquote(success_message)
 
       result =
         conn
@@ -291,10 +291,12 @@ defmodule Demo.Support.LiveResourceTests do
         |> assert_path(base_path)
         |> refute_has("td", text: display_value, exact: true)
 
-      if success_message do
-        result |> assert_has("div", text: success_message, exact: true)
-      else
-        result
+      case unquote(success_message) do
+        message when is_nil(message) ->
+          result
+
+        message ->
+          assert_has(result, "div", text: message, exact: true)
       end
     end
   end

@@ -117,7 +117,7 @@ defmodule Backpex.ItemAction do
   defmacro __before_compile__(env) do
     validate_handle_or_link!(env)
 
-    quote do
+    quote generated: true do
       @after_compile Backpex.ItemAction
 
       @impl Backpex.ItemAction

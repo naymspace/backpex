@@ -23,7 +23,6 @@ defmodule BackpexWeb do
   """
   def field do
     quote do
-      use Phoenix.Component
       use Phoenix.LiveComponent
       alias Backpex.HTML
       alias Backpex.HTML.Form, as: BackpexForm
