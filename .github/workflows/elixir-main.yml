@@ -1,0 +1,90 @@
+name: Elixir Main
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "0 6 * * *" # Every day at 06:00 UTC
+
+jobs:
+  test:
+    name: "Test backpex (Elixir main)"
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - uses: erlef/setup-beam@9d5b75ddfda22fb979d2270283237aef8aa68d6b # v1.22.0
+        with:
+          otp-version: "28"
+          elixir-version: "main"
+
+      - name: Setup node
+        uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6.3.0
+        with:
+          node-version: 24
+          cache: "yarn"
+          cache-dependency-path: yarn.lock
+
+      - name: Restore the deps and _build cache
+        uses: actions/cache@cdf6c1fa76f9f475f3d7449005a359c84ca0f306 # v5.0.3
+        id: restore-cache
+        env:
+          MIX_LOCK_HASH: ${{ hashFiles(format('{0}{1}', github.workspace, '/mix.lock')) }}
+        with:
+          path: |
+            deps
+            _build
+          key: ${{ runner.os }}-elixir-main-otp-28-build-deps-mixlockhash-${{ env.MIX_LOCK_HASH }}
+          restore-keys: ${{ runner.os }}-elixir-main-otp-28-build-deps-
+
+      - name: Install dependencies
+        if: steps.restore-cache.outputs.cache-hit != 'true'
+        run: mix deps.get
+
+      - name: Compile dependencies
+        if: steps.restore-cache.outputs.cache-hit != 'true'
+        run: mix deps.compile
+
+      - name: Compile with warnings as errors
+        run: mix compile --warnings-as-errors --force
+
+      - name: Cache node modules
+        uses: actions/cache@cdf6c1fa76f9f475f3d7449005a359c84ca0f306 # v5.0.3
+        id: yarn-cache
+        with:
+          path: node_modules
+          key: ${{ runner.os }}-node-24-yarn-${{ hashFiles('yarn.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-node-24-yarn-
+
+      - name: Install node dependencies
+        if: steps.yarn-cache.outputs.cache-hit != 'true'
+        run: yarn install --pure-lockfile
+
+      - name: Check formatting
+        run: mix format --check-formatted
+
+      - name: JavaScript Standard
+        run: yarn run lint:standard
+
+      - name: Credo
+        run: mix credo
+
+      - name: Sobelow
+        run: mix sobelow --config
+
+      - name: Deps Unused
+        run: mix deps.unlock --check-unused
+
+      - name: Run tests
+        run: mix test
+
+      - name: Run doc tests
+        run: mix test test/doc_test.exs
+
+      - name: Gettext Check
+        run: mix gettext.extract --check-up-to-date
+
+      - name: Check assets up-to-date
+        run: mix assets.check
