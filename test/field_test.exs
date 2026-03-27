@@ -14,16 +14,12 @@ defmodule Backpex.FieldTest do
     end
   end
 
-  describe "readonly fields filtering" do
-    # This test mirrors the logic in Backpex.LiveComponents.FormComponent.drop_readonly_changes/3
-    # which is a private function. We test the same logic here to ensure readonly fields
-    # are properly filtered from form params before changeset creation.
-
+  describe "drop_readonly_changes/3" do
     test "readonly fields are correctly filtered from LiveResource fields" do
       fields = UpstreamPrices.fields()
       change = %{"name" => "Backpack", "upstream_price" => "100", "override_price" => "200"}
 
-      filtered = drop_readonly_changes(change, fields, %{})
+      filtered = Field.drop_readonly_changes(change, fields, %{})
 
       assert filtered == %{"name" => "Backpack", "override_price" => "200"}
       refute Map.has_key?(filtered, "upstream_price")
@@ -38,11 +34,11 @@ defmodule Backpex.FieldTest do
       change = %{"name" => "Test", "secret" => "hidden"}
 
       # As viewer - secret should be filtered
-      filtered = drop_readonly_changes(change, fields, %{role: :viewer})
+      filtered = Field.drop_readonly_changes(change, fields, %{role: :viewer})
       assert filtered == %{"name" => "Test"}
 
       # As admin - secret should remain
-      filtered = drop_readonly_changes(change, fields, %{role: :admin})
+      filtered = Field.drop_readonly_changes(change, fields, %{role: :admin})
       assert filtered == %{"name" => "Test", "secret" => "hidden"}
     end
   end
@@ -66,15 +62,5 @@ defmodule Backpex.FieldTest do
       assert Field.readonly?(%{readonly: readonly_fn}, %{role: :viewer}) == true
       assert Field.readonly?(%{readonly: readonly_fn}, %{role: :admin}) == false
     end
-  end
-
-  # Mirrors Backpex.LiveComponents.FormComponent.drop_readonly_changes/3
-  defp drop_readonly_changes(change, fields, assigns) do
-    read_only =
-      fields
-      |> Enum.filter(fn {_name, options} -> Field.readonly?(options, assigns) end)
-      |> Enum.map(fn {name, _options} -> Atom.to_string(name) end)
-
-    Map.drop(change, read_only)
   end
 end
