@@ -56,7 +56,6 @@ defmodule Demo.MixProject do
       {:gettext, "~> 1.0"},
       {:sentry, "~> 12.0"},
       {:circular_buffer, "~> 1.0.0"},
-      {:finch, "~> 0.21"},
 
       # phoenix
       {:bandit, "~> 1.0"},
