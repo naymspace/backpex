@@ -27,10 +27,6 @@ defmodule DemoWeb.FilmReviewLive do
     """
   end
 
-  def render_resource_slot(assigns, action, position) do
-    super(assigns, action, position)
-  end
-
   @impl Backpex.LiveResource
   def can?(_assigns, :delete, _item), do: false
 

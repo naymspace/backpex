@@ -232,38 +232,6 @@ defmodule Backpex.Field do
 
       use BackpexWeb, :field
 
-      import Ecto.Query
-
-      @impl Backpex.Field
-      def display_field({name, _field_options} = _field), do: name
-
-      @impl Backpex.Field
-      def schema(_field, schema), do: schema
-
-      @impl Backpex.Field
-      def association?(_field), do: false
-
-      @impl Backpex.Field
-      def assign_uploads(_field, socket), do: socket
-
-      @impl Backpex.Field
-      def search_condition(schema_name, field_name, search_string) do
-        dynamic(
-          [{^schema_name, schema_name}],
-          schema_name |> field(^field_name) |> ilike(^search_string)
-        )
-      end
-
-      @impl Backpex.Field
-      def before_changeset(changeset, _attrs, _metadata, _repo, _field, _assigns), do: changeset
-
-      defoverridable display_field: 1,
-                     schema: 2,
-                     association?: 1,
-                     assign_uploads: 2,
-                     search_condition: 3,
-                     before_changeset: 6
-
       @doc """
       Returns the schema of configurable options for this field.
 
@@ -291,7 +259,9 @@ defmodule Backpex.Field do
   end
 
   defmacro __before_compile__(_env) do
-    quote do
+    quote generated: true do
+      import Ecto.Query
+
       @impl Phoenix.LiveComponent
       def render(%{type: :index} = assigns) do
         if Backpex.Field.index_editable_enabled?(assigns.field_options, assigns) do
@@ -311,6 +281,29 @@ defmodule Backpex.Field do
           nil -> apply(__MODULE__, :render_form, [assigns])
         end
       end
+
+      @impl Backpex.Field
+      def display_field({name, _field_options} = _field), do: name
+
+      @impl Backpex.Field
+      def schema(_field, schema), do: schema
+
+      @impl Backpex.Field
+      def association?(_field), do: false
+
+      @impl Backpex.Field
+      def assign_uploads(_field, socket), do: socket
+
+      @impl Backpex.Field
+      def search_condition(schema_name, field_name, search_string) do
+        dynamic(
+          [{^schema_name, schema_name}],
+          schema_name |> field(^field_name) |> ilike(^search_string)
+        )
+      end
+
+      @impl Backpex.Field
+      def before_changeset(changeset, _attrs, _metadata, _repo, _field, _assigns), do: changeset
     end
   end
 
