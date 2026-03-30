@@ -27,11 +27,11 @@
     keyv "^5.6.0"
 
 "@cacheable/utils@^2.4.0":
-  version "2.4.0"
-  resolved "https://registry.yarnpkg.com/@cacheable/utils/-/utils-2.4.0.tgz#923512395c037c74ed4c918e6ffa2f6b7407d472"
-  integrity sha512-PeMMsqjVq+bF0WBsxFBxr/WozBJiZKY0rUojuaCoIaKnEl3Ju1wfEwS+SV1DU/cSe8fqHIPiYJFif8T3MVt4cQ==
+  version "2.4.1"
+  resolved "https://registry.yarnpkg.com/@cacheable/utils/-/utils-2.4.1.tgz#614ab46e4e2adf94785d8adaadbf40873d0eb12d"
+  integrity sha512-eiFgzCbIneyMlLOmNG4g9xzF7Hv3Mga4LjxjcSC/ues6VYq2+gUbQI8JqNuw/ZM8tJIeIaBGpswAsqV2V7ApgA==
   dependencies:
-    hashery "^1.5.0"
+    hashery "^1.5.1"
     keyv "^5.6.0"
 
 "@csstools/css-calc@^3.1.1":
@@ -45,9 +45,9 @@
   integrity sha512-+B87qS7fIG3L5h3qwJ/IFbjoVoOe/bpOdh9hAjXbvx0o8ImEmUsGXN0inFOnk2ChCFgqkkGFQ+TpM5rbhkKe4w==
 
 "@csstools/css-syntax-patches-for-csstree@^1.0.27":
-  version "1.1.1"
-  resolved "https://registry.yarnpkg.com/@csstools/css-syntax-patches-for-csstree/-/css-syntax-patches-for-csstree-1.1.1.tgz#ce4c9a0cbe30590491fcd5c03fe6426d22ba89e4"
-  integrity sha512-BvqN0AMWNAnLk9G8jnUT77D+mUbY/H2b3uDTvg2isJkHaOufUE2R3AOwxWo7VBQKT1lOdwdvorddo2B/lk64+w==
+  version "1.1.2"
+  resolved "https://registry.yarnpkg.com/@csstools/css-syntax-patches-for-csstree/-/css-syntax-patches-for-csstree-1.1.2.tgz#bef07c507732a052b662302e7cb4e9fdf522af90"
+  integrity sha512-5GkLzz4prTIpoyeUiIu3iV6CSG3Plo7xRVOFPKI7FVEJ3mZ0A8SwK0XU3Gl7xAkiQ+mDyam+NNp875/C5y+jSA==
 
 "@csstools/css-tokenizer@^4.0.0":
   version "4.0.0"
@@ -391,9 +391,9 @@ balanced-match@^1.0.0:
   integrity sha512-3oSeUO0TMV67hN1AmbXsK4yaqU7tjiHlbxRDZOpH0KW9+CeX4bRAaX0Anxt0tx2MrpRpWwQaPwIlISEJhYU5Pw==
 
 brace-expansion@^1.1.7:
-  version "1.1.12"
-  resolved "https://registry.yarnpkg.com/brace-expansion/-/brace-expansion-1.1.12.tgz#ab9b454466e5a8cc3a187beaad580412a9c5b843"
-  integrity sha512-9T9UjW3r0UW5c1Q7GTwllptXwhvYmEzFhzMfZ9H7FQWt+uZePjZPjBP/W1ZEyZ1twGWom5/56TF4lPcqjnDHcg==
+  version "1.1.13"
+  resolved "https://registry.yarnpkg.com/brace-expansion/-/brace-expansion-1.1.13.tgz#d37875c01dc9eff988dd49d112a57cb67b54efe6"
+  integrity sha512-9ZLprWS6EENmhEOpjCYW2c8VkmOvckIJZfkr7rBW6dObmfgJ/L1GpSYW5Hpo9lDz4D1+n0Ckz8rU7FwHDQiG/w==
   dependencies:
     balanced-match "^1.0.0"
     concat-map "0.0.1"
@@ -412,7 +412,7 @@ builtins@^5.0.1:
   dependencies:
     semver "^7.0.0"
 
-cacheable@^2.3.3:
+cacheable@^2.3.4:
   version "2.3.4"
   resolved "https://registry.yarnpkg.com/cacheable/-/cacheable-2.3.4.tgz#8d8114c01aa603d2441e4d8fd57ac6a25a585177"
   integrity sha512-djgxybDbw9fL/ZWMI3+CE8ZilNxcwFkVtDc1gJ+IlOSSWkSMPQabhV/XCHTQ6pwwN6aivXPZ43omTooZiX06Ew==
@@ -1066,15 +1066,15 @@ flat-cache@^3.0.4:
     rimraf "^3.0.2"
 
 flat-cache@^6.1.20:
-  version "6.1.21"
-  resolved "https://registry.yarnpkg.com/flat-cache/-/flat-cache-6.1.21.tgz#e90970e698a1355f7c2428c451aa503adb777306"
-  integrity sha512-2u7cJfSf7Th7NxEk/VzQjnPoglok2YCsevS7TSbJjcDQWJPbqUUnSYtriHSvtnq+fRZHy1s0ugk4ApnQyhPGoQ==
+  version "6.1.22"
+  resolved "https://registry.yarnpkg.com/flat-cache/-/flat-cache-6.1.22.tgz#e9f31d567179bb5f0f2fc011e6f89af2cc94f918"
+  integrity sha512-N2dnzVJIphnNsjHcrxGW7DePckJ6haPrSFqpsBUhHYgwtKGVq4JrBGielEGD2fCVnsGm1zlBVZ8wGhkyuetgug==
   dependencies:
-    cacheable "^2.3.3"
-    flatted "^3.4.1"
+    cacheable "^2.3.4"
+    flatted "^3.4.2"
     hookified "^1.15.0"
 
-flatted@^3.2.9, flatted@^3.4.1:
+flatted@^3.2.9, flatted@^3.4.2:
   version "3.4.2"
   resolved "https://registry.yarnpkg.com/flatted/-/flatted-3.4.2.tgz#f5c23c107f0f37de8dbdf24f13722b3b98d52726"
   integrity sha512-PjDse7RzhcPkIJwy5t7KPWQSZ9cAbzQXcafsetQoD7sOJRQlGikNbx7yZp2OotDnJyrDcbyRq3Ttb18iYOqkxA==
@@ -1224,9 +1224,9 @@ globalthis@^1.0.4:
     gopd "^1.0.1"
 
 globby@^16.1.0:
-  version "16.1.1"
-  resolved "https://registry.yarnpkg.com/globby/-/globby-16.1.1.tgz#a26012f57b819f0491c834dbf09f89b0ce6ba104"
-  integrity sha512-dW7vl+yiAJSp6aCekaVnVJxurRv7DCOLyXqEG3RYMYUg7AuJ2jCqPkZTA8ooqC2vtnkaMcV5WfFBMuEnTu1OQg==
+  version "16.2.0"
+  resolved "https://registry.yarnpkg.com/globby/-/globby-16.2.0.tgz#6ab1351fbac1d9b9e47ed423814c2ad41af308ea"
+  integrity sha512-QrJia2qDf5BB/V6HYlDTs0I0lBahyjLzpGQg3KT7FnCdTonAyPy2RtY802m2k4ALx6Dp752f82WsOczEVr3l6Q==
   dependencies:
     "@sindresorhus/merge-streams" "^4.0.0"
     fast-glob "^3.3.3"
@@ -1296,7 +1296,7 @@ has-tostringtag@^1.0.2:
   dependencies:
     has-symbols "^1.0.3"
 
-hashery@^1.4.0, hashery@^1.5.0:
+hashery@^1.4.0, hashery@^1.5.1:
   version "1.5.1"
   resolved "https://registry.yarnpkg.com/hashery/-/hashery-1.5.1.tgz#4ba82ad54911ac617467870845d57a9fe508a400"
   integrity sha512-iZyKG96/JwPz1N55vj2Ie2vXbhu440zfUfJvSwEqEbeLluk7NnapfGqa7LH0mOsnDxTF85Mx8/dyR6HfqcbmbQ==
@@ -1316,9 +1316,9 @@ hookified@^1.15.0, hookified@^1.15.1:
   integrity sha512-MvG/clsADq1GPM2KGo2nyfaWVyn9naPiXrqIe4jYjXNZQt238kWyOGrsyc/DmRAQ+Re6yeo6yX/yoNCG5KAEVg==
 
 hookified@^2.1.0:
-  version "2.1.0"
-  resolved "https://registry.yarnpkg.com/hookified/-/hookified-2.1.0.tgz#95664f1cb5ea21df2bd94954679dec236a1c9ba3"
-  integrity sha512-ootKng4eaxNxa7rx6FJv2YKef3DuhqbEj3l70oGXwddPQEEnISm50TEZQclqiLTAtilT2nu7TErtCO523hHkyg==
+  version "2.1.1"
+  resolved "https://registry.yarnpkg.com/hookified/-/hookified-2.1.1.tgz#50e21c700e447d5c30e4ff8574e8ff28cbd641f0"
+  integrity sha512-AHb76R16GB5EsPBE2J7Ko5kiEyXwviB9P5SMrAKcuAu4vJPZttViAbj9+tZeaQE5zjDme+1vcHP78Yj/WoAveA==
 
 html-tags@^5.1.0:
   version "5.1.0"
