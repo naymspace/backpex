@@ -12,12 +12,12 @@ defmodule Demo.Release do
 
   defp drop_tables(repo) do
     %{rows: rows} =
-      repo.query!("SELECT tablename FROM pg_tables WHERE schemaname = 'public'")
+      repo.query!("SELECT quote_ident(tablename) FROM pg_tables WHERE schemaname = 'public'")
 
     tables = List.flatten(rows)
 
     if tables != [] do
-      joined = Enum.map_join(tables, ", ", &~s("#{&1}"))
+      joined = Enum.join(tables, ", ")
       repo.query!("DROP TABLE #{joined} CASCADE")
     end
   end
