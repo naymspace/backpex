@@ -36,7 +36,7 @@ defmodule Demo.Release do
   end
 
   @doc """
-  Reset the application by dropping and recreating the public schema.
+  Reset the application by dropping all owned database objects, then re-migrating and seeding.
   """
   def reset do
     init([:ssl])
@@ -44,8 +44,15 @@ defmodule Demo.Release do
     for repo <- repos() do
       {:ok, _fun_return, _apps} =
         Ecto.Migrator.with_repo(repo, fn repo ->
-          repo.query!("DROP SCHEMA public CASCADE")
-          repo.query!("CREATE SCHEMA public")
+          %{rows: rows} =
+            repo.query!("SELECT tablename FROM pg_tables WHERE schemaname = 'public'")
+
+          tables = List.flatten(rows)
+
+          if tables != [] do
+            joined = Enum.map_join(tables, ", ", &~s("#{&1}"))
+            repo.query!("DROP TABLE #{joined} CASCADE")
+          end
         end)
     end
 
