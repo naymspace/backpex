@@ -12,7 +12,7 @@ defmodule Demo.Release do
 
   defp drop_tables(repo) do
     %{rows: rows} =
-      repo.query!("SELECT quote_ident(tablename) FROM pg_tables WHERE schemaname = 'public'")
+      repo.query!("SELECT format('%I.%I', schemaname, tablename) FROM pg_tables WHERE schemaname = 'public'")
 
     tables = List.flatten(rows)
 
