@@ -320,6 +320,15 @@ defmodule Backpex.LiveResource do
       @impl Backpex.LiveResource
       def item_actions(default_actions), do: default_actions
 
+      @impl Backpex.LiveResource
+      def on_item_created(socket, _item), do: socket
+
+      @impl Backpex.LiveResource
+      def on_item_updated(socket, _item), do: socket
+
+      @impl Backpex.LiveResource
+      def on_item_deleted(socket, _item), do: socket
+
       defoverridable can?: 3,
                      fields: 0,
                      filters: 0,
@@ -327,7 +336,10 @@ defmodule Backpex.LiveResource do
                      layout: 1,
                      resource_actions: 0,
                      item_actions: 1,
-                     index_row_class: 4
+                     index_row_class: 4,
+                     on_item_created: 2,
+                     on_item_updated: 2,
+                     on_item_deleted: 2
 
       live_resource = __MODULE__
 
@@ -376,15 +388,6 @@ defmodule Backpex.LiveResource do
 
       @impl Backpex.LiveResource
       def metrics, do: []
-
-      @impl Backpex.LiveResource
-      def on_item_created(socket, _item), do: socket
-
-      @impl Backpex.LiveResource
-      def on_item_updated(socket, _item), do: socket
-
-      @impl Backpex.LiveResource
-      def on_item_deleted(socket, _item), do: socket
 
       @impl Backpex.LiveResource
       def return_to(socket, assigns, _live_action, _form_action, _item) do
