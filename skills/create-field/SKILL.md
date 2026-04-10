@@ -40,14 +40,16 @@ You are an expert at creating fields for Backpex, a Phoenix LiveView admin panel
 | `module` | atom | **Required.** The field module |
 | `label` | string | **Required.** Display label |
 | `searchable` | boolean | Enable search on this column |
-| `orderable` | boolean | Enable column sorting (default: true) |
-| `visible` | `fn assigns -> bool` | Controls visibility on form/show views |
+| `orderable` | boolean | Enable column sorting |
+| `visible` | `fn assigns -> bool` | Controls visibility on all views except index |
 | `can?` | `fn assigns -> bool` | Controls visibility on all views including index |
 | `only` | list | Restrict to specific views: `:new`, `:edit`, `:show`, `:index` |
 | `except` | list | Hide from specific views |
 | `panel` | atom | Group into a named panel |
-| `index_editable` | boolean | Enable inline editing on index |
+| `index_editable` | boolean or `fn assigns -> bool` | Enable inline editing on index |
 | `align` | `:left`, `:center`, `:right` | Column alignment on index |
+| `align_label` | `:top`, `:center`, `:bottom`, or `fn assigns -> atom` | Label alignment in forms |
+| `index_column_class` | string or `fn assigns -> string` | Extra CSS class on index column |
 | `render` | `fn assigns -> HEEx` | Override value rendering |
 | `render_form` | `fn assigns -> HEEx` | Override form rendering |
 | `help_text` | string or `fn assigns -> string` | Text below form input |
@@ -63,20 +65,24 @@ Implement `Backpex.Field` with a `@config_schema` for field-specific options.
 ### Required Callbacks
 
 ```elixir
-@callback render_value(assigns :: map()) :: Phoenix.LiveView.Rendered.t()
-@callback render_form(assigns :: map()) :: Phoenix.LiveView.Rendered.t()
+@callback render_value(assigns :: map()) :: %Phoenix.LiveView.Rendered{}
+@callback render_form(assigns :: map()) :: %Phoenix.LiveView.Rendered{}
 ```
 
-### Optional Callbacks (have defaults)
+`render_value/1` is used on both index and show views. `render_form/1` is used on new and edit views.
+
+### Callbacks With Defaults (overridable)
+
+These are provided by `use Backpex.Field` and can be overridden as needed:
 
 ```elixir
-@callback render_index_form(assigns)  # For index_editable support
+@callback render_index_form(assigns)  # For index_editable support (only truly optional callback)
 @callback display_field(field)         # Default: returns field name
 @callback schema(field, schema)        # Default: returns the schema
 @callback association?(field)          # Default: false
 @callback assign_uploads(field, socket) # Default: returns socket unchanged
-@callback before_changeset(changeset, attrs, metadata, repo, field, assigns)
-@callback search_condition(schema_name, field_name, search_string) # Default: ilike
+@callback before_changeset(changeset, attrs, metadata, repo, field, assigns) # 6-arity
+@callback search_condition(schema_name :: binary(), field_name :: binary(), search_string :: binary()) # Default: ilike
 ```
 
 ### Key Assigns Available in Templates

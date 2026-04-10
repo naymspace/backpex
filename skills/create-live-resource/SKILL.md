@@ -58,8 +58,8 @@ end
 | `fluid?` | boolean | `false` | Full-width layout |
 | `full_text_search` | atom | `nil` | PostgreSQL tsvector column name |
 | `save_and_continue_button?` | boolean | `false` | Show "Save & Continue" button |
-| `pubsub` | keyword | auto | `[server: MyApp.PubSub]` |
-| `on_mount` | atom/list | none | LiveView on_mount hooks |
+| `pubsub` | keyword | nil (falls back to app config) | `[server: MyApp.PubSub]` |
+| `on_mount` | atom/list | nil | LiveView on_mount hooks |
 
 ## adapter_config (Ecto)
 
@@ -90,16 +90,18 @@ The `item_query` function must build on the incoming `query` argument (use `from
 |----------|---------|-------------|
 | `can?/3` | always true | `fn assigns, action, item -> bool` |
 | `filters/0` | `[]` | Filter definitions |
+| `filters/1` | delegates to `filters/0` | Assigns-aware variant for dynamic filters |
 | `panels/0` | `[]` | Field grouping: `[key: "Label"]` |
 | `metrics/0` | `[]` | Index page metrics |
 | `resource_actions/0` | `[]` | Resource-level actions |
-| `item_actions/1` | identity | Modify default item actions |
+| `item_actions/1` | returns default_actions unchanged | Modify default item actions |
 | `on_item_created/2` | noop | `fn socket, item -> socket` |
 | `on_item_updated/2` | noop | `fn socket, item -> socket` |
 | `on_item_deleted/2` | noop | `fn socket, item -> socket` |
 | `return_to/5` | index page | Custom redirect after save |
 | `index_row_class/4` | nil | Custom CSS for table rows |
 | `render_resource_slot/3` | default HTML | Override UI slots |
+| `translate/1` | delegates to `Backpex.translate/1` | Override UI strings |
 
 ## Router Setup
 
@@ -123,7 +125,7 @@ end
 
 Options for `live_resources/3`:
 - `only: [:index, :show, :new, :edit]` to restrict routes
-- `except: [:delete]` to exclude routes
+- `except: [:new]` to exclude specific routes
 
 ## Complete Example
 

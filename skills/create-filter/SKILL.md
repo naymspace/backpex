@@ -23,11 +23,12 @@ When the user wants to add a filter:
 
 All built-in filters auto-implement `query/4`, `render/1`, and `render_form/1`. Do NOT re-implement those unless you need custom behavior.
 
-All filters can optionally implement:
-- `label/0`: filter label (can also be set in `filters/0` map)
+All filters have these overridable callbacks with defaults:
+- `label/0`: filter label (optional callback, can also be set in `filters/0` map)
 - `can?/1`: visibility control, receives assigns, default `true`
-- `type/1`: Ecto type for validation (arity 1, receives assigns)
-- `changeset/3`: custom changeset validation
+- `type/1`: Ecto type for validation (default `:string`), receives assigns
+- `changeset/3`: custom changeset validation (default: no-op)
+- `validate/2`: public validation API, builds changeset from `type/1` and `changeset/3`
 
 ## Boolean Filter
 
@@ -79,7 +80,7 @@ end
 
 ## MultiSelect Filter
 
-Same as Select but allows multiple values. Default `query/4` does `WHERE field IN values`. Uses the same `prompt/0` and `options/1` callbacks (implementing `@impl Backpex.Filters.MultiSelect`).
+Same as Select but allows multiple values. Default `query/4` does `WHERE field IN values`. Uses `prompt/0` (implement with `@impl Backpex.Filters.Select`) and `options/1` (implement with `@impl Backpex.Filters.MultiSelect`). Note: MultiSelect internally sets `@behaviour Backpex.Filters.Select` for the prompt callback.
 
 ## Range Filter
 
@@ -101,10 +102,11 @@ For dates use `def type, do: :date`. For datetimes use `def type, do: :datetime`
 
 ## Custom Filter
 
-Use `Backpex.Filter` directly when no built-in type fits. You must implement `query/4`, `render/1`, and `render_form/1`.
+Use `Backpex.Filter` directly when no built-in type fits. You must implement `query/4`, `render/1`, and `render_form/1`. Note: `use Backpex.Filter` does not import HEEx sigils. You need `use Phoenix.Component` for `~H` support.
 
 ```elixir
 defmodule MyAppWeb.Filters.PostCustom do
+  use Phoenix.Component
   use Backpex.Filter
 
   import Ecto.Query

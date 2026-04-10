@@ -99,11 +99,16 @@ Each Backpex release may add new translatable strings. After upgrading:
    ```
    Alternatively, download it from GitHub at `https://github.com/naymspace/backpex/blob/<VERSION>/priv/gettext/backpex.pot` (replace `<VERSION>` with your target version tag).
 
-2. Merge the new strings into your existing PO files:
+2. **Remove `elixir-autogen` comments** from the copied `.pot` file. The Backpex source file contains `#, elixir-autogen, elixir-format` comment lines. If left in place, running `mix gettext.extract --merge` will delete all Backpex translations from your PO files (Gettext treats autogen entries as auto-generated and removes those not found in your source code). Strip them:
+   ```bash
+   sed -i '' 's/#, elixir-autogen, elixir-format/#, elixir-format/g' priv/gettext/backpex.pot
+   ```
+
+3. Merge the new strings into your existing PO files:
    ```bash
    mix gettext.merge priv/gettext
    ```
 
-3. Translate any new `msgid` entries in your `priv/gettext/<locale>/LC_MESSAGES/backpex.po` files.
+4. Translate any new `msgid` entries in your `priv/gettext/<locale>/LC_MESSAGES/backpex.po` files.
 
-The `.pot` file on the `main` branch may contain unreleased translations. Always use the version tag that matches your Backpex version.
+The `.pot` file on the `develop` branch may contain unreleased translations. Always use the version tag that matches your Backpex version.
