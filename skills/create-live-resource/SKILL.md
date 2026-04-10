@@ -58,7 +58,7 @@ end
 | `fluid?` | boolean | `false` | Full-width layout |
 | `full_text_search` | atom | `nil` | PostgreSQL tsvector column name |
 | `save_and_continue_button?` | boolean | `false` | Show "Save & Continue" button |
-| `pubsub` | keyword | nil (falls back to app config) | `[server: MyApp.PubSub]` |
+| `pubsub` | keyword | nil (falls back to `:backpex, :pubsub_server` app config, topic defaults to module name) | `[server: MyApp.PubSub]` |
 | `on_mount` | atom/list | nil | LiveView on_mount hooks |
 
 ## adapter_config (Ecto)
@@ -82,7 +82,7 @@ The `item_query` function must build on the incoming `query` argument (use `from
 | `singular_name/0` | string | e.g. `"Post"` |
 | `plural_name/0` | string | e.g. `"Posts"` |
 | `fields/0` | keyword list | Field definitions |
-| `layout/1` | `{module, :function}` | Layout to use |
+| `layout/1` | `{module, :function}` or `fn assigns -> ...` | Layout to use |
 
 ## Optional Callbacks
 
