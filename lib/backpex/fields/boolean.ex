@@ -1,3 +1,4 @@
+# quokka:skip-module-directive-reordering
 defmodule Backpex.Fields.Boolean do
   @config_schema [
     debounce: [

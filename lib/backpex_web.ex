@@ -14,6 +14,7 @@ defmodule BackpexWeb do
   def html do
     quote do
       use Phoenix.Component
+
       unquote(html_helpers())
     end
   end
@@ -24,11 +25,13 @@ defmodule BackpexWeb do
   def field do
     quote do
       use Phoenix.LiveComponent
+
       alias Backpex.HTML
       alias Backpex.HTML.Form, as: BackpexForm
       alias Backpex.HTML.Layout
       alias Backpex.LiveResource
       alias Phoenix.HTML.Form, as: PhoenixForm
+
       unquote(html_helpers())
     end
   end
@@ -40,8 +43,11 @@ defmodule BackpexWeb do
     quote do
       use Phoenix.Component
       use Backpex.ItemAction
+
       import Phoenix.LiveView
+
       alias Backpex.Router
+
       unquote(html_helpers())
     end
   end
@@ -49,23 +55,28 @@ defmodule BackpexWeb do
   def filter do
     quote do
       use Phoenix.Component
-      import Ecto.Query, warn: false
+
       import Backpex.HTML.Form, only: [error: 1]
+      import Ecto.Query, warn: false
+
       unquote(html_helpers())
     end
   end
 
   def metric do
     quote do
-      use Phoenix.Component
-      import Ecto.Query
       @behaviour Backpex.Metric
+
+      use Phoenix.Component
+
+      import Ecto.Query
     end
   end
 
   defp html_helpers do
     quote do
       import Phoenix.HTML
+
       alias Phoenix.LiveView.JS
 
       @doc false

@@ -1,3 +1,4 @@
+# quokka:skip-module-directives
 defmodule DemoWeb.ProductLive do
   use Backpex.LiveResource,
     adapter_config: [

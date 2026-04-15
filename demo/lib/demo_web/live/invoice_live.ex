@@ -5,6 +5,9 @@ defmodule DemoWeb.InvoiceLive do
       repo: Demo.Repo
     ]
 
+  alias Backpex.Fields.Currency
+  alias Backpex.Fields.Text
+
   @impl Backpex.LiveResource
   def layout(_assigns), do: {DemoWeb.Layouts, :admin}
 
@@ -30,11 +33,11 @@ defmodule DemoWeb.InvoiceLive do
   def fields do
     [
       company: %{
-        module: Backpex.Fields.Text,
+        module: Text,
         label: "Company"
       },
       amount: %{
-        module: Backpex.Fields.Currency,
+        module: Currency,
         label: "Amount"
       }
     ]

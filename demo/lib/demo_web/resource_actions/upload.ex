@@ -6,6 +6,9 @@ defmodule DemoWeb.ResourceActions.Upload do
 
   import Ecto.Changeset
 
+  alias Backpex.Fields.Textarea
+  alias Backpex.Fields.Upload
+
   @impl Backpex.ResourceAction
   def title, do: "Upload file"
   @impl Backpex.ResourceAction
@@ -15,7 +18,7 @@ defmodule DemoWeb.ResourceActions.Upload do
   def fields do
     [
       upload: %{
-        module: Backpex.Fields.Upload,
+        module: Upload,
         label: "Upload",
         upload_key: :upload,
         accept: ~w(.jpg .jpeg .png),
@@ -27,7 +30,7 @@ defmodule DemoWeb.ResourceActions.Upload do
         type: :string
       },
       description: %{
-        module: Backpex.Fields.Textarea,
+        module: Textarea,
         label: "Description",
         type: :string
       }

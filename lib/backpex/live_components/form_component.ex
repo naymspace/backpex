@@ -4,6 +4,7 @@ defmodule Backpex.FormComponent do
   """
   use BackpexWeb, :html
   use Phoenix.LiveComponent
+
   alias Backpex.Fields.Upload
   alias Backpex.Resource
   alias Backpex.ResourceAction

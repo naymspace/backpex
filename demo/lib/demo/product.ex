@@ -6,6 +6,7 @@ defmodule Demo.Product do
 
   alias Demo.ShortLink
   alias Demo.Supplier
+  alias Money.Ecto.Amount.Type
 
   @primary_key {:id, :binary_id, autogenerate: true}
 
@@ -15,7 +16,7 @@ defmodule Demo.Product do
     field :manufacturer, :string
     field :images, {:array, :string}
 
-    field :price, Money.Ecto.Amount.Type
+    field :price, Type
 
     has_many :suppliers, Supplier, on_replace: :delete, on_delete: :delete_all
     has_many :short_links, ShortLink, on_replace: :delete, on_delete: :delete_all, foreign_key: :product_id

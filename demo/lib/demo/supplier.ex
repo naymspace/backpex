@@ -4,6 +4,8 @@ defmodule Demo.Supplier do
 
   import Ecto.Changeset
 
+  alias Money.Ecto.Amount.Type
+
   @primary_key {:id, :binary_id, autogenerate: true}
 
   @countries ["Austria", "France", "Germany", "Italy", "Spain", "Switzerland"]
@@ -15,7 +17,7 @@ defmodule Demo.Supplier do
     field :url, :string
     field :country, Ecto.Enum, values: Enum.map(@countries, &String.to_atom/1)
     field :contract_date, :date
-    field :minimum_order, Money.Ecto.Amount.Type
+    field :minimum_order, Type
     field :preferred, :boolean, default: false
 
     belongs_to :product, Demo.Product, type: :binary_id

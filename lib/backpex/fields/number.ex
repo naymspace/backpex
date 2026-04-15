@@ -1,3 +1,4 @@
+# quokka:skip-module-directive-reordering
 defmodule Backpex.Fields.Number do
   @config_schema [
     placeholder: [

@@ -44,12 +44,12 @@ defmodule Backpex.Filters.Select do
 
   defmacro __using__(_opts) do
     quote do
+      @behaviour Backpex.Filters.Select
+
       use BackpexWeb, :filter
       use Backpex.Filter
 
       alias Backpex.Filters.Select, as: SelectFilter
-
-      @behaviour Backpex.Filters.Select
 
       @impl Backpex.Filter
       def type(_assigns), do: :string

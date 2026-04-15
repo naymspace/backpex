@@ -12,6 +12,20 @@ defmodule DemoWeb.UserLive do
 
   import Ecto.Query, warn: false
 
+  alias Backpex.Fields.Boolean
+  alias Backpex.Fields.HasMany
+  alias Backpex.Fields.HasManyThrough
+  alias Backpex.Fields.InlineCRUD
+  alias Backpex.Fields.MultiSelect
+  alias Backpex.Fields.Number
+  alias Backpex.Fields.Select
+  alias Backpex.Fields.Text
+  alias Backpex.Fields.Textarea
+  alias Backpex.Metrics.Value
+  alias DemoWeb.ItemActions.UserSoftDelete
+  alias DemoWeb.ResourceActions.Email
+  alias DemoWeb.ResourceActions.Upload
+
   @impl Backpex.LiveResource
   def layout(_assigns), do: {DemoWeb.Layouts, :admin}
 
@@ -43,8 +57,8 @@ defmodule DemoWeb.UserLive do
   @impl Backpex.LiveResource
   def resource_actions do
     [
-      invite: %{module: DemoWeb.ResourceActions.Email},
-      upload: %{module: DemoWeb.ResourceActions.Upload}
+      invite: %{module: Email},
+      upload: %{module: Upload}
     ]
   end
 
@@ -52,7 +66,7 @@ defmodule DemoWeb.UserLive do
   def item_actions(default_actions) do
     default_actions
     |> Keyword.delete(:delete)
-    |> Enum.concat(user_soft_delete: %{module: DemoWeb.ItemActions.UserSoftDelete})
+    |> Enum.concat(user_soft_delete: %{module: UserSoftDelete})
   end
 
   @impl Backpex.LiveResource
@@ -83,7 +97,7 @@ defmodule DemoWeb.UserLive do
         align_label: :center
       },
       username: %{
-        module: Backpex.Fields.Text,
+        module: Text,
         label: "Username",
         searchable: true,
         panel: :names,
@@ -91,7 +105,7 @@ defmodule DemoWeb.UserLive do
         help_text: "Insert your username."
       },
       full_name: %{
-        module: Backpex.Fields.Text,
+        module: Text,
         label: "Full Name",
         searchable: true,
         except: [:edit, :new],
@@ -99,31 +113,31 @@ defmodule DemoWeb.UserLive do
         panel: :names
       },
       first_name: %{
-        module: Backpex.Fields.Text,
+        module: Text,
         label: "First Name",
         only: [:edit, :new],
         searchable: true,
         panel: :names
       },
       last_name: %{
-        module: Backpex.Fields.Text,
+        module: Text,
         label: "Last Name",
         only: [:edit, :new],
         searchable: true,
         panel: :names
       },
       age: %{
-        module: Backpex.Fields.Number,
+        module: Number,
         label: "Age"
       },
       role: %{
-        module: Backpex.Fields.Select,
+        module: Select,
         label: "Role",
         options: [Admin: "admin", User: "user"],
         prompt: "Choose role..."
       },
       posts: %{
-        module: Backpex.Fields.HasMany,
+        module: HasMany,
         label: "Posts",
         display_field: :title,
         orderable: false,
@@ -131,7 +145,7 @@ defmodule DemoWeb.UserLive do
         live_resource: DemoWeb.PostLive
       },
       addresses: %{
-        module: Backpex.Fields.HasManyThrough,
+        module: HasManyThrough,
         label: "Addresses",
         display_field: :full_address,
         except: [:index],
@@ -140,13 +154,13 @@ defmodule DemoWeb.UserLive do
         live_resource: DemoWeb.AddressLive,
         pivot_fields: [
           type: %{
-            module: Backpex.Fields.Select,
+            module: Select,
             label: "Address Type",
             options: [Shipping: "shipping", Billing: "billing"],
             prompt: "Choose address type..."
           },
           primary: %{
-            module: Backpex.Fields.Boolean,
+            module: Boolean,
             label: "Primary"
           }
         ],
@@ -159,45 +173,45 @@ defmodule DemoWeb.UserLive do
         end
       },
       social_links: %{
-        module: Backpex.Fields.InlineCRUD,
+        module: InlineCRUD,
         label: "Social links",
         type: :embed,
         except: [:index],
         child_fields: [
           label: %{
-            module: Backpex.Fields.Text,
+            module: Text,
             label: "Label",
             class: "w-1/3"
           },
           url: %{
-            module: Backpex.Fields.Text,
+            module: Text,
             label: "URL",
             class: "w-2/3"
           }
         ]
       },
       web_links: %{
-        module: Backpex.Fields.InlineCRUD,
+        module: InlineCRUD,
         label: "Web links",
         type: :embed,
         except: [:index],
         child_fields: [
           label: %{
-            module: Backpex.Fields.Text,
+            module: Text,
             label: "Label"
           },
           url: %{
-            module: Backpex.Fields.Text,
+            module: Text,
             label: "URL"
           },
           notes: %{
-            module: Backpex.Fields.Textarea,
+            module: Textarea,
             label: "Notes"
           }
         ]
       },
       permissions: %{
-        module: Backpex.Fields.MultiSelect,
+        module: MultiSelect,
         label: "Permissions",
         options: [
           {"Can access admin panel", "can_access_admin_panel"},
@@ -212,7 +226,7 @@ defmodule DemoWeb.UserLive do
   def metrics do
     [
       min_age: %{
-        module: Backpex.Metrics.Value,
+        module: Value,
         label: "Min age",
         class: "w-full lg:w-1/3",
         select: dynamic([u], min(u.age)),
@@ -221,7 +235,7 @@ defmodule DemoWeb.UserLive do
         end
       },
       max_age: %{
-        module: Backpex.Metrics.Value,
+        module: Value,
         label: "Max age",
         class: "w-full lg:w-1/3",
         select: dynamic([u], max(u.age)),

@@ -1,12 +1,16 @@
 defmodule DocTest do
   use ExUnit.Case, async: true
 
+  alias Backpex.Fields.Upload
+  alias Backpex.HTML.Layout
+  alias Backpex.HTML.Resource
+
   doctest Backpex.LiveResource
   doctest Backpex.ResourceAction
   doctest Backpex.Resource
   doctest Backpex.Router
-  doctest Backpex.Fields.Upload
+  doctest Upload
   doctest Backpex.HTML
-  doctest Backpex.HTML.Layout
-  doctest Backpex.HTML.Resource
+  doctest Layout
+  doctest Resource
 end

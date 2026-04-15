@@ -10,6 +10,10 @@ defmodule DemoWeb.ShortLinkLive do
     ],
     primary_key: :short_key
 
+  alias Backpex.Fields.BelongsTo
+  alias Backpex.Fields.Text
+  alias Backpex.Fields.URL
+
   @impl Backpex.LiveResource
   def layout(_assigns), do: {DemoWeb.Layouts, :admin}
 
@@ -34,16 +38,16 @@ defmodule DemoWeb.ShortLinkLive do
   def fields do
     [
       short_key: %{
-        module: Backpex.Fields.Text,
+        module: Text,
         label: "URL Suffix"
       },
       url: %{
-        module: Backpex.Fields.URL,
+        module: URL,
         label: "URL",
         placeholder: "https://example.com"
       },
       product: %{
-        module: Backpex.Fields.BelongsTo,
+        module: BelongsTo,
         label: "Product",
         display_field: :name,
         prompt: "Choose product..."

@@ -5,6 +5,9 @@ defmodule DemoWeb.ResourceActions.Email do
 
   import Ecto.Changeset
 
+  alias Backpex.Fields.MultiSelect
+  alias Backpex.Fields.Textarea
+
   @impl Backpex.ResourceAction
   def title, do: "Send email"
   @impl Backpex.ResourceAction
@@ -14,13 +17,13 @@ defmodule DemoWeb.ResourceActions.Email do
   def fields do
     [
       users: %{
-        module: Backpex.Fields.MultiSelect,
+        module: MultiSelect,
         label: "Users",
         options: fn _assigns -> [{"Alex", "user_id_alex"}, {"Bob", "user_id_bob"}] end,
         type: {:array, :string}
       },
       text: %{
-        module: Backpex.Fields.Textarea,
+        module: Textarea,
         label: "Text",
         type: :string
       }

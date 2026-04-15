@@ -9,6 +9,9 @@ defmodule DemoWeb.TagLive do
     init_order: %{by: :name, direction: :desc},
     on_mount: __MODULE__
 
+  alias Backpex.Fields.Text
+  alias DemoWeb.ItemActions.DuplicateTag
+
   def on_mount(:default, _params, _session, socket) do
     msg = """
     Hi there, this is a flash from #{inspect(__ENV__.function)}
@@ -32,7 +35,7 @@ defmodule DemoWeb.TagLive do
   def fields do
     [
       name: %{
-        module: Backpex.Fields.Text,
+        module: Text,
         label: "Name",
         searchable: true,
         placeholder: "Tag name"
@@ -50,7 +53,7 @@ defmodule DemoWeb.TagLive do
     Enum.concat(
       [
         duplicate: %{
-          module: DemoWeb.ItemActions.DuplicateTag,
+          module: DuplicateTag,
           only: [:row, :show]
         }
       ],

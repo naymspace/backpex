@@ -4,6 +4,7 @@ defmodule Backpex.Adapters.EctoTest do
   import Ecto.Query
 
   alias Backpex.Adapters.Ecto, as: EctoAdapter
+  alias Backpex.Fields.Text
 
   defmodule TestUser do
     use Ecto.Schema
@@ -68,7 +69,7 @@ defmodule Backpex.Adapters.EctoTest do
       base_query = from(TestUser, as: ^EctoAdapter.name_by_schema(TestUser))
 
       searchable_fields = [
-        {:title, %{module: Backpex.Fields.Text, queryable: TestUser}}
+        {:title, %{module: Text, queryable: TestUser}}
       ]
 
       query = EctoAdapter.apply_search(base_query, TestUser, nil, {"foo", searchable_fields})
@@ -84,8 +85,8 @@ defmodule Backpex.Adapters.EctoTest do
       base_query = from(TestUser, as: ^EctoAdapter.name_by_schema(TestUser))
 
       searchable_fields = [
-        {:title, %{module: Backpex.Fields.Text, queryable: TestUser}},
-        {:name, %{module: Backpex.Fields.Text, queryable: TestUser}}
+        {:title, %{module: Text, queryable: TestUser}},
+        {:name, %{module: Text, queryable: TestUser}}
       ]
 
       query = EctoAdapter.apply_search(base_query, TestUser, nil, {"bar", searchable_fields})
@@ -110,7 +111,7 @@ defmodule Backpex.Adapters.EctoTest do
       base_query = from(TestUser, as: ^EctoAdapter.name_by_schema(TestUser))
 
       searchable_fields = [
-        {:title, %{module: Backpex.Fields.Text, queryable: TestUser}}
+        {:title, %{module: Text, queryable: TestUser}}
       ]
 
       query = EctoAdapter.apply_search(base_query, TestUser, nil, {"", searchable_fields})
@@ -124,7 +125,7 @@ defmodule Backpex.Adapters.EctoTest do
       select_expr = dynamic([testuser: u], fragment("UPPER(?)", field(u, ^:name)))
 
       searchable_fields = [
-        {:name_display, %{module: Backpex.Fields.Text, select: select_expr}}
+        {:name_display, %{module: Text, select: select_expr}}
       ]
 
       query = EctoAdapter.apply_search(base_query, TestUser, nil, {"qux", searchable_fields})
@@ -167,7 +168,7 @@ defmodule Backpex.Adapters.EctoTest do
       base_query = from(TestUser, as: ^EctoAdapter.name_by_schema(TestUser))
 
       fields = [
-        {:name, %{module: Backpex.Fields.Text, queryable: TestUser}}
+        {:name, %{module: Text, queryable: TestUser}}
       ]
 
       criteria = [
@@ -184,7 +185,7 @@ defmodule Backpex.Adapters.EctoTest do
       base_query = from(TestUser, as: ^EctoAdapter.name_by_schema(TestUser))
 
       fields = [
-        {:name, %{module: Backpex.Fields.Text, queryable: TestUser}}
+        {:name, %{module: Text, queryable: TestUser}}
       ]
 
       criteria = [
@@ -203,7 +204,7 @@ defmodule Backpex.Adapters.EctoTest do
       select_expr = dynamic([testuser: u], fragment("UPPER(?)", field(u, ^:name)))
 
       fields = [
-        {:name, %{module: Backpex.Fields.Text, queryable: TestUser, select: select_expr}}
+        {:name, %{module: Text, queryable: TestUser, select: select_expr}}
       ]
 
       criteria = [
