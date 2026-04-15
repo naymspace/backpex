@@ -217,6 +217,12 @@ var tooltip_default = {
         this.tooltip = null;
       }
     }, { signal });
+    this.el.addEventListener("click", () => {
+      if (this.tooltip) {
+        this.tooltip.remove();
+        this.tooltip = null;
+      }
+    }, { signal });
     window.addEventListener("scroll", () => {
       this.updateTooltipPosition();
     }, { signal });

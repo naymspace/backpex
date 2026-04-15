@@ -32,6 +32,16 @@ export default {
       }
     }, { signal })
 
+    // Clicking the hooked element often shifts focus (opens a modal, triggers
+    // a server event) without moving the cursor off it, so mouseleave never
+    // fires. Clear the tooltip explicitly to avoid it lingering above the UI.
+    this.el.addEventListener('click', () => {
+      if (this.tooltip) {
+        this.tooltip.remove()
+        this.tooltip = null
+      }
+    }, { signal })
+
     window.addEventListener('scroll', () => { this.updateTooltipPosition() }, { signal })
   },
   destroyed () {
