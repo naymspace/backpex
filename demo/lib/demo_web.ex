@@ -25,8 +25,6 @@ defmodule DemoWeb do
 
       import Phoenix.Controller
       import Phoenix.LiveView.Router
-
-      # Import common connection and controller functions to use in pipelines
       import Plug.Conn
     end
   end
@@ -68,11 +66,9 @@ defmodule DemoWeb do
     quote do
       use Phoenix.Component
 
-      # Import convenience functions from controllers
       import Phoenix.Controller,
         only: [get_csrf_token: 0, view_module: 1, view_template: 1]
 
-      # Include general helpers for rendering HTML
       unquote(html_helpers())
     end
   end
@@ -82,15 +78,11 @@ defmodule DemoWeb do
       use Gettext, backend: DemoWeb.Gettext
 
       import DemoWeb.CoreComponents
-      # HTML escaping functionality
       import Phoenix.HTML
-      # Core UI components and translation
 
-      # Common modules used in templates
       alias DemoWeb.Layouts
       alias Phoenix.LiveView.JS
 
-      # Routes generation with the ~p sigil
       unquote(verified_routes())
     end
   end

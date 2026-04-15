@@ -25,10 +25,8 @@ defmodule DemoWeb.ConnCase do
       import Phoenix.ConnTest
       import PhoenixTest
       import Plug.Conn
-      # The default endpoint for testing
-      @endpoint DemoWeb.Endpoint
 
-      # Import conveniences for testing with connections
+      @endpoint DemoWeb.Endpoint
     end
   end
 
