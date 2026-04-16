@@ -24,7 +24,7 @@
   "devDependencies": {
     "@sentry/browser": "10.47.0",
     "npm-run-all2": "8.0.4",
-    "playwright": "1.59.0",
+    "playwright": "1.59.1",
     "postcss": "8.5.9",
     "standard": "17.1.2",
     "stylelint": "17.6.0",
