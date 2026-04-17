@@ -137,6 +137,9 @@ export default {
     this.sidebar.classList.toggle('-translate-x-full', !sidebarVisible)
     this.sidebar.classList.toggle('translate-x-0', sidebarVisible)
 
+    // Remove off-canvas sidebar from tab order and accessibility tree
+    this.sidebar.toggleAttribute('inert', !sidebarVisible)
+
     // Main content margin (desktop only, uses CSS variable)
     const showMargin = isDesktop && this.desktopOpen
     this.main.classList.toggle('ml-[var(--sidebar-width,16rem)]', showMargin)

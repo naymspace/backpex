@@ -174,6 +174,7 @@ var sidebar_default = {
     const sidebarVisible = isDesktop ? this.desktopOpen : this.mobileOpen;
     this.sidebar.classList.toggle("-translate-x-full", !sidebarVisible);
     this.sidebar.classList.toggle("translate-x-0", sidebarVisible);
+    this.sidebar.toggleAttribute("inert", !sidebarVisible);
     const showMargin = isDesktop && this.desktopOpen;
     this.main.classList.toggle("ml-[var(--sidebar-width,16rem)]", showMargin);
     this.main.classList.toggle("ml-0", !showMargin);
