@@ -24,6 +24,8 @@ export default {
     this.desktopOpen = this.loadDesktopState()
     // Element focused before the mobile drawer was opened, for focus restore.
     this.previousFocus = null
+    // Per-toggle click handlers, keyed off the toggle element (section dropdowns).
+    this._sectionHandlers = new WeakMap()
 
     // Apply initial state (CSS sets visible by default, JS hides on mobile)
     this.applyState()
@@ -70,9 +72,10 @@ export default {
     const sections = this.el.querySelectorAll('[data-section-id]')
     sections.forEach((section) => {
       const toggle = section.querySelector('[data-menu-dropdown-toggle]')
-      if (toggle?._handler) {
-        toggle.removeEventListener('click', toggle._handler)
-        delete toggle._handler
+      const handler = toggle && this._sectionHandlers.get(toggle)
+      if (handler) {
+        toggle.removeEventListener('click', handler)
+        this._sectionHandlers.delete(toggle)
       }
     })
   },
@@ -224,9 +227,11 @@ export default {
 
       section.classList.remove('hidden')
 
-      toggle.removeEventListener('click', toggle._handler)
-      toggle._handler = (e) => this.handleSectionToggle(e)
-      toggle.addEventListener('click', toggle._handler)
+      const previous = this._sectionHandlers.get(toggle)
+      if (previous) toggle.removeEventListener('click', previous)
+      const handler = (e) => this.handleSectionToggle(e)
+      this._sectionHandlers.set(toggle, handler)
+      toggle.addEventListener('click', handler)
     })
   },
 

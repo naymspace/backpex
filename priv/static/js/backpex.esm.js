@@ -68,6 +68,7 @@ var sidebar_default = {
     this.mobileOpen = false;
     this.desktopOpen = this.loadDesktopState();
     this.previousFocus = null;
+    this._sectionHandlers = /* @__PURE__ */ new WeakMap();
     this.applyState();
     requestAnimationFrame(() => {
       this.sidebar.removeAttribute("data-suppress-transition");
@@ -99,9 +100,10 @@ var sidebar_default = {
     const sections = this.el.querySelectorAll("[data-section-id]");
     sections.forEach((section) => {
       const toggle = section.querySelector("[data-menu-dropdown-toggle]");
-      if (toggle?._handler) {
-        toggle.removeEventListener("click", toggle._handler);
-        delete toggle._handler;
+      const handler = toggle && this._sectionHandlers.get(toggle);
+      if (handler) {
+        toggle.removeEventListener("click", handler);
+        this._sectionHandlers.delete(toggle);
       }
     });
   },
@@ -215,9 +217,11 @@ var sidebar_default = {
         toggle.setAttribute("aria-expanded", "true");
       }
       section.classList.remove("hidden");
-      toggle.removeEventListener("click", toggle._handler);
-      toggle._handler = (e) => this.handleSectionToggle(e);
-      toggle.addEventListener("click", toggle._handler);
+      const previous = this._sectionHandlers.get(toggle);
+      if (previous) toggle.removeEventListener("click", previous);
+      const handler = (e) => this.handleSectionToggle(e);
+      this._sectionHandlers.set(toggle, handler);
+      toggle.addEventListener("click", handler);
     });
   },
   hasContent(element) {
