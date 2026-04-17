@@ -76,14 +76,14 @@ var drag_hover_default = {
 
 // js/hooks/_preferences.js
 var BackpexPreferences = {
-  cookiePath: null,
+  endpointPath: null,
   csrfToken: null,
   /**
    * Initialize the preference manager.
    * Called by the LiveView hook on mount.
    */
-  init(cookiePath) {
-    this.cookiePath = cookiePath;
+  init(endpointPath) {
+    this.endpointPath = endpointPath;
     this.csrfToken = document.querySelector("meta[name='csrf-token']")?.content;
   },
   /**
@@ -101,15 +101,15 @@ var BackpexPreferences = {
    * Uses keepalive to ensure request completes even during page navigation.
    */
   persist(key, value) {
-    if (!this.cookiePath) {
-      console.warn("BackpexPreferences: cookiePath not initialized");
+    if (!this.endpointPath) {
+      console.warn("BackpexPreferences: endpointPath not initialized");
       return;
     }
     if (!this.csrfToken) {
       console.warn("BackpexPreferences: CSRF token not found");
       return;
     }
-    fetch(this.cookiePath, {
+    fetch(this.endpointPath, {
       method: "POST",
       keepalive: true,
       headers: {
