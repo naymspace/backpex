@@ -31,7 +31,8 @@
   "standard": {
     "globals": [
       "localStorage",
-      "IntersectionObserver"
+      "IntersectionObserver",
+      "requestAnimationFrame"
     ]
   },
   "devDependencies": {
