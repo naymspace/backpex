@@ -25,6 +25,13 @@ export default {
     // Apply initial state (CSS sets visible by default, JS hides on mobile)
     this.applyState()
 
+    // Re-enable transitions on the next frame so the initial snap to the
+    // stored desktop preference doesn't animate on first paint.
+    requestAnimationFrame(() => {
+      this.sidebar.removeAttribute('data-suppress-transition')
+      this.main.removeAttribute('data-suppress-transition')
+    })
+
     // Event listeners
     this.toggleBtn.addEventListener('click', () => this.handleToggle())
     this.overlay.addEventListener('click', () => this.closeMobile())
@@ -133,17 +140,17 @@ export default {
     const isDesktop = this.isDesktop()
     const sidebarVisible = isDesktop ? this.desktopOpen : this.mobileOpen
 
-    // Sidebar transform
-    this.sidebar.classList.toggle('-translate-x-full', !sidebarVisible)
-    this.sidebar.classList.toggle('translate-x-0', sidebarVisible)
+    // Sidebar transform (inline style wins over responsive Tailwind classes)
+    this.sidebar.style.transform = sidebarVisible
+      ? 'translateX(0)'
+      : 'translateX(-100%)'
 
     // Remove off-canvas sidebar from tab order and accessibility tree
     this.sidebar.toggleAttribute('inert', !sidebarVisible)
 
     // Main content margin (desktop only, uses CSS variable)
     const showMargin = isDesktop && this.desktopOpen
-    this.main.classList.toggle('ml-[var(--sidebar-width,16rem)]', showMargin)
-    this.main.classList.toggle('ml-0', !showMargin)
+    this.main.style.marginLeft = showMargin ? 'var(--sidebar-width, 16rem)' : '0'
 
     // Overlay (mobile only)
     const showOverlay = !isDesktop && this.mobileOpen

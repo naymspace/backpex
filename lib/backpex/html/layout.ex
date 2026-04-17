@@ -49,11 +49,13 @@ defmodule Backpex.HTML.Layout do
       <aside
         :if={@sidebar != []}
         id="backpex-sidebar"
+        data-suppress-transition
         class={[
           "fixed inset-y-0 left-0 z-40 flex w-[var(--sidebar-width,16rem)] flex-col",
           "bg-base-100 border-base-300 border-r",
+          "-translate-x-full md:translate-x-0",
           "transition-transform duration-300 ease-in-out",
-          "translate-x-0",
+          "data-[suppress-transition]:transition-none",
           build_slot_class(@sidebar)
         ]}
         aria-label={Backpex.__("Main navigation", @live_resource)}
@@ -73,9 +75,12 @@ defmodule Backpex.HTML.Layout do
       <%!-- Main container --%>
       <div
         id="backpex-main"
+        data-suppress-transition
         class={[
           "flex min-h-screen flex-col",
-          "transition-[margin] duration-300 ease-in-out"
+          "md:ml-[var(--sidebar-width,16rem)]",
+          "transition-[margin] duration-300 ease-in-out",
+          "data-[suppress-transition]:transition-none"
         ]}
       >
         <%!-- Background --%>

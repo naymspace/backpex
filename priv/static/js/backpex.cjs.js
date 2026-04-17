@@ -87,6 +87,10 @@ var sidebar_default = {
     this.desktopOpen = this.loadDesktopState();
     this.previousFocus = null;
     this.applyState();
+    requestAnimationFrame(() => {
+      this.sidebar.removeAttribute("data-suppress-transition");
+      this.main.removeAttribute("data-suppress-transition");
+    });
     this.toggleBtn.addEventListener("click", () => this.handleToggle());
     this.overlay.addEventListener("click", () => this.closeMobile());
     this.mediaQuery = window.matchMedia(
@@ -172,12 +176,10 @@ var sidebar_default = {
   applyState() {
     const isDesktop = this.isDesktop();
     const sidebarVisible = isDesktop ? this.desktopOpen : this.mobileOpen;
-    this.sidebar.classList.toggle("-translate-x-full", !sidebarVisible);
-    this.sidebar.classList.toggle("translate-x-0", sidebarVisible);
+    this.sidebar.style.transform = sidebarVisible ? "translateX(0)" : "translateX(-100%)";
     this.sidebar.toggleAttribute("inert", !sidebarVisible);
     const showMargin = isDesktop && this.desktopOpen;
-    this.main.classList.toggle("ml-[var(--sidebar-width,16rem)]", showMargin);
-    this.main.classList.toggle("ml-0", !showMargin);
+    this.main.style.marginLeft = showMargin ? "var(--sidebar-width, 16rem)" : "0";
     const showOverlay = !isDesktop && this.mobileOpen;
     this.overlay.classList.toggle("opacity-0", !showOverlay);
     this.overlay.classList.toggle("pointer-events-none", !showOverlay);
