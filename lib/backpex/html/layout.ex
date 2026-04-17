@@ -50,7 +50,7 @@ defmodule Backpex.HTML.Layout do
       phx-hook={@sidebar != [] && "BackpexSidebar"}
     >
       <%!-- Sidebar (single element for both mobile and desktop) --%>
-      <aside
+      <nav
         :if={@sidebar != []}
         id="backpex-sidebar"
         data-suppress-transition
@@ -65,7 +65,7 @@ defmodule Backpex.HTML.Layout do
         aria-label={Backpex.__("Main navigation", @live_resource)}
       >
         {render_slot(@sidebar)}
-      </aside>
+      </nav>
 
       <%!-- Overlay for mobile --%>
       <div
