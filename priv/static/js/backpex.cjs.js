@@ -77,6 +77,7 @@ var drag_hover_default = {
 var sidebar_default = {
   MOBILE_BREAKPOINT: 768,
   STORAGE_KEY: "backpex-sidebar-open",
+  FOCUSABLE_SELECTOR: 'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])',
   mounted() {
     this.sidebar = document.getElementById("backpex-sidebar");
     this.overlay = document.getElementById("backpex-sidebar-overlay");
@@ -84,6 +85,7 @@ var sidebar_default = {
     this.toggleBtn = document.getElementById("backpex-sidebar-toggle");
     this.mobileOpen = false;
     this.desktopOpen = this.loadDesktopState();
+    this.previousFocus = null;
     this.applyState();
     this.toggleBtn.addEventListener("click", () => this.handleToggle());
     this.overlay.addEventListener("click", () => this.closeMobile());
@@ -106,9 +108,11 @@ var sidebar_default = {
       this.desktopOpen = !this.desktopOpen;
       this.saveDesktopState();
     } else {
+      if (!this.mobileOpen) this.previousFocus = document.activeElement;
       this.mobileOpen = !this.mobileOpen;
     }
     this.applyState();
+    if (!this.isDesktop() && this.mobileOpen) this.focusFirstInSidebar();
   },
   loadDesktopState() {
     const stored = localStorage.getItem(this.STORAGE_KEY);
@@ -118,19 +122,52 @@ var sidebar_default = {
     localStorage.setItem(this.STORAGE_KEY, this.desktopOpen.toString());
   },
   closeMobile() {
+    const wasOpen = this.mobileOpen;
     this.mobileOpen = false;
     this.applyState();
+    if (wasOpen) this.restorePreviousFocus();
   },
   handleResize(event) {
     if (event.matches) {
       this.mobileOpen = false;
+      this.previousFocus = null;
     }
     this.applyState();
   },
   handleKeydown(event) {
-    if (event.key === "Escape" && this.mobileOpen && !this.isDesktop()) {
+    if (!this.mobileOpen || this.isDesktop()) return;
+    if (event.key === "Escape") {
       this.closeMobile();
+      return;
     }
+    if (event.key === "Tab") this.trapTab(event);
+  },
+  trapTab(event) {
+    const focusable = this.sidebar.querySelectorAll(this.FOCUSABLE_SELECTOR);
+    if (focusable.length === 0) {
+      event.preventDefault();
+      return;
+    }
+    const first = focusable[0];
+    const last = focusable[focusable.length - 1];
+    const active = document.activeElement;
+    if (event.shiftKey && (active === first || !this.sidebar.contains(active))) {
+      event.preventDefault();
+      last.focus();
+    } else if (!event.shiftKey && active === last) {
+      event.preventDefault();
+      first.focus();
+    }
+  },
+  focusFirstInSidebar() {
+    const focusable = this.sidebar.querySelector(this.FOCUSABLE_SELECTOR);
+    if (focusable) focusable.focus();
+  },
+  restorePreviousFocus() {
+    if (this.previousFocus && document.contains(this.previousFocus)) {
+      this.previousFocus.focus();
+    }
+    this.previousFocus = null;
   },
   applyState() {
     const isDesktop = this.isDesktop();
@@ -146,6 +183,13 @@ var sidebar_default = {
     this.overlay.classList.toggle("opacity-100", showOverlay);
     this.overlay.classList.toggle("pointer-events-auto", showOverlay);
     this.toggleBtn.setAttribute("aria-expanded", sidebarVisible.toString());
+    if (!isDesktop && this.mobileOpen) {
+      this.sidebar.setAttribute("role", "dialog");
+      this.sidebar.setAttribute("aria-modal", "true");
+    } else {
+      this.sidebar.removeAttribute("role");
+      this.sidebar.removeAttribute("aria-modal");
+    }
   },
   // Sidebar Sections
   initializeSections() {
