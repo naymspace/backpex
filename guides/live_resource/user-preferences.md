@@ -68,15 +68,15 @@ the session; every setting is routed independently.
 Every key Backpex reads or writes is listed here. Third-party code should
 prefix its own keys with `custom.` to avoid colliding with Backpex.
 
-| Key                                        | Type     | Read at                                                  | Written at                                                   | Opt-in?                                                        |
-|--------------------------------------------|----------|----------------------------------------------------------|--------------------------------------------------------------|----------------------------------------------------------------|
-| `global.theme`                             | string   | `Backpex.InitAssigns`                                    | JS theme selector (`Backpex.ThemeSelectorPlug`)              | always on                                                      |
-| `global.sidebar_open`                      | boolean  | `Backpex.InitAssigns`                                    | JS sidebar toggle                                            | always on                                                      |
-| `global.sidebar_section.<id>`              | boolean  | `Backpex.InitAssigns` (via `get_map/3`)                  | JS sidebar section toggle                                    | always on                                                      |
-| `resource:<Module>:columns`                | map      | `Backpex.LiveResource.Index` at mount                    | `toggle_column` event in `Backpex.LiveResource.Index`        | `persist: [:columns]`                                          |
-| `resource:<Module>:metrics_visible`        | boolean  | `Backpex.LiveResource.Index` at mount                    | `toggle_metrics` event in `Backpex.LiveResource.Index`       | always on                                                      |
-| `resource:<Module>:order`                  | map      | `Backpex.LiveResource.Index` at mount (fallback)         | `handle_params` in `Backpex.LiveResource.Index` (on change)  | `persist: [:order]`                                            |
-| `resource:<Module>:filters`                | map      | `Backpex.LiveResource.Index` at mount (fallback)         | `handle_params` in `Backpex.LiveResource.Index` (on change)  | `persist: [:filters]`                                          |
+| Key                                        | Type     | Read at                                  | Written at                            | Opt-in?                 |
+|--------------------------------------------|----------|------------------------------------------|---------------------------------------|-------------------------|
+| `global.theme`                             | string   | `Backpex.InitAssigns`                    | JS theme selector                     | always on               |
+| `global.sidebar_open`                      | boolean  | `Backpex.InitAssigns`                    | JS sidebar toggle                     | always on               |
+| `global.sidebar_section.<id>`              | boolean  | `Backpex.InitAssigns` (via `get_map/3`)  | JS sidebar section toggle             | always on               |
+| `resource:<Module>:columns`                | map      | Index view mount                         | `toggle_column` event                 | `persist: [:columns]`   |
+| `resource:<Module>:metrics_visible`        | boolean  | Index view mount                         | `toggle_metrics` event                | always on               |
+| `resource:<Module>:order`                  | map      | Index view mount (fallback)              | `handle_params` (on change)           | `persist: [:order]`     |
+| `resource:<Module>:filters`                | map      | Index view mount (fallback)              | `handle_params` (on change)           | `persist: [:filters]`   |
 
 Keys with embedded module names use `:` as a separator so module-name dots
 (e.g. `MyApp.MyLive`) don't create extra path segments. See
