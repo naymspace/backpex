@@ -4,7 +4,7 @@
     {
       "name": "Demo App (Phoenix LiveView)",
       "runtimeExecutable": "docker",
-      "runtimeArgs": ["compose", "up", "app"],
+      "runtimeArgs": ["compose", "up"],
       "port": 4000
     }
   ]
