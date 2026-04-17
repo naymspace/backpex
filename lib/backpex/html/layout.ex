@@ -58,7 +58,7 @@ defmodule Backpex.HTML.Layout do
           "fixed inset-y-0 left-0 z-40 flex w-[var(--sidebar-width,16rem)] flex-col",
           "bg-base-100 border-base-300 border-r",
           "-translate-x-full md:translate-x-0",
-          "transition-transform duration-300 ease-in-out",
+          "motion-safe:transition-transform motion-safe:duration-300 motion-safe:ease-in-out",
           "data-[suppress-transition]:transition-none",
           build_slot_class(@sidebar)
         ]}
@@ -71,7 +71,7 @@ defmodule Backpex.HTML.Layout do
       <div
         :if={@sidebar != []}
         id="backpex-sidebar-overlay"
-        class="fixed inset-0 z-30 bg-black/50 opacity-0 pointer-events-none transition-opacity duration-300 md:hidden"
+        class="fixed inset-0 z-30 bg-black/50 opacity-0 pointer-events-none motion-safe:transition-opacity motion-safe:duration-300 md:hidden"
         aria-hidden="true"
       >
       </div>
@@ -83,7 +83,7 @@ defmodule Backpex.HTML.Layout do
         class={[
           "flex min-h-screen flex-col",
           "md:ml-[var(--sidebar-width,16rem)]",
-          "transition-[margin] duration-300 ease-in-out",
+          "motion-safe:transition-[margin] motion-safe:duration-300 motion-safe:ease-in-out",
           "data-[suppress-transition]:transition-none"
         ]}
       >
