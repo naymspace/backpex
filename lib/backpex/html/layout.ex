@@ -44,7 +44,11 @@ defmodule Backpex.HTML.Layout do
 
   def app_shell(assigns) do
     ~H"""
-    <div id="backpex-app-shell" class={["min-h-screen", @class]} phx-hook="BackpexSidebar">
+    <div
+      id="backpex-app-shell"
+      class={["min-h-screen", @class]}
+      phx-hook={@sidebar != [] && "BackpexSidebar"}
+    >
       <%!-- Sidebar (single element for both mobile and desktop) --%>
       <aside
         :if={@sidebar != []}

@@ -83,6 +83,7 @@ var sidebar_default = {
     this.overlay = document.getElementById("backpex-sidebar-overlay");
     this.main = document.getElementById("backpex-main");
     this.toggleBtn = document.getElementById("backpex-sidebar-toggle");
+    if (!this.sidebar || !this.toggleBtn) return;
     this.mobileOpen = false;
     this.desktopOpen = this.loadDesktopState();
     this.previousFocus = null;
@@ -105,6 +106,7 @@ var sidebar_default = {
     this.initializeSections();
   },
   updated() {
+    if (!this.sidebar || !this.toggleBtn) return;
     this.applyState();
     this.initializeSections();
   },

@@ -16,6 +16,9 @@ export default {
     this.main = document.getElementById('backpex-main')
     this.toggleBtn = document.getElementById('backpex-sidebar-toggle')
 
+    // No sidebar slot rendered; hook has nothing to do.
+    if (!this.sidebar || !this.toggleBtn) return
+
     // State: mobile closed by default, desktop state from localStorage (default open)
     this.mobileOpen = false
     this.desktopOpen = this.loadDesktopState()
@@ -53,6 +56,7 @@ export default {
   },
 
   updated () {
+    if (!this.sidebar || !this.toggleBtn) return
     this.applyState()
     this.initializeSections()
   },
