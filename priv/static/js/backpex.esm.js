@@ -142,7 +142,10 @@ var sidebar_default = {
       const isOpen = localStorage.getItem(`sidebar-section-${sectionId}`) === "true";
       if (!isOpen) {
         toggle.classList.remove("menu-dropdown-show");
+        toggle.setAttribute("aria-expanded", "false");
         content.style.display = "none";
+      } else {
+        toggle.setAttribute("aria-expanded", "true");
       }
       section.classList.remove("hidden");
       toggle.removeEventListener("click", toggle._handler);
@@ -170,6 +173,7 @@ var sidebar_default = {
     toggle.classList.toggle("menu-dropdown-show");
     content.style.display = content.style.display === "none" ? "block" : "none";
     const isNowOpen = toggle.classList.contains("menu-dropdown-show");
+    toggle.setAttribute("aria-expanded", isNowOpen.toString());
     localStorage.setItem(`sidebar-section-${sectionId}`, isNowOpen);
   }
 };

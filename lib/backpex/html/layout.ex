@@ -483,12 +483,20 @@ defmodule Backpex.HTML.Layout do
   slot :label, required: true, doc: "label to be displayed on the section."
 
   def sidebar_section(assigns) do
+    assigns = assign(assigns, :content_id, "sidebar-section-#{assigns.id}-content")
+
     ~H"""
     <li data-section-id={@id} class={["hidden", @class]}>
-      <span data-menu-dropdown-toggle class="menu-dropdown-toggle menu-dropdown-show">
+      <button
+        type="button"
+        data-menu-dropdown-toggle
+        class="menu-dropdown-toggle menu-dropdown-show"
+        aria-expanded="true"
+        aria-controls={@content_id}
+      >
         {render_slot(@label)}
-      </span>
-      <ul data-menu-dropdown-content class="menu-dropdown menu-dropdown-show">
+      </button>
+      <ul id={@content_id} data-menu-dropdown-content class="menu-dropdown menu-dropdown-show">
         {render_slot(@inner_block)}
       </ul>
     </li>
