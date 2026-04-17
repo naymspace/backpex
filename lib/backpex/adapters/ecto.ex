@@ -128,7 +128,7 @@ defmodule Backpex.Adapters.Ecto do
     |> maybe_preload(associations, fields)
     |> maybe_merge_dynamic_fields(fields)
     |> apply_search(schema, full_text_search, criteria[:search])
-    |> apply_filters(criteria[:filters], Backpex.LiveResource.empty_filter_key(), assigns)
+    |> apply_filters(criteria[:filter_values], criteria[:filter_configs], assigns)
     |> apply_criteria(criteria, fields)
   end
 
@@ -178,17 +178,24 @@ defmodule Backpex.Adapters.Ecto do
     dynamic(^field_options.module.search_condition(schema_name, field_name, search_string))
   end
 
-  def apply_filters(query, [], _empty_filter_key, _assigns), do: query
+  @doc """
+  Applies validated filters to the query.
 
-  def apply_filters(query, filters, empty_filter_key, assigns) do
-    Enum.reduce(filters, query, fn
-      %{field: ^empty_filter_key} = _filter, acc ->
-        acc
-
-      %{field: field, value: value, filter_config: filter_config} = _filter, acc ->
-        filter_config.module.query(acc, field, value, assigns)
+  Receives a map of validated filter values and the filter configurations keyword list.
+  For each filter value, looks up the corresponding filter config and invokes
+  the filter's query/4 callback with the already-validated and casted value.
+  """
+  def apply_filters(query, filter_values, filter_configs, assigns)
+      when is_map(filter_values) and is_list(filter_configs) do
+    Enum.reduce(filter_values, query, fn {field, value}, acc ->
+      case Keyword.get(filter_configs, field) do
+        nil -> acc
+        filter_config -> filter_config.module.query(acc, field, value, assigns)
+      end
     end)
   end
+
+  def apply_filters(query, _filter_values, _filter_configs, _assigns), do: query
 
   def apply_criteria(query, [], _fields), do: query
 
@@ -301,7 +308,7 @@ defmodule Backpex.Adapters.Ecto do
   def change(item, attrs, fields, assigns, live_resource, opts) do
     repo = live_resource.adapter_config(:repo)
     assocs = Keyword.get(opts, :assocs, [])
-    target = Keyword.get(opts, :target, nil)
+    target = Keyword.get(opts, :target)
     action = Keyword.get(opts, :action, :validate)
     metadata = Backpex.Resource.build_changeset_metadata(assigns, target)
     changeset_function = get_changeset_function(assigns.live_action, live_resource, assigns)

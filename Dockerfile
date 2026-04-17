@@ -3,11 +3,11 @@
 ########################################################################
 
 # renovate: datasource=github-tags depName=elixir packageName=elixir-lang/elixir versioning=semver
-ARG ELIXIR_VERSION=1.19.4
+ARG ELIXIR_VERSION=1.19.5
 # renovate: datasource=github-tags depName=erlang packageName=erlang/otp versioning=regex:^(?<major>\d+?)\.(?<minor>\d+?)(\.(?<patch>\d+))?$ extractVersion=^OTP-(?<version>\S+)
-ARG OTP_VERSION=28.3
+ARG OTP_VERSION=28.4.1
 # renovate: datasource=docker depName=ubuntu packageName=ubuntu versioning=ubuntu
-ARG UBUNTU_VERSION=noble-20251013
+ARG UBUNTU_VERSION=noble-20260217
 
 ARG BUILDER_IMAGE="hexpm/elixir:${ELIXIR_VERSION}-erlang-${OTP_VERSION}-ubuntu-${UBUNTU_VERSION}"
 ARG RUNTIME_IMAGE="ubuntu:${UBUNTU_VERSION}"

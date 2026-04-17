@@ -1,7 +1,7 @@
 defmodule Backpex.MixProject do
   use Mix.Project
 
-  @version "0.17.1"
+  @version "0.18.0"
 
   @source_url "https://github.com/naymspace/backpex"
   @changelog_url "https://github.com/naymspace/backpex/releases"
@@ -37,7 +37,7 @@ defmodule Backpex.MixProject do
   defp deps do
     [
       # development
-      {:ex_doc, "~> 0.39", only: [:dev, :test], runtime: false},
+      {:ex_doc, "~> 0.40", only: [:dev, :test], runtime: false},
       {:makeup_eex, "~> 2.0", only: [:dev, :test], runtime: false},
       {:makeup_syntect, "~> 0.1.3", only: [:dev, :test], runtime: false},
       {:credo, ">= 0.0.0", only: [:dev, :test], runtime: false},
@@ -142,11 +142,15 @@ defmodule Backpex.MixProject do
       # Get Started
       "guides/get_started/installation.md",
 
+      # AI Assisted Development
+      "guides/ai_development/ai-development.md",
+
       # Live Resource
       "guides/live_resource/what-is-a-live-resource.md",
       "guides/live_resource/templates.md",
       "guides/live_resource/item-query.md",
       "guides/live_resource/ordering.md",
+      "guides/live_resource/pagination.md",
       "guides/live_resource/on_mount-hook.md",
       "guides/live_resource/hooks.md",
       "guides/live_resource/navigation.md",
@@ -174,6 +178,7 @@ defmodule Backpex.MixProject do
       "guides/filter/what-is-a-filter.md",
       "guides/filter/how-to-add-a-filter.md",
       "guides/filter/filter-presets.md",
+      "guides/filter/filter-validation.md",
       "guides/filter/custom-filter.md",
       "guides/filter/visibility-and-authorization.md",
 
@@ -193,6 +198,7 @@ defmodule Backpex.MixProject do
       "guides/translations/translations.md",
 
       # Upgrade Guides
+      "guides/upgrading/v0.19.md",
       "guides/upgrading/v0.18.md",
       "guides/upgrading/v0.17.md",
       "guides/upgrading/v0.16.md",
@@ -217,6 +223,7 @@ defmodule Backpex.MixProject do
       Introduction: ~r/README/,
       About: ~r/guides\/about\/.?/,
       "Get Started": ~r/guides\/get_started\/.?/,
+      "AI Assisted Development": ~r/guides\/ai_development\/.?/,
       "Live Resource": ~r/guides\/live_resource\/.?/,
       Fields: ~r/guides\/fields\/.?/,
       Filter: ~r/guides\/filter\/.?/,

@@ -134,69 +134,136 @@ var preferences_default = BackpexPreferencesHook;
 
 // js/hooks/_sidebar.js
 var sidebar_default = {
-  MOBILE_BREAKPOINT: 768,
+  FOCUSABLE_SELECTOR: 'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])',
   mounted() {
     this.sidebar = document.getElementById("backpex-sidebar");
     this.overlay = document.getElementById("backpex-sidebar-overlay");
     this.main = document.getElementById("backpex-main");
     this.toggleBtn = document.getElementById("backpex-sidebar-toggle");
+    if (!this.sidebar || !this.toggleBtn) return;
     this.mobileOpen = false;
     this.desktopOpen = this.el.dataset.sidebarOpen === "true";
+    this.previousFocus = null;
+    this._sectionHandlers = /* @__PURE__ */ new WeakMap();
+    const breakpoint = getComputedStyle(document.documentElement).getPropertyValue("--breakpoint-lg").trim() || "64rem";
+    this.mediaQuery = window.matchMedia(`(min-width: ${breakpoint})`);
     this.applyState();
-    this.toggleBtn.addEventListener("click", () => this.handleToggle());
-    this.overlay.addEventListener("click", () => this.closeMobile());
-    this.mediaQuery = window.matchMedia(
-      `(min-width: ${this.MOBILE_BREAKPOINT}px)`
-    );
-    this.mediaQuery.addEventListener("change", (e) => this.handleResize(e));
-    document.addEventListener("keydown", (e) => this.handleKeydown(e));
+    requestAnimationFrame(() => {
+      this.sidebar.removeAttribute("data-suppress-transition");
+      this.main.removeAttribute("data-suppress-transition");
+    });
+    this._onToggleClick = () => this.handleToggle();
+    this._onOverlayClick = () => this.closeMobile();
+    this._onMediaChange = (e) => this.handleResize(e);
+    this._onKeydown = (e) => this.handleKeydown(e);
+    this.toggleBtn.addEventListener("click", this._onToggleClick);
+    this.overlay.addEventListener("click", this._onOverlayClick);
+    this.mediaQuery.addEventListener("change", this._onMediaChange);
+    document.addEventListener("keydown", this._onKeydown);
     this.initializeSections();
   },
   updated() {
+    if (!this.sidebar || !this.toggleBtn) return;
     this.applyState();
     this.initializeSections();
   },
+  destroyed() {
+    this.toggleBtn?.removeEventListener("click", this._onToggleClick);
+    this.overlay?.removeEventListener("click", this._onOverlayClick);
+    this.mediaQuery?.removeEventListener("change", this._onMediaChange);
+    document.removeEventListener("keydown", this._onKeydown);
+    const sections = this.el.querySelectorAll("[data-section-id]");
+    sections.forEach((section) => {
+      const toggle = section.querySelector("[data-menu-dropdown-toggle]");
+      const handler = toggle && this._sectionHandlers.get(toggle);
+      if (handler) {
+        toggle.removeEventListener("click", handler);
+        this._sectionHandlers.delete(toggle);
+      }
+    });
+  },
   isDesktop() {
-    return window.innerWidth >= this.MOBILE_BREAKPOINT;
+    return this.mediaQuery.matches;
   },
   handleToggle() {
     if (this.isDesktop()) {
       this.desktopOpen = !this.desktopOpen;
       BackpexPreferences.set("global.sidebar_open", this.desktopOpen);
     } else {
+      if (!this.mobileOpen) this.previousFocus = document.activeElement;
       this.mobileOpen = !this.mobileOpen;
     }
     this.applyState();
+    if (!this.isDesktop() && this.mobileOpen) this.focusFirstInSidebar();
   },
   closeMobile() {
+    const wasOpen = this.mobileOpen;
     this.mobileOpen = false;
     this.applyState();
+    if (wasOpen) this.restorePreviousFocus();
   },
   handleResize(event) {
     if (event.matches) {
       this.mobileOpen = false;
+      this.previousFocus = null;
     }
     this.applyState();
   },
   handleKeydown(event) {
-    if (event.key === "Escape" && this.mobileOpen && !this.isDesktop()) {
+    if (!this.mobileOpen || this.isDesktop()) return;
+    if (event.key === "Escape") {
       this.closeMobile();
+      return;
     }
+    if (event.key === "Tab") this.trapTab(event);
+  },
+  trapTab(event) {
+    const focusable = this.sidebar.querySelectorAll(this.FOCUSABLE_SELECTOR);
+    if (focusable.length === 0) {
+      event.preventDefault();
+      return;
+    }
+    const first = focusable[0];
+    const last = focusable[focusable.length - 1];
+    const active = document.activeElement;
+    if (event.shiftKey && (active === first || !this.sidebar.contains(active))) {
+      event.preventDefault();
+      last.focus();
+    } else if (!event.shiftKey && active === last) {
+      event.preventDefault();
+      first.focus();
+    }
+  },
+  focusFirstInSidebar() {
+    const focusable = this.sidebar.querySelector(this.FOCUSABLE_SELECTOR);
+    if (focusable) focusable.focus();
+  },
+  restorePreviousFocus() {
+    if (this.previousFocus && document.contains(this.previousFocus)) {
+      this.previousFocus.focus();
+    }
+    this.previousFocus = null;
   },
   applyState() {
     const isDesktop = this.isDesktop();
     const sidebarVisible = isDesktop ? this.desktopOpen : this.mobileOpen;
-    this.sidebar.classList.toggle("-translate-x-full", !sidebarVisible);
-    this.sidebar.classList.toggle("translate-x-0", sidebarVisible);
+    this.sidebar.style.translate = sidebarVisible ? "0" : "-100%";
+    this.sidebar.toggleAttribute("inert", !sidebarVisible);
     const showMargin = isDesktop && this.desktopOpen;
-    this.main.classList.toggle("ml-(--sidebar-width)", showMargin);
-    this.main.classList.toggle("ml-0", !showMargin);
+    this.main.style.marginLeft = showMargin ? "var(--sidebar-width, 16rem)" : "0";
     const showOverlay = !isDesktop && this.mobileOpen;
     this.overlay.classList.toggle("opacity-0", !showOverlay);
     this.overlay.classList.toggle("pointer-events-none", !showOverlay);
     this.overlay.classList.toggle("opacity-100", showOverlay);
     this.overlay.classList.toggle("pointer-events-auto", showOverlay);
     this.toggleBtn.setAttribute("aria-expanded", sidebarVisible.toString());
+    if (!isDesktop && this.mobileOpen) {
+      this.sidebar.setAttribute("role", "dialog");
+      this.sidebar.setAttribute("aria-modal", "true");
+    } else {
+      this.sidebar.removeAttribute("role");
+      this.sidebar.removeAttribute("aria-modal");
+    }
   },
   // Sidebar Sections
   initializeSections() {
@@ -208,9 +275,12 @@ var sidebar_default = {
         section.style.display = "none";
         return;
       }
-      toggle.removeEventListener("click", toggle._handler);
-      toggle._handler = (e) => this.handleSectionToggle(e);
-      toggle.addEventListener("click", toggle._handler);
+      section.classList.remove("hidden");
+      const previous = this._sectionHandlers.get(toggle);
+      if (previous) toggle.removeEventListener("click", previous);
+      const handler = (e) => this.handleSectionToggle(e);
+      this._sectionHandlers.set(toggle, handler);
+      toggle.addEventListener("click", handler);
     });
   },
   hasContent(element) {
@@ -233,6 +303,7 @@ var sidebar_default = {
     toggle.classList.toggle("menu-dropdown-show");
     content.style.display = content.style.display === "none" ? "block" : "none";
     const isNowOpen = toggle.classList.contains("menu-dropdown-show");
+    toggle.setAttribute("aria-expanded", isNowOpen.toString());
     BackpexPreferences.set(`global.sidebar_section.${sectionId}`, isNowOpen);
   }
 };

@@ -15,7 +15,7 @@ defmodule Backpex.HTML.Layout do
   slot :inner_content
 
   def layout(assigns) do
-    case assigns.live_resource.config(:layout) do
+    case assigns.live_resource.layout(assigns) do
       {module, fun} -> apply(module, fun, [assigns])
       fun when is_function(fun, 1) -> fun.(assigns)
     end
@@ -49,7 +49,7 @@ defmodule Backpex.HTML.Layout do
     <div
       id="backpex-app-shell"
       class={["min-h-screen", @class]}
-      phx-hook="BackpexSidebar"
+      phx-hook={@sidebar != [] && "BackpexSidebar"}
       data-sidebar-open={to_string(@sidebar_open)}
     >
       <div
@@ -60,27 +60,29 @@ defmodule Backpex.HTML.Layout do
       >
       </div>
       <%!-- Sidebar (single element for both mobile and desktop) --%>
-      <aside
+      <nav
         :if={@sidebar != []}
         id="backpex-sidebar"
+        data-suppress-transition
         class={[
-          "fixed inset-y-0 left-0 z-40 flex w-(--sidebar-width) flex-col",
+          "fixed inset-y-0 left-0 z-40 flex w-[var(--sidebar-width,16rem)] flex-col",
           "bg-base-100 border-base-300 border-r",
-          "transition-transform duration-300 ease-in-out",
-          @sidebar_open && "translate-x-0",
-          !@sidebar_open && "-translate-x-full",
+          "-translate-x-full",
+          @sidebar_open && "lg:translate-x-0",
+          "motion-safe:transition-transform motion-safe:duration-300 motion-safe:ease-in-out",
+          "data-[suppress-transition]:transition-none",
           build_slot_class(@sidebar)
         ]}
         aria-label={Backpex.__("Main navigation", @live_resource)}
       >
         {render_slot(@sidebar)}
-      </aside>
+      </nav>
 
       <%!-- Overlay for mobile --%>
       <div
         :if={@sidebar != []}
         id="backpex-sidebar-overlay"
-        class="fixed inset-0 z-30 bg-black/50 opacity-0 pointer-events-none transition-opacity duration-300 md:hidden"
+        class="fixed inset-0 z-30 bg-neutral/50 opacity-0 pointer-events-none motion-safe:transition-opacity motion-safe:duration-300 lg:hidden"
         aria-hidden="true"
       >
       </div>
@@ -88,11 +90,12 @@ defmodule Backpex.HTML.Layout do
       <%!-- Main container --%>
       <div
         id="backpex-main"
+        data-suppress-transition
         class={[
           "flex min-h-screen flex-col",
-          "transition-[margin] duration-300 ease-in-out",
-          @sidebar_open && "ml-(--sidebar-width)",
-          !@sidebar_open && "ml-0"
+          @sidebar_open && "lg:ml-[var(--sidebar-width,16rem)]",
+          "motion-safe:transition-[margin-left] motion-safe:duration-300 motion-safe:ease-in-out",
+          "data-[suppress-transition]:transition-none"
         ]}
       >
         <%!-- Background --%>
@@ -164,13 +167,10 @@ defmodule Backpex.HTML.Layout do
     <div aria-live="polite">
       <.alert
         :for={kind <- ~w(info success warning error)a}
-        :if={msg = Phoenix.Flash.get(@flash, kind)}
         kind={kind}
+        flash={@flash}
         close_label={@close_label}
-        on_close={JS.push("lv:clear-flash", value: %{key: kind})}
-      >
-        {msg}
-      </.alert>
+      />
       <div class="toast toast-end toast-top z-50">
         <.alert
           id="client-error"
@@ -206,10 +206,12 @@ defmodule Backpex.HTML.Layout do
   """
   @doc type: :component
 
+  attr :id, :string, doc: "optional id of the alert container; when not provided, a default of \"flash-<kind>\" is used"
+  attr :flash, :map, default: %{}, doc: "the map of flash messages to display"
   attr :class, :string, default: nil, doc: "additional class to be added to the component"
-  attr :kind, :atom, values: ~w(info success warning error)a, doc: "used for styling"
+  attr :kind, :atom, required: true, values: ~w(info success warning error)a, doc: "used for styling"
   attr :closable, :boolean, default: true, doc: "show or hide the close button"
-  attr :on_close, JS, default: %JS{}, doc: "event triggered on alert close"
+  attr :on_close, JS, default: nil, doc: "optional event triggered on alert close"
   attr :close_label, :string, default: "Close alert"
   attr :title, :string, default: nil, doc: "title for the alert"
   attr :rest, :global
@@ -217,8 +219,12 @@ defmodule Backpex.HTML.Layout do
   slot :icon
 
   def alert(assigns) do
+    assigns = assign_new(assigns, :id, fn -> "flash-#{assigns.kind}" end)
+
     ~H"""
     <div
+      :if={msg = render_slot(@inner_block) || Phoenix.Flash.get(@flash, @kind)}
+      id={@id}
       class={[
         "alert my-4",
         @kind === :info && "alert-info",
@@ -228,7 +234,7 @@ defmodule Backpex.HTML.Layout do
         @class
       ]}
       role="alert"
-      data-close={@on_close}
+      data-close={@on_close || JS.push("lv:clear-flash", value: %{key: @kind})}
       {@rest}
     >
       <%= if @icon == [] do %>
@@ -241,7 +247,7 @@ defmodule Backpex.HTML.Layout do
       <% end %>
       <div>
         <h3 :if={@title} class="font-bold">{@title}</h3>
-        <div>{render_slot(@inner_block)}</div>
+        <div>{msg}</div>
       </div>
       <div :if={@closable}>
         <button
@@ -491,7 +497,8 @@ defmodule Backpex.HTML.Layout do
 
   attr :id, :string,
     required: true,
-    doc: "The id for this section. It will be used to save and load the opening state of this section."
+    doc:
+      "A unique id for this section. Used to save and load the opening state of this section and to wire aria-controls, so every section on the page must have its own."
 
   attr :sidebar_section_states, :map,
     default: %{},
@@ -502,14 +509,29 @@ defmodule Backpex.HTML.Layout do
 
   def sidebar_section(assigns) do
     open = Map.get(assigns.sidebar_section_states, assigns.id, true)
-    assigns = assign(assigns, :open, open)
+
+    assigns =
+      assigns
+      |> assign(:open, open)
+      |> assign(:content_id, "sidebar-section-#{assigns.id}-content")
 
     ~H"""
     <li data-section-id={@id} data-section-open={to_string(@open)} class={@class}>
-      <span data-menu-dropdown-toggle class={["menu-dropdown-toggle", @open && "menu-dropdown-show"]}>
+      <button
+        type="button"
+        data-menu-dropdown-toggle
+        class={["menu-dropdown-toggle", @open && "menu-dropdown-show"]}
+        aria-expanded={to_string(@open)}
+        aria-controls={@content_id}
+      >
         {render_slot(@label)}
-      </span>
-      <ul data-menu-dropdown-content class="menu-dropdown menu-dropdown-show" style={if(!@open, do: "display: none;")}>
+      </button>
+      <ul
+        id={@content_id}
+        data-menu-dropdown-content
+        class="menu-dropdown menu-dropdown-show"
+        style={if(!@open, do: "display: none;")}
+      >
         {render_slot(@inner_block)}
       </ul>
     </li>

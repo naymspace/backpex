@@ -406,12 +406,7 @@ defmodule Backpex.FormComponent do
   end
 
   defp drop_readonly_changes(change, fields, assigns) do
-    read_only =
-      fields
-      |> Enum.filter(&Backpex.Field.readonly?(&1, assigns))
-      |> Enum.map(&Atom.to_string(&1.name))
-
-    Map.drop(change, read_only)
+    Backpex.Field.drop_readonly_changes(change, fields, assigns)
   end
 
   defp drop_unused_changes(change) do
@@ -472,21 +467,24 @@ defmodule Backpex.FormComponent do
   end
 
   defp handle_uploads(%{assigns: %{uploads: _uploads}} = socket, item) do
-    for {_name, %{upload_key: upload_key} = field_options} = _field <- socket.assigns.fields do
-      if Map.has_key?(socket.assigns.uploads, upload_key) do
-        %{consume_upload: consume_upload, remove_uploads: remove_uploads} = field_options
-
-        consume_uploaded_entries(socket, upload_key, fn meta, entry ->
-          consume_upload.(socket, item, meta, entry)
-        end)
-
-        removed_entries = Keyword.get(socket.assigns.removed_uploads, upload_key, [])
-        remove_uploads.(socket, item, removed_entries)
-      end
+    for {_name, %{upload_key: upload_key} = field_options} = _field <- socket.assigns.fields,
+        Map.has_key?(socket.assigns.uploads, upload_key) do
+      consume_and_remove_uploads(socket, item, upload_key, field_options)
     end
   end
 
   defp handle_uploads(_socket, _item), do: :ok
+
+  defp consume_and_remove_uploads(socket, item, upload_key, field_options) do
+    %{consume_upload: consume_upload, remove_uploads: remove_uploads} = field_options
+
+    consume_uploaded_entries(socket, upload_key, fn meta, entry ->
+      consume_upload.(socket, item, meta, entry)
+    end)
+
+    removed_entries = Keyword.get(socket.assigns.removed_uploads, upload_key, [])
+    remove_uploads.(socket, item, removed_entries)
+  end
 
   def render(assigns) do
     Backpex.HTML.Resource.form_component(assigns)

@@ -52,6 +52,14 @@ defmodule Backpex.Filters.Select do
       @behaviour Backpex.Filters.Select
 
       @impl Backpex.Filter
+      def type(_assigns), do: :string
+
+      @impl Backpex.Filter
+      def changeset(changeset, field, assigns) do
+        SelectFilter.changeset(changeset, field, options(assigns))
+      end
+
+      @impl Backpex.Filter
       defdelegate query(query, attribute, value, assigns), to: SelectFilter
 
       @impl Backpex.Filter
@@ -70,7 +78,7 @@ defmodule Backpex.Filters.Select do
         SelectFilter.render_form(assigns)
       end
 
-      defoverridable query: 4, render: 1, render_form: 1
+      defoverridable type: 1, changeset: 3, query: 4, render: 1, render_form: 1
     end
   end
 
@@ -90,23 +98,93 @@ defmodule Backpex.Filters.Select do
   attr :value, :any, required: true
   attr :options, :list, required: true
   attr :prompt, :string, required: true
+  attr :errors, :list, default: []
 
   def render_form(assigns) do
     ~H"""
-    <select name={@form[@field].name} class="select select-sm mt-2" aria-label={@prompt}>
+    <select
+      name={@form[@field].name}
+      class={[
+        "select select-sm",
+        @errors != [] && "select-error bg-error/10"
+      ]}
+      aria-label={@prompt}
+    >
       <option value="">{@prompt}</option>
       {Phoenix.HTML.Form.options_for_select(@options, selected(@value))}
     </select>
+    <.error :for={msg <- @errors} class="mt-1">{msg}</.error>
     """
   end
 
+  @doc """
+  Converts empty string to nil, returns other values as-is.
+
+  ## Examples
+
+      iex> Backpex.Filters.Select.selected("")
+      nil
+
+      iex> Backpex.Filters.Select.selected("open")
+      "open"
+
+      iex> Backpex.Filters.Select.selected(:open)
+      :open
+
+      iex> Backpex.Filters.Select.selected(1)
+      1
+
+  """
   def selected(""), do: nil
   def selected(value), do: value
+
+  @doc """
+  Validates that the selected value exists in the options list.
+
+  Returns the changeset unchanged if the value is valid, or adds an error if not found in options.
+  Empty string is allowed as it represents the "no selection" state.
+  """
+  def changeset(changeset, field, options) do
+    valid_values = ["" | Enum.map(options, fn {_label, value} -> to_string(value) end)]
+
+    Ecto.Changeset.validate_inclusion(changeset, field, valid_values, message: "is not a valid option")
+  end
 
   def query(query, attribute, value, _assigns) do
     where(query, [x], field(x, ^attribute) == ^value)
   end
 
+  @doc """
+  Finds the label for a given option value.
+
+  Returns nil if the value is not found.
+
+  ## Examples
+
+      iex> options = [{"Open", :open}, {"Closed", :closed}]
+      iex> Backpex.Filters.Select.option_value_to_label(options, "open")
+      "Open"
+
+      iex> options = [{"Open", :open}]
+      iex> Backpex.Filters.Select.option_value_to_label(options, :open)
+      "Open"
+
+      iex> options = [{"Open", :open}]
+      iex> Backpex.Filters.Select.option_value_to_label(options, "unknown")
+      nil
+
+      iex> options = [{"Active", "active"}, {"Inactive", "inactive"}]
+      iex> Backpex.Filters.Select.option_value_to_label(options, "active")
+      "Active"
+
+      iex> options = [{"Active", "active"}]
+      iex> Backpex.Filters.Select.option_value_to_label(options, :active)
+      "Active"
+
+      iex> Backpex.Filters.Select.option_value_to_label([], "value")
+      nil
+
+  """
   def option_value_to_label(options, value) do
     Enum.find_value(options, fn {option_label, option_value} ->
       if to_string(option_value) == to_string(value), do: option_label

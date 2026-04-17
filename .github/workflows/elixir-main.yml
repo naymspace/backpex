@@ -1,0 +1,91 @@
+name: Elixir Main
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "0 6 * * 1" # Every Monday at 06:00 UTC
+
+jobs:
+  test:
+    name: "Test backpex (Elixir main)"
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - uses: erlef/setup-beam@fc68ffb90438ef2936bbb3251622353b3dcb2f93 # v1.24.0
+        id: beam
+        with:
+          otp-version: "28"
+          elixir-version: "main"
+
+      - name: Setup node
+        uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6.3.0
+        with:
+          node-version: 24
+          cache: "yarn"
+          cache-dependency-path: yarn.lock
+
+      - name: Restore the deps and _build cache
+        uses: actions/cache@668228422ae6a00e4ad889ee87cd7109ec5666a7 # v5.0.4
+        id: restore-cache
+        env:
+          OTP_VERSION: ${{ steps.beam.outputs.otp-version }}
+          ELIXIR_VERSION: ${{ steps.beam.outputs.elixir-version }}
+          MIX_LOCK_HASH: ${{ hashFiles(format('{0}{1}', github.workspace, '/mix.lock')) }}
+        with:
+          path: |
+            deps
+            _build
+          key: ${{ runner.os }}-elixir-${{ env.ELIXIR_VERSION }}-otp-${{ env.OTP_VERSION }}-build-deps-mixlockhash-${{ env.MIX_LOCK_HASH }}
+          restore-keys: ${{ runner.os }}-elixir-${{ env.ELIXIR_VERSION }}-otp-${{ env.OTP_VERSION }}-build-deps-
+
+      - name: Install dependencies
+        run: mix deps.get
+
+      - name: Compile dependencies
+        run: mix deps.compile
+
+      - name: Compile with warnings as errors
+        run: mix compile --warnings-as-errors --force
+
+      - name: Cache node modules
+        uses: actions/cache@668228422ae6a00e4ad889ee87cd7109ec5666a7 # v5.0.4
+        id: yarn-cache
+        with:
+          path: node_modules
+          key: ${{ runner.os }}-node-24-yarn-${{ hashFiles('yarn.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-node-24-yarn-
+
+      - name: Install node dependencies
+        if: steps.yarn-cache.outputs.cache-hit != 'true'
+        run: yarn install --pure-lockfile
+
+      - name: Check formatting
+        run: mix format --check-formatted
+
+      - name: JavaScript Standard
+        run: yarn run lint:standard
+
+      - name: Credo
+        run: mix credo
+
+      - name: Sobelow
+        run: mix sobelow --config
+
+      - name: Deps Unused
+        run: mix deps.unlock --check-unused
+
+      - name: Run tests
+        run: mix test
+
+      - name: Run doc tests
+        run: mix test test/doc_test.exs
+
+      - name: Gettext Check
+        run: mix gettext.extract --check-up-to-date
+
+      - name: Check assets up-to-date
+        run: mix assets.check
