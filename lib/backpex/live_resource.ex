@@ -107,6 +107,21 @@ defmodule Backpex.LiveResource do
       """,
       type: {:or, [:mod_arg, :atom, {:list, {:or, [:mod_arg, :atom]}}]},
       required: false
+    ],
+    persist: [
+      doc: """
+      Opt in to persisting index-view state (`:order`, `:filters`, `:columns`) via
+      `Backpex.Preferences`. Accepts any subset of `[:order, :filters, :columns]`.
+
+      When empty (the default), the index view's state lives only in the URL (for
+      `:order` and `:filters`) and in-memory (for `:columns`). When an item is
+      listed, Backpex reads the corresponding preference on mount and falls back to
+      it whenever the URL-derived value is absent, and writes the preference on
+      every change. Storage is routed through whichever adapter is configured for
+      the `resource.*` prefix in `config :backpex, Backpex.Preferences, adapters:`.
+      """,
+      type: {:list, {:in, [:order, :filters, :columns]}},
+      default: []
     ]
   ]
 

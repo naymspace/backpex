@@ -11,15 +11,15 @@
  */
 
 const BackpexPreferences = {
-  cookiePath: null,
+  endpointPath: null,
   csrfToken: null,
 
   /**
    * Initialize the preference manager.
    * Called by the LiveView hook on mount.
    */
-  init (cookiePath) {
-    this.cookiePath = cookiePath
+  init (endpointPath) {
+    this.endpointPath = endpointPath
     this.csrfToken = document.querySelector("meta[name='csrf-token']")?.content
   },
 
@@ -39,8 +39,8 @@ const BackpexPreferences = {
    * Uses keepalive to ensure request completes even during page navigation.
    */
   persist (key, value) {
-    if (!this.cookiePath) {
-      console.warn('BackpexPreferences: cookiePath not initialized')
+    if (!this.endpointPath) {
+      console.warn('BackpexPreferences: endpointPath not initialized')
       return
     }
     if (!this.csrfToken) {
@@ -49,7 +49,7 @@ const BackpexPreferences = {
     }
 
     // Use keepalive to ensure request survives page navigation
-    fetch(this.cookiePath, {
+    fetch(this.endpointPath, {
       method: 'POST',
       keepalive: true,
       headers: {

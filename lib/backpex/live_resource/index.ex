@@ -8,6 +8,7 @@ defmodule Backpex.LiveResource.Index do
   alias Backpex.FilterValidation
   alias Backpex.LiveResource
   alias Backpex.PaginationValidation
+  alias Backpex.Preferences
   alias Backpex.Resource
   alias Backpex.Router
 
@@ -26,6 +27,7 @@ defmodule Backpex.LiveResource.Index do
       :create_button_label,
       Backpex.__({"New %{resource}", %{resource: live_resource.singular_name()}}, live_resource)
     )
+    |> assign_persisted_index_state(session)
     |> assign_metrics_visibility(session)
     |> assign_filters_changed_status(params)
     |> assign_active_fields(session)
@@ -282,11 +284,10 @@ defmodule Backpex.LiveResource.Index do
       end)
 
     live_resource = socket.assigns.live_resource
-    resource_key = "resource.#{live_resource}.columns"
 
     socket
     |> assign(:active_fields, updated_fields)
-    |> LiveView.push_event("backpex:set_preference", %{key: resource_key, value: columns})
+    |> maybe_push_columns(live_resource, columns)
     |> noreply()
   end
 
@@ -298,7 +299,7 @@ defmodule Backpex.LiveResource.Index do
     new_visible = !current_visible
 
     updated_visibility = Map.put(metric_visibility, resource_key_str, new_visible)
-    resource_key = "resource.#{live_resource}.metrics_visible"
+    resource_key = Preferences.Key.resource_key(live_resource, "metrics_visible")
 
     socket
     |> assign(:metric_visibility, updated_visibility)
@@ -345,8 +346,13 @@ defmodule Backpex.LiveResource.Index do
   defp assign_active_fields(socket, session) do
     %{fields: fields, live_resource: live_resource} = socket.assigns
 
-    resource_key = "resource.#{live_resource}.columns"
-    saved_columns = Backpex.Preferences.get(session, resource_key, default: %{})
+    saved_columns =
+      if persist_enabled?(live_resource, :columns) do
+        resource_key = Preferences.Key.resource_key(live_resource, "columns")
+        Preferences.get(session, resource_key, default: %{})
+      else
+        %{}
+      end
 
     active_fields =
       Enum.map(fields, fn {name, %{label: label}} ->
@@ -355,6 +361,44 @@ defmodule Backpex.LiveResource.Index do
       end)
 
     assign(socket, :active_fields, active_fields)
+  end
+
+  defp assign_persisted_index_state(socket, session) do
+    %{live_resource: live_resource} = socket.assigns
+
+    persisted = %{
+      order: read_persisted(:order, live_resource, session),
+      filters: read_persisted(:filters, live_resource, session)
+    }
+
+    assign(socket, :backpex_persisted_index_state, persisted)
+  end
+
+  defp read_persisted(:order, live_resource, session) do
+    if persist_enabled?(live_resource, :order) do
+      key = Preferences.Key.resource_key(live_resource, "order")
+      Preferences.get(session, key)
+    end
+  end
+
+  defp read_persisted(:filters, live_resource, session) do
+    if persist_enabled?(live_resource, :filters) do
+      key = Preferences.Key.resource_key(live_resource, "filters")
+      Preferences.get(session, key)
+    end
+  end
+
+  defp persist_enabled?(live_resource, what) do
+    what in (live_resource.config(:persist) || [])
+  end
+
+  defp maybe_push_columns(socket, live_resource, columns) do
+    if persist_enabled?(live_resource, :columns) do
+      resource_key = Preferences.Key.resource_key(live_resource, "columns")
+      LiveView.push_event(socket, "backpex:set_preference", %{key: resource_key, value: columns})
+    else
+      socket
+    end
   end
 
   defp update_item(socket, item) do
@@ -378,8 +422,8 @@ defmodule Backpex.LiveResource.Index do
 
   defp assign_metrics_visibility(socket, session) do
     %{live_resource: live_resource} = socket.assigns
-    resource_key = "resource.#{live_resource}.metrics_visible"
-    visible = Backpex.Preferences.get(session, resource_key, default: true)
+    resource_key = Preferences.Key.resource_key(live_resource, "metrics_visible")
+    visible = Preferences.get(session, resource_key, default: true)
 
     assign(socket, :metric_visibility, %{to_string(live_resource) => visible})
   end
@@ -428,6 +472,7 @@ defmodule Backpex.LiveResource.Index do
 
   defp apply_index(socket) do
     %{live_resource: live_resource, params: params, fields: fields} = socket.assigns
+    persisted = socket.assigns[:backpex_persisted_index_state] || %{order: nil, filters: nil}
 
     if not live_resource.can?(socket.assigns, :index, nil), do: raise(Backpex.ForbiddenError)
 
@@ -435,6 +480,7 @@ defmodule Backpex.LiveResource.Index do
     per_page_default = live_resource.config(:per_page_default)
     init_order = live_resource.config(:init_order)
     init_order = LiveResource.resolve_init_order(init_order, socket.assigns)
+    init_order = maybe_override_init_order(init_order, params, persisted.order)
 
     filters = LiveResource.active_filters(socket.assigns)
     schema = live_resource.adapter_config(:schema)
@@ -444,7 +490,7 @@ defmodule Backpex.LiveResource.Index do
     raw_filter_params =
       case Map.get(params, "filters") do
         value when is_map(value) -> value
-        _other -> %{}
+        _other -> fallback_filter_params(persisted.filters)
       end
 
     filter_changeset = FilterValidation.build_changeset(raw_filter_params, filters, socket.assigns)
@@ -497,7 +543,78 @@ defmodule Backpex.LiveResource.Index do
     |> maybe_redirect_to_default_filters()
     |> assign_items()
     |> maybe_assign_metrics()
+    |> maybe_persist_order(query_options)
+    |> maybe_persist_filters(raw_filter_params)
     |> apply_index_return_to()
+  end
+
+  defp maybe_override_init_order(init_order, _params, nil), do: init_order
+
+  defp maybe_override_init_order(init_order, params, stored_order) do
+    cond do
+      Map.has_key?(params, "order_by") or Map.has_key?(params, "order_direction") ->
+        init_order
+
+      match?(%{"by" => by, "direction" => dir} when is_binary(by) and is_binary(dir), stored_order) ->
+        parse_stored_order(stored_order) || init_order
+
+      true ->
+        init_order
+    end
+  end
+
+  defp parse_stored_order(%{"by" => by, "direction" => direction}) do
+    %{by: String.to_existing_atom(by), direction: String.to_existing_atom(direction)}
+  rescue
+    ArgumentError -> nil
+  end
+
+  defp parse_stored_order(_other), do: nil
+
+  defp fallback_filter_params(stored) when is_map(stored), do: stored
+  defp fallback_filter_params(_other), do: %{}
+
+  defp maybe_persist_order(socket, query_options) do
+    %{live_resource: live_resource, backpex_persisted_index_state: persisted} = socket.assigns
+
+    if persist_enabled?(live_resource, :order) do
+      value = %{
+        "by" => Atom.to_string(query_options.order_by),
+        "direction" => Atom.to_string(query_options.order_direction)
+      }
+
+      if persisted.order == value do
+        socket
+      else
+        resource_key = Preferences.Key.resource_key(live_resource, "order")
+
+        socket
+        |> LiveView.push_event("backpex:set_preference", %{key: resource_key, value: value})
+        |> assign(:backpex_persisted_index_state, %{persisted | order: value})
+      end
+    else
+      socket
+    end
+  end
+
+  defp maybe_persist_filters(socket, raw_filter_params) do
+    %{live_resource: live_resource, backpex_persisted_index_state: persisted} = socket.assigns
+
+    if persist_enabled?(live_resource, :filters) do
+      stored = persisted.filters || %{}
+
+      if stored == raw_filter_params do
+        socket
+      else
+        resource_key = Preferences.Key.resource_key(live_resource, "filters")
+
+        socket
+        |> LiveView.push_event("backpex:set_preference", %{key: resource_key, value: raw_filter_params})
+        |> assign(:backpex_persisted_index_state, %{persisted | filters: raw_filter_params})
+      end
+    else
+      socket
+    end
   end
 
   defp apply_index_return_to(socket) do
