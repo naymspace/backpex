@@ -71,7 +71,7 @@ defmodule Backpex.HTML.Layout do
       <div
         :if={@sidebar != []}
         id="backpex-sidebar-overlay"
-        class="fixed inset-0 z-30 bg-black/50 opacity-0 pointer-events-none motion-safe:transition-opacity motion-safe:duration-300 lg:hidden"
+        class="fixed inset-0 z-30 bg-neutral/50 opacity-0 pointer-events-none motion-safe:transition-opacity motion-safe:duration-300 lg:hidden"
         aria-hidden="true"
       >
       </div>
