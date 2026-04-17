@@ -5,7 +5,6 @@
  * Mobile: sidebar hidden by default, overlays content when opened
  */
 export default {
-  MOBILE_BREAKPOINT: 1024,
   STORAGE_KEY: 'backpex-sidebar-open',
   FOCUSABLE_SELECTOR:
     'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])',
@@ -27,6 +26,15 @@ export default {
     // Per-toggle click handlers, keyed off the toggle element (section dropdowns).
     this._sectionHandlers = new WeakMap()
 
+    // Track Tailwind's lg breakpoint via its CSS custom property so CSS
+    // `lg:` utilities and this hook stay in sync if the user customizes it.
+    // Falls back to the Tailwind v4 default when the variable is not defined.
+    const breakpoint =
+      getComputedStyle(document.documentElement)
+        .getPropertyValue('--breakpoint-lg')
+        .trim() || '64rem'
+    this.mediaQuery = window.matchMedia(`(min-width: ${breakpoint})`)
+
     // Apply initial state (CSS sets visible by default, JS hides on mobile)
     this.applyState()
 
@@ -45,10 +53,6 @@ export default {
 
     this.toggleBtn.addEventListener('click', this._onToggleClick)
     this.overlay.addEventListener('click', this._onOverlayClick)
-
-    this.mediaQuery = window.matchMedia(
-      `(min-width: ${this.MOBILE_BREAKPOINT}px)`
-    )
     this.mediaQuery.addEventListener('change', this._onMediaChange)
 
     document.addEventListener('keydown', this._onKeydown)
@@ -81,7 +85,7 @@ export default {
   },
 
   isDesktop () {
-    return window.innerWidth >= this.MOBILE_BREAKPOINT
+    return this.mediaQuery.matches
   },
 
   handleToggle () {

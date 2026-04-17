@@ -56,7 +56,6 @@ var drag_hover_default = {
 
 // js/hooks/_sidebar.js
 var sidebar_default = {
-  MOBILE_BREAKPOINT: 1024,
   STORAGE_KEY: "backpex-sidebar-open",
   FOCUSABLE_SELECTOR: 'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])',
   mounted() {
@@ -69,6 +68,8 @@ var sidebar_default = {
     this.desktopOpen = this.loadDesktopState();
     this.previousFocus = null;
     this._sectionHandlers = /* @__PURE__ */ new WeakMap();
+    const breakpoint = getComputedStyle(document.documentElement).getPropertyValue("--breakpoint-lg").trim() || "64rem";
+    this.mediaQuery = window.matchMedia(`(min-width: ${breakpoint})`);
     this.applyState();
     requestAnimationFrame(() => {
       this.sidebar.removeAttribute("data-suppress-transition");
@@ -80,9 +81,6 @@ var sidebar_default = {
     this._onKeydown = (e) => this.handleKeydown(e);
     this.toggleBtn.addEventListener("click", this._onToggleClick);
     this.overlay.addEventListener("click", this._onOverlayClick);
-    this.mediaQuery = window.matchMedia(
-      `(min-width: ${this.MOBILE_BREAKPOINT}px)`
-    );
     this.mediaQuery.addEventListener("change", this._onMediaChange);
     document.addEventListener("keydown", this._onKeydown);
     this.initializeSections();
@@ -108,7 +106,7 @@ var sidebar_default = {
     });
   },
   isDesktop() {
-    return window.innerWidth >= this.MOBILE_BREAKPOINT;
+    return this.mediaQuery.matches;
   },
   handleToggle() {
     if (this.isDesktop()) {
