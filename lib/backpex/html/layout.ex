@@ -83,7 +83,7 @@ defmodule Backpex.HTML.Layout do
         class={[
           "flex min-h-screen flex-col",
           "lg:ml-[var(--sidebar-width,16rem)]",
-          "motion-safe:transition-[margin] motion-safe:duration-300 motion-safe:ease-in-out",
+          "motion-safe:transition-[margin-left] motion-safe:duration-300 motion-safe:ease-in-out",
           "data-[suppress-transition]:transition-none"
         ]}
       >
