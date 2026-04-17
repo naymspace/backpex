@@ -6,18 +6,6 @@
       "runtimeExecutable": "docker",
       "runtimeArgs": ["compose", "up", "app"],
       "port": 4000
-    },
-    {
-      "name": "LiveDebugger",
-      "runtimeExecutable": "docker",
-      "runtimeArgs": ["compose", "up", "app"],
-      "port": 4007
-    },
-    {
-      "name": "PostgreSQL",
-      "runtimeExecutable": "docker",
-      "runtimeArgs": ["compose", "up", "postgres"],
-      "port": 54321
     }
   ]
 }
