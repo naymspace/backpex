@@ -93,7 +93,7 @@ export default {
 
     // Main content margin (desktop only, uses CSS variable)
     const showMargin = isDesktop && this.desktopOpen
-    this.main.classList.toggle('ml-(--sidebar-width)', showMargin)
+    this.main.classList.toggle('ml-[var(--sidebar-width,16rem)]', showMargin)
     this.main.classList.toggle('ml-0', !showMargin)
 
     // Overlay (mobile only)

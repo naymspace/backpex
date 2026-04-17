@@ -119,7 +119,7 @@ var sidebar_default = {
     this.sidebar.classList.toggle("-translate-x-full", !sidebarVisible);
     this.sidebar.classList.toggle("translate-x-0", sidebarVisible);
     const showMargin = isDesktop && this.desktopOpen;
-    this.main.classList.toggle("ml-(--sidebar-width)", showMargin);
+    this.main.classList.toggle("ml-[var(--sidebar-width,16rem)]", showMargin);
     this.main.classList.toggle("ml-0", !showMargin);
     const showOverlay = !isDesktop && this.mobileOpen;
     this.overlay.classList.toggle("opacity-0", !showOverlay);
