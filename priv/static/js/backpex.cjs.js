@@ -91,18 +91,36 @@ var sidebar_default = {
       this.sidebar.removeAttribute("data-suppress-transition");
       this.main.removeAttribute("data-suppress-transition");
     });
-    this.toggleBtn.addEventListener("click", () => this.handleToggle());
-    this.overlay.addEventListener("click", () => this.closeMobile());
+    this._onToggleClick = () => this.handleToggle();
+    this._onOverlayClick = () => this.closeMobile();
+    this._onMediaChange = (e) => this.handleResize(e);
+    this._onKeydown = (e) => this.handleKeydown(e);
+    this.toggleBtn.addEventListener("click", this._onToggleClick);
+    this.overlay.addEventListener("click", this._onOverlayClick);
     this.mediaQuery = window.matchMedia(
       `(min-width: ${this.MOBILE_BREAKPOINT}px)`
     );
-    this.mediaQuery.addEventListener("change", (e) => this.handleResize(e));
-    document.addEventListener("keydown", (e) => this.handleKeydown(e));
+    this.mediaQuery.addEventListener("change", this._onMediaChange);
+    document.addEventListener("keydown", this._onKeydown);
     this.initializeSections();
   },
   updated() {
     this.applyState();
     this.initializeSections();
+  },
+  destroyed() {
+    this.toggleBtn?.removeEventListener("click", this._onToggleClick);
+    this.overlay?.removeEventListener("click", this._onOverlayClick);
+    this.mediaQuery?.removeEventListener("change", this._onMediaChange);
+    document.removeEventListener("keydown", this._onKeydown);
+    const sections = this.el.querySelectorAll("[data-section-id]");
+    sections.forEach((section) => {
+      const toggle = section.querySelector("[data-menu-dropdown-toggle]");
+      if (toggle?._handler) {
+        toggle.removeEventListener("click", toggle._handler);
+        delete toggle._handler;
+      }
+    });
   },
   isDesktop() {
     return window.innerWidth >= this.MOBILE_BREAKPOINT;
