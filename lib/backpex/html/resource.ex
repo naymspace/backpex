@@ -225,27 +225,34 @@ defmodule Backpex.HTML.Resource do
 
   @doc false
   attr :live_resource, :any, default: nil, doc: "module of the live resource"
-  attr :filter_options, :list, required: true, doc: "filter options"
+  attr :filter_options, :map, required: true, doc: "raw filter options from URL (for form display)"
+  attr :filter_values, :map, required: true, doc: "validated filter values (for badges)"
   attr :filters, :list, required: true, doc: "list of active filters"
 
   def filter(assigns) do
-    assigns =
-      assigns
-      |> assign(:filter_count, Enum.count(assigns.filter_options))
-      |> assign(
-        :filter_badges,
-        for {key, value} <- assigns.filter_options do
-          filter = Keyword.get(assigns.filters, String.to_existing_atom(key))
+    # Use filter_values (validated) for badges - only shows successfully applied filters
+    for_result =
+      for {field, value} <- assigns.filter_values do
+        filter = Keyword.get(assigns.filters, field)
+
+        if filter do
           label = Map.get(filter, :label, filter.module.label())
 
           %{
-            key: key,
+            key: Atom.to_string(field),
             value: value,
             filter: filter,
             label: label
           }
         end
-      )
+      end
+
+    filter_badges = Enum.reject(for_result, &is_nil/1)
+
+    assigns =
+      assigns
+      |> assign(:filter_count, Enum.count(filter_badges))
+      |> assign(:filter_badges, filter_badges)
 
     ~H"""
     <.filter_dropdown :if={@filters != []} live_resource={@live_resource} filter_count={@filter_count}>
@@ -367,9 +374,12 @@ defmodule Backpex.HTML.Resource do
   @doc false
   attr :live_resource, :any, default: nil, doc: "live resource module"
   attr :filters, :list, required: true, doc: "list of active filters"
-  attr :filter_options, :list, required: true, doc: "filter options"
+  attr :filter_options, :map, required: true, doc: "raw filter options from URL params"
+  attr :filter_form, :any, default: nil, doc: "optional form backed by filter validation changeset"
 
   def filter_forms(assigns) do
+    error_changeset = get_filter_changeset(assigns[:filter_form])
+
     assigns =
       assigns
       |> assign(:form, to_form(%{}, as: :filters))
@@ -378,14 +388,17 @@ defmodule Backpex.HTML.Resource do
         for {field, filter} <- assigns.filters do
           label = Map.get(filter, :label, filter.module.label())
           presets = Map.get(filter, :presets, [])
-          value = Map.get(assigns.filter_options, Atom.to_string(field), nil)
+          # filter_options (from URL params) is always string-keyed
+          value = Map.get(assigns.filter_options, Atom.to_string(field))
+          errors = extract_filter_errors(error_changeset, field)
 
           %{
             field: field,
             filter: filter,
             label: label,
             presets: presets,
-            value: value
+            value: value,
+            errors: errors
           }
         end
       )
@@ -401,7 +414,13 @@ defmodule Backpex.HTML.Resource do
       >
         {component(
           fn assigns -> field_data.filter.module.render_form(assigns) end,
-          Map.merge(assigns, %{field: field_data.field, value: field_data.value, form: f, live_resource: @live_resource}),
+          Map.merge(assigns, %{
+            field: field_data.field,
+            value: field_data.value,
+            form: f,
+            live_resource: @live_resource,
+            errors: field_data.errors
+          }),
           {__ENV__.module, __ENV__.function, __ENV__.file, __ENV__.line}
         )}
         <:presets :if={field_data.presets != []}>
@@ -410,6 +429,18 @@ defmodule Backpex.HTML.Resource do
       </.filter_form_field>
     </.form>
     """
+  end
+
+  defp get_filter_changeset(nil), do: nil
+  defp get_filter_changeset(%{source: %Ecto.Changeset{} = changeset}), do: changeset
+  defp get_filter_changeset(_other), do: nil
+
+  defp extract_filter_errors(nil, _field), do: []
+
+  defp extract_filter_errors(changeset, field) do
+    changeset.errors
+    |> Keyword.get_values(field)
+    |> Enum.map(fn {msg, opts} -> Backpex.translate_error({msg, opts}) end)
   end
 
   @doc """
@@ -907,6 +938,7 @@ defmodule Backpex.HTML.Resource do
         :if={LiveResource.active_filters(assigns) != []}
         live_resource={@live_resource}
         filter_options={LiveResource.get_filter_options(@query_options)}
+        filter_values={Map.get(assigns, :filter_values, %{})}
         filters={LiveResource.active_filters(assigns)}
         {assigns}
       />

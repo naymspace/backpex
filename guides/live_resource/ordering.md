@@ -47,3 +47,44 @@ This approach allows you to determine the ordering based on runtime conditions o
 > #### Important {: .info}
 >
 > Note that it is not possible to use an anonymous function for `init_order` configuration. You must refer to a public function defined within a module.
+
+## URL Parameters
+
+Users can change the ordering through URL parameters:
+
+- `order_by` - The field to order by (must match an orderable field name)
+- `order_direction` - Either `asc` or `desc`
+
+For example: `/admin/posts?order_by=title&order_direction=desc`
+
+### Validation
+
+Backpex validates ordering parameters from the URL:
+
+| Parameter | Validation | Invalid Value Behavior |
+|-----------|------------|----------------------|
+| `order_by` | Must be a field with `orderable: true` | Falls back to `init_order.by` |
+| `order_direction` | Must be `asc` or `desc` | Falls back to `init_order.direction` |
+
+Invalid URL parameters won't crash the application. Instead, they are silently replaced with the default values from your `init_order` configuration.
+
+## Disabling Ordering for Fields
+
+By default, all fields are orderable. To disable ordering for a specific field, set `orderable: false` in the field configuration:
+
+```elixir
+@impl Backpex.LiveResource
+def fields do
+  [
+    title: %{
+      module: Backpex.Fields.Text,
+      label: "Title"
+    },
+    body: %{
+      module: Backpex.Fields.Textarea,
+      label: "Body",
+      orderable: false  # Users cannot order by this field
+    }
+  ]
+end
+```

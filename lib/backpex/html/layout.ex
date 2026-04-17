@@ -15,7 +15,7 @@ defmodule Backpex.HTML.Layout do
   slot :inner_content
 
   def layout(assigns) do
-    case assigns.live_resource.config(:layout) do
+    case assigns.live_resource.layout(assigns) do
       {module, fun} -> apply(module, fun, [assigns])
       fun when is_function(fun, 1) -> fun.(assigns)
     end
@@ -147,13 +147,10 @@ defmodule Backpex.HTML.Layout do
     <div aria-live="polite">
       <.alert
         :for={kind <- ~w(info success warning error)a}
-        :if={msg = Phoenix.Flash.get(@flash, kind)}
         kind={kind}
+        flash={@flash}
         close_label={@close_label}
-        on_close={JS.push("lv:clear-flash", value: %{key: kind})}
-      >
-        {msg}
-      </.alert>
+      />
       <div class="toast toast-end toast-top z-50">
         <.alert
           id="client-error"
@@ -189,10 +186,12 @@ defmodule Backpex.HTML.Layout do
   """
   @doc type: :component
 
+  attr :id, :string, doc: "optional id of the alert container; when not provided, a default of \"flash-<kind>\" is used"
+  attr :flash, :map, default: %{}, doc: "the map of flash messages to display"
   attr :class, :string, default: nil, doc: "additional class to be added to the component"
-  attr :kind, :atom, values: ~w(info success warning error)a, doc: "used for styling"
+  attr :kind, :atom, required: true, values: ~w(info success warning error)a, doc: "used for styling"
   attr :closable, :boolean, default: true, doc: "show or hide the close button"
-  attr :on_close, JS, default: %JS{}, doc: "event triggered on alert close"
+  attr :on_close, JS, default: nil, doc: "optional event triggered on alert close"
   attr :close_label, :string, default: "Close alert"
   attr :title, :string, default: nil, doc: "title for the alert"
   attr :rest, :global
@@ -200,8 +199,12 @@ defmodule Backpex.HTML.Layout do
   slot :icon
 
   def alert(assigns) do
+    assigns = assign_new(assigns, :id, fn -> "flash-#{assigns.kind}" end)
+
     ~H"""
     <div
+      :if={msg = render_slot(@inner_block) || Phoenix.Flash.get(@flash, @kind)}
+      id={@id}
       class={[
         "alert my-4",
         @kind === :info && "alert-info",
@@ -211,7 +214,7 @@ defmodule Backpex.HTML.Layout do
         @class
       ]}
       role="alert"
-      data-close={@on_close}
+      data-close={@on_close || JS.push("lv:clear-flash", value: %{key: @kind})}
       {@rest}
     >
       <%= if @icon == [] do %>
@@ -224,7 +227,7 @@ defmodule Backpex.HTML.Layout do
       <% end %>
       <div>
         <h3 :if={@title} class="font-bold">{@title}</h3>
-        <div>{render_slot(@inner_block)}</div>
+        <div>{msg}</div>
       </div>
       <div :if={@closable}>
         <button

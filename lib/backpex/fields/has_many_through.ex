@@ -522,13 +522,14 @@ defmodule Backpex.Fields.HasManyThrough do
     end)
   end
 
-  defp maybe_sort_by([%{child: _child} | _tail] = items, %{field: %{sort_by: column_names}} = _assigns) do
+  defp maybe_sort_by([%{child: _child} | _tail] = items, %{field_options: %{sort_by: column_names}} = _assigns) do
     items
     |> Enum.sort_by(fn item ->
       column_names
       |> Enum.map(&{&1, Map.get(item.child, &1)})
       |> Keyword.values()
-      |> Enum.join()
+      |> Enum.map_join(&to_string/1)
+      |> String.downcase()
     end)
   end
 
