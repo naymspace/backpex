@@ -165,10 +165,10 @@ export default {
     const isDesktop = this.isDesktop()
     const sidebarVisible = isDesktop ? this.desktopOpen : this.mobileOpen
 
-    // Sidebar transform (inline style wins over responsive Tailwind classes)
-    this.sidebar.style.transform = sidebarVisible
-      ? 'translateX(0)'
-      : 'translateX(-100%)'
+    // Sidebar position. The SSR classes -translate-x-full md:translate-x-0
+    // compile to the CSS `translate` property in Tailwind v4, so we must
+    // write to the same property to win over them.
+    this.sidebar.style.translate = sidebarVisible ? '0' : '-100%'
 
     // Remove off-canvas sidebar from tab order and accessibility tree
     this.sidebar.toggleAttribute('inert', !sidebarVisible)

@@ -196,7 +196,7 @@ var sidebar_default = {
   applyState() {
     const isDesktop = this.isDesktop();
     const sidebarVisible = isDesktop ? this.desktopOpen : this.mobileOpen;
-    this.sidebar.style.transform = sidebarVisible ? "translateX(0)" : "translateX(-100%)";
+    this.sidebar.style.translate = sidebarVisible ? "0" : "-100%";
     this.sidebar.toggleAttribute("inert", !sidebarVisible);
     const showMargin = isDesktop && this.desktopOpen;
     this.main.style.marginLeft = showMargin ? "var(--sidebar-width, 16rem)" : "0";
