@@ -140,7 +140,7 @@ To get you started quickly, we provide a layout component you can copy & paste i
 ```heex
 <Backpex.HTML.Layout.app_shell fluid={@fluid?} live_resource={@live_resource}>
   <:topbar>
-    <Backpex.HTML.Layout.topbar_branding />
+    <div class="flex-1"></div>
 
     <Backpex.HTML.Layout.topbar_dropdown class="mr-2 md:mr-0">
       <:label>
@@ -157,7 +157,12 @@ To get you started quickly, we provide a layout component you can copy & paste i
     </Backpex.HTML.Layout.topbar_dropdown>
   </:topbar>
   <:sidebar>
-    <!-- Sidebar Content -->
+    <Backpex.HTML.Layout.sidebar_branding />
+    <nav class="menu w-full flex-1 overflow-y-auto px-2 py-2">
+      <ul class="w-full">
+        <!-- Sidebar Content -->
+      </ul>
+    </nav>
   </:sidebar>
   <Backpex.HTML.Layout.flash_messages flash={@flash} />
   {render_slot(@inner_block)}
@@ -573,7 +578,7 @@ You can add a theme selector to your layout component to allow users to change t
 ```heex
 <Backpex.HTML.Layout.app_shell fluid={@fluid?} live_resource={@live_resource}>
   <:topbar>
-    <Backpex.HTML.Layout.topbar_branding />
+    <div class="flex-1"></div>
 
     <!-- Add this -->
     <Backpex.HTML.Layout.theme_selector
@@ -590,7 +595,12 @@ You can add a theme selector to your layout component to allow users to change t
     </Backpex.HTML.Layout.topbar_dropdown>
   </:topbar>
   <:sidebar>
-    <!-- Sidebar Content -->
+    <Backpex.HTML.Layout.sidebar_branding />
+    <nav class="menu w-full flex-1 overflow-y-auto px-2 py-2">
+      <ul class="w-full">
+        <!-- Sidebar Content -->
+      </ul>
+    </nav>
   </:sidebar>
   <Backpex.HTML.Layout.flash_messages flash={@flash} />
   <%= @inner_content %>
