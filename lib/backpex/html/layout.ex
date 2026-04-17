@@ -484,9 +484,9 @@ defmodule Backpex.HTML.Layout do
   attr :class, :string, default: nil, doc: "additional class that will be added to the component"
 
   attr :id, :string,
-    default: "section",
+    required: true,
     doc:
-      "The id for this section. It will be used to save and load the opening state of this section from local storage."
+      "A unique id for this section. Used as the localStorage key for the open/closed state and to wire aria-controls, so every section on the page must have its own."
 
   slot :inner_block
   slot :label, required: true, doc: "label to be displayed on the section."
