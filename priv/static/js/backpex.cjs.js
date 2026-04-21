@@ -135,6 +135,21 @@ var BackpexPreferencesHook = {
 var preferences_default = BackpexPreferencesHook;
 
 // js/hooks/_sidebar.js
+var SECTION_STATES_KEY = "backpex.sidebar.section_states";
+function loadSectionStates() {
+  try {
+    const raw = sessionStorage.getItem(SECTION_STATES_KEY);
+    return raw ? JSON.parse(raw) : {};
+  } catch {
+    return {};
+  }
+}
+function saveSectionStates(states) {
+  try {
+    sessionStorage.setItem(SECTION_STATES_KEY, JSON.stringify(states));
+  } catch {
+  }
+}
 var sidebar_default = {
   FOCUSABLE_SELECTOR: 'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])',
   mounted() {
@@ -147,6 +162,7 @@ var sidebar_default = {
     this.desktopOpen = this.el.dataset.sidebarOpen === "true";
     this.previousFocus = null;
     this._sectionHandlers = /* @__PURE__ */ new WeakMap();
+    this._sectionStates = loadSectionStates();
     const breakpoint = getComputedStyle(document.documentElement).getPropertyValue("--breakpoint-lg").trim() || "64rem";
     this.mediaQuery = window.matchMedia(`(min-width: ${breakpoint})`);
     this.applyState();
@@ -163,11 +179,13 @@ var sidebar_default = {
     this.mediaQuery.addEventListener("change", this._onMediaChange);
     document.addEventListener("keydown", this._onKeydown);
     this.initializeSections();
+    this.applySectionStates();
   },
   updated() {
     if (!this.sidebar || !this.toggleBtn) return;
     this.applyState();
     this.initializeSections();
+    this.applySectionStates();
   },
   destroyed() {
     this.toggleBtn?.removeEventListener("click", this._onToggleClick);
@@ -278,12 +296,32 @@ var sidebar_default = {
         return;
       }
       section.classList.remove("hidden");
+      const id = section.dataset.sectionId;
+      if (!(id in this._sectionStates)) {
+        this._sectionStates[id] = section.dataset.sectionOpen === "true";
+      }
       const previous = this._sectionHandlers.get(toggle);
       if (previous) toggle.removeEventListener("click", previous);
       const handler = (e) => this.handleSectionToggle(e);
       this._sectionHandlers.set(toggle, handler);
       toggle.addEventListener("click", handler);
     });
+  },
+  // Re-apply the authoritative client-side open/closed state to the DOM.
+  // Called from updated() to overwrite whatever the server just rendered from
+  // a potentially-stale session snapshot after a live_redirect.
+  applySectionStates() {
+    for (const [id, open] of Object.entries(this._sectionStates)) {
+      const section = this.el.querySelector(`[data-section-id="${id}"]`);
+      if (!section) continue;
+      const toggle = section.querySelector("[data-menu-dropdown-toggle]");
+      const content = section.querySelector("[data-menu-dropdown-content]");
+      if (!toggle || !content) continue;
+      toggle.classList.toggle("menu-dropdown-show", open);
+      toggle.setAttribute("aria-expanded", String(open));
+      content.style.display = open ? "" : "none";
+      section.dataset.sectionOpen = String(open);
+    }
   },
   hasContent(element) {
     if (!element || element.children.length === 0) return false;
@@ -306,6 +344,9 @@ var sidebar_default = {
     content.style.display = content.style.display === "none" ? "block" : "none";
     const isNowOpen = toggle.classList.contains("menu-dropdown-show");
     toggle.setAttribute("aria-expanded", isNowOpen.toString());
+    section.dataset.sectionOpen = String(isNowOpen);
+    this._sectionStates[sectionId] = isNowOpen;
+    saveSectionStates(this._sectionStates);
     BackpexPreferences.set(`global.sidebar_section.${sectionId}`, isNowOpen);
   }
 };

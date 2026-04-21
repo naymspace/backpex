@@ -1,5 +1,29 @@
 import { BackpexPreferences } from './_preferences'
 
+// Persists sidebar-section open/closed state across live_redirects within a
+// live_session. LiveView freezes the session at websocket-connect time, so a
+// re-mount after `live_redirect` reads a stale cookie and re-renders sections
+// from their default. sessionStorage keeps the user's client-side choices
+// authoritative until the next fresh connect re-seeds from the cookie.
+const SECTION_STATES_KEY = 'backpex.sidebar.section_states'
+
+function loadSectionStates () {
+  try {
+    const raw = sessionStorage.getItem(SECTION_STATES_KEY)
+    return raw ? JSON.parse(raw) : {}
+  } catch {
+    return {}
+  }
+}
+
+function saveSectionStates (states) {
+  try {
+    sessionStorage.setItem(SECTION_STATES_KEY, JSON.stringify(states))
+  } catch {
+    // sessionStorage may be unavailable (private mode, quota); best effort only
+  }
+}
+
 /**
  * Manages sidebar open/close state for mobile and desktop and handles sidebar section expand/collapse.
  *
@@ -26,6 +50,11 @@ export default {
     this.previousFocus = null
     // Per-toggle click handlers, keyed off the toggle element (section dropdowns).
     this._sectionHandlers = new WeakMap()
+    // Client-authoritative section state. Seeded from sessionStorage so it
+    // survives the hook re-mount that LiveView performs on live_redirect
+    // between LiveViews; unknown sections are later seeded from the
+    // server-rendered data-section-open in initializeSections().
+    this._sectionStates = loadSectionStates()
 
     // Track Tailwind's lg breakpoint via its CSS custom property so CSS
     // `lg:` utilities and this hook stay in sync if the user customizes it.
@@ -58,14 +87,18 @@ export default {
 
     document.addEventListener('keydown', this._onKeydown)
 
-    // Initialize sidebar sections
+    // Initialize sidebar sections, then re-assert stored state over whatever
+    // the server just rendered (which may have been rendered from a stale
+    // session snapshot during a live_redirect).
     this.initializeSections()
+    this.applySectionStates()
   },
 
   updated () {
     if (!this.sidebar || !this.toggleBtn) return
     this.applyState()
     this.initializeSections()
+    this.applySectionStates()
   },
 
   destroyed () {
@@ -213,13 +246,39 @@ export default {
 
       section.classList.remove('hidden')
 
-      // State is already server-rendered, just attach click handler
+      // Seed from the server-rendered attribute the first time we see a
+      // section. On a fresh websocket connect the server has read the current
+      // cookie so this value is correct; on a re-mount after live_redirect
+      // _sectionStates is already populated from sessionStorage and this
+      // branch is skipped.
+      const id = section.dataset.sectionId
+      if (!(id in this._sectionStates)) {
+        this._sectionStates[id] = section.dataset.sectionOpen === 'true'
+      }
+
       const previous = this._sectionHandlers.get(toggle)
       if (previous) toggle.removeEventListener('click', previous)
       const handler = (e) => this.handleSectionToggle(e)
       this._sectionHandlers.set(toggle, handler)
       toggle.addEventListener('click', handler)
     })
+  },
+
+  // Re-apply the authoritative client-side open/closed state to the DOM.
+  // Called from updated() to overwrite whatever the server just rendered from
+  // a potentially-stale session snapshot after a live_redirect.
+  applySectionStates () {
+    for (const [id, open] of Object.entries(this._sectionStates)) {
+      const section = this.el.querySelector(`[data-section-id="${id}"]`)
+      if (!section) continue
+      const toggle = section.querySelector('[data-menu-dropdown-toggle]')
+      const content = section.querySelector('[data-menu-dropdown-content]')
+      if (!toggle || !content) continue
+      toggle.classList.toggle('menu-dropdown-show', open)
+      toggle.setAttribute('aria-expanded', String(open))
+      content.style.display = open ? '' : 'none'
+      section.dataset.sectionOpen = String(open)
+    }
   },
 
   hasContent (element) {
@@ -246,7 +305,12 @@ export default {
 
     const isNowOpen = toggle.classList.contains('menu-dropdown-show')
     toggle.setAttribute('aria-expanded', isNowOpen.toString())
-    // Persist to cookie via BackpexPreferences
+    // Keep the data attribute in sync so future reconciliations read back
+    // the current user-intended state.
+    section.dataset.sectionOpen = String(isNowOpen)
+    this._sectionStates[sectionId] = isNowOpen
+    saveSectionStates(this._sectionStates)
+    // Persist to cookie via BackpexPreferences for the next fresh connect.
     BackpexPreferences.set(`global.sidebar_section.${sectionId}`, isNowOpen)
   }
 }
