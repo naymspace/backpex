@@ -86,8 +86,12 @@ defmodule DemoWeb.Live.PreferencesPersistenceTest do
       # The URL collapses to no `filters[]` param, so the clear-filter handler
       # itself must emit the empty-map push_event — apply_index can't infer the
       # cleared intent from the URL alone.
+      #
+      # There are two buttons that fire `clear-filter` for the same field
+      # (the inline "clear" link and the indicator badge's × icon). Target
+      # the indicator explicitly via its aria-label.
       view
-      |> element("button[phx-click='clear-filter'][phx-value-field='published']")
+      |> element("button[aria-label='Clear Published? filter']")
       |> render_click()
 
       expected_key = PrefKeys.filters(@resource_mod)
