@@ -116,19 +116,7 @@ defmodule Backpex.LiveResource.Index do
       end)
       |> Map.new()
 
-    to =
-      Router.get_path(
-        socket,
-        socket.assigns.live_resource,
-        socket.assigns.params,
-        :index,
-        Map.put(query_options, :filters, filters)
-      )
-
-    socket
-    |> assign(filters_changed: true)
-    |> LiveView.push_patch(to: to)
-    |> noreply()
+    apply_filter_change(socket, filters)
   end
 
   def handle_event("item-action", %{"action-key" => key, "item-id" => item_id}, socket) do
@@ -196,19 +184,7 @@ defmodule Backpex.LiveResource.Index do
       Map.get(query_options, :filters, %{})
       |> Map.put(field, get_preset_values.())
 
-    to =
-      Router.get_path(
-        socket,
-        socket.assigns.live_resource,
-        socket.assigns.params,
-        :index,
-        Map.put(query_options, :filters, filters)
-      )
-
-    socket
-    |> assign(filters_changed: true)
-    |> LiveView.push_patch(to: to)
-    |> noreply()
+    apply_filter_change(socket, filters)
   end
 
   def handle_event("update-selected-items", %{"id" => id}, socket) do
@@ -250,24 +226,12 @@ defmodule Backpex.LiveResource.Index do
   end
 
   def handle_event("clear-filter", %{"field" => field}, socket) do
-    %{live_resource: live_resource, query_options: query_options, params: params} = socket.assigns
+    filters =
+      socket.assigns.query_options
+      |> Map.get(:filters, %{})
+      |> Map.delete(field)
 
-    new_query_options =
-      Map.put(
-        query_options,
-        :filters,
-        Map.get(query_options, :filters, %{})
-        |> Map.delete(field)
-      )
-
-    to = Router.get_path(socket, live_resource, params, :index, new_query_options)
-
-    socket
-    |> LiveView.push_patch(to: to)
-    |> assign(params: Map.merge(params, new_query_options))
-    |> assign(query_options: new_query_options)
-    |> assign(filters_changed: true)
-    |> noreply()
+    apply_filter_change(socket, filters)
   end
 
   def handle_event("toggle_column", %{"field" => field}, socket) do
@@ -395,6 +359,37 @@ defmodule Backpex.LiveResource.Index do
   defp maybe_push_columns(socket, live_resource, columns) do
     if persist_enabled?(live_resource, :columns) do
       PreferenceLiveView.push_write(socket, PreferenceKeys.columns(live_resource), columns)
+    else
+      socket
+    end
+  end
+
+  defp apply_filter_change(socket, new_filters) do
+    %{live_resource: live_resource, query_options: query_options, params: params} = socket.assigns
+
+    to =
+      Router.get_path(
+        socket,
+        live_resource,
+        params,
+        :index,
+        Map.put(query_options, :filters, new_filters)
+      )
+
+    socket
+    |> maybe_push_filters(live_resource, new_filters)
+    |> assign(filters_changed: true)
+    |> LiveView.push_patch(to: to)
+    |> noreply()
+  end
+
+  defp maybe_push_filters(socket, live_resource, filters) do
+    if persist_enabled?(live_resource, :filters) do
+      persisted = socket.assigns.backpex_persisted_index_state
+
+      socket
+      |> PreferenceLiveView.push_write(PreferenceKeys.filters(live_resource), filters)
+      |> assign(:backpex_persisted_index_state, %{persisted | filters: filters})
     else
       socket
     end
@@ -542,7 +537,6 @@ defmodule Backpex.LiveResource.Index do
     |> assign_items()
     |> maybe_assign_metrics()
     |> maybe_persist_order(query_options)
-    |> maybe_persist_filters(raw_filter_params)
     |> apply_index_return_to()
   end
 
@@ -587,24 +581,6 @@ defmodule Backpex.LiveResource.Index do
         socket
         |> PreferenceLiveView.push_write(PreferenceKeys.order(live_resource), value)
         |> assign(:backpex_persisted_index_state, %{persisted | order: value})
-      end
-    else
-      socket
-    end
-  end
-
-  defp maybe_persist_filters(socket, raw_filter_params) do
-    %{live_resource: live_resource, backpex_persisted_index_state: persisted} = socket.assigns
-
-    if persist_enabled?(live_resource, :filters) do
-      stored = persisted.filters || %{}
-
-      if stored == raw_filter_params do
-        socket
-      else
-        socket
-        |> PreferenceLiveView.push_write(PreferenceKeys.filters(live_resource), raw_filter_params)
-        |> assign(:backpex_persisted_index_state, %{persisted | filters: raw_filter_params})
       end
     else
       socket

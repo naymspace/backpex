@@ -57,7 +57,7 @@ defmodule DemoWeb.Live.PreferencesPersistenceTest do
       {:ok, view, _html} = live(conn, ~p"/admin/posts?filters[published][]=published")
 
       # Toggle the filter to include not_published too — routes through
-      # handle_params → maybe_persist_filters/2 → push_event.
+      # the change-filter handler → apply_filter_change/2 → push_event.
       view
       |> form("form[phx-change='change-filter']",
         filters: %{published: ["published", "not_published"]}
@@ -73,6 +73,27 @@ defmodule DemoWeb.Live.PreferencesPersistenceTest do
         key: ^expected_key,
         value: %{"published" => ["published", "not_published"]}
       })
+    end
+
+    test "clear-filter emits push_event with empty map", %{conn: conn} do
+      insert(:post, title: "Published", published: true)
+      insert(:post, title: "Draft", published: false)
+
+      # Mount with the default published-only filter applied.
+      {:ok, view, _html} = live(conn, ~p"/admin/posts?filters[published][]=published")
+
+      # Click the filter badge's clear (×) button for the `published` filter.
+      # The URL collapses to no `filters[]` param, so the clear-filter handler
+      # itself must emit the empty-map push_event — apply_index can't infer the
+      # cleared intent from the URL alone.
+      view
+      |> element("button[phx-click='clear-filter'][phx-value-field='published']")
+      |> render_click()
+
+      expected_key = PrefKeys.filters(@resource_mod)
+
+      assert_push_event(view, @event_name, %{key: ^expected_key, value: value})
+      assert value == %{}
     end
   end
 
