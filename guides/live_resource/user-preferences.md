@@ -254,10 +254,46 @@ Dispatch uses **longest-prefix match**, so specific patterns always beat
 
 - `"global.*"` — any key whose first segment is `"global"`.
 - `"global.theme"` — exact match, beats `"global.*"`.
+- A 1-arity function `(String.t() -> boolean())` — escape hatch for
+  cross-cutting carve-outs (see below).
 - `:default` — fallback when nothing else matches.
 
 With no `:adapters` config, the router falls back to a single `:default` →
 Session route so existing apps need no changes.
+
+#### Match functions — cross-cutting carve-outs
+
+Trailing-wildcard patterns can only carve off a *prefix* of the key space.
+When you need to route by a **suffix** (e.g. send every resource's column
+visibility to the session while the rest of `resource.*` goes to a database),
+use a 1-arity function as the pattern:
+
+```elixir
+config :backpex, Backpex.Preferences,
+  adapters: [
+    # Match funs are the most specific route type. Use them for cross-cutting
+    # carve-outs (e.g., every resource's column visibility regardless of module).
+    {&String.ends_with?(&1, ":columns"), Backpex.Preferences.Adapters.Session, []},
+    {"resource.*", MyApp.Preferences.EctoAdapter, repo: MyApp.Repo},
+    {:default, Backpex.Preferences.Adapters.Session, []}
+  ]
+```
+
+Semantics:
+
+- **Match functions are the most specific tier.** They always beat string
+  patterns and `:default`, regardless of how specific those look. Rationale:
+  the user wrote imperative matching code, so we assume they know what they
+  are doing.
+- **First-in-config-order wins among multiple matching functions.** This
+  differs from the longest-prefix rule that applies to string patterns — make
+  sure ordering is deliberate when you have more than one function route.
+- **Match functions are excluded from `get_map/3` (subtree reads).** A
+  function that picks off individual keys (every key ending in `:columns`)
+  cannot cleanly own the subtree rooted at `resource.SomeLive`. Only string
+  patterns and `:default` participate in subtree owner lookups. If you also
+  need the matched keys reachable through a subtree read, pair the function
+  route with a string pattern that owns the whole subtree.
 
 ### Identity resolver
 

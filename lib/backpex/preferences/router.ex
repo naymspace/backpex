@@ -4,25 +4,40 @@ defmodule Backpex.Preferences.Router do
 
   ## Route format
 
-  A route is `{pattern, adapter_module, adapter_opts}` where `pattern` is
-  either:
+  A route is `{pattern, adapter_module, adapter_opts}` where `pattern` is one
+  of:
 
   - an exact key like `"global.theme"`;
   - a prefix wildcard like `"resource.*"` (matches any key whose first segment
     is `"resource"`);
+  - a 1-arity function `(String.t() -> boolean())` invoked with the full key
+    string; useful as an escape hatch for cross-cutting carve-outs that
+    trailing-wildcard patterns cannot express (e.g. "every key ending in
+    `:columns`");
   - the atom `:default` (fallback route used when nothing else matches).
 
   ## Match strategy
 
-  Longest-prefix-first: among matching patterns the one with the most segments
-  wins. This guarantees specific patterns override general ones regardless of
-  the order they appear in config. The `:default` pattern only wins when no
-  other pattern matches.
+  **Match functions are the most specific route type.** A match function
+  always beats any string pattern and `:default`, regardless of how specific
+  the string pattern looks — the user wrote imperative matching code, so we
+  assume they know what they're doing. When two match functions both return
+  `true` for the same key, the one that appears **first in config order**
+  wins (this differs from the longest-prefix rule that applies to string
+  patterns).
+
+  For string patterns, longest-prefix-first still applies: among matching
+  strings the one with the most segments wins, with exact matches beating
+  same-depth wildcards. This guarantees specific patterns override general
+  ones regardless of the order they appear in config. The `:default` pattern
+  only wins when no other pattern matches.
 
   ## Configuration
 
       config :backpex, Backpex.Preferences,
         adapters: [
+          # Match funs: cross-cutting carve-outs (most specific tier)
+          {&String.ends_with?(&1, ":columns"), Backpex.Preferences.Adapters.Session, []},
           {"global.*",   Backpex.Preferences.Adapters.Session, []},
           {"resource.*", MyApp.Preferences.EctoAdapter, repo: MyApp.Repo},
           {:default,     Backpex.Preferences.Adapters.Session, []}
@@ -40,11 +55,18 @@ defmodule Backpex.Preferences.Router do
   Subtree reads (`Backpex.Preferences.get_map/3`) use `resolve_prefix/1,2` —
   they treat the argument as a namespace and pick the adapter that owns the
   entire subtree. See `resolve_prefix/2` for the matching rules.
+
+  **Match-function routes are excluded from `resolve_prefix/1,2`.** A function
+  that matches individual keys (e.g. every key ending in `:columns`) cannot
+  cleanly answer "does this function own the subtree rooted at Q?" — it may
+  match some keys under Q but not others, which is at odds with the
+  single-owner semantics of `get_map`. Only string patterns and `:default`
+  participate in subtree owner lookups.
   """
 
   alias Backpex.Preferences.Key
 
-  @type pattern :: String.t() | :default
+  @type pattern :: String.t() | :default | (String.t() -> boolean())
   @type route :: {pattern(), module(), keyword()}
 
   @doc """
@@ -184,13 +206,13 @@ defmodule Backpex.Preferences.Router do
   end
 
   defp validate_route({pattern, module}) when is_atom(module) do
-    validate_pattern!(pattern)
+    validate_pattern!(pattern, {pattern, module})
     validate_module!(module, {pattern, module})
     {pattern, module, []}
   end
 
   defp validate_route({pattern, module, opts}) when is_atom(module) and is_list(opts) do
-    validate_pattern!(pattern)
+    validate_pattern!(pattern, {pattern, module, opts})
     validate_module!(module, {pattern, module, opts})
     {pattern, module, opts}
   end
@@ -200,7 +222,8 @@ defmodule Backpex.Preferences.Router do
           "invalid Backpex.Preferences route entry: " <>
             inspect(other) <>
             ". Expected {pattern, adapter_module} or {pattern, adapter_module, opts}, " <>
-            "where pattern is :default or a string and adapter_module is a module."
+            "where pattern is :default, a string, or a 1-arity function, and " <>
+            "adapter_module is a module."
   end
 
   # Distinguishes a module alias (e.g. `MyApp.Foo` → `:"Elixir.MyApp.Foo"`)
@@ -228,9 +251,9 @@ defmodule Backpex.Preferences.Router do
     end
   end
 
-  defp validate_pattern!(:default), do: :ok
+  defp validate_pattern!(:default, _entry), do: :ok
 
-  defp validate_pattern!(pattern) when is_binary(pattern) do
+  defp validate_pattern!(pattern, _entry) when is_binary(pattern) do
     if pattern == "" do
       raise ArgumentError, "Backpex.Preferences route pattern must not be an empty string"
     end
@@ -238,11 +261,22 @@ defmodule Backpex.Preferences.Router do
     :ok
   end
 
-  defp validate_pattern!(other) do
+  defp validate_pattern!(pattern, _entry) when is_function(pattern, 1), do: :ok
+
+  defp validate_pattern!(pattern, _entry) when is_function(pattern) do
+    {:arity, arity} = Function.info(pattern, :arity)
+
+    raise ArgumentError,
+          "Backpex.Preferences route match function must be arity 1 " <>
+            "(receives the preference key string and returns boolean), got arity " <>
+            Integer.to_string(arity) <> "."
+  end
+
+  defp validate_pattern!(other, _entry) do
     raise ArgumentError,
           "invalid Backpex.Preferences route pattern: " <>
             inspect(other) <>
-            ". Expected a string like \"resource.*\" or the atom :default."
+            ". Expected a string like \"resource.*\", a 1-arity function, or the atom :default."
   end
 
   # Raises when two wildcard routes with different adapters have prefix
@@ -317,6 +351,8 @@ defmodule Backpex.Preferences.Router do
 
   defp matches?({:default, _module, _opts}, _key), do: true
 
+  defp matches?({fun, _module, _opts}, key) when is_function(fun, 1), do: fun.(key)
+
   defp matches?({pattern, _module, _opts}, key) when is_binary(pattern) do
     case wildcard_prefix_segments(pattern) do
       nil ->
@@ -336,10 +372,19 @@ defmodule Backpex.Preferences.Router do
   defp best_prefix_match(prefix, routes) do
     prefix_segments = String.split(prefix, ".")
 
+    # Exclude match-function routes from subtree owner lookups. A function that
+    # matches individual keys (e.g. every key ending in ":columns") cannot
+    # cleanly own a subtree — it may match some keys under the query prefix
+    # but not others, which contradicts the single-owner semantics that
+    # get_map/3 relies on. Only string patterns and :default participate here.
     routes
+    |> Enum.reject(&match_fun_route?/1)
     |> Enum.filter(&prefix_matches?(&1, prefix, prefix_segments))
     |> Enum.max_by(&prefix_specificity(&1, prefix_segments), fn -> nil end)
   end
+
+  defp match_fun_route?({fun, _module, _opts}) when is_function(fun, 1), do: true
+  defp match_fun_route?(_route), do: false
 
   defp prefix_matches?({:default, _module, _opts}, _prefix, _prefix_segments), do: true
 
@@ -403,9 +448,17 @@ defmodule Backpex.Preferences.Router do
   Returns a tuple representing the specificity of a route pattern.
 
   The tuple is designed so that `Enum.sort_by/2` (and `Enum.max_by/2`) sort
-  in the correct precedence order: exact-match patterns beat wildcards of
-  the same length, longer patterns beat shorter ones, and `:default` always
-  loses to any named pattern.
+  in the correct precedence order. Tiers (higher beats lower):
+
+    * 2 — match functions (most specific; always win over strings and :default)
+    * 1 — string patterns (exact beats wildcard at the same effective depth;
+      longer patterns beat shorter ones)
+    * 0 — `:default` catch-all
+
+  All match-function routes share the same tuple `{2, 0, 0}`, so when two
+  functions both match a key, `Enum.max_by/2` returns the one it encounters
+  first. Combined with `Enum.filter/2` preserving list order, this yields
+  "first in config order wins" for match-function ties.
 
   The exact tuple shape is an implementation detail; rely only on ordering.
 
@@ -418,9 +471,15 @@ defmodule Backpex.Preferences.Router do
       iex> Backpex.Preferences.Router.specificity({"resource.*", Foo, []}) >
       ...>   Backpex.Preferences.Router.specificity({:default, Foo, []})
       true
+
+      iex> Backpex.Preferences.Router.specificity({fn _ -> true end, Foo, []}) >
+      ...>   Backpex.Preferences.Router.specificity({"global.theme", Foo, []})
+      true
   """
   @spec specificity(route()) :: tuple()
   def specificity({:default, _module, _opts}), do: {0, 0, 0}
+
+  def specificity({fun, _module, _opts}) when is_function(fun, 1), do: {2, 0, 0}
 
   def specificity({pattern, _module, _opts}) when is_binary(pattern) do
     segments = String.split(pattern, ".")

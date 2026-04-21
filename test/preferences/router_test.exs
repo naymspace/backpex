@@ -105,6 +105,92 @@ defmodule Backpex.Preferences.RouterTest do
     end
   end
 
+  describe "resolve/2 with match-function patterns" do
+    test "match function routes a key to its adapter" do
+      routes = [
+        {&String.ends_with?(&1, ":columns"), ColumnsAdapter, []},
+        {:default, FallbackAdapter, []}
+      ]
+
+      assert {ColumnsAdapter, []} = Router.resolve("resource:MyApp.MyLive:columns", routes)
+      # A key that does not satisfy the function falls through to :default.
+      assert {FallbackAdapter, []} = Router.resolve("resource:MyApp.MyLive:order", routes)
+    end
+
+    test "match function beats a more-specific string pattern" do
+      # Documents the "functions are the most specific tier" rule. Even an
+      # exact string pattern for the key loses to a match function that also
+      # matches.
+      routes = [
+        {"resource:MyApp.MyLive:columns", StringAdapter, []},
+        {&String.ends_with?(&1, ":columns"), FunAdapter, []}
+      ]
+
+      assert {FunAdapter, []} = Router.resolve("resource:MyApp.MyLive:columns", routes)
+    end
+
+    test "match function beats :default even when :default appears first and the function appears last" do
+      routes = [
+        {:default, FallbackAdapter, []},
+        {"resource.*", WildcardAdapter, []},
+        {&String.ends_with?(&1, ":columns"), FunAdapter, []}
+      ]
+
+      assert {FunAdapter, []} = Router.resolve("resource:MyApp.MyLive:columns", routes)
+    end
+
+    test "first match function in config order wins when multiple functions match" do
+      # Both functions return true for this key. First-in-config-order wins
+      # (the max_by tie-break inherits Enum.filter's preserved list order).
+      routes = [
+        {fn _key -> true end, FirstFunAdapter, []},
+        {fn _key -> true end, SecondFunAdapter, []}
+      ]
+
+      assert {FirstFunAdapter, []} = Router.resolve("anything", routes)
+
+      # Swap the order — result swaps too, confirming order is load-bearing.
+      reversed = [
+        {fn _key -> true end, SecondFunAdapter, []},
+        {fn _key -> true end, FirstFunAdapter, []}
+      ]
+
+      assert {SecondFunAdapter, []} = Router.resolve("anything", reversed)
+    end
+
+    test "match function does not interfere with the existing wildcard-conflict check" do
+      # Two conflicting wildcards would normally raise. Inserting a function
+      # route between them must not rescue or alter that check.
+      routes_without_fun = [
+        {"resource.foo.*", AdapterA, []},
+        {"resource.*", AdapterB, []}
+      ]
+
+      routes_with_fun = [
+        {"resource.foo.*", AdapterA, []},
+        {&String.ends_with?(&1, ":columns"), FunAdapter, []},
+        {"resource.*", AdapterB, []}
+      ]
+
+      assert_raise ArgumentError, ~r/conflicting Backpex.Preferences routes/, fn ->
+        Router.normalize(routes_without_fun)
+      end
+
+      assert_raise ArgumentError, ~r/conflicting Backpex.Preferences routes/, fn ->
+        Router.normalize(routes_with_fun)
+      end
+
+      # A function between two non-conflicting wildcards still normalizes cleanly.
+      clean_routes = [
+        {"resource.foo.*", AdapterA, []},
+        {&String.ends_with?(&1, ":columns"), FunAdapter, []},
+        {"resource.foo.bar.*", AdapterB, []}
+      ]
+
+      assert [_first, _second, _third] = Router.normalize(clean_routes)
+    end
+  end
+
   describe "normalize/1 input validation" do
     test "raises ArgumentError with a friendly message for a non-module adapter" do
       assert_raise ArgumentError,
@@ -165,6 +251,29 @@ defmodule Backpex.Preferences.RouterTest do
       ]
 
       assert [_first, _second] = Router.normalize(routes)
+    end
+
+    test "rejects a 0-arity function pattern with a clear arity message" do
+      assert_raise ArgumentError,
+                   ~r/match function must be arity 1.+got arity 0/s,
+                   fn ->
+                     Router.normalize([{fn -> true end, SomeAdapter, []}])
+                   end
+    end
+
+    test "rejects a 2-arity function pattern with a clear arity message" do
+      assert_raise ArgumentError,
+                   ~r/match function must be arity 1.+got arity 2/s,
+                   fn ->
+                     Router.normalize([{fn _a, _b -> true end, SomeAdapter, []}])
+                   end
+    end
+
+    test "accepts a 1-arity function pattern" do
+      assert [{pattern, SomeAdapter, []}] =
+               Router.normalize([{&String.ends_with?(&1, ":columns"), SomeAdapter, []}])
+
+      assert is_function(pattern, 1)
     end
   end
 
@@ -252,6 +361,39 @@ defmodule Backpex.Preferences.RouterTest do
 
       assert_raise ArgumentError, ~r/no Backpex.Preferences adapter matches prefix/, fn ->
         Router.resolve_prefix("resource.foo", routes)
+      end
+    end
+
+    test "ignores match-function routes even when they would match individual keys" do
+      # The function would match every key in the "resource" subtree if it
+      # were considered, but subtree owner lookups deliberately exclude
+      # match-function routes. The :default adapter must win for the subtree.
+      routes = [
+        {fn _key -> true end, FunAdapter, []},
+        {:default, SessionAdapter, []}
+      ]
+
+      assert {SessionAdapter, []} = Router.resolve_prefix("resource.foo", routes)
+    end
+
+    test "ignores match-function routes so string patterns still own their subtree" do
+      # Even when a function precedes a matching string wildcard, the string
+      # wildcard owns the subtree because functions are excluded from
+      # resolve_prefix entirely.
+      routes = [
+        {fn _key -> true end, FunAdapter, []},
+        {"resource.*", EctoAdapter, []},
+        {:default, SessionAdapter, []}
+      ]
+
+      assert {EctoAdapter, []} = Router.resolve_prefix("resource.foo", routes)
+    end
+
+    test "raises when only a match-function route is configured and no :default exists" do
+      routes = [{fn _key -> true end, FunAdapter, []}]
+
+      assert_raise ArgumentError, ~r/no Backpex.Preferences adapter matches prefix/, fn ->
+        Router.resolve_prefix("anything", routes)
       end
     end
   end
