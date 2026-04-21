@@ -42,6 +42,9 @@ defmodule Backpex.Preferences do
     * `put/4` — write from a LiveView socket or `%Plug.Conn{}`.
     * `put_batch/3` — dispatch a list of writes (best-effort, first-error-wins;
       see the function docs for the partial-success semantics).
+    * `subscribe/1` / `unsubscribe/1` — subscribe to cross-tab preference
+      change broadcasts (opt-in; requires `:pubsub` config — see the
+      "Cross-tab sync" guide section).
 
   Every entry point (except `put_batch/3`, which composes `put/4`) runs the
   key through an opt-in validator. Set
@@ -284,7 +287,9 @@ defmodule Backpex.Preferences do
 
     case dispatch_put(ctx, key, value, opts) do
       {_module, {:ok, effects}} ->
-        {:ok, apply_effects_on_conn(conn, effects)}
+        conn = apply_effects_on_conn(conn, effects)
+        maybe_broadcast(ctx, key, value)
+        {:ok, conn}
 
       {module, {:error, reason} = err} ->
         Logger.warning(
@@ -306,7 +311,9 @@ defmodule Backpex.Preferences do
 
     case dispatch_put(ctx, key, value, opts) do
       {module, {:ok, effects}} ->
-        {:ok, apply_effects_on_socket(socket, module, key, value, effects)}
+        socket = apply_effects_on_socket(socket, module, key, value, effects)
+        maybe_broadcast(ctx, key, value)
+        {:ok, socket}
 
       {_module, {:error, :requires_http}} ->
         {:ok, push_event_fallback(socket, key, value)}
@@ -366,6 +373,7 @@ defmodule Backpex.Preferences do
 
         case module.put(current_ctx, key, value, merge_opts(adapter_opts, opts)) do
           {:ok, fx} ->
+            maybe_broadcast(current_ctx, key, value)
             {:cont, {:lists.reverse(fx, reversed_acc), apply_effects_to_ctx(current_ctx, fx)}}
 
           {:error, reason} ->
@@ -425,6 +433,139 @@ defmodule Backpex.Preferences do
   """
   @spec parse_key(String.t()) :: [String.t()]
   def parse_key(key), do: Key.parse(key)
+
+  @doc """
+  Subscribes the calling process to cross-tab preference change broadcasts
+  for the given identity.
+
+  Requires `:pubsub` configuration. Returns `{:error, :pubsub_not_configured}`
+  when the feature is off. Broadcasts carry the message shape documented on
+  the "Cross-tab sync" section of the user preferences guide:
+
+      {:backpex_preference_changed,
+       %{key: String.t(), value: term(), source: :controller | :server}}
+
+  Topic encoding mirrors `put/4` writes: each identity gets its own topic,
+  built from `topic_prefix <> ":" <> identity_to_string(identity)`. A nil
+  or `:unidentified` identity resolves to `"<topic_prefix>:anonymous"`.
+
+  ## Examples
+
+      # In a LiveView mount/3 callback, after identity is known:
+      if connected?(socket) do
+        Backpex.Preferences.subscribe(socket.assigns.current_user.id)
+      end
+
+      # handle_info/2 later:
+      def handle_info({:backpex_preference_changed, %{key: key, value: value}}, socket) do
+        {:noreply, apply_preference(socket, key, value)}
+      end
+  """
+  @spec subscribe(term()) :: :ok | {:error, term()}
+  def subscribe(identity) do
+    case pubsub_config() do
+      nil ->
+        {:error, :pubsub_not_configured}
+
+      opts ->
+        server = Keyword.fetch!(opts, :server)
+        topic_prefix = Keyword.get(opts, :topic_prefix, default_topic_prefix())
+        Phoenix.PubSub.subscribe(server, topic(topic_prefix, identity))
+    end
+  end
+
+  @doc """
+  Unsubscribes the calling process from preference change broadcasts for the
+  given identity. Mirror of `subscribe/1`.
+
+  Returns `{:error, :pubsub_not_configured}` when the feature is off.
+  """
+  @spec unsubscribe(term()) :: :ok | {:error, term()}
+  def unsubscribe(identity) do
+    case pubsub_config() do
+      nil ->
+        {:error, :pubsub_not_configured}
+
+      opts ->
+        server = Keyword.fetch!(opts, :server)
+        topic_prefix = Keyword.get(opts, :topic_prefix, default_topic_prefix())
+        Phoenix.PubSub.unsubscribe(server, topic(topic_prefix, identity))
+    end
+  end
+
+  @doc """
+  Builds the PubSub topic string for an identity.
+
+  Encoding:
+
+    * `:unidentified` / `nil` → `"<prefix>:anonymous"`.
+    * Anything else → `"<prefix>:<to_string(identity)>"`.
+
+  The `anonymous` branch exists so apps can subscribe to unidentified writes
+  for debugging; consumer code that cares about real users should filter it
+  out.
+  """
+  @spec topic(String.t(), term()) :: String.t()
+  def topic(prefix, identity) when is_binary(prefix) do
+    prefix <> ":" <> identity_to_string(identity)
+  end
+
+  defp identity_to_string(:unidentified), do: "anonymous"
+  defp identity_to_string(nil), do: "anonymous"
+  defp identity_to_string(identity), do: to_string(identity)
+
+  defp pubsub_config do
+    Application.get_env(:backpex, __MODULE__, [])[:pubsub]
+  end
+
+  defp default_topic_prefix, do: "backpex_preferences"
+
+  # Broadcasts a preference change to subscribers of the identity's topic.
+  # No-op unless `:pubsub` is configured. Broadcast failures are logged but
+  # MUST NOT break the write — preferences are best-effort, and a bad PubSub
+  # server name should never propagate to the caller.
+  defp maybe_broadcast(%Context{} = ctx, key, value) do
+    case pubsub_config() do
+      nil ->
+        :ok
+
+      opts ->
+        server = Keyword.fetch!(opts, :server)
+        topic_prefix = Keyword.get(opts, :topic_prefix, default_topic_prefix())
+
+        message =
+          {:backpex_preference_changed, %{key: key, value: value, source: broadcast_source(ctx)}}
+
+        try do
+          Phoenix.PubSub.broadcast(server, topic(topic_prefix, ctx.identity), message)
+        rescue
+          reason ->
+            Logger.warning(
+              "Backpex.Preferences: broadcasting preference change for key #{inspect(key)} " <>
+                "raised: #{Exception.format(:error, reason, __STACKTRACE__)}; write is unaffected"
+            )
+
+            :ok
+        catch
+          kind, reason ->
+            Logger.warning(
+              "Backpex.Preferences: broadcasting preference change for key #{inspect(key)} " <>
+                "threw #{inspect(kind)}: #{inspect(reason)}; write is unaffected"
+            )
+
+            :ok
+        end
+    end
+  end
+
+  # The Context knows where the write originated — hand that through as
+  # `:source` so subscribers can distinguish HTTP-controller writes from
+  # server-side push_event fallbacks. `:mount` contexts don't actually
+  # produce writes, but normalize to `:server` for completeness.
+  defp broadcast_source(%Context{source: :controller}), do: :controller
+  defp broadcast_source(%Context{source: :server}), do: :server
+  defp broadcast_source(%Context{source: :mount}), do: :server
+  defp broadcast_source(_ctx), do: :server
 
   defp dispatch_get(ctx_or_session, key, opts) do
     ctx = resolve_identity(Context.coerce(ctx_or_session))

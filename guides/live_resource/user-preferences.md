@@ -763,6 +763,104 @@ end
 `Backpex.LiveResource`'s own `persist: [:filters]` wiring follows this
 rule; apply the same pattern in any custom persistence logic you build on
 top of `Backpex.Preferences`.
+## Cross-tab sync (PubSub)
+
+Preference writes are fire-and-forget: the browser POSTs, the adapter
+persists, and the rest of the app learns about the change on the next fresh
+mount. That is fine for a single tab. It is not fine for two tabs of the
+same admin — toggling theme in one leaves the other on the stale value
+until the user reloads it.
+
+Backpex can broadcast every successful write on a Phoenix PubSub so other
+LiveViews (other tabs, other connections for the same user) can react in
+real time. The feature is **opt-in** and costs nothing when unconfigured.
+
+### Enable it
+
+```elixir
+# config/config.exs
+config :backpex, Backpex.Preferences,
+  adapters: [...],
+  identity: {MyAppWeb.PreferencesIdentity, :resolve, []},
+  pubsub: [server: MyApp.PubSub, topic_prefix: "backpex_preferences"]
+```
+
+- `:server` — the name of your Phoenix PubSub process. Usually the one
+  your endpoint already starts.
+- `:topic_prefix` — optional. Defaults to `"backpex_preferences"`. Change
+  it only if it collides with something your app already broadcasts on.
+
+When `:pubsub` is absent, writes do not broadcast at all. No PubSub
+lookup, no try/rescue — zero cost.
+
+### Message shape
+
+After every successful `put/4` **and** every successful entry in
+`put_batch/3`, Backpex broadcasts on `"<topic_prefix>:<identity>"`:
+
+```elixir
+{:backpex_preference_changed,
+ %{key: "global.theme", value: "dark", source: :controller}}
+```
+
+- `:source` is `:controller` for HTTP-controller writes (the hot path —
+  the JS hook POSTing to the preferences endpoint) and `:server` for
+  server-side `Preferences.put/4` calls from a LiveView that bypassed
+  the browser.
+- Failed writes do not broadcast. Neither does the `:requires_http`
+  fallback path: the socket hands the write to the browser and the
+  browser's POST will produce the broadcast with `:source == :controller`.
+- Broadcast failures (misconfigured server name, etc.) are logged and
+  swallowed — a bad broadcast NEVER breaks a preference write.
+
+### Subscribe from a LiveView
+
+```elixir
+def mount(_params, _session, socket) do
+  if connected?(socket) do
+    Backpex.Preferences.subscribe(socket.assigns.current_user.id)
+  end
+
+  {:ok, socket}
+end
+
+def handle_info({:backpex_preference_changed, %{key: "global.theme", value: theme}}, socket) do
+  # Re-render with the new theme. Your handler decides how much to reconcile;
+  # a simple `assign(:current_theme, theme)` is often enough.
+  {:noreply, assign(socket, :current_theme, theme)}
+end
+
+def handle_info({:backpex_preference_changed, _other}, socket) do
+  # Ignore keys this view does not care about.
+  {:noreply, socket}
+end
+```
+
+`Backpex.Preferences.subscribe/1` takes an identity — whatever your
+identity resolver returns. Use the same value here that the resolver would
+resolve to for the current user; otherwise your subscription will miss
+broadcasts targeted at a different topic. `unsubscribe/1` mirrors it.
+
+### Why per-identity topics
+
+Broadcasting globally would fan every user's write out to every other
+user's session — a privacy leak dressed up as a feature. Backpex keys the
+topic off the resolved identity so each user's tabs are the only ones
+listening. Writes made with no resolved identity (`:unidentified` from the
+resolver, or no resolver configured) land on `"<topic_prefix>:anonymous"`
+so they stay debuggable but don't cross-pollinate. Consumer code that
+subscribes for real users should ignore the anonymous topic.
+
+### Gotcha: `:unidentified` writes
+
+If your identity resolver returns `:unidentified` for a write (anonymous
+visitor, background job, test), the broadcast lands on the anonymous topic.
+This is intentional — it keeps the write path simple and the broadcasts
+inspectable during development — but it means a `subscribe(user_id)`
+call will not receive `:unidentified` writes for that user. Make sure your
+resolver consistently returns the same identity on both the read and write
+paths.
+
 ## Writing a JS hook that persists preferences
 
 ### Why sessionStorage mirroring exists
