@@ -378,8 +378,7 @@ defmodule Backpex.Preferences.Router do
     # but not others, which contradicts the single-owner semantics that
     # get_map/3 relies on. Only string patterns and :default participate here.
     routes
-    |> Enum.reject(&match_fun_route?/1)
-    |> Enum.filter(&prefix_matches?(&1, prefix, prefix_segments))
+    |> Enum.filter(&(not match_fun_route?(&1) and prefix_matches?(&1, prefix, prefix_segments)))
     |> Enum.max_by(&prefix_specificity(&1, prefix_segments), fn -> nil end)
   end
 
