@@ -1,5 +1,7 @@
 defmodule Backpex.Preferences.KeyTest do
-  use ExUnit.Case, async: true
+  # `async: false` because `validate/1` reads application env for
+  # `:extra_prefixes`, and one describe block mutates that env.
+  use ExUnit.Case, async: false
 
   alias Backpex.Preferences.Key
 
@@ -79,4 +81,76 @@ defmodule Backpex.Preferences.KeyTest do
       refute Key.match?("global.theme", "global.theme.nested")
     end
   end
+
+  describe "known_prefixes/0" do
+    test "returns the built-in prefixes by default" do
+      assert Key.known_prefixes() == ["global", "resource", "custom"]
+    end
+
+    test "appends app-supplied extra prefixes from config, deduplicated" do
+      prior = Application.get_env(:backpex, Key)
+
+      Application.put_env(:backpex, Key, extra_prefixes: ["experimental", "global"])
+
+      try do
+        # "global" is deduplicated because it is already built-in. "experimental"
+        # is appended after the built-ins.
+        assert Key.known_prefixes() == ["global", "resource", "custom", "experimental"]
+      after
+        restore_env(prior)
+      end
+    end
+
+    test "ignores non-binary entries in extra_prefixes" do
+      prior = Application.get_env(:backpex, Key)
+
+      Application.put_env(:backpex, Key, extra_prefixes: [:atom_prefix, "experimental", nil])
+
+      try do
+        assert Key.known_prefixes() == ["global", "resource", "custom", "experimental"]
+      after
+        restore_env(prior)
+      end
+    end
+  end
+
+  describe "validate/1" do
+    test "returns :ok for known built-in prefixes" do
+      assert Key.validate("global.theme") == :ok
+      assert Key.validate("resource:MyApp.UserLive:columns") == :ok
+      assert Key.validate("custom.dashboard.view_mode") == :ok
+    end
+
+    test "returns {:error, :unknown_prefix} for typos" do
+      assert Key.validate("globl.theme") == {:error, :unknown_prefix}
+      assert Key.validate("resources.foo") == {:error, :unknown_prefix}
+      assert Key.validate("other.foo") == {:error, :unknown_prefix}
+    end
+
+    test "returns {:error, :empty} for empty string" do
+      assert Key.validate("") == {:error, :empty}
+    end
+
+    test "returns {:error, :malformed} for keys with an empty first segment" do
+      # `":foo"` parses to `["", "foo"]` — first segment is empty.
+      assert Key.validate(":foo") == {:error, :malformed}
+      # `".foo"` parses to `["", "foo"]` via dot-split — same shape.
+      assert Key.validate(".foo") == {:error, :malformed}
+    end
+
+    test "accepts app-registered extra prefixes" do
+      prior = Application.get_env(:backpex, Key)
+
+      Application.put_env(:backpex, Key, extra_prefixes: ["experimental"])
+
+      try do
+        assert Key.validate("experimental.foo") == :ok
+      after
+        restore_env(prior)
+      end
+    end
+  end
+
+  defp restore_env(nil), do: Application.delete_env(:backpex, Key)
+  defp restore_env(value), do: Application.put_env(:backpex, Key, value)
 end

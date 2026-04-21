@@ -662,6 +662,55 @@ back to a `push_event/3` round-trip so the browser persists via the
 preferences controller on its next paint. DB-backed adapters just write
 directly and return.
 
+### Validating custom keys
+
+Preference keys are strings, and nothing stops a hand-written `"custm.foo"`
+from compiling and silently returning the default. Backpex ships an
+opt-in validator to catch typos mechanically.
+
+**The `custom.*` convention.** Keep every app-owned key under the
+`custom.*` prefix (`custom.dashboard.view_mode`, `custom.density.compact`,
+…). The validator accepts `global.*`, `resource.*`, and `custom.*` out of
+the box — anything else is flagged.
+
+**Registering an extra prefix.** Rare, but occasionally an app has a
+genuine reason to want its own top-level prefix (e.g. a distinct
+`experimental.*` namespace during a rollout). Configure it:
+
+```elixir
+# config/config.exs
+config :backpex, Backpex.Preferences.Key,
+  extra_prefixes: ["experimental"]
+```
+
+Prefer `custom.<your-domain>.<key>` first — an extra prefix is extra
+configuration every future contributor has to know about.
+
+**Turning the validator on.** Default is off so production logs stay
+quiet. Turn it on where typos are a problem:
+
+```elixir
+# config/dev.exs — warn about typos while developing
+config :backpex, Backpex.Preferences, validate_keys: :log
+
+# config/test.exs — fail the test suite if anything emits an unknown key
+config :backpex, Backpex.Preferences, validate_keys: true
+```
+
+`:log` emits `Logger.warning/1` on each unknown key and still dispatches
+the call (returns the default on reads). `true` raises `ArgumentError` on
+the spot, surfacing typos as loud test failures. The validator runs on
+`get/3`, `fetch/3`, `get_map/3`, and `put/4`. `put_batch/3` is intentionally
+skipped — it is the cross-adapter dispatch used by
+`Backpex.PreferencesController` and should not reject requests for an
+unknown prefix at the library boundary.
+
+`Backpex.Preferences.Keys` supplies helpers (`theme/0`, `sidebar_open/0`,
+`columns/1`, …) that are self-checked at compile time to always emit
+valid keys. Prefer those over inline strings whenever a built-in key
+exists — and let the validator catch the remaining hand-written
+`custom.*` strings.
+
 ## Gotchas
 
 ### Preserving preferences across session renewal

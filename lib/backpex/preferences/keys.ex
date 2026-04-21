@@ -33,9 +33,41 @@ defmodule Backpex.Preferences.Keys do
 
   Key construction is delegated to `Backpex.Preferences.Key.resource_key/2`
   so the encoding stays consistent with other callers of the key helpers.
+
+  ## Self-check
+
+  An `@after_compile` callback runs every 0-arity helper and pipes the
+  result through `Backpex.Preferences.Key.validate/1`. If a built-in
+  helper ever drifts to emit a key with an unknown prefix — say, a typo
+  in a refactor — compilation fails immediately. 1-arity helpers are
+  exercised by the companion test (`test/preferences/keys_validation_test.exs`).
   """
 
   alias Backpex.Preferences.Key
+
+  @after_compile __MODULE__
+
+  @doc false
+  def __after_compile__(env, _bytecode) do
+    for {name, 0} <- env.module.__info__(:functions),
+        name not in [:__info__, :module_info] do
+      key = apply(env.module, name, [])
+
+      case Key.validate(key) do
+        :ok ->
+          :ok
+
+        {:error, reason} ->
+          raise CompileError,
+            description:
+              "#{inspect(env.module)}.#{name}/0 returned #{inspect(key)} which fails " <>
+                "Backpex.Preferences.Key.validate/1 with #{inspect(reason)}. Known prefixes: " <>
+                "#{inspect(Key.known_prefixes())}."
+      end
+    end
+
+    :ok
+  end
 
   @doc """
   Key for the global UI theme.

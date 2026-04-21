@@ -43,6 +43,12 @@ defmodule Backpex.Preferences do
     * `put_batch/3` — dispatch a list of writes (best-effort, first-error-wins;
       see the function docs for the partial-success semantics).
 
+  Every entry point (except `put_batch/3`, which composes `put/4`) runs the
+  key through an opt-in validator. Set
+  `config :backpex, Backpex.Preferences, validate_keys: :log | true` to log
+  or raise on unknown keys — default is off so prod logs stay quiet. See
+  `Backpex.Preferences.Key.validate/1` for the underlying check.
+
   ### `get/3` vs `fetch/3`
 
   `get/3` is the common case: you want a value, falling back to a default
@@ -103,6 +109,7 @@ defmodule Backpex.Preferences do
   """
   @spec get(Context.t() | map(), String.t(), keyword()) :: term()
   def get(ctx_or_session, key, opts \\ []) do
+    maybe_validate_key(key, :get)
     default = Keyword.get(opts, :default)
 
     case dispatch_get(ctx_or_session, key, opts) do
@@ -166,6 +173,8 @@ defmodule Backpex.Preferences do
   @spec fetch(Context.t() | map(), String.t(), keyword()) ::
           {:ok, term()} | :error | {:error, term()}
   def fetch(ctx_or_session, key, opts \\ []) do
+    maybe_validate_key(key, :fetch)
+
     case dispatch_get(ctx_or_session, key, opts) do
       {_module, {:ok, :not_found}} ->
         :error
@@ -216,6 +225,7 @@ defmodule Backpex.Preferences do
   """
   @spec get_map(Context.t() | map(), String.t(), keyword()) :: map()
   def get_map(ctx_or_session, prefix, opts \\ []) do
+    maybe_validate_prefix(prefix, :get_map)
     ctx = resolve_identity(Context.coerce(ctx_or_session))
     {module, adapter_opts} = Router.resolve_prefix(prefix)
 
@@ -269,6 +279,7 @@ defmodule Backpex.Preferences do
   def put(target, key, value, opts \\ [])
 
   def put(%Plug.Conn{} = conn, key, value, opts) do
+    maybe_validate_key(key, :put)
     ctx = conn |> Context.from_conn() |> resolve_identity()
 
     case dispatch_put(ctx, key, value, opts) do
@@ -286,6 +297,8 @@ defmodule Backpex.Preferences do
   end
 
   def put(%Phoenix.LiveView.Socket{} = socket, key, value, opts) do
+    maybe_validate_key(key, :put)
+
     ctx =
       %{}
       |> Context.from_socket(socket.assigns)
@@ -515,4 +528,64 @@ defmodule Backpex.Preferences do
   defp normalize_identity({:error, _reason}), do: :unidentified
   defp normalize_identity(nil), do: :unidentified
   defp normalize_identity(id), do: id
+
+  # Opt-in key validation. Reads `:validate_keys` from the
+  # `:backpex, Backpex.Preferences` config. Accepts `nil | false | :log |
+  # true`. Default (`nil`/`false`) short-circuits so production logs stay
+  # quiet. `:log` logs a warning on unknown keys; `true` raises so test
+  # configs can catch typos mechanically.
+  defp maybe_validate_key(key, call_site) when is_binary(key) do
+    case validate_mode() do
+      :off -> :ok
+      mode -> do_validate(Key.validate(key), key, call_site, mode)
+    end
+  end
+
+  defp maybe_validate_key(_other, _call_site), do: :ok
+
+  # `get_map/3` receives a prefix rather than a full key. We only validate
+  # the first segment so patterns like `"global"` or `"resource"` pass.
+  defp maybe_validate_prefix(prefix, call_site) when is_binary(prefix) do
+    case validate_mode() do
+      :off ->
+        :ok
+
+      mode ->
+        first_segment = prefix |> Key.parse() |> List.first()
+        key_for_validation = first_segment || ""
+        do_validate(Key.validate(key_for_validation), prefix, call_site, mode)
+    end
+  end
+
+  defp maybe_validate_prefix(_other, _call_site), do: :ok
+
+  defp validate_mode do
+    case Application.get_env(:backpex, __MODULE__, [])[:validate_keys] do
+      :log -> :log
+      true -> :raise
+      _other -> :off
+    end
+  end
+
+  defp do_validate(:ok, _key, _call_site, _mode), do: :ok
+
+  defp do_validate({:error, reason}, key, call_site, :log) do
+    Logger.warning(
+      "Backpex.Preferences: unknown preference key #{inspect(key)} in #{inspect(call_site)}/3: " <>
+        "#{inspect(reason)}. Known prefixes: #{inspect(Key.known_prefixes())}. " <>
+        "Silence this by using Backpex.Preferences.Keys helpers or registering an extra prefix via " <>
+        "config :backpex, Backpex.Preferences.Key, extra_prefixes: [\"...\"]."
+    )
+
+    :ok
+  end
+
+  defp do_validate({:error, reason}, key, call_site, :raise) do
+    raise ArgumentError,
+          "Backpex.Preferences.#{call_site}/3 received an invalid preference key " <>
+            "#{inspect(key)} (#{inspect(reason)}). Known prefixes: " <>
+            "#{inspect(Key.known_prefixes())}. Use a helper from Backpex.Preferences.Keys, " <>
+            "or register an additional top-level prefix via " <>
+            "config :backpex, Backpex.Preferences.Key, extra_prefixes: [\"...\"]."
+  end
 end
