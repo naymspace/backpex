@@ -231,4 +231,68 @@ defmodule Backpex.InitAssignsTest do
       assert Enum.any?(hooks, fn hook -> hook.id == :current_url end)
     end
   end
+
+  # A recording adapter: every read reports the full context back to the test
+  # process so we can assert on both `ctx.session` and `ctx.assigns`. This is
+  # how we verify that InitAssigns builds the Context from `socket.assigns`
+  # (not just the raw session) and passes it through to the dispatcher.
+  defmodule RecordingAdapter do
+    @moduledoc false
+    @behaviour Backpex.Preferences.Adapter
+
+    @impl Backpex.Preferences.Adapter
+    def get(ctx, key, _opts) do
+      send(self(), {:recorded_get, key, ctx})
+      {:ok, :not_found}
+    end
+
+    @impl Backpex.Preferences.Adapter
+    def get_map(ctx, prefix, _opts) do
+      send(self(), {:recorded_get_map, prefix, ctx})
+      {:ok, %{}}
+    end
+
+    @impl Backpex.Preferences.Adapter
+    def put(_ctx, _key, _value, _opts), do: {:ok, [:noop]}
+  end
+
+  describe "on_mount/4 threads socket.assigns through the Context" do
+    test "every preference read receives a Context carrying the session and socket.assigns" do
+      # The core DX guarantee: an Ecto-backed identity resolver should be able
+      # to read `ctx.assigns.current_scope` (or whatever the host app's auth
+      # hook put on the socket) rather than re-implement session-token lookup.
+      Application.put_env(:backpex, Backpex.Preferences, adapters: [{:default, RecordingAdapter, []}])
+
+      current_user = %{id: 42, email: "user@example.com"}
+
+      socket = %{build_socket() | assigns: %{__changed__: %{}, current_user: current_user}}
+      session = %{"some" => "session-data"}
+
+      _mounted_socket = mount(session, socket)
+
+      # Drain every recorded call and assert the Context shape.
+      contexts =
+        Stream.repeatedly(fn ->
+          receive do
+            {:recorded_get, _key, ctx} -> ctx
+            {:recorded_get_map, _prefix, ctx} -> ctx
+          after
+            0 -> nil
+          end
+        end)
+        |> Stream.take_while(&(&1 != nil))
+        |> Enum.to_list()
+
+      # InitAssigns reads at least three preferences: theme, sidebar_open,
+      # and the sidebar_section prefix map. Every one of them must see the
+      # same socket.assigns snapshot.
+      assert length(contexts) >= 3
+
+      Enum.each(contexts, fn ctx ->
+        assert %Backpex.Preferences.Context{} = ctx
+        assert ctx.session == session
+        assert ctx.assigns[:current_user] == current_user
+      end)
+    end
+  end
 end

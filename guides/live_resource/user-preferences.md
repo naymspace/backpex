@@ -63,6 +63,106 @@ the session; every setting is routed independently.
 - **Storage is your call.** Per-browser session is the default; swap any
   prefix onto a per-user database with a few lines of config.
 
+## Contracts
+
+Backpex dispatches every preference read and write through a
+`%Backpex.Preferences.Context{}` carrying the current session **and** the
+current `assigns` (controller `conn.assigns` on the write path,
+`socket.assigns` on the LiveView read path). Adapters — and the identity
+resolver they share — are expected to read from `ctx.assigns` first and fall
+back to `ctx.session` only when the assigns view is empty.
+
+For that guarantee to hold, the host app must satisfy a handful of
+ordering and content contracts. None of these are enforced at compile time,
+so it is worth spelling them out explicitly.
+
+### Ordering: auth runs first
+
+- **LiveView read path.** `Backpex.InitAssigns` must be attached **after**
+  your app's authentication `on_mount` hook so that `socket.assigns` already
+  holds `:current_user` / `:current_scope` by the time preferences are read.
+  In a typical Phoenix 1.8 `live_session`:
+
+  ```elixir
+  live_session :authenticated,
+    on_mount: [
+      {MyAppWeb.UserAuth, :ensure_authenticated},
+      Backpex.InitAssigns
+    ] do
+    # ... Backpex routes ...
+  end
+  ```
+
+  If the order is reversed, `InitAssigns` will see an empty `socket.assigns`
+  and your identity resolver will have to fall back to reading the raw
+  session token — defeating the point of threading assigns through.
+
+- **Controller write path.** The preferences controller is mounted behind
+  the standard browser pipeline. As long as your auth plug runs before
+  `Backpex.PreferencesController`, `conn.assigns` already contains the
+  authenticated user by the time `Preferences.put/4` or
+  `Preferences.put_batch/3` executes. This is true by construction of
+  `Plug.Conn.assigns` but worth stating.
+
+### The identity resolver receives a Context
+
+Your resolver gets a `%Backpex.Preferences.Context{}`, not a raw session.
+Read from `ctx.assigns` first — it is the post-auth, freshest view. Fall
+back to `ctx.session` only for edge cases where assigns cannot carry the
+answer (e.g. a non-LiveView write path that bypasses your auth `on_mount`
+but still sits behind the router's session + auth plug pipeline):
+
+```elixir
+defmodule MyAppWeb.PreferencesIdentity do
+  alias Backpex.Preferences.Context
+
+  # Primary: whatever your auth layer put on assigns.
+  def resolve(%Context{assigns: %{current_scope: %{user: %{id: id}}}}), do: id
+  def resolve(%Context{assigns: %{current_user: %{id: id}}}), do: id
+
+  # Fallback: a raw session token. Useful when you truly only have a
+  # session on hand (background jobs, tests, hand-crafted calls).
+  def resolve(%Context{session: %{"user_token" => token}}) when is_binary(token) do
+    case MyApp.Accounts.get_user_by_session_token(token) do
+      %{id: id} -> id
+      _ -> :unidentified
+    end
+  end
+
+  def resolve(_ctx), do: :unidentified
+end
+```
+
+The resolver runs once per dispatcher call and its result is cached on the
+context for the rest of that single dispatch (so one read never invokes it
+twice). Keep it cheap all the same — every `Preferences.get/3` and
+`Preferences.put/4` call triggers a fresh resolution.
+
+### Session key must survive `renew_session`
+
+Phoenix's `renew_session/1` helper (commonly called on login/logout to
+rotate the session id) drops every session key unless explicitly preserved.
+Backpex stores its session-backed preferences under
+`Backpex.Preferences.session_key/0` (currently `"backpex_preferences"`) — if
+you call `renew_session` in your auth flow, carry that key across:
+
+```elixir
+def renew_session(conn) do
+  prefs = Plug.Conn.get_session(conn, Backpex.Preferences.session_key())
+
+  conn
+  |> configure_session(renew: true)
+  |> clear_session()
+  |> then(fn c ->
+    if prefs, do: put_session(c, Backpex.Preferences.session_key(), prefs), else: c
+  end)
+end
+```
+
+DB-backed adapters are unaffected by `renew_session` — they key off the
+user id, not the session. This note only matters for prefixes routed to
+`Backpex.Preferences.Adapters.Session`.
+
 ## Built-in preference keys
 
 Every key Backpex reads or writes is listed here. Third-party code should
@@ -174,11 +274,27 @@ config :backpex, Backpex.Preferences,
 defmodule MyAppWeb.PreferencesIdentity do
   alias Backpex.Preferences.Context
 
+  # Prefer assigns: Backpex passes the live socket's / conn's assigns in
+  # `ctx.assigns`, so whatever your auth layer put there (current_scope,
+  # current_user, ...) is already resolved by the time preferences are read.
+  def resolve(%Context{assigns: %{current_scope: %{user: %{id: id}}}}), do: id
   def resolve(%Context{assigns: %{current_user: %{id: id}}}), do: id
-  def resolve(%Context{session: %{"user_id" => id}}) when not is_nil(id), do: id
+
+  # Fall back to the raw session only when assigns can't answer (e.g. a
+  # non-LiveView write path, a test that constructed a Context by hand).
+  def resolve(%Context{session: %{"user_token" => token}}) when is_binary(token) do
+    case MyApp.Accounts.get_user_by_session_token(token) do
+      %{id: id} -> id
+      _ -> :unidentified
+    end
+  end
+
   def resolve(_ctx), do: :unidentified
 end
 ```
+
+See the [Contracts](#contracts) section for why the assigns-first order
+matters and what the host app must guarantee for it to hold.
 
 The dispatcher calls the resolver once per read/write call — there is no
 cross-call memoization, so the resolver runs every time. Keep it cheap

@@ -9,6 +9,7 @@ defmodule Backpex.LiveResource.Index do
   alias Backpex.LiveResource
   alias Backpex.PaginationValidation
   alias Backpex.Preferences
+  alias Backpex.Preferences.Context, as: PreferenceContext
   alias Backpex.Preferences.Keys, as: PreferenceKeys
   alias Backpex.Preferences.LiveView, as: PreferenceLiveView
   alias Backpex.Resource
@@ -19,20 +20,29 @@ defmodule Backpex.LiveResource.Index do
   require Backpex
 
   def mount(params, session, socket, live_resource) do
+    socket =
+      socket
+      |> LiveResource.maybe_subscribe_to_pubsub(live_resource)
+      |> assign(:live_resource, live_resource)
+      |> assign(:panels, live_resource.panels())
+      |> assign(:fluid?, live_resource.config(:fluid?))
+      |> assign(:fields, live_resource.fields(socket.assigns.live_action, socket.assigns))
+      |> assign(
+        :create_button_label,
+        Backpex.__({"New %{resource}", %{resource: live_resource.singular_name()}}, live_resource)
+      )
+
+    # Build a Context once per mount so identity resolvers see the same
+    # session + socket.assigns snapshot across every preference read (including
+    # any auth-layer assigns like :current_scope or :current_user populated by
+    # an earlier on_mount hook).
+    ctx = PreferenceContext.from_mount(session, socket.assigns)
+
     socket
-    |> LiveResource.maybe_subscribe_to_pubsub(live_resource)
-    |> assign(:live_resource, live_resource)
-    |> assign(:panels, live_resource.panels())
-    |> assign(:fluid?, live_resource.config(:fluid?))
-    |> assign(:fields, live_resource.fields(socket.assigns.live_action, socket.assigns))
-    |> assign(
-      :create_button_label,
-      Backpex.__({"New %{resource}", %{resource: live_resource.singular_name()}}, live_resource)
-    )
-    |> assign_persisted_index_state(session)
-    |> assign_metrics_visibility(session)
+    |> assign_persisted_index_state(ctx)
+    |> assign_metrics_visibility(ctx)
     |> assign_filters_changed_status(params)
-    |> assign_active_fields(session)
+    |> assign_active_fields(ctx)
     |> ok()
   end
 
@@ -309,13 +319,13 @@ defmodule Backpex.LiveResource.Index do
     end)
   end
 
-  defp assign_active_fields(socket, session) do
+  defp assign_active_fields(socket, ctx) do
     %{fields: fields, live_resource: live_resource} = socket.assigns
 
     saved_columns =
       if persist_enabled?(live_resource, :columns) do
         resource_key = PreferenceKeys.columns(live_resource)
-        Preferences.get(session, resource_key, default: %{})
+        Preferences.get(ctx, resource_key, default: %{})
       else
         %{}
       end
@@ -329,26 +339,26 @@ defmodule Backpex.LiveResource.Index do
     assign(socket, :active_fields, active_fields)
   end
 
-  defp assign_persisted_index_state(socket, session) do
+  defp assign_persisted_index_state(socket, ctx) do
     %{live_resource: live_resource} = socket.assigns
 
     persisted = %{
-      order: read_persisted(:order, live_resource, session),
-      filters: read_persisted(:filters, live_resource, session)
+      order: read_persisted(:order, live_resource, ctx),
+      filters: read_persisted(:filters, live_resource, ctx)
     }
 
     assign(socket, :backpex_persisted_index_state, persisted)
   end
 
-  defp read_persisted(:order, live_resource, session) do
+  defp read_persisted(:order, live_resource, ctx) do
     if persist_enabled?(live_resource, :order) do
-      Preferences.get(session, PreferenceKeys.order(live_resource))
+      Preferences.get(ctx, PreferenceKeys.order(live_resource))
     end
   end
 
-  defp read_persisted(:filters, live_resource, session) do
+  defp read_persisted(:filters, live_resource, ctx) do
     if persist_enabled?(live_resource, :filters) do
-      Preferences.get(session, PreferenceKeys.filters(live_resource))
+      Preferences.get(ctx, PreferenceKeys.filters(live_resource))
     end
   end
 
@@ -414,9 +424,9 @@ defmodule Backpex.LiveResource.Index do
     assign(socket, :items, updated_items)
   end
 
-  defp assign_metrics_visibility(socket, session) do
+  defp assign_metrics_visibility(socket, ctx) do
     %{live_resource: live_resource} = socket.assigns
-    visible = Preferences.get(session, PreferenceKeys.metrics_visible(live_resource), default: true)
+    visible = Preferences.get(ctx, PreferenceKeys.metrics_visible(live_resource), default: true)
 
     assign(socket, :metric_visibility, %{to_string(live_resource) => visible})
   end
