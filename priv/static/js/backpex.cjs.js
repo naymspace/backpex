@@ -77,6 +77,23 @@ var drag_hover_default = {
 };
 
 // js/hooks/_preferences.js
+var SESSION_PREFIX = "backpex.prefs.";
+function sessionKey(key) {
+  return SESSION_PREFIX + key;
+}
+function readSession(key) {
+  try {
+    return sessionStorage.getItem(sessionKey(key));
+  } catch {
+    return null;
+  }
+}
+function writeSession(key, value) {
+  try {
+    sessionStorage.setItem(sessionKey(key), value);
+  } catch {
+  }
+}
 var BackpexPreferences = {
   endpointPath: null,
   csrfToken: null,
@@ -89,13 +106,62 @@ var BackpexPreferences = {
     this.csrfToken = document.querySelector("meta[name='csrf-token']")?.content;
   },
   /**
+   * Read a preference, preferring the sessionStorage mirror over the
+   * caller-provided fallback. Only meaningful for keys that were written
+   * with `{ mirror: 'session' }` — keys persisted on the server alone will
+   * always return `fallback` here.
+   *
+   * Booleans and numbers deserialize from their `String(value)` form;
+   * strings pass through; everything else round-trips through JSON.
+   *
+   * The fallback's runtime type drives deserialization, so callers always
+   * get a value of the same shape they passed in.
+   *
+   * @param {string} key - Dot-notation key (e.g., "global.sidebar_open")
+   * @param {boolean|number|string|object|null|undefined} fallback - Value to
+   *   return when the mirror is absent or sessionStorage is unavailable.
+   * @returns {*} The stored value or `fallback`.
+   */
+  get(key, fallback) {
+    const raw = readSession(key);
+    if (raw === null) return fallback;
+    if (typeof fallback === "boolean") return raw === "true";
+    if (typeof fallback === "number") {
+      const n = Number(raw);
+      return Number.isNaN(n) ? fallback : n;
+    }
+    if (typeof fallback === "string") return raw;
+    try {
+      return JSON.parse(raw);
+    } catch {
+      return fallback;
+    }
+  },
+  /**
    * Set a preference value and persist immediately.
    * Called directly by JS hooks or via LiveView push_event.
    *
+   * When `opts.mirror === 'session'` the value is written to sessionStorage
+   * *before* the HTTP POST, so the client-authoritative state survives the
+   * hook re-mount that LiveView performs on `live_redirect` between
+   * LiveViews (the server reads its session snapshot from the websocket
+   * handshake, which is frozen at connect time and doesn't see writes the
+   * HTTP endpoint just committed to the cookie).
+   *
+   * `opts.mirror === false` (or omitting `opts` entirely) keeps the legacy
+   * behavior: HTTP POST only, no local mirror. This is the right choice
+   * whenever the server is the authoritative source on every render
+   * (e.g. a DB-backed preference read fresh from Ecto).
+   *
    * @param {string} key - Dot-notation key (e.g., "global.theme")
    * @param {any} value - Value to store
+   * @param {{ mirror?: 'session' | false }} [opts]
    */
-  set(key, value) {
+  set(key, value, opts = {}) {
+    if (opts.mirror === "session") {
+      const serialized = typeof value === "string" ? value : typeof value === "boolean" || typeof value === "number" ? String(value) : JSON.stringify(value);
+      writeSession(key, serialized);
+    }
     this.persist(key, value);
   },
   /**
@@ -135,36 +201,6 @@ var BackpexPreferencesHook = {
 var preferences_default = BackpexPreferencesHook;
 
 // js/hooks/_sidebar.js
-var SIDEBAR_OPEN_KEY = "backpex.sidebar.open";
-var SECTION_STATES_KEY = "backpex.sidebar.section_states";
-function loadSidebarOpen() {
-  try {
-    const raw = sessionStorage.getItem(SIDEBAR_OPEN_KEY);
-    return raw === null ? null : raw === "true";
-  } catch {
-    return null;
-  }
-}
-function saveSidebarOpen(open) {
-  try {
-    sessionStorage.setItem(SIDEBAR_OPEN_KEY, String(open));
-  } catch {
-  }
-}
-function loadSectionStates() {
-  try {
-    const raw = sessionStorage.getItem(SECTION_STATES_KEY);
-    return raw ? JSON.parse(raw) : {};
-  } catch {
-    return {};
-  }
-}
-function saveSectionStates(states) {
-  try {
-    sessionStorage.setItem(SECTION_STATES_KEY, JSON.stringify(states));
-  } catch {
-  }
-}
 var sidebar_default = {
   FOCUSABLE_SELECTOR: 'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])',
   mounted() {
@@ -174,11 +210,13 @@ var sidebar_default = {
     this.toggleBtn = document.getElementById("backpex-sidebar-toggle");
     if (!this.sidebar || !this.toggleBtn) return;
     this.mobileOpen = false;
-    const storedSidebarOpen = loadSidebarOpen();
-    this.desktopOpen = storedSidebarOpen !== null ? storedSidebarOpen : this.el.dataset.sidebarOpen === "true";
+    this.desktopOpen = BackpexPreferences.get(
+      "global.sidebar_open",
+      this.el.dataset.sidebarOpen === "true"
+    );
     this.previousFocus = null;
     this._sectionHandlers = /* @__PURE__ */ new WeakMap();
-    this._sectionStates = loadSectionStates();
+    this._sectionStates = {};
     const breakpoint = getComputedStyle(document.documentElement).getPropertyValue("--breakpoint-lg").trim() || "64rem";
     this.mediaQuery = window.matchMedia(`(min-width: ${breakpoint})`);
     this.applyState();
@@ -224,8 +262,7 @@ var sidebar_default = {
   handleToggle() {
     if (this.isDesktop()) {
       this.desktopOpen = !this.desktopOpen;
-      saveSidebarOpen(this.desktopOpen);
-      BackpexPreferences.set("global.sidebar_open", this.desktopOpen);
+      BackpexPreferences.set("global.sidebar_open", this.desktopOpen, { mirror: "session" });
     } else {
       if (!this.mobileOpen) this.previousFocus = document.activeElement;
       this.mobileOpen = !this.mobileOpen;
@@ -315,7 +352,10 @@ var sidebar_default = {
       section.classList.remove("hidden");
       const id = section.dataset.sectionId;
       if (!(id in this._sectionStates)) {
-        this._sectionStates[id] = section.dataset.sectionOpen === "true";
+        this._sectionStates[id] = BackpexPreferences.get(
+          `global.sidebar_section.${id}`,
+          section.dataset.sectionOpen === "true"
+        );
       }
       const previous = this._sectionHandlers.get(toggle);
       if (previous) toggle.removeEventListener("click", previous);
@@ -363,8 +403,11 @@ var sidebar_default = {
     toggle.setAttribute("aria-expanded", isNowOpen.toString());
     section.dataset.sectionOpen = String(isNowOpen);
     this._sectionStates[sectionId] = isNowOpen;
-    saveSectionStates(this._sectionStates);
-    BackpexPreferences.set(`global.sidebar_section.${sectionId}`, isNowOpen);
+    BackpexPreferences.set(
+      `global.sidebar_section.${sectionId}`,
+      isNowOpen,
+      { mirror: "session" }
+    );
   }
 };
 
@@ -459,7 +502,7 @@ var tooltip_default = {
   }
 };
 
-// ../node_modules/imask/esm/core/utils.js
+// ../../../../node_modules/imask/esm/core/utils.js
 function isString(str) {
   return typeof str === "string" || str instanceof String;
 }
@@ -522,7 +565,7 @@ function objectIncludes(b, a) {
   return false;
 }
 
-// ../node_modules/imask/esm/core/action-details.js
+// ../../../../node_modules/imask/esm/core/action-details.js
 var ActionDetails = class {
   /** Current input value */
   /** Current cursor position */
@@ -577,12 +620,12 @@ var ActionDetails = class {
   }
 };
 
-// ../node_modules/imask/esm/core/holder.js
+// ../../../../node_modules/imask/esm/core/holder.js
 function IMask(el, opts) {
   return new IMask.InputMask(el, opts);
 }
 
-// ../node_modules/imask/esm/masked/factory.js
+// ../../../../node_modules/imask/esm/masked/factory.js
 function maskedClass(mask) {
   if (mask == null) throw new Error("mask property should be defined");
   if (mask instanceof RegExp) return IMask.MaskedRegExp;
@@ -639,7 +682,7 @@ function createMask(opts) {
 }
 IMask.createMask = createMask;
 
-// ../node_modules/imask/esm/controls/mask-element.js
+// ../../../../node_modules/imask/esm/controls/mask-element.js
 var MaskElement = class {
   /** */
   /** */
@@ -680,7 +723,7 @@ var MaskElement = class {
 };
 IMask.MaskElement = MaskElement;
 
-// ../node_modules/imask/esm/controls/html-mask-element.js
+// ../../../../node_modules/imask/esm/controls/html-mask-element.js
 var KEY_Z = 90;
 var KEY_Y = 89;
 var HTMLMaskElement = class extends MaskElement {
@@ -755,7 +798,7 @@ var HTMLMaskElement = class extends MaskElement {
 };
 IMask.HTMLMaskElement = HTMLMaskElement;
 
-// ../node_modules/imask/esm/controls/html-input-mask-element.js
+// ../../../../node_modules/imask/esm/controls/html-input-mask-element.js
 var HTMLInputMaskElement = class extends HTMLMaskElement {
   /** InputElement to use mask on */
   constructor(input) {
@@ -783,7 +826,7 @@ var HTMLInputMaskElement = class extends HTMLMaskElement {
 };
 IMask.HTMLMaskElement = HTMLMaskElement;
 
-// ../node_modules/imask/esm/controls/html-contenteditable-mask-element.js
+// ../../../../node_modules/imask/esm/controls/html-contenteditable-mask-element.js
 var HTMLContenteditableMaskElement = class extends HTMLMaskElement {
   /** Returns HTMLElement selection start */
   get _unsafeSelectionStart() {
@@ -830,7 +873,7 @@ var HTMLContenteditableMaskElement = class extends HTMLMaskElement {
 };
 IMask.HTMLContenteditableMaskElement = HTMLContenteditableMaskElement;
 
-// ../node_modules/imask/esm/controls/input-history.js
+// ../../../../node_modules/imask/esm/controls/input-history.js
 var InputHistory = class _InputHistory {
   constructor() {
     this.states = [];
@@ -865,7 +908,7 @@ var InputHistory = class _InputHistory {
 };
 InputHistory.MAX_LENGTH = 100;
 
-// ../node_modules/imask/esm/controls/input.js
+// ../../../../node_modules/imask/esm/controls/input.js
 var InputMask = class {
   /**
     View element
@@ -1163,7 +1206,7 @@ var InputMask = class {
 };
 IMask.InputMask = InputMask;
 
-// ../node_modules/imask/esm/core/change-details.js
+// ../../../../node_modules/imask/esm/core/change-details.js
 var ChangeDetails = class _ChangeDetails {
   /** Inserted symbols */
   /** Additional offset if any changes occurred before tail */
@@ -1201,7 +1244,7 @@ var ChangeDetails = class _ChangeDetails {
 };
 IMask.ChangeDetails = ChangeDetails;
 
-// ../node_modules/imask/esm/core/continuous-tail-details.js
+// ../../../../node_modules/imask/esm/core/continuous-tail-details.js
 var ContinuousTailDetails = class {
   /** Tail value as string */
   /** Tail start position */
@@ -1252,7 +1295,7 @@ var ContinuousTailDetails = class {
   }
 };
 
-// ../node_modules/imask/esm/masked/base.js
+// ../../../../node_modules/imask/esm/masked/base.js
 var Masked = class _Masked {
   /** */
   /** */
@@ -1605,7 +1648,7 @@ Masked.DEFAULTS = {
 Masked.EMPTY_VALUES = [void 0, null, ""];
 IMask.Masked = Masked;
 
-// ../node_modules/imask/esm/masked/pattern/chunk-tail-details.js
+// ../../../../node_modules/imask/esm/masked/pattern/chunk-tail-details.js
 var ChunksTailDetails = class _ChunksTailDetails {
   /** */
   constructor(chunks, from) {
@@ -1738,7 +1781,7 @@ var ChunksTailDetails = class _ChunksTailDetails {
   }
 };
 
-// ../node_modules/imask/esm/masked/pattern/cursor.js
+// ../../../../node_modules/imask/esm/masked/pattern/cursor.js
 var PatternCursor = class {
   constructor(masked, pos) {
     this.masked = masked;
@@ -1857,7 +1900,7 @@ var PatternCursor = class {
   }
 };
 
-// ../node_modules/imask/esm/masked/pattern/fixed-definition.js
+// ../../../../node_modules/imask/esm/masked/pattern/fixed-definition.js
 var PatternFixedDefinition = class {
   /** */
   /** */
@@ -1999,7 +2042,7 @@ var PatternFixedDefinition = class {
   }
 };
 
-// ../node_modules/imask/esm/masked/pattern/input-definition.js
+// ../../../../node_modules/imask/esm/masked/pattern/input-definition.js
 var PatternInputDefinition = class {
   /** */
   /** */
@@ -2171,7 +2214,7 @@ PatternInputDefinition.DEFAULT_DEFINITIONS = {
   "*": /./
 };
 
-// ../node_modules/imask/esm/masked/regexp.js
+// ../../../../node_modules/imask/esm/masked/regexp.js
 var MaskedRegExp = class extends Masked {
   /** */
   /** Enable characters overwriting */
@@ -2189,7 +2232,7 @@ var MaskedRegExp = class extends Masked {
 };
 IMask.MaskedRegExp = MaskedRegExp;
 
-// ../node_modules/imask/esm/masked/pattern.js
+// ../../../../node_modules/imask/esm/masked/pattern.js
 var MaskedPattern = class _MaskedPattern extends Masked {
   /** */
   /** */
@@ -2609,7 +2652,7 @@ MaskedPattern.InputDefinition = PatternInputDefinition;
 MaskedPattern.FixedDefinition = PatternFixedDefinition;
 IMask.MaskedPattern = MaskedPattern;
 
-// ../node_modules/imask/esm/masked/range.js
+// ../../../../node_modules/imask/esm/masked/range.js
 var MaskedRange = class extends MaskedPattern {
   /**
     Optionally sets max length of pattern.
@@ -2710,7 +2753,7 @@ var MaskedRange = class extends MaskedPattern {
 };
 IMask.MaskedRange = MaskedRange;
 
-// ../node_modules/imask/esm/masked/date.js
+// ../../../../node_modules/imask/esm/masked/date.js
 var DefaultPattern = "d{.}`m{.}`Y";
 var MaskedDate = class _MaskedDate extends MaskedPattern {
   static extractPatternOptions(opts) {
@@ -2831,7 +2874,7 @@ MaskedDate.DEFAULTS = {
 };
 IMask.MaskedDate = MaskedDate;
 
-// ../node_modules/imask/esm/masked/dynamic.js
+// ../../../../node_modules/imask/esm/masked/dynamic.js
 var MaskedDynamic = class _MaskedDynamic extends Masked {
   constructor(opts) {
     super({
@@ -3142,7 +3185,7 @@ MaskedDynamic.DEFAULTS = {
 };
 IMask.MaskedDynamic = MaskedDynamic;
 
-// ../node_modules/imask/esm/masked/enum.js
+// ../../../../node_modules/imask/esm/masked/enum.js
 var MaskedEnum = class _MaskedEnum extends MaskedPattern {
   constructor(opts) {
     super({
@@ -3230,7 +3273,7 @@ MaskedEnum.DEFAULTS = {
 };
 IMask.MaskedEnum = MaskedEnum;
 
-// ../node_modules/imask/esm/masked/function.js
+// ../../../../node_modules/imask/esm/masked/function.js
 var MaskedFunction = class extends Masked {
   /** */
   /** Enable characters overwriting */
@@ -3249,7 +3292,7 @@ var MaskedFunction = class extends Masked {
 };
 IMask.MaskedFunction = MaskedFunction;
 
-// ../node_modules/imask/esm/masked/number.js
+// ../../../../node_modules/imask/esm/masked/number.js
 var _MaskedNumber;
 var MaskedNumber = class _MaskedNumber2 extends Masked {
   /** Single char */
@@ -3530,7 +3573,7 @@ MaskedNumber.DEFAULTS = {
 };
 IMask.MaskedNumber = MaskedNumber;
 
-// ../node_modules/imask/esm/masked/pipe.js
+// ../../../../node_modules/imask/esm/masked/pipe.js
 var PIPE_TYPE = {
   MASKED: "value",
   UNMASKED: "unmaskedValue",
@@ -3556,7 +3599,7 @@ IMask.PIPE_TYPE = PIPE_TYPE;
 IMask.createPipe = createPipe;
 IMask.pipe = pipe;
 
-// ../node_modules/imask/esm/masked/repeat.js
+// ../../../../node_modules/imask/esm/masked/repeat.js
 var RepeatBlock = class extends MaskedPattern {
   get repeatFrom() {
     var _ref;
@@ -3680,7 +3723,7 @@ var RepeatBlock = class extends MaskedPattern {
 };
 IMask.RepeatBlock = RepeatBlock;
 
-// ../node_modules/imask/esm/index.js
+// ../../../../node_modules/imask/esm/index.js
 try {
   globalThis.IMask = IMask;
 } catch {

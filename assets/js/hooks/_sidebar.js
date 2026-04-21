@@ -1,47 +1,17 @@
 import { BackpexPreferences } from './_preferences'
 
-// Persists sidebar open/closed state across live_redirects within a
-// live_session. LiveView freezes the session at websocket-connect time, so a
-// re-mount after `live_redirect` reads a stale cookie and re-renders the
-// shell from its default. sessionStorage keeps the user's client-side
-// choices authoritative until the next fresh connect re-seeds from the
-// cookie. Same pattern as SECTION_STATES_KEY below.
-const SIDEBAR_OPEN_KEY = 'backpex.sidebar.open'
-const SECTION_STATES_KEY = 'backpex.sidebar.section_states'
-
-function loadSidebarOpen () {
-  try {
-    const raw = sessionStorage.getItem(SIDEBAR_OPEN_KEY)
-    return raw === null ? null : raw === 'true'
-  } catch {
-    return null
-  }
-}
-
-function saveSidebarOpen (open) {
-  try {
-    sessionStorage.setItem(SIDEBAR_OPEN_KEY, String(open))
-  } catch {
-    // sessionStorage may be unavailable (private mode, quota); best effort only
-  }
-}
-
-function loadSectionStates () {
-  try {
-    const raw = sessionStorage.getItem(SECTION_STATES_KEY)
-    return raw ? JSON.parse(raw) : {}
-  } catch {
-    return {}
-  }
-}
-
-function saveSectionStates (states) {
-  try {
-    sessionStorage.setItem(SECTION_STATES_KEY, JSON.stringify(states))
-  } catch {
-    // sessionStorage may be unavailable (private mode, quota); best effort only
-  }
-}
+// Sidebar state is persisted both to the cookie (for fresh connects) and to
+// sessionStorage (for live_redirects). LiveView freezes the session at
+// websocket-connect time, so a re-mount after `live_redirect` reads a stale
+// cookie and the server re-renders the shell from its default. The
+// sessionStorage mirror keeps the user's client-side choices authoritative
+// until the next fresh connect re-seeds from the cookie.
+//
+// The mirror is handled by BackpexPreferences.get/set with
+// `mirror: 'session'` — see assets/js/hooks/_preferences.js and the
+// "Writing a JS hook that persists preferences" section of the user
+// preferences guide. If you add another JS-driven UI-chrome preference,
+// follow the same pattern instead of rolling your own sessionStorage layer.
 
 /**
  * Manages sidebar open/close state for mobile and desktop and handles sidebar section expand/collapse.
@@ -62,21 +32,26 @@ export default {
     // No sidebar slot rendered; hook has nothing to do.
     if (!this.sidebar || !this.toggleBtn) return
 
-    // State: mobile closed by default. Desktop state prefers sessionStorage
-    // over the server-rendered data attribute for the same reason
-    // _sectionStates does — see SIDEBAR_OPEN_KEY above.
+    // State: mobile closed by default. Desktop state prefers the
+    // sessionStorage mirror over the server-rendered data attribute — same
+    // live_redirect staleness reason as the section states below.
     this.mobileOpen = false
-    const storedSidebarOpen = loadSidebarOpen()
-    this.desktopOpen = storedSidebarOpen !== null ? storedSidebarOpen : this.el.dataset.sidebarOpen === 'true'
+    this.desktopOpen = BackpexPreferences.get(
+      'global.sidebar_open',
+      this.el.dataset.sidebarOpen === 'true'
+    )
     // Element focused before the mobile drawer was opened, for focus restore.
     this.previousFocus = null
     // Per-toggle click handlers, keyed off the toggle element (section dropdowns).
     this._sectionHandlers = new WeakMap()
-    // Client-authoritative section state. Seeded from sessionStorage so it
-    // survives the hook re-mount that LiveView performs on live_redirect
-    // between LiveViews; unknown sections are later seeded from the
-    // server-rendered data-section-open in initializeSections().
-    this._sectionStates = loadSectionStates()
+    // Client-authoritative section state. Populated per-section from the
+    // sessionStorage mirror in initializeSections(); unknown sections fall
+    // back to the server-rendered data-section-open there. Seeding from
+    // sessionStorage is what lets section state survive the hook re-mount
+    // LiveView performs on live_redirect between LiveViews (the
+    // websocket-frozen session the server re-renders from is stale, see
+    // the top-of-file comment).
+    this._sectionStates = {}
 
     // Track Tailwind's lg breakpoint via its CSS custom property so CSS
     // `lg:` utilities and this hook stay in sync if the user customizes it.
@@ -147,9 +122,9 @@ export default {
   handleToggle () {
     if (this.isDesktop()) {
       this.desktopOpen = !this.desktopOpen
-      saveSidebarOpen(this.desktopOpen)
-      // Persist to cookie via BackpexPreferences for the next fresh connect.
-      BackpexPreferences.set('global.sidebar_open', this.desktopOpen)
+      // mirror: 'session' writes sessionStorage first, then POSTs to the
+      // cookie for the next fresh connect.
+      BackpexPreferences.set('global.sidebar_open', this.desktopOpen, { mirror: 'session' })
     } else {
       if (!this.mobileOpen) this.previousFocus = document.activeElement
       this.mobileOpen = !this.mobileOpen
@@ -269,14 +244,17 @@ export default {
 
       section.classList.remove('hidden')
 
-      // Seed from the server-rendered attribute the first time we see a
-      // section. On a fresh websocket connect the server has read the current
-      // cookie so this value is correct; on a re-mount after live_redirect
-      // _sectionStates is already populated from sessionStorage and this
-      // branch is skipped.
+      // Prefer the sessionStorage mirror over the server-rendered attribute
+      // the first time we see a section: on a fresh websocket connect the
+      // cookie is authoritative (and the mirror matches), but on a re-mount
+      // after live_redirect the server re-rendered from a stale session
+      // snapshot and the mirror is the only source of the user's intent.
       const id = section.dataset.sectionId
       if (!(id in this._sectionStates)) {
-        this._sectionStates[id] = section.dataset.sectionOpen === 'true'
+        this._sectionStates[id] = BackpexPreferences.get(
+          `global.sidebar_section.${id}`,
+          section.dataset.sectionOpen === 'true'
+        )
       }
 
       const previous = this._sectionHandlers.get(toggle)
@@ -332,8 +310,14 @@ export default {
     // the current user-intended state.
     section.dataset.sectionOpen = String(isNowOpen)
     this._sectionStates[sectionId] = isNowOpen
-    saveSectionStates(this._sectionStates)
-    // Persist to cookie via BackpexPreferences for the next fresh connect.
-    BackpexPreferences.set(`global.sidebar_section.${sectionId}`, isNowOpen)
+    // Mirror the per-section boolean to sessionStorage (for live_redirect
+    // re-mounts) and POST it to the cookie (for the next fresh connect).
+    // The per-section key matches the flat form the server stores so
+    // Backpex.Preferences.get_map/3 can reconstruct the nested map.
+    BackpexPreferences.set(
+      `global.sidebar_section.${sectionId}`,
+      isNowOpen,
+      { mirror: 'session' }
+    )
   }
 }

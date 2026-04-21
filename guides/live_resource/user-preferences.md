@@ -714,6 +714,89 @@ end
 `Backpex.LiveResource`'s own `persist: [:filters]` wiring follows this
 rule; apply the same pattern in any custom persistence logic you build on
 top of `Backpex.Preferences`.
+## Writing a JS hook that persists preferences
+
+### Why sessionStorage mirroring exists
+
+LiveView freezes the Phoenix session at websocket-connect time. The
+`BackpexPreferences.set/2` HTTP POST writes immediately to the cookie, but
+an in-flight LiveView socket holds the older session snapshot until the
+next fresh connect. When a user clicks an internal link that does a
+`live_redirect`, LiveView re-mounts the target view **on the same socket**
+— so `on_mount` callbacks (including `Backpex.InitAssigns`) read the stale
+snapshot and the server re-renders UI chrome from the pre-write value.
+The user sees a momentary reversion of their own toggle.
+
+To survive that re-mount the JS hook needs a client-authoritative value
+that bypasses the server entirely. `sessionStorage` is the natural fit:
+same tab, cleared on tab close, no cookie-size pressure. `BackpexPreferences`
+provides `get(key, fallback)` and `set(key, value, { mirror: 'session' })`
+so every hook gets the same, namespaced (`backpex.prefs.*`) behavior
+without reinventing load/save helpers.
+
+### When to use `mirror: 'session'`
+
+Use it when **all** of the following are true:
+
+- The preference controls UI chrome re-rendered by the LiveView on every
+  mount (sidebar, density, nav variant, table zoom, …).
+- The server reads this preference from the session at mount time (so the
+  stale snapshot will bite you on `live_redirect`).
+- The client-side value can diverge from the server's view between a
+  write and the next fresh websocket handshake.
+
+### When NOT to use it
+
+Skip the mirror (just call `BackpexPreferences.set(key, value)`) when:
+
+- The server is always authoritative on every render — e.g. a DB-backed
+  preference read fresh from Ecto in `mount/3`. There's no stale snapshot
+  to override.
+- The visible UI state lives outside the LiveView-rendered tree. The
+  built-in theme selector is an example: `data-theme` on `<html>` is set
+  once by JS and never re-rendered by the server, so a stale session read
+  only mislabels the (hidden-by-default) selector radio and isn't worth
+  the overhead.
+- You need cross-tab consistency within the browser — `sessionStorage` is
+  per-tab; a mirror there will diverge between two tabs of the same admin.
+
+### Example: a compact-density toggle
+
+```javascript
+// assets/js/hooks/compact_density_toggle.js
+import { BackpexPreferences } from 'backpex'
+
+export default {
+  mounted () {
+    // Seed from the mirror first (live_redirect-safe), falling back to
+    // the server-rendered data attribute on fresh connects.
+    const compact = BackpexPreferences.get(
+      'custom.density.compact',
+      this.el.dataset.compact === 'true'
+    )
+    this.applyDensity(compact)
+
+    this.el.addEventListener('click', () => {
+      const next = !this.el.classList.contains('density-compact')
+      this.applyDensity(next)
+      // Writes sessionStorage first (instant, survives live_redirect),
+      // then POSTs to the preferences endpoint for the next fresh connect.
+      BackpexPreferences.set('custom.density.compact', next, { mirror: 'session' })
+    })
+  },
+
+  applyDensity (compact) {
+    this.el.classList.toggle('density-compact', compact)
+    this.el.setAttribute('aria-pressed', String(compact))
+  }
+}
+```
+
+`get/2` uses the runtime type of the fallback to deserialize: a boolean
+fallback returns `true`/`false`; a number returns a parsed number; a string
+passes through; anything else (map, array) round-trips through JSON. Pick
+a fallback whose type matches what you `set/3`-ed originally and the
+round-trip stays transparent.
 
 ## Troubleshooting
 
