@@ -42,6 +42,32 @@ defmodule Backpex.Preferences do
     * `put/4` — write from a LiveView socket or `%Plug.Conn{}`.
     * `put_batch/3` — dispatch a list of writes (best-effort, first-error-wins;
       see the function docs for the partial-success semantics).
+
+  ### `get/3` vs `fetch/3`
+
+  `get/3` is the common case: you want a value, falling back to a default
+  when there is no stored value for any reason (user hasn't set one, no user
+  is identified yet, adapter transiently failed).
+
+  Reach for `fetch/3` when you need to tell "user has no preference yet"
+  apart from "there's no user to read a preference for" — e.g. prompting an
+  anonymous visitor to sign in to save their view:
+
+      case Backpex.Preferences.fetch(session, "custom.dashboard.view_mode") do
+        {:ok, mode} ->
+          # User has deliberately chosen a view mode — use it.
+          mode
+
+        :error ->
+          # Either no user is identified (anonymous visitor) or the logged-in
+          # user hasn't set one. Show the default AND a "sign in to save your
+          # view" CTA. `get/3` would have collapsed both into the default.
+          "grid"
+
+        {:error, _reason} ->
+          # Adapter failure — already logged. Fall back silently.
+          "grid"
+      end
   """
 
   alias Backpex.Preferences.Adapters
@@ -100,10 +126,13 @@ defmodule Backpex.Preferences do
   Reads a preference and returns a result tuple that distinguishes missing
   values from adapter failures.
 
-  Unlike `get/3`, which collapses both cases to `opts[:default]`, this
-  function gives callers enough signal to react differently — useful when a
-  caller wants to surface adapter errors (e.g. in admin tooling) rather than
-  silently degrading.
+  Unlike `get/3`, which collapses every non-success case to `opts[:default]`,
+  this function gives callers enough signal to react differently.
+
+  Use `fetch/3` when you need to distinguish "user hasn't set a preference
+  yet" from "anonymous visitor / nothing to read" — for example, to show a
+  "sign in to save your view" CTA, or to decide whether to apply a
+  resource-level default. `get/3` collapses both to the `:default` option.
 
   Returns:
 
@@ -116,6 +145,14 @@ defmodule Backpex.Preferences do
       visitors, background jobs, etc.).
     * `{:error, reason}` — any other adapter failure (e.g. a raised
       exception swallowed by the dispatcher). A warning is also logged.
+
+  Note that `:error` cannot tell "no user identified" apart from "user has
+  not set this preference yet" — both collapse to the same tag. What
+  `fetch/3` does give you is a signal separate from *application* defaults:
+  if your code needs to decide whether to apply a default based on whether
+  the user has deliberately set a value (including to a semantically empty
+  `%{}` or `[]`), match on `:error` vs `{:ok, _}` rather than inspecting the
+  resolved value's shape.
 
   ## Examples
 

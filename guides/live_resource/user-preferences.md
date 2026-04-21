@@ -626,6 +626,59 @@ back to a `push_event/3` round-trip so the browser persists via the
 preferences controller on its next paint. DB-backed adapters just write
 directly and return.
 
+## Gotchas
+
+### Preserving preferences across session renewal
+
+The Phoenix-generated `UserAuth.renew_session/2` pattern clears the session
+on login/logout and re-puts an allowlist of keys. Unless you know the
+specific session key Backpex uses, it will silently drop on renewal — users
+lose their theme, sidebar state, and persisted filters/order/columns every
+time they sign in or out.
+
+Use `Backpex.Preferences.Session.preserve/1` and `restore/2` to include
+Backpex preferences in the renewal without hardcoding the session key:
+
+```elixir
+def renew_session(conn, _user) do
+  backpex_prefs = Backpex.Preferences.Session.preserve(conn)
+
+  conn
+  |> configure_session(renew: true)
+  |> clear_session()
+  |> then(&Backpex.Preferences.Session.restore(&1, backpex_prefs))
+end
+```
+
+Both calls are no-ops when no preferences are stored, so they are safe to
+add unconditionally.
+
+### Default vs. explicit empty
+
+When deciding whether to apply a default, use `Backpex.Preferences.fetch/3`
+and pattern-match on `:error` vs `{:ok, value}`. Don't treat a resolved
+`%{}` or `[]` as "never set" — a user who explicitly cleared their filters
+(or their columns, or any other map/list preference) stored that empty
+value deliberately. Overwriting it with a default on the next mount means
+every page load fights the user's choice.
+
+```elixir
+# Wrong — treats "user cleared filters" the same as "no preference".
+filters = Backpex.Preferences.get(session, key, default: %{})
+if filters == %{}, do: apply_defaults(), else: use(filters)
+
+# Right — distinguishes the two.
+case Backpex.Preferences.fetch(session, key) do
+  {:ok, filters} -> use(filters)         # includes an explicit %{}
+  :error         -> apply_defaults()     # user has never set this
+  {:error, _}    -> apply_defaults()     # adapter failure, already logged
+end
+```
+
+`Backpex.LiveResource`'s own `persist: [:filters]` wiring follows this
+rule; apply the same pattern in any custom persistence logic you build on
+top of `Backpex.Preferences`.
+
 ## Troubleshooting
 
 **"My preferences vanish after a few writes."** The default cookie-backed
