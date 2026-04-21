@@ -561,7 +561,7 @@ defmodule Backpex.HTML.Resource do
         </span>
       </:trigger>
       <:menu class="min-w-52 max-w-72 p-4">
-        <.toggle_columns_inputs active_fields={@active_fields} live_resource={@live_resource} />
+        <.toggle_columns_inputs active_fields={@active_fields} />
       </:menu>
     </.dropdown>
     """
@@ -573,7 +573,6 @@ defmodule Backpex.HTML.Resource do
   @doc type: :component
 
   attr :active_fields, :list, required: true, doc: "list of active fields to be displayed"
-  attr :live_resource, :atom, required: true, doc: "the live resource"
 
   def toggle_columns_inputs(assigns) do
     ~H"""

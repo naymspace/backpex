@@ -14,9 +14,9 @@ defmodule Backpex.Preferences.Adapters.Session do
   ## Write-path limitations
 
   `put/4` returns `{:error, :requires_http}` for any source other than
-  `:controller`. Writing to a Phoenix session outside an HTTP request cycle is
-  not supported by `Plug.Session`. The dispatcher handles this by falling back
-  to `push_event/3`, which round-trips the write through the browser and the
+  `:controller`. `Plug.Session` cannot write to the Phoenix session outside
+  an HTTP request cycle. The dispatcher handles this by falling back to
+  `push_event/3`, which round-trips the write through the browser and the
   preferences controller.
   """
 
@@ -66,7 +66,17 @@ defmodule Backpex.Preferences.Adapters.Session do
     {:error, :requires_http}
   end
 
-  defp root(session) when is_map(session), do: Map.get(session, @session_key) || %{}
+  # The session key is expected to hold a map, but a misbehaving host app (or
+  # a session rewrite by another plug) can stomp on it with a non-map. Coerce
+  # any non-map value to `%{}` here so `get_in/2` upstream can't crash on a
+  # binary/number/etc.
+  defp root(session) when is_map(session) do
+    case Map.get(session, @session_key) do
+      map when is_map(map) -> map
+      _other -> %{}
+    end
+  end
+
   defp root(_other), do: %{}
 
   defp deep_put(map, [k], value), do: Map.put(map, k, value)

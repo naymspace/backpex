@@ -19,6 +19,30 @@ defmodule Backpex.Preferences.KeyTest do
     test "treats single-segment keys as one path element" do
       assert Key.parse("global") == ["global"]
     end
+
+    test "colon wins over dots when an Elixir.-prefixed module appears" do
+      assert Key.parse("Elixir.Foo.Bar:suffix") == ["Elixir.Foo.Bar", "suffix"]
+    end
+
+    test "trailing colon produces an empty final segment" do
+      assert Key.parse("resource:Foo:") == ["resource", "Foo", ""]
+    end
+
+    test "leading colon produces an empty first segment" do
+      assert Key.parse(":foo") == ["", "foo"]
+    end
+
+    test "a stray colon flips the entire key to colon-split (no mixed mode)" do
+      assert Key.parse("resource.MyApp:columns") == ["resource.MyApp", "columns"]
+    end
+
+    test "empty string returns a single empty segment (does not raise)" do
+      assert Key.parse("") == [""]
+    end
+
+    test "tolerates non-ASCII characters inside module segments" do
+      assert Key.parse("Elixir.Módulo:columns") == ["Elixir.Módulo", "columns"]
+    end
   end
 
   describe "encode_module/1" do

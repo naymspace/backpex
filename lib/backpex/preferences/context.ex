@@ -3,16 +3,17 @@ defmodule Backpex.Preferences.Context do
   Runtime context passed to `Backpex.Preferences.Adapter` callbacks.
 
   A context captures where a preference read/write originated and gives
-  adapters the handles they need (session, conn, assigns) without forcing
-  every adapter to know about `Plug.Conn` or LiveView socket internals.
+  adapters the handles they need (session, assigns, identity) without
+  forcing every adapter to know about `Plug.Conn` or LiveView socket
+  internals.
 
   Populate via one of the builders:
 
   - `from_mount/2` — LiveView mount / on_mount hook (read path).
   - `from_conn/1` — Plug controller (write path over HTTP).
   - `from_socket/2` — server-side preference writes from a LiveView.
-  - `coerce/1` — wraps a bare session map for backward compatibility with the
-    legacy `Backpex.Preferences.get(session, key)` API.
+  - `coerce/1` — wraps a bare session map so callers that only have a
+    session on hand can still use the dispatcher.
 
   ## The `identity` field
 
@@ -21,7 +22,10 @@ defmodule Backpex.Preferences.Context do
   dispatcher runs resolution, `:unidentified` when the resolver could not find
   a user, or any term the resolver returned on success (usually a user id).
 
-  Adapters read `ctx.identity` and do not have to re-resolve per call.
+  Resolution runs per dispatcher call (per `get`/`put`/`get_map`), not once
+  per session. The resolved value is stashed on `ctx.identity` so adapter
+  callbacks invoked during the same dispatch reuse the same identity, but
+  the resolver re-runs on the next dispatcher call. Keep it cheap.
   """
 
   alias __MODULE__
@@ -32,18 +36,16 @@ defmodule Backpex.Preferences.Context do
   @type t :: %__MODULE__{
           source: source(),
           session: map(),
-          conn: Plug.Conn.t() | nil,
           assigns: map(),
           identity: identity()
         }
 
-  defstruct source: :mount, session: %{}, conn: nil, assigns: %{}, identity: nil
+  defstruct source: :mount, session: %{}, assigns: %{}, identity: nil
 
   @doc """
   Build a context for a read originating at LiveView mount.
 
-  `assigns` defaults to `%{}` for callers that only have a session (e.g. the
-  legacy `Preferences.get(session, key)` path).
+  `assigns` defaults to `%{}` for callers that only have a session on hand.
   """
   @spec from_mount(map(), map()) :: t()
   def from_mount(session, assigns \\ %{}) when is_map(session) and is_map(assigns) do
@@ -52,12 +54,15 @@ defmodule Backpex.Preferences.Context do
 
   @doc """
   Build a context from a `%Plug.Conn{}` (write path over HTTP).
+
+  Extracts the session and assigns from the conn and discards the conn
+  itself — adapters receive the extracted values and never see the `conn`
+  directly, which keeps adapter code free of a `Plug.Conn` dependency.
   """
   @spec from_conn(Plug.Conn.t()) :: t()
   def from_conn(%Plug.Conn{} = conn) do
     %Context{
       source: :controller,
-      conn: conn,
       session: Plug.Conn.get_session(conn),
       assigns: conn.assigns
     }
@@ -73,18 +78,60 @@ defmodule Backpex.Preferences.Context do
   end
 
   @doc """
-  Wrap a bare session map (or pass through an existing context) so the legacy
-  `Preferences.get(session, key)` call sites keep working.
+  Wrap a bare session map (or pass through an existing context) so call
+  sites that only have a session map can still call `Preferences.get/3` and
+  friends.
+
+  Accepts:
+
+    * `%Backpex.Preferences.Context{}` — passed through unchanged.
+    * A plain Phoenix session map (non-struct map with string keys, or the
+      empty map `%{}`) — wrapped via `from_mount/1`.
+
+  Raises `ArgumentError` on any other shape. In particular, arbitrary maps
+  with atom keys, structs (other than `Context`), or non-map terms are
+  rejected rather than silently wrapped — wrapping them would mask caller
+  bugs and route a nonsense context into the adapter layer.
   """
   @spec coerce(t() | map()) :: t()
   def coerce(%Context{} = ctx), do: ctx
-  def coerce(session) when is_map(session), do: from_mount(session)
+
+  def coerce(session) when is_map(session) and not is_struct(session) do
+    if session_shaped?(session) do
+      from_mount(session)
+    else
+      raise ArgumentError,
+            "Backpex.Preferences.Context.coerce/1 expected a %Context{} or a Phoenix " <>
+              "session map (string-keyed), got: " <>
+              inspect(session)
+    end
+  end
+
+  def coerce(other) do
+    raise ArgumentError,
+          "Backpex.Preferences.Context.coerce/1 expected a %Context{} or a Phoenix " <>
+            "session map, got: " <>
+            inspect(other)
+  end
+
+  # Session maps are always string-keyed (Plug.Session stores them that way).
+  # Accept the empty map as a degenerate session, but reject atom-keyed or
+  # mixed-key maps to catch accidental caller mistakes.
+  defp session_shaped?(map) when map_size(map) == 0, do: true
+
+  defp session_shaped?(map) do
+    map
+    |> Map.keys()
+    |> Enum.all?(&is_binary/1)
+  end
 
   @doc """
   Returns `%{ctx | identity: identity}`.
 
-  Called by the dispatcher once per context, after it runs the configured
-  identity resolver; adapters receive the already-resolved value.
+  Called by the dispatcher after it runs the configured identity resolver
+  on each read/write. Adapter callbacks for that single dispatch receive
+  the already-resolved value; the resolver itself runs once per dispatcher
+  call, not once per session.
   """
   @spec put_identity(t(), identity()) :: t()
   def put_identity(%Context{} = ctx, identity), do: %{ctx | identity: identity}

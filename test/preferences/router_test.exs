@@ -4,6 +4,8 @@ defmodule Backpex.Preferences.RouterTest do
   alias Backpex.Preferences.Adapters.Session
   alias Backpex.Preferences.Router
 
+  doctest Backpex.Preferences.Router
+
   describe "routes/0 with no configured adapters" do
     setup do
       prior = Application.get_env(:backpex, Backpex.Preferences)
@@ -55,9 +57,202 @@ defmodule Backpex.Preferences.RouterTest do
       end
     end
 
+    test "raises ArgumentError with a clear message when no routes are configured" do
+      assert_raise ArgumentError, ~r/no Backpex.Preferences adapters configured/, fn ->
+        Router.resolve("global.theme", [])
+      end
+    end
+
     test "accepts two-tuple routes (module without opts)" do
       routes = [{:default, Session}]
       assert {Session, []} = Router.resolve("anything", Router.default_routes() ++ routes)
+    end
+
+    test "deterministic tie-break between two equal-depth wildcards (exact pattern wins)" do
+      # When two wildcards sit at the same depth (e.g. "resource.*" and
+      # "global.*"), only one can match any given key — the pattern whose
+      # first segment equals the key's first segment. Document the behavior:
+      # "global.theme" matches "global.*", not "resource.*", regardless of
+      # the order they appear in config.
+      routes = [
+        {"resource.*", A, []},
+        {"global.*", B, []}
+      ]
+
+      assert {B, []} = Router.resolve("global.theme", routes)
+      assert {A, []} = Router.resolve("resource.anything", routes)
+
+      # Reverse the order — result is the same.
+      routes_reversed = [
+        {"global.*", B, []},
+        {"resource.*", A, []}
+      ]
+
+      assert {B, []} = Router.resolve("global.theme", routes_reversed)
+      assert {A, []} = Router.resolve("resource.anything", routes_reversed)
+    end
+
+    test "non-wildcard exact match beats a wildcard at a different depth" do
+      # A shorter exact pattern at the same segment count as a wildcard still
+      # beats the wildcard because exact patterns have higher specificity.
+      routes = [
+        {"global.theme", SpecificA, []},
+        {"global.*", BroadB, []}
+      ]
+
+      assert {SpecificA, []} = Router.resolve("global.theme", routes)
+      assert {BroadB, []} = Router.resolve("global.sidebar_open", routes)
+    end
+  end
+
+  describe "normalize/1 input validation" do
+    test "raises ArgumentError with a friendly message for a non-module adapter" do
+      assert_raise ArgumentError,
+                   ~r/expected adapter module for route .+ got: :not_a_module/,
+                   fn ->
+                     Router.normalize([{"foo.*", :not_a_module, []}])
+                   end
+    end
+
+    test "raises ArgumentError for a three-tuple with non-keyword opts" do
+      assert_raise ArgumentError, ~r/invalid Backpex.Preferences route entry/, fn ->
+        Router.normalize([{"foo.*", SomeAdapter, "not a keyword list"}])
+      end
+    end
+
+    test "raises ArgumentError for a non-string, non-:default pattern" do
+      assert_raise ArgumentError, ~r/invalid Backpex.Preferences route pattern/, fn ->
+        Router.normalize([{123, SomeAdapter, []}])
+      end
+    end
+
+    test "raises ArgumentError for an empty-string pattern" do
+      assert_raise ArgumentError, ~r/must not be an empty string/, fn ->
+        Router.normalize([{"", SomeAdapter, []}])
+      end
+    end
+
+    test "raises ArgumentError for a bare atom (not a tuple)" do
+      assert_raise ArgumentError, ~r/invalid Backpex.Preferences route entry/, fn ->
+        Router.normalize([:default])
+      end
+    end
+
+    test "raises ArgumentError naming both patterns when a later broader route swallows an earlier narrower one" do
+      routes = [
+        {"resource.foo.*", AdapterA, []},
+        {"resource.*", AdapterB, []}
+      ]
+
+      assert_raise ArgumentError, ~r/conflicting Backpex.Preferences routes/, fn ->
+        Router.normalize(routes)
+      end
+    end
+
+    test "does not raise when a later narrower route sits inside an earlier broader one" do
+      routes = [
+        {"resource.foo.*", AdapterA, []},
+        {"resource.foo.bar.*", AdapterB, []}
+      ]
+
+      assert [_first, _second] = Router.normalize(routes)
+    end
+
+    test "does not raise when nested patterns route to the same adapter" do
+      routes = [
+        {"resource.foo.*", SameAdapter, []},
+        {"resource.*", SameAdapter, []}
+      ]
+
+      assert [_first, _second] = Router.normalize(routes)
+    end
+  end
+
+  describe "resolve_prefix/2" do
+    test "picks the wildcard that owns the subtree when the query is the wildcard's prefix" do
+      # Query "resource.foo" must go to FakeEctoAdapter, not fall through to
+      # Session — a wildcard rooted at the query's own prefix owns the subtree.
+      routes = [
+        {"resource.foo.*", FakeEctoAdapter, []},
+        {:default, Session, []}
+      ]
+
+      assert {FakeEctoAdapter, []} = Router.resolve_prefix("resource.foo", routes)
+    end
+
+    test "picks a wildcard whose prefix is an ancestor of the query (owns the whole subtree)" do
+      routes = [
+        {"resource.*", EctoAdapter, []},
+        {:default, Session, []}
+      ]
+
+      assert {EctoAdapter, []} = Router.resolve_prefix("resource.foo", routes)
+      assert {EctoAdapter, []} = Router.resolve_prefix("resource.foo.bar", routes)
+    end
+
+    test "picks a wildcard whose prefix is a descendant of the query (lives inside the subtree)" do
+      # Query is "resource"; the only matching wildcard points at "resource.foo.*".
+      # The route is inside the query's subtree, so it still owns the relevant slice.
+      routes = [
+        {"resource.foo.*", EctoAdapter, []},
+        {:default, Session, []}
+      ]
+
+      assert {EctoAdapter, []} = Router.resolve_prefix("resource", routes)
+    end
+
+    test "falls through to :default when no wildcard/exact route is on the query's lineage" do
+      routes = [
+        {"resource.*", EctoAdapter, []},
+        {:default, Session, []}
+      ]
+
+      assert {Session, []} = Router.resolve_prefix("global.theme", routes)
+    end
+
+    test "exact pattern equal to the query wins over an ancestor wildcard" do
+      routes = [
+        {"global.theme", SpecificA, []},
+        {"global.*", BroadB, []}
+      ]
+
+      assert {SpecificA, []} = Router.resolve_prefix("global.theme", routes)
+    end
+
+    test "wildcard rooted at the query wins over an ancestor-rooted wildcard" do
+      # Broader pattern first, narrower second — the narrower route carves out
+      # a subtree of the broader one and is allowed to do so.
+      routes = [
+        {"resource.*", BroadB, []},
+        {"resource.foo.*", SpecificA, []}
+      ]
+
+      # Query is "resource.foo" — SpecificA's prefix equals the query; it
+      # beats the broader "resource.*" (ancestor-rooted wildcard).
+      assert {SpecificA, []} = Router.resolve_prefix("resource.foo", routes)
+    end
+
+    test "regression: exact get_map for a key covered only by :default returns from Session" do
+      routes = [
+        {"resource.*", EctoAdapter, []},
+        {:default, Session, []}
+      ]
+
+      assert {Session, []} = Router.resolve_prefix("global.theme", routes)
+    end
+
+    test "raises ArgumentError with a clear message when no routes are configured" do
+      assert_raise ArgumentError, ~r/no Backpex.Preferences adapters configured/, fn ->
+        Router.resolve_prefix("global.theme", [])
+      end
+    end
+
+    test "raises ArgumentError when nothing matches and there is no :default" do
+      routes = [{"global.*", Adapter, []}]
+
+      assert_raise ArgumentError, ~r/no Backpex.Preferences adapter matches prefix/, fn ->
+        Router.resolve_prefix("resource.foo", routes)
+      end
     end
   end
 

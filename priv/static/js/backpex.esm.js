@@ -10,6 +10,7 @@ __export(hooks_exports, {
   BackpexCancelEntry: () => cancel_entry_default,
   BackpexCurrencyInput: () => currency_input_default,
   BackpexDragHover: () => drag_hover_default,
+  BackpexPreferences: () => BackpexPreferences,
   BackpexPreferencesHook: () => preferences_default,
   BackpexSidebar: () => sidebar_default,
   BackpexStickyActions: () => sticky_actions_default,
@@ -3649,6 +3650,7 @@ var currency_input_default = {
   }
 };
 export {
+  BackpexPreferences,
   hooks_exports as Hooks
 };
 //# sourceMappingURL=backpex.esm.js.map

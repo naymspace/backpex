@@ -21,16 +21,23 @@ defmodule Backpex.PreferencesController do
         {"key": "global.sidebar_open", "value": true}
       ]}
 
-  The batch form is **all-or-nothing**: if any adapter refuses a write, no
-  side effects are applied, the response is `200 {ok: false, errors: [...]}`,
-  and the session cookie is left unchanged. A partial-success state for
-  preferences is more confusing than a clean failure.
+  The batch form is **best-effort, first-error-wins**: if any adapter refuses
+  a write, the dispatcher halts at that entry, no further adapters are
+  called, and the response is `422 {ok: false, error: %{key: _, reason: _}}`.
+  Session-backed effects from earlier successful entries in the same batch
+  are also dropped (the controller never applies them on the error path), so
+  the session cookie is left unchanged. However, adapters that persist
+  eagerly (e.g. a DB-backed adapter that wrote via `Repo.insert!`) may have
+  already committed earlier writes — the adapter behaviour has no rollback
+  primitive, so callers should treat partial success as possible.
   """
 
   use Phoenix.Controller, formats: [:json]
 
   alias Backpex.Preferences
   alias Backpex.Preferences.Context
+
+  require Logger
 
   @doc false
   def update(conn, %{"key" => key, "value" => value}) do
@@ -51,10 +58,15 @@ defmodule Backpex.PreferencesController do
         |> Preferences.apply_effects_on_conn(effects)
         |> json(%{ok: true})
 
-      {:error, errors} ->
+      {:error, {key, reason}} ->
+        Logger.warning(
+          "[Backpex.PreferencesController] preference batch refused at key " <>
+            inspect(key) <> ": " <> inspect(reason)
+        )
+
         conn
-        |> put_status(200)
-        |> json(%{ok: false, errors: Enum.map(errors, &format_error/1)})
+        |> put_status(422)
+        |> json(%{ok: false, error: format_error({key, reason})})
     end
   end
 

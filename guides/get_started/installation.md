@@ -174,6 +174,8 @@ To get you started quickly, we provide a layout component you can copy & paste i
 </Backpex.HTML.Layout.app_shell>
 ```
 
+These assigns (`@current_theme`, `@sidebar_open`, `@sidebar_section_states`) are populated by `Backpex.InitAssigns` — see [Add resource routes](#add-resource-routes) below for setup.
+
 In addition we recommend to add a bodyless function definition and to configure declarative assigns for your layout component.
 
 ```elixir

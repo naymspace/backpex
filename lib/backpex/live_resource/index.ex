@@ -9,6 +9,8 @@ defmodule Backpex.LiveResource.Index do
   alias Backpex.LiveResource
   alias Backpex.PaginationValidation
   alias Backpex.Preferences
+  alias Backpex.Preferences.Keys, as: PreferenceKeys
+  alias Backpex.Preferences.LiveView, as: PreferenceLiveView
   alias Backpex.Resource
   alias Backpex.Router
 
@@ -299,11 +301,11 @@ defmodule Backpex.LiveResource.Index do
     new_visible = !current_visible
 
     updated_visibility = Map.put(metric_visibility, resource_key_str, new_visible)
-    resource_key = Preferences.Key.resource_key(live_resource, "metrics_visible")
+    resource_key = PreferenceKeys.metrics_visible(live_resource)
 
     socket
     |> assign(:metric_visibility, updated_visibility)
-    |> LiveView.push_event("backpex:set_preference", %{key: resource_key, value: new_visible})
+    |> PreferenceLiveView.push_write(resource_key, new_visible)
     |> maybe_assign_metrics()
     |> noreply()
   end
@@ -348,7 +350,7 @@ defmodule Backpex.LiveResource.Index do
 
     saved_columns =
       if persist_enabled?(live_resource, :columns) do
-        resource_key = Preferences.Key.resource_key(live_resource, "columns")
+        resource_key = PreferenceKeys.columns(live_resource)
         Preferences.get(session, resource_key, default: %{})
       else
         %{}
@@ -376,15 +378,13 @@ defmodule Backpex.LiveResource.Index do
 
   defp read_persisted(:order, live_resource, session) do
     if persist_enabled?(live_resource, :order) do
-      key = Preferences.Key.resource_key(live_resource, "order")
-      Preferences.get(session, key)
+      Preferences.get(session, PreferenceKeys.order(live_resource))
     end
   end
 
   defp read_persisted(:filters, live_resource, session) do
     if persist_enabled?(live_resource, :filters) do
-      key = Preferences.Key.resource_key(live_resource, "filters")
-      Preferences.get(session, key)
+      Preferences.get(session, PreferenceKeys.filters(live_resource))
     end
   end
 
@@ -394,8 +394,7 @@ defmodule Backpex.LiveResource.Index do
 
   defp maybe_push_columns(socket, live_resource, columns) do
     if persist_enabled?(live_resource, :columns) do
-      resource_key = Preferences.Key.resource_key(live_resource, "columns")
-      LiveView.push_event(socket, "backpex:set_preference", %{key: resource_key, value: columns})
+      PreferenceLiveView.push_write(socket, PreferenceKeys.columns(live_resource), columns)
     else
       socket
     end
@@ -422,8 +421,7 @@ defmodule Backpex.LiveResource.Index do
 
   defp assign_metrics_visibility(socket, session) do
     %{live_resource: live_resource} = socket.assigns
-    resource_key = Preferences.Key.resource_key(live_resource, "metrics_visible")
-    visible = Preferences.get(session, resource_key, default: true)
+    visible = Preferences.get(session, PreferenceKeys.metrics_visible(live_resource), default: true)
 
     assign(socket, :metric_visibility, %{to_string(live_resource) => visible})
   end
@@ -586,10 +584,8 @@ defmodule Backpex.LiveResource.Index do
       if persisted.order == value do
         socket
       else
-        resource_key = Preferences.Key.resource_key(live_resource, "order")
-
         socket
-        |> LiveView.push_event("backpex:set_preference", %{key: resource_key, value: value})
+        |> PreferenceLiveView.push_write(PreferenceKeys.order(live_resource), value)
         |> assign(:backpex_persisted_index_state, %{persisted | order: value})
       end
     else
@@ -606,10 +602,8 @@ defmodule Backpex.LiveResource.Index do
       if stored == raw_filter_params do
         socket
       else
-        resource_key = Preferences.Key.resource_key(live_resource, "filters")
-
         socket
-        |> LiveView.push_event("backpex:set_preference", %{key: resource_key, value: raw_filter_params})
+        |> PreferenceLiveView.push_write(PreferenceKeys.filters(live_resource), raw_filter_params)
         |> assign(:backpex_persisted_index_state, %{persisted | filters: raw_filter_params})
       end
     else

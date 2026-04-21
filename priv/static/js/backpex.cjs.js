@@ -19,6 +19,7 @@ var __toCommonJS = (mod) => __copyProps(__defProp({}, "__esModule", { value: tru
 // js/backpex.js
 var backpex_exports = {};
 __export(backpex_exports, {
+  BackpexPreferences: () => BackpexPreferences,
   Hooks: () => hooks_exports
 });
 module.exports = __toCommonJS(backpex_exports);
@@ -29,6 +30,7 @@ __export(hooks_exports, {
   BackpexCancelEntry: () => cancel_entry_default,
   BackpexCurrencyInput: () => currency_input_default,
   BackpexDragHover: () => drag_hover_default,
+  BackpexPreferences: () => BackpexPreferences,
   BackpexPreferencesHook: () => preferences_default,
   BackpexSidebar: () => sidebar_default,
   BackpexStickyActions: () => sticky_actions_default,

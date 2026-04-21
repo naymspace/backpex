@@ -6,3 +6,5 @@ export { default as BackpexStickyActions } from './_sticky_actions'
 export { default as BackpexThemeSelector } from './_theme_selector'
 export { default as BackpexTooltip } from './_tooltip'
 export { default as BackpexCurrencyInput } from './_currency_input'
+
+export { BackpexPreferences } from './_preferences'

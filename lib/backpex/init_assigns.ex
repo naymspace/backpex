@@ -6,6 +6,9 @@ defmodule Backpex.InitAssigns do
   use BackpexWeb, :html
   import Phoenix.LiveView
 
+  alias Backpex.Preferences
+  alias Backpex.Preferences.Keys
+
   def on_mount(:default, _params, session, socket) do
     socket =
       socket
@@ -18,17 +21,17 @@ defmodule Backpex.InitAssigns do
   end
 
   defp assign_current_theme(socket, session) do
-    theme = Backpex.Preferences.get(session, "global.theme")
+    theme = Preferences.get(session, Keys.theme())
     assign(socket, :current_theme, theme)
   end
 
   defp assign_sidebar_open(socket, session) do
-    sidebar_open = Backpex.Preferences.get(session, "global.sidebar_open", default: true)
+    sidebar_open = Preferences.get(session, Keys.sidebar_open(), default: true)
     assign(socket, :sidebar_open, sidebar_open)
   end
 
   defp assign_sidebar_section_states(socket, session) do
-    section_states = Backpex.Preferences.get_map(session, "global.sidebar_section")
+    section_states = Preferences.get_map(session, Keys.sidebar_section_prefix())
     assign(socket, :sidebar_section_states, section_states)
   end
 

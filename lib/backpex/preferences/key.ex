@@ -21,6 +21,32 @@ defmodule Backpex.Preferences.Key do
   `"resource.Elixir.DemoWeb.PostLive.columns"` splits into five path segments,
   making stored preferences hard to reason about. Switching the whole key to
   colons lets the module live as a single atomic segment.
+
+  ## Separator precedence
+
+  A single `":"` anywhere in the key flips the whole key to colon-split
+  parsing. There is no "mixed" mode. Concretely:
+
+  - `"global.theme"` — no colon → dot-split → `["global", "theme"]`
+  - `"resource:Backpex.Users:columns"` — colon present → colon-split →
+    `["resource", "Backpex.Users", "columns"]`
+  - `"custom.bad:key"` — stray colon wins → colon-split →
+    `["custom.bad", "key"]` (the `.` inside `"custom.bad"` is *not* split)
+
+  The last example is almost certainly not what the caller intended. Prefer
+  `Backpex.Preferences.Key.resource_key/2` when building keys that embed a
+  module name so the colon form is applied deliberately.
+
+  ## Edge cases
+
+  `parse/1` is intentionally lenient: it never raises for any binary input and
+  applies the separator rule uniformly. As a result, leading, trailing, or
+  consecutive separators produce empty string segments (e.g. `":foo"` →
+  `["", "foo"]`, `"resource:Foo:"` → `["resource", "Foo", ""]`), and the empty
+  string parses to `[""]` rather than `[]`. Non-ASCII module names pass through
+  unchanged because the function splits on byte-level delimiters without
+  normalization. See `test/preferences/key_test.exs` for the pinned corner
+  cases.
   """
 
   @doc """

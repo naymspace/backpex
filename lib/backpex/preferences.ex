@@ -13,8 +13,7 @@ defmodule Backpex.Preferences do
   ## Zero-config defaults
 
   With no `:backpex, Backpex.Preferences` config set, every key routes to
-  `Backpex.Preferences.Adapters.Session` — matches the legacy single-adapter
-  behavior.
+  `Backpex.Preferences.Adapters.Session`.
 
   ## Configuring per-prefix routing
 
@@ -36,38 +35,121 @@ defmodule Backpex.Preferences do
 
   ## Public API
 
-    * `get/3` — read a single preference.
+    * `get/3` — read a single preference, with a `:default` fallback.
+    * `fetch/3` — read a single preference and distinguish missing values
+      (`:error`) from adapter errors (`{:error, reason}`).
     * `get_map/3` — read every value under a prefix as a nested map.
-    * `put_async/4` — write from a LiveView socket or `%Plug.Conn{}`.
+    * `put/4` — write from a LiveView socket or `%Plug.Conn{}`.
+    * `put_batch/3` — dispatch a list of writes (best-effort, first-error-wins;
+      see the function docs for the partial-success semantics).
   """
 
   alias Backpex.Preferences.Adapters
   alias Backpex.Preferences.Context
   alias Backpex.Preferences.Key
+  alias Backpex.Preferences.LiveView, as: PreferenceLiveView
   alias Backpex.Preferences.Router
+
+  require Logger
 
   @doc """
   Reads a preference. Falls back to `opts[:default]` when the value is
   missing or the adapter cannot identify the current user.
 
-  Accepts a `%Backpex.Preferences.Context{}` or a bare Phoenix session map —
-  the session-map form is kept for backward compatibility with the legacy
-  `Preferences.get(session, key)` call sites.
+  Accepts a `%Backpex.Preferences.Context{}` or a bare Phoenix session map.
+  The session-map form is convenient for call sites that only have a
+  session on hand.
 
   ## Options
 
     * `:default` — returned when nothing is stored for `key` (default: `nil`).
 
   Extra options are forwarded to the adapter.
+
+  ## Examples
+
+      iex> session = %{"backpex_preferences" => %{"global" => %{"theme" => "dark"}}}
+      iex> Backpex.Preferences.get(session, "global.theme")
+      "dark"
+
+      iex> Backpex.Preferences.get(%{}, "global.theme", default: "light")
+      "light"
   """
   @spec get(Context.t() | map(), String.t(), keyword()) :: term()
   def get(ctx_or_session, key, opts \\ []) do
     default = Keyword.get(opts, :default)
 
     case dispatch_get(ctx_or_session, key, opts) do
-      {:ok, :not_found} -> default
-      {:ok, value} -> value
-      {:error, _reason} -> default
+      {_module, {:ok, :not_found}} ->
+        default
+
+      {_module, {:ok, value}} ->
+        value
+
+      {module, {:error, reason}} ->
+        Logger.warning(
+          "Backpex.Preferences: adapter #{inspect(module)} returned error on get/3 for key " <>
+            "#{inspect(key)}: #{inspect(reason)}; falling back to default"
+        )
+
+        default
+    end
+  end
+
+  @doc """
+  Reads a preference and returns a result tuple that distinguishes missing
+  values from adapter failures.
+
+  Unlike `get/3`, which collapses both cases to `opts[:default]`, this
+  function gives callers enough signal to react differently — useful when a
+  caller wants to surface adapter errors (e.g. in admin tooling) rather than
+  silently degrading.
+
+  Returns:
+
+    * `{:ok, value}` — the adapter returned a stored value.
+    * `:error` — the adapter successfully determined nothing is stored
+      (`{:ok, :not_found}` from the adapter), **or** the adapter returned
+      `{:error, :unidentified}`. The `Backpex.Preferences.Adapter`
+      behaviour defines `:unidentified` on reads as "treat as not found",
+      so no warning is logged for that case — it is expected (anonymous
+      visitors, background jobs, etc.).
+    * `{:error, reason}` — any other adapter failure (e.g. a raised
+      exception swallowed by the dispatcher). A warning is also logged.
+
+  ## Examples
+
+      iex> session = %{"backpex_preferences" => %{"global" => %{"theme" => "dark"}}}
+      iex> Backpex.Preferences.fetch(session, "global.theme")
+      {:ok, "dark"}
+
+      iex> Backpex.Preferences.fetch(%{}, "global.theme")
+      :error
+  """
+  @spec fetch(Context.t() | map(), String.t(), keyword()) ::
+          {:ok, term()} | :error | {:error, term()}
+  def fetch(ctx_or_session, key, opts \\ []) do
+    case dispatch_get(ctx_or_session, key, opts) do
+      {_module, {:ok, :not_found}} ->
+        :error
+
+      {_module, {:ok, value}} ->
+        {:ok, value}
+
+      {_module, {:error, :unidentified}} ->
+        # The adapter behaviour defines `:unidentified` on reads as "treat as
+        # not found" — collapse to `:error` without logging. This matches the
+        # expected path for anonymous visitors / background jobs that have no
+        # resolved identity.
+        :error
+
+      {module, {:error, reason} = err} ->
+        Logger.warning(
+          "Backpex.Preferences: adapter #{inspect(module)} returned error on fetch/3 for key " <>
+            "#{inspect(key)}: #{inspect(reason)}"
+        )
+
+        err
     end
   end
 
@@ -81,15 +163,36 @@ defmodule Backpex.Preferences do
 
   Returns `%{}` when nothing is stored, the adapter cannot identify the user,
   or the adapter fails for any other reason.
+
+  ## Examples
+
+      iex> session = %{
+      ...>   "backpex_preferences" => %{
+      ...>     "global" => %{"sidebar_section" => %{"blog" => true, "users" => false}}
+      ...>   }
+      ...> }
+      iex> Backpex.Preferences.get_map(session, "global.sidebar_section")
+      %{"blog" => true, "users" => false}
+
+      iex> Backpex.Preferences.get_map(%{}, "global.sidebar_section")
+      %{}
   """
   @spec get_map(Context.t() | map(), String.t(), keyword()) :: map()
   def get_map(ctx_or_session, prefix, opts \\ []) do
     ctx = resolve_identity(Context.coerce(ctx_or_session))
-    {module, adapter_opts} = Router.resolve(prefix)
+    {module, adapter_opts} = Router.resolve_prefix(prefix)
 
     case module.get_map(ctx, prefix, merge_opts(adapter_opts, opts)) do
-      {:ok, map} when is_map(map) -> map
-      {:error, _reason} -> %{}
+      {:ok, map} when is_map(map) ->
+        map
+
+      {:error, reason} ->
+        Logger.warning(
+          "Backpex.Preferences: adapter #{inspect(module)} returned error on get_map/3 for prefix " <>
+            "#{inspect(prefix)}: #{inspect(reason)}; falling back to %{}"
+        )
+
+        %{}
     end
   end
 
@@ -110,66 +213,119 @@ defmodule Backpex.Preferences do
     * `{:error, reason}` — the adapter refused the write for a non-transport
       reason. Callers typically ignore the failure (preferences are best
       effort) but can surface it if needed.
-  """
-  @spec put_async(Plug.Conn.t() | Phoenix.LiveView.Socket.t(), String.t(), term(), keyword()) ::
-          {:ok, Plug.Conn.t() | Phoenix.LiveView.Socket.t()} | {:error, term()}
-  def put_async(target, key, value, opts \\ [])
 
-  def put_async(%Plug.Conn{} = conn, key, value, opts) do
+  ## Examples
+
+  From a Plug controller (session is updated in-place):
+
+      Backpex.Preferences.put(conn, "global.theme", "dark")
+      #=> {:ok, %Plug.Conn{}}
+
+  From a LiveView `handle_event` (session adapter returns `:requires_http`,
+  so the dispatcher falls back to a `push_event` for the browser to retry):
+
+      Backpex.Preferences.put(socket, "global.theme", "dark")
+      #=> {:ok, %Phoenix.LiveView.Socket{}}
+  """
+  @spec put(Plug.Conn.t() | Phoenix.LiveView.Socket.t(), String.t(), term(), keyword()) ::
+          {:ok, Plug.Conn.t() | Phoenix.LiveView.Socket.t()} | {:error, term()}
+  def put(target, key, value, opts \\ [])
+
+  def put(%Plug.Conn{} = conn, key, value, opts) do
     ctx = conn |> Context.from_conn() |> resolve_identity()
 
     case dispatch_put(ctx, key, value, opts) do
-      {:ok, effects} -> {:ok, apply_effects_on_conn(conn, effects)}
-      {:error, _reason} = err -> err
+      {_module, {:ok, effects}} ->
+        {:ok, apply_effects_on_conn(conn, effects)}
+
+      {module, {:error, reason} = err} ->
+        Logger.warning(
+          "Backpex.Preferences: adapter #{inspect(module)} refused put/4 for key " <>
+            "#{inspect(key)} on conn origin: #{inspect(reason)}"
+        )
+
+        err
     end
   end
 
-  def put_async(%Phoenix.LiveView.Socket{} = socket, key, value, opts) do
+  def put(%Phoenix.LiveView.Socket{} = socket, key, value, opts) do
     ctx =
       %{}
       |> Context.from_socket(socket.assigns)
       |> resolve_identity()
 
     case dispatch_put(ctx, key, value, opts) do
-      {:ok, effects} -> {:ok, apply_effects_on_socket(socket, effects)}
-      {:error, :requires_http} -> {:ok, push_event_fallback(socket, key, value)}
-      {:error, _reason} = err -> err
+      {module, {:ok, effects}} ->
+        {:ok, apply_effects_on_socket(socket, module, key, value, effects)}
+
+      {_module, {:error, :requires_http}} ->
+        {:ok, push_event_fallback(socket, key, value)}
+
+      {module, {:error, reason} = err} ->
+        Logger.warning(
+          "Backpex.Preferences: adapter #{inspect(module)} refused put/4 for key " <>
+            "#{inspect(key)} on socket origin: #{inspect(reason)}"
+        )
+
+        err
     end
   end
 
   @doc """
   Dispatches a batch of writes through their adapters and returns the
-  collected side effects, or an error list (all-or-nothing).
+  collected side effects, or the first error encountered.
 
-  Used by `Backpex.PreferencesController` to implement cross-adapter batch
-  writes with a clean failure mode.
+  Used by `Backpex.PreferencesController` to dispatch cross-adapter batch
+  writes.
 
   Threads the accumulated session state through each adapter call so that
   writes under the same session key compose correctly. The caller applies
   the returned effects in order; for `:put_session` effects targeting the
   same key, the last effect holds the fully-merged value.
+
+  ## Semantics
+
+  This is **best-effort, first-error-wins**. On the first adapter that
+  returns `{:error, reason}` the loop halts and returns
+  `{:error, {key, reason}}` — subsequent entries are not dispatched. Earlier
+  successful writes may already have been committed by their adapters (e.g.
+  a DB-backed adapter that writes eagerly). The adapter behaviour has no
+  rollback primitive, so callers should treat partial success as possible.
+
+  ## Examples
+
+      ctx = Backpex.Preferences.Context.from_conn(conn)
+
+      Backpex.Preferences.put_batch(ctx, [
+        {"global.theme", "dark"},
+        {"global.sidebar_open", false}
+      ])
+      #=> {:ok, [{:put_session, "backpex_preferences", %{...}}]}
   """
   @spec put_batch(Context.t(), [{String.t(), term()}], keyword()) ::
-          {:ok, [Backpex.Preferences.Adapter.side_effect()]} | {:error, [term()]}
+          {:ok, [Backpex.Preferences.Adapter.side_effect()]} | {:error, {String.t(), term()}}
   def put_batch(%Context{} = ctx, entries, opts \\ []) when is_list(entries) do
     ctx = resolve_identity(ctx)
 
-    {effects, errors, _final_ctx} =
-      Enum.reduce(entries, {[], [], ctx}, fn {key, value}, {effects_acc, errors_acc, current_ctx} ->
+    # Accumulate effects by prepending each adapter's effects in reverse, then
+    # reverse the whole list at the end — preserves the original left-to-right
+    # order while staying O(n) in batch size.
+    result =
+      Enum.reduce_while(entries, {[], ctx}, fn {key, value}, {reversed_acc, current_ctx} ->
         {module, adapter_opts} = Router.resolve(key)
 
         case module.put(current_ctx, key, value, merge_opts(adapter_opts, opts)) do
           {:ok, fx} ->
-            {effects_acc ++ fx, errors_acc, apply_effects_to_ctx(current_ctx, fx)}
+            {:cont, {:lists.reverse(fx, reversed_acc), apply_effects_to_ctx(current_ctx, fx)}}
 
           {:error, reason} ->
-            {effects_acc, [{key, reason} | errors_acc], current_ctx}
+            {:halt, {:error, {key, reason}}}
         end
       end)
 
-    case errors do
-      [] -> {:ok, effects}
-      errs -> {:error, Enum.reverse(errs)}
+    case result do
+      {:error, _reason} = err -> err
+      {reversed_acc, _ctx} -> {:ok, Enum.reverse(reversed_acc)}
     end
   end
 
@@ -205,15 +361,17 @@ defmodule Backpex.Preferences do
   def resolve_identity(%Context{} = ctx), do: ctx
 
   @doc """
-  Legacy alias preserved for call sites that still reference the Phoenix
-  session key directly. New code should read
-  `Backpex.Preferences.Adapters.Session.session_key/0`.
+  Returns the Phoenix session key used by the Session adapter.
+
+  Convenience passthrough to `Backpex.Preferences.Adapters.Session.session_key/0`.
   """
   @spec session_key() :: String.t()
   def session_key, do: Adapters.Session.session_key()
 
   @doc """
-  Legacy alias for `Backpex.Preferences.Key.parse/1`.
+  Splits a preference key into path segments.
+
+  Convenience passthrough to `Backpex.Preferences.Key.parse/1`.
   """
   @spec parse_key(String.t()) :: [String.t()]
   def parse_key(key), do: Key.parse(key)
@@ -221,23 +379,62 @@ defmodule Backpex.Preferences do
   defp dispatch_get(ctx_or_session, key, opts) do
     ctx = resolve_identity(Context.coerce(ctx_or_session))
     {module, adapter_opts} = Router.resolve(key)
-    module.get(ctx, key, merge_opts(adapter_opts, opts))
+
+    try do
+      {module, module.get(ctx, key, merge_opts(adapter_opts, opts))}
+    rescue
+      reason ->
+        Logger.warning(
+          "Backpex.Preferences: adapter #{inspect(module)} raised in get/3 for key " <>
+            "#{inspect(key)}: #{Exception.format(:error, reason, __STACKTRACE__)}"
+        )
+
+        {module, {:error, {:exception, reason}}}
+    end
   end
 
   defp dispatch_put(%Context{} = ctx, key, value, opts) do
     {module, adapter_opts} = Router.resolve(key)
-    module.put(ctx, key, value, merge_opts(adapter_opts, opts))
+
+    try do
+      {module, module.put(ctx, key, value, merge_opts(adapter_opts, opts))}
+    rescue
+      reason ->
+        Logger.warning(
+          "Backpex.Preferences: adapter #{inspect(module)} raised in put/4 for key " <>
+            "#{inspect(key)}: #{Exception.format(:error, reason, __STACKTRACE__)}"
+        )
+
+        {module, {:error, {:exception, reason}}}
+    end
   end
 
-  defp apply_effects_on_socket(socket, effects) do
+  # Socket-origin put accepted by the adapter: consume the returned side
+  # effects. `:noop` is the common case (DB-backed adapters that persisted
+  # themselves). `{:put_session, _, _}` cannot be applied to a live socket
+  # — `Plug.Session` is HTTP-only. The Session adapter avoids emitting this
+  # from a socket by returning `:requires_http` upstream, but a third-party
+  # adapter could still emit it. Rather than silently dropping the write,
+  # log a warning and fall back to `push_event/3` so the browser can retry
+  # via the preferences controller.
+  defp apply_effects_on_socket(socket, module, key, value, effects) do
     Enum.reduce(effects, socket, fn
-      :noop, s -> s
-      {:put_session, _k, _v}, s -> s
+      :noop, s ->
+        s
+
+      {:put_session, _k, _v}, s ->
+        Logger.warning(
+          "Backpex.Preferences: adapter #{inspect(module)} emitted {:put_session, _, _} from a " <>
+            "socket origin for key #{inspect(key)}; routing through push_event fallback. " <>
+            "Adapters should return :requires_http instead when called outside a controller."
+        )
+
+        push_event_fallback(s, key, value)
     end)
   end
 
   defp push_event_fallback(socket, key, value) do
-    Phoenix.LiveView.push_event(socket, "backpex:set_preference", %{key: key, value: value})
+    PreferenceLiveView.push_write(socket, key, value)
   end
 
   defp merge_opts(adapter_opts, call_opts) do
@@ -257,9 +454,21 @@ defmodule Backpex.Preferences do
   defp safe_apply(mod, fun, args) do
     normalize_identity(apply(mod, fun, args))
   rescue
-    _reason -> :unidentified
+    reason ->
+      Logger.warning(
+        "Backpex.Preferences: resolving identity via #{inspect({mod, fun, length(args)})} raised: " <>
+          "#{Exception.format(:error, reason, __STACKTRACE__)}; falling back to :unidentified"
+      )
+
+      :unidentified
   catch
-    _kind, _reason -> :unidentified
+    kind, reason ->
+      Logger.warning(
+        "Backpex.Preferences: resolving identity via #{inspect({mod, fun, length(args)})} " <>
+          "threw #{inspect(kind)}: #{inspect(reason)}; falling back to :unidentified"
+      )
+
+      :unidentified
   end
 
   defp normalize_identity({:ok, nil}), do: :unidentified

@@ -501,13 +501,14 @@ defmodule Backpex.HTML.Layout do
       "A unique id for this section. Used to save and load the opening state of this section and to wire aria-controls, so every section on the page must have its own."
 
   attr :sidebar_section_states, :map,
-    default: %{},
-    doc: "map of section states (populated automatically from assigns if not provided)"
+    doc:
+      "map of section states. When the attr is omitted, the component falls back to the parent's `@sidebar_section_states` assign (via `assign_new/3`), or `%{}` if the parent didn't set one. Unknown section ids default to open."
 
   slot :inner_block
   slot :label, required: true, doc: "label to be displayed on the section."
 
   def sidebar_section(assigns) do
+    assigns = assign_new(assigns, :sidebar_section_states, fn -> %{} end)
     open = Map.get(assigns.sidebar_section_states, assigns.id, true)
 
     assigns =

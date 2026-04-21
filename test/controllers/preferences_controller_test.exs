@@ -4,7 +4,9 @@ defmodule Backpex.PreferencesControllerTest do
   import Plug.Test
 
   alias Backpex.Preferences
+  alias Backpex.Preferences.Keys
   alias Backpex.PreferencesController
+  alias Backpex.Test.InMemoryPreferencesAdapter, as: InMemory
 
   setup do
     conn =
@@ -18,7 +20,7 @@ defmodule Backpex.PreferencesControllerTest do
 
   describe "update/2 with a single preference" do
     test "persists the value", %{conn: conn} do
-      conn = PreferencesController.update(conn, %{"key" => "global.theme", "value" => "dark"})
+      conn = PreferencesController.update(conn, %{"key" => Keys.theme(), "value" => "dark"})
 
       assert conn.status == 200
       assert Jason.decode!(conn.resp_body) == %{"ok" => true}
@@ -30,7 +32,7 @@ defmodule Backpex.PreferencesControllerTest do
     test "persists nested values keyed by module (colon form)", %{conn: conn} do
       conn =
         PreferencesController.update(conn, %{
-          "key" => "resource:MyApp.UserLive:columns",
+          "key" => Keys.columns(MyApp.UserLive),
           "value" => %{"name" => true, "email" => false}
         })
 
@@ -49,7 +51,7 @@ defmodule Backpex.PreferencesControllerTest do
       conn =
         conn
         |> Plug.Conn.put_session(Preferences.session_key(), %{"global" => %{"theme" => "light"}})
-        |> PreferencesController.update(%{"key" => "global.sidebar_open", "value" => false})
+        |> PreferencesController.update(%{"key" => Keys.sidebar_open(), "value" => false})
 
       session_prefs = Plug.Conn.get_session(conn, Preferences.session_key())
       assert session_prefs == %{"global" => %{"theme" => "light", "sidebar_open" => false}}
@@ -57,11 +59,11 @@ defmodule Backpex.PreferencesControllerTest do
   end
 
   describe "update/2 with a batch" do
-    test "persists all entries atomically", %{conn: conn} do
+    test "persists every entry", %{conn: conn} do
       params = %{
         "preferences" => [
-          %{"key" => "global.theme", "value" => "dark"},
-          %{"key" => "global.sidebar_open", "value" => false}
+          %{"key" => Keys.theme(), "value" => "dark"},
+          %{"key" => Keys.sidebar_open(), "value" => false}
         ]
       }
 
@@ -77,9 +79,9 @@ defmodule Backpex.PreferencesControllerTest do
     test "ignores invalid entries in the batch but still persists valid ones", %{conn: conn} do
       params = %{
         "preferences" => [
-          %{"key" => "global.theme", "value" => "dark"},
+          %{"key" => Keys.theme(), "value" => "dark"},
           %{"not_a_preference" => true},
-          %{"key" => "global.sidebar_open", "value" => true}
+          %{"key" => Keys.sidebar_open(), "value" => true}
         ]
       }
 
@@ -108,14 +110,19 @@ defmodule Backpex.PreferencesControllerTest do
     end
   end
 
-  describe "update/2 with an adapter that refuses the write (all-or-nothing)" do
+  describe "update/2 when an adapter refuses the write (best-effort, first-error-wins)" do
     setup do
-      # Route :test prefix to a stub adapter that always errors.
+      InMemory.reset()
       prior = Application.get_env(:backpex, Backpex.Preferences)
 
+      # Route:
+      #   ok.* → in-memory adapter (eager: writes to ETS on put/4)
+      #   fail.* → rejecting adapter (always errors)
+      #   :default → session
       Application.put_env(:backpex, Backpex.Preferences,
         adapters: [
-          {"test.*", Backpex.PreferencesControllerTest.RejectingAdapter, []},
+          {"ok.*", InMemory, []},
+          {"fail.*", Backpex.Test.RejectingPreferencesAdapter, []},
           {:default, Backpex.Preferences.Adapters.Session, []}
         ]
       )
@@ -130,37 +137,40 @@ defmodule Backpex.PreferencesControllerTest do
       :ok
     end
 
-    test "returns {ok: false, errors: [...]} and leaves the session untouched", %{conn: conn} do
+    test "halts at the first error and does not dispatch later entries (short-circuit)", %{conn: conn} do
+      # Three-entry batch:
+      #   1. ok.before   → InMemory (succeeds, writes ETS row eagerly)
+      #   2. fail.middle → Rejecting (fails)
+      #   3. ok.after    → InMemory (MUST NOT be dispatched — would write ETS row)
       params = %{
         "preferences" => [
-          %{"key" => "global.theme", "value" => "dark"},
-          %{"key" => "test.thing", "value" => "nope"}
+          %{"key" => "ok.before", "value" => "committed"},
+          %{"key" => "fail.middle", "value" => "nope"},
+          %{"key" => "ok.after", "value" => "should_not_run"}
         ]
       }
 
       conn = PreferencesController.update(conn, params)
 
-      assert conn.status == 200
+      assert conn.status == 422
       body = Jason.decode!(conn.resp_body)
       assert body["ok"] == false
-      assert [%{"key" => "test.thing", "reason" => _reason}] = body["errors"]
+      assert body["error"] == %{"key" => "fail.middle", "reason" => "rejected"}
 
-      # Because the batch failed, nothing was written — session is untouched.
+      stored = InMemory.dump()
+
+      # Path A: the earlier eager write committed — we do NOT claim rollback.
+      assert Map.has_key?(stored, "ok.before")
+      assert stored["ok.before"] == "committed"
+
+      # Short-circuit: the entry after the failure was never dispatched, so
+      # its ETS row was never written.
+      refute Map.has_key?(stored, "ok.after")
+
+      # Session-backed effects collected before the failure are never applied
+      # (the controller only calls apply_effects_on_conn on the :ok branch),
+      # so the cookie is untouched.
       assert Plug.Conn.get_session(conn, Preferences.session_key()) == nil
     end
-  end
-
-  defmodule RejectingAdapter do
-    @moduledoc false
-    @behaviour Backpex.Preferences.Adapter
-
-    @impl Backpex.Preferences.Adapter
-    def get(_ctx, _key, _opts), do: {:ok, :not_found}
-
-    @impl Backpex.Preferences.Adapter
-    def get_map(_ctx, _prefix, _opts), do: {:ok, %{}}
-
-    @impl Backpex.Preferences.Adapter
-    def put(_ctx, _key, _value, _opts), do: {:error, :rejected}
   end
 end

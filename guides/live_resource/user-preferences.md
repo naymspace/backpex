@@ -49,7 +49,7 @@ the session; every setting is routed independently.
 │   Router → adapter(s) → side effects                                     │
 │            │                                                             │
 │            ▼                                                             │
-│   All-or-nothing apply: {ok: true} or {ok: false, errors: […]}           │
+│   Best-effort apply: {ok: true} or {ok: false, error: {key, reason}}     │
 │                                                                          │
 └──────────────────────────────────────────────────────────────────────────┘
 ```
@@ -175,23 +175,19 @@ defmodule MyAppWeb.PreferencesIdentity do
   alias Backpex.Preferences.Context
 
   def resolve(%Context{assigns: %{current_user: %{id: id}}}), do: id
-  def resolve(%Context{conn: %Plug.Conn{} = conn}) do
-    case Plug.Conn.get_session(conn, :user_id) do
-      nil -> :unidentified
-      id -> id
-    end
-  end
-
+  def resolve(%Context{session: %{"user_id" => id}}) when not is_nil(id), do: id
   def resolve(_ctx), do: :unidentified
 end
 ```
 
-The dispatcher calls the resolver once per read/write, memoizes the result
-on the `Context`, and hands it to the adapter as `ctx.identity`. Return
-`:unidentified` (or raise) when no user is logged in. Adapter reads treated
-as "not found" and the caller falls back to the `:default` option; writes
-return `{:error, :unidentified}` and the controller responds
-`200 {ok: false, errors: [{…, :unidentified}]}`.
+The dispatcher calls the resolver once per read/write call — there is no
+cross-call memoization, so the resolver runs every time. Keep it cheap
+(assigns lookup, session read, or a fast cache hit). The resolved value is
+stashed on `ctx.identity` so each adapter call during that single dispatch
+reuses the same value. Return `:unidentified` (or raise) when no user is
+logged in. Adapter reads are treated as "not found" and the caller falls
+back to the `:default` option; writes return `{:error, :unidentified}` and
+the controller responds `200 {ok: false, errors: [{…, :unidentified}]}`.
 
 ## Writing a custom adapter
 
@@ -204,9 +200,18 @@ Implement `Backpex.Preferences.Adapter`. Three callbacks:
   map}]` when you need the caller to update the session).
 
 The side-effect protocol is what keeps adapters pure. They don't touch
-`Plug.Conn` — they describe what the caller should do. This is what lets the
-controller implement all-or-nothing batch writes and lets server-side code
+`Plug.Conn` — they describe what the caller should do. This is what lets
+the controller compose cross-adapter batch writes and lets server-side code
 dispatch the same adapters without an HTTP request.
+
+Batch writes are **best-effort, first-error-wins**: on the first adapter
+error the dispatcher halts, returns `{:error, {key, reason}}`, and the
+controller responds `422 {ok: false, error: %{key: _, reason: _}}` without
+applying any session-backed side effects collected earlier in the batch.
+Adapters that persist eagerly (e.g. a DB-backed adapter that wrote via
+`Repo.insert!`) may have already committed earlier writes — the adapter
+behaviour has no rollback primitive, so callers should treat partial
+success as possible.
 
 ### In-memory test adapter
 
@@ -290,12 +295,20 @@ end
 
 defmodule MyApp.Preferences.UserPreference do
   use Ecto.Schema
+  import Ecto.Changeset
 
   schema "backpex_user_preferences" do
     field :user_id, :integer
     field :key,     :string
     field :value,   :map, default: %{}
     timestamps(type: :utc_datetime_usec)
+  end
+
+  def changeset(user_preference, attrs) do
+    user_preference
+    |> cast(attrs, [:user_id, :key, :value])
+    |> validate_required([:user_id, :key, :value])
+    |> unique_constraint([:user_id, :key])
   end
 end
 
@@ -339,11 +352,10 @@ defmodule MyApp.Preferences.EctoAdapter do
   def put(%{identity: user_id}, key, value, opts) do
     repo = Keyword.fetch!(opts, :repo)
 
+    attrs = %{user_id: user_id, key: key, value: wrap_value(value)}
+
     %UserPreference{}
-    |> UserPreference.__struct__()
-    |> Map.put(:user_id, user_id)
-    |> Map.put(:key, key)
-    |> Map.put(:value, wrap_value(value))
+    |> UserPreference.changeset(attrs)
     |> repo.insert!(on_conflict: {:replace, [:value, :updated_at]}, conflict_target: [:user_id, :key])
 
     {:ok, [:noop]}
@@ -393,53 +405,11 @@ Use when you already have a user settings table (one row per user) with
 typed JSON columns. Lets each Backpex prefix write into a named column
 rather than a generic rows table.
 
-```elixir
-# Migration: adds JSON columns to an existing user_settings table
-alter table(:user_settings) do
-  add :ordering_preferences,  :map, null: false, default: %{}
-  add :filter_preferences,    :map, null: false, default: %{}
-  add :column_visibility,     :map, null: false, default: %{}
-end
-
-defmodule MyApp.Preferences.EctoAdapter do
-  @behaviour Backpex.Preferences.Adapter
-
-  import Ecto.Query
-  alias MyApp.Settings.UserSettings
-
-  @column_map %{
-    ["resource", _mod, "order"]   => :ordering_preferences,
-    ["resource", _mod, "filters"] => :filter_preferences,
-    ["resource", _mod, "columns"] => :column_visibility
-  }
-
-  @impl true
-  def get(%{identity: :unidentified}, _key, _opts), do: {:ok, :not_found}
-  def get(%{identity: user_id}, key, opts) do
-    repo = Keyword.fetch!(opts, :repo)
-    [_, module_name, _] = segments = Backpex.Preferences.Key.parse(key)
-
-    column = segments_to_column(segments)
-
-    case repo.one(from s in UserSettings, where: s.user_id == ^user_id, select: field(s, ^column)) do
-      nil -> {:ok, :not_found}
-      map -> {:ok, Map.get(map, module_name, :not_found) |> to_ok_not_found()}
-    end
-  end
-
-  # get_map/3, put/4 follow the same "which column?" lookup.
-
-  defp segments_to_column(["resource", _mod, "order"]),   do: :ordering_preferences
-  defp segments_to_column(["resource", _mod, "filters"]), do: :filter_preferences
-  defp segments_to_column(["resource", _mod, "columns"]), do: :column_visibility
-
-  defp to_ok_not_found(:not_found), do: :not_found
-  defp to_ok_not_found(value), do: value
-end
-```
-
-This pattern matches apps that already manage preferences through a
-purpose-shaped settings table; Backpex just becomes another writer.
+When you already have a typed settings table, adapt Recipe A by replacing
+the k/v schema: route each prefix to its own column and dispatch reads and
+writes based on the key's segments. See the
+[ash_backpex](https://github.com/enoonan/ash_backpex) community example for
+a working implementation.
 
 ## Opt-in persistence for ordering, filters, columns
 
@@ -469,13 +439,14 @@ All three keys route through whichever adapter you configured for
 `"resource.*"` — typically the Session adapter by default, or a per-user DB
 adapter once you wire one up.
 
-### Before / after: migrating a custom macro
+### Replacing a hand-rolled persistence layer
 
-Apps that previously rolled their own persistence (custom `init_order`
-callback backed by a DB table) can delete that scaffolding:
+If your app already persists ordering, filters, or column state through a
+custom `init_order` callback backed by a DB table, the `persist:` option
+replaces that scaffolding:
 
 ```elixir
-# Before
+# Hand-rolled
 use Backpex.LiveResource, adapter_config: [...]
 
 def init_order(assigns), do: MyApp.OrderingSettings.fetch(assigns.current_user, __MODULE__)
@@ -486,7 +457,7 @@ end
 ```
 
 ```elixir
-# After
+# With persist:
 use Backpex.LiveResource,
   adapter_config: [...],
   persist: [:order]
@@ -521,19 +492,19 @@ BackpexPreferences.set('custom.dashboard.view_mode', 'list')
 
 ### Writing from the server
 
-From a LiveView `handle_event`, use `Backpex.Preferences.put_async/3`:
+From a LiveView `handle_event`, use `Backpex.Preferences.put/4`:
 
 ```elixir
 def handle_event("toggle_view_mode", _params, socket) do
   new_mode = if socket.assigns.view_mode == "grid", do: "list", else: "grid"
 
-  {:ok, socket} = Backpex.Preferences.put_async(socket, "custom.dashboard.view_mode", new_mode)
+  {:ok, socket} = Backpex.Preferences.put(socket, "custom.dashboard.view_mode", new_mode)
 
   {:noreply, assign(socket, :view_mode, new_mode)}
 end
 ```
 
-Under the hood `put_async/3` tries the configured adapter first. When the
+Under the hood `put/4` tries the configured adapter first. When the
 adapter is session-backed (no HTTP request in a LiveView event), it falls
 back to a `push_event/3` round-trip so the browser persists via the
 preferences controller on its next paint. DB-backed adapters just write
