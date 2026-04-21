@@ -8,9 +8,9 @@ defmodule Backpex.Test do
   ## `live_resource_index/3` — transparently follow the default-filter redirect
 
   When a LiveResource has filter presets configured via `:default` on a filter
-  config and the current user has no persisted filter state yet,
-  `Backpex.LiveResource.Index` mounts, then immediately `push_navigate`s to the
-  same path with the default filters applied. Under `Phoenix.LiveViewTest.live/2`
+  config and the current user has no persisted filter state yet, the index
+  view mounts, then immediately `push_navigate`s to the same path with the
+  default filters applied. Under `Phoenix.LiveViewTest.live/2`
   this surfaces as:
 
       {:error, {:live_redirect, %{to: to}}} = live(conn, ~p"/admin/posts")
@@ -131,9 +131,9 @@ defmodule Backpex.Test do
   Seeds a preference into the `Plug.Conn`'s session, so the next LiveView mount
   reads it as if the user had set it previously.
 
-  Useful for pinning tests that exercise persisted-state branches in
-  `Backpex.LiveResource.Index` (e.g. "user has explicitly cleared all
-  filters", "user's saved column visibility hides column X").
+  Useful for pinning tests that exercise persisted-state branches in the
+  index view (e.g. "user has explicitly cleared all filters", "user's saved
+  column visibility hides column X").
 
   Returns the updated conn.
 

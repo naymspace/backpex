@@ -865,11 +865,11 @@ paths.
 
 When a resource has [filter presets](../filter/filter-presets.md) (a
 `:default` on a filter config) and the user has no persisted filter state
-yet, `Backpex.LiveResource.Index` issues a `push_navigate` on first mount
-to apply those defaults. Under `Phoenix.LiveViewTest.live/2` that surfaces
-as an `{:error, {:live_redirect, _}}` tuple that your test has to match on
-and re-mount — every integrator hits this footgun the first time they
-write an Index-mount test.
+yet, the Index view issues a `push_navigate` on first mount to apply those
+defaults. Under `Phoenix.LiveViewTest.live/2` that surfaces as an
+`{:error, {:live_redirect, _}}` tuple that your test has to match on and
+re-mount — every integrator hits this footgun the first time they write an
+Index-mount test.
 
 `Backpex.Test` ships helpers that absorb that boilerplate. Import it in
 your ExUnit cases (no extra dependency; the module is part of the Backpex
