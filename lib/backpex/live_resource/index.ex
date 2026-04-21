@@ -610,36 +610,42 @@ defmodule Backpex.LiveResource.Index do
   defp maybe_put_search(query_options, _params), do: query_options
 
   defp maybe_redirect_to_default_filters(%{assigns: %{filters_changed: false}} = socket) do
-    %{live_resource: live_resource, query_options: query_options, params: params, filters: filters} = socket.assigns
+    %{live_resource: live_resource, query_options: query_options, filters: filters} = socket.assigns
+    persisted = socket.assigns[:backpex_persisted_index_state] || %{filters: nil}
 
-    filters_with_defaults =
-      filters
-      |> Enum.filter(fn {_key, filter_config} ->
-        Map.has_key?(filter_config, :default)
-      end)
+    cond do
+      # An explicit persisted filter state (including `%{}` from a deliberate
+      # clear) must win over `:default` filters. `read_persisted/3` returns
+      # `nil` when nothing is stored, so `is_nil/1` is the signal that the
+      # user has no saved preference yet.
+      persist_enabled?(live_resource, :filters) and not is_nil(persisted.filters) ->
+        socket
 
-    # redirect to default filters if no filters are set and defaults are available
-    if Map.get(query_options, :filters) == %{} and not Enum.empty?(filters_with_defaults) do
-      default_filter_options =
-        filters_with_defaults
-        |> Enum.map(fn {key, filter_config} ->
-          {key, filter_config.default}
-        end)
-        |> Map.new(fn {key, value} ->
-          {Atom.to_string(key), value}
-        end)
+      Map.get(query_options, :filters) == %{} and has_filter_defaults?(filters) ->
+        redirect_to_default_filters(socket)
 
-      # redirect with updated query options
-      options = Map.put(query_options, :filters, default_filter_options)
-      to = Router.get_path(socket, live_resource, params, :index, options)
-      LiveView.push_navigate(socket, to: to)
-    else
-      socket
+      true ->
+        socket
     end
   end
 
-  defp maybe_redirect_to_default_filters(socket) do
-    socket
+  defp maybe_redirect_to_default_filters(socket), do: socket
+
+  defp has_filter_defaults?(filters) do
+    Enum.any?(filters, fn {_key, config} -> Map.has_key?(config, :default) end)
+  end
+
+  defp redirect_to_default_filters(socket) do
+    %{live_resource: live_resource, query_options: query_options, params: params, filters: filters} = socket.assigns
+
+    default_filter_options =
+      filters
+      |> Enum.filter(fn {_key, filter_config} -> Map.has_key?(filter_config, :default) end)
+      |> Map.new(fn {key, filter_config} -> {Atom.to_string(key), filter_config.default} end)
+
+    options = Map.put(query_options, :filters, default_filter_options)
+    to = Router.get_path(socket, live_resource, params, :index, options)
+    LiveView.push_navigate(socket, to: to)
   end
 
   defp refresh_items(socket) do

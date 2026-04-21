@@ -99,6 +99,43 @@ defmodule DemoWeb.Live.PreferencesPersistenceTest do
       assert_push_event(view, @event_name, %{key: ^expected_key, value: value})
       assert value == %{}
     end
+
+    test "persisted %{} filters suppress redirect to defaults on mount", %{conn: conn} do
+      # Simulates the round-trip after a user cleared every filter and
+      # navigated away: the preferences adapter holds an explicit empty map.
+      # On return, `apply_index` must treat that state as "user cleared
+      # everything" and skip the default-filter redirect. Without this,
+      # `maybe_redirect_to_default_filters` would see `query_options.filters
+      # == %{}` and re-apply the `:default` from the `published` filter,
+      # overwriting the user's persisted clear.
+      insert(:post, title: "Published Post", published: true)
+      insert(:post, title: "Draft Post", published: false)
+
+      session = %{
+        "backpex_preferences" => %{
+          "resource" => %{"DemoWeb.PostLive" => %{"filters" => %{}}}
+        }
+      }
+
+      conn = Plug.Test.init_test_session(conn, session)
+
+      {:ok, _view, html} = live(conn, ~p"/admin/posts")
+
+      # Both posts are visible → no `published` default was applied.
+      assert html =~ "Published Post"
+      assert html =~ "Draft Post"
+    end
+
+    test "no persisted filters still triggers redirect to defaults on mount", %{conn: conn} do
+      # Pins the existing onboarding flow: a fresh user with nothing in the
+      # preferences store still gets the `:default` filter applied (and the
+      # URL rewritten to carry it), so the bug fix doesn't regress this path.
+      insert(:post, title: "Published Post", published: true)
+      insert(:post, title: "Draft Post", published: false)
+
+      assert {:error, {:live_redirect, %{to: to}}} = live(conn, ~p"/admin/posts")
+      assert to =~ "filters[published][]=published"
+    end
   end
 
   describe "persist: [:columns]" do
