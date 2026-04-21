@@ -115,7 +115,22 @@ var BackpexPreferencesHook = {
 var preferences_default = BackpexPreferencesHook;
 
 // js/hooks/_sidebar.js
+var SIDEBAR_OPEN_KEY = "backpex.sidebar.open";
 var SECTION_STATES_KEY = "backpex.sidebar.section_states";
+function loadSidebarOpen() {
+  try {
+    const raw = sessionStorage.getItem(SIDEBAR_OPEN_KEY);
+    return raw === null ? null : raw === "true";
+  } catch {
+    return null;
+  }
+}
+function saveSidebarOpen(open) {
+  try {
+    sessionStorage.setItem(SIDEBAR_OPEN_KEY, String(open));
+  } catch {
+  }
+}
 function loadSectionStates() {
   try {
     const raw = sessionStorage.getItem(SECTION_STATES_KEY);
@@ -139,7 +154,8 @@ var sidebar_default = {
     this.toggleBtn = document.getElementById("backpex-sidebar-toggle");
     if (!this.sidebar || !this.toggleBtn) return;
     this.mobileOpen = false;
-    this.desktopOpen = this.el.dataset.sidebarOpen === "true";
+    const storedSidebarOpen = loadSidebarOpen();
+    this.desktopOpen = storedSidebarOpen !== null ? storedSidebarOpen : this.el.dataset.sidebarOpen === "true";
     this.previousFocus = null;
     this._sectionHandlers = /* @__PURE__ */ new WeakMap();
     this._sectionStates = loadSectionStates();
@@ -188,6 +204,7 @@ var sidebar_default = {
   handleToggle() {
     if (this.isDesktop()) {
       this.desktopOpen = !this.desktopOpen;
+      saveSidebarOpen(this.desktopOpen);
       BackpexPreferences.set("global.sidebar_open", this.desktopOpen);
     } else {
       if (!this.mobileOpen) this.previousFocus = document.activeElement;

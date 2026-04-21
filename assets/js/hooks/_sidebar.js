@@ -1,11 +1,30 @@
 import { BackpexPreferences } from './_preferences'
 
-// Persists sidebar-section open/closed state across live_redirects within a
+// Persists sidebar open/closed state across live_redirects within a
 // live_session. LiveView freezes the session at websocket-connect time, so a
-// re-mount after `live_redirect` reads a stale cookie and re-renders sections
-// from their default. sessionStorage keeps the user's client-side choices
-// authoritative until the next fresh connect re-seeds from the cookie.
+// re-mount after `live_redirect` reads a stale cookie and re-renders the
+// shell from its default. sessionStorage keeps the user's client-side
+// choices authoritative until the next fresh connect re-seeds from the
+// cookie. Same pattern as SECTION_STATES_KEY below.
+const SIDEBAR_OPEN_KEY = 'backpex.sidebar.open'
 const SECTION_STATES_KEY = 'backpex.sidebar.section_states'
+
+function loadSidebarOpen () {
+  try {
+    const raw = sessionStorage.getItem(SIDEBAR_OPEN_KEY)
+    return raw === null ? null : raw === 'true'
+  } catch {
+    return null
+  }
+}
+
+function saveSidebarOpen (open) {
+  try {
+    sessionStorage.setItem(SIDEBAR_OPEN_KEY, String(open))
+  } catch {
+    // sessionStorage may be unavailable (private mode, quota); best effort only
+  }
+}
 
 function loadSectionStates () {
   try {
@@ -43,9 +62,12 @@ export default {
     // No sidebar slot rendered; hook has nothing to do.
     if (!this.sidebar || !this.toggleBtn) return
 
-    // State: mobile closed by default, desktop state from server-rendered data attribute
+    // State: mobile closed by default. Desktop state prefers sessionStorage
+    // over the server-rendered data attribute for the same reason
+    // _sectionStates does — see SIDEBAR_OPEN_KEY above.
     this.mobileOpen = false
-    this.desktopOpen = this.el.dataset.sidebarOpen === 'true'
+    const storedSidebarOpen = loadSidebarOpen()
+    this.desktopOpen = storedSidebarOpen !== null ? storedSidebarOpen : this.el.dataset.sidebarOpen === 'true'
     // Element focused before the mobile drawer was opened, for focus restore.
     this.previousFocus = null
     // Per-toggle click handlers, keyed off the toggle element (section dropdowns).
@@ -125,7 +147,8 @@ export default {
   handleToggle () {
     if (this.isDesktop()) {
       this.desktopOpen = !this.desktopOpen
-      // Persist to cookie via BackpexPreferences
+      saveSidebarOpen(this.desktopOpen)
+      // Persist to cookie via BackpexPreferences for the next fresh connect.
       BackpexPreferences.set('global.sidebar_open', this.desktopOpen)
     } else {
       if (!this.mobileOpen) this.previousFocus = document.activeElement
