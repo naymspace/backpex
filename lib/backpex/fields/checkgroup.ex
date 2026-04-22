@@ -33,8 +33,6 @@ defmodule Backpex.Fields.Checkgroup do
   """
   use Backpex.Field, config_schema: @config_schema
 
-  alias Backpex.HTML
-
   @impl Backpex.Field
   def render_value(assigns) do
     options = get_options(assigns)
