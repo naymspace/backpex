@@ -77,7 +77,7 @@ defmodule Backpex.FormComponent do
   end
 
   def handle_event("validate", %{"change" => change, "_target" => target}, %{assigns: %{action_type: :item}} = socket) do
-    %{assigns: %{item: item, fields: fields} = assigns} = socket
+    %{assigns: %{action_item: action_item, fields: fields} = assigns} = socket
 
     changeset_function = fn item, changes, metadata ->
       assigns.action_to_confirm.module.changeset(item, changes, metadata)
@@ -93,7 +93,7 @@ defmodule Backpex.FormComponent do
     metadata = Resource.build_changeset_metadata(socket.assigns, target)
 
     changeset =
-      item
+      action_item
       |> changeset_function.(change, metadata)
       |> Map.put(:action, :validate)
 
@@ -170,7 +170,7 @@ defmodule Backpex.FormComponent do
 
   def handle_event("save", %{"action-key" => key, "change" => change}, %{assigns: %{action_type: :item}} = socket) do
     key = String.to_existing_atom(key)
-    handle_item_action(socket, key, change)
+    handle_form_item_action(socket, key, change)
   end
 
   def handle_event("save", %{"change" => change, "save-type" => save_type}, socket) do
@@ -187,7 +187,7 @@ defmodule Backpex.FormComponent do
 
   def handle_event("save", %{"action-key" => key}, socket) do
     key = String.to_existing_atom(key)
-    handle_item_action(socket, key, %{})
+    handle_form_item_action(socket, key, %{})
   end
 
   def handle_event("save", _params, socket) do
@@ -345,7 +345,7 @@ defmodule Backpex.FormComponent do
     end
   end
 
-  defp handle_item_action(socket, action_key, params) do
+  defp handle_form_item_action(socket, action_key, params) do
     %{
       assigns:
         %{
@@ -367,7 +367,7 @@ defmodule Backpex.FormComponent do
 
         metadata = Resource.build_changeset_metadata(assigns)
 
-        assigns.item
+        assigns.action_item
         |> changeset_function.(params, metadata)
         |> Map.put(:action, :insert)
         |> Ecto.Changeset.apply_action(:insert)
@@ -382,7 +382,7 @@ defmodule Backpex.FormComponent do
       |> assign(:show_form_errors, false)
       |> assign(:selected_items, [])
       |> assign(:select_all, false)
-      |> push_patch(to: return_to)
+      |> push_navigate(to: return_to)
       |> noreply()
     else
       {:error, changeset} ->
@@ -406,12 +406,7 @@ defmodule Backpex.FormComponent do
   end
 
   defp drop_readonly_changes(change, fields, assigns) do
-    read_only =
-      fields
-      |> Enum.filter(&Backpex.Field.readonly?(&1, assigns))
-      |> Enum.map(&Atom.to_string(&1.name))
-
-    Map.drop(change, read_only)
+    Backpex.Field.drop_readonly_changes(change, fields, assigns)
   end
 
   defp drop_unused_changes(change) do
@@ -472,21 +467,24 @@ defmodule Backpex.FormComponent do
   end
 
   defp handle_uploads(%{assigns: %{uploads: _uploads}} = socket, item) do
-    for {_name, %{upload_key: upload_key} = field_options} = _field <- socket.assigns.fields do
-      if Map.has_key?(socket.assigns.uploads, upload_key) do
-        %{consume_upload: consume_upload, remove_uploads: remove_uploads} = field_options
-
-        consume_uploaded_entries(socket, upload_key, fn meta, entry ->
-          consume_upload.(socket, item, meta, entry)
-        end)
-
-        removed_entries = Keyword.get(socket.assigns.removed_uploads, upload_key, [])
-        remove_uploads.(socket, item, removed_entries)
-      end
+    for {_name, %{upload_key: upload_key} = field_options} = _field <- socket.assigns.fields,
+        Map.has_key?(socket.assigns.uploads, upload_key) do
+      consume_and_remove_uploads(socket, item, upload_key, field_options)
     end
   end
 
   defp handle_uploads(_socket, _item), do: :ok
+
+  defp consume_and_remove_uploads(socket, item, upload_key, field_options) do
+    %{consume_upload: consume_upload, remove_uploads: remove_uploads} = field_options
+
+    consume_uploaded_entries(socket, upload_key, fn meta, entry ->
+      consume_upload.(socket, item, meta, entry)
+    end)
+
+    removed_entries = Keyword.get(socket.assigns.removed_uploads, upload_key, [])
+    remove_uploads.(socket, item, removed_entries)
+  end
 
   def render(assigns) do
     Backpex.HTML.Resource.form_component(assigns)

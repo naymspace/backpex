@@ -5,7 +5,9 @@ defmodule Backpex.LiveResource.Index do
   import Phoenix.Component
 
   alias Backpex.Adapters.Ecto, as: EctoAdapter
+  alias Backpex.FilterValidation
   alias Backpex.LiveResource
+  alias Backpex.PaginationValidation
   alias Backpex.Resource
   alias Backpex.Router
 
@@ -95,18 +97,20 @@ defmodule Backpex.LiveResource.Index do
   def handle_event("change-filter", params, socket) do
     query_options = socket.assigns.query_options
 
-    empty_filter_name = Atom.to_string(LiveResource.empty_filter_key())
-
+    # Merge new filter values with existing ones
     filters =
       Map.get(query_options, :filters, %{})
-      |> Map.merge(params["filters"])
-      # Filter manually emptied filters and empty filter
-      |> Enum.filter(fn
-        {^empty_filter_name, _value} -> false
-        {_filter, ""} -> false
-        {_filter, %{"start" => "", "end" => ""}} -> false
-        _filter_params -> true
+      |> Map.merge(params["filters"] || %{})
+      # Filter out empty values
+      |> Enum.reject(fn
+        {_filter, ""} -> true
+        {_filter, nil} -> true
+        {_filter, []} -> true
+        {_filter, %{"start" => "", "end" => ""}} -> true
+        {_filter, %{"start" => nil, "end" => nil}} -> true
+        _filter_params -> false
       end)
+      |> Map.new()
 
     to =
       Router.get_path(
@@ -187,7 +191,6 @@ defmodule Backpex.LiveResource.Index do
     filters =
       Map.get(query_options, :filters, %{})
       |> Map.put(field, get_preset_values.())
-      |> Map.delete(Atom.to_string(LiveResource.empty_filter_key()))
 
     to =
       Router.get_path(
@@ -251,7 +254,6 @@ defmodule Backpex.LiveResource.Index do
         :filters,
         Map.get(query_options, :filters, %{})
         |> Map.delete(field)
-        |> maybe_put_empty_filter(LiveResource.empty_filter_key())
       )
 
     to = Router.get_path(socket, live_resource, params, :index, new_query_options)
@@ -277,62 +279,26 @@ defmodule Backpex.LiveResource.Index do
   end
 
   defp open_action_confirm_modal(socket, action, key) do
-    if_result =
-      if Backpex.ItemAction.has_form?(action) do
-        changeset_function = fn item, changes, metadata -> action.module.changeset(item, changes, metadata) end
-        base_schema = action.module.base_schema(socket.assigns)
-
-        metadata = Resource.build_changeset_metadata(socket.assigns)
-        changeset = changeset_function.(base_schema, %{}, metadata)
-
-        socket
-        |> assign(:item, base_schema)
-        |> assign(:changeset, changeset)
-      else
-        assign(socket, :changeset, %{})
-      end
-
-    if_result
+    socket
+    |> Backpex.ItemAction.assign_action_changeset(action)
     |> assign(:action_to_confirm, Map.put(action, :key, key))
     |> noreply()
   end
 
   defp handle_item_action(socket, action, key, items) do
-    %{live_resource: live_resource} = socket.assigns
-    items = Enum.filter(items, fn item -> live_resource.can?(socket.assigns, key, item) end)
-
-    case action.module.handle(socket, items, %{}) do
-      {:ok, socket} ->
-        socket
-        |> assign(action_to_confirm: nil)
-        |> assign(selected_items: [])
-        |> assign(select_all: false)
-        |> noreply()
-
-      unexpected_return ->
-        raise ArgumentError, """
-        Invalid return value from #{inspect(action.module)}.handle/3.
-
-        Expected: {:ok, socket}
-        Got: #{inspect(unexpected_return)}
-
-        Item Actions with no form fields must return {:ok, socket}.
-        """
-    end
+    Backpex.ItemAction.handle_item_action(socket, action, key, items, fn socket ->
+      socket
+      |> assign(action_to_confirm: nil)
+      |> assign(selected_items: [])
+      |> assign(select_all: false)
+      |> noreply()
+    end)
   end
 
   defp find_item_by_primary_value(items, primary_value, live_resource) do
     Enum.find(items, fn item ->
       to_string(LiveResource.primary_value(item, live_resource)) == to_string(primary_value)
     end)
-  end
-
-  defp maybe_put_empty_filter(%{} = filters, empty_filter_key) when filters == %{} do
-    Map.put(filters, Atom.to_string(empty_filter_key), true)
-  end
-
-  defp maybe_put_empty_filter(filters, _empty_filter_key) do
-    filters
   end
 
   defp assign_active_fields(socket, session) do
@@ -436,36 +402,49 @@ defmodule Backpex.LiveResource.Index do
     per_page_options = live_resource.config(:per_page_options)
     per_page_default = live_resource.config(:per_page_default)
     init_order = live_resource.config(:init_order)
+    init_order = LiveResource.resolve_init_order(init_order, socket.assigns)
 
     filters = LiveResource.active_filters(socket.assigns)
-    valid_filter_params = LiveResource.get_valid_filters_from_params(params, filters, LiveResource.empty_filter_key())
-
     schema = live_resource.adapter_config(:schema)
+    orderable_fields = LiveResource.orderable_fields(fields)
+
+    # Build filter changeset from URL params and extract valid values
+    raw_filter_params =
+      case Map.get(params, "filters") do
+        value when is_map(value) -> value
+        _other -> %{}
+      end
+
+    filter_changeset = FilterValidation.build_changeset(raw_filter_params, filters, socket.assigns)
+    filter_values = FilterValidation.valid_values(filter_changeset)
+    filter_form = to_form(filter_changeset, as: :filters)
+
+    # Validate pagination and sorting params (page clamping happens after we know item_count)
+    query_options =
+      PaginationValidation.build(params,
+        per_page_default: per_page_default,
+        per_page_options: per_page_options,
+        orderable_fields: orderable_fields,
+        init_order: init_order
+      )
 
     count_criteria = [
       search: LiveResource.search_options(params, fields, schema),
-      filters: LiveResource.filter_options(valid_filter_params, filters)
+      filter_values: filter_values,
+      filter_configs: filters
     ]
 
     {:ok, item_count} = Resource.count(count_criteria, fields, socket.assigns, live_resource)
+    total_pages = LiveResource.calculate_total_pages(item_count, query_options.per_page)
 
-    per_page =
-      params
-      |> LiveResource.parse_integer("per_page", per_page_default)
-      |> LiveResource.value_in_permitted_or_default(per_page_options, per_page_default)
-
-    total_pages = LiveResource.calculate_total_pages(item_count, per_page)
-
-    page = params |> LiveResource.parse_integer("page", 1) |> LiveResource.validate_page(total_pages)
-    page_options = %{page: page, per_page: per_page}
-
-    order_options = LiveResource.order_options_by_params(params, fields, init_order, socket.assigns)
+    # Clamp page to valid range now that we know total_pages
+    page = PaginationValidation.clamp_page(query_options.page, total_pages)
+    query_options = %{query_options | page: page}
 
     query_options =
-      page_options
-      |> Map.merge(order_options)
+      query_options
       |> maybe_put_search(params)
-      |> Map.put(:filters, Map.get(valid_filter_params, "filters", %{}))
+      |> Map.put(:filters, raw_filter_params)
 
     socket
     |> assign(:page_title, socket.assigns.live_resource.plural_name())
@@ -475,7 +454,9 @@ defmodule Backpex.LiveResource.Index do
     |> assign(:total_pages, total_pages)
     |> assign(:per_page_options, per_page_options)
     |> assign(:filters, filters)
-    |> assign(:orderable_fields, LiveResource.orderable_fields(fields))
+    |> assign(:filter_form, filter_form)
+    |> assign(:filter_values, filter_values)
+    |> assign(:orderable_fields, orderable_fields)
     |> assign(:searchable_fields, LiveResource.searchable_fields(fields))
     |> assign(:resource_actions, live_resource.resource_actions())
     |> assign(:action_to_confirm, nil)
@@ -547,17 +528,20 @@ defmodule Backpex.LiveResource.Index do
 
     schema = live_resource.adapter_config(:schema)
     filters = LiveResource.active_filters(socket.assigns)
-    valid_filter_params = LiveResource.get_valid_filters_from_params(params, filters, LiveResource.empty_filter_key())
+
+    # Use the already-validated filter_values from assigns
+    filter_values = Map.get(socket.assigns, :filter_values, %{})
 
     count_criteria = [
       search: LiveResource.search_options(params, fields, schema),
-      filters: LiveResource.filter_options(valid_filter_params, filters)
+      filter_values: filter_values,
+      filter_configs: filters
     ]
 
     {:ok, item_count} = Resource.count(count_criteria, fields, socket.assigns, live_resource)
     %{page: page, per_page: per_page} = query_options
     total_pages = LiveResource.calculate_total_pages(item_count, per_page)
-    new_query_options = Map.put(query_options, :page, LiveResource.validate_page(page, total_pages))
+    new_query_options = Map.put(query_options, :page, PaginationValidation.clamp_page(page, total_pages))
 
     socket
     |> assign(:item_count, item_count)
@@ -579,12 +563,16 @@ defmodule Backpex.LiveResource.Index do
     schema = live_resource.adapter_config(:schema)
     filters = LiveResource.active_filters(socket.assigns)
 
+    # Use the already-validated filter_values from assigns
+    filter_values = Map.get(socket.assigns, :filter_values, %{})
+
     metrics =
       socket.assigns.live_resource.metrics()
       |> Enum.map(fn {key, metric} ->
         criteria = [
           search: LiveResource.search_options(query_options, fields, schema),
-          filters: LiveResource.filter_options(query_options, filters)
+          filter_values: filter_values,
+          filter_configs: filters
         ]
 
         query = EctoAdapter.list_query(criteria, fields, socket.assigns, live_resource)

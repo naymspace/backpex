@@ -225,27 +225,34 @@ defmodule Backpex.HTML.Resource do
 
   @doc false
   attr :live_resource, :any, default: nil, doc: "module of the live resource"
-  attr :filter_options, :list, required: true, doc: "filter options"
+  attr :filter_options, :map, required: true, doc: "raw filter options from URL (for form display)"
+  attr :filter_values, :map, required: true, doc: "validated filter values (for badges)"
   attr :filters, :list, required: true, doc: "list of active filters"
 
   def filter(assigns) do
-    assigns =
-      assigns
-      |> assign(:filter_count, Enum.count(assigns.filter_options))
-      |> assign(
-        :filter_badges,
-        for {key, value} <- assigns.filter_options do
-          filter = Keyword.get(assigns.filters, String.to_existing_atom(key))
+    # Use filter_values (validated) for badges - only shows successfully applied filters
+    for_result =
+      for {field, value} <- assigns.filter_values do
+        filter = Keyword.get(assigns.filters, field)
+
+        if filter do
           label = Map.get(filter, :label, filter.module.label())
 
           %{
-            key: key,
+            key: Atom.to_string(field),
             value: value,
             filter: filter,
             label: label
           }
         end
-      )
+      end
+
+    filter_badges = Enum.reject(for_result, &is_nil/1)
+
+    assigns =
+      assigns
+      |> assign(:filter_count, Enum.count(filter_badges))
+      |> assign(:filter_badges, filter_badges)
 
     ~H"""
     <.filter_dropdown :if={@filters != []} live_resource={@live_resource} filter_count={@filter_count}>
@@ -367,9 +374,12 @@ defmodule Backpex.HTML.Resource do
   @doc false
   attr :live_resource, :any, default: nil, doc: "live resource module"
   attr :filters, :list, required: true, doc: "list of active filters"
-  attr :filter_options, :list, required: true, doc: "filter options"
+  attr :filter_options, :map, required: true, doc: "raw filter options from URL params"
+  attr :filter_form, :any, default: nil, doc: "optional form backed by filter validation changeset"
 
   def filter_forms(assigns) do
+    error_changeset = get_filter_changeset(assigns[:filter_form])
+
     assigns =
       assigns
       |> assign(:form, to_form(%{}, as: :filters))
@@ -378,14 +388,17 @@ defmodule Backpex.HTML.Resource do
         for {field, filter} <- assigns.filters do
           label = Map.get(filter, :label, filter.module.label())
           presets = Map.get(filter, :presets, [])
-          value = Map.get(assigns.filter_options, Atom.to_string(field), nil)
+          # filter_options (from URL params) is always string-keyed
+          value = Map.get(assigns.filter_options, Atom.to_string(field))
+          errors = extract_filter_errors(error_changeset, field)
 
           %{
             field: field,
             filter: filter,
             label: label,
             presets: presets,
-            value: value
+            value: value,
+            errors: errors
           }
         end
       )
@@ -401,7 +414,13 @@ defmodule Backpex.HTML.Resource do
       >
         {component(
           fn assigns -> field_data.filter.module.render_form(assigns) end,
-          Map.merge(assigns, %{field: field_data.field, value: field_data.value, form: f, live_resource: @live_resource}),
+          Map.merge(assigns, %{
+            field: field_data.field,
+            value: field_data.value,
+            form: f,
+            live_resource: @live_resource,
+            errors: field_data.errors
+          }),
           {__ENV__.module, __ENV__.function, __ENV__.file, __ENV__.line}
         )}
         <:presets :if={field_data.presets != []}>
@@ -410,6 +429,18 @@ defmodule Backpex.HTML.Resource do
       </.filter_form_field>
     </.form>
     """
+  end
+
+  defp get_filter_changeset(nil), do: nil
+  defp get_filter_changeset(%{source: %Ecto.Changeset{} = changeset}), do: changeset
+  defp get_filter_changeset(_other), do: nil
+
+  defp extract_filter_errors(nil, _field), do: []
+
+  defp extract_filter_errors(changeset, field) do
+    changeset.errors
+    |> Keyword.get_values(field)
+    |> Enum.map(fn {msg, opts} -> Backpex.translate_error({msg, opts}) end)
   end
 
   @doc """
@@ -867,7 +898,7 @@ defmodule Backpex.HTML.Resource do
       <div :if={display_divider?(assigns)} class="border-base-300 my-0.5 border-r-2 border-solid" />
 
       <button
-        :for={{key, action} <- index_item_actions(@item_actions)}
+        :for={{key, action} <- filter_item_actions(@item_actions, :index)}
         class="btn btn-sm btn-outline btn-primary"
         disabled={action_disabled?(assigns, key, @selected_items)}
         phx-click="item-action"
@@ -907,6 +938,7 @@ defmodule Backpex.HTML.Resource do
         :if={LiveResource.active_filters(assigns) != []}
         live_resource={@live_resource}
         filter_options={LiveResource.get_filter_options(@query_options)}
+        filter_values={Map.get(assigns, :filter_values, %{})}
         filters={LiveResource.active_filters(assigns)}
         {assigns}
       />
@@ -929,22 +961,19 @@ defmodule Backpex.HTML.Resource do
   end
 
   defp display_divider?(assigns) do
-    index_item_actions = index_item_actions(assigns.item_actions)
+    index_actions = filter_item_actions(assigns.item_actions, :index)
     resource_actions = resource_actions(assigns, assigns.resource_actions)
 
-    Enum.any?(index_item_actions) &&
+    Enum.any?(index_actions) &&
       (Enum.any?(resource_actions) || assigns.live_resource.can?(assigns, :new, nil))
   end
 
-  defp index_item_actions(item_actions) do
+  @doc """
+  Filters item actions based on visibility type.
+  """
+  def filter_item_actions(item_actions, type) when type in [:index, :row, :show] do
     Enum.filter(item_actions, fn {_key, action} ->
-      action_on_index?(action)
-    end)
-  end
-
-  defp row_item_actions(item_actions) do
-    Enum.filter(item_actions, fn {_key, action} ->
-      action_on_row?(action)
+      action_visible?(action, type)
     end)
   end
 
@@ -955,13 +984,12 @@ defmodule Backpex.HTML.Resource do
     |> Enum.empty?()
   end
 
-  defp action_on_row?(%{only: only}), do: :row in only
-  defp action_on_row?(%{except: except}), do: :row not in except
-  defp action_on_row?(_action), do: true
-
-  defp action_on_index?(%{only: only}), do: :index in only
-  defp action_on_index?(%{except: except}), do: :index not in except
-  defp action_on_index?(_action), do: true
+  @doc """
+  Checks if an action should be visible for the given type.
+  """
+  def action_visible?(%{only: only}, type), do: type in only
+  def action_visible?(%{except: except}, type), do: type not in except
+  def action_visible?(_action, _type), do: true
 
   @doc """
   Renders an info block to indicate that no items are found.

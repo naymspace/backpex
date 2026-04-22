@@ -22,16 +22,16 @@
     "gettext": "mix gettext.extract --merge"
   },
   "devDependencies": {
-    "@sentry/browser": "10.26.0",
+    "@sentry/browser": "10.47.0",
     "npm-run-all2": "8.0.4",
-    "playwright": "1.56.1",
-    "postcss": "8.5.6",
+    "playwright": "1.59.1",
+    "postcss": "8.5.10",
     "standard": "17.1.2",
-    "stylelint": "16.25.0",
-    "stylelint-config-standard": "39.0.1",
-    "topbar": "3.0.0"
+    "stylelint": "17.6.0",
+    "stylelint-config-standard": "40.0.0",
+    "topbar": "3.0.1"
   },
   "dependencies": {
-    "daisyui": "5.5.5"
+    "daisyui": "5.5.19"
   }
 }

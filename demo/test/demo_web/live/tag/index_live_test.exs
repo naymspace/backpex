@@ -1,0 +1,47 @@
+defmodule DemoWeb.Live.Tag.IndexLiveTest do
+  use DemoWeb.ConnCase, async: false
+
+  import Demo.EctoFactory
+  import Phoenix.LiveViewTest
+  import Demo.Support.LiveResourceTests
+
+  describe "tags live resource index" do
+    test "is rendered", %{conn: conn} do
+      insert_list(3, :tag)
+
+      conn
+      |> visit(~p"/admin/tags")
+      |> assert_has("h1", text: "Tags", exact: true)
+      |> assert_has("button", text: "New Tag", exact: true)
+      |> assert_has("button[disabled]", text: "Delete", exact: true)
+      |> assert_has("div", text: "Items 1 to 3 (3 total)", exact: true)
+      |> assert_has("table tbody tr", count: 3)
+    end
+
+    test "search for items", %{conn: conn} do
+      insert(:tag, %{name: "Elixir"})
+      insert(:tag, %{name: "Phoenix"})
+
+      conn
+      |> visit(~p"/admin/tags")
+      |> assert_has("table tbody tr", count: 2)
+      |> unwrap(fn view ->
+        view
+        |> form("#index-search-form", index_search: %{value: "Elixir"})
+        |> render_change()
+      end)
+      |> assert_has("table tbody tr", count: 1)
+      |> refute_has("tr", text: "Phoenix")
+      |> assert_has("tr", text: "Elixir")
+    end
+
+    test "basic functionality", %{conn: conn} do
+      tags = insert_list(3, :tag)
+
+      test_table_rows_count(conn, ~p"/admin/tags", Enum.count(tags))
+      test_delete_button_disabled_enabled(conn, ~p"/admin/tags", tags)
+      test_show_action_redirect(conn, ~p"/admin/tags", tags)
+      test_edit_action_redirect(conn, ~p"/admin/tags", tags)
+    end
+  end
+end

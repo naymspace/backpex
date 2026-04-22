@@ -1,4 +1,11 @@
 <.layout {assigns}>
+  <Backpex.HTML.ItemAction.action_confirm_modal
+    :if={Map.get(assigns, :action_to_confirm)}
+    action_to_confirm={@action_to_confirm}
+    live_resource={@live_resource}
+    {assigns}
+  />
+
   {@live_resource.render_resource_slot(assigns, :show, :before_page_title)}
   {@live_resource.render_resource_slot(assigns, :show, :page_title)}
 

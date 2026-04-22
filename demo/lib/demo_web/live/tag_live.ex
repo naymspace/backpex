@@ -6,7 +6,6 @@ defmodule DemoWeb.TagLive do
       update_changeset: &Demo.Tag.update_changeset/3,
       create_changeset: &Demo.Tag.create_changeset/3
     ],
-    layout: {DemoWeb.Layouts, :admin},
     init_order: %{by: :name, direction: :desc},
     on_mount: __MODULE__
 
@@ -19,6 +18,9 @@ defmodule DemoWeb.TagLive do
 
     {:cont, Phoenix.LiveView.put_flash(socket, :info, msg)}
   end
+
+  @impl Backpex.LiveResource
+  def layout(_assigns), do: {DemoWeb.Layouts, :admin}
 
   @impl Backpex.LiveResource
   def singular_name, do: "Tag"
@@ -49,7 +51,7 @@ defmodule DemoWeb.TagLive do
       [
         duplicate: %{
           module: DemoWeb.ItemActions.DuplicateTag,
-          only: [:row]
+          only: [:row, :show]
         }
       ],
       default_actions

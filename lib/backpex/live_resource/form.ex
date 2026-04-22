@@ -19,6 +19,7 @@ defmodule Backpex.LiveResource.Form do
     |> assign(:fields, live_resource.fields(live_action, socket.assigns))
     |> assign(:params, params)
     |> assign(:page_title, page_title(live_resource, live_action))
+    |> assign_return_to(params)
     |> assign_item(live_action)
     |> can?(live_resource, live_action)
     |> assign_changeset(live_action)
@@ -65,6 +66,13 @@ defmodule Backpex.LiveResource.Form do
 
   defp page_title(live_resource, :edit = _live_action) do
     Backpex.__({"Edit %{resource}", %{resource: live_resource.singular_name()}}, live_resource)
+  end
+
+  defp assign_return_to(socket, params) do
+    case Map.get(params, "return_to") do
+      nil -> socket
+      return_to -> assign(socket, :return_to, return_to)
+    end
   end
 
   defp assign_item(socket, :new = _live_action) do
