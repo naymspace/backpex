@@ -4,6 +4,10 @@ defmodule Backpex.Fields.Checkgroup do
       doc: "List of options or function that receives the assigns.",
       type: {:or, [{:list, :any}, {:fun, 1}]},
       required: true
+    ],
+    readonly: [
+      doc: "Sets the field to readonly. Also see the [panels](/guides/fields/readonly.md) guide.",
+      type: {:or, [:boolean, {:fun, 1}]}
     ]
   ]
 
@@ -65,6 +69,7 @@ defmodule Backpex.Fields.Checkgroup do
           options={@options}
           translate_error_fun={Backpex.Field.translate_error_fun(@field_options, assigns)}
           help_text={Backpex.Field.help_text(@field_options, assigns)}
+          readonly={@readonly}
         />
       </Layout.field_container>
     </div>

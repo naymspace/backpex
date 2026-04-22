@@ -145,6 +145,8 @@ defmodule Backpex.HTML.Form do
   end
 
   def input(%{type: "checkgroup"} = assigns) do
+    assigns = assign_new(assigns, :readonly, fn -> Map.get(assigns.rest, :readonly, false) end)
+
     ~H"""
     <fieldset class={["fieldset py-0", @class]}>
       <legend :if={@label} class="label mb-1">{@label}</legend>
@@ -157,6 +159,7 @@ defmodule Backpex.HTML.Form do
             name={@name <> "[]"}
             value={value}
             checked={to_string(value) in Enum.map(List.wrap(@value), &to_string/1)}
+            disabled={@readonly}
             class={["checkbox checkbox-sm checkbox-primary", @errors != [] && "checkbox-error"]}
             aria-invalid={@errors != [] && "true"}
             aria-describedby={@help_text && "#{@id}-help"}
