@@ -662,7 +662,7 @@ defmodule Backpex.Fields.Upload do
           id={"#{@name}-drop-target"}
           class="w-full max-w-lg"
           phx-hook={not @readonly && "BackpexDragHover"}
-          phx-drop-target={if @uploads_allowed, do: @upload.ref}
+          phx-drop-target={if @uploads_allowed and not @readonly, do: @upload.ref}
         >
           <div class={[
             "rounded-field flex justify-center border-2 border-dashed px-6 pt-5 pb-6",
@@ -674,9 +674,12 @@ defmodule Backpex.Fields.Upload do
               <Backpex.HTML.CoreComponents.icon name="hero-document-arrow-up" class="text-base-content/50 h-8 w-8" />
               <div class="flex text-sm">
                 <label>
-                  <a class={not @readonly && "link link-hover link-primary font-medium"}>
+                  <a :if={not @readonly} class="link link-hover link-primary font-medium">
                     {Backpex.__("Upload a file", @live_resource)}
                   </a>
+                  <span :if={@readonly}>
+                    {Backpex.__("Upload a file", @live_resource)}
+                  </span>
                   <.live_file_input
                     :if={@uploads_allowed and not @readonly}
                     upload={@upload}
@@ -704,6 +707,7 @@ defmodule Backpex.Fields.Upload do
               <div :for={entry <- @upload.entries} class="break-all">
                 <p class="inline">{Map.get(entry, :client_name)}</p>
                 <button
+                  :if={not @readonly}
                   type="button"
                   phx-click="cancel-entry"
                   phx-value-ref={entry.ref}
@@ -724,6 +728,7 @@ defmodule Backpex.Fields.Upload do
               <div :for={{file_key, label} <- @uploaded_files} class="break-all">
                 <p class="inline">{label}</p>
                 <button
+                  :if={not @readonly}
                   type="button"
                   phx-click="cancel-existing-entry"
                   phx-value-ref={file_key}
