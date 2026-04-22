@@ -12,7 +12,7 @@ defmodule Backpex.Field do
       required: true
     ],
     readonly: [
-      doc: "Sets the field to readonly. Also see the [panels](/guides/fields/readonly.md) guide.",
+      doc: "Sets the field to readonly. Also see the [readonly](/guides/fields/readonly.md) guide.",
       type: {:or, [:boolean, {:fun, 1}]},
       default: false
     ],
