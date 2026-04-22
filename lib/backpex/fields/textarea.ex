@@ -61,7 +61,6 @@ defmodule Backpex.Fields.Textarea do
           phx-debounce={Backpex.Field.debounce(@field_options, assigns)}
           phx-throttle={Backpex.Field.throttle(@field_options, assigns)}
           readonly={@readonly}
-          disabled={@readonly}
           aria-labelledby={Map.get(assigns, :aria_labelledby)}
         />
       </Layout.field_container>
