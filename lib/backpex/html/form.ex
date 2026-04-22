@@ -156,7 +156,7 @@ defmodule Backpex.HTML.Form do
             id={"#{@id}-#{value}"}
             name={@name <> "[]"}
             value={value}
-            checked={value in List.wrap(@value)}
+            checked={to_string(value) in Enum.map(List.wrap(@value), &to_string/1)}
             class={["checkbox checkbox-sm checkbox-primary", @errors != [] && "checkbox-error"]}
             {@rest}
           />
