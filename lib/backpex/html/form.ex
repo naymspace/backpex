@@ -325,7 +325,7 @@ defmodule Backpex.HTML.Form do
           ]}
         >
           <div class="flex h-full w-full flex-wrap items-center gap-1 px-2">
-            <p :if={@selected == []} class={["p-0.5 text-sm", @readonly && "text-base-content/40"]}>{@prompt}</p>
+            <p :if={@selected == []} class={["p-0.5 text-sm", @readonly && "text-base-content/60"]}>{@prompt}</p>
             <.multi_select_badge
               :for={{label, value} <- @selected}
               live_resource={@live_resource}

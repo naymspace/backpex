@@ -156,7 +156,7 @@ defmodule Backpex.Fields.HasMany do
             aria_labelledby={Map.get(assigns, :aria_labelledby)}
           >
             <div class="flex h-full w-full flex-wrap items-center gap-1 px-2">
-              <p :if={@selected == []} class={["p-0.5 text-sm", @readonly && "text-base-content/40"]}>{@prompt}</p>
+              <p :if={@selected == []} class={["p-0.5 text-sm", @readonly && "text-base-content/60"]}>{@prompt}</p>
               <.badge
                 :for={{label, value} <- @selected}
                 live_resource={@live_resource}
