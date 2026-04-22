@@ -65,7 +65,6 @@ defmodule Backpex.Fields.Checkgroup do
           options={@options}
           translate_error_fun={Backpex.Field.translate_error_fun(@field_options, assigns)}
           help_text={Backpex.Field.help_text(@field_options, assigns)}
-          aria-labelledby={Map.get(assigns, :aria_labelledby)}
         />
       </Layout.field_container>
     </div>

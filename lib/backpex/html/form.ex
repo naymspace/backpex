@@ -146,11 +146,11 @@ defmodule Backpex.HTML.Form do
 
   def input(%{type: "checkgroup"} = assigns) do
     ~H"""
-    <div class={["fieldset py-0", @class]}>
-      <span :if={@label} class="label mb-1">{@label}</span>
+    <fieldset class={["fieldset py-0", @class]}>
+      <legend :if={@label} class="label mb-1">{@label}</legend>
+      <input type="hidden" name={@name} value="" tabindex="-1" aria-hidden="true" />
       <div class="space-y-2">
-        <input type="hidden" name={@name} value="" tabindex="-1" aria-hidden="true" />
-        <label :for={{label, value} <- @options} for={"#{@id}-#{value}"} class="flex cursor-pointer items-center space-x-2">
+        <label :for={{label, value} <- @options} class="flex min-h-11 cursor-pointer items-center space-x-2">
           <input
             type="checkbox"
             id={"#{@id}-#{value}"}
@@ -158,14 +158,13 @@ defmodule Backpex.HTML.Form do
             value={value}
             checked={to_string(value) in Enum.map(List.wrap(@value), &to_string/1)}
             class={["checkbox checkbox-sm checkbox-primary", @errors != [] && "checkbox-error"]}
-            {@rest}
           />
           <span class="text-sm">{label}</span>
         </label>
       </div>
       <.error :for={msg <- @errors} :if={not @hide_errors}>{msg}</.error>
       <.help_text :if={@help_text}>{@help_text}</.help_text>
-    </div>
+    </fieldset>
     """
   end
 
