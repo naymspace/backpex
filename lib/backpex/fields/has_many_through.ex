@@ -345,8 +345,15 @@ defmodule Backpex.Fields.HasManyThrough do
               field_options={@field}
               owner_key={@owner_key}
               options={@options}
+              readonly={@readonly}
             />
-            <.pivot_field :for={{name, _field_options} <- @field_options.pivot_fields} name={name} form={e} {assigns} />
+            <.pivot_field
+              :for={{name, _field_options} <- @field_options.pivot_fields}
+              name={name}
+              form={e}
+              readonly={@readonly}
+              {assigns}
+            />
           </div>
           <div class="bg-base-200 flex justify-end space-x-4 px-6 py-3">
             <button
@@ -454,6 +461,10 @@ defmodule Backpex.Fields.HasManyThrough do
   @impl Backpex.Field
   def association?(_field), do: true
 
+  attr :name, :atom, required: true
+  attr :form, :any, required: true
+  attr :readonly, :boolean, default: false
+
   defp pivot_field(assigns) do
     name = assigns.name
 
@@ -543,6 +554,14 @@ defmodule Backpex.Fields.HasManyThrough do
     items
   end
 
+  attr :form, :any, required: true
+  attr :hide_label, :boolean, required: true
+  attr :label, :string, required: true
+  attr :field_options, :any, required: true
+  attr :owner_key, :atom, required: true
+  attr :options, :list, required: true
+  attr :readonly, :boolean, default: false
+
   defp select_relational_field(assigns) do
     ~H"""
     <Layout.field_container>
@@ -553,6 +572,8 @@ defmodule Backpex.Fields.HasManyThrough do
         type="select"
         field={@form[@owner_key]}
         options={@options}
+        disabled={@readonly}
+        aria-disabled={@readonly}
         translate_error_fun={Backpex.Field.translate_error_fun(@field_options, assigns)}
         phx-debounce={Backpex.Field.debounce(@field_options, assigns)}
         phx-throttle={Backpex.Field.throttle(@field_options, assigns)}
