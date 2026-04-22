@@ -16,6 +16,22 @@ defmodule Backpex.Fields.Checkgroup do
 
   This field stores selected values as an array.
 
+  > #### Schema and migration defaults {: .warning}
+  >
+  > You **must** declare `default: []` on the `{:array, _}` schema field *and* set a matching
+  > SQL default (`DEFAULT '{}'::text[]` in PostgreSQL). Otherwise unchecking every box will
+  > persist `NULL` instead of an empty array. The reason is Ecto's `filter_empty_values/3`:
+  > the hidden sentinel input submits the scalar `""`, which Ecto treats as empty and replaces
+  > with the schema default.
+  >
+  >     # Ecto schema
+  >     field :roles, {:array, :string}, default: []
+  >
+  >     # Migration
+  >     alter table(:users) do
+  >       modify :roles, {:array, :string}, default: []
+  >     end
+
   ## Field-specific options
 
   See `Backpex.Field` for general field options.
