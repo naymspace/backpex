@@ -4,8 +4,6 @@ defmodule Backpex.HTML.CoreComponents do
   """
   use BackpexWeb, :html
 
-  require Backpex
-
   @doc """
   Renders a Heroicons icon.
   """

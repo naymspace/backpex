@@ -183,7 +183,8 @@ defmodule Backpex.Fields.BelongsTo do
           input_class={[
             "select select-sm",
             @valid && "not-hover:select-ghost",
-            !@valid && "select-error text-error-content bg-error/10"
+            !@valid &&
+              "select-error text-error-content bg-error/10 [&.select::picker(select)]:bg-base-100 [&.select::picker(select)]:text-base-content"
           ]}
           disabled={@readonly}
           hide_errors

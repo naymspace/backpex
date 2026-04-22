@@ -3,11 +3,11 @@
 ########################################################################
 
 # renovate: datasource=github-tags depName=elixir packageName=elixir-lang/elixir versioning=semver
-ARG ELIXIR_VERSION=1.19.4
+ARG ELIXIR_VERSION=1.19.5
 # renovate: datasource=github-tags depName=erlang packageName=erlang/otp versioning=regex:^(?<major>\d+?)\.(?<minor>\d+?)(\.(?<patch>\d+))?$ extractVersion=^OTP-(?<version>\S+)
-ARG OTP_VERSION=28.3
+ARG OTP_VERSION=28.4.2
 # renovate: datasource=docker depName=ubuntu packageName=ubuntu versioning=ubuntu
-ARG UBUNTU_VERSION=noble-20251013
+ARG UBUNTU_VERSION=noble-20260324
 
 ARG BUILDER_IMAGE="hexpm/elixir:${ELIXIR_VERSION}-erlang-${OTP_VERSION}-ubuntu-${UBUNTU_VERSION}"
 ARG RUNTIME_IMAGE="ubuntu:${UBUNTU_VERSION}"
@@ -55,7 +55,7 @@ COPY demo/mix.exs demo/mix.lock ./
 RUN mix deps.get --only $MIX_ENV
 
 COPY demo/config/config.exs demo/config/${MIX_ENV}.exs config/
-RUN mix do deps.compile
+RUN mix deps.compile
 
 COPY demo/priv priv/
 COPY demo/package.json demo/yarn.lock demo/.stylelintrc.json ./
@@ -87,7 +87,7 @@ FROM builder AS release
 ENV MIX_ENV=prod
 
 # Compile and create the release
-RUN mix do deps.get, deps.compile, assets.deploy, sentry.package_source_code, release --overwrite
+RUN mix do deps.get + deps.compile + assets.deploy + sentry.package_source_code + release --overwrite
 
 ########################################################################
 # Stage: runtime

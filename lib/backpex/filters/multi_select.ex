@@ -45,6 +45,14 @@ defmodule Backpex.Filters.MultiSelect do
       @behaviour Backpex.Filters.Select
 
       @impl Backpex.Filter
+      def type(_assigns), do: {:array, :string}
+
+      @impl Backpex.Filter
+      def changeset(changeset, field, assigns) do
+        MultiSelectFilter.changeset(changeset, field, options(assigns))
+      end
+
+      @impl Backpex.Filter
       defdelegate query(query, attribute, value, assigns), to: MultiSelectFilter
 
       @impl Backpex.Filter
@@ -63,7 +71,7 @@ defmodule Backpex.Filters.MultiSelect do
         MultiSelectFilter.render_form(assigns)
       end
 
-      defoverridable query: 4, render: 1, render_form: 1
+      defoverridable type: 1, changeset: 3, query: 4, render: 1, render_form: 1
     end
   end
 
@@ -83,6 +91,7 @@ defmodule Backpex.Filters.MultiSelect do
   attr :value, :any, required: true
   attr :options, :list, required: true
   attr :prompt, :string, required: true
+  attr :errors, :list, default: []
 
   def render_form(assigns) do
     value = if is_nil(assigns.value), do: [], else: assigns.value
@@ -100,7 +109,13 @@ defmodule Backpex.Filters.MultiSelect do
 
     ~H"""
     <.dropdown id={"multi-select-#{@form.id}"} class="mt-2 w-full">
-      <:trigger aria_label={@trigger_text} class="select select-sm">
+      <:trigger
+        aria_label={@trigger_text}
+        class={[
+          "select select-sm",
+          @errors != [] && "select-error bg-error/10"
+        ]}
+      >
         {@trigger_text}
       </:trigger>
       <:menu class="min-w-60 w-max max-h-96 overflow-y-auto">
@@ -121,7 +136,27 @@ defmodule Backpex.Filters.MultiSelect do
         </div>
       </:menu>
     </.dropdown>
+    <.error :for={msg <- @errors} class="mt-1">{msg}</.error>
     """
+  end
+
+  @doc """
+  Validates that all selected values exist in the options list.
+
+  Returns the changeset unchanged if all values are valid, or adds an error if any value is not found in options.
+  """
+  def changeset(changeset, field, options) do
+    valid_values = Enum.map(options, fn {_label, value} -> to_string(value) end)
+
+    Ecto.Changeset.validate_change(changeset, field, fn _field, values ->
+      validate_subset(values || [], valid_values, field)
+    end)
+  end
+
+  defp validate_subset(values, valid_values, field) do
+    if Enum.all?(values, &(to_string(&1) in valid_values)),
+      do: [],
+      else: [{field, "contains invalid options"}]
   end
 
   def query(query, _attribute, [], _assigns), do: query
@@ -130,11 +165,66 @@ defmodule Backpex.Filters.MultiSelect do
     where(query, [x], field(x, ^attribute) in ^values)
   end
 
+  @doc """
+  Converts a list of option values to their corresponding labels.
+
+  Returns a list with labels interspersed with commas for display.
+
+  ## Examples
+
+      iex> options = [{"John Doe", "uuid-1"}, {"Jane Doe", "uuid-2"}]
+      iex> Backpex.Filters.MultiSelect.option_value_to_label(options, ["uuid-1", "uuid-2"])
+      ["John Doe", ", ", "Jane Doe"]
+
+      iex> options = [{"John Doe", "uuid-1"}]
+      iex> Backpex.Filters.MultiSelect.option_value_to_label(options, ["uuid-1"])
+      ["John Doe"]
+
+      iex> options = [{"John Doe", "uuid-1"}]
+      iex> Backpex.Filters.MultiSelect.option_value_to_label(options, [])
+      []
+
+      iex> options = [{"John Doe", "uuid-1"}]
+      iex> Backpex.Filters.MultiSelect.option_value_to_label(options, ["unknown-uuid"])
+      [""]
+
+      iex> options = [{"John Doe", "uuid-1"}, {"Jane Doe", "uuid-2"}, {"Bob Smith", "uuid-3"}]
+      iex> Backpex.Filters.MultiSelect.option_value_to_label(options, ["uuid-1", "uuid-2", "uuid-3"])
+      ["John Doe", ", ", "Jane Doe", ", ", "Bob Smith"]
+
+  """
   def option_value_to_label(options, values) do
     Enum.map(values, fn key -> find_option_label(options, key) end)
     |> Enum.intersperse(", ")
   end
 
+  @doc """
+  Finds the label for a given option key.
+
+  Returns empty string if the key is not found.
+
+  ## Examples
+
+      iex> options = [{"John Doe", "uuid-1"}, {"Jane Doe", "uuid-2"}]
+      iex> Backpex.Filters.MultiSelect.find_option_label(options, "uuid-1")
+      "John Doe"
+
+      iex> options = [{"John Doe", "uuid-1"}]
+      iex> Backpex.Filters.MultiSelect.find_option_label(options, "unknown")
+      ""
+
+      iex> options = [{"Active", :active}, {"Inactive", :inactive}]
+      iex> Backpex.Filters.MultiSelect.find_option_label(options, :active)
+      "Active"
+
+      iex> options = [{"Active", :active}]
+      iex> Backpex.Filters.MultiSelect.find_option_label(options, "active")
+      "Active"
+
+      iex> Backpex.Filters.MultiSelect.find_option_label([{"Test", "value"}], nil)
+      ""
+
+  """
   def find_option_label(options, key) do
     Enum.find_value(options, fn {l, k} ->
       if to_string(k) == to_string(key), do: l

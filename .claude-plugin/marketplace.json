@@ -1,0 +1,19 @@
+{
+  "name": "naymspace-backpex",
+  "owner": {
+    "name": "Naymspace"
+  },
+  "metadata": {
+    "description": "Official Backpex plugin for Claude Code"
+  },
+  "plugins": [
+    {
+      "name": "backpex",
+      "source": "./",
+      "description": "Skills and agents for building with Backpex — the Phoenix LiveView admin panel",
+      "version": "0.1.0",
+      "homepage": "https://github.com/naymspace/backpex",
+      "keywords": ["elixir", "phoenix", "liveview", "admin", "backpex"]
+    }
+  ]
+}

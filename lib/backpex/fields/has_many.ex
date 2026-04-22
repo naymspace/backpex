@@ -532,7 +532,7 @@ defmodule Backpex.Fields.HasMany do
       query
     else
       search_input = "%#{search_input}%"
-      select = Map.get(field_options, :select, nil)
+      select = Map.get(field_options, :select)
 
       if select do
         where(query, ^dynamic(ilike(^select, ^search_input)))

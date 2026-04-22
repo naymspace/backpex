@@ -264,7 +264,7 @@ defmodule Backpex.Field do
   end
 
   defmacro __before_compile__(_env) do
-    quote do
+    quote generated: true do
       import Ecto.Query
 
       @impl Phoenix.LiveComponent
@@ -361,6 +361,21 @@ defmodule Backpex.Field do
   def readonly?(%{readonly: readonly}, _assigns) when is_boolean(readonly), do: readonly
   def readonly?(%{readonly: readonly}, assigns) when is_function(readonly, 1), do: readonly.(assigns)
   def readonly?(_field_options, _assigns), do: false
+
+  @doc """
+  Drops readonly field changes from the given change map.
+
+  Takes a map of string-keyed form params, a keyword list of field definitions,
+  and assigns. Returns the change map with readonly field keys removed.
+  """
+  def drop_readonly_changes(change, fields, assigns) do
+    read_only =
+      fields
+      |> Enum.filter(fn {_name, options} -> readonly?(options, assigns) end)
+      |> Enum.map(fn {name, _options} -> Atom.to_string(name) end)
+
+    Map.drop(change, read_only)
+  end
 
   def translate_error_fun(%{translate_error: translate_error}, _assigns) when is_function(translate_error, 1),
     do: translate_error
