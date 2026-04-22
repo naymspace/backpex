@@ -211,20 +211,20 @@ var tooltip_default = {
       document.body.appendChild(this.tooltip);
       this.updateTooltipPosition();
     }, { signal });
-    this.el.addEventListener("mouseleave", () => {
-      if (this.tooltip) {
-        this.tooltip.remove();
-        this.tooltip = null;
-      }
-    }, { signal });
+    this.el.addEventListener("mouseleave", () => this.removeTooltip(), { signal });
+    this.el.addEventListener("click", () => this.removeTooltip(), { signal });
     window.addEventListener("scroll", () => {
       this.updateTooltipPosition();
     }, { signal });
   },
   destroyed() {
     this.controller.abort();
+    this.removeTooltip();
+  },
+  removeTooltip() {
     if (this.tooltip) {
       this.tooltip.remove();
+      this.tooltip = null;
     }
   },
   updateTooltipPosition() {
