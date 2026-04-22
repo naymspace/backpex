@@ -151,7 +151,7 @@ defmodule Backpex.HTML.Form do
     <fieldset class={["fieldset py-0", @class]}>
       <legend :if={@label} class="label mb-1">{@label}</legend>
       <input type="hidden" name={@name} value="" tabindex="-1" aria-hidden="true" />
-      <div class="space-y-2">
+      <div>
         <label :for={{label, value} <- @options} class="flex min-h-11 cursor-pointer items-center space-x-2">
           <input
             type="checkbox"
