@@ -158,12 +158,14 @@ defmodule Backpex.HTML.Form do
             value={value}
             checked={to_string(value) in Enum.map(List.wrap(@value), &to_string/1)}
             class={["checkbox checkbox-sm checkbox-primary", @errors != [] && "checkbox-error"]}
+            aria-invalid={@errors != [] && "true"}
+            aria-describedby={@help_text && "#{@id}-help"}
           />
           <span class="text-sm">{label}</span>
         </label>
       </div>
       <.error :for={msg <- @errors} :if={not @hide_errors}>{msg}</.error>
-      <.help_text :if={@help_text}>{@help_text}</.help_text>
+      <.help_text :if={@help_text} id={"#{@id}-help"}>{@help_text}</.help_text>
     </fieldset>
     """
   end
@@ -294,13 +296,14 @@ defmodule Backpex.HTML.Form do
   """
   @doc type: :component
 
+  attr :id, :string, default: nil
   attr :class, :string, default: nil
 
   slot :inner_block, required: true
 
   def help_text(assigns) do
     ~H"""
-    <p class={["text-base-content/60", @class]}>
+    <p id={@id} class={["text-base-content/60", @class]}>
       {render_slot(@inner_block)}
     </p>
     """
