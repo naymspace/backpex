@@ -152,7 +152,7 @@ defmodule Backpex.HTML.Form do
       <legend :if={@label} class="label mb-1">{@label}</legend>
       <input type="hidden" name={@name} value="" tabindex="-1" aria-hidden="true" />
       <div>
-        <label :for={{label, value} <- @options} class="flex min-h-11 cursor-pointer items-center space-x-2">
+        <label :for={{label, value} <- @options} class="flex min-h-11 cursor-pointer items-center space-x-2 md:min-h-8">
           <input
             type="checkbox"
             id={"#{@id}-#{value}"}
