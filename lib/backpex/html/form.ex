@@ -317,9 +317,11 @@ defmodule Backpex.HTML.Form do
           aria_label={@prompt}
           aria_labelledby={Map.get(assigns, :aria_labelledby)}
           class={[
-            "input block h-fit w-full p-2",
-            @errors == [] && "bg-transparent",
-            @errors != [] && "input-error bg-error/10"
+            "block h-fit w-full p-2",
+            not @readonly && "input",
+            not @readonly && @errors == [] && "bg-transparent",
+            not @readonly && @errors != [] && "input-error bg-error/10",
+            @readonly && "cursor-not-allowed bg-base-200"
           ]}
         >
           <div class="flex h-full w-full flex-wrap items-center gap-1 px-2">
