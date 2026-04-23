@@ -8,6 +8,8 @@ ARG ELIXIR_VERSION=1.19.5
 ARG OTP_VERSION=28.4.2
 # renovate: datasource=docker depName=ubuntu packageName=ubuntu versioning=ubuntu
 ARG UBUNTU_VERSION=noble-20260324
+# renovate: datasource=github-releases depName=bun packageName=oven-sh/bun versioning=semver extractVersion=^bun-v(?<version>\S+)
+ARG BUN_VERSION=1.3.13
 
 ARG BUILDER_IMAGE="hexpm/elixir:${ELIXIR_VERSION}-erlang-${OTP_VERSION}-ubuntu-${UBUNTU_VERSION}"
 ARG RUNTIME_IMAGE="ubuntu:${UBUNTU_VERSION}"
@@ -17,6 +19,8 @@ ARG RUNTIME_IMAGE="ubuntu:${UBUNTU_VERSION}"
 ########################################################################
 
 FROM ${BUILDER_IMAGE} AS builder
+
+ARG BUN_VERSION
 
 ENV MIX_HOME=/opt/mix \
     HEX_HOME=/opt/hex \
@@ -28,8 +32,6 @@ WORKDIR $APP_HOME
 RUN apt-get update -y \
     && apt-get install -y build-essential curl git inotify-tools watchman \
     && apt-get clean && rm -f /var/lib/apt/lists/*_*
-
-ARG BUN_VERSION=1.3.13
 
 RUN curl -fsSL https://deb.nodesource.com/setup_lts.x | bash - \
     && apt-get install -y nodejs unzip \
