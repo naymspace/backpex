@@ -39,5 +39,6 @@
   },
   "dependencies": {
     "imask": "7.6.1"
-  }
+  },
+  "packageManager": "yarn@4.13.0"
 }

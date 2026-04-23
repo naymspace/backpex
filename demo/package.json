@@ -7,7 +7,7 @@
     "test": "env $(cat .env.test | xargs) mix test --warnings-as-errors",
     "test:playwright": "yarn test --only playwright",
     "erd": "env $(cat .env.test | xargs) mix ecto.gen.erd --output-path=ecto_erd.puml",
-    "lint": "run-p lint:*",
+    "lint": "run-p 'lint:*'",
     "lint:mix": "mix format --check-formatted",
     "lint:credo": "mix credo --strict",
     "lint:sobelow": "mix sobelow --config",
@@ -15,7 +15,7 @@
     "lint:standard": "standard",
     "lint:deps-unused": "mix deps.unlock --check-unused",
     "lint:gettext": "mix gettext.extract --check-up-to-date",
-    "format": "run-p format:*",
+    "format": "run-p 'format:*'",
     "format:style": "stylelint assets/**/*.css --fix",
     "format:mix": "mix format",
     "format:standard": "standard --fix",
@@ -33,5 +33,6 @@
   },
   "dependencies": {
     "daisyui": "5.5.19"
-  }
+  },
+  "packageManager": "yarn@4.13.0"
 }

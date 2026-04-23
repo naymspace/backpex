@@ -44,6 +44,9 @@ jobs:
           otp-version: ${{ matrix.otp }}
           elixir-version: ${{ matrix.elixir }}
 
+      - name: Enable Corepack
+        run: corepack enable
+
       - name: Setup node
         uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6.3.0
         with:
@@ -85,7 +88,7 @@ jobs:
 
       - name: Install node dependencies
         if: steps.yarn-cache.outputs.cache-hit != 'true'
-        run: yarn install --pure-lockfile
+        run: yarn install --immutable
 
       - name: Check formatting
         run: mix format --check-formatted
@@ -176,6 +179,9 @@ jobs:
           version-file: .tool-versions
           version-type: strict
 
+      - name: Enable Corepack
+        run: corepack enable
+
       - name: Setup node
         uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6.3.0
         with:
@@ -223,7 +229,7 @@ jobs:
       - name: Install node dependencies
         if: steps.yarn-cache.outputs.cache-hit != 'true'
         working-directory: demo
-        run: yarn install --pure-lockfile
+        run: yarn install --immutable
 
       - name: Cache Backpex node modules
         uses: actions/cache@668228422ae6a00e4ad889ee87cd7109ec5666a7 # v5.0.4
@@ -236,7 +242,7 @@ jobs:
 
       - name: Install Backpex node dependencies
         if: steps.yarn-cache-backpex.outputs.cache-hit != 'true'
-        run: yarn install --pure-lockfile
+        run: yarn install --immutable
 
       - name: Setup assets
         working-directory: demo

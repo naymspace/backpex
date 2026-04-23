@@ -31,7 +31,7 @@ RUN apt-get update -y \
 
 RUN curl -fsSL https://deb.nodesource.com/setup_lts.x | bash - \
     && apt-get install -y nodejs \
-    && npm install --global yarn
+    && corepack enable
 
 COPY .docker/opt/scripts/ /opt/scripts
 ADD https://github.com/naymspace/env-secrets-expand/raw/main/env-secrets-expand.sh /opt/scripts/
@@ -42,8 +42,8 @@ ARG MIX_ENV=prod
 ENV MIX_ENV=$MIX_ENV
 
 # Install root-level (Backpex) dependencies
-COPY package.json yarn.lock ./
-RUN yarn install --pure-lockfile
+COPY package.json yarn.lock .yarnrc.yml ./
+RUN yarn install --immutable
 
 RUN mkdir demo
 WORKDIR $APP_HOME/demo
@@ -58,12 +58,12 @@ COPY demo/config/config.exs demo/config/${MIX_ENV}.exs config/
 RUN mix deps.compile
 
 COPY demo/priv priv/
-COPY demo/package.json demo/yarn.lock demo/.stylelintrc.json ./
+COPY demo/package.json demo/yarn.lock demo/.yarnrc.yml demo/.stylelintrc.json ./
 
 COPY assets ../assets/
 COPY package.json ../
 
-RUN yarn install --pure-lockfile
+RUN yarn install --immutable
 
 COPY demo/assets assets/
 COPY demo/lib lib/
