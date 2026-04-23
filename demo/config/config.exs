@@ -54,7 +54,7 @@ config :sentry,
   root_source_code_paths: [File.cwd!()]
 
 config :tailwind,
-  version: "4.2.2",
+  version: "4.2.3",
   default: [
     args: ~w(
       --input=assets/css/app.css
