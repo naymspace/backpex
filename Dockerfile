@@ -35,6 +35,7 @@ RUN apt-get update -y \
 
 RUN curl -fsSL https://deb.nodesource.com/setup_lts.x | bash - \
     && apt-get install -y nodejs unzip \
+    && apt-get clean && rm -f /var/lib/apt/lists/*_* \
     && curl -fsSL https://bun.sh/install | bash -s "bun-v${BUN_VERSION}" \
     && install /root/.bun/bin/bun /usr/local/bin/bun \
     && rm -rf /root/.bun

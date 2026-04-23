@@ -8,7 +8,6 @@ services:
     env_file: demo/.env
     environment:
       - STARTUP_COMMAND_1=mix do deps.get + ecto.create + ecto.migrate
-      - STARTUP_COMMAND_1=mix do deps.get + ecto.create + ecto.migrate
       - STARTUP_COMMAND_2=bun install --frozen-lockfile
       - STARTUP_COMMAND_3=bun x playwright install chromium --with-deps
       - STARTUP_COMMAND_4=mix assets.setup
