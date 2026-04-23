@@ -600,6 +600,12 @@ defmodule Backpex.Fields.Upload do
         ...
       })
 
+  ## Readonly
+
+  When the field is readonly, the drop target and the "Upload a file" link are disabled, and the
+  cancel/remove buttons on both pending and existing entries are hidden. The list of existing files
+  is still displayed so users can see the current value. See the
+  [readonly](/guides/fields/readonly.md) guide for details.
   """
   use Backpex.Field, config_schema: @config_schema
   alias Backpex.HTML.Form, as: BackpexForm

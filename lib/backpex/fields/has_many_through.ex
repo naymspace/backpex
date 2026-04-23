@@ -75,6 +75,12 @@ defmodule Backpex.Fields.HasManyThrough do
       end
 
   The field requires a [`Ecto.Schema.has_many/3`](https://hexdocs.pm/ecto/Ecto.Schema.html#has_many/3) relation with a mandatory `through` option in the main schema. Any extra column in the pivot table besides the relational id's must be mapped in the `pivot_fields` option or given a default value.
+
+  ## Readonly
+
+  When the field is readonly, the Actions column (edit/remove) is hidden, the "new relational"
+  button is disabled, and any pivot and select inputs inside the edit-relation modal are disabled.
+  See the [readonly](/guides/fields/readonly.md) guide for details.
   """
   use Backpex.Field, config_schema: @config_schema
   import Ecto.Query
