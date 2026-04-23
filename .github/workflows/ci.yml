@@ -48,8 +48,11 @@ jobs:
         uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6.3.0
         with:
           node-version: 24
-          cache: "yarn"
-          cache-dependency-path: yarn.lock
+
+      - name: Setup bun
+        uses: oven-sh/setup-bun@4bc047ad259df6fc24a6c9915c2c7fd8e195ca07 # v2
+        with:
+          bun-version: "1.3.13"
 
       - name: Restore the deps and _build cache
         uses: actions/cache@668228422ae6a00e4ad889ee87cd7109ec5666a7 # v5.0.4
@@ -76,22 +79,22 @@ jobs:
 
       - name: Cache node modules
         uses: actions/cache@668228422ae6a00e4ad889ee87cd7109ec5666a7 # v5.0.4
-        id: yarn-cache
+        id: bun-cache
         with:
           path: node_modules
-          key: ${{ runner.os }}-node-24-yarn-${{ hashFiles('yarn.lock') }}
+          key: ${{ runner.os }}-node-24-bun-${{ hashFiles('bun.lock') }}
           restore-keys: |
-            ${{ runner.os }}-node-24-yarn-
+            ${{ runner.os }}-node-24-bun-
 
       - name: Install node dependencies
-        if: steps.yarn-cache.outputs.cache-hit != 'true'
-        run: yarn install --pure-lockfile
+        if: steps.bun-cache.outputs.cache-hit != 'true'
+        run: bun install --frozen-lockfile
 
       - name: Check formatting
         run: mix format --check-formatted
 
       - name: JavaScript Standard
-        run: yarn run lint:standard
+        run: bun run lint:standard
 
       - name: Build docs with warnings as errors
         run: mix docs --warnings-as-errors
@@ -180,8 +183,11 @@ jobs:
         uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6.3.0
         with:
           node-version: 24
-          cache: "yarn"
-          cache-dependency-path: demo/yarn.lock
+
+      - name: Setup bun
+        uses: oven-sh/setup-bun@4bc047ad259df6fc24a6c9915c2c7fd8e195ca07 # v2
+        with:
+          bun-version: "1.3.13"
 
       - name: Restore the deps and _build cache
         uses: actions/cache@668228422ae6a00e4ad889ee87cd7109ec5666a7 # v5.0.4
@@ -213,30 +219,30 @@ jobs:
 
       - name: Cache node modules
         uses: actions/cache@668228422ae6a00e4ad889ee87cd7109ec5666a7 # v5.0.4
-        id: yarn-cache
+        id: bun-cache
         with:
           path: demo/node_modules
-          key: ${{ runner.os }}-node-24-yarn-demo-${{ hashFiles('demo/yarn.lock') }}
+          key: ${{ runner.os }}-node-24-bun-demo-${{ hashFiles('demo/bun.lock') }}
           restore-keys: |
-            ${{ runner.os }}-node-24-yarn-demo-
+            ${{ runner.os }}-node-24-bun-demo-
 
       - name: Install node dependencies
-        if: steps.yarn-cache.outputs.cache-hit != 'true'
+        if: steps.bun-cache.outputs.cache-hit != 'true'
         working-directory: demo
-        run: yarn install --pure-lockfile
+        run: bun install --frozen-lockfile
 
       - name: Cache Backpex node modules
         uses: actions/cache@668228422ae6a00e4ad889ee87cd7109ec5666a7 # v5.0.4
-        id: yarn-cache-backpex
+        id: bun-cache-backpex
         with:
           path: node_modules
-          key: ${{ runner.os }}-node-24-yarn-backpex-${{ hashFiles('yarn.lock') }}
+          key: ${{ runner.os }}-node-24-bun-backpex-${{ hashFiles('bun.lock') }}
           restore-keys: |
-            ${{ runner.os }}-node-24-yarn-backpex-
+            ${{ runner.os }}-node-24-bun-backpex-
 
       - name: Install Backpex node dependencies
-        if: steps.yarn-cache-backpex.outputs.cache-hit != 'true'
-        run: yarn install --pure-lockfile
+        if: steps.bun-cache-backpex.outputs.cache-hit != 'true'
+        run: bun install --frozen-lockfile
 
       - name: Setup assets
         working-directory: demo
@@ -248,31 +254,31 @@ jobs:
 
       - name: lint:mix
         working-directory: demo
-        run: yarn lint:mix
+        run: bun run lint:mix
 
       - name: lint:credo
         working-directory: demo
-        run: yarn lint:credo
+        run: bun run lint:credo
 
       - name: lint:sobelow
         working-directory: demo
-        run: yarn lint:sobelow
+        run: bun run lint:sobelow
 
       - name: lint:style
         working-directory: demo
-        run: yarn lint:style
+        run: bun run lint:style
 
       - name: lint:standard
         working-directory: demo
-        run: yarn lint:standard
+        run: bun run lint:standard
 
       - name: lint:deps-unused
         working-directory: demo
-        run: yarn lint:deps-unused
+        run: bun run lint:deps-unused
 
       - name: lint:gettext
         working-directory: demo
-        run: yarn lint:gettext
+        run: bun run lint:gettext
 
       - name: Deps audit
         working-directory: demo
@@ -286,21 +292,21 @@ jobs:
           DB_USERNAME: postgres
           DB_PASSWORD: postgres
           DB_DATABASE: test
-        run: yarn test
+        run: bun run test
 
       - name: Cache Playwright browsers
         uses: actions/cache@668228422ae6a00e4ad889ee87cd7109ec5666a7 # v5.0.4
         id: playwright-cache
         with:
           path: ~/.cache/ms-playwright
-          key: ${{ runner.os }}-playwright-${{ hashFiles('demo/yarn.lock') }}
+          key: ${{ runner.os }}-playwright-${{ hashFiles('demo/bun.lock') }}
           restore-keys: |
             ${{ runner.os }}-playwright-
 
       - name: Install playwright
         if: steps.playwright-cache.outputs.cache-hit != 'true'
         working-directory: demo
-        run: yarn playwright install chromium --with-deps --only-shell
+        run: bunx playwright install chromium --with-deps --only-shell
 
       - name: Run playwright test
         working-directory: demo
@@ -309,7 +315,7 @@ jobs:
           DB_USERNAME: postgres
           DB_PASSWORD: postgres
           DB_DATABASE: test
-        run: yarn test:playwright || if [[ $? = 2 ]]; then PW_TRACE=true yarn test:playwright --max-cases 1 --failed; else false; fi
+        run: bun run test:playwright || if [[ $? = 2 ]]; then PW_TRACE=true bun run test:playwright --max-cases 1 --failed; else false; fi
 
       - name: Upload Playwright traces
         if: failure()

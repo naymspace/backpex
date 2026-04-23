@@ -29,9 +29,13 @@ RUN apt-get update -y \
     && apt-get install -y build-essential curl git inotify-tools watchman \
     && apt-get clean && rm -f /var/lib/apt/lists/*_*
 
+ARG BUN_VERSION=1.3.13
+
 RUN curl -fsSL https://deb.nodesource.com/setup_lts.x | bash - \
-    && apt-get install -y nodejs \
-    && npm install --global yarn
+    && apt-get install -y nodejs unzip \
+    && curl -fsSL https://bun.sh/install | bash -s "bun-v${BUN_VERSION}" \
+    && install /root/.bun/bin/bun /usr/local/bin/bun \
+    && rm -rf /root/.bun
 
 COPY .docker/opt/scripts/ /opt/scripts
 ADD https://github.com/naymspace/env-secrets-expand/raw/main/env-secrets-expand.sh /opt/scripts/
@@ -42,8 +46,8 @@ ARG MIX_ENV=prod
 ENV MIX_ENV=$MIX_ENV
 
 # Install root-level (Backpex) dependencies
-COPY package.json yarn.lock ./
-RUN yarn install --pure-lockfile
+COPY package.json bun.lock bunfig.toml ./
+RUN bun install --frozen-lockfile
 
 RUN mkdir demo
 WORKDIR $APP_HOME/demo
@@ -58,12 +62,12 @@ COPY demo/config/config.exs demo/config/${MIX_ENV}.exs config/
 RUN mix deps.compile
 
 COPY demo/priv priv/
-COPY demo/package.json demo/yarn.lock demo/.stylelintrc.json ./
+COPY demo/package.json demo/bun.lock demo/bunfig.toml demo/.stylelintrc.json ./
 
 COPY assets ../assets/
 COPY package.json ../
 
-RUN yarn install --pure-lockfile
+RUN bun install --frozen-lockfile
 
 COPY demo/assets assets/
 COPY demo/lib lib/

@@ -24,8 +24,11 @@ jobs:
         uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6.3.0
         with:
           node-version: 24
-          cache: "yarn"
-          cache-dependency-path: yarn.lock
+
+      - name: Setup bun
+        uses: oven-sh/setup-bun@4bc047ad259df6fc24a6c9915c2c7fd8e195ca07 # v2
+        with:
+          bun-version: "1.3.13"
 
       - name: Restore the deps and _build cache
         uses: actions/cache@668228422ae6a00e4ad889ee87cd7109ec5666a7 # v5.0.4
@@ -52,22 +55,22 @@ jobs:
 
       - name: Cache node modules
         uses: actions/cache@668228422ae6a00e4ad889ee87cd7109ec5666a7 # v5.0.4
-        id: yarn-cache
+        id: bun-cache
         with:
           path: node_modules
-          key: ${{ runner.os }}-node-24-yarn-${{ hashFiles('yarn.lock') }}
+          key: ${{ runner.os }}-node-24-bun-${{ hashFiles('bun.lock') }}
           restore-keys: |
-            ${{ runner.os }}-node-24-yarn-
+            ${{ runner.os }}-node-24-bun-
 
       - name: Install node dependencies
-        if: steps.yarn-cache.outputs.cache-hit != 'true'
-        run: yarn install --pure-lockfile
+        if: steps.bun-cache.outputs.cache-hit != 'true'
+        run: bun install --frozen-lockfile
 
       - name: Check formatting
         run: mix format --check-formatted
 
       - name: JavaScript Standard
-        run: yarn run lint:standard
+        run: bun run lint:standard
 
       - name: Credo
         run: mix credo

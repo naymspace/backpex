@@ -174,7 +174,7 @@ Always consult the `usage_rules.md` file for the usage of packages in this proje
 The demo project runs inside a docker container so you have to run commands inside the container as well:
 
 ```sh
-docker compose exec -T app yarn lint
+docker compose exec -T app bun run lint
 ```
 
 If the command is related to Backpex it has to be executed on the host system:
@@ -186,7 +186,7 @@ mix format
 ### Quality Assurance
 
 1. **Run linters**: Use linters when you are done with all changes and fix any pending issues
-  - Run `docker compose exec -T app yarn lint` to lint the demo application
+  - Run `docker compose exec -T app bun run lint` to lint the demo application
   - Run `mix lint` to lint Backpex
 2. **Manual testing**: Use Chrome DevTools MCP to test your changes at http://localhost:4000
   - Test in multiple browser viewports (mobile, tablet, desktop)
