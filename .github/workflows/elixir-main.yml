@@ -20,11 +20,6 @@ jobs:
           otp-version: "28"
           elixir-version: "main"
 
-      - name: Setup node
-        uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6.3.0
-        with:
-          node-version: 24
-
       - name: Setup bun
         uses: oven-sh/setup-bun@4bc047ad259df6fc24a6c9915c2c7fd8e195ca07 # v2
         with:
