@@ -15,6 +15,7 @@ services:
       - STARTUP_COMMAND_5=cd .. && mix deps.get && bun install --frozen-lockfile && cd demo
     volumes:
       - .:/opt/app
+      - playwright-cache:/root/.cache/ms-playwright
     ports:
       - 4000:4000
       - 4007:4007
@@ -32,3 +33,6 @@ services:
       interval: 5s
       timeout: 5s
       retries: 5
+
+volumes:
+  playwright-cache:
