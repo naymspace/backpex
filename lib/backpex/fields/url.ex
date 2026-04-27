@@ -62,6 +62,7 @@ defmodule Backpex.Fields.URL do
           phx-debounce={Backpex.Field.debounce(@field_options, assigns)}
           phx-throttle={Backpex.Field.throttle(@field_options, assigns)}
           aria-labelledby={Map.get(assigns, :aria_labelledby)}
+          readonly={@readonly}
         />
       </Layout.field_container>
     </div>

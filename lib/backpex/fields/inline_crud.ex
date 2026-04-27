@@ -88,6 +88,12 @@ defmodule Backpex.Fields.InlineCRUD do
           }
         ]
       end
+
+  ## Readonly
+
+  When the field is readonly, each nested row's child fields render as readonly, the per-row delete
+  checkbox is hidden entirely, and the add-row control is hidden entirely. See the
+  [readonly](/guides/fields/readonly.md) guide for details.
   """
   use Backpex.Field, config_schema: @config_schema
 
@@ -209,7 +215,7 @@ defmodule Backpex.Fields.InlineCRUD do
                 )}
               </div>
 
-              <div class={if f_nested.index == 0, do: "mt-5", else: nil}>
+              <div :if={not @readonly} class={if f_nested.index == 0, do: "mt-5", else: nil}>
                 <label for={"#{@name}-checkbox-delete-#{f_nested.index}"}>
                   <input
                     id={"#{@name}-checkbox-delete-#{f_nested.index}"}
@@ -231,6 +237,7 @@ defmodule Backpex.Fields.InlineCRUD do
           <input type="hidden" name={"change[#{@name}_delete][]"} tabindex="-1" aria-hidden="true" />
         </div>
         <input
+          :if={not @readonly}
           name={"change[#{@name}_order][]"}
           type="checkbox"
           aria-label={Backpex.__("Add entry", @live_resource)}

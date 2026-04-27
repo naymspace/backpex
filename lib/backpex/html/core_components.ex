@@ -36,6 +36,7 @@ defmodule Backpex.HTML.CoreComponents do
       </.dropdown>
   """
   attr :id, :string, required: true, doc: "unique identifier for the dropdown"
+  attr :readonly, :boolean, default: false, doc: "whether the dropdown is readonly"
   attr :class, :any, default: nil, doc: "additional classes for the outer container element"
 
   slot :trigger, doc: "the trigger element to be used to toggle the dropdown menu" do
@@ -62,32 +63,42 @@ defmodule Backpex.HTML.CoreComponents do
         _trigger -> nil
       end)
 
-    ~H"""
-    <div id={@id} class={["dropdown", @class]} {@rest}>
-      <div
-        id={"#{@id}-trigger"}
-        role="button"
-        tabindex="0"
-        aria-haspopup="true"
-        aria-label={@trigger && @trigger[:aria_label]}
-        aria-labelledby={@trigger && Map.get(@trigger, :aria_labelledby)}
-        class={@trigger && @trigger[:class]}
-      >
-        {render_slot(@trigger)}
+    if assigns.readonly do
+      ~H"""
+      <div id={@id} class={@class} {@rest}>
+        <div id={"#{@id}-trigger"} class={@trigger && @trigger[:class]}>
+          {render_slot(@trigger)}
+        </div>
       </div>
+      """
+    else
+      ~H"""
+      <div id={@id} class={["dropdown", @class]} {@rest}>
+        <div
+          id={"#{@id}-trigger"}
+          role="button"
+          tabindex="0"
+          aria-haspopup="true"
+          aria-label={@trigger && @trigger[:aria_label]}
+          aria-labelledby={@trigger && Map.get(@trigger, :aria_labelledby)}
+          class={@trigger && @trigger[:class]}
+        >
+          {render_slot(@trigger)}
+        </div>
 
-      <div
-        id={"#{@id}-menu"}
-        tabindex="-1"
-        aria-labelledby={"#{@id}-trigger"}
-        class={[
-          "menu dropdown-content z-1 bg-base-100 rounded-box outline-black/5 shadow outline-[length:var(--border)]",
-          @menu && @menu[:class]
-        ]}
-      >
-        {render_slot(@menu)}
+        <div
+          id={"#{@id}-menu"}
+          tabindex="-1"
+          aria-labelledby={"#{@id}-trigger"}
+          class={[
+            "menu dropdown-content z-1 bg-base-100 rounded-box outline-black/5 shadow outline-[length:var(--border)]",
+            @menu && @menu[:class]
+          ]}
+        >
+          {render_slot(@menu)}
+        </div>
       </div>
-    </div>
-    """
+      """
+    end
   end
 end

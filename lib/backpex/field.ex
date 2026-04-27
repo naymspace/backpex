@@ -11,6 +11,11 @@ defmodule Backpex.Field do
       type: :string,
       required: true
     ],
+    readonly: [
+      doc: "Sets the field to readonly. Also see the [readonly](/guides/fields/readonly.md) guide.",
+      type: {:or, [:boolean, {:fun, 1}]},
+      default: false
+    ],
     class: [
       type: {:or, [:string, {:fun, 1}]},
       doc: """

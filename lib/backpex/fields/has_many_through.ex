@@ -75,6 +75,12 @@ defmodule Backpex.Fields.HasManyThrough do
       end
 
   The field requires a [`Ecto.Schema.has_many/3`](https://hexdocs.pm/ecto/Ecto.Schema.html#has_many/3) relation with a mandatory `through` option in the main schema. Any extra column in the pivot table besides the relational id's must be mapped in the `pivot_fields` option or given a default value.
+
+  ## Readonly
+
+  When the field is readonly, the Actions column (edit/remove) is hidden, the "new relational"
+  button is disabled, and any pivot and select inputs inside the edit-relation modal are disabled.
+  See the [readonly](/guides/fields/readonly.md) guide for details.
   """
   use Backpex.Field, config_schema: @config_schema
   import Ecto.Query
@@ -259,7 +265,7 @@ defmodule Backpex.Fields.HasManyThrough do
                 >
                   {label}
                 </th>
-                <th>
+                <th :if={not @readonly}>
                   <span class="sr-only">{Backpex.__("Actions", @live_resource)}</span>
                 </th>
               </tr>
@@ -289,7 +295,7 @@ defmodule Backpex.Fields.HasManyThrough do
                     {assigns}
                   />
                 </td>
-                <td>
+                <td :if={not @readonly}>
                   <div class="flex items-center space-x-2">
                     <button
                       class="cursor-pointer"
@@ -345,8 +351,15 @@ defmodule Backpex.Fields.HasManyThrough do
               field_options={@field}
               owner_key={@owner_key}
               options={@options}
+              readonly={@readonly}
             />
-            <.pivot_field :for={{name, _field_options} <- @field_options.pivot_fields} name={name} form={e} {assigns} />
+            <.pivot_field
+              :for={{name, _field_options} <- @field_options.pivot_fields}
+              name={name}
+              form={e}
+              readonly={@readonly}
+              {assigns}
+            />
           </div>
           <div class="bg-base-200 flex justify-end space-x-4 px-6 py-3">
             <button
@@ -360,7 +373,13 @@ defmodule Backpex.Fields.HasManyThrough do
           </div>
         </.modal>
 
-        <button type="button" class="btn btn-sm btn-outline btn-primary" phx-click="new-relational" phx-target={@myself}>
+        <button
+          disabled={@readonly}
+          type="button"
+          class="btn btn-sm btn-outline btn-primary"
+          phx-click="new-relational"
+          phx-target={@myself}
+        >
           {@relational_title}
         </button>
 
@@ -447,6 +466,10 @@ defmodule Backpex.Fields.HasManyThrough do
 
   @impl Backpex.Field
   def association?(_field), do: true
+
+  attr :name, :atom, required: true
+  attr :form, :any, required: true
+  attr :readonly, :boolean, default: false
 
   defp pivot_field(assigns) do
     name = assigns.name
@@ -537,6 +560,14 @@ defmodule Backpex.Fields.HasManyThrough do
     items
   end
 
+  attr :form, :any, required: true
+  attr :hide_label, :boolean, required: true
+  attr :label, :string, required: true
+  attr :field_options, :any, required: true
+  attr :owner_key, :atom, required: true
+  attr :options, :list, required: true
+  attr :readonly, :boolean, default: false
+
   defp select_relational_field(assigns) do
     ~H"""
     <Layout.field_container>
@@ -547,6 +578,8 @@ defmodule Backpex.Fields.HasManyThrough do
         type="select"
         field={@form[@owner_key]}
         options={@options}
+        disabled={@readonly}
+        aria-disabled={@readonly}
         translate_error_fun={Backpex.Field.translate_error_fun(@field_options, assigns)}
         phx-debounce={Backpex.Field.debounce(@field_options, assigns)}
         phx-throttle={Backpex.Field.throttle(@field_options, assigns)}

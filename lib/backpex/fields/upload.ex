@@ -600,6 +600,12 @@ defmodule Backpex.Fields.Upload do
         ...
       })
 
+  ## Readonly
+
+  When the field is readonly, the drop target and the "Upload a file" link are disabled, and the
+  cancel/remove buttons on both pending and existing entries are hidden. The list of existing files
+  is still displayed so users can see the current value. See the
+  [readonly](/guides/fields/readonly.md) guide for details.
   """
   use Backpex.Field, config_schema: @config_schema
   alias Backpex.HTML.Form, as: BackpexForm
@@ -661,22 +667,31 @@ defmodule Backpex.Fields.Upload do
         <div
           id={"#{@name}-drop-target"}
           class="w-full max-w-lg"
-          phx-hook="BackpexDragHover"
-          phx-drop-target={if @uploads_allowed, do: @upload.ref}
+          phx-hook={not @readonly && "BackpexDragHover"}
+          phx-drop-target={if @uploads_allowed and not @readonly, do: @upload.ref}
         >
           <div class={[
             "rounded-field flex justify-center border-2 border-dashed px-6 pt-5 pb-6",
             @errors == [] && "border-base-content/25",
-            @errors != [] && "border-error bg-error/10"
+            @errors != [] && "border-error bg-error/10",
+            @readonly && "bg-base-200 cursor-not-allowed"
           ]}>
             <div class="flex flex-col items-center space-y-1 text-center">
               <Backpex.HTML.CoreComponents.icon name="hero-document-arrow-up" class="text-base-content/50 h-8 w-8" />
               <div class="flex text-sm">
                 <label>
-                  <a class="link link-hover link-primary font-medium">
+                  <a :if={not @readonly} class="link link-hover link-primary font-medium">
                     {Backpex.__("Upload a file", @live_resource)}
                   </a>
-                  <.live_file_input :if={@uploads_allowed} upload={@upload} phx-target="#form-component" class="hidden" />
+                  <span :if={@readonly}>
+                    {Backpex.__("Upload a file", @live_resource)}
+                  </span>
+                  <.live_file_input
+                    :if={@uploads_allowed and not @readonly}
+                    upload={@upload}
+                    phx-target="#form-component"
+                    class="hidden"
+                  />
                 </label>
                 <input
                   type="hidden"
@@ -698,6 +713,7 @@ defmodule Backpex.Fields.Upload do
               <div :for={entry <- @upload.entries} class="break-all">
                 <p class="inline">{Map.get(entry, :client_name)}</p>
                 <button
+                  :if={not @readonly}
                   type="button"
                   phx-click="cancel-entry"
                   phx-value-ref={entry.ref}
@@ -718,6 +734,7 @@ defmodule Backpex.Fields.Upload do
               <div :for={{file_key, label} <- @uploaded_files} class="break-all">
                 <p class="inline">{label}</p>
                 <button
+                  :if={not @readonly}
                   type="button"
                   phx-click="cancel-existing-entry"
                   phx-value-ref={file_key}

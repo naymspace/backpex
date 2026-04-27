@@ -17,10 +17,6 @@ defmodule Backpex.Fields.DateTime do
     throttle: [
       doc: "Timeout value (in milliseconds) or function that receives the assigns.",
       type: {:or, [:pos_integer, {:fun, 1}]}
-    ],
-    readonly: [
-      doc: "Sets the field to readonly. Also see the [panels](/guides/fields/readonly.md) guide.",
-      type: {:or, [:boolean, {:fun, 1}]}
     ]
   ]
 
@@ -113,7 +109,6 @@ defmodule Backpex.Fields.DateTime do
           phx-debounce={Backpex.Field.debounce(@field_options, assigns)}
           phx-throttle={Backpex.Field.throttle(@field_options, assigns)}
           readonly={@readonly}
-          disabled={@readonly}
           aria-labelledby={Map.get(assigns, :aria_labelledby)}
         />
       </Layout.field_container>

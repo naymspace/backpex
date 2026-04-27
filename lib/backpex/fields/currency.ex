@@ -98,6 +98,7 @@ defmodule Backpex.Fields.Currency do
         <BackpexForm.currency_input
           type="text"
           field={@form[@name]}
+          readonly={@readonly}
           translate_error_fun={Backpex.Field.translate_error_fun(@field_options, assigns)}
           help_text={Backpex.Field.help_text(@field_options, assigns)}
           phx-debounce={Backpex.Field.debounce(@field_options, assigns)}

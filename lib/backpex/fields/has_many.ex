@@ -144,22 +144,25 @@ defmodule Backpex.Fields.HasMany do
           <Layout.input_label as="span" text={@field_options[:label]} />
         </:label>
 
-        <Backpex.HTML.CoreComponents.dropdown id={"has-many-dropdown-#{@name}"} class="w-full">
+        <Backpex.HTML.CoreComponents.dropdown id={"has-many-dropdown-#{@name}"} class="w-full" readonly={@readonly}>
           <:trigger
             class={[
-              "input block h-fit w-full p-2",
-              @errors == [] && "bg-transparent",
-              @errors != [] && "input-error bg-error/10"
+              "block h-fit w-full p-2",
+              not @readonly && "input",
+              not @readonly && @errors == [] && "bg-transparent",
+              not @readonly && @errors != [] && "input-error bg-error/10",
+              @readonly && "cursor-not-allowed bg-base-200"
             ]}
             aria_labelledby={Map.get(assigns, :aria_labelledby)}
           >
             <div class="flex h-full w-full flex-wrap items-center gap-1 px-2">
-              <p :if={@selected == []} class="p-0.5 text-sm">{@prompt}</p>
+              <p :if={@selected == []} class={["p-0.5 text-sm", @readonly && "text-base-content/60"]}>{@prompt}</p>
               <.badge
                 :for={{label, value} <- @selected}
                 live_resource={@live_resource}
                 label={label}
                 value={value}
+                readonly={@readonly}
                 name={@name}
               />
             </div>
@@ -302,9 +305,16 @@ defmodule Backpex.Fields.HasMany do
   end
 
   attr :live_resource, :atom, required: true
+  attr :readonly, :boolean, default: false
   attr :name, :string, required: true
   attr :label, :string, required: true
   attr :value, :string, required: true
+
+  defp badge(%{readonly: true} = assigns) do
+    ~H"""
+    <span class="badge badge-sm badge-soft">{@label}</span>
+    """
+  end
 
   defp badge(assigns) do
     ~H"""
