@@ -4,7 +4,6 @@ defmodule Backpex.Adapters.EctoTest do
   import Ecto.Query
 
   alias Backpex.Adapters.Ecto, as: EctoAdapter
-  alias Backpex.Filter
 
   defmodule TestUser do
     use Ecto.Schema
@@ -20,47 +19,47 @@ defmodule Backpex.Adapters.EctoTest do
 
   defmodule TestFilter do
     @moduledoc false
-    @behaviour Filter
+    @behaviour Backpex.Filter
 
-    @impl Filter
+    @impl Backpex.Filter
     def label, do: "Test Filter"
 
-    @impl Filter
+    @impl Backpex.Filter
     def can?(_assigns), do: true
 
-    @impl Filter
+    @impl Backpex.Filter
     def query(query, attribute, value, _assigns) do
       where(query, [x], field(x, ^attribute) == ^value)
     end
 
-    @impl Filter
+    @impl Backpex.Filter
     def render(assigns), do: assigns
 
-    @impl Filter
+    @impl Backpex.Filter
     def render_form(assigns), do: assigns
   end
 
   defmodule TestRangeFilter do
     @moduledoc false
-    @behaviour Filter
+    @behaviour Backpex.Filter
 
-    @impl Filter
+    @impl Backpex.Filter
     def label, do: "Test Range Filter"
 
-    @impl Filter
+    @impl Backpex.Filter
     def can?(_assigns), do: true
 
-    @impl Filter
+    @impl Backpex.Filter
     def query(query, attribute, %{"start" => start_val, "end" => end_val}, _assigns) do
       query
       |> where([x], field(x, ^attribute) >= ^start_val)
       |> where([x], field(x, ^attribute) <= ^end_val)
     end
 
-    @impl Filter
+    @impl Backpex.Filter
     def render(assigns), do: assigns
 
-    @impl Filter
+    @impl Backpex.Filter
     def render_form(assigns), do: assigns
   end
 
@@ -339,25 +338,25 @@ defmodule Backpex.Adapters.EctoTest do
     test "passes assigns to filter query function" do
       defmodule AssignsCapturingFilter do
         @moduledoc false
-        @behaviour Filter
+        @behaviour Backpex.Filter
 
-        @impl Filter
+        @impl Backpex.Filter
         def label, do: "Assigns Filter"
 
-        @impl Filter
+        @impl Backpex.Filter
         def query(query, _attribute, _value, assigns) do
           # Store the user_id from assigns in a where clause
           user_id = Map.get(assigns, :user_id, 0)
           where(query, [x], x.id == ^user_id)
         end
 
-        @impl Filter
+        @impl Backpex.Filter
         def render(assigns), do: assigns
 
-        @impl Filter
+        @impl Backpex.Filter
         def render_form(assigns), do: assigns
 
-        @impl Filter
+        @impl Backpex.Filter
         def can?(_assigns), do: true
       end
 
