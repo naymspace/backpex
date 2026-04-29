@@ -15,7 +15,7 @@
     "lint:standard": "standard",
     "lint:deps-unused": "mix deps.unlock --check-unused",
     "lint:gettext": "mix gettext.extract --check-up-to-date",
-    "format": "bun run --parallel format:style format:mix format:standard",
+    "format": "bun run --parallel 'format:*'",
     "format:style": "stylelint assets/**/*.css --fix",
     "format:mix": "mix format",
     "format:standard": "standard --fix",
