@@ -12,6 +12,8 @@ defmodule DemoWeb.UserLive do
 
   import Ecto.Query, warn: false
 
+  alias Backpex.Metrics.Value
+
   @impl Backpex.LiveResource
   def layout(_assigns), do: {DemoWeb.Layouts, :admin}
 
@@ -212,7 +214,7 @@ defmodule DemoWeb.UserLive do
   def metrics do
     [
       min_age: %{
-        module: Backpex.Metrics.Value,
+        module: Value,
         label: "Min age",
         class: "w-full lg:w-1/3",
         select: dynamic([u], min(u.age)),
@@ -221,7 +223,7 @@ defmodule DemoWeb.UserLive do
         end
       },
       max_age: %{
-        module: Backpex.Metrics.Value,
+        module: Value,
         label: "Max age",
         class: "w-full lg:w-1/3",
         select: dynamic([u], max(u.age)),

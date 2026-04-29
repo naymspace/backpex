@@ -1,3 +1,4 @@
+# quokka:skip-module-directive-reordering
 defmodule Backpex.Fields.BelongsTo do
   @config_schema [
     display_field: [
