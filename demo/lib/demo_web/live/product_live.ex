@@ -1,4 +1,3 @@
-# quokka:skip-module-directives
 defmodule DemoWeb.ProductLive do
   use Backpex.LiveResource,
     adapter_config: [
@@ -10,26 +9,35 @@ defmodule DemoWeb.ProductLive do
 
   import Ecto.Query, warn: false
 
-  @impl Backpex.LiveResource
-  def layout(_assigns), do: {DemoWeb.Layouts, :admin}
+  alias Backpex.LiveResource
+  alias Backpex.Metrics.Value
+  alias Demo.Supplier
+  alias DemoWeb.Endpoint
+  alias DemoWeb.Filters.ProductQuantityRange
+  alias DemoWeb.Layouts
+  alias DemoWeb.ShortLinkLive
+  alias Phoenix.VerifiedRoutes
 
-  @impl Backpex.LiveResource
+  @impl LiveResource
+  def layout(_assigns), do: {Layouts, :admin}
+
+  @impl LiveResource
   def singular_name, do: "Product"
 
-  @impl Backpex.LiveResource
+  @impl LiveResource
   def plural_name, do: "Products"
 
-  @impl Backpex.LiveResource
+  @impl LiveResource
   def filters do
     [
       quantity: %{
-        module: DemoWeb.Filters.ProductQuantityRange,
+        module: ProductQuantityRange,
         label: "QTY"
       }
     ]
   end
 
-  @impl Backpex.LiveResource
+  @impl LiveResource
   def fields do
     [
       images: %{
@@ -106,7 +114,7 @@ defmodule DemoWeb.ProductLive do
             module: Backpex.Fields.Select,
             label: "Country",
             prompt: "—",
-            options: Demo.Supplier.countries()
+            options: Supplier.countries()
           },
           contract_date: %{
             module: Backpex.Fields.Date,
@@ -127,7 +135,7 @@ defmodule DemoWeb.ProductLive do
         label: "Short Links",
         type: :assoc,
         except: [:index],
-        live_resource: DemoWeb.ShortLinkLive,
+        live_resource: ShortLinkLive,
         child_fields: [
           short_key: %{
             module: Backpex.Fields.Text,
@@ -142,11 +150,11 @@ defmodule DemoWeb.ProductLive do
     ]
   end
 
-  @impl Backpex.LiveResource
+  @impl LiveResource
   def metrics do
     [
       total_quantity: %{
-        module: Backpex.Metrics.Value,
+        module: Value,
         label: "In Stock",
         class: "w-1/3",
         select: dynamic([i], sum(i.quantity)),
@@ -197,7 +205,7 @@ defmodule DemoWeb.ProductLive do
 
   defp file_url(file_name) do
     static_path = Path.join([upload_dir(), file_name])
-    Phoenix.VerifiedRoutes.static_url(DemoWeb.Endpoint, "/" <> static_path)
+    VerifiedRoutes.static_url(Endpoint, "/" <> static_path)
   end
 
   defp file_name(entry) do
