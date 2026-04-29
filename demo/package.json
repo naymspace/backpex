@@ -7,7 +7,7 @@
     "test": "env $(cat .env.test | xargs) mix test --warnings-as-errors",
     "test:playwright": "bun run test --only playwright",
     "erd": "env $(cat .env.test | xargs) mix ecto.gen.erd --output-path=ecto_erd.puml",
-    "lint": "bun run --parallel 'lint:*'",,
+    "lint": "bun run --parallel 'lint:*'",
     "lint:mix": "mix format --check-formatted",
     "lint:credo": "mix credo --strict",
     "lint:sobelow": "mix sobelow --config",
