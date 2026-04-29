@@ -8,9 +8,6 @@ defmodule DemoWeb.FilmReviewLive do
     ],
     full_text_search: :generated_tsvector
 
-  alias Backpex.Fields.Text
-  alias Backpex.Fields.Textarea
-
   @impl Backpex.LiveResource
   def layout(_assigns), do: {DemoWeb.Layouts, :admin}
 
@@ -46,11 +43,11 @@ defmodule DemoWeb.FilmReviewLive do
   def fields do
     [
       title: %{
-        module: Text,
+        module: Backpex.Fields.Text,
         label: "Title"
       },
       overview: %{
-        module: Textarea,
+        module: Backpex.Fields.Textarea,
         label: "Overview",
         index_column_class: "max-w-sm"
       }

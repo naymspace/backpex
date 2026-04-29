@@ -3,7 +3,6 @@ defmodule DemoWeb.ItemActions.DuplicateTag do
 
   use BackpexWeb, :item_action
 
-  alias Backpex.Fields.Text
   alias Demo.Repo
 
   @impl Backpex.ItemAction
@@ -20,7 +19,7 @@ defmodule DemoWeb.ItemActions.DuplicateTag do
   def fields do
     [
       name: %{
-        module: Text,
+        module: Backpex.Fields.Text,
         label: "Name",
         searchable: true,
         placeholder: "Tag name"

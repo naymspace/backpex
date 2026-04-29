@@ -8,9 +8,6 @@ defmodule DemoWeb.AddressLive do
     ],
     fluid?: true
 
-  alias Backpex.Fields.Select
-  alias Backpex.Fields.Text
-
   @impl Backpex.LiveResource
   def layout(_assigns), do: {DemoWeb.Layouts, :admin}
 
@@ -24,22 +21,22 @@ defmodule DemoWeb.AddressLive do
   def fields do
     [
       street: %{
-        module: Text,
+        module: Backpex.Fields.Text,
         label: "Street Name",
         searchable: true
       },
       zip: %{
-        module: Text,
+        module: Backpex.Fields.Text,
         label: "Zip Code",
         searchable: true
       },
       city: %{
-        module: Text,
+        module: Backpex.Fields.Text,
         label: "City",
         searchable: true
       },
       country: %{
-        module: Select,
+        module: Backpex.Fields.Select,
         label: "Country",
         options: %{
           "Europe" => [Germany: "de", Austria: "at", Switzerland: "ch"],

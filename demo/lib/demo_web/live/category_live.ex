@@ -8,8 +8,6 @@ defmodule DemoWeb.CategoryLive do
     ],
     init_order: %{by: :name, direction: :asc}
 
-  alias Backpex.Fields.Text
-
   @impl Backpex.LiveResource
   def layout(_assigns), do: {DemoWeb.Layouts, :admin}
 
@@ -23,7 +21,7 @@ defmodule DemoWeb.CategoryLive do
   def fields do
     [
       name: %{
-        module: Text,
+        module: Backpex.Fields.Text,
         label: "Name",
         searchable: true
       }

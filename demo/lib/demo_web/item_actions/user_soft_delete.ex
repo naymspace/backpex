@@ -5,7 +5,6 @@ defmodule DemoWeb.ItemActions.UserSoftDelete do
 
   import Ecto.Changeset
 
-  alias Backpex.Fields.Textarea
   alias Backpex.ItemActions.Delete
 
   require Logger
@@ -24,7 +23,7 @@ defmodule DemoWeb.ItemActions.UserSoftDelete do
   def fields do
     [
       reason: %{
-        module: Textarea,
+        module: Backpex.Fields.Textarea,
         label: "Reason",
         type: :string
       }
