@@ -4,7 +4,7 @@ defmodule Backpex.Adapters.EctoTest do
   import Ecto.Query
 
   alias Backpex.Adapters.Ecto, as: EctoAdapter
-  alias Backpex.Fields.Text
+  alias Backpex.Filter
 
   defmodule TestUser do
     use Ecto.Schema
@@ -20,47 +20,47 @@ defmodule Backpex.Adapters.EctoTest do
 
   defmodule TestFilter do
     @moduledoc false
-    @behaviour Backpex.Filter
+    @behaviour Filter
 
-    @impl Backpex.Filter
+    @impl Filter
     def label, do: "Test Filter"
 
-    @impl Backpex.Filter
+    @impl Filter
     def can?(_assigns), do: true
 
-    @impl Backpex.Filter
+    @impl Filter
     def query(query, attribute, value, _assigns) do
       where(query, [x], field(x, ^attribute) == ^value)
     end
 
-    @impl Backpex.Filter
+    @impl Filter
     def render(assigns), do: assigns
 
-    @impl Backpex.Filter
+    @impl Filter
     def render_form(assigns), do: assigns
   end
 
   defmodule TestRangeFilter do
     @moduledoc false
-    @behaviour Backpex.Filter
+    @behaviour Filter
 
-    @impl Backpex.Filter
+    @impl Filter
     def label, do: "Test Range Filter"
 
-    @impl Backpex.Filter
+    @impl Filter
     def can?(_assigns), do: true
 
-    @impl Backpex.Filter
+    @impl Filter
     def query(query, attribute, %{"start" => start_val, "end" => end_val}, _assigns) do
       query
       |> where([x], field(x, ^attribute) >= ^start_val)
       |> where([x], field(x, ^attribute) <= ^end_val)
     end
 
-    @impl Backpex.Filter
+    @impl Filter
     def render(assigns), do: assigns
 
-    @impl Backpex.Filter
+    @impl Filter
     def render_form(assigns), do: assigns
   end
 
@@ -69,7 +69,7 @@ defmodule Backpex.Adapters.EctoTest do
       base_query = from(TestUser, as: ^EctoAdapter.name_by_schema(TestUser))
 
       searchable_fields = [
-        {:title, %{module: Text, queryable: TestUser}}
+        {:title, %{module: Backpex.Fields.Text, queryable: TestUser}}
       ]
 
       query = EctoAdapter.apply_search(base_query, TestUser, nil, {"foo", searchable_fields})
@@ -85,8 +85,8 @@ defmodule Backpex.Adapters.EctoTest do
       base_query = from(TestUser, as: ^EctoAdapter.name_by_schema(TestUser))
 
       searchable_fields = [
-        {:title, %{module: Text, queryable: TestUser}},
-        {:name, %{module: Text, queryable: TestUser}}
+        {:title, %{module: Backpex.Fields.Text, queryable: TestUser}},
+        {:name, %{module: Backpex.Fields.Text, queryable: TestUser}}
       ]
 
       query = EctoAdapter.apply_search(base_query, TestUser, nil, {"bar", searchable_fields})
@@ -111,7 +111,7 @@ defmodule Backpex.Adapters.EctoTest do
       base_query = from(TestUser, as: ^EctoAdapter.name_by_schema(TestUser))
 
       searchable_fields = [
-        {:title, %{module: Text, queryable: TestUser}}
+        {:title, %{module: Backpex.Fields.Text, queryable: TestUser}}
       ]
 
       query = EctoAdapter.apply_search(base_query, TestUser, nil, {"", searchable_fields})
@@ -125,7 +125,7 @@ defmodule Backpex.Adapters.EctoTest do
       select_expr = dynamic([testuser: u], fragment("UPPER(?)", field(u, ^:name)))
 
       searchable_fields = [
-        {:name_display, %{module: Text, select: select_expr}}
+        {:name_display, %{module: Backpex.Fields.Text, select: select_expr}}
       ]
 
       query = EctoAdapter.apply_search(base_query, TestUser, nil, {"qux", searchable_fields})
@@ -168,7 +168,7 @@ defmodule Backpex.Adapters.EctoTest do
       base_query = from(TestUser, as: ^EctoAdapter.name_by_schema(TestUser))
 
       fields = [
-        {:name, %{module: Text, queryable: TestUser}}
+        {:name, %{module: Backpex.Fields.Text, queryable: TestUser}}
       ]
 
       criteria = [
@@ -185,7 +185,7 @@ defmodule Backpex.Adapters.EctoTest do
       base_query = from(TestUser, as: ^EctoAdapter.name_by_schema(TestUser))
 
       fields = [
-        {:name, %{module: Text, queryable: TestUser}}
+        {:name, %{module: Backpex.Fields.Text, queryable: TestUser}}
       ]
 
       criteria = [
@@ -204,7 +204,7 @@ defmodule Backpex.Adapters.EctoTest do
       select_expr = dynamic([testuser: u], fragment("UPPER(?)", field(u, ^:name)))
 
       fields = [
-        {:name, %{module: Text, queryable: TestUser, select: select_expr}}
+        {:name, %{module: Backpex.Fields.Text, queryable: TestUser, select: select_expr}}
       ]
 
       criteria = [
@@ -339,25 +339,25 @@ defmodule Backpex.Adapters.EctoTest do
     test "passes assigns to filter query function" do
       defmodule AssignsCapturingFilter do
         @moduledoc false
-        @behaviour Backpex.Filter
+        @behaviour Filter
 
-        @impl Backpex.Filter
+        @impl Filter
         def label, do: "Assigns Filter"
 
-        @impl Backpex.Filter
+        @impl Filter
         def query(query, _attribute, _value, assigns) do
           # Store the user_id from assigns in a where clause
           user_id = Map.get(assigns, :user_id, 0)
           where(query, [x], x.id == ^user_id)
         end
 
-        @impl Backpex.Filter
+        @impl Filter
         def render(assigns), do: assigns
 
-        @impl Backpex.Filter
+        @impl Filter
         def render_form(assigns), do: assigns
 
-        @impl Backpex.Filter
+        @impl Filter
         def can?(_assigns), do: true
       end
 

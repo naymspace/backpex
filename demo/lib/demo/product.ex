@@ -6,7 +6,6 @@ defmodule Demo.Product do
 
   alias Demo.ShortLink
   alias Demo.Supplier
-  alias Money.Ecto.Amount.Type
 
   @primary_key {:id, :binary_id, autogenerate: true}
 
@@ -16,7 +15,7 @@ defmodule Demo.Product do
     field :manufacturer, :string
     field :images, {:array, :string}
 
-    field :price, Type
+    field :price, Money.Ecto.Amount.Type
 
     has_many :suppliers, Supplier, on_replace: :delete, on_delete: :delete_all
     has_many :short_links, ShortLink, on_replace: :delete, on_delete: :delete_all, foreign_key: :product_id
@@ -31,12 +30,12 @@ defmodule Demo.Product do
     product
     |> cast(attrs, @required_fields ++ @optional_fields)
     |> cast_assoc(:suppliers,
-      with: &Demo.Supplier.changeset/2,
+      with: &Supplier.changeset/2,
       sort_param: :suppliers_order,
       drop_param: :suppliers_delete
     )
     |> cast_assoc(:short_links,
-      with: &Demo.ShortLink.changeset/2,
+      with: &ShortLink.changeset/2,
       sort_param: :short_links_order,
       drop_param: :short_links_delete
     )

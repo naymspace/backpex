@@ -2,16 +2,14 @@ defmodule Backpex.FieldTest do
   use ExUnit.Case, async: true
 
   alias Backpex.Field
-  alias Backpex.Fields.Number
-  alias Backpex.Fields.Text
 
   # Simulates a LiveResource fields/0 callback structure
   defmodule UpstreamPrices do
     def fields do
       [
-        name: %{module: Text, label: "Name"},
-        upstream_price: %{module: Number, label: "Upstream Price", readonly: true},
-        override_price: %{module: Number, label: "Our Price"}
+        name: %{module: Backpex.Fields.Text, label: "Name"},
+        upstream_price: %{module: Backpex.Fields.Number, label: "Upstream Price", readonly: true},
+        override_price: %{module: Backpex.Fields.Number, label: "Our Price"}
       ]
     end
   end
@@ -29,8 +27,8 @@ defmodule Backpex.FieldTest do
 
     test "readonly function field is filtered when condition is true" do
       fields = [
-        name: %{module: Text, label: "Name"},
-        secret: %{module: Text, label: "Secret", readonly: fn assigns -> assigns[:role] == :viewer end}
+        name: %{module: Backpex.Fields.Text, label: "Name"},
+        secret: %{module: Backpex.Fields.Text, label: "Secret", readonly: fn assigns -> assigns[:role] == :viewer end}
       ]
 
       change = %{"name" => "Test", "secret" => "hidden"}

@@ -3,14 +3,12 @@ defmodule Demo.Invoice do
 
   use Ecto.Schema
 
-  alias Money.Ecto.Amount.Type
-
   @primary_key {:id, :binary_id, autogenerate: true}
 
   schema "invoices" do
     field :company, :string
 
-    field :amount, Type
+    field :amount, Money.Ecto.Amount.Type
 
     timestamps()
   end

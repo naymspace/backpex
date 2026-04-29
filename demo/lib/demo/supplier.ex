@@ -4,7 +4,7 @@ defmodule Demo.Supplier do
 
   import Ecto.Changeset
 
-  alias Money.Ecto.Amount.Type
+  alias Demo.Product
 
   @primary_key {:id, :binary_id, autogenerate: true}
 
@@ -17,10 +17,10 @@ defmodule Demo.Supplier do
     field :url, :string
     field :country, Ecto.Enum, values: Enum.map(@countries, &String.to_atom/1)
     field :contract_date, :date
-    field :minimum_order, Type
+    field :minimum_order, Money.Ecto.Amount.Type
     field :preferred, :boolean, default: false
 
-    belongs_to :product, Demo.Product, type: :binary_id
+    belongs_to :product, Product, type: :binary_id
 
     timestamps()
   end
