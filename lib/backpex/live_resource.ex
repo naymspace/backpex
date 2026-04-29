@@ -11,6 +11,8 @@ defmodule Backpex.LiveResource do
 
   alias Backpex.Resource
   alias Backpex.Router
+  alias Phoenix.LiveView.Rendered
+  alias Phoenix.LiveView.Socket
 
   @options_schema [
     adapter: [
@@ -172,7 +174,7 @@ defmodule Backpex.LiveResource do
     - `:metrics`
   """
   @callback render_resource_slot(assigns :: map(), action :: atom(), position :: atom()) ::
-              %Phoenix.LiveView.Rendered{}
+              %Rendered{}
 
   @doc """
   A optional keyword list of [filters](Backpex.Filter.html) to be used on the index view.
@@ -193,7 +195,7 @@ defmodule Backpex.LiveResource do
 
   Must return either a `{module, function_name}` tuple or a function with arity 1.
   """
-  @callback layout(assigns :: map()) :: {module(), atom()} | (map() -> Phoenix.LiveView.Rendered.t())
+  @callback layout(assigns :: map()) :: {module(), atom()} | (map() -> Rendered.t())
 
   @doc """
   A list of metrics shown on the index view of your resource.
@@ -203,26 +205,26 @@ defmodule Backpex.LiveResource do
   @doc """
   This function is executed when an item has been created.
   """
-  @callback on_item_created(socket :: Phoenix.LiveView.Socket.t(), item :: map()) ::
-              Phoenix.LiveView.Socket.t()
+  @callback on_item_created(socket :: Socket.t(), item :: map()) ::
+              Socket.t()
 
   @doc """
   This function is executed when an item has been updated.
   """
-  @callback on_item_updated(socket :: Phoenix.LiveView.Socket.t(), item :: map()) ::
-              Phoenix.LiveView.Socket.t()
+  @callback on_item_updated(socket :: Socket.t(), item :: map()) ::
+              Socket.t()
 
   @doc """
   This function is executed when an item has been deleted.
   """
-  @callback on_item_deleted(socket :: Phoenix.LiveView.Socket.t(), item :: map()) ::
-              Phoenix.LiveView.Socket.t()
+  @callback on_item_deleted(socket :: Socket.t(), item :: map()) ::
+              Socket.t()
 
   @doc """
   This function navigates to the specified path when an item has been created or updated. Defaults to the previous resource path (index or show).
   """
   @callback return_to(
-              socket :: Phoenix.LiveView.Socket.t(),
+              socket :: Socket.t(),
               assigns :: map(),
               live_action :: atom(),
               form_action :: atom(),
@@ -263,20 +265,21 @@ defmodule Backpex.LiveResource do
   """
   defmacro __using__(opts) do
     quote bind_quoted: [opts: opts, options_schema: @options_schema] do
-      @before_compile Backpex.LiveResource
       @behaviour Backpex.LiveResource
 
-      @resource_opts NimbleOptions.validate!(opts, options_schema)
-
-      @adapter_opts @resource_opts[:adapter].validate_config!(@resource_opts[:adapter_config])
-
       use BackpexWeb, :html
+
       import Backpex.LiveResource
       import Phoenix.LiveView.Helpers
 
       alias Backpex.LiveResource
 
       require Backpex
+
+      @before_compile Backpex.LiveResource
+      @resource_opts NimbleOptions.validate!(opts, options_schema)
+
+      @adapter_opts @resource_opts[:adapter].validate_config!(@resource_opts[:adapter_config])
 
       def config(key), do: Keyword.get(@resource_opts, key)
 
@@ -334,9 +337,9 @@ defmodule Backpex.LiveResource do
       for action <- ~w(Index Form Show)a do
         # credo:disable-for-next-line Credo.Check.Warning.UnsafeToAtom
         defmodule String.to_atom("#{__MODULE__}.#{action}") do
-          @resource_opts NimbleOptions.validate!(opts, options_schema)
-
           use Phoenix.LiveView
+
+          @resource_opts NimbleOptions.validate!(opts, options_schema)
 
           @action_module String.to_existing_atom("Elixir.Backpex.LiveResource.#{action}")
 

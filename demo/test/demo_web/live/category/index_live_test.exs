@@ -2,8 +2,8 @@ defmodule DemoWeb.Live.Category.IndexLiveTest do
   use DemoWeb.ConnCase, async: false
 
   import Demo.EctoFactory
-  import Phoenix.LiveViewTest
   import Demo.Support.LiveResourceTests
+  import Phoenix.LiveViewTest
 
   describe "categories live resource index" do
     test "is rendered", %{conn: conn} do

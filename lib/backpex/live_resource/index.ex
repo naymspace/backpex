@@ -10,7 +10,6 @@ defmodule Backpex.LiveResource.Index do
   alias Backpex.PaginationValidation
   alias Backpex.Resource
   alias Backpex.Router
-
   alias Phoenix.LiveView
 
   require Backpex

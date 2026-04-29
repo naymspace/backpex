@@ -5,10 +5,12 @@ defmodule DemoWeb.Filters.PostPublished do
 
   use Backpex.Filters.Boolean
 
+  alias Backpex.Filters.Boolean
+
   @impl Backpex.Filter
   def label, do: "Published?"
 
-  @impl Backpex.Filters.Boolean
+  @impl Boolean
   def options(_assigns) do
     [
       %{

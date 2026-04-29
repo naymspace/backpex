@@ -4,10 +4,10 @@ defmodule Backpex.HTML.Resource do
   """
   use BackpexWeb, :html
 
-  import Phoenix.LiveView.TagEngine
   import Backpex.HTML.CoreComponents
   import Backpex.HTML.Form
   import Backpex.HTML.Layout
+  import Phoenix.LiveView.TagEngine
 
   alias Backpex.LiveResource
   alias Backpex.ResourceAction
