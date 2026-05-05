@@ -22,9 +22,9 @@
     "gettext": "mix gettext.extract --merge"
   },
   "devDependencies": {
-    "@sentry/browser": "10.48.0",
+    "@sentry/browser": "10.49.0",
     "playwright": "1.59.1",
-    "postcss": "8.5.11",
+    "postcss": "8.5.13",
     "standard": "17.1.2",
     "stylelint": "17.8.0",
     "stylelint-config-standard": "40.0.0",
