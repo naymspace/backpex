@@ -68,7 +68,7 @@ defmodule Demo.MixProject do
       # application
       {:backpex, path: "../."},
       {:phoenix_ecto, "~> 4.0"},
-      {:igniter, "~> 0.7"},
+      {:igniter, "~> 0.8"},
       {:igniter_js, "~> 0.4"},
       {:ecto_sql, "~> 3.1"},
       {:postgrex, ">= 0.0.0"},
