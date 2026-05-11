@@ -72,8 +72,16 @@ var dropdown_default = {
     document.addEventListener("click", this.handleDocumentClick, true);
     document.addEventListener("keydown", this.handleKeydown);
   },
+  beforeUpdate() {
+    this.focusedBeforeUpdate = this.el.contains(document.activeElement) ? document.activeElement : null;
+  },
   updated() {
     this.el.classList.toggle("dropdown-open", this.isOpen);
+    if (this.focusedBeforeUpdate && !this.el.contains(document.activeElement)) {
+      const target = this.focusedBeforeUpdate.isConnected ? this.focusedBeforeUpdate : this.focusedBeforeUpdate.id && this.el.querySelector(`#${this.focusedBeforeUpdate.id}`);
+      target?.focus();
+    }
+    this.focusedBeforeUpdate = null;
   },
   destroyed() {
     document.removeEventListener("mousedown", this.handleDocumentMousedown, true);

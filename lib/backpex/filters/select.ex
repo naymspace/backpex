@@ -103,6 +103,7 @@ defmodule Backpex.Filters.Select do
   def render_form(assigns) do
     ~H"""
     <select
+      id={@form[@field].id}
       name={@form[@field].name}
       class={[
         "select select-sm",
