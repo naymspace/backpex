@@ -83,13 +83,12 @@ var dropdown_default = {
     this.isOpen = false;
     this.mousedownInside = false;
     this.handleRootMousedown = this.handleRootMousedown.bind(this);
+    this.handleTriggerKeydown = this.handleTriggerKeydown.bind(this);
     this.handleDocumentMousedown = this.handleDocumentMousedown.bind(this);
     this.handleDocumentClick = this.handleDocumentClick.bind(this);
-    this.handleKeydown = this.handleKeydown.bind(this);
+    this.handleDocumentKeydown = this.handleDocumentKeydown.bind(this);
     this.el.addEventListener("mousedown", this.handleRootMousedown);
-    document.addEventListener("mousedown", this.handleDocumentMousedown, true);
-    document.addEventListener("click", this.handleDocumentClick, true);
-    document.addEventListener("keydown", this.handleKeydown);
+    this.trigger.addEventListener("keydown", this.handleTriggerKeydown);
   },
   beforeUpdate() {
     this.focusedBeforeUpdate = this.el.contains(document.activeElement) ? document.activeElement : null;
@@ -103,32 +102,61 @@ var dropdown_default = {
     this.focusedBeforeUpdate = null;
   },
   destroyed() {
+    this.detachDocumentListeners();
+    this.el.removeEventListener("mousedown", this.handleRootMousedown);
+    this.trigger?.removeEventListener("keydown", this.handleTriggerKeydown);
+  },
+  open() {
+    if (this.isOpen) return;
+    this.isOpen = true;
+    this.el.classList.add("dropdown-open");
+    this.attachDocumentListeners();
+  },
+  close() {
+    if (!this.isOpen) return;
+    this.isOpen = false;
+    this.mousedownInside = false;
+    this.el.classList.remove("dropdown-open");
+    this.detachDocumentListeners();
+  },
+  toggle() {
+    if (this.isOpen) this.close();
+    else this.open();
+  },
+  attachDocumentListeners() {
+    document.addEventListener("mousedown", this.handleDocumentMousedown, true);
+    document.addEventListener("click", this.handleDocumentClick, true);
+    document.addEventListener("keydown", this.handleDocumentKeydown);
+  },
+  detachDocumentListeners() {
     document.removeEventListener("mousedown", this.handleDocumentMousedown, true);
     document.removeEventListener("click", this.handleDocumentClick, true);
-    document.removeEventListener("keydown", this.handleKeydown);
+    document.removeEventListener("keydown", this.handleDocumentKeydown);
   },
   handleRootMousedown(event) {
+    this.mousedownInside = true;
     if (this.menu?.contains(event.target)) return;
-    this.isOpen = !this.isOpen;
-    this.el.classList.toggle("dropdown-open", this.isOpen);
+    this.toggle();
+  },
+  handleTriggerKeydown(event) {
+    if (event.key !== "Enter" && event.key !== " ") return;
+    event.preventDefault();
+    this.toggle();
   },
   handleDocumentMousedown(event) {
     this.mousedownInside = this.el.contains(event.target);
   },
   handleDocumentClick(event) {
-    if (!this.isOpen) return;
     if (this.el.contains(event.target)) return;
     if (this.mousedownInside) {
       this.mousedownInside = false;
       return;
     }
-    this.isOpen = false;
-    this.el.classList.remove("dropdown-open");
+    this.close();
   },
-  handleKeydown(event) {
-    if (event.key !== "Escape" || !this.isOpen) return;
-    this.isOpen = false;
-    this.el.classList.remove("dropdown-open");
+  handleDocumentKeydown(event) {
+    if (event.key !== "Escape") return;
+    this.close();
     this.trigger.focus();
   }
 };

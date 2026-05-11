@@ -22,6 +22,9 @@
  *      preceding mousedown there. The outside-click handler tracks where the
  *      last mousedown landed and ignores outside clicks whose mousedown was
  *      inside the dropdown.
+ *
+ * Document listeners only run while the dropdown is open, so pages with many
+ * dropdowns don't pay an event-handler tax for closed ones.
  */
 export default {
   mounted () {
@@ -33,14 +36,13 @@ export default {
     this.mousedownInside = false
 
     this.handleRootMousedown = this.handleRootMousedown.bind(this)
+    this.handleTriggerKeydown = this.handleTriggerKeydown.bind(this)
     this.handleDocumentMousedown = this.handleDocumentMousedown.bind(this)
     this.handleDocumentClick = this.handleDocumentClick.bind(this)
-    this.handleKeydown = this.handleKeydown.bind(this)
+    this.handleDocumentKeydown = this.handleDocumentKeydown.bind(this)
 
     this.el.addEventListener('mousedown', this.handleRootMousedown)
-    document.addEventListener('mousedown', this.handleDocumentMousedown, true)
-    document.addEventListener('click', this.handleDocumentClick, true)
-    document.addEventListener('keydown', this.handleKeydown)
+    this.trigger.addEventListener('keydown', this.handleTriggerKeydown)
   },
   beforeUpdate () {
     // Remember which element inside the dropdown had focus, so we can restore
@@ -65,36 +67,65 @@ export default {
     this.focusedBeforeUpdate = null
   },
   destroyed () {
+    this.detachDocumentListeners()
+    this.el.removeEventListener('mousedown', this.handleRootMousedown)
+    this.trigger?.removeEventListener('keydown', this.handleTriggerKeydown)
+  },
+  open () {
+    if (this.isOpen) return
+    this.isOpen = true
+    this.el.classList.add('dropdown-open')
+    this.attachDocumentListeners()
+  },
+  close () {
+    if (!this.isOpen) return
+    this.isOpen = false
+    this.mousedownInside = false
+    this.el.classList.remove('dropdown-open')
+    this.detachDocumentListeners()
+  },
+  toggle () {
+    if (this.isOpen) this.close()
+    else this.open()
+  },
+  attachDocumentListeners () {
+    document.addEventListener('mousedown', this.handleDocumentMousedown, true)
+    document.addEventListener('click', this.handleDocumentClick, true)
+    document.addEventListener('keydown', this.handleDocumentKeydown)
+  },
+  detachDocumentListeners () {
     document.removeEventListener('mousedown', this.handleDocumentMousedown, true)
     document.removeEventListener('click', this.handleDocumentClick, true)
-    document.removeEventListener('keydown', this.handleKeydown)
+    document.removeEventListener('keydown', this.handleDocumentKeydown)
   },
   handleRootMousedown (event) {
-    // Toggle when the mousedown hits anywhere outside the menu. We can't just
-    // check `this.trigger.contains(event.target)` because daisyUI applies
-    // `pointer-events: none` to the trigger while the dropdown is open — the
-    // event then re-targets to the dropdown root, not the trigger.
+    // mousedown reached `this.el`, so it's inside the dropdown. Set the flag
+    // up front: when this mousedown is the one that *opens* the dropdown, the
+    // document-level listener isn't attached yet and won't catch it.
+    this.mousedownInside = true
     if (this.menu?.contains(event.target)) return
-    this.isOpen = !this.isOpen
-    this.el.classList.toggle('dropdown-open', this.isOpen)
+    this.toggle()
+  },
+  handleTriggerKeydown (event) {
+    // Match WAI-ARIA button semantics: Enter and Space activate the trigger.
+    if (event.key !== 'Enter' && event.key !== ' ') return
+    event.preventDefault()
+    this.toggle()
   },
   handleDocumentMousedown (event) {
     this.mousedownInside = this.el.contains(event.target)
   },
   handleDocumentClick (event) {
-    if (!this.isOpen) return
     if (this.el.contains(event.target)) return
     if (this.mousedownInside) {
       this.mousedownInside = false
       return
     }
-    this.isOpen = false
-    this.el.classList.remove('dropdown-open')
+    this.close()
   },
-  handleKeydown (event) {
-    if (event.key !== 'Escape' || !this.isOpen) return
-    this.isOpen = false
-    this.el.classList.remove('dropdown-open')
+  handleDocumentKeydown (event) {
+    if (event.key !== 'Escape') return
+    this.close()
     this.trigger.focus()
   }
 }
