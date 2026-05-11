@@ -1,7 +1,7 @@
 defmodule Backpex.MixProject do
   use Mix.Project
 
-  @version "0.18.0"
+  @version "0.18.1"
 
   @source_url "https://github.com/naymspace/backpex"
   @changelog_url "https://github.com/naymspace/backpex/releases"
@@ -142,6 +142,9 @@ defmodule Backpex.MixProject do
       # Get Started
       "guides/get_started/installation.md",
 
+      # AI Assisted Development
+      "guides/ai_development/ai-development.md",
+
       # Live Resource
       "guides/live_resource/what-is-a-live-resource.md",
       "guides/live_resource/templates.md",
@@ -218,6 +221,7 @@ defmodule Backpex.MixProject do
       Introduction: ~r/README/,
       About: ~r/guides\/about\/.?/,
       "Get Started": ~r/guides\/get_started\/.?/,
+      "AI Assisted Development": ~r/guides\/ai_development\/.?/,
       "Live Resource": ~r/guides\/live_resource\/.?/,
       Fields: ~r/guides\/fields\/.?/,
       Filter: ~r/guides\/filter\/.?/,

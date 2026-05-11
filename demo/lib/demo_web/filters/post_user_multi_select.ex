@@ -5,16 +5,17 @@ defmodule DemoWeb.Filters.PostUserMultiSelect do
 
   use Backpex.Filters.MultiSelect
 
+  alias Backpex.Filters.Select
   alias Demo.Post
   alias Demo.Repo
 
   @impl Backpex.Filter
   def label, do: "Users"
 
-  @impl Backpex.Filters.Select
+  @impl Select
   def prompt, do: "Select users ..."
 
-  @impl Backpex.Filters.Select
+  @impl Select
   def options(_assigns) do
     query =
       from p in Post,

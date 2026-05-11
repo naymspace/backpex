@@ -4,10 +4,16 @@ defmodule Backpex.ItemAction do
   """
   import Phoenix.Component
 
+  alias Backpex.ItemActions.Delete
+  alias Backpex.ItemActions.Edit
+  alias Backpex.ItemActions.Show
+  alias Phoenix.LiveView.Rendered
+  alias Phoenix.LiveView.Socket
+
   @doc """
   Action icon
   """
-  @callback icon(assigns :: map(), item :: struct()) :: %Phoenix.LiveView.Rendered{}
+  @callback icon(assigns :: map(), item :: struct()) :: %Rendered{}
 
   @doc """
   A list of fields to be displayed in the item action. See `Backpex.Field`. In addition you have to provide
@@ -97,8 +103,8 @@ defmodule Backpex.ItemAction do
 
   You are only allowed to return `{:error, changeset}` if the action has a form. Otherwise Backpex will throw an ArgumentError.
   """
-  @callback handle(socket :: Phoenix.LiveView.Socket.t(), items :: list(map()), params :: map() | struct()) ::
-              {:ok, Phoenix.LiveView.Socket.t()} | {:error, Ecto.Changeset.t()}
+  @callback handle(socket :: Socket.t(), items :: list(map()), params :: map() | struct()) ::
+              {:ok, Socket.t()} | {:error, Ecto.Changeset.t()}
 
   @optional_callbacks confirm: 1, confirm_label: 1, cancel_label: 1, changeset: 3, fields: 0, link: 2, handle: 3
 
@@ -107,17 +113,18 @@ defmodule Backpex.ItemAction do
   """
   defmacro __using__(_opts) do
     quote do
-      @before_compile Backpex.ItemAction
       @behaviour Backpex.ItemAction
 
       require Backpex
+
+      @before_compile Backpex.ItemAction
     end
   end
 
   defmacro __before_compile__(env) do
     validate_handle_or_link!(env)
 
-    quote do
+    quote generated: true do
       @after_compile Backpex.ItemAction
 
       @impl Backpex.ItemAction
@@ -241,15 +248,15 @@ defmodule Backpex.ItemAction do
   def default_actions do
     [
       show: %{
-        module: Backpex.ItemActions.Show,
+        module: Show,
         only: [:row]
       },
       edit: %{
-        module: Backpex.ItemActions.Edit,
+        module: Edit,
         only: [:row, :show]
       },
       delete: %{
-        module: Backpex.ItemActions.Delete,
+        module: Delete,
         only: [:row, :index, :show]
       }
     ]

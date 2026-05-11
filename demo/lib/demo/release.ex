@@ -10,6 +10,18 @@ defmodule Demo.Release do
 
   defp repos, do: Application.fetch_env!(@app, :ecto_repos)
 
+  defp drop_tables(repo) do
+    %{rows: rows} =
+      repo.query!("SELECT format('%I.%I', schemaname, tablename) FROM pg_tables WHERE schemaname = 'public'")
+
+    tables = List.flatten(rows)
+
+    if tables != [] do
+      joined = Enum.join(tables, ", ")
+      repo.query!("DROP TABLE #{joined} CASCADE")
+    end
+  end
+
   @doc """
   Migrate the database.
   """
@@ -36,17 +48,14 @@ defmodule Demo.Release do
   end
 
   @doc """
-  Reset the application by dropping and recreating the public schema.
+  Reset the application by dropping all tables in the public schema, then re-migrating and seeding.
   """
   def reset do
     init([:ssl])
 
     for repo <- repos() do
       {:ok, _fun_return, _apps} =
-        Ecto.Migrator.with_repo(repo, fn repo ->
-          repo.query!("DROP SCHEMA public CASCADE")
-          repo.query!("CREATE SCHEMA public")
-        end)
+        Ecto.Migrator.with_repo(repo, &drop_tables/1)
     end
 
     migrate()

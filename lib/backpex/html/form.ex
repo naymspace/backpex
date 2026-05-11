@@ -7,6 +7,7 @@ defmodule Backpex.HTML.Form do
   import Backpex.HTML.CoreComponents
 
   alias Phoenix.HTML.Form
+  alias Phoenix.HTML.FormField
 
   require Backpex
 
@@ -26,7 +27,7 @@ defmodule Backpex.HTML.Form do
     values: ~w(checkbox color date datetime-local email file hidden month number password
                range radio search select tel text textarea time toggle url week)
 
-  attr :field, Phoenix.HTML.FormField, doc: "a form field struct retrieved from the form, for example: @form[:email]"
+  attr :field, FormField, doc: "a form field struct retrieved from the form, for example: @form[:email]"
 
   attr :errors, :list, default: []
   attr :checked, :boolean, doc: "the checked flag for checkbox inputs"
@@ -46,7 +47,7 @@ defmodule Backpex.HTML.Form do
 
   slot :inner_block
 
-  def input(%{field: %Phoenix.HTML.FormField{} = field} = assigns) do
+  def input(%{field: %FormField{} = field} = assigns) do
     assigns
     |> prepare_field_assigns(field, assigns.translate_error_fun)
     |> assign_new(:name, fn -> if assigns.multiple, do: field.name <> "[]", else: field.name end)
@@ -181,7 +182,7 @@ defmodule Backpex.HTML.Form do
   attr :help_text, :string, default: nil
   attr :value, :any
 
-  attr :field, Phoenix.HTML.FormField, doc: "a form field struct retrieved from the form, for example: @form[:email]"
+  attr :field, FormField, doc: "a form field struct retrieved from the form, for example: @form[:email]"
 
   attr :errors, :list, default: []
 
@@ -206,7 +207,7 @@ defmodule Backpex.HTML.Form do
   attr :rest, :global, include: ~w(accept autocomplete capture cols disabled form list max maxlength min minlength
               multiple pattern placeholder readonly required rows size step)
 
-  def currency_input(%{field: %Phoenix.HTML.FormField{} = field} = assigns) do
+  def currency_input(%{field: %FormField{} = field} = assigns) do
     assigns
     |> prepare_field_assigns(field, assigns.translate_error_fun)
     |> assign_new(:name, fn -> field.name end)

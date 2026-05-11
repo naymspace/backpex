@@ -11,28 +11,40 @@ defmodule DemoWeb.PostLive do
 
   import Ecto.Query, warn: false
 
-  @impl Backpex.LiveResource
-  def layout(_assigns), do: {DemoWeb.Layouts, :admin}
+  alias Backpex.LiveResource
+  alias Backpex.Metrics.Value
+  alias DemoWeb.CategoryLive
+  alias DemoWeb.Filters.DateTimeRange
+  alias DemoWeb.Filters.PostCategorySelect
+  alias DemoWeb.Filters.PostLikeRange
+  alias DemoWeb.Filters.PostPublished
+  alias DemoWeb.Filters.PostUserMultiSelect
+  alias DemoWeb.Layouts
+  alias DemoWeb.TagLive
+  alias DemoWeb.UserLive
 
-  @impl Backpex.LiveResource
+  @impl LiveResource
+  def layout(_assigns), do: {Layouts, :admin}
+
+  @impl LiveResource
   def singular_name, do: "Post"
 
-  @impl Backpex.LiveResource
+  @impl LiveResource
   def plural_name, do: "Posts"
 
-  @impl Backpex.LiveResource
+  @impl LiveResource
   def filters do
     [
       category_id: %{
-        module: DemoWeb.Filters.PostCategorySelect,
+        module: PostCategorySelect,
         label: "Category"
       },
       user_id: %{
-        module: DemoWeb.Filters.PostUserMultiSelect,
+        module: PostUserMultiSelect,
         label: "Users"
       },
       likes: %{
-        module: DemoWeb.Filters.PostLikeRange,
+        module: PostLikeRange,
         label: "Likes",
         presets: [
           %{
@@ -46,7 +58,7 @@ defmodule DemoWeb.PostLive do
         ]
       },
       inserted_at: %{
-        module: DemoWeb.Filters.DateTimeRange,
+        module: DateTimeRange,
         label: "Created at",
         presets: [
           %{
@@ -79,7 +91,7 @@ defmodule DemoWeb.PostLive do
         ]
       },
       published: %{
-        module: DemoWeb.Filters.PostPublished,
+        module: PostPublished,
         label: "Published?",
         default: ["published"],
         presets: [
@@ -100,7 +112,7 @@ defmodule DemoWeb.PostLive do
     ]
   end
 
-  @impl Backpex.LiveResource
+  @impl LiveResource
   def fields do
     [
       title: %{
@@ -166,14 +178,14 @@ defmodule DemoWeb.PostLive do
         end,
         index_editable: true,
         searchable: true,
-        live_resource: DemoWeb.UserLive
+        live_resource: UserLive
       },
       category: %{
         module: Backpex.Fields.BelongsTo,
         label: "Category",
         display_field: :name,
         searchable: true,
-        live_resource: DemoWeb.CategoryLive,
+        live_resource: CategoryLive,
         custom_alias: :custom_category
       },
       tags: %{
@@ -181,7 +193,7 @@ defmodule DemoWeb.PostLive do
         label: "Tags",
         orderable: false,
         display_field: :name,
-        live_resource: DemoWeb.TagLive
+        live_resource: TagLive
       },
       inserted_at: %{
         module: Backpex.Fields.DateTime,
@@ -191,11 +203,11 @@ defmodule DemoWeb.PostLive do
     ]
   end
 
-  @impl Backpex.LiveResource
+  @impl LiveResource
   def metrics do
     [
       total_likes: %{
-        module: Backpex.Metrics.Value,
+        module: Value,
         label: "Total likes",
         class: "lg:w-1/4",
         select: dynamic([p], sum(p.likes)),
@@ -204,7 +216,7 @@ defmodule DemoWeb.PostLive do
         end
       },
       published_posts: %{
-        module: Backpex.Metrics.Value,
+        module: Value,
         label: "Published Posts",
         class: "lg:w-1/4",
         select: dynamic([p], count(fragment("CASE WHEN ? = TRUE THEN 1 ELSE NULL END", p.published))),

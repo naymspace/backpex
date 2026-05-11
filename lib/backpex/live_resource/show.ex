@@ -7,8 +7,6 @@ defmodule Backpex.LiveResource.Show do
   alias Backpex.Resource
   alias Backpex.Router
 
-  require Backpex
-
   def mount(params, _session, socket, live_resource) do
     socket
     |> Backpex.LiveResource.maybe_subscribe_to_pubsub(live_resource)

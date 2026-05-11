@@ -1,4 +1,5 @@
 # credo:disable-for-this-file Credo.Check.Refactor.CyclomaticComplexity
+# quokka:skip-module-directive-reordering
 defmodule Backpex.Field do
   @config_schema [
     module: [
@@ -141,20 +142,23 @@ defmodule Backpex.Field do
   """
   import Phoenix.Component, only: [assign: 3]
 
+  alias Phoenix.LiveView.Rendered
+  alias Phoenix.LiveView.Socket
+
   @doc """
   Will be used on index and show views to render a value from the provided item. This has to be a heex template.
   """
-  @callback render_value(assigns :: map()) :: %Phoenix.LiveView.Rendered{}
+  @callback render_value(assigns :: map()) :: %Rendered{}
 
   @doc """
   Will be used on edit views to render a form for the value of the provided item. This has to be a heex template.
   """
-  @callback render_form(assigns :: map()) :: %Phoenix.LiveView.Rendered{}
+  @callback render_form(assigns :: map()) :: %Rendered{}
 
   @doc """
   Used to render form on index to support index editable.
   """
-  @callback render_index_form(assigns :: map()) :: %Phoenix.LiveView.Rendered{}
+  @callback render_index_form(assigns :: map()) :: %Rendered{}
 
   @doc """
   The field to be displayed on index views. In most cases this is the name / key configured in the corresponding field definition.
@@ -176,15 +180,15 @@ defmodule Backpex.Field do
   @doc """
   This function will be called in the `FormComponent` and may be used to assign uploads.
   """
-  @callback assign_uploads(field :: tuple(), socket :: Phoenix.LiveView.Socket.t()) ::
-              Phoenix.LiveView.Socket.t()
+  @callback assign_uploads(field :: tuple(), socket :: Socket.t()) ::
+              Socket.t()
 
   @doc """
   This function is called before the changeset function is called. This allows fields to modify the changeset.
   The `Backpex.Fields.HasMany` uses this callback to put the linked associations into the changeset.
   """
   @callback before_changeset(
-              changeset :: Phoenix.LiveView.Socket.t(),
+              changeset :: Socket.t(),
               attrs :: map(),
               metadata :: keyword(),
               repo :: module(),
@@ -259,7 +263,7 @@ defmodule Backpex.Field do
   end
 
   defmacro __before_compile__(_env) do
-    quote do
+    quote generated: true do
       import Ecto.Query
 
       @impl Phoenix.LiveComponent
@@ -356,6 +360,21 @@ defmodule Backpex.Field do
   def readonly?(%{readonly: readonly}, _assigns) when is_boolean(readonly), do: readonly
   def readonly?(%{readonly: readonly}, assigns) when is_function(readonly, 1), do: readonly.(assigns)
   def readonly?(_field_options, _assigns), do: false
+
+  @doc """
+  Drops readonly field changes from the given change map.
+
+  Takes a map of string-keyed form params, a keyword list of field definitions,
+  and assigns. Returns the change map with readonly field keys removed.
+  """
+  def drop_readonly_changes(change, fields, assigns) do
+    read_only =
+      fields
+      |> Enum.filter(fn {_name, options} -> readonly?(options, assigns) end)
+      |> Enum.map(fn {name, _options} -> Atom.to_string(name) end)
+
+    Map.drop(change, read_only)
+  end
 
   def translate_error_fun(%{translate_error: translate_error}, _assigns) when is_function(translate_error, 1),
     do: translate_error

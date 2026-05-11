@@ -53,9 +53,9 @@ if Code.ensure_loaded?(Igniter) and Code.ensure_loaded?(IgniterJs) do
     use Igniter.Mix.Task
 
     alias Backpex.Mix.IgniterHelpers
-
     alias Igniter.Code.Common
     alias Igniter.Libs.Phoenix
+    alias Igniter.Mix.Task.Info
     alias Igniter.Project.Config
     alias Igniter.Project.Formatter
     alias Igniter.Project.Module
@@ -70,7 +70,7 @@ if Code.ensure_loaded?(Igniter) and Code.ensure_loaded?(IgniterJs) do
 
     @impl Igniter.Mix.Task
     def info(_argv, _composing_task) do
-      %Igniter.Mix.Task.Info{
+      %Info{
         adds_deps: [igniter_js: "~> 0.4"],
         example: __MODULE__.Docs.example(),
         schema: [app_js_path: :string, app_css_path: :string, no_layout: :boolean],
