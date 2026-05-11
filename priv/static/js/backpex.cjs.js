@@ -29,6 +29,7 @@ __export(hooks_exports, {
   BackpexCancelEntry: () => cancel_entry_default,
   BackpexCurrencyInput: () => currency_input_default,
   BackpexDragHover: () => drag_hover_default,
+  BackpexDropdown: () => dropdown_default,
   BackpexSidebarSections: () => sidebar_sections_default,
   BackpexStickyActions: () => sticky_actions_default,
   BackpexThemeSelector: () => theme_selector_default,
@@ -70,6 +71,57 @@ var drag_hover_default = {
   dragChange(value) {
     this.dragging = value;
     this.el.firstElementChild.classList.toggle("border-primary", this.dragging > 0);
+  }
+};
+
+// js/hooks/_dropdown.js
+var dropdown_default = {
+  mounted() {
+    this.trigger = this.el.querySelector(`#${this.el.id}-trigger`);
+    this.menu = this.el.querySelector(`#${this.el.id}-menu`);
+    if (!this.trigger) return;
+    this.isOpen = false;
+    this.mousedownInside = false;
+    this.handleRootMousedown = this.handleRootMousedown.bind(this);
+    this.handleDocumentMousedown = this.handleDocumentMousedown.bind(this);
+    this.handleDocumentClick = this.handleDocumentClick.bind(this);
+    this.handleKeydown = this.handleKeydown.bind(this);
+    this.el.addEventListener("mousedown", this.handleRootMousedown);
+    document.addEventListener("mousedown", this.handleDocumentMousedown, true);
+    document.addEventListener("click", this.handleDocumentClick, true);
+    document.addEventListener("keydown", this.handleKeydown);
+  },
+  updated() {
+    this.el.classList.toggle("dropdown-open", this.isOpen);
+  },
+  destroyed() {
+    document.removeEventListener("mousedown", this.handleDocumentMousedown, true);
+    document.removeEventListener("click", this.handleDocumentClick, true);
+    document.removeEventListener("keydown", this.handleKeydown);
+  },
+  handleRootMousedown(event) {
+    if (this.menu?.contains(event.target)) return;
+    this.isOpen = !this.isOpen;
+    this.el.classList.toggle("dropdown-open", this.isOpen);
+  },
+  handleDocumentMousedown(event) {
+    this.mousedownInside = this.el.contains(event.target);
+  },
+  handleDocumentClick(event) {
+    if (!this.isOpen) return;
+    if (this.el.contains(event.target)) return;
+    if (this.mousedownInside) {
+      this.mousedownInside = false;
+      return;
+    }
+    this.isOpen = false;
+    this.el.classList.remove("dropdown-open");
+  },
+  handleKeydown(event) {
+    if (event.key !== "Escape" || !this.isOpen) return;
+    this.isOpen = false;
+    this.el.classList.remove("dropdown-open");
+    this.trigger.focus();
   }
 };
 
