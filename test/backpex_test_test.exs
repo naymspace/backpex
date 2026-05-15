@@ -22,37 +22,42 @@ defmodule Backpex.TestTest do
   import Plug.Test
 
   alias Backpex.Preferences
+  alias Backpex.Preferences.Adapter
   alias Backpex.Preferences.Keys
 
   # --- Fake router modules for __resolve_url__ ------------------------------
 
   defmodule FakeResourceLive.Index do
+    @moduledoc false
     # The LiveView module referenced by the router's :log_module metadata.
     # Only the module name is load-bearing for this helper.
   end
 
   defmodule FakeResourceLive do
+    @moduledoc false
     # The LiveResource module passed to `live_resource_index/3`. The helper
     # concatenates ".Index" to find the actual route.
   end
 
   defmodule FakeRouter do
+    alias Phoenix.LiveView.Plug
+
     @routes [
       %{
         path: "/admin/posts",
-        plug: Phoenix.LiveView.Plug,
+        plug: Plug,
         plug_opts: :index,
         metadata: %{log_module: Backpex.TestTest.FakeResourceLive.Index}
       },
       %{
         path: "/admin/posts/new",
-        plug: Phoenix.LiveView.Plug,
+        plug: Plug,
         plug_opts: :new,
         metadata: %{log_module: Backpex.TestTest.FakeResourceLive.Form}
       },
       %{
         path: "/admin/posts/:backpex_id/show",
-        plug: Phoenix.LiveView.Plug,
+        plug: Plug,
         plug_opts: :show,
         metadata: %{log_module: Backpex.TestTest.FakeResourceLive.Show}
       }
@@ -264,15 +269,15 @@ defmodule Backpex.TestTest do
   end
 
   defmodule RefusingAdapter do
-    @behaviour Backpex.Preferences.Adapter
+    @behaviour Adapter
 
-    @impl Backpex.Preferences.Adapter
+    @impl Adapter
     def get(_ctx, _key, _opts), do: {:ok, :not_found}
 
-    @impl Backpex.Preferences.Adapter
+    @impl Adapter
     def get_map(_ctx, _prefix, _opts), do: {:ok, %{}}
 
-    @impl Backpex.Preferences.Adapter
+    @impl Adapter
     def put(_ctx, _key, _value, _opts), do: {:error, :nope}
   end
 end
