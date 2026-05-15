@@ -125,7 +125,8 @@ defmodule Backpex.MixProject do
         end
       end,
       skip_code_autolink_to: [
-        "Ecto.Query.DynamicExpr"
+        "Ecto.Query.DynamicExpr",
+        "Backpex.Router.cookie_path/1"
       ]
     ]
   end
