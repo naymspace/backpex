@@ -36,7 +36,7 @@ defmodule Backpex.Preferences.PubSubTest do
 
   describe "broadcasts when :pubsub is configured" do
     setup do
-      with_pubsub_config(fn -> :ok end)
+      with_pubsub_config()
     end
 
     test "put/4 on a Conn broadcasts with source: :controller" do
@@ -224,7 +224,7 @@ defmodule Backpex.Preferences.PubSubTest do
 
   # --- helpers -----------------------------------------------------------
 
-  defp with_pubsub_config(fun) do
+  defp with_pubsub_config do
     prior = Application.get_env(:backpex, Backpex.Preferences)
 
     Application.put_env(:backpex, Backpex.Preferences,
@@ -234,7 +234,7 @@ defmodule Backpex.Preferences.PubSubTest do
 
     on_exit(fn -> restore_env(prior) end)
 
-    fun.()
+    :ok
   end
 
   defp with_adapters(adapters, fun) do

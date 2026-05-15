@@ -71,27 +71,6 @@ defmodule Backpex.Preferences.DispatcherIntegrationTest do
   end
 
   describe "get_map/3 through a non-Session adapter" do
-    setup do
-      InMemory.reset()
-      prior = Application.get_env(:backpex, Backpex.Preferences)
-
-      Application.put_env(:backpex, Backpex.Preferences,
-        adapters: [
-          {"resource.foo.*", InMemory, []},
-          {:default, Session, []}
-        ]
-      )
-
-      on_exit(fn ->
-        case prior do
-          nil -> Application.delete_env(:backpex, Backpex.Preferences)
-          value -> Application.put_env(:backpex, Backpex.Preferences, value)
-        end
-      end)
-
-      :ok
-    end
-
     test "reads every stored key under the prefix from the routed adapter" do
       # End-to-end coverage for the Router.resolve_prefix/1 wiring that backs
       # Backpex.Preferences.get_map/3 — without this, only the router-only

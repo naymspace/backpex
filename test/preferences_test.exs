@@ -264,39 +264,33 @@ defmodule Backpex.PreferencesTest do
 
   describe "identity resolver error path" do
     test "a raising resolver triggers a Logger.warning and resolves to :unidentified" do
-      prior = Application.get_env(:backpex, Backpex.Preferences)
+      with_adapters(
+        [{:default, Session, []}],
+        [identity: {Backpex.PreferencesTest.RaisingIdentity, :resolve, []}],
+        fn ->
+          log =
+            capture_log(fn ->
+              # Reading goes through the resolver — a raise inside it is caught
+              # and falls back to :unidentified. The warning is the operator signal.
+              assert Preferences.get(%{}, Keys.theme(), default: "light") == "light"
+            end)
 
-      Application.put_env(:backpex, Backpex.Preferences,
-        adapters: [{:default, Session, []}],
-        identity: {Backpex.PreferencesTest.RaisingIdentity, :resolve, []}
-      )
-
-      on_exit(fn ->
-        case prior do
-          nil -> Application.delete_env(:backpex, Backpex.Preferences)
-          value -> Application.put_env(:backpex, Backpex.Preferences, value)
+          assert log =~ "preferences"
+          assert log =~ "identity resolver"
+          assert log =~ ":unidentified"
         end
-      end)
-
-      log =
-        capture_log(fn ->
-          # Reading goes through the resolver — a raise inside it is caught
-          # and falls back to :unidentified. The warning is the operator signal.
-          assert Preferences.get(%{}, Keys.theme(), default: "light") == "light"
-        end)
-
-      assert log =~ "preferences"
-      assert log =~ "identity resolver"
-      assert log =~ ":unidentified"
+      )
     end
   end
 
   # --- helpers -----------------------------------------------------------
 
-  defp with_adapters(adapters, fun) do
+  defp with_adapters(adapters, fun), do: with_adapters(adapters, [], fun)
+
+  defp with_adapters(adapters, extra_opts, fun) when is_list(extra_opts) and is_function(fun, 0) do
     prior = Application.get_env(:backpex, Backpex.Preferences)
 
-    Application.put_env(:backpex, Backpex.Preferences, adapters: adapters)
+    Application.put_env(:backpex, Backpex.Preferences, Keyword.merge([adapters: adapters], extra_opts))
 
     try do
       fun.()
