@@ -509,12 +509,10 @@ var sticky_actions_default = {
 var theme_selector_default = {
   mounted() {
     this.boundHandleThemeChange = this.handleThemeChange.bind(this);
-    window.addEventListener("backpex:theme-change", this.boundHandleThemeChange);
+    this.el.addEventListener("backpex:theme-change", this.boundHandleThemeChange);
   },
   handleThemeChange() {
-    const form = document.querySelector("#backpex-theme-selector-form");
-    if (!form) return;
-    const selectedTheme = form.querySelector(
+    const selectedTheme = this.el.querySelector(
       'input[name="theme-selector"]:checked'
     );
     if (selectedTheme) {
@@ -523,7 +521,7 @@ var theme_selector_default = {
     }
   },
   destroyed() {
-    window.removeEventListener("backpex:theme-change", this.boundHandleThemeChange);
+    this.el.removeEventListener("backpex:theme-change", this.boundHandleThemeChange);
   }
 };
 

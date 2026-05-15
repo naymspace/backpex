@@ -337,7 +337,7 @@ defmodule Backpex.HTML.Layout do
 
   def theme_selector(assigns) do
     ~H"""
-    <.dropdown id="backpex-theme-selector" phx-hook="BackpexThemeSelector" class={["dropdown-end", @class]}>
+    <.dropdown id="backpex-theme-selector" class={["dropdown-end", @class]}>
       <:trigger aria_label={@label}>
         <%!-- Desktop Icon --%>
         <div class="btn btn-ghost hidden md:flex">
@@ -350,7 +350,7 @@ defmodule Backpex.HTML.Layout do
         </div>
       </:trigger>
       <:menu class="w-48 max-h-96 overflow-y-scroll">
-        <form id="backpex-theme-selector-form">
+        <form id="backpex-theme-selector-form" phx-hook="BackpexThemeSelector">
           <ul>
             <li :for={{label, theme_name} <- @themes} class="w-full">
               <label class="has-checked:bg-neutral has-checked:text-neutral-content">
