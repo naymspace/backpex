@@ -17,7 +17,7 @@ defmodule Backpex.TestTest do
   left to integration suites (see `demo/test/...`).
   """
 
-  use ExUnit.Case, async: true
+  use ExUnit.Case, async: false
 
   import Plug.Test
 
