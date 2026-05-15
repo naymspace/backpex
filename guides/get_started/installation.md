@@ -107,7 +107,7 @@ Backpex ships with a formatter configuration. To use it, add Backpex to the list
 
 To make LiveResources accessible in your application, you first need to configure your router (`router.ex`).
 
-Backpex needs to add a `backpex_cookies` route to your router. This route is used to set the cookies needed for a Backpex LiveResource.
+Backpex needs a `backpex_preferences` route in your router. This route is used by Backpex to persist user preferences such as the active theme and sidebar state.
 
 Backpex provides a macro you can use to add the required routes to your router. Make sure to import `Backpex.Router` at the top of your router file or prefix the function calls.
 
