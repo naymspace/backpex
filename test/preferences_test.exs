@@ -299,6 +299,43 @@ defmodule Backpex.PreferencesTest do
     end
   end
 
+  describe "apply_effects_on_conn/2" do
+    test "returns the conn unchanged for an empty effects list" do
+      conn =
+        :get
+        |> conn("/")
+        |> Plug.Test.init_test_session(%{})
+
+      assert Preferences.apply_effects_on_conn(conn, []) == conn
+    end
+
+    test "treats :noop effects as a no-op" do
+      conn =
+        :get
+        |> conn("/")
+        |> Plug.Test.init_test_session(%{"unrelated" => 1})
+
+      result = Preferences.apply_effects_on_conn(conn, [:noop])
+
+      # Session is untouched — the noop must not strip pre-existing keys.
+      assert Plug.Conn.get_session(result) == %{"unrelated" => 1}
+    end
+
+    test "applies a {:put_session, key, value} effect to the conn session" do
+      conn =
+        :get
+        |> conn("/")
+        |> Plug.Test.init_test_session(%{})
+
+      effects = [{:put_session, "backpex_preferences", %{"global" => %{"theme" => "dark"}}}]
+
+      result = Preferences.apply_effects_on_conn(conn, effects)
+
+      assert Plug.Conn.get_session(result, "backpex_preferences") ==
+               %{"global" => %{"theme" => "dark"}}
+    end
+  end
+
   # --- helpers -----------------------------------------------------------
 
   defp with_adapters(adapters, fun), do: with_adapters(adapters, [], fun)

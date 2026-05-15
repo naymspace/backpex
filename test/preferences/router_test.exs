@@ -206,6 +206,15 @@ defmodule Backpex.Preferences.RouterTest do
       end
     end
 
+    test "raises ArgumentError when the adapter is nil" do
+      # A nil module is a common copy-paste mistake; the validation message
+      # must call it out by name so the config author can find the offending
+      # entry without spelunking through stack traces.
+      assert_raise ArgumentError, ~r/got: nil/, fn ->
+        Router.normalize([{"foo.*", nil, []}])
+      end
+    end
+
     test "raises ArgumentError for a non-string, non-:default pattern" do
       assert_raise ArgumentError, ~r/invalid Backpex.Preferences route pattern/, fn ->
         Router.normalize([{123, SomeAdapter, []}])
