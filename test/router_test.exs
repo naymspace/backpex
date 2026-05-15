@@ -159,7 +159,7 @@ defmodule Backpex.RouterTest do
   end
 
   describe "backpex_routes/0" do
-    defmodule CookieRouter do
+    defmodule PreferencesRouter do
       use Phoenix.Router, helpers: false
 
       import Backpex.Router, only: [backpex_routes: 0]
@@ -170,7 +170,7 @@ defmodule Backpex.RouterTest do
     end
 
     test "defines the preferences controller route" do
-      routes = CookieRouter.__routes__()
+      routes = PreferencesRouter.__routes__()
 
       preferences_route =
         Enum.find(routes, fn route ->

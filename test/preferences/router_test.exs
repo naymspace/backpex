@@ -68,7 +68,7 @@ defmodule Backpex.Preferences.RouterTest do
       assert {Session, []} = Router.resolve("anything", Router.default_routes() ++ routes)
     end
 
-    test "deterministic tie-break between two equal-depth wildcards (exact pattern wins)" do
+    test "deterministic tie-break between two equal-depth wildcards" do
       # When two wildcards sit at the same depth (e.g. "resource.*" and
       # "global.*"), only one can match any given key — the pattern whose
       # first segment equals the key's first segment. Document the behavior:

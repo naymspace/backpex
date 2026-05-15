@@ -81,7 +81,7 @@ defmodule Backpex.PreferencesTest do
     end
   end
 
-  describe "put_batch/2" do
+  describe "put_batch/3" do
     test "returns side effects that compose across writes to the same session key" do
       ctx = Context.from_mount(%{"backpex_preferences" => %{"global" => %{"theme" => "light"}}})
 
