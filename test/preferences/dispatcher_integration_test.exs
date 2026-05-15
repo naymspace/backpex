@@ -40,7 +40,10 @@ defmodule Backpex.Preferences.DispatcherIntegrationTest do
     key = Keys.columns(MyApp.MyLive)
     value = %{"name" => true}
 
-    assert {:ok, _effects} = Preferences.put_batch(ctx, [{key, value}])
+    # InMemory adapter persists eagerly and reports the write as a :noop effect
+    # (it does not need the caller to apply anything back). Pin the contract.
+    assert {:ok, effects} = Preferences.put_batch(ctx, [{key, value}])
+    assert effects == [:noop]
     assert InMemory.dump() == %{key => value}
   end
 
@@ -64,8 +67,14 @@ defmodule Backpex.Preferences.DispatcherIntegrationTest do
 
     assert {:ok, effects} = Preferences.put_batch(ctx, entries)
 
-    # Session effect is present for the global.* key
-    assert Enum.any?(effects, &match?({:put_session, "backpex_preferences", _}, &1))
+    # Session effect is present for the global.* key and carries the merged
+    # payload. Bind the inner map so we can assert its content explicitly,
+    # not just the effect shape.
+    assert [{:put_session, "backpex_preferences", session_value}] =
+             Enum.filter(effects, &match?({:put_session, "backpex_preferences", _}, &1))
+
+    assert session_value == %{"global" => %{"theme" => "dark"}}
+
     # In-memory adapter persisted the resource.* key directly
     assert InMemory.dump() == %{columns_key => %{"name" => true}}
   end
@@ -82,7 +91,7 @@ defmodule Backpex.Preferences.DispatcherIntegrationTest do
         {"resource.foo.order", ["name", "email"]}
       ]
 
-      assert {:ok, _effects} = Preferences.put_batch(ctx, entries)
+      {:ok, _effects} = Preferences.put_batch(ctx, entries)
 
       read_ctx = Context.from_mount(%{})
 

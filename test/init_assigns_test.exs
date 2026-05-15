@@ -223,13 +223,20 @@ defmodule Backpex.InitAssignsTest do
 
   describe "on_mount/4 hooks the current URL into :handle_params" do
     test "attaches a handle_params hook that stores the URL on :current_url" do
-      # The hook itself runs on each `handle_params`. We can't drive the real
-      # lifecycle without a mounted LiveView, but we can verify the attachment
-      # happened — future changes that drop the hook break this test.
+      # The hook itself runs on each `handle_params`. Verify both that the
+      # hook is attached AND that invoking its captured function stores the
+      # URL on `socket.assigns.current_url` — protects against silent regressions
+      # where the hook is attached but no longer assigns the URL.
       socket = mount(%{})
 
       hooks = socket.private.lifecycle.handle_params
-      assert Enum.any?(hooks, fn hook -> hook.id == :current_url end)
+      hook = Enum.find(hooks, fn hook -> hook.id == :current_url end)
+      assert hook != nil
+
+      # `attach_hook/4` stores the user-supplied function under `:function`.
+      url = "/admin/posts?filters[published][]=published"
+      assert {:cont, socket_after} = hook.function.(%{}, url, socket)
+      assert socket_after.assigns.current_url == url
     end
   end
 

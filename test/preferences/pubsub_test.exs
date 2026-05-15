@@ -164,7 +164,8 @@ defmodule Backpex.Preferences.PubSubTest do
       conn = conn(:post, "/") |> Plug.Test.init_test_session(%{})
       assert {:ok, %Plug.Conn{}} = Preferences.put(conn, Keys.theme(), "dark")
 
-      assert_receive {:backpex_preference_changed, _}
+      theme_key = Keys.theme()
+      assert_receive {:backpex_preference_changed, %{key: ^theme_key, value: "dark", source: :controller}}
 
       # Double-check with the documented `topic/2` helper.
       assert Preferences.topic(@topic_prefix, :unidentified) ==
