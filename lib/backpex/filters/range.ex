@@ -35,12 +35,12 @@ defmodule Backpex.Filters.Range do
 
   defmacro __using__(_opts) do
     quote do
+      @behaviour Backpex.Filters.Range
+
       use BackpexWeb, :filter
       use Backpex.Filter
 
       alias Backpex.Filters.Range, as: RangeFilter
-
-      @behaviour RangeFilter
 
       @impl Backpex.Filter
       def type(_assigns), do: :map

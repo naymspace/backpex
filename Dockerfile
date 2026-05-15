@@ -5,9 +5,11 @@
 # renovate: datasource=github-tags depName=elixir packageName=elixir-lang/elixir versioning=semver
 ARG ELIXIR_VERSION=1.19.5
 # renovate: datasource=github-tags depName=erlang packageName=erlang/otp versioning=regex:^(?<major>\d+?)\.(?<minor>\d+?)(\.(?<patch>\d+))?$ extractVersion=^OTP-(?<version>\S+)
-ARG OTP_VERSION=28.4.1
+ARG OTP_VERSION=28.5
 # renovate: datasource=docker depName=ubuntu packageName=ubuntu versioning=ubuntu
-ARG UBUNTU_VERSION=noble-20260217
+ARG UBUNTU_VERSION=noble-20260410
+# renovate: datasource=github-tags depName=bun packageName=oven-sh/bun versioning=semver extractVersion=^bun-v(?<version>\S+)
+ARG BUN_VERSION=1.3.13
 
 ARG BUILDER_IMAGE="hexpm/elixir:${ELIXIR_VERSION}-erlang-${OTP_VERSION}-ubuntu-${UBUNTU_VERSION}"
 ARG RUNTIME_IMAGE="ubuntu:${UBUNTU_VERSION}"
@@ -17,6 +19,8 @@ ARG RUNTIME_IMAGE="ubuntu:${UBUNTU_VERSION}"
 ########################################################################
 
 FROM ${BUILDER_IMAGE} AS builder
+
+ARG BUN_VERSION
 
 ENV MIX_HOME=/opt/mix \
     HEX_HOME=/opt/hex \
@@ -30,8 +34,11 @@ RUN apt-get update -y \
     && apt-get clean && rm -f /var/lib/apt/lists/*_*
 
 RUN curl -fsSL https://deb.nodesource.com/setup_lts.x | bash - \
-    && apt-get install -y nodejs \
-    && npm install --global yarn
+    && apt-get install -y nodejs unzip \
+    && apt-get clean && rm -f /var/lib/apt/lists/*_* \
+    && curl -fsSL https://bun.sh/install | bash -s "bun-v${BUN_VERSION}" \
+    && install /root/.bun/bin/bun /usr/local/bin/bun \
+    && rm -rf /root/.bun
 
 COPY .docker/opt/scripts/ /opt/scripts
 ADD https://github.com/naymspace/env-secrets-expand/raw/main/env-secrets-expand.sh /opt/scripts/
@@ -42,8 +49,8 @@ ARG MIX_ENV=prod
 ENV MIX_ENV=$MIX_ENV
 
 # Install root-level (Backpex) dependencies
-COPY package.json yarn.lock ./
-RUN yarn install --pure-lockfile
+COPY package.json bun.lock bunfig.toml ./
+RUN bun install --frozen-lockfile
 
 RUN mkdir demo
 WORKDIR $APP_HOME/demo
@@ -58,12 +65,12 @@ COPY demo/config/config.exs demo/config/${MIX_ENV}.exs config/
 RUN mix deps.compile
 
 COPY demo/priv priv/
-COPY demo/package.json demo/yarn.lock demo/.stylelintrc.json ./
+COPY demo/package.json demo/bun.lock demo/bunfig.toml demo/.stylelintrc.json ./
 
 COPY assets ../assets/
 COPY package.json ../
 
-RUN yarn install --pure-lockfile
+RUN bun install --frozen-lockfile
 
 COPY demo/assets assets/
 COPY demo/lib lib/

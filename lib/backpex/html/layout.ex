@@ -8,6 +8,7 @@ defmodule Backpex.HTML.Layout do
   import Backpex.HTML.CoreComponents
 
   alias Backpex.Router
+  alias Phoenix.HTML.FormField
 
   require Backpex
 
@@ -666,7 +667,7 @@ defmodule Backpex.HTML.Layout do
   def input_label(assigns) do
     assigns =
       case assigns.for do
-        %Phoenix.HTML.FormField{} = field -> assign(assigns, :rest, Map.put(assigns.rest, :for, field.id))
+        %FormField{} = field -> assign(assigns, :rest, Map.put(assigns.rest, :for, field.id))
         id -> assign(assigns, :rest, Map.put(assigns.rest, :for, id))
       end
 

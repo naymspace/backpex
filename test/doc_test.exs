@@ -1,3 +1,4 @@
+# quokka:skip-module-directives
 defmodule DocTest do
   use ExUnit.Case, async: true
 
