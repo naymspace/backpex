@@ -71,7 +71,7 @@ defmodule Backpex.Preferences.DispatcherIntegrationTest do
     # payload. Bind the inner map so we can assert its content explicitly,
     # not just the effect shape.
     assert [{:put_session, "backpex_preferences", session_value}] =
-             Enum.filter(effects, &match?({:put_session, "backpex_preferences", _}, &1))
+             Enum.filter(effects, &match?({:put_session, "backpex_preferences", _value}, &1))
 
     assert session_value == %{"global" => %{"theme" => "dark"}}
 
