@@ -125,7 +125,8 @@ defmodule Backpex.MixProject do
         end
       end,
       skip_code_autolink_to: [
-        "Ecto.Query.DynamicExpr"
+        "Ecto.Query.DynamicExpr",
+        "Backpex.Router.cookie_path/1"
       ]
     ]
   end
@@ -158,6 +159,7 @@ defmodule Backpex.MixProject do
       "guides/live_resource/fluid-layout.md",
       "guides/live_resource/listen-to-pubsub-events.md",
       "guides/live_resource/additional-classes-for-index-table-rows.md",
+      "guides/live_resource/user-preferences.md",
 
       # Fields
       "guides/fields/what-is-a-field.md",

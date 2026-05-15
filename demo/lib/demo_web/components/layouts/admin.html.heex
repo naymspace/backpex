@@ -1,9 +1,14 @@
-<Backpex.HTML.Layout.app_shell fluid={@fluid?} live_resource={@live_resource}>
+<Backpex.HTML.Layout.app_shell
+  socket={@socket}
+  fluid={@fluid?}
+  live_resource={@live_resource}
+  sidebar_open={@sidebar_open}
+>
   <:topbar>
     <div class="flex-1"></div>
     <Backpex.HTML.Layout.theme_selector
-      socket={@socket}
       class="mr-2"
+      current_theme={@current_theme}
       themes={[
         {"Light", "light"},
         {"Dark", "dark"},
@@ -77,7 +82,7 @@
         <Backpex.HTML.Layout.sidebar_item current_url={@current_url} navigate="/admin/short-links">
           <Backpex.HTML.CoreComponents.icon name="hero-link" class="size-5" /> Short Links
         </Backpex.HTML.Layout.sidebar_item>
-        <Backpex.HTML.Layout.sidebar_section id="blog">
+        <Backpex.HTML.Layout.sidebar_section id="blog" sidebar_section_states={@sidebar_section_states}>
           <:label>Blog</:label>
           <Backpex.HTML.Layout.sidebar_item current_url={@current_url} navigate="/admin/posts">
             <Backpex.HTML.CoreComponents.icon name="hero-book-open" class="size-5" /> Posts

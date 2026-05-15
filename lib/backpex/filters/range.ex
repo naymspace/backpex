@@ -304,10 +304,17 @@ defmodule Backpex.Filters.Range do
   def maybe_parse(type, value, is_end? \\ false)
 
   def maybe_parse(_type, "", _is_end?), do: nil
+  def maybe_parse(_type, nil, _is_end?), do: nil
+
+  def maybe_parse(:date, %Date{} = value, _is_end?), do: Date.to_iso8601(value)
 
   def maybe_parse(:date, value, _is_end?) do
     if date?(value), do: value
   end
+
+  def maybe_parse(:datetime, %Date{} = value, false = _is_end?), do: Date.to_iso8601(value) <> "T00:00:00+00:00"
+
+  def maybe_parse(:datetime, %Date{} = value, _is_end?), do: Date.to_iso8601(value) <> "T23:59:59+00:00"
 
   def maybe_parse(:datetime, value, false = _is_end?) do
     if date?(value), do: value <> "T00:00:00+00:00"
@@ -357,13 +364,18 @@ defmodule Backpex.Filters.Range do
       nil
 
   """
-  def parse_float_or_int(value) do
+  def parse_float_or_int(value) when is_integer(value), do: value
+  def parse_float_or_int(value) when is_float(value), do: value
+
+  def parse_float_or_int(value) when is_binary(value) do
     case {Integer.parse(value), Float.parse(value)} do
       {{value, ""}, _parsed_float} -> value
       {_parsed_integer, {value, ""}} -> value
       {_parsed_integer_err, _parsed_float_err} -> nil
     end
   end
+
+  def parse_float_or_int(_other), do: nil
 
   @doc """
   Checks if a string is a valid ISO 8601 date.
@@ -392,12 +404,14 @@ defmodule Backpex.Filters.Range do
       false
 
   """
-  def date?(date) do
+  def date?(date) when is_binary(date) do
     case Date.from_iso8601(date) do
       {:ok, _date} -> true
       _err -> false
     end
   end
+
+  def date?(_other), do: false
 
   @doc """
   Returns the render type for form inputs.

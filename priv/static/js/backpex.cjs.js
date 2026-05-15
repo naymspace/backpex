@@ -19,6 +19,7 @@ var __toCommonJS = (mod) => __copyProps(__defProp({}, "__esModule", { value: tru
 // js/backpex.js
 var backpex_exports = {};
 __export(backpex_exports, {
+  BackpexPreferences: () => BackpexPreferences,
   Hooks: () => hooks_exports
 });
 module.exports = __toCommonJS(backpex_exports);
@@ -30,6 +31,8 @@ __export(hooks_exports, {
   BackpexCurrencyInput: () => currency_input_default,
   BackpexDragHover: () => drag_hover_default,
   BackpexDropdown: () => dropdown_default,
+  BackpexPreferences: () => BackpexPreferences,
+  BackpexPreferencesHook: () => preferences_default,
   BackpexSidebar: () => sidebar_default,
   BackpexStickyActions: () => sticky_actions_default,
   BackpexThemeSelector: () => theme_selector_default,
@@ -161,9 +164,132 @@ var dropdown_default = {
   }
 };
 
+// js/hooks/_preferences.js
+var SESSION_PREFIX = "backpex.prefs.";
+function sessionKey(key) {
+  return SESSION_PREFIX + key;
+}
+function readSession(key) {
+  try {
+    return sessionStorage.getItem(sessionKey(key));
+  } catch {
+    return null;
+  }
+}
+function writeSession(key, value) {
+  try {
+    sessionStorage.setItem(sessionKey(key), value);
+  } catch {
+  }
+}
+var BackpexPreferences = {
+  endpointPath: null,
+  csrfToken: null,
+  /**
+   * Initialize the preference manager.
+   * Called by the LiveView hook on mount.
+   */
+  init(endpointPath) {
+    this.endpointPath = endpointPath;
+    this.csrfToken = document.querySelector("meta[name='csrf-token']")?.content;
+  },
+  /**
+   * Read a preference, preferring the sessionStorage mirror over the
+   * caller-provided fallback. Only meaningful for keys that were written
+   * with `{ mirror: 'session' }` — keys persisted on the server alone will
+   * always return `fallback` here.
+   *
+   * Booleans and numbers deserialize from their `String(value)` form;
+   * strings pass through; everything else round-trips through JSON.
+   *
+   * The fallback's runtime type drives deserialization, so callers always
+   * get a value of the same shape they passed in.
+   *
+   * @param {string} key - Dot-notation key (e.g., "global.sidebar_open")
+   * @param {boolean|number|string|object|null|undefined} fallback - Value to
+   *   return when the mirror is absent or sessionStorage is unavailable.
+   * @returns {*} The stored value or `fallback`.
+   */
+  get(key, fallback) {
+    const raw = readSession(key);
+    if (raw === null) return fallback;
+    if (typeof fallback === "boolean") return raw === "true";
+    if (typeof fallback === "number") {
+      const n = Number(raw);
+      return Number.isNaN(n) ? fallback : n;
+    }
+    if (typeof fallback === "string") return raw;
+    try {
+      return JSON.parse(raw);
+    } catch {
+      return fallback;
+    }
+  },
+  /**
+   * Set a preference value and persist immediately.
+   * Called directly by JS hooks or via LiveView push_event.
+   *
+   * When `opts.mirror === 'session'` the value is written to sessionStorage
+   * *before* the HTTP POST, so the client-authoritative state survives the
+   * hook re-mount that LiveView performs on `live_redirect` between
+   * LiveViews (the server reads its session snapshot from the websocket
+   * handshake, which is frozen at connect time and doesn't see writes the
+   * HTTP endpoint just committed to the cookie).
+   *
+   * `opts.mirror === false` (or omitting `opts` entirely) keeps the legacy
+   * behavior: HTTP POST only, no local mirror. This is the right choice
+   * whenever the server is the authoritative source on every render
+   * (e.g. a DB-backed preference read fresh from Ecto).
+   *
+   * @param {string} key - Dot-notation key (e.g., "global.theme")
+   * @param {any} value - Value to store
+   * @param {{ mirror?: 'session' | false }} [opts]
+   */
+  set(key, value, opts = {}) {
+    if (opts.mirror === "session") {
+      const serialized = typeof value === "string" ? value : typeof value === "boolean" || typeof value === "number" ? String(value) : JSON.stringify(value);
+      writeSession(key, serialized);
+    }
+    this.persist(key, value);
+  },
+  /**
+   * Persist a preference to the server immediately.
+   * Uses keepalive to ensure request completes even during page navigation.
+   */
+  persist(key, value) {
+    if (!this.endpointPath) {
+      console.warn("BackpexPreferences: endpointPath not initialized");
+      return;
+    }
+    if (!this.csrfToken) {
+      console.warn("BackpexPreferences: CSRF token not found");
+      return;
+    }
+    fetch(this.endpointPath, {
+      method: "POST",
+      keepalive: true,
+      headers: {
+        "Content-Type": "application/json",
+        "x-csrf-token": this.csrfToken
+      },
+      body: JSON.stringify({ key, value })
+    }).catch((error) => {
+      console.error("BackpexPreferences: failed to persist", error);
+    });
+  }
+};
+var BackpexPreferencesHook = {
+  mounted() {
+    BackpexPreferences.init(this.el.dataset.preferencesPath);
+    this.handleEvent("backpex:set_preference", ({ key, value }) => {
+      BackpexPreferences.set(key, value);
+    });
+  }
+};
+var preferences_default = BackpexPreferencesHook;
+
 // js/hooks/_sidebar.js
 var sidebar_default = {
-  STORAGE_KEY: "backpex-sidebar-open",
   FOCUSABLE_SELECTOR: 'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])',
   mounted() {
     this.sidebar = document.getElementById("backpex-sidebar");
@@ -172,9 +298,13 @@ var sidebar_default = {
     this.toggleBtn = document.getElementById("backpex-sidebar-toggle");
     if (!this.sidebar || !this.toggleBtn) return;
     this.mobileOpen = false;
-    this.desktopOpen = this.loadDesktopState();
+    this.desktopOpen = BackpexPreferences.get(
+      "global.sidebar_open",
+      this.el.dataset.sidebarOpen === "true"
+    );
     this.previousFocus = null;
     this._sectionHandlers = /* @__PURE__ */ new WeakMap();
+    this._sectionStates = {};
     const breakpoint = getComputedStyle(document.documentElement).getPropertyValue("--breakpoint-lg").trim() || "64rem";
     this.mediaQuery = window.matchMedia(`(min-width: ${breakpoint})`);
     this.applyState();
@@ -191,17 +321,20 @@ var sidebar_default = {
     this.mediaQuery.addEventListener("change", this._onMediaChange);
     document.addEventListener("keydown", this._onKeydown);
     this.initializeSections();
+    this.applySectionStates();
   },
   updated() {
     if (!this.sidebar || !this.toggleBtn) return;
     this.applyState();
     this.initializeSections();
+    this.applySectionStates();
   },
   destroyed() {
     this.toggleBtn?.removeEventListener("click", this._onToggleClick);
     this.overlay?.removeEventListener("click", this._onOverlayClick);
     this.mediaQuery?.removeEventListener("change", this._onMediaChange);
     document.removeEventListener("keydown", this._onKeydown);
+    this.main?.removeAttribute("inert");
     const sections = this.el.querySelectorAll("[data-section-id]");
     sections.forEach((section) => {
       const toggle = section.querySelector("[data-menu-dropdown-toggle]");
@@ -218,20 +351,13 @@ var sidebar_default = {
   handleToggle() {
     if (this.isDesktop()) {
       this.desktopOpen = !this.desktopOpen;
-      this.saveDesktopState();
+      BackpexPreferences.set("global.sidebar_open", this.desktopOpen, { mirror: "session" });
     } else {
       if (!this.mobileOpen) this.previousFocus = document.activeElement;
       this.mobileOpen = !this.mobileOpen;
     }
     this.applyState();
     if (!this.isDesktop() && this.mobileOpen) this.focusFirstInSidebar();
-  },
-  loadDesktopState() {
-    const stored = localStorage.getItem(this.STORAGE_KEY);
-    return stored === null ? true : stored === "true";
-  },
-  saveDesktopState() {
-    localStorage.setItem(this.STORAGE_KEY, this.desktopOpen.toString());
   },
   closeMobile() {
     const wasOpen = this.mobileOpen;
@@ -301,33 +427,48 @@ var sidebar_default = {
       this.sidebar.removeAttribute("role");
       this.sidebar.removeAttribute("aria-modal");
     }
+    this.main.toggleAttribute("inert", !isDesktop && this.mobileOpen);
   },
   // Sidebar Sections
   initializeSections() {
     const sections = this.el.querySelectorAll("[data-section-id]");
     sections.forEach((section) => {
-      const sectionId = section.dataset.sectionId;
       const toggle = section.querySelector("[data-menu-dropdown-toggle]");
       const content = section.querySelector("[data-menu-dropdown-content]");
       if (!this.hasContent(content)) {
-        content.style.display = "none";
+        section.style.display = "none";
         return;
       }
-      const isOpen = localStorage.getItem(`sidebar-section-${sectionId}`) === "true";
-      if (!isOpen) {
-        toggle.classList.remove("menu-dropdown-show");
-        toggle.setAttribute("aria-expanded", "false");
-        content.style.display = "none";
-      } else {
-        toggle.setAttribute("aria-expanded", "true");
-      }
       section.classList.remove("hidden");
+      const id = section.dataset.sectionId;
+      if (!(id in this._sectionStates)) {
+        this._sectionStates[id] = BackpexPreferences.get(
+          `global.sidebar_section.${id}`,
+          section.dataset.sectionOpen === "true"
+        );
+      }
       const previous = this._sectionHandlers.get(toggle);
       if (previous) toggle.removeEventListener("click", previous);
       const handler = (e) => this.handleSectionToggle(e);
       this._sectionHandlers.set(toggle, handler);
       toggle.addEventListener("click", handler);
     });
+  },
+  // Re-apply the authoritative client-side open/closed state to the DOM.
+  // Called from updated() to overwrite whatever the server just rendered from
+  // a potentially-stale session snapshot after a live_redirect.
+  applySectionStates() {
+    for (const [id, open] of Object.entries(this._sectionStates)) {
+      const section = this.el.querySelector(`[data-section-id="${id}"]`);
+      if (!section) continue;
+      const toggle = section.querySelector("[data-menu-dropdown-toggle]");
+      const content = section.querySelector("[data-menu-dropdown-content]");
+      if (!toggle || !content) continue;
+      toggle.classList.toggle("menu-dropdown-show", open);
+      toggle.setAttribute("aria-expanded", String(open));
+      content.style.display = open ? "" : "none";
+      section.dataset.sectionOpen = String(open);
+    }
   },
   hasContent(element) {
     if (!element || element.children.length === 0) return false;
@@ -350,7 +491,13 @@ var sidebar_default = {
     content.style.display = content.style.display === "none" ? "block" : "none";
     const isNowOpen = toggle.classList.contains("menu-dropdown-show");
     toggle.setAttribute("aria-expanded", isNowOpen.toString());
-    localStorage.setItem(`sidebar-section-${sectionId}`, isNowOpen);
+    section.dataset.sectionOpen = String(isNowOpen);
+    this._sectionStates[sectionId] = isNowOpen;
+    BackpexPreferences.set(
+      `global.sidebar_section.${sectionId}`,
+      isNowOpen,
+      { mirror: "session" }
+    );
   }
 };
 
@@ -381,50 +528,20 @@ var sticky_actions_default = {
 // js/hooks/_theme_selector.js
 var theme_selector_default = {
   mounted() {
-    const form = document.querySelector("#backpex-theme-selector-form");
-    const storedTheme = window.localStorage.getItem("backpexTheme");
-    if (storedTheme != null) {
-      const activeThemeRadio = form.querySelector(
-        `input[name='theme-selector'][value='${storedTheme}']`
-      );
-      activeThemeRadio.checked = true;
-    }
-    window.addEventListener("backpex:theme-change", this.handleThemeChange.bind(this));
+    this.boundHandleThemeChange = this.handleThemeChange.bind(this);
+    this.el.addEventListener("backpex:theme-change", this.boundHandleThemeChange);
   },
-  // Event listener that handles the theme changes and store
-  // the selected theme in the session and also in localStorage
-  async handleThemeChange() {
-    const form = document.querySelector("#backpex-theme-selector-form");
-    const csrfToken = document.querySelector("meta[name='csrf-token']").getAttribute("content");
-    const cookiePath = form.dataset.cookiePath;
-    const selectedTheme = form.querySelector(
+  handleThemeChange() {
+    const selectedTheme = this.el.querySelector(
       'input[name="theme-selector"]:checked'
     );
     if (selectedTheme) {
-      window.localStorage.setItem("backpexTheme", selectedTheme.value);
-      document.documentElement.setAttribute(
-        "data-theme",
-        selectedTheme.value
-      );
-      await fetch(cookiePath, {
-        body: `select_theme=${selectedTheme.value}`,
-        method: "POST",
-        headers: {
-          "Content-type": "application/x-www-form-urlencoded",
-          "x-csrf-token": csrfToken
-        }
-      });
-    }
-  },
-  // Call this from your app.js as soon as possible to minimize flashes with the old theme in some situations.
-  setStoredTheme() {
-    const storedTheme = window.localStorage.getItem("backpexTheme");
-    if (storedTheme != null) {
-      document.documentElement.setAttribute("data-theme", storedTheme);
+      document.documentElement.setAttribute("data-theme", selectedTheme.value);
+      BackpexPreferences.set("global.theme", selectedTheme.value);
     }
   },
   destroyed() {
-    window.removeEventListener("backpex:theme-change", this.handleThemeChange.bind(this));
+    this.el.removeEventListener("backpex:theme-change", this.boundHandleThemeChange);
   }
 };
 

@@ -557,20 +557,11 @@ defmodule Backpex.HTML.Resource do
   """
   @doc type: :component
 
-  attr :socket, :any, required: true
   attr :active_fields, :list, required: true, doc: "list of active fields"
   attr :live_resource, :atom, required: true, doc: "the live resource"
-  attr :current_url, :string, required: true, doc: "the current url"
   attr :class, :string, default: "", doc: "additional class to be added to the component"
 
   def toggle_columns(assigns) do
-    form =
-      to_form(%{"_resource" => assigns.live_resource, "_cookie_redirect_url" => assigns.current_url},
-        as: :toggle_columns
-      )
-
-    assigns = assign(assigns, :form, form)
-
     ~H"""
     <.dropdown class={@class} id="toggle-columns-dropdown">
       <:trigger aria_label={Backpex.__("Toggle columns", @live_resource)} class="hover:cursor-pointer">
@@ -580,26 +571,7 @@ defmodule Backpex.HTML.Resource do
         </span>
       </:trigger>
       <:menu class="min-w-52 max-w-72 p-4">
-        <.form class="w-full" method="POST" for={@form} action={Router.cookie_path(@socket)}>
-          <input
-            type="hidden"
-            name={@form[:_resource].name}
-            value={@form[:_resource].value}
-            tabindex="-1"
-            aria-hidden="true"
-          />
-          <input
-            type="hidden"
-            name={@form[:_cookie_redirect_url].name}
-            value={@form[:_cookie_redirect_url].value}
-            tabindex="-1"
-            aria-hidden="true"
-          />
-          <.toggle_columns_inputs active_fields={@active_fields} form={@form} />
-          <button class="btn btn-sm btn-primary mt-4">
-            {Backpex.__("Save", @live_resource)}
-          </button>
-        </.form>
+        <.toggle_columns_inputs active_fields={@active_fields} />
       </:menu>
     </.dropdown>
     """
@@ -610,7 +582,6 @@ defmodule Backpex.HTML.Resource do
   """
   @doc type: :component
 
-  attr :form, :any, required: true, doc: "the form"
   attr :active_fields, :list, required: true, doc: "list of active fields to be displayed"
 
   def toggle_columns_inputs(assigns) do
@@ -618,8 +589,13 @@ defmodule Backpex.HTML.Resource do
     <div class="flex flex-col space-y-1">
       <div :for={{name, %{active: active, label: label}} <- @active_fields}>
         <label class="flex cursor-pointer items-center">
-          <input type="hidden" name={@form[name].name} value="false" tabindex="-1" aria-hidden="true" />
-          <input type="checkbox" name={@form[name].name} class="checkbox checkbox-sm checkbox-primary" checked={active} />
+          <input
+            type="checkbox"
+            class="checkbox checkbox-sm checkbox-primary"
+            checked={active}
+            phx-click="toggle_column"
+            phx-value-field={name}
+          />
           <span class="label-text truncate pl-2">
             {label}
           </span>
@@ -1220,41 +1196,24 @@ defmodule Backpex.HTML.Resource do
 
   defp metric_toggle(assigns) do
     visible = Backpex.Metric.metrics_visible?(assigns.metric_visibility, assigns.live_resource)
-
-    form =
-      %{"_resource" => assigns.live_resource, "_cookie_redirect_url" => assigns.current_url}
-      |> to_form(as: :toggle_metrics)
-
-    assigns =
-      assigns
-      |> assign(:visible, visible)
-      |> assign(:form, form)
+    assigns = assign(assigns, :visible, visible)
 
     ~H"""
     <div :if={length(@metrics) > 0}>
-      <.form method="POST" for={@form} action={Router.cookie_path(@socket)}>
-        <input type="hidden" name={@form[:_resource].name} value={@form[:_resource].value} tabindex="-1" aria-hidden="true" />
-        <input
-          type="hidden"
-          name={@form[:_cookie_redirect_url].name}
-          value={@form[:_cookie_redirect_url].value}
-          tabindex="-1"
-          aria-hidden="true"
-        />
-        <div
-          id="toggle-metrics-button"
-          phx-hook="BackpexTooltip"
-          data-tooltip={Backpex.__("Toggle metrics", @live_resource)}
+      <div
+        id="toggle-metrics-button"
+        phx-hook="BackpexTooltip"
+        data-tooltip={Backpex.__("Toggle metrics", @live_resource)}
+      >
+        <button
+          type="button"
+          class={["btn btn-sm", @visible && "btn-active"]}
+          aria-label={Backpex.__("Toggle metrics", @live_resource)}
+          phx-click="toggle_metrics"
         >
-          <button
-            type="submit"
-            class={["btn btn-sm", @visible && "btn-active"]}
-            aria-label={Backpex.__("Toggle metrics", @live_resource)}
-          >
-            <Backpex.HTML.CoreComponents.icon name="hero-chart-bar-square" class="size-6" />
-          </button>
-        </div>
-      </.form>
+          <Backpex.HTML.CoreComponents.icon name="hero-chart-bar-square" class="size-6" />
+        </button>
+      </div>
     </div>
     """
   end

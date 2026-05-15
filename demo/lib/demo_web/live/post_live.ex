@@ -7,7 +7,8 @@ defmodule DemoWeb.PostLive do
       create_changeset: &Demo.Post.create_changeset/3
     ],
     fluid?: true,
-    save_and_continue_button?: true
+    save_and_continue_button?: true,
+    persist: [:order, :filters, :columns]
 
   import Ecto.Query, warn: false
 

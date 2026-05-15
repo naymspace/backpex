@@ -27,9 +27,11 @@ defmodule Backpex.HTML.Layout do
   """
   @doc type: :component
 
+  attr :socket, :any, required: true, doc: "the socket"
   attr :live_resource, :atom, default: nil, doc: "live resource module"
   attr :class, :string, default: nil, doc: "class added to the app shell container"
   attr :fluid, :boolean, default: false, doc: "toggles fluid layout"
+  attr :sidebar_open, :boolean, default: true, doc: "initial sidebar open state"
 
   slot :inner_block
 
@@ -49,7 +51,15 @@ defmodule Backpex.HTML.Layout do
       id="backpex-app-shell"
       class={["min-h-screen", @class]}
       phx-hook={@sidebar != [] && "BackpexSidebar"}
+      data-sidebar-open={to_string(@sidebar_open)}
     >
+      <div
+        id="backpex-preferences"
+        phx-hook="BackpexPreferencesHook"
+        data-preferences-path={Router.preferences_path(@socket)}
+        class="hidden"
+      >
+      </div>
       <%!-- Sidebar (single element for both mobile and desktop) --%>
       <nav
         :if={@sidebar != []}
@@ -58,7 +68,8 @@ defmodule Backpex.HTML.Layout do
         class={[
           "fixed inset-y-0 left-0 z-40 flex w-[var(--sidebar-width,16rem)] flex-col",
           "bg-base-100 border-base-300 border-r",
-          "-translate-x-full lg:translate-x-0",
+          "-translate-x-full",
+          @sidebar_open && "lg:translate-x-0",
           "motion-safe:transition-transform motion-safe:duration-300 motion-safe:ease-in-out",
           "data-[suppress-transition]:transition-none",
           build_slot_class(@sidebar)
@@ -83,7 +94,7 @@ defmodule Backpex.HTML.Layout do
         data-suppress-transition
         class={[
           "flex min-h-screen flex-col",
-          "lg:ml-[var(--sidebar-width,16rem)]",
+          @sidebar_open && "lg:ml-[var(--sidebar-width,16rem)]",
           "motion-safe:transition-[margin-left] motion-safe:duration-300 motion-safe:ease-in-out",
           "data-[suppress-transition]:transition-none"
         ]}
@@ -99,7 +110,7 @@ defmodule Backpex.HTML.Layout do
             id="backpex-sidebar-toggle"
             class="btn btn-square btn-ghost mr-2"
             aria-label={Backpex.__("Toggle sidebar", @live_resource)}
-            aria-expanded="true"
+            aria-expanded={to_string(@sidebar_open)}
             aria-controls="backpex-sidebar"
           >
             <.icon name="hero-bars-3-solid" class="h-6 w-6" />
@@ -316,9 +327,9 @@ defmodule Backpex.HTML.Layout do
   """
   @doc type: :component
 
-  attr :socket, :any, required: true
   attr :class, :string, default: nil
   attr :label, :string, default: "Theme"
+  attr :current_theme, :string, default: nil, doc: "the currently selected theme"
 
   attr :themes, :list,
     doc: "A list of tuples with {theme_label, theme_name} format",
@@ -326,7 +337,7 @@ defmodule Backpex.HTML.Layout do
 
   def theme_selector(assigns) do
     ~H"""
-    <.dropdown id="backpex-theme-selector" phx-hook="BackpexThemeSelector" class={["dropdown-end", @class]}>
+    <.dropdown id="backpex-theme-selector" class={["dropdown-end", @class]}>
       <:trigger aria_label={@label}>
         <%!-- Desktop Icon --%>
         <div class="btn btn-ghost hidden md:flex">
@@ -339,7 +350,7 @@ defmodule Backpex.HTML.Layout do
         </div>
       </:trigger>
       <:menu class="w-48 max-h-96 overflow-y-scroll">
-        <form id="backpex-theme-selector-form" data-cookie-path={Router.cookie_path(@socket)}>
+        <form id="backpex-theme-selector-form" phx-hook="BackpexThemeSelector">
           <ul>
             <li :for={{label, theme_name} <- @themes} class="w-full">
               <label class="has-checked:bg-neutral has-checked:text-neutral-content">
@@ -349,6 +360,7 @@ defmodule Backpex.HTML.Layout do
                   class="theme-controller hidden"
                   phx-click={JS.dispatch("backpex:theme-change")}
                   value={theme_name}
+                  checked={@current_theme == theme_name}
                 />
                 {label}
               </label>
@@ -487,26 +499,41 @@ defmodule Backpex.HTML.Layout do
   attr :id, :string,
     required: true,
     doc:
-      "A unique id for this section. Used as the localStorage key for the open/closed state and to wire aria-controls, so every section on the page must have its own."
+      "A unique id for this section. Used to save and load the opening state of this section and to wire aria-controls, so every section on the page must have its own."
+
+  attr :sidebar_section_states, :map,
+    doc:
+      "map of section states. When the attr is omitted, the component falls back to the parent's `@sidebar_section_states` assign (via `assign_new/3`), or `%{}` if the parent didn't set one. Unknown section ids default to open."
 
   slot :inner_block
   slot :label, required: true, doc: "label to be displayed on the section."
 
   def sidebar_section(assigns) do
-    assigns = assign(assigns, :content_id, "sidebar-section-#{assigns.id}-content")
+    assigns = assign_new(assigns, :sidebar_section_states, fn -> %{} end)
+    open = Map.get(assigns.sidebar_section_states, assigns.id, true)
+
+    assigns =
+      assigns
+      |> assign(:open, open)
+      |> assign(:content_id, "sidebar-section-#{assigns.id}-content")
 
     ~H"""
-    <li data-section-id={@id} class={["hidden", @class]}>
+    <li data-section-id={@id} data-section-open={to_string(@open)} class={@class}>
       <button
         type="button"
         data-menu-dropdown-toggle
-        class="menu-dropdown-toggle menu-dropdown-show"
-        aria-expanded="true"
+        class={["menu-dropdown-toggle", @open && "menu-dropdown-show"]}
+        aria-expanded={to_string(@open)}
         aria-controls={@content_id}
       >
         {render_slot(@label)}
       </button>
-      <ul id={@content_id} data-menu-dropdown-content class="menu-dropdown menu-dropdown-show">
+      <ul
+        id={@content_id}
+        data-menu-dropdown-content
+        class="menu-dropdown menu-dropdown-show"
+        style={if(!@open, do: "display: none;")}
+      >
         {render_slot(@inner_block)}
       </ul>
     </li>
