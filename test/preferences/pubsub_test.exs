@@ -9,16 +9,23 @@ defmodule Backpex.Preferences.PubSubTest do
   alias Backpex.Preferences.Adapters.Session
   alias Backpex.Preferences.Context
   alias Backpex.Preferences.Keys
+  alias Backpex.Preferences.PubSubTest
   alias Backpex.Test.RejectingPreferencesAdapter
   alias Phoenix.LiveView.Socket
 
   @pubsub Backpex.Preferences.PubSubTest.PubSub
   @topic_prefix "backpex_preferences_test"
+  @user_id "user-42"
 
   setup do
     start_supervised!({Phoenix.PubSub, name: @pubsub})
     :ok
   end
+
+  # Identity resolver used by the configured-pubsub tests below.  Returns a
+  # fixed user id so writes/broadcasts go to a real (non-anonymous) topic
+  # — anonymous identities are intentionally a no-op for broadcast/subscribe.
+  def __resolve_identity__(_ctx), do: @user_id
 
   describe "broadcasts are a no-op when :pubsub is not configured" do
     test "put/4 on a Conn does not broadcast" do
@@ -40,7 +47,7 @@ defmodule Backpex.Preferences.PubSubTest do
     end
 
     test "put/4 on a Conn broadcasts with source: :controller" do
-      :ok = Preferences.subscribe(:unidentified)
+      :ok = Preferences.subscribe(@user_id)
 
       conn = conn(:post, "/") |> Plug.Test.init_test_session(%{})
       assert {:ok, %Plug.Conn{}} = Preferences.put(conn, Keys.theme(), "dark")
@@ -55,7 +62,7 @@ defmodule Backpex.Preferences.PubSubTest do
       # handed off to the browser as a push_event. The browser then POSTs via
       # the controller, which will broadcast with :source == :controller.
       # The socket path itself MUST NOT broadcast — the write hasn't landed.
-      :ok = Preferences.subscribe(:unidentified)
+      :ok = Preferences.subscribe(@user_id)
 
       socket = %Socket{
         assigns: %{__changed__: %{}},
@@ -72,7 +79,7 @@ defmodule Backpex.Preferences.PubSubTest do
       # Swap in an adapter that accepts socket-origin writes so the dispatcher
       # takes the broadcasting branch (not the push_event fallback).
       with_adapters([{:default, Backpex.Preferences.PubSubTest.AcceptingAdapter, []}], fn ->
-        :ok = Preferences.subscribe(:unidentified)
+        :ok = Preferences.subscribe(@user_id)
 
         socket = %Socket{
           assigns: %{__changed__: %{}},
@@ -87,7 +94,7 @@ defmodule Backpex.Preferences.PubSubTest do
     end
 
     test "put_batch/3 broadcasts per successful entry" do
-      :ok = Preferences.subscribe(:unidentified)
+      :ok = Preferences.subscribe(@user_id)
 
       ctx = conn(:post, "/") |> Plug.Test.init_test_session(%{}) |> Context.from_conn()
       theme_key = Keys.theme()
@@ -116,7 +123,7 @@ defmodule Backpex.Preferences.PubSubTest do
       ]
 
       with_adapters(adapters, fn ->
-        :ok = Preferences.subscribe(:unidentified)
+        :ok = Preferences.subscribe(@user_id)
 
         ctx = conn(:post, "/") |> Plug.Test.init_test_session(%{}) |> Context.from_conn()
         theme_key = Keys.theme()
@@ -143,7 +150,7 @@ defmodule Backpex.Preferences.PubSubTest do
 
     test "no broadcast on adapter error (put/4)" do
       with_adapters([{:default, RejectingPreferencesAdapter, []}], fn ->
-        :ok = Preferences.subscribe(:unidentified)
+        :ok = Preferences.subscribe(@user_id)
 
         conn = conn(:post, "/") |> Plug.Test.init_test_session(%{})
 
@@ -156,29 +163,29 @@ defmodule Backpex.Preferences.PubSubTest do
     end
 
     test "topic encoding: :unidentified identity maps to '<prefix>:anonymous'" do
-      # Subscribe with the :unidentified sentinel — the helper must translate
-      # that to the anonymous topic, and a write with no resolved identity
-      # must land on the same topic.
-      :ok = Preferences.subscribe(:unidentified)
-
-      conn = conn(:post, "/") |> Plug.Test.init_test_session(%{})
-      assert {:ok, %Plug.Conn{}} = Preferences.put(conn, Keys.theme(), "dark")
-
-      theme_key = Keys.theme()
-      assert_receive {:backpex_preference_changed, %{key: ^theme_key, value: "dark", source: :controller}}
-
-      # Double-check with the documented `topic/2` helper.
+      # `topic/2` still encodes anonymous identities (used by tooling /
+      # debugging output), even though subscribe/broadcast are no-ops for
+      # those identities. Identified callers get their own topic.
       assert Preferences.topic(@topic_prefix, :unidentified) ==
                @topic_prefix <> ":anonymous"
 
       assert Preferences.topic(@topic_prefix, nil) == @topic_prefix <> ":anonymous"
       assert Preferences.topic(@topic_prefix, 42) == @topic_prefix <> ":42"
       assert Preferences.topic(@topic_prefix, "user-abc") == @topic_prefix <> ":user-abc"
+
+      # A configured-identity write still lands on the per-identity topic.
+      :ok = Preferences.subscribe(@user_id)
+
+      conn = conn(:post, "/") |> Plug.Test.init_test_session(%{})
+      assert {:ok, %Plug.Conn{}} = Preferences.put(conn, Keys.theme(), "dark")
+
+      theme_key = Keys.theme()
+      assert_receive {:backpex_preference_changed, %{key: ^theme_key, value: "dark", source: :controller}}
     end
 
     test "subscribe/1 and unsubscribe/1 round-trip" do
-      :ok = Preferences.subscribe(:unidentified)
-      :ok = Preferences.unsubscribe(:unidentified)
+      :ok = Preferences.subscribe(@user_id)
+      :ok = Preferences.unsubscribe(@user_id)
 
       conn = conn(:post, "/") |> Plug.Test.init_test_session(%{})
       assert {:ok, %Plug.Conn{}} = Preferences.put(conn, Keys.theme(), "dark")
@@ -194,6 +201,7 @@ defmodule Backpex.Preferences.PubSubTest do
 
       Application.put_env(:backpex, Backpex.Preferences,
         adapters: Application.get_env(:backpex, Backpex.Preferences)[:adapters],
+        identity: Application.get_env(:backpex, Backpex.Preferences)[:identity],
         pubsub: [server: bogus, topic_prefix: @topic_prefix]
       )
 
@@ -215,13 +223,115 @@ defmodule Backpex.Preferences.PubSubTest do
   end
 
   describe "subscribe/1 and unsubscribe/1 without config" do
-    test "both return {:error, :pubsub_not_configured}" do
+    test "both return {:error, :pubsub_not_configured} for an identified caller" do
       # No :pubsub env — the helpers must refuse rather than silently subscribe
-      # against a default server that may not exist.
-      assert Preferences.subscribe(:unidentified) == {:error, :pubsub_not_configured}
-      assert Preferences.unsubscribe(:unidentified) == {:error, :pubsub_not_configured}
+      # against a default server that may not exist. Anonymous identities take
+      # the no-op early return and bypass this check entirely.
+      assert Preferences.subscribe(@user_id) == {:error, :pubsub_not_configured}
+      assert Preferences.unsubscribe(@user_id) == {:error, :pubsub_not_configured}
+    end
+
+    test "anonymous identities (nil, :unidentified) no-op even without :pubsub config" do
+      # The anonymous early-return is intentionally placed before the
+      # pubsub_not_configured check: callers in the on_mount handshake hit
+      # subscribe/1 with nil before identity is resolved, and that path must
+      # neither error nor subscribe.
+      assert Preferences.subscribe(nil) == :ok
+      assert Preferences.subscribe(:unidentified) == :ok
+      assert Preferences.unsubscribe(nil) == :ok
+      assert Preferences.unsubscribe(:unidentified) == :ok
     end
   end
+
+  describe "anonymous identities (nil, :unidentified) are not broadcast or subscribed" do
+    setup do
+      with_pubsub_config()
+    end
+
+    test "subscribe(nil) does not subscribe the caller to the anonymous topic" do
+      # The :pubsub feature is configured; the guard must still no-op so two
+      # unidentified visitors don't share a topic.
+      assert Preferences.subscribe(nil) == :ok
+
+      Phoenix.PubSub.broadcast(
+        @pubsub,
+        Preferences.topic(@topic_prefix, nil),
+        {:backpex_preference_changed, %{key: "global.theme", value: "dark", source: :controller}}
+      )
+
+      refute_receive {:backpex_preference_changed, _}, 50
+    end
+
+    test "subscribe(:unidentified) does not subscribe the caller to the anonymous topic" do
+      assert Preferences.subscribe(:unidentified) == :ok
+
+      Phoenix.PubSub.broadcast(
+        @pubsub,
+        Preferences.topic(@topic_prefix, :unidentified),
+        {:backpex_preference_changed, %{key: "global.theme", value: "dark", source: :controller}}
+      )
+
+      refute_receive {:backpex_preference_changed, _}, 50
+    end
+
+    test "put/4 from a Conn does not broadcast when identity resolves to :unidentified" do
+      # Default config (no :identity resolver) collapses identity to
+      # :unidentified, which the broadcast helper must refuse.
+      Application.put_env(:backpex, Backpex.Preferences,
+        adapters: [{:default, Session, []}],
+        pubsub: [server: @pubsub, topic_prefix: @topic_prefix]
+      )
+
+      # Subscribe via Phoenix.PubSub directly to the anonymous topic so we can
+      # observe the *absence* of a broadcast — Preferences.subscribe/1 would
+      # itself no-op for :unidentified.
+      Phoenix.PubSub.subscribe(@pubsub, Preferences.topic(@topic_prefix, :unidentified))
+
+      conn = conn(:post, "/") |> Plug.Test.init_test_session(%{})
+      assert {:ok, %Plug.Conn{}} = Preferences.put(conn, Keys.theme(), "dark")
+
+      refute_receive {:backpex_preference_changed, _}, 50
+    end
+
+    test "put/4 from a Conn does not broadcast when identity resolver returns nil" do
+      # Simulate a resolver that briefly returns nil during an on_mount
+      # handshake. Without the guard, every unidentified visitor would share
+      # the anonymous topic.
+      resolver = {PubSubTest, :__resolve_nil__, []}
+
+      Application.put_env(:backpex, Backpex.Preferences,
+        adapters: [{:default, Session, []}],
+        identity: resolver,
+        pubsub: [server: @pubsub, topic_prefix: @topic_prefix]
+      )
+
+      Phoenix.PubSub.subscribe(@pubsub, Preferences.topic(@topic_prefix, :unidentified))
+      Phoenix.PubSub.subscribe(@pubsub, Preferences.topic(@topic_prefix, nil))
+
+      conn = conn(:post, "/") |> Plug.Test.init_test_session(%{})
+      assert {:ok, %Plug.Conn{}} = Preferences.put(conn, Keys.theme(), "dark")
+
+      refute_receive {:backpex_preference_changed, _}, 50
+    end
+
+    test "put_batch/3 does not broadcast any entry when identity is anonymous" do
+      ctx = conn(:post, "/") |> Plug.Test.init_test_session(%{}) |> Context.from_conn()
+
+      Phoenix.PubSub.subscribe(@pubsub, Preferences.topic(@topic_prefix, :unidentified))
+
+      theme_key = Keys.theme()
+      sidebar_key = Keys.sidebar_open()
+
+      assert {:ok, _effects} =
+               Preferences.put_batch(ctx, [{theme_key, "dark"}, {sidebar_key, true}])
+
+      refute_receive {:backpex_preference_changed, _}, 50
+    end
+  end
+
+  # Resolver used by the nil-identity guard test above. Lives at module level
+  # so it can be referenced via {mod, fun, args} in app env.
+  def __resolve_nil__(_ctx), do: nil
 
   # --- helpers -----------------------------------------------------------
 
@@ -230,6 +340,7 @@ defmodule Backpex.Preferences.PubSubTest do
 
     Application.put_env(:backpex, Backpex.Preferences,
       adapters: [{:default, Session, []}],
+      identity: {PubSubTest, :__resolve_identity__, []},
       pubsub: [server: @pubsub, topic_prefix: @topic_prefix]
     )
 
@@ -243,6 +354,7 @@ defmodule Backpex.Preferences.PubSubTest do
 
     Application.put_env(:backpex, Backpex.Preferences,
       adapters: adapters,
+      identity: {PubSubTest, :__resolve_identity__, []},
       pubsub: [server: @pubsub, topic_prefix: @topic_prefix]
     )
 

@@ -467,8 +467,13 @@ defmodule Backpex.Preferences do
        %{key: String.t(), value: term(), source: :controller | :server}}
 
   Topic encoding mirrors `put/4` writes: each identity gets its own topic,
-  built from `topic_prefix <> ":" <> identity_to_string(identity)`. A nil
-  or `:unidentified` identity resolves to `"<topic_prefix>:anonymous"`.
+  built from `topic_prefix <> ":" <> identity_to_string(identity)`.
+
+  Anonymous identities (`nil` or `:unidentified`) are a no-op: this function
+  returns `:ok` without subscribing. Otherwise every unidentified visitor
+  would share a single `"<prefix>:anonymous"` topic and receive one another's
+  preference change events — a leak. Callers can safely invoke this during
+  an on_mount handshake before identity is resolved.
 
   ## Examples
 
@@ -483,6 +488,8 @@ defmodule Backpex.Preferences do
       end
   """
   @spec subscribe(term()) :: :ok | {:error, term()}
+  def subscribe(identity) when identity in [nil, :unidentified], do: :ok
+
   def subscribe(identity) do
     case pubsub_config() do
       nil ->
@@ -500,8 +507,12 @@ defmodule Backpex.Preferences do
   given identity. Mirror of `subscribe/1`.
 
   Returns `{:error, :pubsub_not_configured}` when the feature is off.
+  Anonymous identities (`nil` or `:unidentified`) return `:ok` without
+  unsubscribing — they never subscribed in the first place.
   """
   @spec unsubscribe(term()) :: :ok | {:error, term()}
+  def unsubscribe(identity) when identity in [nil, :unidentified], do: :ok
+
   def unsubscribe(identity) do
     case pubsub_config() do
       nil ->
@@ -522,9 +533,10 @@ defmodule Backpex.Preferences do
     * `:unidentified` / `nil` → `"<prefix>:anonymous"`.
     * Anything else → `"<prefix>:<to_string(identity)>"`.
 
-  The `anonymous` branch exists so apps can subscribe to unidentified writes
-  for debugging; consumer code that cares about real users should filter it
-  out.
+  Note that `subscribe/1` and the broadcast helper refuse anonymous
+  identities outright, so in normal operation the `"<prefix>:anonymous"`
+  topic is unused. The encoding is preserved here so callers can still
+  produce a stable string for tooling/debugging output.
   """
   @spec topic(String.t(), term()) :: String.t()
   def topic(prefix, identity) when is_binary(prefix) do
@@ -545,6 +557,8 @@ defmodule Backpex.Preferences do
   # No-op unless `:pubsub` is configured. Broadcast failures are logged but
   # MUST NOT break the write — preferences are best-effort, and a bad PubSub
   # server name should never propagate to the caller.
+  defp maybe_broadcast(%Context{identity: identity}, _key, _value) when identity in [nil, :unidentified], do: :ok
+
   defp maybe_broadcast(%Context{} = ctx, key, value) do
     case pubsub_config() do
       nil ->
