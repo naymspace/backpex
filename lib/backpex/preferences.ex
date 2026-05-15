@@ -46,8 +46,8 @@ defmodule Backpex.Preferences do
       change broadcasts (opt-in; requires `:pubsub` config — see the
       "Cross-tab sync" guide section).
 
-  Every entry point (except `put_batch/3`, which composes `put/4`) runs the
-  key through an opt-in validator. Set
+  Every entry point runs each key through an opt-in validator (`put_batch/3`
+  validates each entry independently). Set
   `config :backpex, Backpex.Preferences, validate_keys: :log | true` to log
   or raise on unknown keys — default is off so prod logs stay quiet. See
   `Backpex.Preferences.Key.validate/1` for the underlying check.
@@ -371,6 +371,12 @@ defmodule Backpex.Preferences do
     # order while staying O(n) in batch size.
     result =
       Enum.reduce_while(entries, {[], ctx}, fn {key, value}, {reversed_acc, current_ctx} ->
+        # Run each entry's key through the same validation gate that `put/4`
+        # uses, so the configured `:validate_keys` strategy applies to batch
+        # writes too. `:raise` raises here (mirroring `put/4`); `:log` warns
+        # and proceeds; `:off` is a no-op.
+        maybe_validate_key(key, :put_batch)
+
         {module, adapter_opts} = Router.resolve(key)
 
         case module.put(current_ctx, key, value, merge_opts(adapter_opts, opts)) do
