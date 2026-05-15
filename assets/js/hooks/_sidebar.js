@@ -104,6 +104,10 @@ export default {
     this.mediaQuery?.removeEventListener('change', this._onMediaChange)
     document.removeEventListener('keydown', this._onKeydown)
 
+    // Drop inert in case the hook is torn down while the mobile drawer is open
+    // so the main content doesn't stay unreachable across live_redirects.
+    this.main?.removeAttribute('inert')
+
     const sections = this.el.querySelectorAll('[data-section-id]')
     sections.forEach((section) => {
       const toggle = section.querySelector('[data-menu-dropdown-toggle]')
@@ -225,6 +229,10 @@ export default {
       this.sidebar.removeAttribute('role')
       this.sidebar.removeAttribute('aria-modal')
     }
+
+    // aria-modal needs a matching inert region; the topbar and main content
+    // live inside #backpex-main, so inerting that element covers both.
+    this.main.toggleAttribute('inert', !isDesktop && this.mobileOpen)
   },
 
   // Sidebar Sections

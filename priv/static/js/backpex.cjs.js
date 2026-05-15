@@ -334,6 +334,7 @@ var sidebar_default = {
     this.overlay?.removeEventListener("click", this._onOverlayClick);
     this.mediaQuery?.removeEventListener("change", this._onMediaChange);
     document.removeEventListener("keydown", this._onKeydown);
+    this.main?.removeAttribute("inert");
     const sections = this.el.querySelectorAll("[data-section-id]");
     sections.forEach((section) => {
       const toggle = section.querySelector("[data-menu-dropdown-toggle]");
@@ -426,6 +427,7 @@ var sidebar_default = {
       this.sidebar.removeAttribute("role");
       this.sidebar.removeAttribute("aria-modal");
     }
+    this.main.toggleAttribute("inert", !isDesktop && this.mobileOpen);
   },
   // Sidebar Sections
   initializeSections() {
