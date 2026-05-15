@@ -379,7 +379,20 @@ defmodule Backpex.Preferences do
 
         {module, adapter_opts} = Router.resolve(key)
 
-        case module.put(current_ctx, key, value, merge_opts(adapter_opts, opts)) do
+        result =
+          try do
+            module.put(current_ctx, key, value, merge_opts(adapter_opts, opts))
+          rescue
+            reason ->
+              Logger.warning(
+                "Backpex.Preferences: adapter #{inspect(module)} raised in put/4 for key " <>
+                  "#{inspect(key)}: #{Exception.format(:error, reason, __STACKTRACE__)}"
+              )
+
+              {:error, {:exception, reason}}
+          end
+
+        case result do
           {:ok, fx} ->
             maybe_broadcast(current_ctx, key, value)
             {:cont, {:lists.reverse(fx, reversed_acc), apply_effects_to_ctx(current_ctx, fx)}}

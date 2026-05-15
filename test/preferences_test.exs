@@ -107,6 +107,22 @@ defmodule Backpex.PreferencesTest do
       theme_key = Keys.theme()
       assert {:error, {^theme_key, :requires_http}} = Preferences.put_batch(ctx, [{theme_key, "dark"}])
     end
+
+    test "adapter crash surfaces as {:error, {key, {:exception, _}}} without raising" do
+      with_adapters([{:default, Backpex.PreferencesTest.CrashingAdapter, []}], fn ->
+        ctx = %{Context.from_mount(%{}) | source: :controller}
+        theme_key = Keys.theme()
+
+        log =
+          capture_log(fn ->
+            assert {:error, {^theme_key, {:exception, %RuntimeError{message: "boom"}}}} =
+                     Preferences.put_batch(ctx, [{theme_key, "dark"}])
+          end)
+
+        assert log =~ "Backpex.Preferences"
+        assert log =~ "raised in put/4"
+      end)
+    end
   end
 
   describe "parse_key/1 (legacy alias)" do
