@@ -1,9 +1,11 @@
 defmodule Backpex.PreferencesControllerTest do
   use ExUnit.Case, async: false
 
+  import ExUnit.CaptureLog
   import Plug.Test
 
   alias Backpex.Preferences
+  alias Backpex.Preferences.Adapters.Session
   alias Backpex.Preferences.Keys
   alias Backpex.PreferencesController
   alias Backpex.Test.InMemoryPreferencesAdapter, as: InMemory
@@ -123,7 +125,7 @@ defmodule Backpex.PreferencesControllerTest do
         adapters: [
           {"ok.*", InMemory, []},
           {"fail.*", Backpex.Test.RejectingPreferencesAdapter, []},
-          {:default, Backpex.Preferences.Adapters.Session, []}
+          {:default, Session, []}
         ]
       )
 
@@ -171,6 +173,76 @@ defmodule Backpex.PreferencesControllerTest do
       # (the controller only calls apply_effects_on_conn on the :ok branch),
       # so the cookie is untouched.
       assert Plug.Conn.get_session(conn, Preferences.session_key()) == nil
+    end
+  end
+
+  describe "update/2 when the adapter returns :unidentified (anonymous visitor)" do
+    setup do
+      prior = Application.get_env(:backpex, Backpex.Preferences)
+
+      # Route:
+      #   resource.* → unidentified adapter (mimics a DB adapter rejecting
+      #                anonymous visitors)
+      #   :default   → session
+      Application.put_env(:backpex, Backpex.Preferences,
+        adapters: [
+          {"resource.*", Backpex.Test.UnidentifiedPreferencesAdapter, []},
+          {:default, Session, []}
+        ]
+      )
+
+      on_exit(fn ->
+        case prior do
+          nil -> Application.delete_env(:backpex, Backpex.Preferences)
+          value -> Application.put_env(:backpex, Backpex.Preferences, value)
+        end
+      end)
+
+      :ok
+    end
+
+    test "single-write :unidentified returns 200 ok: false reason: unidentified", %{conn: conn} do
+      conn =
+        PreferencesController.update(conn, %{
+          "key" => Keys.columns(MyApp.UserLive),
+          "value" => %{"name" => true}
+        })
+
+      assert conn.status == 200
+
+      assert Jason.decode!(conn.resp_body) == %{
+               "ok" => false,
+               "error" => %{"key" => Keys.columns(MyApp.UserLive), "reason" => "unidentified"}
+             }
+    end
+
+    test "single-write :unidentified does not log a warning", %{conn: conn} do
+      log =
+        capture_log(fn ->
+          PreferencesController.update(conn, %{
+            "key" => Keys.columns(MyApp.UserLive),
+            "value" => %{"name" => true}
+          })
+        end)
+
+      refute log =~ "preference batch refused"
+      refute log =~ "unidentified"
+    end
+
+    test "batch with :unidentified entry still returns 422", %{conn: conn} do
+      params = %{
+        "preferences" => [
+          %{"key" => Keys.theme(), "value" => "dark"},
+          %{"key" => Keys.columns(MyApp.UserLive), "value" => %{"name" => true}}
+        ]
+      }
+
+      conn = PreferencesController.update(conn, params)
+
+      assert conn.status == 422
+      body = Jason.decode!(conn.resp_body)
+      assert body["ok"] == false
+      assert body["error"]["reason"] == "unidentified"
     end
   end
 end

@@ -30,6 +30,13 @@ defmodule Backpex.PreferencesController do
   eagerly (e.g. a DB-backed adapter that wrote via `Repo.insert!`) may have
   already committed earlier writes — the adapter behaviour has no rollback
   primitive, so callers should treat partial success as possible.
+
+  Single-write `:unidentified` is treated as a no-op rather than an error:
+  the response is `200 {ok: false, error: %{reason: "unidentified"}}` and no
+  warning is logged. The JS hook fires writes from anonymous visitors
+  whenever the session lapses — this avoids surfacing them as 4xx noise.
+  Batches always halt on any error (including `:unidentified`) and return
+  422.
   """
 
   use Phoenix.Controller, formats: [:json]
@@ -57,6 +64,12 @@ defmodule Backpex.PreferencesController do
         conn
         |> Preferences.apply_effects_on_conn(effects)
         |> json(%{ok: true})
+
+      {:error, {key, :unidentified}} when length(entries) == 1 ->
+        # Anonymous visitors hitting a non-session adapter is an expected
+        # no-op, not a 4xx. The JS hook fires-and-forgets, so surfacing this
+        # as an error would only pollute Logger without affecting clients.
+        json(conn, %{ok: false, error: format_error({key, :unidentified})})
 
       {:error, {key, reason}} ->
         Logger.warning(
