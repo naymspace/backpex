@@ -10,6 +10,7 @@ defmodule Backpex.InitAssigns do
   """
 
   use BackpexWeb, :html
+
   import Phoenix.LiveView
 
   alias Backpex.Preferences

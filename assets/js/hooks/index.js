@@ -1,5 +1,6 @@
 export { default as BackpexCancelEntry } from './_cancel_entry'
 export { default as BackpexDragHover } from './_drag_hover'
+export { default as BackpexDropdown } from './_dropdown'
 export { default as BackpexPreferencesHook } from './_preferences'
 export { default as BackpexSidebar } from './_sidebar'
 export { default as BackpexStickyActions } from './_sticky_actions'

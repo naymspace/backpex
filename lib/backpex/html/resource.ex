@@ -4,10 +4,10 @@ defmodule Backpex.HTML.Resource do
   """
   use BackpexWeb, :html
 
-  import Phoenix.LiveView.TagEngine
   import Backpex.HTML.CoreComponents
   import Backpex.HTML.Form
   import Backpex.HTML.Layout
+  import Phoenix.LiveView.TagEngine
 
   alias Backpex.LiveResource
   alias Backpex.ResourceAction
@@ -16,6 +16,16 @@ defmodule Backpex.HTML.Resource do
   require Backpex
 
   embed_templates("resource/*")
+
+  @doc """
+  Returns the list of assigns that `Phoenix.LiveView` reserves and that must be dropped
+  before spreading parent assigns into a child `Phoenix.LiveComponent`.
+
+  `Phoenix.Component.assign/3` rejects these keys with an `ArgumentError`. Centralizing
+  the list here ensures every spread site forwards the same safe subset of the parent's
+  assigns.
+  """
+  def lv_reserved_assigns, do: [:flash, :uploads, :streams, :socket, :myself]
 
   @doc """
   Renders a resource table.
@@ -112,7 +122,7 @@ defmodule Backpex.HTML.Resource do
       id={"resource_#{@name}_#{@primary_key}"}
       module={@field_options.module}
       type={@type}
-      {Map.drop(assigns, [:socket, :flash, :myself, :uploads])}
+      {Map.drop(assigns, lv_reserved_assigns())}
     />
     """
   end
@@ -148,7 +158,7 @@ defmodule Backpex.HTML.Resource do
       id={@id}
       module={@field_options.module}
       type={@type}
-      {Map.drop(assigns, [:socket, :flash, :myself, :uploads])}
+      {Map.drop(assigns, lv_reserved_assigns())}
     />
     """
   end
@@ -183,7 +193,7 @@ defmodule Backpex.HTML.Resource do
       module={@field_options.module}
       lv_uploads={assigns[:uploads]}
       type={@type}
-      {Map.drop(assigns, [:socket, :flash, :myself, :uploads])}
+      {Map.drop(assigns, lv_reserved_assigns())}
     />
     """
   end

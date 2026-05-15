@@ -42,10 +42,10 @@ defmodule Demo.MixProject do
       {:lazy_html, "~> 0.1.3", only: :test},
       {:ex_machina, "~> 2.3"},
       {:faker, "~> 0.18"},
-      {:phoenix_test, "~> 0.10.0", only: :test, runtime: false},
-      {:phoenix_test_playwright, "~> 0.13.0", only: :test, runtime: false},
+      {:phoenix_test, "~> 0.11.0", only: :test, runtime: false},
+      {:phoenix_test_playwright, "~> 0.14.0", only: :test, runtime: false},
       {:a11y_audit, "~> 0.3.0", only: :test},
-      {:live_debugger, "~> 0.7", only: :dev},
+      {:live_debugger, "~> 1.0", only: :dev},
       {:quokka, "~> 2.9", only: [:dev, :test], runtime: false},
       {:tidewave, "~> 0.5", only: [:dev]},
 
@@ -68,7 +68,7 @@ defmodule Demo.MixProject do
       # application
       {:backpex, path: "../."},
       {:phoenix_ecto, "~> 4.0"},
-      {:igniter, "~> 0.7"},
+      {:igniter, "~> 0.8"},
       {:igniter_js, "~> 0.4"},
       {:ecto_sql, "~> 3.1"},
       {:postgrex, ">= 0.0.0"},

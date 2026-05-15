@@ -1,6 +1,6 @@
 {
   "name": "backpex",
-  "version": "0.14.0",
+  "version": "0.18.0",
   "license": "MIT",
   "type": "module",
   "main": "./priv/static/js/backpex.cjs.js",
