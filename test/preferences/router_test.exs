@@ -4,7 +4,7 @@ defmodule Backpex.Preferences.RouterTest do
   alias Backpex.Preferences.Adapters.Session
   alias Backpex.Preferences.Router
 
-  doctest Backpex.Preferences.Router
+  doctest Router
 
   describe "routes/0 with no configured adapters" do
     setup do

@@ -4,7 +4,7 @@ defmodule Backpex.Preferences.KeysTest do
   alias Backpex.Preferences.Key
   alias Backpex.Preferences.Keys
 
-  doctest Backpex.Preferences.Keys
+  doctest Keys
 
   describe "global keys" do
     test "theme/0 returns the canonical theme key" do

@@ -5,10 +5,12 @@ defmodule Backpex.PreferencesTest do
   import Plug.Test
 
   alias Backpex.Preferences
+  alias Backpex.Preferences.Adapter
   alias Backpex.Preferences.Adapters.Session
   alias Backpex.Preferences.Context
   alias Backpex.Preferences.Keys
   alias Backpex.Preferences.LiveView, as: PreferenceLiveView
+  alias Phoenix.LiveView.Socket
   alias Phoenix.LiveView.Utils, as: LiveViewUtils
 
   doctest Backpex.Preferences
@@ -127,12 +129,12 @@ defmodule Backpex.PreferencesTest do
     end
 
     test "socket origin with the Session adapter queues a push_event fallback (:requires_http)" do
-      socket = %Phoenix.LiveView.Socket{
+      socket = %Socket{
         assigns: %{__changed__: %{}},
         private: %{live_temp: %{}}
       }
 
-      assert {:ok, %Phoenix.LiveView.Socket{} = socket} =
+      assert {:ok, %Socket{} = socket} =
                Preferences.put(socket, Keys.theme(), "dark")
 
       # Use the event name constant so the assertion tracks any change to
@@ -185,7 +187,7 @@ defmodule Backpex.PreferencesTest do
 
     test "socket-origin {:put_session, _, _} is rerouted through push_event with a warning" do
       with_adapters([{:default, Backpex.PreferencesTest.SessionFromSocketAdapter, []}], fn ->
-        socket = %Phoenix.LiveView.Socket{
+        socket = %Socket{
           assigns: %{__changed__: %{}},
           private: %{live_temp: %{}}
         }
@@ -195,7 +197,7 @@ defmodule Backpex.PreferencesTest do
             Preferences.put(socket, "k", %{a: 1})
           end)
 
-        assert {:ok, %Phoenix.LiveView.Socket{} = socket} = result
+        assert {:ok, %Socket{} = socket} = result
 
         # The {:put_session, _, _} effect from a socket-origin call must
         # round-trip through the browser, not vanish.
@@ -310,25 +312,25 @@ defmodule Backpex.PreferencesTest do
 
   defmodule CrashingAdapter do
     @moduledoc false
-    @behaviour Backpex.Preferences.Adapter
+    @behaviour Adapter
 
-    @impl Backpex.Preferences.Adapter
+    @impl Adapter
     def get(_ctx, _key, _opts), do: {:ok, :not_found}
-    @impl Backpex.Preferences.Adapter
+    @impl Adapter
     def get_map(_ctx, _prefix, _opts), do: {:ok, %{}}
-    @impl Backpex.Preferences.Adapter
+    @impl Adapter
     def put(_ctx, _key, _value, _opts), do: raise("boom")
   end
 
   defmodule UnidentifiedAdapter do
     @moduledoc false
-    @behaviour Backpex.Preferences.Adapter
+    @behaviour Adapter
 
-    @impl Backpex.Preferences.Adapter
+    @impl Adapter
     def get(_ctx, _key, _opts), do: {:error, :unidentified}
-    @impl Backpex.Preferences.Adapter
+    @impl Adapter
     def get_map(_ctx, _prefix, _opts), do: {:error, :unidentified}
-    @impl Backpex.Preferences.Adapter
+    @impl Adapter
     def put(_ctx, _key, _value, _opts), do: {:error, :unidentified}
   end
 
@@ -336,25 +338,25 @@ defmodule Backpex.PreferencesTest do
     @moduledoc false
     # Pathological adapter that emits {:put_session, _, _} from a socket
     # origin — exercises the dispatcher's push_event fallback path.
-    @behaviour Backpex.Preferences.Adapter
+    @behaviour Adapter
 
-    @impl Backpex.Preferences.Adapter
+    @impl Adapter
     def get(_ctx, _key, _opts), do: {:ok, :not_found}
-    @impl Backpex.Preferences.Adapter
+    @impl Adapter
     def get_map(_ctx, _prefix, _opts), do: {:ok, %{}}
-    @impl Backpex.Preferences.Adapter
+    @impl Adapter
     def put(_ctx, key, value, _opts), do: {:ok, [{:put_session, key, value}]}
   end
 
   defmodule RaisingGetAdapter do
     @moduledoc false
-    @behaviour Backpex.Preferences.Adapter
+    @behaviour Adapter
 
-    @impl Backpex.Preferences.Adapter
+    @impl Adapter
     def get(_ctx, _key, _opts), do: {:error, :boom}
-    @impl Backpex.Preferences.Adapter
+    @impl Adapter
     def get_map(_ctx, _prefix, _opts), do: {:error, :boom}
-    @impl Backpex.Preferences.Adapter
+    @impl Adapter
     def put(_ctx, _key, _value, _opts), do: {:ok, [:noop]}
   end
 

@@ -2,6 +2,7 @@ defmodule Backpex.InitAssignsTest do
   use ExUnit.Case, async: false
 
   alias Backpex.InitAssigns
+  alias Backpex.Preferences.Adapter
   alias Phoenix.LiveView.Lifecycle
   alias Phoenix.LiveView.Socket
 
@@ -12,7 +13,7 @@ defmodule Backpex.InitAssignsTest do
     # Returns fixed per-key values regardless of the context. Configure via
     # application env; the `fetch/1` and `fetch_map/1` functions look the key
     # up in a lookup map set by the test.
-    @behaviour Backpex.Preferences.Adapter
+    @behaviour Adapter
 
     @table_env_key :backpex_init_assigns_test_stub_adapter
 
@@ -24,7 +25,7 @@ defmodule Backpex.InitAssignsTest do
 
     defp values, do: Application.get_env(:backpex, @table_env_key, %{})
 
-    @impl Backpex.Preferences.Adapter
+    @impl Adapter
     def get(_ctx, key, _opts) do
       case Map.fetch(values(), key) do
         {:ok, value} -> {:ok, value}
@@ -32,7 +33,7 @@ defmodule Backpex.InitAssignsTest do
       end
     end
 
-    @impl Backpex.Preferences.Adapter
+    @impl Adapter
     def get_map(_ctx, prefix, _opts) do
       map =
         values()
@@ -47,7 +48,7 @@ defmodule Backpex.InitAssignsTest do
       {:ok, map}
     end
 
-    @impl Backpex.Preferences.Adapter
+    @impl Adapter
     def put(_ctx, _key, _value, _opts), do: {:ok, [:noop]}
 
     defp maybe_strip(key, prefix) do
@@ -238,21 +239,21 @@ defmodule Backpex.InitAssignsTest do
   # (not just the raw session) and passes it through to the dispatcher.
   defmodule RecordingAdapter do
     @moduledoc false
-    @behaviour Backpex.Preferences.Adapter
+    @behaviour Adapter
 
-    @impl Backpex.Preferences.Adapter
+    @impl Adapter
     def get(ctx, key, _opts) do
       send(self(), {:recorded_get, key, ctx})
       {:ok, :not_found}
     end
 
-    @impl Backpex.Preferences.Adapter
+    @impl Adapter
     def get_map(ctx, prefix, _opts) do
       send(self(), {:recorded_get_map, prefix, ctx})
       {:ok, %{}}
     end
 
-    @impl Backpex.Preferences.Adapter
+    @impl Adapter
     def put(_ctx, _key, _value, _opts), do: {:ok, [:noop]}
   end
 

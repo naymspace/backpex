@@ -13,6 +13,7 @@ defmodule Backpex.Preferences.LiveView do
   """
 
   alias Phoenix.LiveView
+  alias Phoenix.LiveView.Socket
 
   @doc """
   Name of the LiveView push_event used to signal a preference write to the
@@ -38,8 +39,8 @@ defmodule Backpex.Preferences.LiveView do
       socket
       |> Backpex.Preferences.LiveView.push_write(Backpex.Preferences.Keys.theme(), "dark")
   """
-  @spec push_write(Phoenix.LiveView.Socket.t(), String.t(), term()) :: Phoenix.LiveView.Socket.t()
-  def push_write(%Phoenix.LiveView.Socket{} = socket, key, value) when is_binary(key) do
+  @spec push_write(Socket.t(), String.t(), term()) :: Socket.t()
+  def push_write(%Socket{} = socket, key, value) when is_binary(key) do
     LiveView.push_event(socket, event_name(), %{key: key, value: value})
   end
 end

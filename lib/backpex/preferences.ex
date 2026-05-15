@@ -79,11 +79,13 @@ defmodule Backpex.Preferences do
       end
   """
 
+  alias Backpex.Preferences.Adapter
   alias Backpex.Preferences.Adapters
   alias Backpex.Preferences.Context
   alias Backpex.Preferences.Key
   alias Backpex.Preferences.LiveView, as: PreferenceLiveView
   alias Backpex.Preferences.Router
+  alias Phoenix.LiveView.Socket
 
   require Logger
 
@@ -277,8 +279,8 @@ defmodule Backpex.Preferences do
       Backpex.Preferences.put(socket, "global.theme", "dark")
       #=> {:ok, %Phoenix.LiveView.Socket{}}
   """
-  @spec put(Plug.Conn.t() | Phoenix.LiveView.Socket.t(), String.t(), term(), keyword()) ::
-          {:ok, Plug.Conn.t() | Phoenix.LiveView.Socket.t()} | {:error, term()}
+  @spec put(Plug.Conn.t() | Socket.t(), String.t(), term(), keyword()) ::
+          {:ok, Plug.Conn.t() | Socket.t()} | {:error, term()}
   def put(target, key, value, opts \\ [])
 
   def put(%Plug.Conn{} = conn, key, value, opts) do
@@ -301,7 +303,7 @@ defmodule Backpex.Preferences do
     end
   end
 
-  def put(%Phoenix.LiveView.Socket{} = socket, key, value, opts) do
+  def put(%Socket{} = socket, key, value, opts) do
     maybe_validate_key(key, :put)
 
     ctx =
@@ -360,7 +362,7 @@ defmodule Backpex.Preferences do
       #=> {:ok, [{:put_session, "backpex_preferences", %{...}}]}
   """
   @spec put_batch(Context.t(), [{String.t(), term()}], keyword()) ::
-          {:ok, [Backpex.Preferences.Adapter.side_effect()]} | {:error, {String.t(), term()}}
+          {:ok, [Adapter.side_effect()]} | {:error, {String.t(), term()}}
   def put_batch(%Context{} = ctx, entries, opts \\ []) when is_list(entries) do
     ctx = resolve_identity(ctx)
 
@@ -402,7 +404,7 @@ defmodule Backpex.Preferences do
 
   Exposed for the preferences controller; not intended for general callers.
   """
-  @spec apply_effects_on_conn(Plug.Conn.t(), [Backpex.Preferences.Adapter.side_effect()]) :: Plug.Conn.t()
+  @spec apply_effects_on_conn(Plug.Conn.t(), [Adapter.side_effect()]) :: Plug.Conn.t()
   def apply_effects_on_conn(%Plug.Conn{} = conn, effects) when is_list(effects) do
     Enum.reduce(effects, conn, fn
       {:put_session, k, v}, c -> Plug.Conn.put_session(c, k, v)

@@ -5,7 +5,7 @@ defmodule Backpex.Preferences.KeyTest do
 
   alias Backpex.Preferences.Key
 
-  doctest Backpex.Preferences.Key
+  doctest Key
 
   describe "parse/1" do
     test "splits dot-separated keys" do

@@ -9,12 +9,14 @@ defmodule Backpex.Test.RejectingPreferencesAdapter do
 
   @behaviour Backpex.Preferences.Adapter
 
-  @impl Backpex.Preferences.Adapter
+  alias Backpex.Preferences.Adapter
+
+  @impl Adapter
   def get(_ctx, _key, _opts), do: {:ok, :not_found}
 
-  @impl Backpex.Preferences.Adapter
+  @impl Adapter
   def get_map(_ctx, _prefix, _opts), do: {:ok, %{}}
 
-  @impl Backpex.Preferences.Adapter
+  @impl Adapter
   def put(_ctx, _key, _value, _opts), do: {:error, :rejected}
 end

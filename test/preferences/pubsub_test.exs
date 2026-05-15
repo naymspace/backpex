@@ -5,9 +5,12 @@ defmodule Backpex.Preferences.PubSubTest do
   import Plug.Test
 
   alias Backpex.Preferences
+  alias Backpex.Preferences.Adapter
   alias Backpex.Preferences.Adapters.Session
   alias Backpex.Preferences.Context
   alias Backpex.Preferences.Keys
+  alias Backpex.Test.RejectingPreferencesAdapter
+  alias Phoenix.LiveView.Socket
 
   @pubsub Backpex.Preferences.PubSubTest.PubSub
   @topic_prefix "backpex_preferences_test"
@@ -54,12 +57,12 @@ defmodule Backpex.Preferences.PubSubTest do
       # The socket path itself MUST NOT broadcast — the write hasn't landed.
       :ok = Preferences.subscribe(:unidentified)
 
-      socket = %Phoenix.LiveView.Socket{
+      socket = %Socket{
         assigns: %{__changed__: %{}},
         private: %{live_temp: %{}}
       }
 
-      assert {:ok, %Phoenix.LiveView.Socket{}} =
+      assert {:ok, %Socket{}} =
                Preferences.put(socket, Keys.theme(), "dark")
 
       refute_receive {:backpex_preference_changed, _}, 50
@@ -71,12 +74,12 @@ defmodule Backpex.Preferences.PubSubTest do
       with_adapters([{:default, Backpex.Preferences.PubSubTest.AcceptingAdapter, []}], fn ->
         :ok = Preferences.subscribe(:unidentified)
 
-        socket = %Phoenix.LiveView.Socket{
+        socket = %Socket{
           assigns: %{__changed__: %{}},
           private: %{live_temp: %{}}
         }
 
-        assert {:ok, %Phoenix.LiveView.Socket{}} =
+        assert {:ok, %Socket{}} =
                  Preferences.put(socket, "custom.note", "hello")
 
         assert_receive {:backpex_preference_changed, %{key: "custom.note", value: "hello", source: :server}}
@@ -108,7 +111,7 @@ defmodule Backpex.Preferences.PubSubTest do
       # → global.sidebar_open (would succeed but is never reached).
       adapters = [
         {"global.*", Session, []},
-        {"custom.*", Backpex.Test.RejectingPreferencesAdapter, []},
+        {"custom.*", RejectingPreferencesAdapter, []},
         {:default, Session, []}
       ]
 
@@ -139,7 +142,7 @@ defmodule Backpex.Preferences.PubSubTest do
     end
 
     test "no broadcast on adapter error (put/4)" do
-      with_adapters([{:default, Backpex.Test.RejectingPreferencesAdapter, []}], fn ->
+      with_adapters([{:default, RejectingPreferencesAdapter, []}], fn ->
         :ok = Preferences.subscribe(:unidentified)
 
         conn = conn(:post, "/") |> Plug.Test.init_test_session(%{})
@@ -258,13 +261,13 @@ defmodule Backpex.Preferences.PubSubTest do
     @moduledoc false
     # Accepts all writes with `:noop` so socket-origin writes take the
     # broadcasting branch rather than the :requires_http fallback.
-    @behaviour Backpex.Preferences.Adapter
+    @behaviour Adapter
 
-    @impl Backpex.Preferences.Adapter
+    @impl Adapter
     def get(_ctx, _key, _opts), do: {:ok, :not_found}
-    @impl Backpex.Preferences.Adapter
+    @impl Adapter
     def get_map(_ctx, _prefix, _opts), do: {:ok, %{}}
-    @impl Backpex.Preferences.Adapter
+    @impl Adapter
     def put(_ctx, _key, _value, _opts), do: {:ok, [:noop]}
   end
 end
