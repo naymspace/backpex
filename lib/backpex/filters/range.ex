@@ -312,11 +312,9 @@ defmodule Backpex.Filters.Range do
     if date?(value), do: value
   end
 
-  def maybe_parse(:datetime, %Date{} = value, false = _is_end?),
-    do: Date.to_iso8601(value) <> "T00:00:00+00:00"
+  def maybe_parse(:datetime, %Date{} = value, false = _is_end?), do: Date.to_iso8601(value) <> "T00:00:00+00:00"
 
-  def maybe_parse(:datetime, %Date{} = value, _is_end?),
-    do: Date.to_iso8601(value) <> "T23:59:59+00:00"
+  def maybe_parse(:datetime, %Date{} = value, _is_end?), do: Date.to_iso8601(value) <> "T23:59:59+00:00"
 
   def maybe_parse(:datetime, value, false = _is_end?) do
     if date?(value), do: value <> "T00:00:00+00:00"
