@@ -26,7 +26,7 @@
     "playwright": "1.59.1",
     "postcss": "8.5.14",
     "standard": "17.1.2",
-    "stylelint": "17.10.0",
+    "stylelint": "17.11.0",
     "stylelint-config-standard": "40.0.0",
     "topbar": "3.0.1"
   },
