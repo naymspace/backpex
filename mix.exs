@@ -46,7 +46,7 @@ defmodule Backpex.MixProject do
       {:lazy_html, ">= 0.0.0", only: :test},
       {:esbuild, "~> 0.2", only: :dev},
       {:quokka, "~> 2.9", only: [:dev, :test], runtime: false},
-      {:usage_rules, "~> 0.1", only: [:dev]},
+      {:usage_rules, "~> 1.0", only: [:dev]},
 
       # core
       {:nimble_options, "~> 1.1"},
