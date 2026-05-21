@@ -24,7 +24,7 @@ defmodule Backpex.HTML.Form do
 
   attr :type, :string,
     default: "text",
-    values: ~w(checkbox color date datetime-local email file hidden month number password
+    values: ~w(checkbox checkgroup color date datetime-local email file hidden month number password
                range radio search select tel text textarea time toggle url week)
 
   attr :field, FormField, doc: "a form field struct retrieved from the form, for example: @form[:email]"
@@ -142,6 +142,35 @@ defmodule Backpex.HTML.Form do
       <.error :for={msg <- @errors} :if={not @hide_errors}>{msg}</.error>
       <.help_text :if={@help_text}>{@help_text}</.help_text>
     </div>
+    """
+  end
+
+  def input(%{type: "checkgroup"} = assigns) do
+    assigns = assign_new(assigns, :readonly, fn -> Map.get(assigns.rest, :readonly, false) end)
+
+    ~H"""
+    <fieldset class={["fieldset py-0", @class]}>
+      <legend :if={@label} class="label mb-1">{@label}</legend>
+      <input type="hidden" name={@name} value="" tabindex="-1" aria-hidden="true" />
+      <div>
+        <label :for={{label, value} <- @options} class="flex min-h-11 cursor-pointer items-center space-x-2 md:min-h-8">
+          <input
+            type="checkbox"
+            id={"#{@id}-#{value}"}
+            name={@name <> "[]"}
+            value={value}
+            checked={to_string(value) in Enum.map(List.wrap(@value), &to_string/1)}
+            disabled={@readonly}
+            class={["checkbox checkbox-sm checkbox-primary", @errors != [] && "checkbox-error"]}
+            aria-invalid={@errors != [] && "true"}
+            aria-describedby={@help_text && "#{@id}-help"}
+          />
+          <span class="text-sm">{label}</span>
+        </label>
+      </div>
+      <.error :for={msg <- @errors} :if={not @hide_errors}>{msg}</.error>
+      <.help_text :if={@help_text} id={"#{@id}-help"}>{@help_text}</.help_text>
+    </fieldset>
     """
   end
 
@@ -271,13 +300,14 @@ defmodule Backpex.HTML.Form do
   """
   @doc type: :component
 
+  attr :id, :string, default: nil
   attr :class, :string, default: nil
 
   slot :inner_block, required: true
 
   def help_text(assigns) do
     ~H"""
-    <p class={["text-base-content/60", @class]}>
+    <p id={@id} class={["text-base-content/60", @class]}>
       {render_slot(@inner_block)}
     </p>
     """

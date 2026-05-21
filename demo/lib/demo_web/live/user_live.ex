@@ -124,6 +124,16 @@ defmodule DemoWeb.UserLive do
         options: [Admin: "admin", User: "user"],
         prompt: "Choose role..."
       },
+      permissions: %{
+        module: Backpex.Fields.Checkgroup,
+        label: "Permissions",
+        options: [
+          {"Create Posts", "create_posts"},
+          {"Edit Posts", "edit_posts"},
+          {"Delete Posts", "delete_posts"},
+          {"Manage Users", "manage_users"}
+        ]
+      },
       posts: %{
         module: Backpex.Fields.HasMany,
         label: "Posts",
@@ -196,15 +206,6 @@ defmodule DemoWeb.UserLive do
             module: Backpex.Fields.Textarea,
             label: "Notes"
           }
-        ]
-      },
-      permissions: %{
-        module: Backpex.Fields.MultiSelect,
-        label: "Permissions",
-        options: [
-          {"Can access admin panel", "can_access_admin_panel"},
-          {"Item actions", [{"Delete", "delete"}, {"Edit", "edit"}, {"Show", "show"}]},
-          {"Other actions", [{"Can send email", "can_send_email"}]}
         ]
       }
     ]
