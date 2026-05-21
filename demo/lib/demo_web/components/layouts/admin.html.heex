@@ -1,7 +1,6 @@
 <Backpex.HTML.Layout.app_shell fluid={@fluid?} live_resource={@live_resource}>
   <:topbar>
-    <Backpex.HTML.Layout.topbar_branding />
-
+    <div class="flex-1"></div>
     <Backpex.HTML.Layout.theme_selector
       socket={@socket}
       class="mr-2"
@@ -57,36 +56,41 @@
     </Backpex.HTML.Layout.topbar_dropdown>
   </:topbar>
   <:sidebar>
-    <Backpex.HTML.Layout.sidebar_item current_url={@current_url} navigate="/admin/users">
-      <Backpex.HTML.CoreComponents.icon name="hero-user" class="size-5" /> Users
-    </Backpex.HTML.Layout.sidebar_item>
-    <Backpex.HTML.Layout.sidebar_item current_url={@current_url} navigate="/admin/addresses">
-      <Backpex.HTML.CoreComponents.icon name="hero-building-office-2" class="size-5" /> Addresses
-    </Backpex.HTML.Layout.sidebar_item>
-    <Backpex.HTML.Layout.sidebar_item current_url={@current_url} navigate="/admin/products">
-      <Backpex.HTML.CoreComponents.icon name="hero-shopping-bag" class="size-5" /> Products
-    </Backpex.HTML.Layout.sidebar_item>
-    <Backpex.HTML.Layout.sidebar_item current_url={@current_url} navigate="/admin/invoices">
-      <Backpex.HTML.CoreComponents.icon name="hero-document-text" class="size-5" /> Invoices
-    </Backpex.HTML.Layout.sidebar_item>
-    <Backpex.HTML.Layout.sidebar_item current_url={@current_url} navigate="/admin/film-reviews">
-      <Backpex.HTML.CoreComponents.icon name="hero-film" class="size-5" /> Film Reviews
-    </Backpex.HTML.Layout.sidebar_item>
-    <Backpex.HTML.Layout.sidebar_item current_url={@current_url} navigate="/admin/short-links">
-      <Backpex.HTML.CoreComponents.icon name="hero-link" class="size-5" /> Short Links
-    </Backpex.HTML.Layout.sidebar_item>
-    <Backpex.HTML.Layout.sidebar_section id="blog">
-      <:label>Blog</:label>
-      <Backpex.HTML.Layout.sidebar_item current_url={@current_url} navigate="/admin/posts">
-        <Backpex.HTML.CoreComponents.icon name="hero-book-open" class="size-5" /> Posts
-      </Backpex.HTML.Layout.sidebar_item>
-      <Backpex.HTML.Layout.sidebar_item current_url={@current_url} navigate="/admin/categories">
-        <Backpex.HTML.CoreComponents.icon name="hero-tag" class="size-5" /> Categories
-      </Backpex.HTML.Layout.sidebar_item>
-      <Backpex.HTML.Layout.sidebar_item current_url={@current_url} navigate="/admin/tags">
-        <Backpex.HTML.CoreComponents.icon name="hero-tag" class="size-5" /> Tags
-      </Backpex.HTML.Layout.sidebar_item>
-    </Backpex.HTML.Layout.sidebar_section>
+    <Backpex.HTML.Layout.sidebar_branding />
+    <div class="menu w-full flex-1 overflow-y-auto px-2 py-2">
+      <ul class="w-full">
+        <Backpex.HTML.Layout.sidebar_item current_url={@current_url} navigate="/admin/users">
+          <Backpex.HTML.CoreComponents.icon name="hero-user" class="size-5" /> Users
+        </Backpex.HTML.Layout.sidebar_item>
+        <Backpex.HTML.Layout.sidebar_item current_url={@current_url} navigate="/admin/addresses">
+          <Backpex.HTML.CoreComponents.icon name="hero-building-office-2" class="size-5" /> Addresses
+        </Backpex.HTML.Layout.sidebar_item>
+        <Backpex.HTML.Layout.sidebar_item current_url={@current_url} navigate="/admin/products">
+          <Backpex.HTML.CoreComponents.icon name="hero-shopping-bag" class="size-5" /> Products
+        </Backpex.HTML.Layout.sidebar_item>
+        <Backpex.HTML.Layout.sidebar_item current_url={@current_url} navigate="/admin/invoices">
+          <Backpex.HTML.CoreComponents.icon name="hero-document-text" class="size-5" /> Invoices
+        </Backpex.HTML.Layout.sidebar_item>
+        <Backpex.HTML.Layout.sidebar_item current_url={@current_url} navigate="/admin/film-reviews">
+          <Backpex.HTML.CoreComponents.icon name="hero-film" class="size-5" /> Film Reviews
+        </Backpex.HTML.Layout.sidebar_item>
+        <Backpex.HTML.Layout.sidebar_item current_url={@current_url} navigate="/admin/short-links">
+          <Backpex.HTML.CoreComponents.icon name="hero-link" class="size-5" /> Short Links
+        </Backpex.HTML.Layout.sidebar_item>
+        <Backpex.HTML.Layout.sidebar_section id="blog">
+          <:label>Blog</:label>
+          <Backpex.HTML.Layout.sidebar_item current_url={@current_url} navigate="/admin/posts">
+            <Backpex.HTML.CoreComponents.icon name="hero-book-open" class="size-5" /> Posts
+          </Backpex.HTML.Layout.sidebar_item>
+          <Backpex.HTML.Layout.sidebar_item current_url={@current_url} navigate="/admin/categories">
+            <Backpex.HTML.CoreComponents.icon name="hero-tag" class="size-5" /> Categories
+          </Backpex.HTML.Layout.sidebar_item>
+          <Backpex.HTML.Layout.sidebar_item current_url={@current_url} navigate="/admin/tags">
+            <Backpex.HTML.CoreComponents.icon name="hero-tag" class="size-5" /> Tags
+          </Backpex.HTML.Layout.sidebar_item>
+        </Backpex.HTML.Layout.sidebar_section>
+      </ul>
+    </div>
   </:sidebar>
   <Backpex.HTML.Layout.flash_messages flash={@flash} />
   {render_slot(@inner_block)}
