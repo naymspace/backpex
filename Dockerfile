@@ -9,7 +9,7 @@ ARG OTP_VERSION=28.5
 # renovate: datasource=docker depName=ubuntu packageName=ubuntu versioning=ubuntu
 ARG UBUNTU_VERSION=noble-20260410
 # renovate: datasource=github-tags depName=bun packageName=oven-sh/bun versioning=semver extractVersion=^bun-v(?<version>\S+)
-ARG BUN_VERSION=1.3.13
+ARG BUN_VERSION=1.3.14
 
 ARG BUILDER_IMAGE="hexpm/elixir:${ELIXIR_VERSION}-erlang-${OTP_VERSION}-ubuntu-${UBUNTU_VERSION}"
 ARG RUNTIME_IMAGE="ubuntu:${UBUNTU_VERSION}"
