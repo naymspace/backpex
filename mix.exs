@@ -66,7 +66,7 @@ defmodule Backpex.MixProject do
       {:phoenix_ecto, "~> 4.4"},
 
       # generators
-      {:igniter, "~> 0.6", optional: true},
+      {:igniter, "~> 0.8", optional: true},
       {:igniter_js, "~> 0.4", optional: true}
     ]
   end
