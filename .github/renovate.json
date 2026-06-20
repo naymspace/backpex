@@ -29,6 +29,7 @@
     "minimumReleaseAge": "14 days"
   },
   "internalChecksFilter": "strict",
+  "constraints": { "erlang": "^27" },
   "packageRules": [
     {
       "description": "Set Mix versioning strategy to update-lockfile",
