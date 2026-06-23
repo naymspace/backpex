@@ -54,6 +54,7 @@ defmodule Backpex.HTML.Layout do
       <nav
         :if={@sidebar != []}
         id="backpex-sidebar"
+        phx-hook="BackpexSidebarSections"
         data-suppress-transition
         class={[
           "fixed inset-y-0 left-0 z-40 flex w-[var(--sidebar-width,16rem)] flex-col",

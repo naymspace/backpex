@@ -1,5 +1,5 @@
 /**
- * Manages sidebar open/close state for mobile and desktop and handles sidebar section expand/collapse.
+ * Manages sidebar open/close drawer state for mobile and desktop.
  *
  * Desktop: sidebar visible by default, content shifts when closed
  * Mobile: sidebar hidden by default, overlays content when opened
@@ -23,8 +23,6 @@ export default {
     this.desktopOpen = this.loadDesktopState()
     // Element focused before the mobile drawer was opened, for focus restore.
     this.previousFocus = null
-    // Per-toggle click handlers, keyed off the toggle element (section dropdowns).
-    this._sectionHandlers = new WeakMap()
 
     // Track Tailwind's lg breakpoint via its CSS custom property so CSS
     // `lg:` utilities and this hook stay in sync if the user customizes it.
@@ -56,15 +54,11 @@ export default {
     this.mediaQuery.addEventListener('change', this._onMediaChange)
 
     document.addEventListener('keydown', this._onKeydown)
-
-    // Initialize sidebar sections
-    this.initializeSections()
   },
 
   updated () {
     if (!this.sidebar || !this.toggleBtn) return
     this.applyState()
-    this.initializeSections()
   },
 
   destroyed () {
@@ -72,16 +66,6 @@ export default {
     this.overlay?.removeEventListener('click', this._onOverlayClick)
     this.mediaQuery?.removeEventListener('change', this._onMediaChange)
     document.removeEventListener('keydown', this._onKeydown)
-
-    const sections = this.el.querySelectorAll('[data-section-id]')
-    sections.forEach((section) => {
-      const toggle = section.querySelector('[data-menu-dropdown-toggle]')
-      const handler = toggle && this._sectionHandlers.get(toggle)
-      if (handler) {
-        toggle.removeEventListener('click', handler)
-        this._sectionHandlers.delete(toggle)
-      }
-    })
   },
 
   isDesktop () {
@@ -202,67 +186,5 @@ export default {
       this.sidebar.removeAttribute('role')
       this.sidebar.removeAttribute('aria-modal')
     }
-  },
-
-  // Sidebar Sections
-
-  initializeSections () {
-    const sections = this.el.querySelectorAll('[data-section-id]')
-
-    sections.forEach((section) => {
-      const sectionId = section.dataset.sectionId
-      const toggle = section.querySelector('[data-menu-dropdown-toggle]')
-      const content = section.querySelector('[data-menu-dropdown-content]')
-
-      if (!this.hasContent(content)) {
-        content.style.display = 'none'
-        return
-      }
-
-      const isOpen =
-        localStorage.getItem(`sidebar-section-${sectionId}`) === 'true'
-      if (!isOpen) {
-        toggle.classList.remove('menu-dropdown-show')
-        toggle.setAttribute('aria-expanded', 'false')
-        content.style.display = 'none'
-      } else {
-        toggle.setAttribute('aria-expanded', 'true')
-      }
-
-      section.classList.remove('hidden')
-
-      const previous = this._sectionHandlers.get(toggle)
-      if (previous) toggle.removeEventListener('click', previous)
-      const handler = (e) => this.handleSectionToggle(e)
-      this._sectionHandlers.set(toggle, handler)
-      toggle.addEventListener('click', handler)
-    })
-  },
-
-  hasContent (element) {
-    if (!element || element.children.length === 0) return false
-    for (const child of element.children) {
-      const childContent = child.querySelector('[data-menu-dropdown-content]')
-      if (childContent) {
-        if (this.hasContent(childContent)) return true
-      } else {
-        return true
-      }
-    }
-    return false
-  },
-
-  handleSectionToggle (event) {
-    const section = event.currentTarget.closest('[data-section-id]')
-    const sectionId = section.dataset.sectionId
-    const toggle = section.querySelector('[data-menu-dropdown-toggle]')
-    const content = section.querySelector('[data-menu-dropdown-content]')
-
-    toggle.classList.toggle('menu-dropdown-show')
-    content.style.display = content.style.display === 'none' ? 'block' : 'none'
-
-    const isNowOpen = toggle.classList.contains('menu-dropdown-show')
-    toggle.setAttribute('aria-expanded', isNowOpen.toString())
-    localStorage.setItem(`sidebar-section-${sectionId}`, isNowOpen)
   }
 }
