@@ -312,6 +312,26 @@ defmodule Backpex.HTML.Layout do
   end
 
   @doc """
+  Renders the scrollable sidebar menu container. Wraps navigation items
+  (`sidebar_item`/`sidebar_section`) in the `<ul>` they require.
+  """
+  @doc type: :component
+
+  attr :class, :string, default: nil, doc: "additional class that will be added to the component"
+
+  slot :inner_block, required: true
+
+  def sidebar_menu(assigns) do
+    ~H"""
+    <div class={["menu w-full flex-1 overflow-y-auto px-2 py-2", @class]}>
+      <ul class="w-full">
+        {render_slot(@inner_block)}
+      </ul>
+    </div>
+    """
+  end
+
+  @doc """
   Renders a theme selector.
   """
   @doc type: :component
