@@ -41,13 +41,13 @@ defmodule Demo.MixProject do
       {:mix_audit, "~> 2.0", only: [:dev, :test], runtime: false},
       {:lazy_html, "~> 0.1.3", only: :test},
       {:ex_machina, "~> 2.3"},
-      {:faker, "~> 0.18"},
+      {:faker, "~> 1.2", hex: :fakerer},
       {:phoenix_test, "~> 0.11.0", only: :test, runtime: false},
-      {:phoenix_test_playwright, "~> 0.14.0", only: :test, runtime: false},
-      {:a11y_audit, "~> 0.3.0", only: :test},
+      {:phoenix_test_playwright, "~> 0.15.0", only: :test, runtime: false},
+      {:a11y_audit, "~> 0.4.0", only: :test},
       {:live_debugger, "~> 1.0", only: :dev},
       {:quokka, "~> 2.9", only: [:dev, :test], runtime: false},
-      {:tidewave, "~> 0.5", only: [:dev]},
+      {:tidewave, "~> 0.6", only: [:dev]},
 
       # core
       {:dns_cluster, "~> 0.2.0"},
@@ -79,7 +79,7 @@ defmodule Demo.MixProject do
 
       # assets
       {:esbuild, "~> 0.9", runtime: Mix.env() == :dev},
-      {:tailwind, "~> 0.4.0", runtime: Mix.env() == :dev},
+      {:tailwind, "~> 0.5.0", runtime: Mix.env() == :dev},
       {:heroicons, github: "tailwindlabs/heroicons", tag: "v2.2.0", sparse: "optimized", app: false, compile: false}
     ]
   end

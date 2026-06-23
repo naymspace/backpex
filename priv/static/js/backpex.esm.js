@@ -14,6 +14,7 @@ __export(hooks_exports, {
   BackpexPreferences: () => BackpexPreferences,
   BackpexPreferencesHook: () => preferences_default,
   BackpexSidebar: () => sidebar_default,
+  BackpexSidebarSections: () => sidebar_sections_default,
   BackpexStickyActions: () => sticky_actions_default,
   BackpexThemeSelector: () => theme_selector_default,
   BackpexTooltip: () => tooltip_default
@@ -283,8 +284,6 @@ var sidebar_default = {
       this.el.dataset.sidebarOpen === "true"
     );
     this.previousFocus = null;
-    this._sectionHandlers = /* @__PURE__ */ new WeakMap();
-    this._sectionStates = {};
     const breakpoint = getComputedStyle(document.documentElement).getPropertyValue("--breakpoint-lg").trim() || "64rem";
     this.mediaQuery = window.matchMedia(`(min-width: ${breakpoint})`);
     this.applyState();
@@ -300,14 +299,10 @@ var sidebar_default = {
     this.overlay.addEventListener("click", this._onOverlayClick);
     this.mediaQuery.addEventListener("change", this._onMediaChange);
     document.addEventListener("keydown", this._onKeydown);
-    this.initializeSections();
-    this.applySectionStates();
   },
   updated() {
     if (!this.sidebar || !this.toggleBtn) return;
     this.applyState();
-    this.initializeSections();
-    this.applySectionStates();
   },
   destroyed() {
     this.toggleBtn?.removeEventListener("click", this._onToggleClick);
@@ -315,15 +310,6 @@ var sidebar_default = {
     this.mediaQuery?.removeEventListener("change", this._onMediaChange);
     document.removeEventListener("keydown", this._onKeydown);
     this.main?.removeAttribute("inert");
-    const sections = this.el.querySelectorAll("[data-section-id]");
-    sections.forEach((section) => {
-      const toggle = section.querySelector("[data-menu-dropdown-toggle]");
-      const handler = toggle && this._sectionHandlers.get(toggle);
-      if (handler) {
-        toggle.removeEventListener("click", handler);
-        this._sectionHandlers.delete(toggle);
-      }
-    });
   },
   isDesktop() {
     return this.mediaQuery.matches;
@@ -390,15 +376,10 @@ var sidebar_default = {
   applyState() {
     const isDesktop = this.isDesktop();
     const sidebarVisible = isDesktop ? this.desktopOpen : this.mobileOpen;
-    this.sidebar.style.translate = sidebarVisible ? "0" : "-100%";
+    this.sidebar.dataset.state = sidebarVisible ? "open" : "closed";
     this.sidebar.toggleAttribute("inert", !sidebarVisible);
-    const showMargin = isDesktop && this.desktopOpen;
-    this.main.style.marginLeft = showMargin ? "var(--sidebar-width, 16rem)" : "0";
-    const showOverlay = !isDesktop && this.mobileOpen;
-    this.overlay.classList.toggle("opacity-0", !showOverlay);
-    this.overlay.classList.toggle("pointer-events-none", !showOverlay);
-    this.overlay.classList.toggle("opacity-100", showOverlay);
-    this.overlay.classList.toggle("pointer-events-auto", showOverlay);
+    this.main.dataset.shift = isDesktop && this.desktopOpen ? "on" : "off";
+    this.overlay.dataset.visible = !isDesktop && this.mobileOpen ? "on" : "off";
     this.toggleBtn.setAttribute("aria-expanded", sidebarVisible.toString());
     if (!isDesktop && this.mobileOpen) {
       this.sidebar.setAttribute("role", "dialog");
@@ -408,13 +389,38 @@ var sidebar_default = {
       this.sidebar.removeAttribute("aria-modal");
     }
     this.main.toggleAttribute("inert", !isDesktop && this.mobileOpen);
+  }
+};
+
+// js/hooks/_sidebar_sections.js
+var sidebar_sections_default = {
+  mounted() {
+    this._sectionHandlers = /* @__PURE__ */ new WeakMap();
+    this._sectionStates = {};
+    this.initializeSections();
+    this.applySectionStates();
   },
-  // Sidebar Sections
+  updated() {
+    this.initializeSections();
+    this.applySectionStates();
+  },
+  destroyed() {
+    const sections = this.el.querySelectorAll("[data-section-id]");
+    sections.forEach((section) => {
+      const toggle = section.querySelector("[data-menu-dropdown-toggle]");
+      const handler = toggle && this._sectionHandlers.get(toggle);
+      if (handler) {
+        toggle.removeEventListener("click", handler);
+        this._sectionHandlers.delete(toggle);
+      }
+    });
+  },
   initializeSections() {
     const sections = this.el.querySelectorAll("[data-section-id]");
     sections.forEach((section) => {
       const toggle = section.querySelector("[data-menu-dropdown-toggle]");
       const content = section.querySelector("[data-menu-dropdown-content]");
+      if (!toggle || !content) return;
       if (!this.hasContent(content)) {
         section.style.display = "none";
         return;

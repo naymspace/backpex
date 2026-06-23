@@ -163,11 +163,9 @@ To get you started quickly, we provide a layout component you can copy & paste i
   </:topbar>
   <:sidebar>
     <Backpex.HTML.Layout.sidebar_branding />
-    <div class="menu w-full flex-1 overflow-y-auto px-2 py-2">
-      <ul class="w-full">
-        <!-- Sidebar Content -->
-      </ul>
-    </div>
+    <Backpex.HTML.Layout.sidebar_menu>
+      <!-- Sidebar Content -->
+    </Backpex.HTML.Layout.sidebar_menu>
   </:sidebar>
   <Backpex.HTML.Layout.flash_messages flash={@flash} />
   {render_slot(@inner_block)}
@@ -618,11 +616,9 @@ You can add a theme selector to your layout component to allow users to change t
   </:topbar>
   <:sidebar>
     <Backpex.HTML.Layout.sidebar_branding />
-    <div class="menu w-full flex-1 overflow-y-auto px-2 py-2">
-      <ul class="w-full">
-        <!-- Sidebar Content -->
-      </ul>
-    </div>
+    <Backpex.HTML.Layout.sidebar_menu>
+      <!-- Sidebar Content -->
+    </Backpex.HTML.Layout.sidebar_menu>
   </:sidebar>
   <Backpex.HTML.Layout.flash_messages flash={@flash} />
   {render_slot(@inner_block)}

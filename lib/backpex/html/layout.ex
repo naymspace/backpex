@@ -46,11 +46,13 @@ defmodule Backpex.HTML.Layout do
   slot :footer, doc: "content to be displayed in the footer"
 
   def app_shell(assigns) do
+    assigns = assign(assigns, :has_sidebar, assigns.sidebar != [])
+
     ~H"""
     <div
       id="backpex-app-shell"
       class={["min-h-screen", @class]}
-      phx-hook={@sidebar != [] && "BackpexSidebar"}
+      phx-hook={@has_sidebar && "BackpexSidebar"}
       data-sidebar-open={to_string(@sidebar_open)}
     >
       <div
@@ -62,18 +64,24 @@ defmodule Backpex.HTML.Layout do
       </div>
       <%!-- Sidebar (single element for both mobile and desktop) --%>
       <nav
-        :if={@sidebar != []}
+        :if={@has_sidebar}
         id="backpex-sidebar"
+        phx-hook="BackpexSidebarSections"
         data-suppress-transition
-        class={[
-          "fixed inset-y-0 left-0 z-40 flex w-[var(--sidebar-width,16rem)] flex-col",
-          "bg-base-100 border-base-300 border-r",
-          "-translate-x-full",
-          @sidebar_open && "lg:translate-x-0",
-          "motion-safe:transition-transform motion-safe:duration-300 motion-safe:ease-in-out",
-          "data-[suppress-transition]:transition-none",
-          build_slot_class(@sidebar)
-        ]}
+        class={
+          [
+            "fixed inset-y-0 left-0 z-40 flex w-[var(--sidebar-width,16rem)] flex-col",
+            "bg-base-100 border-base-300 border-r",
+            # First paint reflects the server-persisted state; the hook then
+            # takes over at runtime via the higher-specificity data-state classes.
+            "-translate-x-full",
+            @sidebar_open && "lg:translate-x-0",
+            "data-[state=open]:translate-x-0 data-[state=closed]:-translate-x-full",
+            "motion-safe:transition-transform motion-safe:duration-300 motion-safe:ease-in-out",
+            "data-[suppress-transition]:transition-none",
+            build_slot_class(@sidebar)
+          ]
+        }
         aria-label={Backpex.__("Main navigation", @live_resource)}
       >
         {render_slot(@sidebar)}
@@ -81,9 +89,9 @@ defmodule Backpex.HTML.Layout do
 
       <%!-- Overlay for mobile --%>
       <div
-        :if={@sidebar != []}
+        :if={@has_sidebar}
         id="backpex-sidebar-overlay"
-        class="fixed inset-0 z-30 bg-neutral/50 opacity-0 pointer-events-none motion-safe:transition-opacity motion-safe:duration-300 lg:hidden"
+        class="fixed inset-0 z-30 bg-neutral/50 opacity-0 pointer-events-none data-[visible=on]:opacity-100 data-[visible=on]:pointer-events-auto motion-safe:transition-opacity motion-safe:duration-300 lg:hidden"
         aria-hidden="true"
       >
       </div>
@@ -92,20 +100,28 @@ defmodule Backpex.HTML.Layout do
       <div
         id="backpex-main"
         data-suppress-transition
-        class={[
-          "flex min-h-screen flex-col",
-          @sidebar_open && "lg:ml-[var(--sidebar-width,16rem)]",
-          "motion-safe:transition-[margin-left] motion-safe:duration-300 motion-safe:ease-in-out",
-          "data-[suppress-transition]:transition-none"
-        ]}
+        class={
+          [
+            "flex min-h-screen flex-col",
+            # First paint reflects the server-persisted state; the hook then
+            # takes over at runtime via the higher-specificity data-shift classes.
+            @sidebar_open && "lg:ml-[var(--sidebar-width,16rem)]",
+            "data-[shift=on]:ml-[var(--sidebar-width,16rem)] data-[shift=off]:ml-0",
+            "motion-safe:transition-[margin-left] motion-safe:duration-300 motion-safe:ease-in-out",
+            "data-[suppress-transition]:transition-none"
+          ]
+        }
       >
         <%!-- Background --%>
         <div class="bg-base-200 fixed inset-0 -z-10 h-full w-full"></div>
 
         <%!-- Topbar --%>
         <.topbar class={build_slot_class(@topbar)}>
+          <%!-- aria-expanded reflects the server-persisted desktop state; the
+                hook corrects it for the mobile drawer (and on resize) once
+                mounted. --%>
           <button
-            :if={@sidebar != []}
+            :if={@has_sidebar}
             type="button"
             id="backpex-sidebar-toggle"
             class="btn btn-square btn-ghost mr-2"
@@ -318,6 +334,26 @@ defmodule Backpex.HTML.Layout do
       <%= unless @hide_title do %>
         <span class="text-base-content font-semibold">{@title}</span>
       <% end %>
+    </div>
+    """
+  end
+
+  @doc """
+  Renders the scrollable sidebar menu container. Wraps navigation items
+  (`sidebar_item`/`sidebar_section`) in the `<ul>` they require.
+  """
+  @doc type: :component
+
+  attr :class, :string, default: nil, doc: "additional class that will be added to the component"
+
+  slot :inner_block, required: true
+
+  def sidebar_menu(assigns) do
+    ~H"""
+    <div class={["menu w-full flex-1 overflow-y-auto px-2 py-2", @class]}>
+      <ul class="w-full">
+        {render_slot(@inner_block)}
+      </ul>
     </div>
     """
   end

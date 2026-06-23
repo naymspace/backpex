@@ -14,10 +14,12 @@ import { BackpexPreferences } from './_preferences'
 // follow the same pattern instead of rolling your own sessionStorage layer.
 
 /**
- * Manages sidebar open/close state for mobile and desktop and handles sidebar section expand/collapse.
+ * Manages sidebar open/close drawer state for mobile and desktop.
  *
  * Desktop: sidebar visible by default, content shifts when closed
  * Mobile: sidebar hidden by default, overlays content when opened
+ *
+ * Section expand/collapse lives in the separate BackpexSidebarSections hook.
  */
 export default {
   FOCUSABLE_SELECTOR:
@@ -34,7 +36,7 @@ export default {
 
     // State: mobile closed by default. Desktop state prefers the
     // sessionStorage mirror over the server-rendered data attribute — same
-    // live_redirect staleness reason as the section states below.
+    // live_redirect staleness reason as the section states.
     this.mobileOpen = false
     this.desktopOpen = BackpexPreferences.get(
       'global.sidebar_open',
@@ -42,16 +44,6 @@ export default {
     )
     // Element focused before the mobile drawer was opened, for focus restore.
     this.previousFocus = null
-    // Per-toggle click handlers, keyed off the toggle element (section dropdowns).
-    this._sectionHandlers = new WeakMap()
-    // Client-authoritative section state. Populated per-section from the
-    // sessionStorage mirror in initializeSections(); unknown sections fall
-    // back to the server-rendered data-section-open there. Seeding from
-    // sessionStorage is what lets section state survive the hook re-mount
-    // LiveView performs on live_redirect between LiveViews (the
-    // websocket-frozen session the server re-renders from is stale, see
-    // the top-of-file comment).
-    this._sectionStates = {}
 
     // Track Tailwind's lg breakpoint via its CSS custom property so CSS
     // `lg:` utilities and this hook stay in sync if the user customizes it.
@@ -83,19 +75,11 @@ export default {
     this.mediaQuery.addEventListener('change', this._onMediaChange)
 
     document.addEventListener('keydown', this._onKeydown)
-
-    // Initialize sidebar sections, then re-assert stored state over whatever
-    // the server just rendered (which may have been rendered from a stale
-    // session snapshot during a live_redirect).
-    this.initializeSections()
-    this.applySectionStates()
   },
 
   updated () {
     if (!this.sidebar || !this.toggleBtn) return
     this.applyState()
-    this.initializeSections()
-    this.applySectionStates()
   },
 
   destroyed () {
@@ -107,16 +91,6 @@ export default {
     // Drop inert in case the hook is torn down while the mobile drawer is open
     // so the main content doesn't stay unreachable across live_redirects.
     this.main?.removeAttribute('inert')
-
-    const sections = this.el.querySelectorAll('[data-section-id]')
-    sections.forEach((section) => {
-      const toggle = section.querySelector('[data-menu-dropdown-toggle]')
-      const handler = toggle && this._sectionHandlers.get(toggle)
-      if (handler) {
-        toggle.removeEventListener('click', handler)
-        this._sectionHandlers.delete(toggle)
-      }
-    })
   },
 
   isDesktop () {
@@ -199,24 +173,19 @@ export default {
     const isDesktop = this.isDesktop()
     const sidebarVisible = isDesktop ? this.desktopOpen : this.mobileOpen
 
-    // Sidebar position. The SSR classes -translate-x-full lg:translate-x-0
-    // compile to the CSS `translate` property in Tailwind v4, so we must
-    // write to the same property to win over them.
-    this.sidebar.style.translate = sidebarVisible ? '0' : '-100%'
+    // Declarative state: write data attributes and let CSS map them to the
+    // translate / margin / overlay styles (see the app_shell classes). One
+    // source of truth, and no inline styles fighting the SSR `lg:` defaults.
+    this.sidebar.dataset.state = sidebarVisible ? 'open' : 'closed'
 
     // Remove off-canvas sidebar from tab order and accessibility tree
     this.sidebar.toggleAttribute('inert', !sidebarVisible)
 
-    // Main content margin (desktop only, uses CSS variable)
-    const showMargin = isDesktop && this.desktopOpen
-    this.main.style.marginLeft = showMargin ? 'var(--sidebar-width, 16rem)' : '0'
+    // Main content shifts only when the desktop sidebar is open.
+    this.main.dataset.shift = isDesktop && this.desktopOpen ? 'on' : 'off'
 
-    // Overlay (mobile only)
-    const showOverlay = !isDesktop && this.mobileOpen
-    this.overlay.classList.toggle('opacity-0', !showOverlay)
-    this.overlay.classList.toggle('pointer-events-none', !showOverlay)
-    this.overlay.classList.toggle('opacity-100', showOverlay)
-    this.overlay.classList.toggle('pointer-events-auto', showOverlay)
+    // Overlay is shown only for the open mobile drawer.
+    this.overlay.dataset.visible = !isDesktop && this.mobileOpen ? 'on' : 'off'
 
     // ARIA
     this.toggleBtn.setAttribute('aria-expanded', sidebarVisible.toString())
@@ -233,99 +202,5 @@ export default {
     // aria-modal needs a matching inert region; the topbar and main content
     // live inside #backpex-main, so inerting that element covers both.
     this.main.toggleAttribute('inert', !isDesktop && this.mobileOpen)
-  },
-
-  // Sidebar Sections
-
-  initializeSections () {
-    const sections = this.el.querySelectorAll('[data-section-id]')
-
-    sections.forEach((section) => {
-      const toggle = section.querySelector('[data-menu-dropdown-toggle]')
-      const content = section.querySelector('[data-menu-dropdown-content]')
-
-      // Hide sections without content
-      if (!this.hasContent(content)) {
-        section.style.display = 'none'
-        return
-      }
-
-      section.classList.remove('hidden')
-
-      // Prefer the sessionStorage mirror over the server-rendered attribute
-      // the first time we see a section: on a fresh websocket connect the
-      // cookie is authoritative (and the mirror matches), but on a re-mount
-      // after live_redirect the server re-rendered from a stale session
-      // snapshot and the mirror is the only source of the user's intent.
-      const id = section.dataset.sectionId
-      if (!(id in this._sectionStates)) {
-        this._sectionStates[id] = BackpexPreferences.get(
-          `global.sidebar_section.${id}`,
-          section.dataset.sectionOpen === 'true'
-        )
-      }
-
-      const previous = this._sectionHandlers.get(toggle)
-      if (previous) toggle.removeEventListener('click', previous)
-      const handler = (e) => this.handleSectionToggle(e)
-      this._sectionHandlers.set(toggle, handler)
-      toggle.addEventListener('click', handler)
-    })
-  },
-
-  // Re-apply the authoritative client-side open/closed state to the DOM.
-  // Called from updated() to overwrite whatever the server just rendered from
-  // a potentially-stale session snapshot after a live_redirect.
-  applySectionStates () {
-    for (const [id, open] of Object.entries(this._sectionStates)) {
-      const section = this.el.querySelector(`[data-section-id="${id}"]`)
-      if (!section) continue
-      const toggle = section.querySelector('[data-menu-dropdown-toggle]')
-      const content = section.querySelector('[data-menu-dropdown-content]')
-      if (!toggle || !content) continue
-      toggle.classList.toggle('menu-dropdown-show', open)
-      toggle.setAttribute('aria-expanded', String(open))
-      content.style.display = open ? '' : 'none'
-      section.dataset.sectionOpen = String(open)
-    }
-  },
-
-  hasContent (element) {
-    if (!element || element.children.length === 0) return false
-    for (const child of element.children) {
-      const childContent = child.querySelector('[data-menu-dropdown-content]')
-      if (childContent) {
-        if (this.hasContent(childContent)) return true
-      } else {
-        return true
-      }
-    }
-    return false
-  },
-
-  handleSectionToggle (event) {
-    const section = event.currentTarget.closest('[data-section-id]')
-    const sectionId = section.dataset.sectionId
-    const toggle = section.querySelector('[data-menu-dropdown-toggle]')
-    const content = section.querySelector('[data-menu-dropdown-content]')
-
-    toggle.classList.toggle('menu-dropdown-show')
-    content.style.display = content.style.display === 'none' ? 'block' : 'none'
-
-    const isNowOpen = toggle.classList.contains('menu-dropdown-show')
-    toggle.setAttribute('aria-expanded', isNowOpen.toString())
-    // Keep the data attribute in sync so future reconciliations read back
-    // the current user-intended state.
-    section.dataset.sectionOpen = String(isNowOpen)
-    this._sectionStates[sectionId] = isNowOpen
-    // Mirror the per-section boolean to sessionStorage (for live_redirect
-    // re-mounts) and POST it to the cookie (for the next fresh connect).
-    // The per-section key matches the flat form the server stores so
-    // Backpex.Preferences.get_map/3 can reconstruct the nested map.
-    BackpexPreferences.set(
-      `global.sidebar_section.${sectionId}`,
-      isNowOpen,
-      { mirror: 'session' }
-    )
   }
 }
