@@ -41,7 +41,7 @@ defmodule Demo.MixProject do
       {:mix_audit, "~> 2.0", only: [:dev, :test], runtime: false},
       {:lazy_html, "~> 0.1.3", only: :test},
       {:ex_machina, "~> 2.3"},
-      {:faker, "~> 1.2", hex: :fakerer, only: :test},
+      {:faker, "~> 1.2", hex: :fakerer, only: [:dev, :test]},
       {:phoenix_test, "~> 0.11.0", only: :test, runtime: false},
       {:phoenix_test_playwright, "~> 0.15.0", only: :test, runtime: false},
       {:a11y_audit, "~> 0.4.0", only: :test},
