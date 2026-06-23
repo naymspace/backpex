@@ -44,15 +44,17 @@ defmodule Backpex.HTML.Layout do
   slot :footer, doc: "content to be displayed in the footer"
 
   def app_shell(assigns) do
+    assigns = assign(assigns, :has_sidebar, assigns.sidebar != [])
+
     ~H"""
     <div
       id="backpex-app-shell"
       class={["min-h-screen", @class]}
-      phx-hook={@sidebar != [] && "BackpexSidebar"}
+      phx-hook={@has_sidebar && "BackpexSidebar"}
     >
       <%!-- Sidebar (single element for both mobile and desktop) --%>
       <nav
-        :if={@sidebar != []}
+        :if={@has_sidebar}
         id="backpex-sidebar"
         phx-hook="BackpexSidebarSections"
         data-suppress-transition
@@ -72,7 +74,7 @@ defmodule Backpex.HTML.Layout do
 
       <%!-- Overlay for mobile --%>
       <div
-        :if={@sidebar != []}
+        :if={@has_sidebar}
         id="backpex-sidebar-overlay"
         class="fixed inset-0 z-30 bg-neutral/50 opacity-0 pointer-events-none data-[visible=on]:opacity-100 data-[visible=on]:pointer-events-auto motion-safe:transition-opacity motion-safe:duration-300 lg:hidden"
         aria-hidden="true"
@@ -96,8 +98,11 @@ defmodule Backpex.HTML.Layout do
 
         <%!-- Topbar --%>
         <.topbar class={build_slot_class(@topbar)}>
+          <%!-- aria-expanded defaults to the desktop-open state the SSR
+                classes render; the hook corrects it for the mobile drawer
+                (and on resize) once mounted. --%>
           <button
-            :if={@sidebar != []}
+            :if={@has_sidebar}
             type="button"
             id="backpex-sidebar-toggle"
             class="btn btn-square btn-ghost mr-2"

@@ -34,6 +34,10 @@ export default {
       const toggle = section.querySelector('[data-menu-dropdown-toggle]')
       const content = section.querySelector('[data-menu-dropdown-content]')
 
+      // sidebar_section always renders both, but guard so a malformed
+      // section can't throw and break setup for every other section.
+      if (!toggle || !content) return
+
       if (!this.hasContent(content)) {
         content.style.display = 'none'
         return
