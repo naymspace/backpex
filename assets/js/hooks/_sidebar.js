@@ -156,24 +156,19 @@ export default {
     const isDesktop = this.isDesktop()
     const sidebarVisible = isDesktop ? this.desktopOpen : this.mobileOpen
 
-    // Sidebar position. The SSR classes -translate-x-full lg:translate-x-0
-    // compile to the CSS `translate` property in Tailwind v4, so we must
-    // write to the same property to win over them.
-    this.sidebar.style.translate = sidebarVisible ? '0' : '-100%'
+    // Declarative state: write data attributes and let CSS map them to the
+    // translate / margin / overlay styles (see the app_shell classes). One
+    // source of truth, and no inline styles fighting the SSR `lg:` defaults.
+    this.sidebar.dataset.state = sidebarVisible ? 'open' : 'closed'
 
     // Remove off-canvas sidebar from tab order and accessibility tree
     this.sidebar.toggleAttribute('inert', !sidebarVisible)
 
-    // Main content margin (desktop only, uses CSS variable)
-    const showMargin = isDesktop && this.desktopOpen
-    this.main.style.marginLeft = showMargin ? 'var(--sidebar-width, 16rem)' : '0'
+    // Main content shifts only when the desktop sidebar is open.
+    this.main.dataset.shift = isDesktop && this.desktopOpen ? 'on' : 'off'
 
-    // Overlay (mobile only)
-    const showOverlay = !isDesktop && this.mobileOpen
-    this.overlay.classList.toggle('opacity-0', !showOverlay)
-    this.overlay.classList.toggle('pointer-events-none', !showOverlay)
-    this.overlay.classList.toggle('opacity-100', showOverlay)
-    this.overlay.classList.toggle('pointer-events-auto', showOverlay)
+    // Overlay is shown only for the open mobile drawer.
+    this.overlay.dataset.visible = !isDesktop && this.mobileOpen ? 'on' : 'off'
 
     // ARIA
     this.toggleBtn.setAttribute('aria-expanded', sidebarVisible.toString())
