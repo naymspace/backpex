@@ -48,17 +48,15 @@ jobs:
       - name: Compile with warnings as errors
         run: mix compile --warnings-as-errors --force
 
-      - name: Cache node modules
+      - name: Cache bun install cache
         uses: actions/cache@2c8a9bd7457de244a408f35966fab2fb45fda9c8 # v6.0.0
-        id: bun-cache
         with:
-          path: node_modules
-          key: ${{ runner.os }}-node-24-bun-${{ hashFiles('bun.lock') }}
+          path: ~/.bun/install/cache
+          key: ${{ runner.os }}-bun-store-${{ hashFiles('bun.lock') }}
           restore-keys: |
-            ${{ runner.os }}-node-24-bun-
+            ${{ runner.os }}-bun-store-
 
       - name: Install node dependencies
-        if: steps.bun-cache.outputs.cache-hit != 'true'
         run: bun install --frozen-lockfile
 
       - name: Check formatting
