@@ -267,7 +267,7 @@ defmodule Backpex.LiveResource do
     quote bind_quoted: [opts: opts, options_schema: @options_schema] do
       @behaviour Backpex.LiveResource
 
-      use BackpexWeb, :html
+      use BackpexWeb, :live_resource
 
       import Backpex.LiveResource
       import Phoenix.LiveView.Helpers
