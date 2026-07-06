@@ -117,6 +117,9 @@ defmodule Backpex.HTML.Form do
           multiple={@multiple}
           {@rest}
         >
+          <button>
+            <selectedcontent></selectedcontent>
+          </button>
           <option :if={@prompt} value="">{@prompt}</option>
           {Phoenix.HTML.Form.options_for_select(@options, @value)}
         </select>

@@ -22,7 +22,7 @@
     "gettext": "mix gettext.extract --merge"
   },
   "devDependencies": {
-    "@sentry/browser": "10.58.0",
+    "@sentry/browser": "10.59.0",
     "playwright": "1.61.0",
     "postcss": "8.5.16",
     "standard": "17.1.2",
@@ -31,6 +31,6 @@
     "topbar": "3.0.1"
   },
   "dependencies": {
-    "daisyui": "5.5.23"
+    "daisyui": "5.6.10"
   }
 }

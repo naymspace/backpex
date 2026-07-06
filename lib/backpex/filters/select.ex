@@ -111,6 +111,9 @@ defmodule Backpex.Filters.Select do
       ]}
       aria-label={@prompt}
     >
+      <button>
+        <selectedcontent></selectedcontent>
+      </button>
       <option value="">{@prompt}</option>
       {Phoenix.HTML.Form.options_for_select(@options, selected(@value))}
     </select>
