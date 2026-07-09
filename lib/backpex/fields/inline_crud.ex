@@ -191,7 +191,14 @@ defmodule Backpex.Fields.InlineCRUD do
 
         <div class="flex flex-col">
           <.inputs_for :let={f_nested} field={@form[@name]}>
-            <input type="hidden" name={"change[#{@name}_order][]"} value={f_nested.index} tabindex="-1" aria-hidden="true" />
+            <input
+              type="hidden"
+              name={"change[#{@name}_order][]"}
+              value={f_nested.index}
+              tabindex="-1"
+              aria-hidden="true"
+              disabled={@readonly}
+            />
 
             <div class="mb-3 flex items-start gap-x-4">
               <div
@@ -235,7 +242,7 @@ defmodule Backpex.Fields.InlineCRUD do
             </div>
           </.inputs_for>
 
-          <input type="hidden" name={"change[#{@name}_delete][]"} tabindex="-1" aria-hidden="true" />
+          <input type="hidden" name={"change[#{@name}_delete][]"} tabindex="-1" aria-hidden="true" disabled={@readonly} />
         </div>
         <input
           :if={not @readonly}
