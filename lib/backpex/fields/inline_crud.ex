@@ -1,3 +1,4 @@
+# quokka:skip-module-directive-reordering
 defmodule Backpex.Fields.InlineCRUD do
   @config_schema [
     type: [

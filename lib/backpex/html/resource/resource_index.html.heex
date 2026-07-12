@@ -12,7 +12,7 @@
       id={:modal}
       live_resource={@live_resource}
       action_type={:resource}
-      {Map.drop(assigns, [:socket, :flash, :fields])}
+      {Map.drop(assigns, [:fields | lv_reserved_assigns()])}
     />
   </.modal>
 

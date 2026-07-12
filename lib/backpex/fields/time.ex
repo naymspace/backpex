@@ -1,4 +1,5 @@
 # credo:disable-for-this-file Credo.Check.Design.DuplicatedCode
+# quokka:skip-module-directive-reordering
 defmodule Backpex.Fields.Time do
   @config_schema [
     format: [

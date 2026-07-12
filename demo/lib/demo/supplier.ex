@@ -4,6 +4,8 @@ defmodule Demo.Supplier do
 
   import Ecto.Changeset
 
+  alias Demo.Product
+
   @primary_key {:id, :binary_id, autogenerate: true}
 
   @countries ["Austria", "France", "Germany", "Italy", "Spain", "Switzerland"]
@@ -18,7 +20,7 @@ defmodule Demo.Supplier do
     field :minimum_order, Money.Ecto.Amount.Type
     field :preferred, :boolean, default: false
 
-    belongs_to :product, Demo.Product, type: :binary_id
+    belongs_to :product, Product, type: :binary_id
 
     timestamps()
   end

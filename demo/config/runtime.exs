@@ -1,6 +1,6 @@
 import Config
-import System, only: [get_env: 1, get_env: 2, fetch_env!: 1]
 import String, only: [to_integer: 1, to_atom: 1, to_existing_atom: 1]
+import System, only: [get_env: 1, get_env: 2, fetch_env!: 1]
 
 config :demo, Demo.Repo,
   hostname: get_env("DB_HOSTNAME", "postgres"),

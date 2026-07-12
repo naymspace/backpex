@@ -23,8 +23,8 @@ defmodule Backpex.RouterTest do
     defmodule TestRouter do
       use Phoenix.Router, helpers: false
 
-      import Phoenix.LiveView.Router
       import Backpex.Router
+      import Phoenix.LiveView.Router
 
       # Basic route with defaults
       live_resources "/users", UserLive
@@ -99,8 +99,8 @@ defmodule Backpex.RouterTest do
         defmodule InvalidRouter1 do
           use Phoenix.Router, helpers: false
 
-          import Phoenix.LiveView.Router
           import Backpex.Router
+          import Phoenix.LiveView.Router
 
           # Pass a string to only, which should be a list of atoms
           live_resources "/bad", BadLive, only: "index"
@@ -113,8 +113,8 @@ defmodule Backpex.RouterTest do
         defmodule InvalidRouter2 do
           use Phoenix.Router, helpers: false
 
-          import Phoenix.LiveView.Router
           import Backpex.Router
+          import Phoenix.LiveView.Router
 
           # Pass an unknown option
           live_resources "/bad", BadLive, unknown_option: true
@@ -126,8 +126,8 @@ defmodule Backpex.RouterTest do
       defmodule ValidContainerRouter do
         use Phoenix.Router, helpers: false
 
-        import Phoenix.LiveView.Router
         import Backpex.Router
+        import Phoenix.LiveView.Router
 
         live_resources "/valid", ValidLive, container: {:div, class: "valid"}
       end
@@ -138,8 +138,8 @@ defmodule Backpex.RouterTest do
         defmodule InvalidRouter3 do
           use Phoenix.Router, helpers: false
 
-          import Phoenix.LiveView.Router
           import Backpex.Router
+          import Phoenix.LiveView.Router
 
           live_resources "/bad", BadLive, metadata: "not a map"
         end
@@ -149,8 +149,8 @@ defmodule Backpex.RouterTest do
         defmodule InvalidRouter4 do
           use Phoenix.Router, helpers: false
 
-          import Phoenix.LiveView.Router
           import Backpex.Router
+          import Phoenix.LiveView.Router
 
           live_resources "/bad", BadLive, private: [:not, :a, :map]
         end

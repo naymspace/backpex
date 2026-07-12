@@ -1,7 +1,7 @@
 defmodule Backpex.MixProject do
   use Mix.Project
 
-  @version "0.18.0"
+  @version "0.19.1"
 
   @source_url "https://github.com/naymspace/backpex"
   @changelog_url "https://github.com/naymspace/backpex/releases"
@@ -66,7 +66,7 @@ defmodule Backpex.MixProject do
       {:phoenix_ecto, "~> 4.4"},
 
       # generators
-      {:igniter, "~> 0.6", optional: true},
+      {:igniter, "~> 0.8", optional: true},
       {:igniter_js, "~> 0.4", optional: true}
     ]
   end
@@ -197,6 +197,7 @@ defmodule Backpex.MixProject do
       "guides/translations/translations.md",
 
       # Upgrade Guides
+      "guides/upgrading/v0.19.md",
       "guides/upgrading/v0.18.md",
       "guides/upgrading/v0.17.md",
       "guides/upgrading/v0.16.md",

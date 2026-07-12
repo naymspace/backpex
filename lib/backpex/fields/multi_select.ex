@@ -1,3 +1,4 @@
+# quokka:skip-module-directive-reordering
 defmodule Backpex.Fields.MultiSelect do
   @config_schema [
     options: [

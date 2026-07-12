@@ -1,8 +1,8 @@
 defmodule Backpex.Controllers.CookieControllerTest do
   use ExUnit.Case, async: true
 
-  import Plug.Conn
   import Phoenix.ConnTest
+  import Plug.Conn
 
   alias Backpex.CookieController
 

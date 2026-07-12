@@ -4,7 +4,9 @@ defmodule DemoWeb.ItemActions.UserSoftDelete do
   use BackpexWeb, :item_action
 
   import Ecto.Changeset
+
   alias Backpex.ItemActions.Delete
+
   require Logger
 
   @impl Backpex.ItemAction

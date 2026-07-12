@@ -2,8 +2,8 @@ defmodule DemoWeb.Live.User.IndexLiveTest do
   use DemoWeb.ConnCase, async: false
 
   import Demo.EctoFactory
-  import Phoenix.LiveViewTest
   import Demo.Support.LiveResourceTests
+  import Phoenix.LiveViewTest
 
   describe "users live resource index" do
     test "is rendered", %{conn: conn} do

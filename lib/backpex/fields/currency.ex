@@ -1,3 +1,4 @@
+# quokka:skip-module-directive-reordering
 defmodule Backpex.Fields.Currency do
   @config_schema [
     debounce: [
@@ -96,7 +97,6 @@ defmodule Backpex.Fields.Currency do
           <Layout.input_label for={@form[@name]} text={@field_options[:label]} />
         </:label>
         <BackpexForm.currency_input
-          type="text"
           field={@form[@name]}
           readonly={@readonly}
           translate_error_fun={Backpex.Field.translate_error_fun(@field_options, assigns)}

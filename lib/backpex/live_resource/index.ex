@@ -10,7 +10,6 @@ defmodule Backpex.LiveResource.Index do
   alias Backpex.PaginationValidation
   alias Backpex.Resource
   alias Backpex.Router
-
   alias Phoenix.LiveView
 
   require Backpex
@@ -469,10 +468,13 @@ defmodule Backpex.LiveResource.Index do
   end
 
   defp apply_index_return_to(socket) do
-    %{live_resource: live_resource, params: params, query_options: query_options} = socket.assigns
+    %{live_resource: live_resource, params: params, query_options: query_options, filters_changed: filters_changed} =
+      socket.assigns
 
-    socket
-    |> assign(:return_to, Router.get_path(socket, live_resource, params, :index, query_options))
+    return_to_options =
+      if filters_changed, do: Map.put(query_options, :filters_changed, "true"), else: query_options
+
+    assign(socket, :return_to, Router.get_path(socket, live_resource, params, :index, return_to_options))
   end
 
   # TODO: move to common module

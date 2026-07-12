@@ -1,3 +1,4 @@
+# quokka:skip-module-directive-reordering
 defmodule Backpex.Adapters.Ecto do
   @config_schema [
     repo: [
