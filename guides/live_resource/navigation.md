@@ -41,7 +41,7 @@ For all other live actions, the form_action will be `nil`.
 Sometimes the destination depends on where the user came from rather than on the
 resource itself. For these cases you can append a `return_to` query parameter to
 any `:new`, `:edit`, or `:show` URL. Backpex uses it as the navigation target
-after the form is saved/cancelled or after an item action completes, overriding
+after the form is saved/canceled or after an item action completes, overriding
 the default index/show path.
 
 ```elixir
