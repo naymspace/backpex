@@ -1,7 +1,23 @@
 defmodule Backpex.HTML.ResourceTest do
   use ExUnit.Case, async: true
 
+  import Phoenix.LiveViewTest
+
   alias Backpex.HTML.Resource
+
+  describe "filter_forms/1" do
+    test "renders a form with a stable id so LiveView can perform form recovery" do
+      html =
+        render_component(&Resource.filter_forms/1,
+          filters: [],
+          filter_options: %{},
+          live_resource: nil
+        )
+
+      assert html =~ ~s(id="filter-form")
+      assert html =~ ~s(phx-change="change-filter")
+    end
+  end
 
   describe "lv_reserved_assigns/0" do
     test "includes every assign reserved by Phoenix.LiveView" do
