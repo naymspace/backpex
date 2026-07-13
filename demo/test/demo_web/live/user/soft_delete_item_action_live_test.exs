@@ -92,6 +92,60 @@ defmodule DemoWeb.Live.User.SoftDeleteItemActionLiveTest do
       |> refute_has("td", text: "showuser")
     end
 
+    test "show view item action honors a valid ?return_to param", %{conn: conn} do
+      user = insert(:user, %{username: "returnuser"})
+
+      conn
+      |> visit(~p"/admin/users/#{user.id}/show?return_to=/admin/products")
+      |> unwrap(fn view ->
+        view
+        |> element("#item-action-user_soft_delete")
+        |> render_click()
+      end)
+      |> unwrap(fn view ->
+        view
+        |> form("#resource-form", change: %{reason: "Returning to products"})
+        |> render_submit()
+      end)
+      |> assert_path(~p"/admin/products")
+    end
+
+    test "show view item action ignores an external ?return_to param", %{conn: conn} do
+      user = insert(:user, %{username: "externaluser"})
+
+      conn
+      |> visit(~p"/admin/users/#{user.id}/show?return_to=https://evil.com")
+      |> unwrap(fn view ->
+        view
+        |> element("#item-action-user_soft_delete")
+        |> render_click()
+      end)
+      |> unwrap(fn view ->
+        view
+        |> form("#resource-form", change: %{reason: "Rejecting external redirect"})
+        |> render_submit()
+      end)
+      |> assert_path(~p"/admin/users")
+    end
+
+    test "show view item action ignores a protocol-relative ?return_to param", %{conn: conn} do
+      user = insert(:user, %{username: "protocoluser"})
+
+      conn
+      |> visit(~p"/admin/users/#{user.id}/show?return_to=//evil.com")
+      |> unwrap(fn view ->
+        view
+        |> element("#item-action-user_soft_delete")
+        |> render_click()
+      end)
+      |> unwrap(fn view ->
+        view
+        |> form("#resource-form", change: %{reason: "Rejecting protocol-relative redirect"})
+        |> render_submit()
+      end)
+      |> assert_path(~p"/admin/users")
+    end
+
     test "admin users cannot be soft deleted", %{conn: conn} do
       admin_user = insert(:user, %{username: "adminuser", role: :admin})
 
