@@ -960,4 +960,48 @@ defmodule Backpex.LiveResource do
 
     socket
   end
+
+  @doc """
+  Extracts a safe `return_to` path from the given params.
+
+  Backpex uses the `return_to` value to determine where to navigate after an
+  item has been created, updated, or acted on via an item action. By appending
+  a `?return_to=` query parameter to a resource URL you can override that
+  destination, e.g. to send the user back to the page they came from.
+
+  Only same-origin, absolute paths are accepted. Any value carrying a scheme or
+  host (`https://example.com`, `//example.com`, `/\\example.com`) is rejected to
+  prevent open redirects, in which case `nil` is returned and callers should
+  fall back to their default destination.
+
+  ## Examples
+
+      iex> Backpex.LiveResource.return_to_param(%{"return_to" => "/admin/posts?page=2"})
+      "/admin/posts?page=2"
+
+      iex> Backpex.LiveResource.return_to_param(%{"return_to" => "https://evil.com"})
+      nil
+
+      iex> Backpex.LiveResource.return_to_param(%{"return_to" => "//evil.com"})
+      nil
+
+      iex> Backpex.LiveResource.return_to_param(%{})
+      nil
+  """
+  def return_to_param(params) do
+    case Map.get(params, "return_to") do
+      path when is_binary(path) -> if safe_return_to?(path), do: path
+      _other -> nil
+    end
+  end
+
+  defp safe_return_to?("//" <> _rest), do: false
+  defp safe_return_to?("/\\" <> _rest), do: false
+
+  defp safe_return_to?("/" <> _rest = path) do
+    uri = URI.parse(path)
+    is_nil(uri.scheme) and is_nil(uri.host)
+  end
+
+  defp safe_return_to?(_path), do: false
 end

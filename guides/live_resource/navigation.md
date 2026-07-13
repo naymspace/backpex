@@ -35,3 +35,24 @@ When working with forms (in `:new` or  `:edit` live actions), the following form
 - `:cancel` - When a form submission is canceled aka the "Cancel" button was clicked
 
 For all other live actions, the form_action will be `nil`.
+
+## Overriding the destination per link (`return_to`)
+
+Sometimes the destination depends on where the user came from rather than on the
+resource itself. For these cases you can append a `return_to` query parameter to
+any `:new`, `:edit`, or `:show` URL. Backpex uses it as the navigation target
+after the form is saved/cancelled or after an item action completes, overriding
+the default index/show path.
+
+```elixir
+# link into the show view and send the user back to a custom page afterwards
+~p"/admin/posts/#{post}/show?return_to=/dashboard"
+```
+
+This is useful, for example, when a notification links to a resource and you want
+the user to return to the notification list once they have acted on it.
+
+Only same-origin, absolute paths are honored. Any value that carries a scheme or
+host (`https://example.com`, `//example.com`, `/\example.com`) is ignored to
+prevent open redirects, and Backpex falls back to the default destination. Paths
+may include query strings (e.g. `/admin/posts?page=2`).
