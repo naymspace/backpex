@@ -985,6 +985,9 @@ defmodule Backpex.LiveResource do
       iex> Backpex.LiveResource.return_to_param(%{"return_to" => "//evil.com"})
       nil
 
+      iex> Backpex.LiveResource.return_to_param(%{"return_to" => "/\\evil.com"})
+      nil
+
       iex> Backpex.LiveResource.return_to_param(%{})
       nil
   """
