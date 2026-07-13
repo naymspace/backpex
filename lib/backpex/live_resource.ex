@@ -970,9 +970,9 @@ defmodule Backpex.LiveResource do
   destination, e.g. to send the user back to the page they came from.
 
   Only same-origin, absolute paths are accepted. Any value carrying a scheme or
-  host (`https://example.com`, `//example.com`, `/\\example.com`) is rejected to
-  prevent open redirects, in which case `nil` is returned and callers should
-  fall back to their default destination.
+  host (`https://example.com`, `//example.com`, `/\\example.com`), or containing
+  control characters, is rejected to prevent open redirects, in which case `nil`
+  is returned and callers should fall back to their default destination.
 
   ## Examples
 
@@ -1003,7 +1003,7 @@ defmodule Backpex.LiveResource do
 
   defp safe_return_to?("/" <> _rest = path) do
     uri = URI.parse(path)
-    is_nil(uri.scheme) and is_nil(uri.host)
+    is_nil(uri.scheme) and is_nil(uri.host) and not String.match?(path, ~r/[[:cntrl:]]/)
   end
 
   defp safe_return_to?(_path), do: false
