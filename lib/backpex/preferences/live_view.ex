@@ -12,8 +12,11 @@ defmodule Backpex.Preferences.LiveView do
   returned from `event_name/0`.
   """
 
+  alias Backpex.Preferences.Context
   alias Phoenix.LiveView
   alias Phoenix.LiveView.Socket
+
+  @connect_param "backpex_prefs"
 
   @doc """
   Name of the LiveView push_event used to signal a preference write to the
@@ -25,15 +28,50 @@ defmodule Backpex.Preferences.LiveView do
   def event_name, do: "backpex:set_preference"
 
   @doc """
-  Name of the LiveView event the `BackpexPreferences` JS hook pushes back to
-  the server on mount, carrying the sessionStorage-mirrored preference
-  values so mount-time reads from the frozen websocket session can be
-  reconciled after a `live_redirect` re-mount.
+  Name of the LiveView connect param carrying the browser's mirrored
+  preferences.
 
-  Handled by the `handle_event` hook that `Backpex.InitAssigns` attaches.
+  A browser contract — keep it aligned with `backpexParams` in
+  `assets/js/hooks/_preferences.js`.
   """
-  @spec sync_event_name() :: String.t()
-  def sync_event_name, do: "backpex:sync_preferences"
+  @spec connect_param() :: String.t()
+  def connect_param, do: @connect_param
+
+  @doc """
+  Builds the `Backpex.Preferences.Context` for a LiveView mount.
+
+  Combines the session and `socket.assigns` (what identity resolvers need)
+  with the preferences the browser sent in its connect params, which take
+  precedence over stored values.
+
+  Those connect params are what makes preferences survive live navigation. A
+  LiveView reads the session snapshot taken when the websocket connected, so on
+  a `live_redirect` re-mount it cannot see any preference written since — it
+  would render stale column/metric visibility. The browser mirrors those writes
+  in `sessionStorage` and hands them back on every join, *before* mount renders,
+  so the first render is already correct.
+
+  Only valid for calls during `mount/3` (including `on_mount` hooks), where
+  `Phoenix.LiveView.get_connect_params/1` is available. Disconnected mounts have
+  no connect params; there the freshly-read session is authoritative anyway.
+  """
+  @spec mount_context(Socket.t(), map()) :: Context.t()
+  def mount_context(%Socket{} = socket, session) when is_map(session) do
+    session
+    |> Context.from_mount(socket.assigns)
+    |> Context.put_client(client_preferences(socket))
+  end
+
+  defp client_preferences(socket) do
+    if LiveView.connected?(socket) do
+      socket
+      |> LiveView.get_connect_params()
+      |> Kernel.||(%{})
+      |> Map.get(@connect_param, %{})
+    else
+      %{}
+    end
+  end
 
   @doc """
   Pushes a preference-write event to the browser.
@@ -53,8 +91,8 @@ defmodule Backpex.Preferences.LiveView do
       visibility): the Session adapter reads the websocket-connect session
       snapshot, which is frozen for the life of the socket, so without the
       mirror any write after connect silently reverts on the next
-      `live_redirect` re-mount. Mirrored values are pushed back to the
-      server on every hook mount (see `sync_event_name/0`).
+      `live_redirect` re-mount. The browser hands mirrored values back in the
+      connect params of every join, where `mount_context/2` picks them up.
 
   ## Examples
 

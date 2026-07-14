@@ -9,7 +9,6 @@ defmodule Backpex.LiveResource.Index do
   alias Backpex.LiveResource
   alias Backpex.PaginationValidation
   alias Backpex.Preferences
-  alias Backpex.Preferences.Context, as: PreferenceContext
   alias Backpex.Preferences.Keys, as: PreferenceKeys
   alias Backpex.Preferences.LiveView, as: PreferenceLiveView
   alias Backpex.Resource
@@ -34,8 +33,10 @@ defmodule Backpex.LiveResource.Index do
     # Build a Context once per mount so identity resolvers see the same
     # session + socket.assigns snapshot across every preference read (including
     # any auth-layer assigns like :current_scope or :current_user populated by
-    # an earlier on_mount hook).
-    ctx = PreferenceContext.from_mount(session, socket.assigns)
+    # an earlier on_mount hook). It also carries the browser's connect-param
+    # preferences, so a live_redirect re-mount renders the columns and metrics
+    # the user actually chose rather than the stale connect-time session's.
+    ctx = PreferenceLiveView.mount_context(socket, session)
 
     socket
     |> assign_persisted_index_state(ctx)
@@ -379,76 +380,6 @@ defmodule Backpex.LiveResource.Index do
       socket
     end
   end
-
-  @doc false
-  # Reconciles mount-time preference reads with the browser's per-tab
-  # sessionStorage mirror. Mount reads go through the frozen websocket
-  # session, so column/metric visibility toggled after connect reverts on
-  # every live_redirect re-mount; the BackpexPreferences hook pushes the
-  # mirrored values back right after mount and this applies them. Called
-  # from the handle_event hook attached in Backpex.InitAssigns, which
-  # no-ops for LiveViews without index state.
-  def sync_preferences(socket, prefs) when is_map(prefs) do
-    socket
-    |> maybe_sync_columns(prefs)
-    |> maybe_sync_metrics(prefs)
-  end
-
-  def sync_preferences(socket, _prefs), do: socket
-
-  defp maybe_sync_columns(%{assigns: %{live_resource: live_resource, active_fields: active_fields}} = socket, prefs) do
-    with true <- persist_enabled?(live_resource, :columns),
-         %{} = columns <- Map.get(prefs, PreferenceKeys.columns(live_resource)) do
-      updated_fields = apply_synced_columns(active_fields, columns)
-
-      if updated_fields == active_fields do
-        socket
-      else
-        assign(socket, :active_fields, updated_fields)
-      end
-    else
-      _other -> socket
-    end
-  end
-
-  defp maybe_sync_columns(socket, _prefs), do: socket
-
-  defp apply_synced_columns(active_fields, columns) do
-    Enum.map(active_fields, fn {name, config} ->
-      case Map.get(columns, Atom.to_string(name)) do
-        active when is_boolean(active) -> {name, %{config | active: active}}
-        _other -> {name, config}
-      end
-    end)
-  end
-
-  defp maybe_sync_metrics(
-         %{assigns: %{live_resource: live_resource, metric_visibility: metric_visibility}} = socket,
-         prefs
-       ) do
-    persisted_visible =
-      if persist_enabled?(live_resource, :metrics) do
-        Map.get(prefs, PreferenceKeys.metrics_visible(live_resource))
-      end
-
-    case persisted_visible do
-      visible when is_boolean(visible) ->
-        resource_key = to_string(live_resource)
-
-        if Map.get(metric_visibility, resource_key, true) == visible do
-          socket
-        else
-          socket
-          |> assign(:metric_visibility, Map.put(metric_visibility, resource_key, visible))
-          |> maybe_assign_metrics()
-        end
-
-      _other ->
-        socket
-    end
-  end
-
-  defp maybe_sync_metrics(socket, _prefs), do: socket
 
   defp apply_filter_change(socket, new_filters) do
     %{live_resource: live_resource, query_options: query_options, params: params} = socket.assigns

@@ -56,20 +56,30 @@ config :backpex, :pubsub_server, MyApp.PubSub
 See the [Listen to PubSub Events](live_resource/listen-to-pubsub-events.md) guide for more info on how use and customize
 your PubSub configuration.
 
-## Backpex Hooks
+## Backpex Hooks and connect params
 
-Backpex comes with a few JS hooks which need to be included in your `app.js`.
+Backpex comes with a few JS hooks which need to be included in your `app.js`,
+plus a `params` helper for your `LiveSocket`.
 
 ```javascript
-import { Hooks as BackpexHooks } from 'backpex';
+import { Hooks as BackpexHooks, backpexParams } from 'backpex';
 
 const Hooks = [] // your application hooks (optional)
 
 const liveSocket = new LiveSocket('/live', Socket, {
-  params: { _csrf_token: csrfToken },
+  params: backpexParams({ _csrf_token: csrfToken }),
   hooks: {...Hooks, ...BackpexHooks }
 })
 ```
+
+`backpexParams` wraps your own connect params and adds the preferences the
+browser has stored for this tab. A LiveView reads the session snapshot taken
+when the websocket connected, so after a `live_redirect` it cannot see
+preferences written since — without the params, hidden columns and metrics
+reappear as soon as the user navigates. Passing a function (rather than a plain
+object) matters: LiveView re-evaluates it on every join, which is what keeps the
+values current. See
+[User Preferences](../live_resource/user-preferences.md) for the full rationale.
 
 ## daisyUI
 

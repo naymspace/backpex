@@ -90,6 +90,18 @@ defmodule Backpex.InitAssignsTest do
     }
   end
 
+  # A connected socket carrying the preferences the browser mirrored in
+  # sessionStorage and handed back in its join params.
+  defp connected_socket(client_prefs) do
+    socket = build_socket()
+
+    %{
+      socket
+      | transport_pid: self(),
+        private: Map.put(socket.private, :connect_params, %{"backpex_prefs" => client_prefs})
+    }
+  end
+
   defp mount(session, socket \\ build_socket()) do
     {:cont, socket} = InitAssigns.on_mount(:default, %{}, session, socket)
     socket
@@ -240,23 +252,36 @@ defmodule Backpex.InitAssignsTest do
     end
   end
 
-  describe "on_mount/4 hooks the preferences mirror sync into :handle_event" do
-    test "attaches a handle_event hook that halts the sync event and conts on others" do
-      socket = mount(%{})
+  describe "on_mount/4 with preferences in the connect params" do
+    test "renders the browser's mirrored values instead of the frozen session's" do
+      # The live_redirect case: the session snapshot LiveView froze at connect
+      # time still says the sidebar is open, but the user has closed it since
+      # and the browser hands that back on the join. The connect param must win,
+      # otherwise the first render is stale and visibly corrects itself.
+      session = %{"backpex_preferences" => %{"global" => %{"sidebar_open" => true, "theme" => "light"}}}
 
-      hooks = socket.private.lifecycle.handle_event
-      hook = Enum.find(hooks, fn hook -> hook.id == :backpex_preferences_sync end)
-      assert hook != nil
+      socket =
+        mount(
+          session,
+          connected_socket(%{
+            "global.sidebar_open" => false,
+            "global.sidebar_section.blog" => false
+          })
+        )
 
-      sync_event = Backpex.Preferences.LiveView.sync_event_name()
+      assert socket.assigns.sidebar_open == false
+      assert socket.assigns.sidebar_section_states == %{"blog" => false}
+      # Keys absent from the connect params still come from the session.
+      assert socket.assigns.current_theme == "light"
+    end
 
-      # The sync event must be halted (no Backpex LiveView defines a
-      # handle_event/3 clause for it) and must tolerate a socket without
-      # index assigns — that's every Show/Form mount.
-      assert {:halt, %Socket{}} = hook.function.(sync_event, %{"prefs" => %{}}, socket)
+    test "ignores connect params on a disconnected mount" do
+      # The dead render re-read the session over HTTP, so it is authoritative.
+      session = %{"backpex_preferences" => %{"global" => %{"sidebar_open" => false}}}
 
-      # Any other event must pass through untouched.
-      assert {:cont, ^socket} = hook.function.("save", %{}, socket)
+      socket = mount(session, build_socket())
+
+      assert socket.assigns.sidebar_open == false
     end
   end
 

@@ -117,6 +117,13 @@ defmodule Backpex.Preferences do
     maybe_validate_key(key, :get)
     default = Keyword.get(opts, :default)
 
+    case client_fetch(ctx_or_session, key) do
+      :error -> get_from_adapter(ctx_or_session, key, opts, default)
+      {:ok, value} -> value
+    end
+  end
+
+  defp get_from_adapter(ctx_or_session, key, opts, default) do
     case dispatch_get(ctx_or_session, key, opts) do
       {_module, {:ok, :not_found}} ->
         default
@@ -180,6 +187,12 @@ defmodule Backpex.Preferences do
   def fetch(ctx_or_session, key, opts \\ []) do
     maybe_validate_key(key, :fetch)
 
+    with :error <- client_fetch(ctx_or_session, key) do
+      fetch_from_adapter(ctx_or_session, key, opts)
+    end
+  end
+
+  defp fetch_from_adapter(ctx_or_session, key, opts) do
     case dispatch_get(ctx_or_session, key, opts) do
       {_module, {:ok, :not_found}} ->
         :error
@@ -247,18 +260,51 @@ defmodule Backpex.Preferences do
           {module, {:error, {:exception, reason}}}
       end
 
-    case result do
-      {_module, {:ok, map}} when is_map(map) ->
-        map
+    stored =
+      case result do
+        {_module, {:ok, map}} when is_map(map) ->
+          map
 
-      {_module, {:error, reason}} ->
-        Logger.warning(
-          "Backpex.Preferences: adapter #{inspect(module)} returned error on get_map/3 for prefix " <>
-            "#{inspect(prefix)}: #{inspect(reason)}; falling back to %{}"
-        )
+        {_module, {:error, reason}} ->
+          Logger.warning(
+            "Backpex.Preferences: adapter #{inspect(module)} returned error on get_map/3 for prefix " <>
+              "#{inspect(prefix)}: #{inspect(reason)}; falling back to %{}"
+          )
 
-        %{}
-    end
+          %{}
+      end
+
+    Map.merge(stored, client_map(ctx, prefix))
+  end
+
+  # Client-supplied values (LiveView connect params) win over stored ones: they
+  # are this tab's writes since websocket connect, which the connect-time
+  # session snapshot cannot see. See `Backpex.Preferences.Context.put_client/2`.
+  defp client_fetch(%Context{client: client}, key) when is_map(client), do: Map.fetch(client, key)
+  defp client_fetch(_ctx_or_session, _key), do: :error
+
+  # The `get_map/3` counterpart: every client key under `prefix`, keyed by the
+  # segments that follow it, so it merges cleanly over the adapter's map.
+  defp client_map(%Context{client: client}, prefix) when is_map(client) do
+    scope = prefix <> "."
+
+    client
+    |> Enum.filter(fn {key, _value} -> String.starts_with?(key, scope) end)
+    |> Enum.reduce(%{}, fn {key, value}, acc ->
+      key
+      |> String.replace_prefix(scope, "")
+      |> String.split(".")
+      |> put_nested(acc, value)
+    end)
+  end
+
+  defp client_map(_ctx_or_session, _prefix), do: %{}
+
+  defp put_nested([segment], acc, value), do: Map.put(acc, segment, value)
+
+  defp put_nested([segment | rest], acc, value) do
+    nested = if is_map(Map.get(acc, segment)), do: Map.get(acc, segment), else: %{}
+    Map.put(acc, segment, put_nested(rest, nested, value))
   end
 
   @doc """

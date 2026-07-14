@@ -948,12 +948,24 @@ next fresh connect. When a user clicks an internal link that does a
 snapshot and the server re-renders UI chrome from the pre-write value.
 The user sees a momentary reversion of their own toggle.
 
-To survive that re-mount the JS hook needs a client-authoritative value
-that bypasses the server entirely. `sessionStorage` is the natural fit:
-same tab, cleared on tab close, no cookie-size pressure. `BackpexPreferences`
-provides `get(key, fallback)` and `set(key, value, { mirror: 'session' })`
-so every hook gets the same, namespaced (`backpex.prefs.*`) behavior
-without reinventing load/save helpers.
+To survive that re-mount the browser keeps its own copy of what it wrote.
+`sessionStorage` is the natural fit: same tab, cleared on tab close, no
+cookie-size pressure. `BackpexPreferences` provides `get(key, fallback)` and
+`set(key, value, { mirror: 'session' })` so every hook gets the same,
+namespaced (`backpex.prefs.*`) behavior without reinventing load/save helpers.
+
+The mirror reaches the server in the **LiveView connect params**, which is why
+`backpexParams` must be wired into your `LiveSocket` (see the
+[installation guide](../get_started/installation.md)). LiveView re-evaluates
+those params on every join — including the joins `live_redirect` performs — so
+`mount/3` sees the tab's post-connect writes *before* it renders. Handing them
+over any later (say, from a hook's `mounted()`) would mean rendering the stale
+state first and correcting it a frame later: a visible flash and content jump.
+
+On the **first** join of a page load the mirror is dropped rather than sent.
+The server has just re-read the storage backend over HTTP, so its render is
+authoritative — and a mirror left over from an earlier page load, or made stale
+by another tab writing the shared cookie, must not override it.
 
 ### When to use `mirror: 'session'`
 
@@ -981,27 +993,25 @@ Skip the mirror (just call `BackpexPreferences.set(key, value)`) when:
 - You need cross-tab consistency within the browser — `sessionStorage` is
   per-tab; a mirror there will diverge between two tabs of the same admin.
 
-### Server-originated writes: `push_write` + mount sync
+### Server-originated writes: `push_write`
 
 The mirror also covers preferences the **server** writes via
 `Backpex.Preferences.LiveView.push_write/4`, such as column and metric
 visibility. These are server-rendered content (a hidden column is not in
 the DOM at all), so a client hook cannot re-apply them the way the sidebar
-hooks re-apply CSS state. Instead the reconciliation runs server-side:
+hooks re-apply CSS state — the server has to know before it renders:
 
 1. `push_write(socket, key, value, mirror: :session)` tells the
    `BackpexPreferences` hook to mirror the value into sessionStorage in
    addition to the HTTP POST.
-2. On every hook mount — which includes every `live_redirect` re-mount —
-   the hook pushes all mirrored values back to the server in a single
-   `"backpex:sync_preferences"` event.
-3. A `handle_event` hook attached by `Backpex.InitAssigns` applies the
-   mirrored values on top of the (possibly stale) mount-time read, so the
-   toggled state survives live navigation within the same socket.
+2. Every subsequent join sends the mirrored values in the connect params.
+3. `Backpex.Preferences.LiveView.mount_context/2` folds them into the
+   `Context`, where `get/3`, `fetch/3` and `get_map/3` prefer them over the
+   stored value — so the first render already reflects the toggle.
 
-This applies only to the Session adapter's frozen-snapshot staleness; a
-DB-backed adapter reads fresh at every mount and ignores nothing — the
-sync is a no-op when the values already match.
+This only matters for the Session adapter's frozen-snapshot staleness; a
+DB-backed adapter reads fresh at every mount, and there the mirrored values
+simply match what the adapter returns.
 
 ### Example: a compact-density toggle
 

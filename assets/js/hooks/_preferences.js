@@ -44,9 +44,27 @@ function writeSession (key, value) {
   }
 }
 
+// Drops every mirrored value. Called once per full page load, where the server
+// re-read the storage backend and its render is authoritative again.
+function clearMirror () {
+  try {
+    const keys = []
+    for (let i = 0; i < sessionStorage.length; i++) {
+      const storageKey = sessionStorage.key(i)
+      if (storageKey && storageKey.startsWith(SESSION_PREFIX)) keys.push(storageKey)
+    }
+    keys.forEach(key => sessionStorage.removeItem(key))
+  } catch {
+    // sessionStorage may be unavailable (private mode); best effort only
+  }
+}
+
 const BackpexPreferences = {
   endpointPath: null,
   csrfToken: null,
+  // Whether connectParams() has run for this page load. Set on the first
+  // LiveView join, which is also where the stale mirror is dropped.
+  connectParamsCalled: false,
 
   /**
    * Initialize the preference manager.
@@ -160,6 +178,35 @@ const BackpexPreferences = {
   },
 
   /**
+   * LiveView connect params carrying this tab's mirrored preferences.
+   *
+   * Wire these into your LiveSocket with `backpexParams` (see the Backpex
+   * installation guide) so they are re-evaluated on every join. The server
+   * reads them in `mount/3`, *before* the first render — which is the whole
+   * point: a LiveView's session snapshot is frozen at websocket-connect time,
+   * so after a `live_redirect` re-mount it cannot see preference writes made
+   * since. Handing the mirror over at join time lets the server render the
+   * user's actual state instead of rendering stale state and correcting it a
+   * frame later.
+   *
+   * On the first join of a page load the mirror is dropped instead of sent:
+   * the server just re-read the storage backend over HTTP, so its render is
+   * authoritative and a mirror left over from an earlier page load (or made
+   * stale by another tab writing the shared cookie) must not override it.
+   *
+   * @returns {{backpex_prefs?: Object<string, any>}}
+   */
+  connectParams () {
+    if (!this.connectParamsCalled) {
+      this.connectParamsCalled = true
+      clearMirror()
+      return {}
+    }
+
+    return { backpex_prefs: this.mirroredEntries() }
+  },
+
+  /**
    * Persist a preference to the server immediately.
    * Uses keepalive to ensure request completes even during page navigation.
    */
@@ -202,17 +249,32 @@ const BackpexPreferencesHook = {
       BackpexPreferences.set(key, value, { mirror })
     })
 
-    // Re-mounts happen on every live_redirect, where the server has just
-    // re-read its frozen connect-time session and may have rendered stale
-    // preference state (e.g. column/metric visibility). Push the per-tab
-    // mirrored values back so the server can reconcile; the matching
-    // handle_event hook is attached by Backpex.InitAssigns.
-    const mirrored = BackpexPreferences.mirroredEntries()
-    if (Object.keys(mirrored).length > 0) {
-      this.pushEvent('backpex:sync_preferences', { prefs: mirrored })
+    // A join always evaluates the LiveSocket params before mounting hooks, so
+    // reaching this point without connectParams() having run means the app's
+    // LiveSocket is not wired up. Preferences written after connect would then
+    // revert on the next live navigation.
+    if (!BackpexPreferences.connectParamsCalled) {
+      console.warn(
+        'BackpexPreferences: LiveSocket params are not wired up. Pass `params: backpexParams({ _csrf_token: csrfToken })` ' +
+        'to your LiveSocket so preferences survive live navigation. See the Backpex installation guide.'
+      )
     }
   }
 }
 
+/**
+ * Builds the LiveSocket `params` function Backpex needs.
+ *
+ * Must be a function (not a plain object) so LiveView re-evaluates it on every
+ * join — including the joins that `live_redirect` performs — and picks up
+ * preferences written since the page loaded.
+ *
+ * @param {Object<string, any>} [params] - your own connect params, e.g. `{ _csrf_token: csrfToken }`
+ * @returns {function(): Object<string, any>}
+ */
+function backpexParams (params = {}) {
+  return () => ({ ...params, ...BackpexPreferences.connectParams() })
+}
+
 export default BackpexPreferencesHook
-export { BackpexPreferences }
+export { BackpexPreferences, backpexParams }

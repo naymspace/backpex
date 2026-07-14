@@ -1,4 +1,4 @@
 import * as Hooks from './hooks'
 
 export { Hooks }
-export { BackpexPreferences } from './hooks/_preferences'
+export { BackpexPreferences, backpexParams } from './hooks/_preferences'

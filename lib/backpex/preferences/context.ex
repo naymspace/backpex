@@ -37,10 +37,11 @@ defmodule Backpex.Preferences.Context do
           source: source(),
           session: map(),
           assigns: map(),
-          identity: identity()
+          identity: identity(),
+          client: %{optional(String.t()) => term()}
         }
 
-  defstruct source: :mount, session: %{}, assigns: %{}, identity: nil
+  defstruct source: :mount, session: %{}, assigns: %{}, identity: nil, client: %{}
 
   @doc """
   Build a context for a read originating at LiveView mount.
@@ -51,6 +52,38 @@ defmodule Backpex.Preferences.Context do
   def from_mount(session, assigns \\ %{}) when is_map(session) and is_map(assigns) do
     %Context{source: :mount, session: session, assigns: assigns}
   end
+
+  @doc """
+  Overlay client-supplied preference values on a context.
+
+  Reads through `Backpex.Preferences.get/3`, `fetch/3` and `get_map/3` prefer
+  these values over whatever the adapter has stored. They arrive in the
+  LiveView connect params (see `Backpex.Preferences.LiveView.mount_context/2`)
+  and carry the writes a tab made *after* its websocket connected — writes the
+  frozen connect-time session cannot see on a `live_redirect` re-mount.
+
+  Keys that fail `Backpex.Preferences.Key.validate/1` are dropped: the payload
+  comes from the browser, and an unknown key would otherwise shadow a read for
+  a prefix no adapter is configured to serve. Values are not validated here —
+  they carry no more authority than the same value written through the
+  preferences endpoint, which the client can already reach.
+
+  ## Examples
+
+      iex> alias Backpex.Preferences.Context
+      iex> ctx = Context.put_client(Context.from_mount(%{}), %{"global.theme" => "dark", "bogus.key" => 1})
+      iex> ctx.client
+      %{"global.theme" => "dark"}
+  """
+  @spec put_client(t(), map()) :: t()
+  def put_client(%Context{} = ctx, client) when is_map(client) do
+    %{ctx | client: Map.filter(client, fn {key, _value} -> valid_client_key?(key) end)}
+  end
+
+  def put_client(%Context{} = ctx, _client), do: %{ctx | client: %{}}
+
+  defp valid_client_key?(key) when is_binary(key), do: Backpex.Preferences.Key.validate(key) == :ok
+  defp valid_client_key?(_key), do: false
 
   @doc """
   Build a context from a `%Plug.Conn{}` (write path over HTTP).
