@@ -36,44 +36,15 @@ defmodule Backpex.Preferences do
   ## Public API
 
     * `get/3` — read a single preference, with a `:default` fallback.
-    * `fetch/3` — read a single preference and distinguish missing values
-      (`:error`) from adapter errors (`{:error, reason}`).
     * `get_map/3` — read every value under a prefix as a nested map.
     * `put/4` — write from a LiveView socket or `%Plug.Conn{}`.
     * `put_batch/3` — dispatch a list of writes (best-effort, first-error-wins;
       see the function docs for the partial-success semantics).
-
-  ### `get/3` vs `fetch/3`
-
-  `get/3` is the common case: you want a value, falling back to a default
-  when there is no stored value for any reason (user hasn't set one, no user
-  is identified yet, adapter transiently failed).
-
-  Reach for `fetch/3` when you need to tell "user has no preference yet"
-  apart from "there's no user to read a preference for" — e.g. prompting an
-  anonymous visitor to sign in to save their view:
-
-      case Backpex.Preferences.fetch(session, "custom.dashboard.view_mode") do
-        {:ok, mode} ->
-          # User has deliberately chosen a view mode — use it.
-          mode
-
-        :error ->
-          # Either no user is identified (anonymous visitor) or the logged-in
-          # user hasn't set one. Show the default AND a "sign in to save your
-          # view" CTA. `get/3` would have collapsed both into the default.
-          "grid"
-
-        {:error, _reason} ->
-          # Adapter failure — already logged. Fall back silently.
-          "grid"
-      end
   """
 
   alias Backpex.Preferences.Adapter
   alias Backpex.Preferences.Adapters
   alias Backpex.Preferences.Context
-  alias Backpex.Preferences.Key
   alias Backpex.Preferences.LiveView, as: PreferenceLiveView
   alias Backpex.Preferences.Router
   alias Phoenix.LiveView.Socket
@@ -93,6 +64,16 @@ defmodule Backpex.Preferences do
     * `:default` — returned when nothing is stored for `key` (default: `nil`).
 
   Extra options are forwarded to the adapter.
+
+  ## Distinguishing "never set"
+
+  With no `:default`, a missing value reads as `nil` — which separates "the
+  user never set this" from "the user deliberately stored an empty value".
+  An explicitly cleared `%{}` or `[]` is a real preference and must not be
+  overwritten by an application default; this is how `persist: [:filters]`
+  decides whether to apply a resource's filter defaults. Pass a sentinel
+  (`default: :__unset__`) when `nil` is itself a value the preference can
+  hold.
 
   ## Examples
 
@@ -121,6 +102,13 @@ defmodule Backpex.Preferences do
       {_module, {:ok, value}} ->
         value
 
+      # `Backpex.Preferences.Adapter` defines `{:error, :unidentified}` on reads
+      # as "treat as not found": the adapter needs a resolved user and has none.
+      # That is an expected condition (anonymous visitors, background jobs), so
+      # it falls back to the default silently rather than logging every read.
+      {_module, {:error, :unidentified}} ->
+        default
+
       {module, {:error, reason}} ->
         Logger.warning(
           "Backpex.Preferences: adapter #{inspect(module)} returned error on get/3 for key " <>
@@ -128,80 +116,6 @@ defmodule Backpex.Preferences do
         )
 
         default
-    end
-  end
-
-  @doc """
-  Reads a preference and returns a result tuple that distinguishes missing
-  values from adapter failures.
-
-  Unlike `get/3`, which collapses every non-success case to `opts[:default]`,
-  this function gives callers enough signal to react differently.
-
-  Use `fetch/3` when you need to distinguish "user hasn't set a preference
-  yet" from "anonymous visitor / nothing to read" — for example, to show a
-  "sign in to save your view" CTA, or to decide whether to apply a
-  resource-level default. `get/3` collapses both to the `:default` option.
-
-  Returns:
-
-    * `{:ok, value}` — the adapter returned a stored value.
-    * `:error` — the adapter successfully determined nothing is stored
-      (`{:ok, :not_found}` from the adapter), **or** the adapter returned
-      `{:error, :unidentified}`. The `Backpex.Preferences.Adapter`
-      behaviour defines `:unidentified` on reads as "treat as not found",
-      so no warning is logged for that case — it is expected (anonymous
-      visitors, background jobs, etc.).
-    * `{:error, reason}` — any other adapter failure (e.g. a raised
-      exception swallowed by the dispatcher). A warning is also logged.
-
-  Note that `:error` cannot tell "no user identified" apart from "user has
-  not set this preference yet" — both collapse to the same tag. What
-  `fetch/3` does give you is a signal separate from *application* defaults:
-  if your code needs to decide whether to apply a default based on whether
-  the user has deliberately set a value (including to a semantically empty
-  `%{}` or `[]`), match on `:error` vs `{:ok, _}` rather than inspecting the
-  resolved value's shape.
-
-  ## Examples
-
-      iex> session = %{"backpex_preferences" => %{"global" => %{"theme" => "dark"}}}
-      iex> Backpex.Preferences.fetch(session, "global.theme")
-      {:ok, "dark"}
-
-      iex> Backpex.Preferences.fetch(%{}, "global.theme")
-      :error
-  """
-  @spec fetch(Context.t() | map(), String.t(), keyword()) ::
-          {:ok, term()} | :error | {:error, term()}
-  def fetch(ctx_or_session, key, opts \\ []) do
-    with :error <- client_fetch(ctx_or_session, key) do
-      fetch_from_adapter(ctx_or_session, key, opts)
-    end
-  end
-
-  defp fetch_from_adapter(ctx_or_session, key, opts) do
-    case dispatch_get(ctx_or_session, key, opts) do
-      {_module, {:ok, :not_found}} ->
-        :error
-
-      {_module, {:ok, value}} ->
-        {:ok, value}
-
-      {_module, {:error, :unidentified}} ->
-        # The adapter behaviour defines `:unidentified` on reads as "treat as
-        # not found" — collapse to `:error` without logging. This matches the
-        # expected path for anonymous visitors / background jobs that have no
-        # resolved identity.
-        :error
-
-      {module, {:error, reason} = err} ->
-        Logger.warning(
-          "Backpex.Preferences: adapter #{inspect(module)} returned error on fetch/3 for key " <>
-            "#{inspect(key)}: #{inspect(reason)}"
-        )
-
-        err
     end
   end
 
@@ -251,6 +165,11 @@ defmodule Backpex.Preferences do
       case result do
         {_module, {:ok, map}} when is_map(map) ->
           map
+
+        # See `get_from_adapter/4`: `:unidentified` on a read is a documented
+        # "not found", not a failure — no warning.
+        {_module, {:error, :unidentified}} ->
+          %{}
 
         {_module, {:error, reason}} ->
           Logger.warning(
@@ -478,14 +397,6 @@ defmodule Backpex.Preferences do
   """
   @spec session_key() :: String.t()
   def session_key, do: Adapters.Session.session_key()
-
-  @doc """
-  Splits a preference key into path segments.
-
-  Convenience passthrough to `Backpex.Preferences.Key.parse/1`.
-  """
-  @spec parse_key(String.t()) :: [String.t()]
-  def parse_key(key), do: Key.parse(key)
 
   defp dispatch_get(ctx_or_session, key, opts) do
     ctx = resolve_identity(Context.coerce(ctx_or_session))

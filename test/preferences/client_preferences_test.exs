@@ -51,20 +51,6 @@ defmodule Backpex.Preferences.ClientPreferencesTest do
     end
   end
 
-  describe "fetch/3" do
-    test "returns the client value as {:ok, value}" do
-      ctx = ctx(session(%{"global" => %{"theme" => "light"}}), %{"global.theme" => "dark"})
-
-      assert Preferences.fetch(ctx, "global.theme") == {:ok, "dark"}
-    end
-
-    test "falls through to the adapter when the client did not send the key" do
-      ctx = ctx(session(%{"global" => %{"theme" => "light"}}), %{})
-
-      assert Preferences.fetch(ctx, "global.theme") == {:ok, "light"}
-    end
-  end
-
   describe "get_map/3" do
     test "merges client entries over the stored ones under the prefix" do
       stored = session(%{"global" => %{"sidebar_section" => %{"blog" => true, "users" => true}}})

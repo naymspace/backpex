@@ -777,12 +777,13 @@ directly and return.
 
 ### Default vs. explicit empty
 
-When deciding whether to apply a default, use `Backpex.Preferences.fetch/3`
-and pattern-match on `:error` vs `{:ok, value}`. Don't treat a resolved
-`%{}` or `[]` as "never set" — a user who explicitly cleared their filters
-(or their columns, or any other map/list preference) stored that empty
-value deliberately. Overwriting it with a default on the next mount means
-every page load fights the user's choice.
+Don't treat a resolved `%{}` or `[]` as "never set" — a user who explicitly
+cleared their filters (or their columns, or any other map/list preference)
+stored that empty value deliberately. Overwriting it with a default on the
+next mount means every page load fights the user's choice.
+
+Read with `Backpex.Preferences.get/3` and **no** `:default`. A missing value
+then comes back as `nil`, so `is_nil/1` separates the two cases:
 
 ```elixir
 # Wrong — treats "user cleared filters" the same as "no preference".
@@ -790,16 +791,21 @@ filters = Backpex.Preferences.get(session, key, default: %{})
 if filters == %{}, do: apply_defaults(), else: use(filters)
 
 # Right — distinguishes the two.
-case Backpex.Preferences.fetch(session, key) do
-  {:ok, filters} -> use(filters)         # includes an explicit %{}
-  :error         -> apply_defaults()     # user has never set this
-  {:error, _}    -> apply_defaults()     # adapter failure, already logged
+case Backpex.Preferences.get(session, key) do
+  nil     -> apply_defaults()   # user has never set this
+  filters -> use(filters)       # includes an explicit %{}
 end
 ```
 
-`Backpex.LiveResource`'s own `persist: [:filters]` wiring follows this
-rule; apply the same pattern in any custom persistence logic you build on
-top of `Backpex.Preferences`.
+This is exactly what `Backpex.LiveResource`'s own `persist: [:filters]`
+wiring does: it reads the persisted filters with a bare `get/3` and skips
+the default-filter redirect whenever the result is not `nil`. Apply the same
+pattern in any custom persistence logic you build on top of
+`Backpex.Preferences`.
+
+If `nil` is itself a value your preference can legitimately hold, pass a
+sentinel instead — `Backpex.Preferences.get(session, key, default: :__unset__)`
+— and match on that.
 
 ## Testing Backpex LiveResources
 
@@ -962,8 +968,8 @@ hooks re-apply CSS state — the server has to know before it renders:
    addition to the HTTP POST.
 2. Every subsequent join sends the mirrored values in the connect params.
 3. `Backpex.Preferences.LiveView.mount_context/2` folds them into the
-   `Context`, where `get/3`, `fetch/3` and `get_map/3` prefer them over the
-   stored value — so the first render already reflects the toggle.
+   `Context`, where `get/3` and `get_map/3` prefer them over the stored
+   value — so the first render already reflects the toggle.
 
 This only matters for the Session adapter's frozen-snapshot staleness; a
 DB-backed adapter reads fresh at every mount, and there the mirrored values

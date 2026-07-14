@@ -125,15 +125,6 @@ defmodule Backpex.PreferencesTest do
     end
   end
 
-  describe "parse_key/1 (legacy alias)" do
-    test "delegates to Backpex.Preferences.Key" do
-      columns_segments = MyApp.UserLive |> Keys.columns() |> Preferences.parse_key()
-
-      assert Preferences.parse_key(Keys.theme()) == ["global", "theme"]
-      assert columns_segments == ["resource", "MyApp.UserLive", "columns"]
-    end
-  end
-
   describe "put/4" do
     test "Plug.Conn origin with the Session adapter persists through put_session" do
       conn = conn(:post, "/") |> Plug.Test.init_test_session(%{})
@@ -225,47 +216,8 @@ defmodule Backpex.PreferencesTest do
     end
   end
 
-  describe "fetch/3" do
-    test "returns {:ok, value} for a stored value" do
-      session = %{"backpex_preferences" => %{"global" => %{"theme" => "dark"}}}
-      assert Preferences.fetch(session, Keys.theme()) == {:ok, "dark"}
-    end
-
-    test "returns :error when nothing is stored" do
-      assert Preferences.fetch(%{}, Keys.theme()) == :error
-    end
-
-    test "returns {:error, reason} and logs a warning on adapter error" do
-      with_adapters([{:default, Backpex.PreferencesTest.RaisingGetAdapter, []}], fn ->
-        log =
-          capture_log(fn ->
-            assert {:error, :boom} = Preferences.fetch(%{}, Keys.theme())
-          end)
-
-        assert log =~ "Backpex.Preferences"
-        assert log =~ "fetch/3"
-      end)
-    end
-
-    test "collapses {:error, :unidentified} to :error without logging" do
-      # `Backpex.Preferences.Adapter` defines `:unidentified` on reads as
-      # "treat as not found" — fetch/3 must return :error (matching the
-      # stored-but-missing case) and must NOT log a warning, because the
-      # condition is expected (anonymous visitors, background jobs, etc.).
-      with_adapters([{:default, Backpex.PreferencesTest.UnidentifiedAdapter, []}], fn ->
-        log =
-          capture_log(fn ->
-            assert Preferences.fetch(%{}, Keys.theme()) == :error
-          end)
-
-        refute log =~ "Backpex.Preferences"
-        refute log =~ ":unidentified"
-      end)
-    end
-  end
-
-  describe "get/3 logs warnings on adapter error" do
-    test "falls back to default AND logs when the adapter returns {:error, _}" do
+  describe "reads on adapter error" do
+    test "get/3 falls back to default AND logs when the adapter returns {:error, _}" do
       with_adapters([{:default, Backpex.PreferencesTest.RaisingGetAdapter, []}], fn ->
         log =
           capture_log(fn ->
@@ -274,6 +226,46 @@ defmodule Backpex.PreferencesTest do
 
         assert log =~ "Backpex.Preferences"
         assert log =~ "falling back to default"
+      end)
+    end
+
+    test "get/3 falls back to default WITHOUT logging on {:error, :unidentified}" do
+      # `Backpex.Preferences.Adapter` defines `:unidentified` on reads as
+      # "treat as not found", so it must resolve to the default and must NOT
+      # log: the condition is expected (anonymous visitors, background jobs)
+      # and would otherwise emit a warning on every single read.
+      with_adapters([{:default, Backpex.PreferencesTest.UnidentifiedAdapter, []}], fn ->
+        log =
+          capture_log(fn ->
+            assert Preferences.get(%{}, Keys.theme(), default: "light") == "light"
+          end)
+
+        refute log =~ "Backpex.Preferences"
+        refute log =~ ":unidentified"
+      end)
+    end
+
+    test "get_map/3 falls back to %{} AND logs when the adapter returns {:error, _}" do
+      with_adapters([{:default, Backpex.PreferencesTest.RaisingGetAdapter, []}], fn ->
+        log =
+          capture_log(fn ->
+            assert Preferences.get_map(%{}, Keys.sidebar_section_prefix()) == %{}
+          end)
+
+        assert log =~ "Backpex.Preferences"
+        assert log =~ "falling back to %{}"
+      end)
+    end
+
+    test "get_map/3 falls back to %{} WITHOUT logging on {:error, :unidentified}" do
+      with_adapters([{:default, Backpex.PreferencesTest.UnidentifiedAdapter, []}], fn ->
+        log =
+          capture_log(fn ->
+            assert Preferences.get_map(%{}, Keys.sidebar_section_prefix()) == %{}
+          end)
+
+        refute log =~ "Backpex.Preferences"
+        refute log =~ ":unidentified"
       end)
     end
   end

@@ -56,8 +56,8 @@ defmodule Backpex.Preferences.Context do
   @doc """
   Overlay client-supplied preference values on a context.
 
-  Reads through `Backpex.Preferences.get/3`, `fetch/3` and `get_map/3` prefer
-  these values over whatever the adapter has stored. They reach the server on
+  Reads through `Backpex.Preferences.get/3` and `get_map/3` prefer these
+  values over whatever the adapter has stored. They reach the server on
   two carriers, both described in `Backpex.Preferences.LiveView`: the connect
   params of every websocket join (which carry the writes a tab made *after* it
   connected — writes the frozen connect-time session cannot see on a
