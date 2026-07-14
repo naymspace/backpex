@@ -21,9 +21,10 @@ defmodule Backpex.InitAssigns do
     # Build the Context once so every read sees the same session + assigns
     # snapshot. `socket.assigns` already contains whatever the app's auth hook
     # put there (current_user, current_scope, ...), which is exactly what
-    # identity resolvers need. The context also carries the preferences the
-    # browser sent in its connect params, which override the session snapshot
-    # LiveView froze at connect time.
+    # identity resolvers need. The context also carries the browser's own
+    # preference overlay — connect params on a connected mount, the
+    # `backpex_prefs` cookie on the dead render — which overrides stored values
+    # the browser is known to be ahead of. See `Backpex.Preferences.LiveView`.
     ctx = PreferenceLiveView.mount_context(socket, session)
 
     socket =

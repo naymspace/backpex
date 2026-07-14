@@ -168,8 +168,16 @@ var dropdown_default = {
 
 // js/hooks/_preferences.js
 var SESSION_PREFIX = "backpex.prefs.";
+var COOKIE_NAME = "backpex_prefs";
+var COOKIE_MAX_AGE = 300;
+var COOKIE_MAX_BYTES = 3072;
 function sessionKey(key) {
   return SESSION_PREFIX + key;
+}
+function serialize(value) {
+  if (typeof value === "string") return value;
+  if (typeof value === "boolean" || typeof value === "number") return String(value);
+  return JSON.stringify(value);
 }
 function readSession(key) {
   try {
@@ -184,23 +192,64 @@ function writeSession(key, value) {
   } catch {
   }
 }
-function clearMirror() {
+function cookieAttributes(maxAge) {
+  const secure = window.location.protocol === "https:" ? "; Secure" : "";
+  return `; path=/; max-age=${maxAge}; SameSite=Lax${secure}`;
+}
+function readPending() {
+  const entry = document.cookie.split("; ").find((cookie) => cookie.startsWith(`${COOKIE_NAME}=`));
+  if (!entry) return {};
   try {
-    const keys = [];
-    for (let i = 0; i < sessionStorage.length; i++) {
-      const storageKey = sessionStorage.key(i);
-      if (storageKey && storageKey.startsWith(SESSION_PREFIX)) keys.push(storageKey);
-    }
-    keys.forEach((key) => sessionStorage.removeItem(key));
+    const decoded = JSON.parse(decodeURIComponent(entry.slice(COOKIE_NAME.length + 1)));
+    if (!decoded || typeof decoded !== "object" || Array.isArray(decoded)) return {};
+    return decoded;
   } catch {
+    return {};
   }
+}
+function writePendingMap(map) {
+  const pending = { ...map };
+  let encoded = encodeURIComponent(JSON.stringify(pending));
+  while (encoded.length > COOKIE_MAX_BYTES && Object.keys(pending).length > 1) {
+    delete pending[Object.keys(pending)[0]];
+    encoded = encodeURIComponent(JSON.stringify(pending));
+  }
+  if (encoded.length > COOKIE_MAX_BYTES) {
+    console.warn(
+      "BackpexPreferences: pending preference write exceeds the cookie budget; the first render after a reload may be stale until the POST lands."
+    );
+    return;
+  }
+  if (Object.keys(pending).length === 0) {
+    document.cookie = `${COOKIE_NAME}=${cookieAttributes(0)}`;
+    return;
+  }
+  document.cookie = `${COOKIE_NAME}=${encoded}${cookieAttributes(COOKIE_MAX_AGE)}`;
+}
+function markPending(key, value) {
+  const pending = readPending();
+  delete pending[key];
+  pending[key] = value;
+  writePendingMap(pending);
+}
+function clearPending(key, value) {
+  const pending = readPending();
+  if (!(key in pending)) return;
+  if (JSON.stringify(pending[key]) !== JSON.stringify(value)) return;
+  delete pending[key];
+  writePendingMap(pending);
 }
 var BackpexPreferences = {
   endpointPath: null,
   csrfToken: null,
   // Whether connectParams() has run for this page load. Set on the first
-  // LiveView join, which is also where the stale mirror is dropped.
+  // LiveView join, which is also where the mirror is primed from the cookie.
   connectParamsCalled: false,
+  // Whether the pending writes have been replayed for this page load.
+  replayCalled: false,
+  // Per-key write counter. Guards the ack: the response to an *earlier* POST
+  // must not retire a *later* write to the same key.
+  _seq: {},
   /**
    * Initialize the preference manager.
    * Called by the LiveView hook on mount.
@@ -208,6 +257,29 @@ var BackpexPreferences = {
   init(endpointPath) {
     this.endpointPath = endpointPath;
     this.csrfToken = document.querySelector("meta[name='csrf-token']")?.content;
+  },
+  /**
+   * Name of the cookie carrying this browser's unacknowledged preference
+   * writes. A wire contract with `Backpex.Preferences.LiveView.client_cookie/0`.
+   *
+   * @returns {string}
+   */
+  cookieName() {
+    return COOKIE_NAME;
+  },
+  /**
+   * Whether this browser holds a write for `key` that the server has not
+   * acknowledged yet.
+   *
+   * The gate any hook must check before adopting a server-rendered attribute:
+   * a render whose session predates the pending write carries the OLD value,
+   * and adopting it would undo the user's click.
+   *
+   * @param {string} key - Dot-notation key (e.g., "global.sidebar_open")
+   * @returns {boolean}
+   */
+  isPending(key) {
+    return key in readPending();
   },
   /**
    * Read a preference, preferring the sessionStorage mirror over the
@@ -245,28 +317,36 @@ var BackpexPreferences = {
    * Set a preference value and persist immediately.
    * Called directly by JS hooks or via LiveView push_event.
    *
-   * When `opts.mirror === 'session'` the value is written to sessionStorage
-   * *before* the HTTP POST, so the client-authoritative state survives the
-   * hook re-mount that LiveView performs on `live_redirect` between
-   * LiveViews (the server reads its session snapshot from the websocket
-   * handshake, which is frozen at connect time and doesn't see writes the
-   * HTTP endpoint just committed to the cookie).
+   * The value is recorded in the `backpex_prefs` cookie *before* the POST is
+   * fired. That write is synchronous, so it is attached to the next request
+   * the browser makes — including a reload that lands inside the POST's
+   * round-trip window, whose session cookie is still one write behind. The
+   * disconnected mount reads the cookie and renders the user's actual state.
+   * The entry retires as soon as the POST responds (see `persist/3`).
    *
-   * `opts.mirror === false` (or omitting `opts` entirely) keeps the legacy
-   * behavior: HTTP POST only, no local mirror. This is the right choice
-   * whenever the server is the authoritative source on every render
-   * (e.g. a DB-backed preference read fresh from Ecto).
+   * When `opts.mirror === 'session'` the value is *additionally* written to
+   * sessionStorage, where it survives the whole page load. That is what keeps
+   * client-authoritative state alive across the hook re-mount LiveView performs
+   * on `live_redirect` between LiveViews: no HTTP request happens there, so the
+   * cookie plays no part, and the server reads its session snapshot from the
+   * websocket handshake, which is frozen at connect time.
+   *
+   * `opts.mirror === false` (or omitting `opts` entirely) keeps the value out
+   * of the long-lived mirror. The right choice whenever the server is
+   * authoritative on every render — for example filters and order, which
+   * round-trip through the URL and must not be pinned across live navigation.
+   * Such keys still get the short-lived pending cookie, so their first paint
+   * after a fast reload is correct too.
    *
    * @param {string} key - Dot-notation key (e.g., "global.theme")
    * @param {any} value - Value to store
    * @param {{ mirror?: 'session' | false }} [opts]
    */
   set(key, value, opts = {}) {
-    if (opts.mirror === "session") {
-      const serialized = typeof value === "string" ? value : typeof value === "boolean" || typeof value === "number" ? String(value) : JSON.stringify(value);
-      writeSession(key, serialized);
-    }
-    this.persist(key, value);
+    if (opts.mirror === "session") writeSession(key, serialize(value));
+    const seq = (this._seq[key] || 0) + 1;
+    this._seq[key] = seq;
+    this.persist(key, value, seq);
   },
   /**
    * All sessionStorage-mirrored preferences as a { key: value } object.
@@ -300,6 +380,36 @@ var BackpexPreferences = {
     return entries;
   },
   /**
+   * Reconcile the mirror with the server's knowledge. Runs once per full page
+   * load, from the first `connectParams()` call.
+   *
+   * Drops every mirrored key the server has acknowledged: the document GET
+   * just re-read the storage backend, so for those keys its render is
+   * authoritative and a mirror left over from an earlier page load (or made
+   * stale by another tab writing the shared cookie) must not override it.
+   *
+   * Keeps exactly the keys the server has *not* acknowledged, i.e. the ones
+   * still in the pending cookie. Note what this deliberately does NOT do: it
+   * does not copy pending values *into* the mirror. The mirror is the
+   * long-lived, opt-in carrier (`mirror: 'session'`), and a key that opted out
+   * — `order` and `filters`, which round-trip through the URL — must not be
+   * pinned across live navigation for the rest of the page load. Pending values
+   * reach the socket directly from the cookie instead; see `connectParams()`.
+   */
+  prime() {
+    const pending = readPending();
+    try {
+      const stale = [];
+      for (let i = 0; i < sessionStorage.length; i++) {
+        const storageKey = sessionStorage.key(i);
+        if (!storageKey || !storageKey.startsWith(SESSION_PREFIX)) continue;
+        if (!(storageKey.slice(SESSION_PREFIX.length) in pending)) stale.push(storageKey);
+      }
+      stale.forEach((storageKey) => sessionStorage.removeItem(storageKey));
+    } catch {
+    }
+  },
+  /**
    * LiveView connect params carrying this tab's mirrored preferences.
    *
    * Wire these into your LiveSocket with `backpexParams` (see the Backpex
@@ -311,26 +421,58 @@ var BackpexPreferences = {
    * user's actual state instead of rendering stale state and correcting it a
    * frame later.
    *
-   * On the first join of a page load the mirror is dropped instead of sent:
-   * the server just re-read the storage backend over HTTP, so its render is
-   * authoritative and a mirror left over from an earlier page load (or made
-   * stale by another tab writing the shared cookie) must not override it.
+   * Unacknowledged writes are merged in from the pending cookie and win over
+   * the mirror, because they are by definition the most recent thing the user
+   * did. This is what makes the connected render agree with the dead render on
+   * the first join of a page load: the dead render honored those very writes
+   * out of the same cookie, and a connected render that contradicted it *is*
+   * the flash. Reading them from the cookie rather than from sessionStorage
+   * also keeps the two carriers independent — a browser that allows cookies but
+   * denies storage access still gets both renders right.
    *
-   * @returns {{backpex_prefs?: Object<string, any>}}
+   * @returns {{backpex_prefs: Object<string, any>}}
    */
   connectParams() {
     if (!this.connectParamsCalled) {
       this.connectParamsCalled = true;
-      clearMirror();
-      return {};
+      this.prime();
     }
-    return { backpex_prefs: this.mirroredEntries() };
+    return { backpex_prefs: { ...this.mirroredEntries(), ...readPending() } };
+  },
+  /**
+   * Re-POST every write still marked pending. Runs once per page load, from
+   * the hook's `mounted()` (which is also where `endpointPath` arrives).
+   *
+   * A keepalive POST that outlives its page never settles its promise, so the
+   * write that lost the race against a reload can neither be confirmed nor
+   * retried by the page that fired it — and its pending marker would otherwise
+   * be sticky until `max-age` expires. The replay makes it durable and lets it
+   * retire.
+   */
+  replayPending() {
+    if (this.replayCalled) return;
+    this.replayCalled = true;
+    for (const [key, value] of Object.entries(readPending())) {
+      this.persist(key, value, this._seq[key]);
+    }
   },
   /**
    * Persist a preference to the server immediately.
    * Uses keepalive to ensure request completes even during page navigation.
+   *
+   * Any *completed* response retires the pending entry — including
+   * `200 {ok: false, reason: "unidentified"}` and `422`, which the preferences
+   * controller returns for writes it refuses. The server has seen the write and
+   * decided on it; replaying it would be pointless and keeping the client
+   * overlay would pin the value forever. Only a request that never completed
+   * (page unloaded mid-POST — the race this whole mechanism exists for — or a
+   * network error) stays pending.
+   *
+   * @param {string} key
+   * @param {any} value
+   * @param {number} [seq] - the write's sequence number, from `set/3`.
    */
-  persist(key, value) {
+  persist(key, value, seq) {
     if (!this.endpointPath) {
       console.warn("BackpexPreferences: endpointPath not initialized");
       return;
@@ -339,6 +481,7 @@ var BackpexPreferences = {
       console.warn("BackpexPreferences: CSRF token not found");
       return;
     }
+    markPending(key, value);
     fetch(this.endpointPath, {
       method: "POST",
       keepalive: true,
@@ -347,6 +490,8 @@ var BackpexPreferences = {
         "x-csrf-token": this.csrfToken
       },
       body: JSON.stringify({ key, value })
+    }).then(() => {
+      if (this._seq[key] === seq) clearPending(key, value);
     }).catch((error) => {
       console.error("BackpexPreferences: failed to persist", error);
     });
@@ -355,6 +500,7 @@ var BackpexPreferences = {
 var BackpexPreferencesHook = {
   mounted() {
     BackpexPreferences.init(this.el.dataset.preferencesPath);
+    BackpexPreferences.replayPending();
     this.handleEvent("backpex:set_preference", ({ key, value, mirror }) => {
       BackpexPreferences.set(key, value, { mirror });
     });
@@ -384,6 +530,7 @@ var sidebar_default = {
       "global.sidebar_open",
       this.el.dataset.sidebarOpen === "true"
     );
+    this.serverOpen = this.el.dataset.sidebarOpen === "true";
     this.previousFocus = null;
     const breakpoint = getComputedStyle(document.documentElement).getPropertyValue("--breakpoint-lg").trim() || "64rem";
     this.mediaQuery = window.matchMedia(`(min-width: ${breakpoint})`);
@@ -403,6 +550,11 @@ var sidebar_default = {
   },
   updated() {
     if (!this.sidebar || !this.toggleBtn) return;
+    const serverOpen = this.el.dataset.sidebarOpen === "true";
+    if (serverOpen !== this.serverOpen) {
+      this.serverOpen = serverOpen;
+      if (!BackpexPreferences.isPending("global.sidebar_open")) this.desktopOpen = serverOpen;
+    }
     this.applyState();
   },
   destroyed() {
@@ -506,6 +658,7 @@ var sidebar_sections_default = {
   mounted() {
     this._sectionHandlers = /* @__PURE__ */ new WeakMap();
     this._sectionStates = {};
+    this._serverStates = {};
     this.initializeSections();
     this.applySectionStates();
   },
@@ -536,11 +689,14 @@ var sidebar_sections_default = {
       }
       section.classList.remove("hidden");
       const id = section.dataset.sectionId;
+      const key = `global.sidebar_section.${id}`;
+      const serverOpen = section.dataset.sectionOpen === "true";
       if (!(id in this._sectionStates)) {
-        this._sectionStates[id] = BackpexPreferences.get(
-          `global.sidebar_section.${id}`,
-          section.dataset.sectionOpen === "true"
-        );
+        this._sectionStates[id] = BackpexPreferences.get(key, serverOpen);
+        this._serverStates[id] = serverOpen;
+      } else if (this._serverStates[id] !== serverOpen) {
+        this._serverStates[id] = serverOpen;
+        if (!BackpexPreferences.isPending(key)) this._sectionStates[id] = serverOpen;
       }
       const previous = this._sectionHandlers.get(toggle);
       if (previous) toggle.removeEventListener("click", previous);
@@ -552,6 +708,10 @@ var sidebar_sections_default = {
   // Re-apply the authoritative client-side open/closed state to the DOM.
   // Called from updated() to overwrite whatever the server just rendered from
   // a potentially-stale session snapshot after a live_redirect.
+  //
+  // Deliberately does not touch `data-section-open`: that attribute is the
+  // server's, and it is the baseline initializeSections() compares against.
+  // Writing it here would make the hook compare against its own writes.
   applySectionStates() {
     for (const [id, open] of Object.entries(this._sectionStates)) {
       const section = this.el.querySelector(`[data-section-id="${id}"]`);
@@ -562,7 +722,6 @@ var sidebar_sections_default = {
       toggle.classList.toggle("menu-dropdown-show", open);
       toggle.setAttribute("aria-expanded", String(open));
       content.style.display = open ? "" : "none";
-      section.dataset.sectionOpen = String(open);
     }
   },
   hasContent(element) {
@@ -586,7 +745,6 @@ var sidebar_sections_default = {
     content.style.display = content.style.display === "none" ? "block" : "none";
     const isNowOpen = toggle.classList.contains("menu-dropdown-show");
     toggle.setAttribute("aria-expanded", isNowOpen.toString());
-    section.dataset.sectionOpen = String(isNowOpen);
     this._sectionStates[sectionId] = isNowOpen;
     BackpexPreferences.set(
       `global.sidebar_section.${sectionId}`,
@@ -632,7 +790,7 @@ var theme_selector_default = {
     );
     if (selectedTheme) {
       document.documentElement.setAttribute("data-theme", selectedTheme.value);
-      BackpexPreferences.set("global.theme", selectedTheme.value);
+      BackpexPreferences.set("global.theme", selectedTheme.value, { mirror: "session" });
     }
   },
   destroyed() {

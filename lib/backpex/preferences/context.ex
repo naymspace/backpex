@@ -57,16 +57,29 @@ defmodule Backpex.Preferences.Context do
   Overlay client-supplied preference values on a context.
 
   Reads through `Backpex.Preferences.get/3`, `fetch/3` and `get_map/3` prefer
-  these values over whatever the adapter has stored. They arrive in the
-  LiveView connect params (see `Backpex.Preferences.LiveView.mount_context/2`)
-  and carry the writes a tab made *after* its websocket connected — writes the
-  frozen connect-time session cannot see on a `live_redirect` re-mount.
+  these values over whatever the adapter has stored. They reach the server on
+  two carriers, both described in `Backpex.Preferences.LiveView`: the connect
+  params of every websocket join (which carry the writes a tab made *after* it
+  connected — writes the frozen connect-time session cannot see on a
+  `live_redirect` re-mount), and the `backpex_prefs` cookie (which carries the
+  writes the server has not acknowledged yet, so the disconnected mount can
+  render them before the write's POST has even landed).
 
-  Keys that fail `Backpex.Preferences.Key.validate/1` are dropped: the payload
-  comes from the browser, and an unknown key would otherwise shadow a read for
-  a prefix no adapter is configured to serve. Values are not validated here —
-  they carry no more authority than the same value written through the
-  preferences endpoint, which the client can already reach.
+  Both payloads are written by the browser, so both are untrusted and are
+  filtered here:
+
+    * keys that fail `Backpex.Preferences.Key.validate/1` are dropped — an
+      unknown key would otherwise shadow a read for a prefix no adapter is
+      configured to serve;
+    * values that fail `Backpex.Preferences.Keys.valid_value?/2` are dropped —
+      a wrong-typed value for a built-in key would otherwise reach a render,
+      and a render must not raise on browser input (`not "false"` does).
+
+  Neither check is an authorization gate: a client may already write any value
+  it likes through the preferences endpoint. They exist so a planted or
+  truncated payload degrades to the stored value instead of taking the page
+  down. Values for keys Backpex does not own pass through unchecked — see
+  `Backpex.Preferences.Keys.valid_value?/2`.
 
   ## Examples
 
@@ -74,16 +87,24 @@ defmodule Backpex.Preferences.Context do
       iex> ctx = Context.put_client(Context.from_mount(%{}), %{"global.theme" => "dark", "bogus.key" => 1})
       iex> ctx.client
       %{"global.theme" => "dark"}
+
+      iex> alias Backpex.Preferences.Context
+      iex> ctx = Context.put_client(Context.from_mount(%{}), %{"global.sidebar_open" => "false"})
+      iex> ctx.client
+      %{}
   """
   @spec put_client(t(), map()) :: t()
   def put_client(%Context{} = ctx, client) when is_map(client) do
-    %{ctx | client: Map.filter(client, fn {key, _value} -> valid_client_key?(key) end)}
+    %{ctx | client: Map.filter(client, fn {key, value} -> valid_client_entry?(key, value) end)}
   end
 
   def put_client(%Context{} = ctx, _client), do: %{ctx | client: %{}}
 
-  defp valid_client_key?(key) when is_binary(key), do: Backpex.Preferences.Key.validate(key) == :ok
-  defp valid_client_key?(_key), do: false
+  defp valid_client_entry?(key, value) when is_binary(key) do
+    Backpex.Preferences.Key.validate(key) == :ok and Backpex.Preferences.Keys.valid_value?(key, value)
+  end
+
+  defp valid_client_entry?(_key, _value), do: false
 
   @doc """
   Build a context from a `%Plug.Conn{}` (write path over HTTP).

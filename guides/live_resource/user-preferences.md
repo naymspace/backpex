@@ -63,6 +63,47 @@ the session; every setting is routed independently.
 - **Storage is your call.** Per-browser session is the default; swap any
   prefix onto a per-user database with a few lines of config.
 
+### What Backpex stores in the browser
+
+| Store | Name | Lifetime | Holds |
+|---|---|---|---|
+| Your app's session cookie | e.g. `_my_app_key` | your session config | Where the Session adapter persists preferences. |
+| `sessionStorage` | `backpex.prefs.*` | the tab | Per-tab mirror of preferences written since the websocket connected. Opt-in per key. |
+| Cookie | `backpex_prefs` | `max-age` 300, normally deleted within one round-trip | Preference writes the server has not acknowledged yet. |
+
+`backpex_prefs` is written by JavaScript — synchronously, which is the whole
+point — so it is **not** `HttpOnly`. Attributes: `path=/`, `SameSite=Lax`,
+`max-age=300`, plus `Secure` over HTTPS. The value is a flat `{key: value}`
+JSON map of the writes whose POST has not come back yet; each entry is deleted
+as soon as its POST responds, so the cookie is absent most of the time. Backpex
+reads it on the disconnected mount only — it is an input to a *render*, never to
+an adapter write. Unlike the `sessionStorage` mirror it is shared across tabs of
+the same browser. See [Why the client sometimes overrides the
+server](#why-the-client-sometimes-overrides-the-server).
+
+If your app shows a cookie-consent banner, classify `backpex_prefs` as
+**strictly necessary**: it carries no identifier, is not readable by anyone but
+the same origin, and exists only so the page the user just asked for renders in
+the state they just asked for.
+
+Because the cookie is browser-written and unsigned, anything any script on the
+origin can plant reaches a render. `Backpex.Preferences.Context.put_client/2`
+therefore filters both client carriers — the cookie and the connect params —
+before they become an overlay:
+
+- keys that fail `Backpex.Preferences.Key.validate/1` are dropped;
+- values that fail `Backpex.Preferences.Keys.valid_value?/2` are dropped.
+
+Neither is an authorization gate — a client can already POST any value it likes
+to the preferences endpoint. They exist because a render must not raise on
+browser input: `inert={not @sidebar_open}` raises on a string, so without the
+value gate a single planted cookie would 500 every admin page until it expired.
+A rejected entry simply falls back to the stored value.
+
+Backpex can only shape-check the keys it owns. If you read your **own** keys out
+of the overlay, treat their values as untrusted input and render defensively —
+see `Backpex.Preferences.Keys.valid_value?/2`.
+
 ## Contracts
 
 Backpex dispatches every preference read and write through a
@@ -368,6 +409,18 @@ Adapters that persist eagerly (e.g. a DB-backed adapter that wrote via
 `Repo.insert!`) may have already committed earlier writes — the adapter
 behaviour has no rollback primitive, so callers should treat partial
 success as possible.
+
+### Respond only once the value is readable
+
+The browser retires its client overlay for a key as soon as the write's HTTP
+response arrives, because a completed response means *the server has seen this
+write* (see [Why the client sometimes overrides the
+server](#why-the-client-sometimes-overrides-the-server)). An adapter that
+persists **asynchronously** — a queued or fire-and-forget write, a database with
+read-replica lag — breaks that rule: the overlay retires while the next read
+still returns the old value, and the flicker the subsystem exists to remove
+comes back. `put/4` must not return until the value is readable by a subsequent
+`get/3`.
 
 ### In-memory test adapter
 
@@ -937,44 +990,77 @@ see their seeds persisted there, not only in the session.
 
 ## Writing a JS hook that persists preferences
 
-### Why sessionStorage mirroring exists
+### Why the client sometimes overrides the server
 
-LiveView freezes the Phoenix session at websocket-connect time. The
-`BackpexPreferences.set/2` HTTP POST writes immediately to the cookie, but
-an in-flight LiveView socket holds the older session snapshot until the
-next fresh connect. When a user clicks an internal link that does a
-`live_redirect`, LiveView re-mounts the target view **on the same socket**
-— so `on_mount` callbacks (including `Backpex.InitAssigns`) read the stale
-snapshot and the server re-renders UI chrome from the pre-write value.
-The user sees a momentary reversion of their own toggle.
+**The precedence rule, stated once: the client overrides the server exactly
+when it holds a write the server has not acknowledged.** A write is
+acknowledged once its POST to the preferences endpoint has come back with an
+HTTP response — any response. `200 {ok: true}`, the `200 {ok: false, error:
+{reason: "unidentified"}}` an anonymous visitor gets, and a `422` all count: the
+server has seen the write and decided on it, so replaying it is pointless and
+keeping a client overlay would pin the value forever. Until then, the browser is
+the only party that knows what the user picked, and it has to carry that
+knowledge to the server itself.
 
-To survive that re-mount the browser keeps its own copy of what it wrote.
-`sessionStorage` is the natural fit: same tab, cleared on tab close, no
-cookie-size pressure. `BackpexPreferences` provides `get(key, fallback)` and
-`set(key, value, { mirror: 'session' })` so every hook gets the same,
-namespaced (`backpex.prefs.*`) behavior without reinventing load/save helpers.
+It does so over **two carriers**, because a page is rendered over two different
+transports and each transport can only see one of them:
 
-The mirror reaches the server in the **LiveView connect params**, which is why
-`backpexParams` must be wired into your `LiveSocket` (see the
-[installation guide](../get_started/installation.md)). LiveView re-evaluates
-those params on every join — including the joins `live_redirect` performs — so
-`mount/3` sees the tab's post-connect writes *before* it renders. Handing them
-over any later (say, from a hook's `mounted()`) would mean rendering the stale
-state first and correcting it a frame later: a visible flash and content jump.
+**The `backpex_prefs` cookie → the document GET (the disconnected "dead"
+render).** `document.cookie` is written synchronously inside the click handler,
+so the value rides the very next request the browser makes — including a reload
+fired milliseconds later, long before the keepalive POST's `Set-Cookie` has
+updated the session. Without it, the GET carries a session cookie that is up to
+one POST round-trip stale, the first paint shows the pre-toggle state, and
+LiveView patches it away a frame later: the flash. `Backpex.Preferences.LiveView`
+decodes the cookie on the disconnected mount and folds it into the same client
+overlay the connect params feed. Every key gets this automatically — mirrored or
+not — which is why filters, order and column visibility also survive a fast
+reload, not just the sidebar.
 
-On the **first** join of a page load the mirror is dropped rather than sent.
-The server has just re-read the storage backend over HTTP, so its render is
-authoritative — and a mirror left over from an earlier page load, or made stale
-by another tab writing the shared cookie, must not override it.
+**The `sessionStorage` mirror → the websocket join.** LiveView freezes the
+Phoenix session at websocket-connect time. When a user clicks an internal link
+that does a `live_redirect`, LiveView re-mounts the target view **on the same
+socket** — so `on_mount` callbacks (including `Backpex.InitAssigns`) read that
+frozen snapshot and re-render UI chrome from the pre-write value. No HTTP
+request happens there, so the cookie plays no part: the mirror is the only
+carrier that exists on that path. `sessionStorage` is the natural fit — same
+tab, cleared on tab close, no cookie-size pressure — and `BackpexPreferences`
+provides `get(key, fallback)` and `set(key, value, { mirror: 'session' })` so
+every hook gets the same namespaced (`backpex.prefs.*`) behavior without
+reinventing load/save helpers. The mirror reaches the server in the **LiveView
+connect params**, which is why `backpexParams` must be wired into your
+`LiveSocket` (see the [installation guide](../get_started/installation.md)):
+LiveView re-evaluates those params on every join, so `mount/3` sees the tab's
+post-connect writes *before* it renders.
+
+Both carriers feed the same server-side client overlay
+(`Backpex.Preferences.Context`), so the dead render and the connected render
+derive their state from the same values and agree by construction.
+
+On the **first** join of a page load the browser reconciles the two. Every
+mirrored key the server has *acknowledged* is dropped: the document GET just
+re-read the storage backend, so for those keys its render is authoritative, and
+a mirror left over from an earlier page load (or made stale by another tab
+writing the shared session cookie) must not override it. Every key the server
+has *not* acknowledged is kept and sent — the dead render already honored those
+out of `backpex_prefs`, and withholding them would make the connected render
+contradict the paint the user is looking at.
 
 ### When to use `mirror: 'session'`
 
+`mirror` governs the **long-lived per-tab mirror** only. The short-lived pending
+cookie is written for every key regardless, so the choice below is not about the
+first paint after a reload — that is always correct — but about whether the
+value must survive a `live_redirect`.
+
 Use it when **all** of the following are true:
 
-- The preference controls UI chrome re-rendered by the LiveView on every
-  mount (sidebar, density, nav variant, table zoom, …).
+- The preference controls state the LiveView re-renders on every mount —
+  UI chrome (sidebar, density, nav variant, table zoom, …), the theme
+  selector's checked radio, or server-rendered content such as column and
+  metric visibility.
 - The server reads this preference from the session at mount time (so the
-  stale snapshot will bite you on `live_redirect`).
+  frozen snapshot will bite you on `live_redirect`).
 - The client-side value can diverge from the server's view between a
   write and the next fresh websocket handshake.
 
@@ -982,16 +1068,19 @@ Use it when **all** of the following are true:
 
 Skip the mirror (just call `BackpexPreferences.set(key, value)`) when:
 
+- The value round-trips through something the server sees on every render
+  anyway. Backpex's filters and order are the example: they live in the URL, and
+  pinning them in the mirror would fight live navigation.
 - The server is always authoritative on every render — e.g. a DB-backed
-  preference read fresh from Ecto in `mount/3`. There's no stale snapshot
+  preference read fresh from Ecto in `mount/3`. There's no frozen snapshot
   to override.
-- The visible UI state lives outside the LiveView-rendered tree. The
-  built-in theme selector is an example: `data-theme` on `<html>` is set
-  once by JS and never re-rendered by the server, so a stale session read
-  only mislabels the (hidden-by-default) selector radio and isn't worth
-  the overhead.
 - You need cross-tab consistency within the browser — `sessionStorage` is
   per-tab; a mirror there will diverge between two tabs of the same admin.
+  (`backpex_prefs` *is* shared across tabs, but it only ever holds a write for
+  as long as its POST is in flight, so it cannot pin a divergence.)
+
+An unmirrored key still gets a correct first paint after a fast reload. What it
+gives up is the `live_redirect` guarantee.
 
 ### Server-originated writes: `push_write`
 
@@ -1019,23 +1108,36 @@ simply match what the adapter returns.
 // assets/js/hooks/compact_density_toggle.js
 import { BackpexPreferences } from 'backpex'
 
+const KEY = 'custom.density.compact'
+
 export default {
   mounted () {
     // Seed from the mirror first (live_redirect-safe), falling back to
     // the server-rendered data attribute on fresh connects.
-    const compact = BackpexPreferences.get(
-      'custom.density.compact',
-      this.el.dataset.compact === 'true'
-    )
-    this.applyDensity(compact)
+    this.serverCompact = this.el.dataset.compact === 'true'
+    this.compact = BackpexPreferences.get(KEY, this.serverCompact)
+    this.applyDensity(this.compact)
 
     this.el.addEventListener('click', () => {
-      const next = !this.el.classList.contains('density-compact')
-      this.applyDensity(next)
-      // Writes sessionStorage first (instant, survives live_redirect),
-      // then POSTs to the preferences endpoint for the next fresh connect.
-      BackpexPreferences.set('custom.density.compact', next, { mirror: 'session' })
+      this.compact = !this.el.classList.contains('density-compact')
+      this.applyDensity(this.compact)
+      // Marks the write pending in `backpex_prefs` (so a reload right now still
+      // paints it), mirrors it to sessionStorage (so it survives live_redirect),
+      // then POSTs to the preferences endpoint.
+      BackpexPreferences.set(KEY, this.compact, { mirror: 'session' })
     })
+  },
+
+  updated () {
+    const serverCompact = this.el.dataset.compact === 'true'
+    if (serverCompact === this.serverCompact) return
+    this.serverCompact = serverCompact
+
+    // The attribute *changed*, so the server has new information — adopt it,
+    // unless this tab holds a write the server has not acknowledged yet, in
+    // which case the render we are looking at predates the user's click.
+    if (!BackpexPreferences.isPending(KEY)) this.compact = serverCompact
+    this.applyDensity(this.compact)
   },
 
   applyDensity (compact) {
@@ -1045,11 +1147,20 @@ export default {
 }
 ```
 
-`get/2` uses the runtime type of the fallback to deserialize: a boolean
-fallback returns `true`/`false`; a number returns a parsed number; a string
-passes through; anything else (map, array) round-trips through JSON. Pick
-a fallback whose type matches what you `set/3`-ed originally and the
-round-trip stays transparent.
+Two API notes for hook authors:
+
+- `get/2` uses the runtime type of the fallback to deserialize: a boolean
+  fallback returns `true`/`false`; a number returns a parsed number; a string
+  passes through; anything else (map, array) round-trips through JSON. Pick
+  a fallback whose type matches what you `set/3`-ed originally and the
+  round-trip stays transparent.
+- `isPending(key)` is the gate any hook must check before adopting a
+  server-rendered attribute. Re-asserting a cached client value on every
+  `updated()` leaves the server no path to ever correct the hook; adopting the
+  attribute unconditionally undoes a click the server has not seen yet. Adopt it
+  when it *changed* and the key is not pending — that is the precedence rule,
+  applied in the DOM. The built-in `BackpexSidebar` and `BackpexSidebarSections`
+  hooks do exactly this.
 
 ## Troubleshooting
 

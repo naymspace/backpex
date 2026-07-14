@@ -159,4 +159,175 @@ defmodule DemoWeb.Live.PreferencesPersistenceTest do
       assert value["title"] == false
     end
   end
+
+  describe "dead render with an unacknowledged client write" do
+    # These are the only assertions in the suite that look at the bytes the
+    # browser paints FIRST. They use `get/2`, not `live/2`, so what they render
+    # is the DISCONNECTED mount — the document response to a hard reload.
+    #
+    # The scenario: the user toggled a preference and reloaded before the
+    # keepalive POST's `Set-Cookie` reached the cookie jar. The session this GET
+    # carries is one round-trip stale, so the adapter would render the PRE-toggle
+    # state and LiveView would patch it away a frame later. That patch is the
+    # flash. The browser's synchronously-written `backpex_prefs` cookie rides
+    # this request and must win.
+    #
+    # If the disconnected branch of `Backpex.Preferences.LiveView` ever stops
+    # working, these fail and nothing else in the suite does: a `live/2` test
+    # cannot see this, because its connect params already carry the overlay.
+
+    # The wire format the JS hook writes: encodeURIComponent(JSON.stringify(map)).
+    defp put_pending_writes(conn, writes) do
+      encoded =
+        writes
+        |> Jason.encode!()
+        |> URI.encode(&URI.char_unreserved?/1)
+
+      Plug.Test.put_req_cookie(conn, PrefLiveView.client_cookie(), encoded)
+    end
+
+    defp stale_session(conn, preferences) do
+      Plug.Test.init_test_session(conn, %{"backpex_preferences" => preferences})
+    end
+
+    test "sidebar renders closed even though the session still says open", %{conn: conn} do
+      insert(:post, title: "Alpha", published: true)
+
+      conn =
+        conn
+        |> stale_session(%{"global" => %{"sidebar_open" => true}})
+        |> put_pending_writes(%{"global.sidebar_open" => false})
+        |> get(~p"/admin/posts?filters[published][]=published")
+
+      html = html_response(conn, 200)
+
+      # `data-sidebar-open` drives the hook's mount-time seed, and
+      # `lg:translate-x-0` is what makes the sidebar visible on desktop at first
+      # paint. Both must already reflect the user's toggle.
+      assert html =~ ~s(data-sidebar-open="false")
+      refute html =~ ~s(data-sidebar-open="true")
+      refute html =~ "lg:translate-x-0"
+    end
+
+    test "sidebar renders open from the session when nothing is pending", %{conn: conn} do
+      # The control for the case above: without a pending write the adapter is
+      # authoritative, so the cookie cannot be shadowing anything.
+      insert(:post, title: "Alpha", published: true)
+
+      conn =
+        conn
+        |> stale_session(%{"global" => %{"sidebar_open" => true}})
+        |> get(~p"/admin/posts?filters[published][]=published")
+
+      html = html_response(conn, 200)
+
+      assert html =~ ~s(data-sidebar-open="true")
+      assert html =~ "lg:translate-x-0"
+    end
+
+    test "a hidden column is absent from the dead render's table", %{conn: conn} do
+      # The half of the problem no pre-paint script could ever fix: chrome can be
+      # corrected from a `<head>` script, but a table that was already streamed
+      # with the wrong columns cannot. The server has to render it right.
+      insert(:post, title: "Alpha", published: true)
+
+      columns_key = PrefKeys.columns(@resource_mod)
+
+      conn =
+        conn
+        |> stale_session(%{
+          "resource" => %{"DemoWeb.PostLive" => %{"columns" => %{"title" => true}}}
+        })
+        |> put_pending_writes(%{columns_key => %{"title" => false}})
+        |> get(~p"/admin/posts?filters[published][]=published")
+
+      html = html_response(conn, 200)
+
+      # The Title column's `<th>` carries the sort link; hiding the column drops
+      # the whole cell. The toggle-columns dropdown still lists `title`, so key
+      # the assertion on the order link, which only the header renders.
+      refute html =~ "order_by=title"
+
+      # Guards against a vacuous `refute`: the table's other columns still render
+      # their sort links, and `title` still appears in the column-visibility
+      # dropdown (which lists every field, active or not).
+      assert html =~ "order_by=likes"
+      assert html =~ ~s(phx-value-field="title")
+    end
+
+    test "a visible column is present in the dead render's table", %{conn: conn} do
+      insert(:post, title: "Alpha", published: true)
+
+      conn =
+        conn
+        |> stale_session(%{
+          "resource" => %{"DemoWeb.PostLive" => %{"columns" => %{"title" => false}}}
+        })
+        |> put_pending_writes(%{PrefKeys.columns(@resource_mod) => %{"title" => true}})
+        |> get(~p"/admin/posts?filters[published][]=published")
+
+      html = html_response(conn, 200)
+
+      # Symmetry check: the cookie can also turn a column back ON against a
+      # session that hides it — the overlay is a real overlay, not a mask.
+      assert html =~ "order_by=title"
+    end
+
+    test "the root layout's data-theme reflects the pending theme write", %{conn: conn} do
+      # `<html data-theme>` is rendered from `assigns[:current_theme]`, which
+      # InitAssigns reads at mount. A stale theme here is the most visible flash
+      # of all: the whole page repaints.
+      insert(:post, title: "Alpha", published: true)
+
+      conn =
+        conn
+        |> stale_session(%{"global" => %{"theme" => "light"}})
+        |> put_pending_writes(%{PrefKeys.theme() => "dark"})
+        |> get(~p"/admin/posts?filters[published][]=published")
+
+      html = html_response(conn, 200)
+
+      assert html =~ ~s(data-theme="dark")
+      refute html =~ ~s(data-theme="light")
+    end
+
+    test "a wrong-typed value in the cookie does not crash the dead render", %{conn: conn} do
+      # `backpex_prefs` is non-HttpOnly (it has to be: only JS can write it
+      # synchronously), unsigned, path=/ and shared across tabs, so any script on
+      # the origin can plant one. A browser-written value must therefore never
+      # decide whether the page renders at all: `{"global.sidebar_open": "false"}`
+      # — a JSON *string*, not a boolean — would reach `inert={not @sidebar_open}`
+      # in `Backpex.HTML.Layout.app_shell/1`, and `not "false"` raises, turning a
+      # single planted cookie into an HTTP 500 on every page until it expires.
+      #
+      # `Context.put_client/2` drops it: the value fails
+      # `Backpex.Preferences.Keys.valid_value?/2`, the overlay stays empty, and the
+      # dead render falls back to the stored session value.
+      insert(:post, title: "Alpha", published: true)
+
+      conn =
+        conn
+        |> stale_session(%{"global" => %{"sidebar_open" => true}})
+        |> put_pending_writes(%{"global.sidebar_open" => "false"})
+        |> get(~p"/admin/posts?filters[published][]=published")
+
+      assert conn.status == 200
+    end
+
+    test "a garbage cookie does not crash the dead render", %{conn: conn} do
+      # The cookie is client-written and unsigned. A truncated or third-party
+      # value must degrade to "no overlay", not to a 500.
+      insert(:post, title: "Alpha", published: true)
+
+      conn =
+        conn
+        |> stale_session(%{"global" => %{"sidebar_open" => false}})
+        |> Plug.Test.put_req_cookie(PrefLiveView.client_cookie(), "%zz-not-json")
+        |> get(~p"/admin/posts?filters[published][]=published")
+
+      html = html_response(conn, 200)
+
+      assert html =~ ~s(data-sidebar-open="false")
+    end
+  end
 end

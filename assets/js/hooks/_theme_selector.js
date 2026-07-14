@@ -11,17 +11,17 @@ import { BackpexPreferences } from './_preferences'
  * `this.el` be the form directly, and scopes the change listener to it.
  *
  * Initial theme is server-rendered via the `data-theme` attribute on
- * `<html>`. Changes are persisted via BackpexPreferences.
+ * `<html>`. Changes are persisted via BackpexPreferences with
+ * `mirror: 'session'`, like every other server-rendered preference.
  *
- * This hook deliberately does NOT use `mirror: 'session'` even though the
- * server reads `global.theme` at LiveView mount from a potentially-stale
- * session snapshot (see `_sidebar.js` for the full rationale). The reason:
- * the user-visible theme is the `data-theme` attribute on `<html>`, which
- * lives outside the LiveView root and is therefore never re-rendered on
- * live_redirect — a stale read only misleads the internal theme-selector
- * radio's `checked` attribute for one paint until the user reopens the
- * menu. Not worth the sessionStorage overhead. If we ever move theme state
- * inside the LiveView-rendered tree, switch to mirror: 'session'.
+ * The mirror is what the theme-selector radio's `checked` state needs. That
+ * radio DOES live inside the LiveView-rendered tree, so without the mirror the
+ * connected render — and every live_redirect after it — re-checks the OLD radio
+ * whenever the write has not landed in the connect-time session snapshot, i.e.
+ * the connected render contradicts the dead render. The `data-theme` attribute
+ * on `<html>` itself is a separate matter: it sits outside the LiveView root
+ * and is only re-rendered on a full page load, where the `backpex_prefs` cookie
+ * already makes the dead render correct.
  */
 export default {
   mounted () {
@@ -40,9 +40,9 @@ export default {
       // Update DOM immediately (optimistic)
       document.documentElement.setAttribute('data-theme', selectedTheme.value)
 
-      // Persist to cookie via BackpexPreferences — no mirror needed, see
-      // the module-level comment above.
-      BackpexPreferences.set('global.theme', selectedTheme.value)
+      // Persist via BackpexPreferences — see the module-level comment above
+      // for why the theme is mirrored.
+      BackpexPreferences.set('global.theme', selectedTheme.value, { mirror: 'session' })
     }
   },
 

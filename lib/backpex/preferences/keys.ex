@@ -157,4 +157,56 @@ defmodule Backpex.Preferences.Keys do
   def metrics_visible(live_resource) when is_atom(live_resource) do
     Key.resource_key(live_resource, "metrics_visible")
   end
+
+  @doc """
+  Whether `value` is shaped the way the built-in reader for `key` expects.
+
+  Client-supplied preference values reach the server on two paths the browser
+  fully controls: the LiveView connect params and the `backpex_prefs` cookie
+  (see `Backpex.Preferences.LiveView`). Both are overlaid on reads, so a
+  wrong-typed value would flow straight into a render — and a render is not
+  allowed to crash on browser input. `not "false"` raises, and so does
+  `Map.get/3` on a binary, which would turn a single planted cookie into an
+  HTTP 500 on every page for as long as the cookie lives.
+
+  This is a *shape* gate, not an authorization gate: it asks only whether the
+  built-in reader for this key can consume the value without raising. Values
+  for keys Backpex does not own (`"custom."`, app-registered prefixes, and
+  unknown `resource:` suffixes) pass through — Backpex cannot know their
+  shape, so a host that reads its own keys out of the overlay must tolerate
+  whatever the browser can send.
+
+  ## Examples
+
+      iex> Backpex.Preferences.Keys.valid_value?("global.sidebar_open", false)
+      true
+
+      iex> Backpex.Preferences.Keys.valid_value?("global.sidebar_open", "false")
+      false
+
+      iex> Backpex.Preferences.Keys.valid_value?("custom.acme.anything", %{"a" => 1})
+      true
+  """
+  @spec valid_value?(String.t(), term()) :: boolean()
+  def valid_value?(key, value) when is_binary(key) do
+    key |> Key.parse() |> shape(value)
+  end
+
+  def valid_value?(_key, _value), do: false
+
+  defp shape(["global", "theme"], value), do: is_binary(value)
+  defp shape(["global", "sidebar_open"], value), do: is_boolean(value)
+  defp shape(["global", "sidebar_section", _id], value), do: is_boolean(value)
+  defp shape(["resource", _module, "columns"], value), do: boolean_map?(value)
+  defp shape(["resource", _module, "metrics_visible"], value), do: is_boolean(value)
+  defp shape(["resource", _module, suffix], value) when suffix in ["order", "filters"], do: string_keyed_map?(value)
+  defp shape(_segments, _value), do: true
+
+  defp boolean_map?(value) do
+    string_keyed_map?(value) and Enum.all?(value, fn {_field, active} -> is_boolean(active) end)
+  end
+
+  defp string_keyed_map?(value) do
+    is_map(value) and not is_struct(value) and Enum.all?(value, fn {key, _value} -> is_binary(key) end)
+  end
 end

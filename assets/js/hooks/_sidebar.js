@@ -1,17 +1,24 @@
 import { BackpexPreferences } from './_preferences'
 
-// Sidebar state is persisted both to the cookie (for fresh connects) and to
-// sessionStorage (for live_redirects). LiveView freezes the session at
-// websocket-connect time, so a re-mount after `live_redirect` reads a stale
-// cookie and the server re-renders the shell from its default. The
-// sessionStorage mirror keeps the user's client-side choices authoritative
-// until the next fresh connect re-seeds from the cookie.
+// Sidebar state is persisted through BackpexPreferences with
+// `mirror: 'session'`, which covers all three ways this shell gets rendered:
 //
-// The mirror is handled by BackpexPreferences.get/set with
-// `mirror: 'session'` — see assets/js/hooks/_preferences.js and the
-// "Writing a JS hook that persists preferences" section of the user
-// preferences guide. If you add another JS-driven UI-chrome preference,
-// follow the same pattern instead of rolling your own sessionStorage layer.
+// - Fresh connect: the server reads the preference adapter and renders
+//   `data-sidebar-open`.
+// - live_redirect: no HTTP request happens and LiveView freezes the session at
+//   websocket-connect time, so the server re-renders the shell from a stale
+//   snapshot. The sessionStorage mirror, handed back in the connect params,
+//   keeps the user's choice authoritative.
+// - Reload right after a toggle: the POST has not landed yet, so the session
+//   cookie the document GET carries is one write behind. The short-lived
+//   `backpex_prefs` cookie carries the unacknowledged write to the dead render.
+//
+// The server therefore only ever has NEW information for this hook when the
+// write it is rendering has been acknowledged — which is exactly the condition
+// `updated()` adopts on. See assets/js/hooks/_preferences.js and the "Writing a
+// JS hook that persists preferences" section of the user preferences guide. If
+// you add another JS-driven UI-chrome preference, follow the same pattern
+// instead of rolling your own sessionStorage layer.
 
 /**
  * Manages sidebar open/close drawer state for mobile and desktop.
@@ -36,12 +43,18 @@ export default {
 
     // State: mobile closed by default. Desktop state prefers the
     // sessionStorage mirror over the server-rendered data attribute — same
-    // live_redirect staleness reason as the section states.
+    // live_redirect staleness reason as the section states. By the time hooks
+    // mount, connectParams() has primed the mirror, so the two agree unless
+    // this tab holds an unacknowledged write — in which case the mirror is
+    // right and the attribute may not be.
     this.mobileOpen = false
     this.desktopOpen = BackpexPreferences.get(
       'global.sidebar_open',
       this.el.dataset.sidebarOpen === 'true'
     )
+    // Last server-rendered value, so updated() can tell a *changed* attribute
+    // (new information) from the server merely re-rendering what it had.
+    this.serverOpen = this.el.dataset.sidebarOpen === 'true'
     // Element focused before the mobile drawer was opened, for focus restore.
     this.previousFocus = null
 
@@ -79,6 +92,18 @@ export default {
 
   updated () {
     if (!this.sidebar || !this.toggleBtn) return
+
+    // Edge-triggered: `desktopOpen` drives higher-specificity `data-[state]`
+    // classes, so re-asserting a stale cached value on every render would
+    // permanently override the server. Adopt the attribute only when it
+    // *changed* — and only when this tab has no write the server has yet to
+    // acknowledge, since such a render was necessarily produced without it.
+    const serverOpen = this.el.dataset.sidebarOpen === 'true'
+    if (serverOpen !== this.serverOpen) {
+      this.serverOpen = serverOpen
+      if (!BackpexPreferences.isPending('global.sidebar_open')) this.desktopOpen = serverOpen
+    }
+
     this.applyState()
   },
 
@@ -100,8 +125,9 @@ export default {
   handleToggle () {
     if (this.isDesktop()) {
       this.desktopOpen = !this.desktopOpen
-      // mirror: 'session' writes sessionStorage first, then POSTs to the
-      // cookie for the next fresh connect.
+      // Writes the sessionStorage mirror and marks the key pending in the
+      // `backpex_prefs` cookie, both synchronously, before POSTing. Until that
+      // POST responds this value beats anything the server renders.
       BackpexPreferences.set('global.sidebar_open', this.desktopOpen, { mirror: 'session' })
     } else {
       if (!this.mobileOpen) this.previousFocus = document.activeElement

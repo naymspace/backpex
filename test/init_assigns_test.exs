@@ -102,6 +102,29 @@ defmodule Backpex.InitAssignsTest do
     }
   end
 
+  # A disconnected (dead-render) socket carrying the document GET's conn in
+  # `socket.private[:connect_info]` — the shape `Phoenix.LiveView.Static` builds —
+  # with the browser's unacknowledged preference writes in the `backpex_prefs`
+  # cookie.
+  defp cookie_socket(client_prefs) do
+    socket = build_socket()
+
+    conn =
+      :get
+      |> Plug.Test.conn("/")
+      |> Plug.Test.put_req_cookie("backpex_prefs", encode_cookie(client_prefs))
+      |> Plug.Conn.fetch_cookies()
+
+    %{socket | private: Map.put(socket.private, :connect_info, conn)}
+  end
+
+  # Mirrors the browser's `encodeURIComponent(JSON.stringify(map))`.
+  defp encode_cookie(map) do
+    map
+    |> Jason.encode!()
+    |> URI.encode(&URI.char_unreserved?/1)
+  end
+
   defp mount(session, socket \\ build_socket()) do
     {:cont, socket} = InitAssigns.on_mount(:default, %{}, session, socket)
     socket
@@ -276,10 +299,75 @@ defmodule Backpex.InitAssignsTest do
     end
 
     test "ignores connect params on a disconnected mount" do
-      # The dead render re-read the session over HTTP, so it is authoritative.
+      # A disconnected mount has no connect params — its carrier is the cookie
+      # (see below). With neither present the session is what renders.
       session = %{"backpex_preferences" => %{"global" => %{"sidebar_open" => false}}}
 
       socket = mount(session, build_socket())
+
+      assert socket.assigns.sidebar_open == false
+    end
+  end
+
+  describe "on_mount/4 with unacknowledged writes in the backpex_prefs cookie" do
+    test "the dead render prefers the cookie overlay over a stale session" do
+      # THE FLASH, at its source. The user toggled the sidebar and the theme and
+      # collapsed a section, then reloaded before the preferences POST's
+      # Set-Cookie landed. The session this GET carried is a full round-trip
+      # behind and still says "light / open / expanded". The browser wrote its
+      # unacknowledged values into `backpex_prefs` synchronously, so they ride
+      # this very request and the first paint must already be correct — otherwise
+      # LiveView patches it a frame later and the user sees the flip.
+      #
+      # This covers BOTH read paths: `get/3` (theme, sidebar_open) and
+      # `get_map/3` (the sidebar_section prefix).
+      session = %{
+        "backpex_preferences" => %{
+          "global" => %{
+            "theme" => "light",
+            "sidebar_open" => true,
+            "sidebar_section" => %{"blog" => true, "users" => true}
+          }
+        }
+      }
+
+      socket =
+        mount(
+          session,
+          cookie_socket(%{
+            "global.theme" => "dark",
+            "global.sidebar_open" => false,
+            "global.sidebar_section.blog" => false
+          })
+        )
+
+      assert socket.assigns.current_theme == "dark"
+      assert socket.assigns.sidebar_open == false
+
+      # The overlay merges into the prefix map: `blog` comes from the cookie,
+      # `users` still comes from the session.
+      assert socket.assigns.sidebar_section_states == %{"blog" => false, "users" => true}
+    end
+
+    test "keys absent from the cookie still render from the session" do
+      # The cookie holds pending writes ONLY. It must never blank out a key the
+      # server already knows about — that would make it a second store.
+      session = %{
+        "backpex_preferences" => %{"global" => %{"theme" => "dark", "sidebar_open" => false}}
+      }
+
+      socket = mount(session, cookie_socket(%{"global.sidebar_open" => true}))
+
+      assert socket.assigns.sidebar_open == true
+      assert socket.assigns.current_theme == "dark"
+    end
+
+    test "an empty cookie leaves the session's render untouched" do
+      # The steady state: nothing in flight, so the cookie is absent or empty and
+      # the adapter is authoritative on every key.
+      session = %{"backpex_preferences" => %{"global" => %{"sidebar_open" => false}}}
+
+      socket = mount(session, cookie_socket(%{}))
 
       assert socket.assigns.sidebar_open == false
     end

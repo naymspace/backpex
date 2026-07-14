@@ -78,8 +78,12 @@ when the websocket connected, so after a `live_redirect` it cannot see
 preferences written since — without the params, hidden columns and metrics
 reappear as soon as the user navigates. Passing a function (rather than a plain
 object) matters: LiveView re-evaluates it on every join, which is what keeps the
-values current. See
-[User Preferences](../live_resource/user-preferences.md) for the full rationale.
+values current. The connect params are one of two carriers for the browser's
+preference overlay — the other is the short-lived `backpex_prefs` cookie, which
+needs no wiring — and `backpexParams` remains required because it is the only
+carrier that exists on a `live_redirect`, which makes no HTTP request at all.
+See [User Preferences](../live_resource/user-preferences.md) for the full
+rationale.
 
 ## daisyUI
 
