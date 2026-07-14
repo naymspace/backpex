@@ -234,11 +234,24 @@ defmodule Backpex.Preferences do
     ctx = resolve_identity(Context.coerce(ctx_or_session))
     {module, adapter_opts} = Router.resolve_prefix(prefix)
 
-    case module.get_map(ctx, prefix, merge_opts(adapter_opts, opts)) do
-      {:ok, map} when is_map(map) ->
+    result =
+      try do
+        {module, module.get_map(ctx, prefix, merge_opts(adapter_opts, opts))}
+      rescue
+        reason ->
+          Logger.warning(
+            "Backpex.Preferences: adapter #{inspect(module)} raised in get_map/3 for prefix " <>
+              "#{inspect(prefix)}: #{Exception.format(:error, reason, __STACKTRACE__)}"
+          )
+
+          {module, {:error, {:exception, reason}}}
+      end
+
+    case result do
+      {_module, {:ok, map}} when is_map(map) ->
         map
 
-      {:error, reason} ->
+      {_module, {:error, reason}} ->
         Logger.warning(
           "Backpex.Preferences: adapter #{inspect(module)} returned error on get_map/3 for prefix " <>
             "#{inspect(prefix)}: #{inspect(reason)}; falling back to %{}"
