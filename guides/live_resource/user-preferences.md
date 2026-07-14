@@ -957,25 +957,42 @@ Skip the mirror (just call `BackpexPreferences.set(key, value)`) when:
 An unmirrored key still gets a correct first paint after a fast reload. What it
 gives up is the `live_redirect` guarantee.
 
-### Server-originated writes: `push_write`
+### Server-originated writes: `Preferences.put/4`
 
-The mirror also covers preferences the **server** writes via
-`Backpex.Preferences.LiveView.push_write/4`, such as column and metric
-visibility. These are server-rendered content (a hidden column is not in
-the DOM at all), so a client hook cannot re-apply them the way the sidebar
-hooks re-apply CSS state — the server has to know before it renders:
+The mirror also covers preferences the **server** writes, such as column and
+metric visibility. These are server-rendered content (a hidden column is not in
+the DOM at all), so a client hook cannot re-apply them the way the sidebar hooks
+re-apply CSS state — the server has to know before it renders.
 
-1. `push_write(socket, key, value, mirror: :session)` tells the
-   `BackpexPreferences` hook to mirror the value into sessionStorage in
-   addition to the HTTP POST.
-2. Every subsequent join sends the mirrored values in the connect params.
-3. `Backpex.Preferences.LiveView.mount_context/2` folds them into the
-   `Context`, where `get/3` and `get_map/3` prefer them over the stored
-   value — so the first render already reflects the toggle.
+Write them from a LiveView with `Backpex.Preferences.put/4`:
 
-This only matters for the Session adapter's frozen-snapshot staleness; a
-DB-backed adapter reads fresh at every mount, and there the mirrored values
-simply match what the adapter returns.
+```elixir
+{:ok, socket} = Backpex.Preferences.put(socket, key, value, mirror: :session)
+```
+
+The **adapter** decides how that write lands, which is why this is the entry
+point to reach for:
+
+- An adapter that can persist server-side takes the write in place. The browser
+  is never involved, the next mount reads the value back fresh, and `:mirror`
+  is moot — there is no round-trip to mirror.
+- The Session adapter cannot write outside an HTTP request cycle, so it refuses
+  with `{:error, :requires_http}` and the dispatcher falls back to a
+  `push_event` that the `BackpexPreferences` hook POSTs back. That round-trip is
+  what `:mirror` governs:
+
+  1. `mirror: :session` tells the hook to mirror the value into sessionStorage
+     in addition to the POST.
+  2. Every subsequent join sends the mirrored values in the connect params.
+  3. `Backpex.Preferences.LiveView.mount_context/2` folds them into the
+     `Context`, where `get/3` and `get_map/3` prefer them over the stored
+     value — so the first render already reflects the toggle.
+
+`Backpex.Preferences.LiveView.push_write/4` emits that `push_event` directly and
+skips the adapter entirely. It is the transport primitive the fallback is built
+on; prefer `put/4` unless you specifically need the browser round-trip, so that
+a host routing your key to a server-side adapter does not pay for one it does
+not need.
 
 ### Example: a compact-density toggle
 

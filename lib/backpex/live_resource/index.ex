@@ -365,9 +365,22 @@ defmodule Backpex.LiveResource.Index do
     what in (live_resource.config(:persist) || [])
   end
 
+  # The adapter routed to this key decides how the write lands: one that
+  # persists server-side does so in place, and only one that cannot write
+  # outside an HTTP request (the Session adapter, the zero-config default)
+  # falls back to the browser round-trip. Preferences are best effort, so an
+  # adapter that refuses the write leaves the socket — and the interaction that
+  # triggered it — untouched.
+  defp put_preference(socket, key, value, opts \\ []) do
+    case Preferences.put(socket, key, value, opts) do
+      {:ok, socket} -> socket
+      {:error, _reason} -> socket
+    end
+  end
+
   defp maybe_push_columns(socket, live_resource, columns) do
     if persist_enabled?(live_resource, :columns) do
-      PreferenceLiveView.push_write(socket, PreferenceKeys.columns(live_resource), columns, mirror: :session)
+      put_preference(socket, PreferenceKeys.columns(live_resource), columns, mirror: :session)
     else
       socket
     end
@@ -375,7 +388,7 @@ defmodule Backpex.LiveResource.Index do
 
   defp maybe_push_metrics(socket, live_resource, visible) do
     if persist_enabled?(live_resource, :metrics) do
-      PreferenceLiveView.push_write(socket, PreferenceKeys.metrics_visible(live_resource), visible, mirror: :session)
+      put_preference(socket, PreferenceKeys.metrics_visible(live_resource), visible, mirror: :session)
     else
       socket
     end
@@ -405,7 +418,7 @@ defmodule Backpex.LiveResource.Index do
       persisted = socket.assigns.backpex_persisted_index_state
 
       socket
-      |> PreferenceLiveView.push_write(PreferenceKeys.filters(live_resource), filters)
+      |> put_preference(PreferenceKeys.filters(live_resource), filters)
       |> assign(:backpex_persisted_index_state, %{persisted | filters: filters})
     else
       socket
@@ -602,7 +615,7 @@ defmodule Backpex.LiveResource.Index do
         socket
       else
         socket
-        |> PreferenceLiveView.push_write(PreferenceKeys.order(live_resource), value)
+        |> put_preference(PreferenceKeys.order(live_resource), value)
         |> assign(:backpex_persisted_index_state, %{persisted | order: value})
       end
     else

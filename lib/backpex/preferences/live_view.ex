@@ -292,9 +292,14 @@ defmodule Backpex.Preferences.LiveView do
   Pushes a preference-write event to the browser.
 
   The `BackpexPreferences` JS hook listens for this event and persists the
-  value via the preferences controller. Used from LiveView `handle_event/3`
-  and `handle_params/3` callbacks when the server-originated state change
-  needs to outlive the current socket.
+  value via the preferences controller.
+
+  This is the *transport primitive*: it hardcodes the browser round-trip and
+  never consults an adapter. Prefer `Backpex.Preferences.put/4`, which asks the
+  key's adapter first and only falls back here when the adapter cannot write
+  outside an HTTP request cycle (`{:error, :requires_http}` — the Session
+  adapter, and the zero-config default). An adapter that persists server-side
+  then costs no round-trip at all.
 
   Returns the updated socket so it composes in pipelines.
 

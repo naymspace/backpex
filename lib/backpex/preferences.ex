@@ -233,6 +233,17 @@ defmodule Backpex.Preferences do
       reason. Callers typically ignore the failure (preferences are best
       effort) but can surface it if needed.
 
+  ## Options
+
+    * `:mirror` — `:session` to have the browser mirror the value into
+      `sessionStorage`. Only consulted on the `push_event` fallback: it is a
+      property of that round-trip, not of the value, and an adapter that
+      persists server-side is read fresh at every mount and needs no mirror.
+      See `Backpex.Preferences.LiveView.push_write/4` for when a key needs it.
+
+  Every other option is forwarded to the adapter, on top of the adapter's
+  configured options.
+
   ## Examples
 
   From a Plug controller (session is updated in-place):
@@ -293,10 +304,10 @@ defmodule Backpex.Preferences do
             "Adapters should return :requires_http instead when called outside a controller."
         )
 
-        {:ok, push_event_fallback(socket, key, value)}
+        {:ok, push_event_fallback(socket, key, value, opts)}
 
       {_module, {:error, :requires_http}} ->
-        {:ok, push_event_fallback(socket, key, value)}
+        {:ok, push_event_fallback(socket, key, value, opts)}
 
       {module, {:error, reason} = err} ->
         Logger.warning(
@@ -452,12 +463,15 @@ defmodule Backpex.Preferences do
     end
   end
 
-  defp push_event_fallback(socket, key, value) do
-    PreferenceLiveView.push_write(socket, key, value)
+  defp push_event_fallback(socket, key, value, opts) do
+    PreferenceLiveView.push_write(socket, key, value, Keyword.take(opts, [:mirror]))
   end
 
+  # `:default` (read fallback) and `:mirror` (a property of the push_event
+  # round-trip) are the dispatcher's own options. An adapter never acts on
+  # either, so they stop here rather than leaking into the adapter contract.
   defp merge_opts(adapter_opts, call_opts) do
-    Keyword.merge(adapter_opts, Keyword.delete(call_opts, :default))
+    Keyword.merge(adapter_opts, Keyword.drop(call_opts, [:default, :mirror]))
   end
 
   defp run_identity_resolver(ctx) do

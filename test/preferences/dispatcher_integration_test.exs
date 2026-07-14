@@ -11,7 +11,10 @@ defmodule Backpex.Preferences.DispatcherIntegrationTest do
   alias Backpex.Preferences.Adapters.Session
   alias Backpex.Preferences.Context
   alias Backpex.Preferences.Keys
+  alias Backpex.Preferences.LiveView, as: PreferenceLiveView
   alias Backpex.Test.InMemoryPreferencesAdapter, as: InMemory
+  alias Phoenix.LiveView.Socket
+  alias Phoenix.LiveView.Utils, as: LiveViewUtils
 
   setup do
     InMemory.reset()
@@ -77,6 +80,41 @@ defmodule Backpex.Preferences.DispatcherIntegrationTest do
 
     # In-memory adapter persisted the resource.* key directly
     assert InMemory.dump() == %{columns_key => %{"name" => true}}
+  end
+
+  describe "put/4 from a socket picks the transport the adapter needs" do
+    # A minimal socket compatible with Phoenix.LiveView.push_event/3, which
+    # accumulates into `socket.private.live_temp[:push_events]`.
+    defp socket, do: %Socket{private: %{live_temp: %{}}}
+
+    test "a server-side adapter persists in place and queues no push_event" do
+      key = Keys.columns(MyApp.MyLive)
+      value = %{"name" => true}
+
+      # `mirror: :session` is what the columns call site passes, and it is
+      # deliberately still passed here: the mirror only ever describes the
+      # browser round-trip. An adapter that persists server-side is read fresh
+      # at the next mount, so there is nothing to round-trip and nothing to
+      # mirror — the browser is not involved at all.
+      assert {:ok, socket} = Preferences.put(socket(), key, value, mirror: :session)
+
+      assert LiveViewUtils.get_push_events(socket) == []
+      assert InMemory.dump() == %{key => value}
+    end
+
+    test "the Session adapter cannot write outside HTTP, so the write round-trips through the browser" do
+      assert {:ok, socket} = Preferences.put(socket(), Keys.theme(), "dark")
+
+      assert LiveViewUtils.get_push_events(socket) ==
+               [[PreferenceLiveView.event_name(), %{key: Keys.theme(), value: "dark"}]]
+    end
+
+    test "the Session adapter's fallback carries the mirror flag to the browser" do
+      assert {:ok, socket} = Preferences.put(socket(), Keys.theme(), "dark", mirror: :session)
+
+      assert LiveViewUtils.get_push_events(socket) ==
+               [[PreferenceLiveView.event_name(), %{key: Keys.theme(), value: "dark", mirror: "session"}]]
+    end
   end
 
   describe "get_map/3 through a non-Session adapter" do
