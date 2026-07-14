@@ -346,50 +346,46 @@ config :backpex, Backpex.Preferences,
 ```
 
 Dispatch uses **longest-prefix match**, so specific patterns always beat
-`:default` regardless of order. Patterns:
+broader ones and `:default` regardless of the order they appear in config.
+Patterns:
 
-- `"global.*"` — any key whose first segment is `"global"`.
-- `"global.theme"` — exact match, beats `"global.*"`.
-- A 1-arity function `(String.t() -> boolean())` — escape hatch for
-  cross-cutting carve-outs (see below).
+- `"global.*"` — a wildcard: every key under the `global` prefix.
+- `"global.theme"` — an exact key; beats `"global.*"`.
 - `:default` — fallback when nothing else matches.
 
 With no `:adapters` config, the router falls back to a single `:default` →
 Session route so existing apps need no changes.
 
-#### Match functions — cross-cutting carve-outs
+#### Routing a single resource
 
-Trailing-wildcard patterns can only carve off a *prefix* of the key space.
-When you need to route by a **suffix** (e.g. send every resource's column
-visibility to the session while the rest of `resource.*` goes to a database),
-use a 1-arity function as the pattern:
+Patterns are split into segments by the same rule as keys, so a wildcard can
+address one resource by name. Per-resource keys embed the module as a single
+`:`-separated segment — `Backpex.Preferences.Keys.columns(MyApp.PostLive)` is
+`"resource:MyApp.PostLive:columns"` — and a pattern written the same way carves
+that resource out of the broader `"resource.*"` route:
 
 ```elixir
 config :backpex, Backpex.Preferences,
   adapters: [
-    # Match funs are the most specific route type. Use them for cross-cutting
-    # carve-outs (e.g., every resource's column visibility regardless of module).
-    {&String.ends_with?(&1, ":columns"), Backpex.Preferences.Adapters.Session, []},
-    {"resource.*", MyApp.Preferences.EctoAdapter, repo: MyApp.Repo},
+    # PostLive carries far more column state than the session cookie should hold.
+    {"resource:MyApp.PostLive:*", MyApp.Preferences.EctoAdapter, repo: MyApp.Repo},
+    {"resource.*", Backpex.Preferences.Adapters.Session, []},
     {:default, Backpex.Preferences.Adapters.Session, []}
   ]
 ```
 
-Semantics:
+The narrower route owns every `MyApp.PostLive` key; every other resource still
+goes to the session. Order does not matter — specificity decides.
 
-- **Match functions are the most specific tier.** They always beat string
-  patterns and `:default`, regardless of how specific those look. Rationale:
-  the user wrote imperative matching code, so we assume they know what they
-  are doing.
-- **First-in-config-order wins among multiple matching functions.** This
-  differs from the longest-prefix rule that applies to string patterns — make
-  sure ordering is deliberate when you have more than one function route.
-- **Match functions are excluded from `get_map/3` (subtree reads).** A
-  function that picks off individual keys (every key ending in `:columns`)
-  cannot cleanly own the subtree rooted at `resource.SomeLive`. Only string
-  patterns and `:default` participate in subtree owner lookups. If you also
-  need the matched keys reachable through a subtree read, pair the function
-  route with a string pattern that owns the whole subtree.
+`"*"` is only valid as the **final** segment. A bare `"*"`, or a pattern like
+`"resource.*.columns"`, can never match a key, so Backpex raises at boot rather
+than letting the keys you meant to route quietly land somewhere else. Use
+`:default` to match every key.
+
+There is no suffix or predicate matching: an adapter owns a **prefix** of the
+key space. That is what lets a subtree read (`get_map/3`, which resolves the
+prefix through the same routes as the keys beneath it) name a single owner and
+see all of its own writes.
 
 ### Identity resolver
 

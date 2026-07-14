@@ -37,6 +37,11 @@ defmodule Backpex.Preferences.Key do
   `Backpex.Preferences.Key.resource_key/2` when building keys that embed a
   module name so the colon form is applied deliberately.
 
+  Route patterns (`Backpex.Preferences.Router`) are segmented by the same
+  rule, so a pattern and the keys it is written to cover always agree on
+  where the segment boundaries fall — `"resource:MyApp.MyLive:*"` covers the
+  module as one segment, exactly as `resource_key/2` emits it.
+
   ## Edge cases
 
   `parse/1` is intentionally lenient: it never raises for any binary input and
@@ -117,15 +122,64 @@ defmodule Backpex.Preferences.Key do
   end
 
   @doc """
+  Returns the segments a wildcard pattern covers, or `nil` when `pattern` is
+  not a wildcard.
+
+  A wildcard is a pattern whose **final segment** is `"*"`, with at least one
+  leading segment. The pattern is segmented with `parse/1` — the same rule
+  keys are segmented with — so a pattern and the keys it is meant to cover
+  always agree on where the segment boundaries are. This is what lets a
+  colon-form pattern address a colon-form key: `"resource:MyApp.MyLive:*"`
+  covers `["resource", "MyApp.MyLive"]`, keeping the module a single segment
+  instead of splitting it on its dots.
+
+  ## Examples
+
+      iex> Backpex.Preferences.Key.wildcard_prefix("global.*")
+      ["global"]
+
+      iex> Backpex.Preferences.Key.wildcard_prefix("resource:MyApp.MyLive:*")
+      ["resource", "MyApp.MyLive"]
+
+      iex> Backpex.Preferences.Key.wildcard_prefix("global.theme")
+      nil
+
+      iex> Backpex.Preferences.Key.wildcard_prefix("*")
+      nil
+  """
+  @spec wildcard_prefix(String.t()) :: [String.t()] | nil
+  def wildcard_prefix(pattern) when is_binary(pattern) do
+    case parse(pattern) do
+      segments when length(segments) > 1 ->
+        if List.last(segments) == "*", do: Enum.drop(segments, -1)
+
+      _single_segment ->
+        nil
+    end
+  end
+
+  @doc """
   Returns true when `pattern` matches `key`.
 
-  Patterns support a single trailing `"*"` as a wildcard over the remaining
-  segments. An exact string pattern matches by equality.
+  A pattern is either an exact key, which matches by string equality, or a
+  wildcard ending in `"*"` (see `wildcard_prefix/1`), which matches every key
+  whose leading segments are the wildcard's segments — including the key that
+  is the prefix itself.
+
+  Both sides are segmented with `parse/1`, so the wildcard's separator does
+  not have to match the key's: `"resource.*"` and `"resource:*"` cover the
+  same keys.
 
   ## Examples
 
       iex> Backpex.Preferences.Key.match?("resource.*", "resource:MyApp.MyLive:columns")
       true
+
+      iex> Backpex.Preferences.Key.match?("resource:MyApp.MyLive:*", "resource:MyApp.MyLive:columns")
+      true
+
+      iex> Backpex.Preferences.Key.match?("resource:MyApp.MyLive:*", "resource:MyApp.OtherLive:columns")
+      false
 
       iex> Backpex.Preferences.Key.match?("global.*", "global.theme")
       true
@@ -138,18 +192,16 @@ defmodule Backpex.Preferences.Key do
   """
   @spec match?(String.t(), String.t()) :: boolean()
   def match?(pattern, key) when is_binary(pattern) and is_binary(key) do
-    case String.split(pattern, ".", parts: 2) do
-      [prefix, "*"] ->
-        segments = parse(key)
-        match_prefix?(prefix, segments)
-
-      _no_wildcard ->
-        pattern == key
+    case wildcard_prefix(pattern) do
+      nil -> pattern == key
+      prefix_segments -> match_prefix?(prefix_segments, parse(key))
     end
   end
 
-  defp match_prefix?(prefix, [first | _rest]), do: first == prefix
-  defp match_prefix?(_prefix, []), do: false
+  defp match_prefix?(prefix_segments, key_segments) do
+    length(key_segments) >= length(prefix_segments) and
+      Enum.take(key_segments, length(prefix_segments)) == prefix_segments
+  end
 
   @builtin_prefixes ["global", "resource", "custom"]
 

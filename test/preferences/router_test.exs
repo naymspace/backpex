@@ -2,6 +2,7 @@ defmodule Backpex.Preferences.RouterTest do
   use ExUnit.Case, async: false
 
   alias Backpex.Preferences.Adapters.Session
+  alias Backpex.Preferences.Keys
   alias Backpex.Preferences.Router
 
   doctest Router
@@ -103,91 +104,131 @@ defmodule Backpex.Preferences.RouterTest do
       assert {SpecificA, []} = Router.resolve("global.theme", routes)
       assert {BroadB, []} = Router.resolve("global.sidebar_open", routes)
     end
+
+    test "a nested wildcard carves a subtree out of a broader one, in either config order" do
+      # Specificity alone decides, so the narrow route wins no matter where it
+      # sits in the list. Both orders are legal config.
+      narrow_first = [
+        {"resource.foo.*", NarrowAdapter, []},
+        {"resource.*", BroadAdapter, []}
+      ]
+
+      broad_first = Enum.reverse(narrow_first)
+
+      for routes <- [narrow_first, broad_first] do
+        assert {NarrowAdapter, []} = Router.resolve("resource.foo.columns", routes)
+        assert {BroadAdapter, []} = Router.resolve("resource.other", routes)
+      end
+    end
+
+    test "a wildcard also matches the bare key at its own prefix" do
+      routes = [{"global.sidebar_section.*", SectionAdapter, []}, {:default, Fallback, []}]
+
+      assert {SectionAdapter, []} = Router.resolve("global.sidebar_section.blog", routes)
+      assert {SectionAdapter, []} = Router.resolve("global.sidebar_section", routes)
+    end
   end
 
-  describe "resolve/2 with match-function patterns" do
-    test "match function routes a key to its adapter" do
-      routes = [
-        {&String.ends_with?(&1, ":columns"), ColumnsAdapter, []},
-        {:default, FallbackAdapter, []}
-      ]
-
-      assert {ColumnsAdapter, []} = Router.resolve("resource:MyApp.MyLive:columns", routes)
-      # A key that does not satisfy the function falls through to :default.
-      assert {FallbackAdapter, []} = Router.resolve("resource:MyApp.MyLive:order", routes)
+  describe "resolve/2 for per-resource keys" do
+    # Regression: a per-resource route used to silently misroute. Patterns were
+    # split on ".", keys on ":" (Key.parse/1), so "resource:MyApp.PostLive:*"
+    # matched nothing and the key fell through to the next-broadest route
+    # without a word. Patterns and keys now share one segmentation rule.
+    setup do
+      %{
+        post_columns: Keys.columns(MyApp.PostLive),
+        post_order: Keys.order(MyApp.PostLive),
+        post_filters: Keys.filters(MyApp.PostLive),
+        user_columns: Keys.columns(MyApp.UserLive)
+      }
     end
 
-    test "match function beats a more-specific string pattern" do
-      # Documents the "functions are the most specific tier" rule. Even an
-      # exact string pattern for the key loses to a match function that also
-      # matches.
+    test "a per-resource wildcard owns exactly that resource's keys", ctx do
       routes = [
-        {"resource:MyApp.MyLive:columns", StringAdapter, []},
-        {&String.ends_with?(&1, ":columns"), FunAdapter, []}
+        {"resource:MyApp.PostLive:*", PostAdapter, []},
+        {"resource.*", GenericAdapter, []},
+        {:default, SessionAdapter, []}
       ]
 
-      assert {FunAdapter, []} = Router.resolve("resource:MyApp.MyLive:columns", routes)
+      # The pattern is written against the key Backpex actually emits.
+      assert ctx.post_columns == "resource:MyApp.PostLive:columns"
+
+      assert {PostAdapter, []} = Router.resolve(ctx.post_columns, routes)
+      assert {PostAdapter, []} = Router.resolve(ctx.post_order, routes)
+      assert {PostAdapter, []} = Router.resolve(ctx.post_filters, routes)
+
+      # Sibling resources are untouched by the carve-out.
+      assert {GenericAdapter, []} = Router.resolve(ctx.user_columns, routes)
+      assert {SessionAdapter, []} = Router.resolve("global.theme", routes)
     end
 
-    test "match function beats :default even when :default appears first and the function appears last" do
+    test "an exact per-resource key beats the per-resource wildcard", ctx do
       routes = [
-        {:default, FallbackAdapter, []},
-        {"resource.*", WildcardAdapter, []},
-        {&String.ends_with?(&1, ":columns"), FunAdapter, []}
+        {"resource:MyApp.PostLive:*", PostAdapter, []},
+        {"resource:MyApp.PostLive:columns", ColumnsAdapter, []},
+        {"resource.*", GenericAdapter, []}
       ]
 
-      assert {FunAdapter, []} = Router.resolve("resource:MyApp.MyLive:columns", routes)
+      assert {ColumnsAdapter, []} = Router.resolve(ctx.post_columns, routes)
+      assert {PostAdapter, []} = Router.resolve(ctx.post_order, routes)
     end
 
-    test "first match function in config order wins when multiple functions match" do
-      # Both functions return true for this key. First-in-config-order wins
-      # (the max_by tie-break inherits Enum.filter's preserved list order).
+    test "the module name stays one segment, so a same-prefixed module does not leak", ctx do
+      # "MyApp.Post" is a dot-prefix of "MyApp.PostLive". Splitting patterns on
+      # dots would let a route for one match keys of the other; segmenting with
+      # Key.parse/1 keeps the module atomic.
       routes = [
-        {fn _key -> true end, FirstFunAdapter, []},
-        {fn _key -> true end, SecondFunAdapter, []}
+        {"resource:MyApp.Post:*", PostAdapter, []},
+        {"resource.*", GenericAdapter, []}
       ]
 
-      assert {FirstFunAdapter, []} = Router.resolve("anything", routes)
+      post_key = Keys.columns(MyApp.Post)
 
-      # Swap the order — result swaps too, confirming order is load-bearing.
-      reversed = [
-        {fn _key -> true end, SecondFunAdapter, []},
-        {fn _key -> true end, FirstFunAdapter, []}
-      ]
-
-      assert {SecondFunAdapter, []} = Router.resolve("anything", reversed)
+      assert {PostAdapter, []} = Router.resolve(post_key, routes)
+      assert {GenericAdapter, []} = Router.resolve(ctx.post_columns, routes)
     end
 
-    test "match function does not interfere with the existing wildcard-conflict check" do
-      # Two conflicting wildcards would normally raise. Inserting a function
-      # route between them must not rescue or alter that check.
-      routes_without_fun = [
-        {"resource.foo.*", AdapterA, []},
-        {"resource.*", AdapterB, []}
+    test "a dot-form pattern still covers the whole colon-form resource namespace", ctx do
+      routes = [{"resource.*", GenericAdapter, []}, {:default, SessionAdapter, []}]
+
+      assert {GenericAdapter, []} = Router.resolve(ctx.post_columns, routes)
+    end
+  end
+
+  describe "resolve/2 as the subtree-owner lookup for get_map/3" do
+    test "a prefix resolves to the adapter that owns the keys under it" do
+      routes = [
+        {"resource.*", EctoAdapter, []},
+        {:default, Session, []}
       ]
 
-      routes_with_fun = [
-        {"resource.foo.*", AdapterA, []},
-        {&String.ends_with?(&1, ":columns"), FunAdapter, []},
-        {"resource.*", AdapterB, []}
+      assert {EctoAdapter, []} = Router.resolve("resource.foo", routes)
+      assert {EctoAdapter, []} = Router.resolve("resource.foo.bar", routes)
+      assert {Session, []} = Router.resolve("global.sidebar_section", routes)
+    end
+
+    test "an exact route on the prefix owns that subtree" do
+      routes = [
+        {"global.sidebar_section", SectionAdapter, []},
+        {"global.*", BroadAdapter, []}
       ]
 
-      assert_raise ArgumentError, ~r/conflicting Backpex.Preferences routes/, fn ->
-        Router.normalize(routes_without_fun)
-      end
+      assert {SectionAdapter, []} = Router.resolve("global.sidebar_section", routes)
+    end
 
-      assert_raise ArgumentError, ~r/conflicting Backpex.Preferences routes/, fn ->
-        Router.normalize(routes_with_fun)
-      end
-
-      # A function between two non-conflicting wildcards still normalizes cleanly.
-      clean_routes = [
-        {"resource.foo.*", AdapterA, []},
-        {&String.ends_with?(&1, ":columns"), FunAdapter, []},
-        {"resource.foo.bar.*", AdapterB, []}
+    test "the sidebar_section prefix resolves the same as the keys stored under it" do
+      # `Backpex.Preferences.get_map/3` resolves the prefix; the JS writes
+      # resolve the individual keys. Both must land in one adapter or a read
+      # would miss its own writes.
+      routes = [
+        {"global.*", SessionAdapter, []},
+        {"resource.*", EctoAdapter, []},
+        {:default, SessionAdapter, []}
       ]
 
-      assert [_first, _second, _third] = Router.normalize(clean_routes)
+      prefix = Keys.sidebar_section_prefix()
+
+      assert Router.resolve(prefix, routes) == Router.resolve(prefix <> ".blog", routes)
     end
   end
 
@@ -221,6 +262,15 @@ defmodule Backpex.Preferences.RouterTest do
       end
     end
 
+    test "raises ArgumentError for a function pattern" do
+      # Function patterns are not part of the route vocabulary. A config that
+      # carries one must fail loudly rather than route by a rule the rest of
+      # the system cannot reason about.
+      assert_raise ArgumentError, ~r/invalid Backpex.Preferences route pattern/, fn ->
+        Router.normalize([{&String.ends_with?(&1, ":columns"), SomeAdapter, []}])
+      end
+    end
+
     test "raises ArgumentError for an empty-string pattern" do
       assert_raise ArgumentError, ~r/must not be an empty string/, fn ->
         Router.normalize([{"", SomeAdapter, []}])
@@ -233,177 +283,64 @@ defmodule Backpex.Preferences.RouterTest do
       end
     end
 
-    test "raises ArgumentError naming both patterns when a later broader route swallows an earlier narrower one" do
+    test "accepts nested wildcards in any declaration order" do
       routes = [
         {"resource.foo.*", AdapterA, []},
         {"resource.*", AdapterB, []}
       ]
 
-      assert_raise ArgumentError, ~r/conflicting Backpex.Preferences routes/, fn ->
-        Router.normalize(routes)
-      end
+      assert [_first, _second] = Router.normalize(routes)
+      assert [_first, _second] = routes |> Enum.reverse() |> Router.normalize()
     end
 
-    test "does not raise when a later narrower route sits inside an earlier broader one" do
+    test "accepts a per-resource wildcard alongside the resource catch-all" do
       routes = [
-        {"resource.foo.*", AdapterA, []},
-        {"resource.foo.bar.*", AdapterB, []}
+        {"resource:MyApp.PostLive:*", PostAdapter, []},
+        {"resource.*", GenericAdapter, []},
+        {:default, SessionAdapter, []}
       ]
 
-      assert [_first, _second] = Router.normalize(routes)
-    end
-
-    test "does not raise when nested patterns route to the same adapter" do
-      routes = [
-        {"resource.foo.*", SameAdapter, []},
-        {"resource.*", SameAdapter, []}
-      ]
-
-      assert [_first, _second] = Router.normalize(routes)
-    end
-
-    test "rejects a 0-arity function pattern with a clear arity message" do
-      assert_raise ArgumentError,
-                   ~r/match function must be arity 1.+got arity 0/s,
-                   fn ->
-                     Router.normalize([{fn -> true end, SomeAdapter, []}])
-                   end
-    end
-
-    test "rejects a 2-arity function pattern with a clear arity message" do
-      assert_raise ArgumentError,
-                   ~r/match function must be arity 1.+got arity 2/s,
-                   fn ->
-                     Router.normalize([{fn _a, _b -> true end, SomeAdapter, []}])
-                   end
-    end
-
-    test "accepts a 1-arity function pattern" do
-      assert [{pattern, SomeAdapter, []}] =
-               Router.normalize([{&String.ends_with?(&1, ":columns"), SomeAdapter, []}])
-
-      assert is_function(pattern, 1)
+      assert [_first, _second, _third] = Router.normalize(routes)
     end
   end
 
-  describe "resolve_prefix/2" do
-    test "picks the wildcard that owns the subtree when the query is the wildcard's prefix" do
-      # Query "resource.foo" must go to FakeEctoAdapter, not fall through to
-      # Session — a wildcard rooted at the query's own prefix owns the subtree.
-      routes = [
-        {"resource.foo.*", FakeEctoAdapter, []},
-        {:default, Session, []}
-      ]
-
-      assert {FakeEctoAdapter, []} = Router.resolve_prefix("resource.foo", routes)
-    end
-
-    test "picks a wildcard whose prefix is an ancestor of the query (owns the whole subtree)" do
-      routes = [
-        {"resource.*", EctoAdapter, []},
-        {:default, Session, []}
-      ]
-
-      assert {EctoAdapter, []} = Router.resolve_prefix("resource.foo", routes)
-      assert {EctoAdapter, []} = Router.resolve_prefix("resource.foo.bar", routes)
-    end
-
-    test "picks a wildcard whose prefix is a descendant of the query (lives inside the subtree)" do
-      # Query is "resource"; the only matching wildcard points at "resource.foo.*".
-      # The route is inside the query's subtree, so it still owns the relevant slice.
-      routes = [
-        {"resource.foo.*", EctoAdapter, []},
-        {:default, Session, []}
-      ]
-
-      assert {EctoAdapter, []} = Router.resolve_prefix("resource", routes)
-    end
-
-    test "falls through to :default when no wildcard/exact route is on the query's lineage" do
-      routes = [
-        {"resource.*", EctoAdapter, []},
-        {:default, Session, []}
-      ]
-
-      assert {Session, []} = Router.resolve_prefix("global.theme", routes)
-    end
-
-    test "exact pattern equal to the query wins over an ancestor wildcard" do
-      routes = [
-        {"global.theme", SpecificA, []},
-        {"global.*", BroadB, []}
-      ]
-
-      assert {SpecificA, []} = Router.resolve_prefix("global.theme", routes)
-    end
-
-    test "wildcard rooted at the query wins over an ancestor-rooted wildcard" do
-      # Broader pattern first, narrower second — the narrower route carves out
-      # a subtree of the broader one and is allowed to do so.
-      routes = [
-        {"resource.*", BroadB, []},
-        {"resource.foo.*", SpecificA, []}
-      ]
-
-      # Query is "resource.foo" — SpecificA's prefix equals the query; it
-      # beats the broader "resource.*" (ancestor-rooted wildcard).
-      assert {SpecificA, []} = Router.resolve_prefix("resource.foo", routes)
-    end
-
-    test "regression: exact get_map for a key covered only by :default returns from Session" do
-      routes = [
-        {"resource.*", EctoAdapter, []},
-        {:default, Session, []}
-      ]
-
-      assert {Session, []} = Router.resolve_prefix("global.theme", routes)
-    end
-
-    test "raises ArgumentError with a clear message when no routes are configured" do
-      assert_raise ArgumentError, ~r/no Backpex.Preferences adapters configured/, fn ->
-        Router.resolve_prefix("global.theme", [])
+  describe "normalize/1 wildcard placement" do
+    # An unmatchable wildcard used to normalize cleanly and then match nothing,
+    # so the keys it was written for silently went to some other adapter. Every
+    # shape that cannot match a key now refuses to boot.
+    test "raises for a bare \"*\" and points at :default" do
+      assert_raise ArgumentError, ~r/Use :default to match every key/, fn ->
+        Router.normalize([{"*", SomeAdapter, []}])
       end
     end
 
-    test "raises ArgumentError when nothing matches and there is no :default" do
-      routes = [{"global.*", Adapter, []}]
-
-      assert_raise ArgumentError, ~r/no Backpex.Preferences adapter matches prefix/, fn ->
-        Router.resolve_prefix("resource.foo", routes)
+    test "raises for a wildcard that is not the final segment" do
+      assert_raise ArgumentError, ~r/invalid Backpex.Preferences wildcard pattern/, fn ->
+        Router.normalize([{"resource.*.columns", SomeAdapter, []}])
       end
     end
 
-    test "ignores match-function routes even when they would match individual keys" do
-      # The function would match every key in the "resource" subtree if it
-      # were considered, but subtree owner lookups deliberately exclude
-      # match-function routes. The :default adapter must win for the subtree.
-      routes = [
-        {fn _key -> true end, FunAdapter, []},
-        {:default, SessionAdapter, []}
-      ]
-
-      assert {SessionAdapter, []} = Router.resolve_prefix("resource.foo", routes)
-    end
-
-    test "ignores match-function routes so string patterns still own their subtree" do
-      # Even when a function precedes a matching string wildcard, the string
-      # wildcard owns the subtree because functions are excluded from
-      # resolve_prefix entirely.
-      routes = [
-        {fn _key -> true end, FunAdapter, []},
-        {"resource.*", EctoAdapter, []},
-        {:default, SessionAdapter, []}
-      ]
-
-      assert {EctoAdapter, []} = Router.resolve_prefix("resource.foo", routes)
-    end
-
-    test "raises when only a match-function route is configured and no :default exists" do
-      routes = [{fn _key -> true end, FunAdapter, []}]
-
-      assert_raise ArgumentError, ~r/no Backpex.Preferences adapter matches prefix/, fn ->
-        Router.resolve_prefix("anything", routes)
+    test "raises for a wildcard glued to a literal segment" do
+      assert_raise ArgumentError, ~r/only valid as the final segment/, fn ->
+        Router.normalize([{"res*", SomeAdapter, []}])
       end
+    end
+
+    test "raises for a wildcard with an empty leading segment" do
+      assert_raise ArgumentError, ~r/invalid Backpex.Preferences wildcard pattern/, fn ->
+        Router.normalize([{"resource..*", SomeAdapter, []}])
+      end
+    end
+
+    test "accepts the wildcard forms the key format can actually produce" do
+      routes = [
+        {"global.*", A, []},
+        {"resource.*", B, []},
+        {"resource:MyApp.PostLive:*", C, []},
+        {"custom.acme.*", D, []}
+      ]
+
+      assert [_a, _b, _c, _d] = Router.normalize(routes)
     end
   end
 

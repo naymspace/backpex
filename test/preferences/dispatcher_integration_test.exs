@@ -81,7 +81,7 @@ defmodule Backpex.Preferences.DispatcherIntegrationTest do
 
   describe "get_map/3 through a non-Session adapter" do
     test "reads every stored key under the prefix from the routed adapter" do
-      # End-to-end coverage for the Router.resolve_prefix/1 wiring that backs
+      # End-to-end coverage for the Router.resolve/1 wiring that backs
       # Backpex.Preferences.get_map/3 — without this, only the router-only
       # tests exercise that code path.
       ctx = %{Context.from_mount(%{}) | source: :controller}

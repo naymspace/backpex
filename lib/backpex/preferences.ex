@@ -146,7 +146,7 @@ defmodule Backpex.Preferences do
   @spec get_map(Context.t() | map(), String.t(), keyword()) :: map()
   def get_map(ctx_or_session, prefix, opts \\ []) do
     ctx = resolve_identity(Context.coerce(ctx_or_session))
-    {module, adapter_opts} = Router.resolve_prefix(prefix)
+    {module, adapter_opts} = Router.resolve(prefix)
 
     result =
       try do
