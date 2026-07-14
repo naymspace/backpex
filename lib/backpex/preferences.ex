@@ -674,6 +674,14 @@ defmodule Backpex.Preferences do
 
       nil ->
         :unidentified
+
+      other ->
+        Logger.warning(
+          "Backpex.Preferences: invalid :identity config #{inspect(other)}; " <>
+            "expected {module, function, args} or nil; falling back to :unidentified"
+        )
+
+        :unidentified
     end
   end
 
