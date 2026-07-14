@@ -234,7 +234,11 @@ for the key's prefix.
 
 The Session adapter stores everything in a single Phoenix session key. If
 your session is cookie-backed the whole tree must fit under ~4KB, so avoid
-routing bulky per-resource state there.
+routing bulky per-resource state there. As a heads-up, the Session adapter
+logs a warning when a single write pushes the stored tree past ~3KB — that
+is your cue to route the heavy prefixes (per-resource column visibility,
+saved filters, etc.) to a database-backed adapter before you hit the hard
+limit.
 
 ### Routing by prefix
 

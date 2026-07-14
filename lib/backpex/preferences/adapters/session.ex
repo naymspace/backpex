@@ -26,6 +26,8 @@ defmodule Backpex.Preferences.Adapters.Session do
   alias Backpex.Preferences.Context
   alias Backpex.Preferences.Key
 
+  require Logger
+
   @session_key "backpex_preferences"
 
   @doc "Returns the Phoenix session key used to store the preferences tree."
@@ -55,10 +57,24 @@ defmodule Backpex.Preferences.Adapters.Session do
     end
   end
 
+  @cookie_warn_bytes 3072
+
   @impl Adapter
   def put(%Context{source: :controller, session: session}, key, value, _opts) do
     path = Key.parse(key)
     updated = session |> root() |> deep_put(path, value)
+
+    size = updated |> :erlang.term_to_binary() |> byte_size()
+
+    if size > @cookie_warn_bytes do
+      Logger.warning(
+        "Backpex.Preferences: the session preferences entry is #{size} bytes " <>
+          "(threshold #{@cookie_warn_bytes} bytes). Writes may start failing with " <>
+          "CookieOverflowError once the entry exceeds ~4KB. Consider routing bulky " <>
+          "prefixes to a database-backed preferences adapter."
+      )
+    end
+
     {:ok, [{:put_session, @session_key, updated}]}
   end
 
