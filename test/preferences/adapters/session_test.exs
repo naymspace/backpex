@@ -59,7 +59,7 @@ defmodule Backpex.Preferences.Adapters.SessionTest do
       ctx =
         %{Context.from_mount(%{"backpex_preferences" => %{"global" => %{"theme" => "light"}}}) | source: :controller}
 
-      assert {:ok, [{:put_session, "backpex_preferences", merged}]} =
+      assert {:ok, {:put_session, "backpex_preferences", merged}} =
                Session.put(ctx, Keys.sidebar_open(), true, [])
 
       assert merged == %{"global" => %{"theme" => "light", "sidebar_open" => true}}

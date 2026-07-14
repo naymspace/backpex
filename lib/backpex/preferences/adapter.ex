@@ -33,25 +33,39 @@ defmodule Backpex.Preferences.Adapter do
 
   ## Side-effect protocol
 
-  Writes return a list of side effects rather than mutating the conn. The
-  dispatcher/controller applies each side effect in the order it was returned.
+  A write describes what the caller should do rather than mutating the conn
+  itself. `c:put/4` returns exactly one of:
 
-  The `:put_session` effect asks the caller to put a map under the given
-  session key. `:noop` is useful for adapters that fully persisted the value
-  themselves (e.g. database writes).
+  - `{:ok, :persisted}` — the adapter stored the value on its own (a database
+    write) and needs nothing from the caller.
+  - `{:ok, {:put_session, key, map}}` — the adapter needs the caller to put
+    `map` under the given Phoenix session key.
 
   Keeping adapters side-effect-free this way lets them be exercised in unit
   tests without a conn and supports server-side writes that do not have one.
+
+  `{:put_session, _, _}` can only be honored on a `%Plug.Conn{}`;
+  `Plug.Session` is HTTP-only. An adapter that stores in the session must
+  therefore return `{:error, :requires_http}` when it is called outside a
+  controller, so the dispatcher can round-trip the write through the browser.
   """
 
   alias Backpex.Preferences.Context
 
   @typedoc """
-  A side effect the caller is responsible for applying after `c:put/4`.
+  Work the caller is responsible for applying after `c:put/4`.
+
+  Asks the caller to put `value` under `key` in the Phoenix session.
   """
-  @type side_effect ::
-          {:put_session, key :: String.t(), value :: map()}
-          | :noop
+  @type side_effect :: {:put_session, key :: String.t(), value :: map()}
+
+  @typedoc """
+  The outcome of a successful `c:put/4`.
+
+  Either the adapter persisted the value itself (`:persisted`) or it needs
+  the caller to apply a single side effect.
+  """
+  @type put_result :: :persisted | side_effect()
 
   @doc """
   Read a single key.
@@ -75,9 +89,10 @@ defmodule Backpex.Preferences.Adapter do
   @doc """
   Persist a value.
 
-  Return side effects for the caller to apply (see the module docs). When the
-  adapter persists on its own (DB write), return `{:ok, [:noop]}`.
+  Return `{:ok, :persisted}` when the adapter stored the value itself (a DB
+  write), or `{:ok, {:put_session, key, map}}` to ask the caller to apply the
+  one side effect the adapter cannot perform on its own (see the module docs).
   """
   @callback put(ctx :: Context.t(), key :: String.t(), value :: term(), opts :: keyword()) ::
-              {:ok, [side_effect()]} | {:error, :unidentified | :requires_http | term()}
+              {:ok, put_result()} | {:error, :unidentified | :requires_http | term()}
 end

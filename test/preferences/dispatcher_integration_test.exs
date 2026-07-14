@@ -40,10 +40,10 @@ defmodule Backpex.Preferences.DispatcherIntegrationTest do
     key = Keys.columns(MyApp.MyLive)
     value = %{"name" => true}
 
-    # InMemory adapter persists eagerly and reports the write as a :noop effect
-    # (it does not need the caller to apply anything back). Pin the contract.
+    # InMemory adapter persists eagerly ({:ok, :persisted}), so it contributes
+    # no side effect for the caller to apply. Pin the contract.
     assert {:ok, effects} = Preferences.put_batch(ctx, [{key, value}])
-    assert effects == [:noop]
+    assert effects == []
     assert InMemory.dump() == %{key => value}
   end
 

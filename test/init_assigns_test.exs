@@ -60,7 +60,7 @@ defmodule Backpex.InitAssignsTest do
     end
 
     @impl Adapter
-    def put(_ctx, _key, _value, _opts), do: {:ok, [:noop]}
+    def put(_ctx, _key, _value, _opts), do: {:ok, :persisted}
 
     defp maybe_strip(key, prefix) do
       case String.split(key, prefix, parts: 2) do
@@ -454,7 +454,7 @@ defmodule Backpex.InitAssignsTest do
     end
 
     @impl Adapter
-    def put(_ctx, _key, _value, _opts), do: {:ok, [:noop]}
+    def put(_ctx, _key, _value, _opts), do: {:ok, :persisted}
   end
 
   describe "on_mount/4 threads socket.assigns through the Context" do

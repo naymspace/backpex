@@ -89,7 +89,7 @@ defmodule Backpex.Test.InMemoryPreferencesAdapter do
     start()
     identity = identity(ctx)
     :ets.insert(@table, {{identity, key}, value})
-    {:ok, [:noop]}
+    {:ok, :persisted}
   end
 
   defp identity(%Context{identity: nil}), do: :anonymous

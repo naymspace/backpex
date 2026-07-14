@@ -443,14 +443,20 @@ Implement `Backpex.Preferences.Adapter`. Three callbacks:
 
 - `get/3` — read one key. Return `{:ok, value}` or `{:ok, :not_found}`.
 - `get_map/3` — read everything under a prefix as a nested map.
-- `put/4` — persist one value; return a list of **side effects** for the
-  caller to apply (`[:noop]` if you already persisted; `[{:put_session, k,
-  map}]` when you need the caller to update the session).
+- `put/4` — persist one value. Return `{:ok, :persisted}` when you stored it
+  yourself (the usual case for a DB adapter), or `{:ok, {:put_session, key,
+  map}}` to ask the caller to write `map` into the Phoenix session.
 
 The side-effect protocol is what keeps adapters pure. They don't touch
 `Plug.Conn` — they describe what the caller should do. This is what lets
 the controller compose cross-adapter batch writes and lets server-side code
 dispatch the same adapters without an HTTP request.
+
+`{:put_session, _, _}` is only honorable on a `%Plug.Conn{}` —
+`Plug.Session` is HTTP-only. An adapter that stores in the session must
+return `{:error, :requires_http}` when called outside a controller (the
+Session adapter does exactly this), so the dispatcher can round-trip the
+write through the browser instead.
 
 Batch writes are **best-effort, first-error-wins**: on the first adapter
 error the dispatcher halts, returns `{:error, {key, reason}}`, and the
@@ -514,7 +520,7 @@ defmodule MyApp.Test.InMemoryPreferencesAdapter do
   def put(ctx, key, value, _opts) do
     start()
     :ets.insert(@table, {{identity(ctx), key}, value})
-    {:ok, [:noop]}
+    {:ok, :persisted}
   end
 
   defp identity(%{identity: nil}), do: :anonymous
@@ -618,7 +624,7 @@ defmodule MyApp.Preferences.EctoAdapter do
     |> UserPreference.changeset(attrs)
     |> repo.insert!(on_conflict: {:replace, [:value, :updated_at]}, conflict_target: [:user_id, :key])
 
-    {:ok, [:noop]}
+    {:ok, :persisted}
   end
 
   defp wrap_value(map) when is_map(map), do: map

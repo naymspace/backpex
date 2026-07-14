@@ -10,6 +10,7 @@ defmodule Backpex.PreferencesTest do
   alias Backpex.Preferences.Context
   alias Backpex.Preferences.Keys
   alias Backpex.Preferences.LiveView, as: PreferenceLiveView
+  alias Backpex.Test.InMemoryPreferencesAdapter, as: InMemory
   alias Phoenix.LiveView.Socket
   alias Phoenix.LiveView.Utils, as: LiveViewUtils
 
@@ -148,6 +149,38 @@ defmodule Backpex.PreferencesTest do
       # LiveView.event_name/0 — this test is a pin for the wire contract.
       assert LiveViewUtils.get_push_events(socket) ==
                [[PreferenceLiveView.event_name(), %{key: Keys.theme(), value: "dark"}]]
+    end
+
+    test "conn origin with an adapter that persisted on its own leaves the session untouched" do
+      with_adapters([{:default, InMemory, []}], fn ->
+        InMemory.reset()
+        conn = conn(:post, "/") |> Plug.Test.init_test_session(%{"unrelated" => 1})
+
+        assert {:ok, %Plug.Conn{} = conn} = Preferences.put(conn, Keys.theme(), "dark")
+
+        # {:ok, :persisted} asks nothing of the caller: the conn comes back
+        # untouched and the value is already in the adapter's store.
+        assert Plug.Conn.get_session(conn) == %{"unrelated" => 1}
+        assert InMemory.dump() == %{Keys.theme() => "dark"}
+      end)
+    end
+
+    test "socket origin with an adapter that persisted on its own queues no push_event" do
+      with_adapters([{:default, InMemory, []}], fn ->
+        InMemory.reset()
+
+        socket = %Socket{
+          assigns: %{__changed__: %{}},
+          private: %{live_temp: %{}}
+        }
+
+        assert {:ok, %Socket{} = socket} = Preferences.put(socket, Keys.theme(), "dark")
+
+        # The adapter already stored the value, so the dispatcher must not also
+        # round-trip it through the browser — that would be a second write.
+        assert LiveViewUtils.get_push_events(socket) == []
+        assert InMemory.dump() == %{Keys.theme() => "dark"}
+      end)
     end
 
     test "adapter crash surfaces as {:error, _} without raising" do
@@ -293,23 +326,17 @@ defmodule Backpex.PreferencesTest do
 
   describe "apply_effects_on_conn/2" do
     test "returns the conn unchanged for an empty effects list" do
-      conn =
-        :get
-        |> conn("/")
-        |> Plug.Test.init_test_session(%{})
-
-      assert Preferences.apply_effects_on_conn(conn, []) == conn
-    end
-
-    test "treats :noop effects as a no-op" do
+      # A batch whose adapters all returned {:ok, :persisted} collects no
+      # effects. Applying that empty list must leave the session alone rather
+      # than strip pre-existing keys.
       conn =
         :get
         |> conn("/")
         |> Plug.Test.init_test_session(%{"unrelated" => 1})
 
-      result = Preferences.apply_effects_on_conn(conn, [:noop])
+      result = Preferences.apply_effects_on_conn(conn, [])
 
-      # Session is untouched — the noop must not strip pre-existing keys.
+      assert result == conn
       assert Plug.Conn.get_session(result) == %{"unrelated" => 1}
     end
 
@@ -384,7 +411,7 @@ defmodule Backpex.PreferencesTest do
     @impl Adapter
     def get_map(_ctx, _prefix, _opts), do: {:ok, %{}}
     @impl Adapter
-    def put(_ctx, key, value, _opts), do: {:ok, [{:put_session, key, value}]}
+    def put(_ctx, key, value, _opts), do: {:ok, {:put_session, key, value}}
   end
 
   defmodule RaisingGetAdapter do
@@ -396,7 +423,7 @@ defmodule Backpex.PreferencesTest do
     @impl Adapter
     def get_map(_ctx, _prefix, _opts), do: {:error, :boom}
     @impl Adapter
-    def put(_ctx, _key, _value, _opts), do: {:ok, [:noop]}
+    def put(_ctx, _key, _value, _opts), do: {:ok, :persisted}
   end
 
   defmodule RaisingIdentity do

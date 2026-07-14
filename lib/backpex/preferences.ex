@@ -217,7 +217,9 @@ defmodule Backpex.Preferences do
   Persists a preference from within a LiveView socket or Plug controller.
 
   Resolves the adapter for `key`, asks it to persist the value, and applies
-  the returned side effects (e.g. `put_session`) to the caller.
+  the side effect it returns (e.g. `put_session`) to the caller. An adapter
+  that persisted on its own returns `{:ok, :persisted}` and the caller is
+  handed back unchanged.
 
   When the chosen adapter refuses a non-HTTP write with `:requires_http`
   (default behavior of the Session adapter outside a controller), falls back
@@ -252,8 +254,11 @@ defmodule Backpex.Preferences do
     ctx = conn |> Context.from_conn() |> resolve_identity()
 
     case dispatch_put(ctx, key, value, opts) do
-      {_module, {:ok, effects}} ->
-        {:ok, apply_effects_on_conn(conn, effects)}
+      {_module, {:ok, :persisted}} ->
+        {:ok, conn}
+
+      {_module, {:ok, {:put_session, _session_key, _value} = effect}} ->
+        {:ok, apply_effects_on_conn(conn, [effect])}
 
       {module, {:error, reason} = err} ->
         Logger.warning(
@@ -272,8 +277,23 @@ defmodule Backpex.Preferences do
       |> resolve_identity()
 
     case dispatch_put(ctx, key, value, opts) do
-      {module, {:ok, effects}} ->
-        {:ok, apply_effects_on_socket(socket, module, key, value, effects)}
+      {_module, {:ok, :persisted}} ->
+        {:ok, socket}
+
+      # Trust boundary. `{:put_session, _, _}` cannot be applied to a live
+      # socket — `Plug.Session` is HTTP-only. The Session adapter avoids
+      # emitting it from a socket by returning `:requires_http` upstream, but a
+      # third-party adapter can still get this wrong. Rather than crashing the
+      # live render or silently dropping the write, warn and route through the
+      # same push_event fallback so the write still lands.
+      {module, {:ok, {:put_session, _session_key, _value}}} ->
+        Logger.warning(
+          "Backpex.Preferences: adapter #{inspect(module)} emitted {:put_session, _, _} from a " <>
+            "socket origin for key #{inspect(key)}; routing through push_event fallback. " <>
+            "Adapters should return :requires_http instead when called outside a controller."
+        )
+
+        {:ok, push_event_fallback(socket, key, value)}
 
       {_module, {:error, :requires_http}} ->
         {:ok, push_event_fallback(socket, key, value)}
@@ -294,6 +314,10 @@ defmodule Backpex.Preferences do
 
   Used by `Backpex.PreferencesController` to dispatch cross-adapter batch
   writes.
+
+  Each entry's adapter returns at most one side effect, so the returned list
+  holds one entry per write that needs the caller to do something — adapters
+  that persisted on their own (`{:ok, :persisted}`) contribute nothing.
 
   Threads the accumulated session state through each adapter call so that
   writes under the same session key compose correctly. The caller applies
@@ -345,8 +369,11 @@ defmodule Backpex.Preferences do
           end
 
         case result do
-          {:ok, fx} ->
-            {:cont, {:lists.reverse(fx, reversed_acc), apply_effects_to_ctx(current_ctx, fx)}}
+          {:ok, :persisted} ->
+            {:cont, {reversed_acc, current_ctx}}
+
+          {:ok, {:put_session, _session_key, _value} = effect} ->
+            {:cont, {[effect | reversed_acc], apply_effect_to_ctx(current_ctx, effect)}}
 
           {:error, reason} ->
             {:halt, {:error, {key, reason}}}
@@ -359,27 +386,21 @@ defmodule Backpex.Preferences do
     end
   end
 
-  defp apply_effects_to_ctx(%Context{} = ctx, effects) do
-    session =
-      Enum.reduce(effects, ctx.session, fn
-        {:put_session, key, value}, sess -> Map.put(sess, key, value)
-        :noop, sess -> sess
-      end)
-
-    %{ctx | session: session}
+  defp apply_effect_to_ctx(%Context{session: session} = ctx, {:put_session, key, value}) do
+    %{ctx | session: Map.put(session, key, value)}
   end
 
   @doc """
   Applies a list of adapter side effects to a `%Plug.Conn{}`.
 
+  Takes a list because a batch write collects one effect per entry (see
+  `put_batch/3`); a single `put/4` yields at most one.
+
   Exposed for the preferences controller; not intended for general callers.
   """
   @spec apply_effects_on_conn(Plug.Conn.t(), [Adapter.side_effect()]) :: Plug.Conn.t()
   def apply_effects_on_conn(%Plug.Conn{} = conn, effects) when is_list(effects) do
-    Enum.reduce(effects, conn, fn
-      {:put_session, k, v}, c -> Plug.Conn.put_session(c, k, v)
-      :noop, c -> c
-    end)
+    Enum.reduce(effects, conn, fn {:put_session, k, v}, c -> Plug.Conn.put_session(c, k, v) end)
   end
 
   @doc false
@@ -429,30 +450,6 @@ defmodule Backpex.Preferences do
 
         {module, {:error, {:exception, reason}}}
     end
-  end
-
-  # Socket-origin put accepted by the adapter: consume the returned side
-  # effects. `:noop` is the common case (DB-backed adapters that persisted
-  # themselves). `{:put_session, _, _}` cannot be applied to a live socket
-  # — `Plug.Session` is HTTP-only. The Session adapter avoids emitting this
-  # from a socket by returning `:requires_http` upstream, but a third-party
-  # adapter could still emit it. Rather than silently dropping the write,
-  # log a warning and fall back to `push_event/3` so the browser can retry
-  # via the preferences controller.
-  defp apply_effects_on_socket(socket, module, key, value, effects) do
-    Enum.reduce(effects, socket, fn
-      :noop, s ->
-        s
-
-      {:put_session, _k, _v}, s ->
-        Logger.warning(
-          "Backpex.Preferences: adapter #{inspect(module)} emitted {:put_session, _, _} from a " <>
-            "socket origin for key #{inspect(key)}; routing through push_event fallback. " <>
-            "Adapters should return :requires_http instead when called outside a controller."
-        )
-
-        push_event_fallback(s, key, value)
-    end)
   end
 
   defp push_event_fallback(socket, key, value) do

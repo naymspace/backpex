@@ -75,7 +75,7 @@ defmodule Backpex.Preferences.Adapters.Session do
       )
     end
 
-    {:ok, [{:put_session, @session_key, updated}]}
+    {:ok, {:put_session, @session_key, updated}}
   end
 
   def put(%Context{source: source}, _key, _value, _opts) when source in [:mount, :server] do
