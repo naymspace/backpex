@@ -93,6 +93,23 @@ defmodule Backpex.Preferences.ClientPreferencesTest do
       assert ctx.client == %{"global.theme" => "dark"}
     end
 
+    test "drops wrong-typed values for built-in keys" do
+      # Both client carriers (connect params, `backpex_prefs` cookie) are
+      # browser-written. A string where the reader expects a boolean would
+      # reach a render — and `not "false"` raises, so a single planted cookie
+      # would 500 every admin page until it expired. Valid entries in the same
+      # payload still survive.
+      ctx =
+        ctx(%{}, %{
+          "global.sidebar_open" => "false",
+          "resource:MyApp.UserLive:metrics_visible" => "nope",
+          "resource:MyApp.UserLive:columns" => %{"name" => "yes"},
+          "global.theme" => "dark"
+        })
+
+      assert ctx.client == %{"global.theme" => "dark"}
+    end
+
     test "drops non-binary keys" do
       ctx = ctx(%{}, %{:global => "dark"})
 

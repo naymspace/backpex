@@ -50,21 +50,15 @@ defmodule Backpex.Preferences.Key do
 
   ## Key validation
 
-  `validate/1` checks a key against an allow-list of top-level prefixes
-  returned by `known_prefixes/0`. The built-in prefixes are `"global"`,
-  `"resource"`, and `"custom"` — everything Backpex itself reads or writes
-  falls under these. Apps with a genuine reason to use an extra top-level
-  prefix can register one via config:
+  `validate/1` checks a key's first segment against the top-level prefixes
+  Backpex serves: `"global"`, `"resource"`, and `"custom"`. App-owned keys
+  belong under `"custom.<your-domain>.<key>"`.
 
-      config :backpex, Backpex.Preferences.Key,
-        extra_prefixes: ["experimental"]
-
-  Prefer `"custom.<your-domain>.<key>"` over registering a new prefix.
-
-  Validation is pure — it does not log or raise. The dispatcher in
-  `Backpex.Preferences` can be configured to run validation on every call
-  and either log or raise on failure; see the module docs there for the
-  `validate_keys` opt-in.
+  Its job is to filter *untrusted* keys at the client trust boundary:
+  `Backpex.Preferences.Context.put_client/2` drops browser-supplied keys
+  that fail this check, so a planted key cannot shadow a read for a prefix
+  no adapter is configured to serve. Validation is pure — it never logs and
+  never raises.
   """
 
   @doc """
@@ -160,48 +154,23 @@ defmodule Backpex.Preferences.Key do
   @builtin_prefixes ["global", "resource", "custom"]
 
   @doc """
-  Returns the allow-listed top-level prefixes accepted by `validate/1`.
-
-  The built-in prefixes are `"global"`, `"resource"`, and `"custom"`. Apps
-  can append additional prefixes via application config:
-
-      config :backpex, Backpex.Preferences.Key,
-        extra_prefixes: ["experimental"]
-
-  The returned list is deduplicated but otherwise preserves order: built-in
-  prefixes come first, then any app-supplied extras.
-
-  ## Examples
-
-      iex> Backpex.Preferences.Key.known_prefixes()
-      ["global", "resource", "custom"]
-  """
-  @spec known_prefixes() :: [String.t()]
-  def known_prefixes do
-    extras =
-      :backpex
-      |> Application.get_env(__MODULE__, [])
-      |> Keyword.get(:extra_prefixes, [])
-      |> List.wrap()
-      |> Enum.filter(&is_binary/1)
-
-    Enum.uniq(@builtin_prefixes ++ extras)
-  end
-
-  @doc """
   Validates a preference key.
 
-  Returns `:ok` when the key is non-empty, parseable, and has a first
-  segment in `known_prefixes/0`. Otherwise returns one of:
+  Returns `:ok` when the key is non-empty, parseable, and its first segment
+  is one of the built-in prefixes (`"global"`, `"resource"`, `"custom"`).
+  Otherwise returns one of:
 
     * `{:error, :empty}` — the key is `""`.
     * `{:error, :malformed}` — the key parses to nothing usable (e.g. the
       first segment is empty, like `":foo"` or `".foo"`).
-    * `{:error, :unknown_prefix}` — the first segment is not in the
-      allow-list.
+    * `{:error, :unknown_prefix}` — the first segment is not built-in.
 
-  Pure: never logs, never raises. Callers that want loud failures should
-  pair this with the `validate_keys` opt-in on `Backpex.Preferences`.
+  Only the first segment is checked: this is a routing/trust check, not a
+  spell-checker for the segments after it.
+
+  Pure: never logs, never raises. Used by
+  `Backpex.Preferences.Context.put_client/2` to drop browser-supplied keys
+  before they reach a read.
 
   ## Examples
 
@@ -232,11 +201,6 @@ defmodule Backpex.Preferences.Key do
     end
   end
 
-  defp check_prefix(prefix) do
-    if prefix in known_prefixes() do
-      :ok
-    else
-      {:error, :unknown_prefix}
-    end
-  end
+  defp check_prefix(prefix) when prefix in @builtin_prefixes, do: :ok
+  defp check_prefix(_prefix), do: {:error, :unknown_prefix}
 end
