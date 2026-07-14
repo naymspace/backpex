@@ -1,6 +1,14 @@
 defmodule Backpex.Preferences.ContextTest do
   @moduledoc """
-  Targeted coverage for `Backpex.Preferences.Context.coerce/1`.
+  Runs the `Backpex.Preferences.Context` doctests and adds targeted coverage
+  for `coerce/1`.
+
+  The doctests pin `put_client/2` at the client trust boundary, where every
+  key and value is browser-written and therefore untrusted: a key with an
+  unknown prefix is dropped, a wrong-typed value for a built-in key is
+  dropped, and a well-shaped value for that same key survives. The last case
+  is what keeps the other two honest — a gate that rejected everything would
+  satisfy the rejection examples on its own.
 
   Each clause of `coerce/1` has a distinct behavior that callers rely on
   (pass-through, wrap, raise on atom-keyed maps, raise on non-map terms),
@@ -11,6 +19,8 @@ defmodule Backpex.Preferences.ContextTest do
   use ExUnit.Case, async: true
 
   alias Backpex.Preferences.Context
+
+  doctest Context
 
   describe "coerce/1" do
     test "passes a %Context{} through unchanged" do

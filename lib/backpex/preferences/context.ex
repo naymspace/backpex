@@ -92,6 +92,11 @@ defmodule Backpex.Preferences.Context do
       iex> ctx = Context.put_client(Context.from_mount(%{}), %{"global.sidebar_open" => "false"})
       iex> ctx.client
       %{}
+
+      iex> alias Backpex.Preferences.Context
+      iex> ctx = Context.put_client(Context.from_mount(%{}), %{"global.sidebar_open" => false})
+      iex> ctx.client
+      %{"global.sidebar_open" => false}
   """
   @spec put_client(t(), map()) :: t()
   def put_client(%Context{} = ctx, client) when is_map(client) do
