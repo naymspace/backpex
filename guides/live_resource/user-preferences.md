@@ -228,11 +228,14 @@ twice). Keep it cheap all the same — every `Preferences.get/3` and
 
 ### Session key must survive `renew_session`
 
-Phoenix's `renew_session/1` helper (commonly called on login/logout to
-rotate the session id) drops every session key unless explicitly preserved.
+The `renew_session` helper that `phx.gen.auth` generates (commonly called
+on login/logout to rotate the session id) clears the session and re-puts
+only an allowlist of keys. Every key outside that allowlist is dropped.
 Backpex stores its session-backed preferences under
 `Backpex.Preferences.session_key/0` (currently `"backpex_preferences"`) — if
-you call `renew_session` in your auth flow, carry that key across:
+you call `renew_session` in your auth flow, carry that key across, or users
+lose their theme, sidebar state, and persisted filters/order/columns every
+time they sign in or out:
 
 ```elixir
 def renew_session(conn) do
@@ -817,31 +820,6 @@ exists — and let the validator catch the remaining hand-written
 `custom.*` strings.
 
 ## Gotchas
-
-### Preserving preferences across session renewal
-
-The Phoenix-generated `UserAuth.renew_session/2` pattern clears the session
-on login/logout and re-puts an allowlist of keys. Unless you know the
-specific session key Backpex uses, it will silently drop on renewal — users
-lose their theme, sidebar state, and persisted filters/order/columns every
-time they sign in or out.
-
-Use `Backpex.Preferences.Session.preserve/1` and `restore/2` to include
-Backpex preferences in the renewal without hardcoding the session key:
-
-```elixir
-def renew_session(conn, _user) do
-  backpex_prefs = Backpex.Preferences.Session.preserve(conn)
-
-  conn
-  |> configure_session(renew: true)
-  |> clear_session()
-  |> then(&Backpex.Preferences.Session.restore(&1, backpex_prefs))
-end
-```
-
-Both calls are no-ops when no preferences are stored, so they are safe to
-add unconditionally.
 
 ### Default vs. explicit empty
 
