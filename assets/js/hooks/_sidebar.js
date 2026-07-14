@@ -138,7 +138,7 @@ export default {
   },
 
   trapTab (event) {
-    const focusable = this.sidebar.querySelectorAll(this.FOCUSABLE_SELECTOR)
+    const focusable = this.visibleFocusable()
     if (focusable.length === 0) {
       event.preventDefault()
       return
@@ -157,8 +157,18 @@ export default {
     }
   },
 
+  // Focusable descendants that are actually rendered. Links inside a
+  // collapsed section are display:none (offsetParent === null); leaving
+  // them in would anchor the trap's first/last on an unfocusable element
+  // and let Tab escape the modal drawer. No focusable inside the sidebar
+  // is position:fixed, so a null offsetParent reliably means hidden here.
+  visibleFocusable () {
+    return Array.from(this.sidebar.querySelectorAll(this.FOCUSABLE_SELECTOR))
+      .filter((el) => el.offsetParent !== null)
+  },
+
   focusFirstInSidebar () {
-    const focusable = this.sidebar.querySelector(this.FOCUSABLE_SELECTOR)
+    const focusable = this.visibleFocusable()[0]
     if (focusable) focusable.focus()
   },
 
