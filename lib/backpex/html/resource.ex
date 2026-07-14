@@ -294,7 +294,7 @@ defmodule Backpex.HTML.Resource do
   ## Examples
 
       <.filter_dropdown filter_count={@filter_count}>
-        <.form :let={f} for={@form} phx-change="change-filter" class="space-y-5">
+        <.form :let={f} for={@form} id="filter-form" phx-change="change-filter" class="space-y-5">
           <.filter_form_field filter_name={:status} label="Status" show_clear_button={@filter_opts[:status]}>
             <.input type="select" prompt="Select status..." options={@status_options} />
           </.filter_form_field>
@@ -414,7 +414,7 @@ defmodule Backpex.HTML.Resource do
       )
 
     ~H"""
-    <.form :let={f} for={@form} phx-change="change-filter" phx-submit="change-filter" class="space-y-5">
+    <.form :let={f} for={@form} id="filter-form" phx-change="change-filter" phx-submit="change-filter" class="space-y-5">
       <.filter_form_field
         :for={field_data <- @filter_fields}
         live_resource={@live_resource}
@@ -845,6 +845,9 @@ defmodule Backpex.HTML.Resource do
     ~H"""
     <.form for={@form} class={@class} phx-change="select-page-size" phx-submit="select-page-size">
       <select name={@form[:value].name} class="select select-sm" aria-label={Backpex.__("Items per page", @live_resource)}>
+        <button>
+          <selectedcontent></selectedcontent>
+        </button>
         {Phoenix.HTML.Form.options_for_select(@options, @selected)}
       </select>
     </.form>
