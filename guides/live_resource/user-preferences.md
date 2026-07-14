@@ -954,65 +954,47 @@ defaults. Under `Phoenix.LiveViewTest.live/2` that surfaces as an
 re-mount — every integrator hits this footgun the first time they write an
 Index-mount test.
 
-`Backpex.Test` ships helpers that absorb that boilerplate. Import it in
-your ExUnit cases (no extra dependency; the module is part of the Backpex
-package):
-
-```elixir
-import Backpex.Test
-```
-
-### `live_resource_index/3`
-
-Mounts a LiveResource Index view and transparently follows the default-filter
-redirect if one is issued:
+Don't re-mount by hand. `Phoenix.LiveViewTest.follow_redirect/2` exists for
+exactly this: pass it the `{:error, {:live_redirect, _}}` tuple and it mounts
+the target for you, returning the usual `{:ok, view, html}`.
 
 ```elixir
 test "index renders with the preset filters applied", %{conn: conn} do
-  {:ok, _view, html} = live_resource_index(conn, MyAppWeb.PostLive)
+  result = live(conn, ~p"/admin/posts")
+
+  assert {:error, {:live_redirect, %{to: to}}} = result
+  assert to =~ "filters[published][]=published"
+
+  {:ok, _view, html} = follow_redirect(result, conn)
   assert html =~ "Published"
 end
 ```
 
-Pass the **top-level** LiveResource module (`MyAppWeb.PostLive`), not the
-generated `*.Index` sub-module. The macro uses the conn's router (which
-Phoenix populates after the first dispatch in a `ConnCase` test) to derive
-the Index URL.
+`follow_redirect/2` recycles the conn, carries the LiveView connect params
+across the hop and re-signs the flash cookie, so the second mount sees the
+session the first one did. When you don't need to assert on the target,
+`conn |> live(~p"/admin/posts") |> follow_redirect(conn)` is the whole dance.
 
-Options:
-
-- `:url` — override the mount URL entirely. Use this when the resource is
-  mounted under multiple paths, or when you want to pass exactly the query
-  string you care about.
-- `:query` — a map or keyword list merged into the derived URL's query
-  string. Ignored when `:url` is set.
-
-A redirect to a **different** path bubbles up as the original `{:error, ...}`
-tuple rather than being silently followed — one hop only.
-
-### `put_preference/3`
-
-Seeds a preference into the conn's session before mount, without going
-through the HTTP preferences controller. Handy for pinning
-persisted-state-on-mount branches:
+To seed a preference so that the mount reads it as if the user had set it
+earlier — pinning a persisted-state branch such as "user explicitly cleared
+all filters" — write it onto the conn with `Backpex.Preferences.put/3` before
+mounting. It dispatches through the configured adapter just like a production
+write, so an adapter backed by your database sees the seed too:
 
 ```elixir
-test "persisted empty filters suppress the default-filter redirect", %{conn: conn} do
-  conn =
-    conn
-    |> put_preference(Backpex.Preferences.Keys.filters(MyAppWeb.PostLive), %{})
+alias Backpex.Preferences
+alias Backpex.Preferences.Keys
 
-  {:ok, _view, html} = live_resource_index(conn, MyAppWeb.PostLive)
+test "persisted empty filters suppress the default-filter redirect", %{conn: conn} do
+  {:ok, conn} = Preferences.put(conn, Keys.filters(MyAppWeb.PostLive), %{})
 
   # No redirect — the explicit empty filter state beat the `:default`.
+  {:ok, _view, html} = live(conn, ~p"/admin/posts")
+
   assert html =~ "Draft"
   assert html =~ "Published"
 end
 ```
-
-`put_preference/3` dispatches through the configured adapter the same way
-any production write does — so tests that swap in a DB-backed adapter also
-see their seeds persisted there, not only in the session.
 
 ## Writing a JS hook that persists preferences
 
