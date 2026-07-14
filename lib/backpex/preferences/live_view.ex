@@ -17,6 +17,10 @@ defmodule Backpex.Preferences.LiveView do
   alias Phoenix.LiveView
   alias Phoenix.LiveView.Socket
 
+  # The connect param the browser mirrors its preferences into. A wire contract
+  # with `backpexParams` in `assets/js/hooks/_preferences.js`. It shares its name
+  # with `@client_cookie` by coincidence, not by contract: a connect param and a
+  # cookie are different namespaces, and hardening one does not rename the other.
   @connect_param "backpex_prefs"
   @client_cookie "backpex_prefs"
   @max_cookie_bytes 4096
@@ -48,19 +52,9 @@ defmodule Backpex.Preferences.LiveView do
   def event_name, do: "backpex:set_preference"
 
   @doc """
-  Name of the LiveView connect param carrying the browser's mirrored
-  preferences.
-
-  A browser contract — keep it aligned with `backpexParams` in
-  `assets/js/hooks/_preferences.js`.
-  """
-  @spec connect_param() :: String.t()
-  def connect_param, do: @connect_param
-
-  @doc """
   Name of the cookie carrying the browser's *unacknowledged* preference writes.
 
-  A browser contract — keep it aligned with `BackpexPreferences.cookieName()` in
+  A browser contract — keep it aligned with `COOKIE_NAME` in
   `assets/js/hooks/_preferences.js`.
   """
   @spec client_cookie() :: String.t()
@@ -188,7 +182,7 @@ defmodule Backpex.Preferences.LiveView do
   not acknowledged. Those writes reach us over the transport that rendered the
   page, and each transport can only see one carrier:
 
-    * CONNECTED mount — the connect params (see `connect_param/0`). A LiveView
+    * CONNECTED mount — the `backpex_prefs` connect param. A LiveView
       reads the session snapshot taken when the websocket connected, so on a
       `live_redirect` re-mount it cannot see any preference written since and
       would render stale column/metric visibility. The browser mirrors those

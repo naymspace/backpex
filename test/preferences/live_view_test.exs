@@ -86,18 +86,10 @@ defmodule Backpex.Preferences.LiveViewTest do
     end
   end
 
-  describe "connect_param/0" do
-    test "returns the param name the JS hook sends on every join" do
-      # Pin the wire contract — the name must stay in sync with `backpexParams`
-      # in assets/js/hooks/_preferences.js.
-      assert PreferenceLiveView.connect_param() == "backpex_prefs"
-    end
-  end
-
   describe "client_cookie/0" do
     test "returns the cookie name the JS hook writes its unacknowledged writes to" do
-      # Pin the wire contract — the name must stay in sync with
-      # `BackpexPreferences.cookieName()` in assets/js/hooks/_preferences.js.
+      # Pin the wire contract — the name must stay in sync with `COOKIE_NAME` in
+      # assets/js/hooks/_preferences.js.
       assert PreferenceLiveView.client_cookie() == "backpex_prefs"
     end
   end

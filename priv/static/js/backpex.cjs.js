@@ -290,19 +290,6 @@ var BackpexPreferences = {
     this.csrfToken = document.querySelector("meta[name='csrf-token']")?.content;
   },
   /**
-   * Name of the cookie carrying this browser's unacknowledged preference
-   * writes. A wire contract with `Backpex.Preferences.LiveView.client_cookie/0`.
-   *
-   * Its value is an envelope — `{ id: <identity fingerprint>, values: { key:
-   * value } }` — URI-encoded. The fingerprint is what scopes the writes to the
-   * user who made them; see `readPending`.
-   *
-   * @returns {string}
-   */
-  cookieName() {
-    return COOKIE_NAME;
-  },
-  /**
    * Whether this browser holds a write for `key` that the server has not
    * acknowledged yet.
    *
