@@ -1,6 +1,7 @@
 defmodule DemoWeb.Browser.SidebarBrowserTest do
   use PhoenixTest.Playwright.Case, async: false
   use DemoWeb, :verified_routes
+  use DemoWeb.A11yAssertions
 
   @moduletag :playwright
 
@@ -19,8 +20,10 @@ defmodule DemoWeb.Browser.SidebarBrowserTest do
       |> visit(~p"/admin/posts")
       |> assert_has("body .phx-connected")
       |> assert_has(~s|#{@blog_toggle}[aria-expanded="true"]|)
+      |> assert_a11y()
       |> click(@blog_toggle)
       |> assert_has(~s|#{@blog_toggle}[aria-expanded="false"]|)
+      |> assert_a11y()
       |> click(~s|a[href="/admin/invoices"]|)
       |> assert_path("/admin/invoices")
       |> assert_has(~s|#{@blog_toggle}[aria-expanded="false"]|)
@@ -37,8 +40,10 @@ defmodule DemoWeb.Browser.SidebarBrowserTest do
       |> visit(~p"/admin/posts")
       |> assert_has("body .phx-connected")
       |> assert_has(~s|#{@sidebar_toggle}[aria-expanded="true"]|)
+      |> assert_a11y()
       |> click(@sidebar_toggle)
       |> assert_has(~s|#{@sidebar_toggle}[aria-expanded="false"]|)
+      |> assert_a11y()
       |> evaluate(~s|document.querySelector('a[href="/admin/invoices"]').click()|)
       |> assert_path("/admin/invoices")
       |> assert_has(~s|#{@sidebar_toggle}[aria-expanded="false"]|)
