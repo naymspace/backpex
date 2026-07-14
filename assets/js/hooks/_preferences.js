@@ -127,6 +127,39 @@ const BackpexPreferences = {
   },
 
   /**
+   * All sessionStorage-mirrored preferences as a { key: value } object.
+   *
+   * Values stored as `String(boolean|number)` or JSON deserialize back to
+   * their original type; plain strings that aren't valid JSON pass through
+   * unchanged. Used by the hook to push the per-tab authoritative state
+   * back to the server after a live-navigation re-mount, whose session
+   * snapshot is frozen at websocket-connect time.
+   *
+   * @returns {Object<string, any>}
+   */
+  mirroredEntries () {
+    const entries = {}
+    try {
+      for (let i = 0; i < sessionStorage.length; i++) {
+        const storageKey = sessionStorage.key(i)
+        if (storageKey && storageKey.startsWith(SESSION_PREFIX)) {
+          const raw = sessionStorage.getItem(storageKey)
+          if (raw === null) continue
+          const key = storageKey.slice(SESSION_PREFIX.length)
+          try {
+            entries[key] = JSON.parse(raw)
+          } catch {
+            entries[key] = raw
+          }
+        }
+      }
+    } catch {
+      // sessionStorage may be unavailable (private mode); best effort only
+    }
+    return entries
+  },
+
+  /**
    * Persist a preference to the server immediately.
    * Uses keepalive to ensure request completes even during page navigation.
    */
@@ -165,9 +198,19 @@ const BackpexPreferencesHook = {
   mounted () {
     BackpexPreferences.init(this.el.dataset.preferencesPath)
 
-    this.handleEvent('backpex:set_preference', ({ key, value }) => {
-      BackpexPreferences.set(key, value)
+    this.handleEvent('backpex:set_preference', ({ key, value, mirror }) => {
+      BackpexPreferences.set(key, value, { mirror })
     })
+
+    // Re-mounts happen on every live_redirect, where the server has just
+    // re-read its frozen connect-time session and may have rendered stale
+    // preference state (e.g. column/metric visibility). Push the per-tab
+    // mirrored values back so the server can reconcile; the matching
+    // handle_event hook is attached by Backpex.InitAssigns.
+    const mirrored = BackpexPreferences.mirroredEntries()
+    if (Object.keys(mirrored).length > 0) {
+      this.pushEvent('backpex:sync_preferences', { prefs: mirrored })
+    }
   }
 }
 

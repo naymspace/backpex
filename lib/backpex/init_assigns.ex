@@ -30,6 +30,7 @@ defmodule Backpex.InitAssigns do
       |> assign_sidebar_open(ctx)
       |> assign_sidebar_section_states(ctx)
       |> attach_current_url_hook()
+      |> attach_preferences_sync_hook()
 
     {:cont, socket}
   end
@@ -52,6 +53,26 @@ defmodule Backpex.InitAssigns do
   defp attach_current_url_hook(socket) do
     attach_hook(socket, :current_url, :handle_params, fn
       _params, url, socket -> {:cont, assign(socket, current_url: url)}
+    end)
+  end
+
+  # The BackpexPreferences JS hook pushes the sessionStorage-mirrored
+  # preferences back on every mount (see
+  # `Backpex.Preferences.LiveView.sync_event_name/0`) so that state written
+  # after websocket connect survives live_redirect re-mounts, whose session
+  # snapshot is frozen at connect time. The event arrives on whichever
+  # Backpex LiveView owns the layout, so it is handled here for all of them;
+  # `sync_preferences/2` no-ops on LiveViews without index state.
+  defp attach_preferences_sync_hook(socket) do
+    sync_event = Backpex.Preferences.LiveView.sync_event_name()
+
+    attach_hook(socket, :backpex_preferences_sync, :handle_event, fn
+      ^sync_event, params, socket ->
+        prefs = Map.get(params, "prefs", %{})
+        {:halt, Backpex.LiveResource.Index.sync_preferences(socket, prefs)}
+
+      _event, _params, socket ->
+        {:cont, socket}
     end)
   end
 end

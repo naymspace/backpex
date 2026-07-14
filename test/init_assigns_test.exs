@@ -240,6 +240,26 @@ defmodule Backpex.InitAssignsTest do
     end
   end
 
+  describe "on_mount/4 hooks the preferences mirror sync into :handle_event" do
+    test "attaches a handle_event hook that halts the sync event and conts on others" do
+      socket = mount(%{})
+
+      hooks = socket.private.lifecycle.handle_event
+      hook = Enum.find(hooks, fn hook -> hook.id == :backpex_preferences_sync end)
+      assert hook != nil
+
+      sync_event = Backpex.Preferences.LiveView.sync_event_name()
+
+      # The sync event must be halted (no Backpex LiveView defines a
+      # handle_event/3 clause for it) and must tolerate a socket without
+      # index assigns — that's every Show/Form mount.
+      assert {:halt, %Socket{}} = hook.function.(sync_event, %{"prefs" => %{}}, socket)
+
+      # Any other event must pass through untouched.
+      assert {:cont, ^socket} = hook.function.("save", %{}, socket)
+    end
+  end
+
   # A recording adapter: every read reports the full context back to the test
   # process so we can assert on both `ctx.session` and `ctx.assigns`. This is
   # how we verify that InitAssigns builds the Context from `socket.assigns`

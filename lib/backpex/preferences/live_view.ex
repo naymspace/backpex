@@ -25,6 +25,17 @@ defmodule Backpex.Preferences.LiveView do
   def event_name, do: "backpex:set_preference"
 
   @doc """
+  Name of the LiveView event the `BackpexPreferences` JS hook pushes back to
+  the server on mount, carrying the sessionStorage-mirrored preference
+  values so mount-time reads from the frozen websocket session can be
+  reconciled after a `live_redirect` re-mount.
+
+  Handled by the `handle_event` hook that `Backpex.InitAssigns` attaches.
+  """
+  @spec sync_event_name() :: String.t()
+  def sync_event_name, do: "backpex:sync_preferences"
+
+  @doc """
   Pushes a preference-write event to the browser.
 
   The `BackpexPreferences` JS hook listens for this event and persists the
@@ -34,13 +45,30 @@ defmodule Backpex.Preferences.LiveView do
 
   Returns the updated socket so it composes in pipelines.
 
+  ## Options
+
+    * `:mirror` - set to `:session` to additionally mirror the value into
+      the browser's sessionStorage. Required for preferences that are read
+      at mount and server-rendered (for example column and metric
+      visibility): the Session adapter reads the websocket-connect session
+      snapshot, which is frozen for the life of the socket, so without the
+      mirror any write after connect silently reverts on the next
+      `live_redirect` re-mount. Mirrored values are pushed back to the
+      server on every hook mount (see `sync_event_name/0`).
+
   ## Examples
 
       socket
       |> Backpex.Preferences.LiveView.push_write(Backpex.Preferences.Keys.theme(), "dark")
   """
-  @spec push_write(Socket.t(), String.t(), term()) :: Socket.t()
-  def push_write(%Socket{} = socket, key, value) when is_binary(key) do
-    LiveView.push_event(socket, event_name(), %{key: key, value: value})
+  @spec push_write(Socket.t(), String.t(), term(), keyword()) :: Socket.t()
+  def push_write(%Socket{} = socket, key, value, opts \\ []) when is_binary(key) do
+    payload =
+      case Keyword.get(opts, :mirror) do
+        :session -> %{key: key, value: value, mirror: "session"}
+        nil -> %{key: key, value: value}
+      end
+
+    LiveView.push_event(socket, event_name(), payload)
   end
 end

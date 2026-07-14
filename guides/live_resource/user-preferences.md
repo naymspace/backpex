@@ -977,6 +977,28 @@ Skip the mirror (just call `BackpexPreferences.set(key, value)`) when:
 - You need cross-tab consistency within the browser — `sessionStorage` is
   per-tab; a mirror there will diverge between two tabs of the same admin.
 
+### Server-originated writes: `push_write` + mount sync
+
+The mirror also covers preferences the **server** writes via
+`Backpex.Preferences.LiveView.push_write/4`, such as column and metric
+visibility. These are server-rendered content (a hidden column is not in
+the DOM at all), so a client hook cannot re-apply them the way the sidebar
+hooks re-apply CSS state. Instead the reconciliation runs server-side:
+
+1. `push_write(socket, key, value, mirror: :session)` tells the
+   `BackpexPreferences` hook to mirror the value into sessionStorage in
+   addition to the HTTP POST.
+2. On every hook mount — which includes every `live_redirect` re-mount —
+   the hook pushes all mirrored values back to the server in a single
+   `"backpex:sync_preferences"` event.
+3. A `handle_event` hook attached by `Backpex.InitAssigns` applies the
+   mirrored values on top of the (possibly stale) mount-time read, so the
+   toggled state survives live navigation within the same socket.
+
+This applies only to the Session adapter's frozen-snapshot staleness; a
+DB-backed adapter reads fresh at every mount and ignores nothing — the
+sync is a no-op when the values already match.
+
 ### Example: a compact-density toggle
 
 ```javascript

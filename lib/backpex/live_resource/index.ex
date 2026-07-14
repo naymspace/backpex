@@ -278,7 +278,7 @@ defmodule Backpex.LiveResource.Index do
 
     socket
     |> assign(:metric_visibility, updated_visibility)
-    |> PreferenceLiveView.push_write(resource_key, new_visible)
+    |> PreferenceLiveView.push_write(resource_key, new_visible, mirror: :session)
     |> maybe_assign_metrics()
     |> noreply()
   end
@@ -367,11 +367,73 @@ defmodule Backpex.LiveResource.Index do
 
   defp maybe_push_columns(socket, live_resource, columns) do
     if persist_enabled?(live_resource, :columns) do
-      PreferenceLiveView.push_write(socket, PreferenceKeys.columns(live_resource), columns)
+      PreferenceLiveView.push_write(socket, PreferenceKeys.columns(live_resource), columns, mirror: :session)
     else
       socket
     end
   end
+
+  @doc false
+  # Reconciles mount-time preference reads with the browser's per-tab
+  # sessionStorage mirror. Mount reads go through the frozen websocket
+  # session, so column/metric visibility toggled after connect reverts on
+  # every live_redirect re-mount; the BackpexPreferences hook pushes the
+  # mirrored values back right after mount and this applies them. Called
+  # from the handle_event hook attached in Backpex.InitAssigns, which
+  # no-ops for LiveViews without index state.
+  def sync_preferences(socket, prefs) when is_map(prefs) do
+    socket
+    |> maybe_sync_columns(prefs)
+    |> maybe_sync_metrics(prefs)
+  end
+
+  def sync_preferences(socket, _prefs), do: socket
+
+  defp maybe_sync_columns(%{assigns: %{live_resource: live_resource, active_fields: active_fields}} = socket, prefs) do
+    with true <- persist_enabled?(live_resource, :columns),
+         %{} = columns <- Map.get(prefs, PreferenceKeys.columns(live_resource)) do
+      updated_fields =
+        Enum.map(active_fields, fn {name, config} ->
+          case Map.get(columns, Atom.to_string(name)) do
+            active when is_boolean(active) -> {name, %{config | active: active}}
+            _other -> {name, config}
+          end
+        end)
+
+      if updated_fields == active_fields do
+        socket
+      else
+        assign(socket, :active_fields, updated_fields)
+      end
+    else
+      _other -> socket
+    end
+  end
+
+  defp maybe_sync_columns(socket, _prefs), do: socket
+
+  defp maybe_sync_metrics(
+         %{assigns: %{live_resource: live_resource, metric_visibility: metric_visibility}} = socket,
+         prefs
+       ) do
+    case Map.get(prefs, PreferenceKeys.metrics_visible(live_resource)) do
+      visible when is_boolean(visible) ->
+        resource_key = to_string(live_resource)
+
+        if Map.get(metric_visibility, resource_key, true) == visible do
+          socket
+        else
+          socket
+          |> assign(:metric_visibility, Map.put(metric_visibility, resource_key, visible))
+          |> maybe_assign_metrics()
+        end
+
+      _other ->
+        socket
+    end
+  end
+
+  defp maybe_sync_metrics(socket, _prefs), do: socket
 
   defp apply_filter_change(socket, new_filters) do
     %{live_resource: live_resource, query_options: query_options, params: params} = socket.assigns
