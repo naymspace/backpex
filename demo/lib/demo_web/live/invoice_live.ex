@@ -4,7 +4,7 @@ defmodule DemoWeb.InvoiceLive do
       schema: Demo.Invoice,
       repo: Demo.Repo
     ],
-    persist: [:order, :filters, :columns]
+    persist: [:order, :filters, :columns, :metrics]
 
   @impl Backpex.LiveResource
   def layout(_assigns), do: {DemoWeb.Layouts, :admin}

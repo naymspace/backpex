@@ -8,7 +8,7 @@ defmodule DemoWeb.PostLive do
     ],
     fluid?: true,
     save_and_continue_button?: true,
-    persist: [:order, :filters, :columns]
+    persist: [:order, :filters, :columns, :metrics]
 
   import Ecto.Query, warn: false
 

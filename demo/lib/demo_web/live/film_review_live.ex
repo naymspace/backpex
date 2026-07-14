@@ -7,7 +7,7 @@ defmodule DemoWeb.FilmReviewLive do
       create_changeset: &Demo.FilmReview.create_changeset/3
     ],
     full_text_search: :generated_tsvector,
-    persist: [:order, :filters, :columns]
+    persist: [:order, :filters, :columns, :metrics]
 
   @impl Backpex.LiveResource
   def layout(_assigns), do: {DemoWeb.Layouts, :admin}

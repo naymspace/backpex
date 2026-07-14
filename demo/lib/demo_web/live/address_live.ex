@@ -7,7 +7,7 @@ defmodule DemoWeb.AddressLive do
       create_changeset: &Demo.Address.create_changeset/3
     ],
     fluid?: true,
-    persist: [:order, :filters, :columns]
+    persist: [:order, :filters, :columns, :metrics]
 
   @impl Backpex.LiveResource
   def layout(_assigns), do: {DemoWeb.Layouts, :admin}

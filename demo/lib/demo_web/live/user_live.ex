@@ -9,7 +9,7 @@ defmodule DemoWeb.UserLive do
       item_query: &__MODULE__.item_query/3
     ],
     init_order: &__MODULE__.init_order/1,
-    persist: [:order, :filters, :columns]
+    persist: [:order, :filters, :columns, :metrics]
 
   import Ecto.Query, warn: false
 

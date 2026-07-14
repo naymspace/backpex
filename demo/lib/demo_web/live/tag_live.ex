@@ -8,7 +8,7 @@ defmodule DemoWeb.TagLive do
     ],
     init_order: %{by: :name, direction: :desc},
     on_mount: __MODULE__,
-    persist: [:order, :filters, :columns]
+    persist: [:order, :filters, :columns, :metrics]
 
   def on_mount(:default, _params, _session, socket) do
     msg = """

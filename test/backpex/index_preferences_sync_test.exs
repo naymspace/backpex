@@ -8,7 +8,7 @@ defmodule Backpex.LiveResource.IndexPreferencesSyncTest do
   # Minimal stand-ins for a generated LiveResource module — only the
   # `config(:persist)` call that `sync_preferences/2` consults.
   defmodule PersistedResource do
-    def config(:persist), do: [:columns]
+    def config(:persist), do: [:columns, :metrics]
   end
 
   defmodule UnpersistedResource do
@@ -98,6 +98,21 @@ defmodule Backpex.LiveResource.IndexPreferencesSyncTest do
       synced = Index.sync_preferences(socket, prefs)
 
       assert synced.assigns.metric_visibility == %{to_string(PersistedResource) => true}
+    end
+
+    test "no-ops when metrics persistence is disabled for the resource" do
+      socket =
+        socket(%{
+          live_resource: UnpersistedResource,
+          active_fields: active_fields(),
+          metric_visibility: %{to_string(UnpersistedResource) => true}
+        })
+
+      prefs = %{PreferenceKeys.metrics_visible(UnpersistedResource) => false}
+
+      synced = Index.sync_preferences(socket, prefs)
+
+      assert synced.assigns.metric_visibility == %{to_string(UnpersistedResource) => true}
     end
   end
 

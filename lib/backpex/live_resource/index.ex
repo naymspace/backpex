@@ -274,11 +274,10 @@ defmodule Backpex.LiveResource.Index do
     new_visible = !current_visible
 
     updated_visibility = Map.put(metric_visibility, resource_key_str, new_visible)
-    resource_key = PreferenceKeys.metrics_visible(live_resource)
 
     socket
     |> assign(:metric_visibility, updated_visibility)
-    |> PreferenceLiveView.push_write(resource_key, new_visible, mirror: :session)
+    |> maybe_push_metrics(live_resource, new_visible)
     |> maybe_assign_metrics()
     |> noreply()
   end
@@ -373,6 +372,14 @@ defmodule Backpex.LiveResource.Index do
     end
   end
 
+  defp maybe_push_metrics(socket, live_resource, visible) do
+    if persist_enabled?(live_resource, :metrics) do
+      PreferenceLiveView.push_write(socket, PreferenceKeys.metrics_visible(live_resource), visible, mirror: :session)
+    else
+      socket
+    end
+  end
+
   @doc false
   # Reconciles mount-time preference reads with the browser's per-tab
   # sessionStorage mirror. Mount reads go through the frozen websocket
@@ -419,7 +426,12 @@ defmodule Backpex.LiveResource.Index do
          %{assigns: %{live_resource: live_resource, metric_visibility: metric_visibility}} = socket,
          prefs
        ) do
-    case Map.get(prefs, PreferenceKeys.metrics_visible(live_resource)) do
+    persisted_visible =
+      if persist_enabled?(live_resource, :metrics) do
+        Map.get(prefs, PreferenceKeys.metrics_visible(live_resource))
+      end
+
+    case persisted_visible do
       visible when is_boolean(visible) ->
         resource_key = to_string(live_resource)
 
@@ -490,7 +502,13 @@ defmodule Backpex.LiveResource.Index do
 
   defp assign_metrics_visibility(socket, ctx) do
     %{live_resource: live_resource} = socket.assigns
-    visible = Preferences.get(ctx, PreferenceKeys.metrics_visible(live_resource), default: true)
+
+    visible =
+      if persist_enabled?(live_resource, :metrics) do
+        Preferences.get(ctx, PreferenceKeys.metrics_visible(live_resource), default: true)
+      else
+        true
+      end
 
     assign(socket, :metric_visibility, %{to_string(live_resource) => visible})
   end

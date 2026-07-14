@@ -174,7 +174,7 @@ prefix its own keys with `custom.` to avoid colliding with Backpex.
 | `global.sidebar_open`                      | boolean  | `Backpex.InitAssigns`                    | JS sidebar toggle                     | always on               |
 | `global.sidebar_section.<id>`              | boolean  | `Backpex.InitAssigns` (via `get_map/3`)  | JS sidebar section toggle             | always on               |
 | `resource:<Module>:columns`                | map      | Index view mount                         | `toggle_column` event                 | `persist: [:columns]`   |
-| `resource:<Module>:metrics_visible`        | boolean  | Index view mount                         | `toggle_metrics` event                | always on               |
+| `resource:<Module>:metrics_visible`        | boolean  | Index view mount                         | `toggle_metrics` event                | `persist: [:metrics]`   |
 | `resource:<Module>:order`                  | map      | Index view mount (fallback)              | `handle_params` (on change)           | `persist: [:order]`     |
 | `resource:<Module>:filters`                | map      | Index view mount (fallback)              | `handle_params` (on change)           | `persist: [:filters]`   |
 
@@ -567,16 +567,16 @@ writes based on the key's segments. See the
 [ash_backpex](https://github.com/enoonan/ash_backpex) community example for
 a working implementation.
 
-## Opt-in persistence for ordering, filters, columns
+## Opt-in persistence for ordering, filters, columns, metrics
 
 By default `Backpex.LiveResource` keeps ordering and filters in the URL and
-column visibility in-memory. Opt in per resource to persist any subset via
-`Backpex.Preferences`:
+column and metric visibility in-memory. Opt in per resource to persist any
+subset via `Backpex.Preferences`:
 
 ```elixir
 use Backpex.LiveResource,
   adapter_config: [...],
-  persist: [:order, :filters, :columns]
+  persist: [:order, :filters, :columns, :metrics]
 ```
 
 What each flag does:
@@ -590,8 +590,11 @@ What each flag does:
 - **`:columns`** — reads `resource:<Module>:columns` at mount; writes on
   `toggle_column` events. Default without opt-in is to keep column state
   in-memory only.
+- **`:metrics`** — reads `resource:<Module>:metrics_visible` at mount;
+  writes on `toggle_metrics` events. Default without opt-in is to show
+  metrics on every mount and keep the toggle in-memory only.
 
-All three keys route through whichever adapter you configured for
+All four keys route through whichever adapter you configured for
 `"resource.*"` — typically the Session adapter by default, or a per-user DB
 adapter once you wire one up.
 

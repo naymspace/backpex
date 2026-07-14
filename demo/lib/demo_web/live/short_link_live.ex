@@ -9,7 +9,7 @@ defmodule DemoWeb.ShortLinkLive do
       create_changeset: &Demo.ShortLink.changeset/3
     ],
     primary_key: :short_key,
-    persist: [:order, :filters, :columns]
+    persist: [:order, :filters, :columns, :metrics]
 
   @impl Backpex.LiveResource
   def layout(_assigns), do: {DemoWeb.Layouts, :admin}
