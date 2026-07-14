@@ -48,14 +48,19 @@ defmodule Backpex.HTML.Layout do
     attr :class, :string, doc: "additional class that will be added to the component"
   end
 
-  slot :sidebar, doc: "content to be displayed in the sidebar" do
+  slot :sidebar_branding,
+    doc: "branding to be displayed above the sidebar navigation, e.g. `Backpex.HTML.Layout.sidebar_branding/1`"
+
+  slot :sidebar,
+    doc:
+      "navigation items to be displayed in the sidebar, e.g. `Backpex.HTML.Layout.sidebar_item/1` and `Backpex.HTML.Layout.sidebar_section/1`. The slot content is wrapped in the scrollable menu container and the `<ul>` those components require." do
     attr :class, :string, doc: "additional class that will be added to the component"
   end
 
   slot :footer, doc: "content to be displayed in the footer"
 
   def app_shell(assigns) do
-    assigns = assign(assigns, :has_sidebar, assigns.sidebar != [])
+    assigns = assign(assigns, :has_sidebar, assigns.sidebar != [] or assigns.sidebar_branding != [])
 
     ~H"""
     <div
@@ -95,7 +100,12 @@ defmodule Backpex.HTML.Layout do
         }
         aria-label={Backpex.__("Main navigation", @live_resource)}
       >
-        {render_slot(@sidebar)}
+        {render_slot(@sidebar_branding)}
+        <div class="menu w-full flex-1 overflow-y-auto px-2 py-2">
+          <ul class="w-full">
+            {render_slot(@sidebar)}
+          </ul>
+        </div>
       </nav>
 
       <%!-- Overlay for mobile --%>
@@ -324,7 +334,7 @@ defmodule Backpex.HTML.Layout do
   defp version, do: Application.spec(:backpex, :vsn) |> to_string()
 
   @doc """
-  Renders the sidebar branding.
+  Renders the sidebar branding. Belongs in the `:sidebar_branding` slot of `app_shell/1`.
   """
   @doc type: :component
 
@@ -345,26 +355,6 @@ defmodule Backpex.HTML.Layout do
       <%= unless @hide_title do %>
         <span class="text-base-content font-semibold">{@title}</span>
       <% end %>
-    </div>
-    """
-  end
-
-  @doc """
-  Renders the scrollable sidebar menu container. Wraps navigation items
-  (`sidebar_item`/`sidebar_section`) in the `<ul>` they require.
-  """
-  @doc type: :component
-
-  attr :class, :string, default: nil, doc: "additional class that will be added to the component"
-
-  slot :inner_block, required: true
-
-  def sidebar_menu(assigns) do
-    ~H"""
-    <div class={["menu w-full flex-1 overflow-y-auto px-2 py-2", @class]}>
-      <ul class="w-full">
-        {render_slot(@inner_block)}
-      </ul>
     </div>
     """
   end

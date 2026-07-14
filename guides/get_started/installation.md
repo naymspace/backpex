@@ -176,11 +176,11 @@ To get you started quickly, we provide a layout component you can copy & paste i
       </li>
     </Backpex.HTML.Layout.topbar_dropdown>
   </:topbar>
-  <:sidebar>
+  <:sidebar_branding>
     <Backpex.HTML.Layout.sidebar_branding />
-    <Backpex.HTML.Layout.sidebar_menu>
-      <!-- Sidebar Content -->
-    </Backpex.HTML.Layout.sidebar_menu>
+  </:sidebar_branding>
+  <:sidebar>
+    <!-- Sidebar Content -->
   </:sidebar>
   <Backpex.HTML.Layout.flash_messages flash={@flash} />
   {render_slot(@inner_block)}
@@ -398,11 +398,9 @@ If you copied the provided layout component from [the section above](#create-a-d
   </:topbar>
   <:sidebar>
     <!-- Add sidebar items -->
-    <Backpex.HTML.Layout.sidebar_menu>
-      <Backpex.HTML.Layout.sidebar_item current_url={@current_url} navigate={~p"/admin/posts"}>
-        <.icon name="hero-book-open" class="size-5" /> Posts
-      </Backpex.HTML.Layout.sidebar_item>
-    </Backpex.HTML.Layout.sidebar_menu>
+    <Backpex.HTML.Layout.sidebar_item current_url={@current_url} navigate={~p"/admin/posts"}>
+      <.icon name="hero-book-open" class="size-5" /> Posts
+    </Backpex.HTML.Layout.sidebar_item>
   </:sidebar>
   <Backpex.HTML.Layout.flash_messages flash={@flash} />
   {render_slot(@inner_block)}
@@ -413,17 +411,15 @@ You can also group sidebar items into collapsible sections using the `Backpex.HT
 
 ```heex
 <:sidebar>
-  <Backpex.HTML.Layout.sidebar_menu>
-    <Backpex.HTML.Layout.sidebar_section id="blog" sidebar_section_states={@sidebar_section_states}>
-      <:label>Blog</:label>
-      <Backpex.HTML.Layout.sidebar_item current_url={@current_url} navigate={~p"/admin/posts"}>
-        <.icon name="hero-book-open" class="size-5" /> Posts
-      </Backpex.HTML.Layout.sidebar_item>
-      <Backpex.HTML.Layout.sidebar_item current_url={@current_url} navigate={~p"/admin/categories"}>
-        <.icon name="hero-tag" class="size-5" /> Categories
-      </Backpex.HTML.Layout.sidebar_item>
-    </Backpex.HTML.Layout.sidebar_section>
-  </Backpex.HTML.Layout.sidebar_menu>
+  <Backpex.HTML.Layout.sidebar_section id="blog" sidebar_section_states={@sidebar_section_states}>
+    <:label>Blog</:label>
+    <Backpex.HTML.Layout.sidebar_item current_url={@current_url} navigate={~p"/admin/posts"}>
+      <.icon name="hero-book-open" class="size-5" /> Posts
+    </Backpex.HTML.Layout.sidebar_item>
+    <Backpex.HTML.Layout.sidebar_item current_url={@current_url} navigate={~p"/admin/categories"}>
+      <.icon name="hero-tag" class="size-5" /> Categories
+    </Backpex.HTML.Layout.sidebar_item>
+  </Backpex.HTML.Layout.sidebar_section>
 </:sidebar>
 ```
 
@@ -638,11 +634,11 @@ You can add a theme selector to your layout component to allow users to change t
       <!-- Topbar Dropdown -->
     </Backpex.HTML.Layout.topbar_dropdown>
   </:topbar>
-  <:sidebar>
+  <:sidebar_branding>
     <Backpex.HTML.Layout.sidebar_branding />
-    <Backpex.HTML.Layout.sidebar_menu>
-      <!-- Sidebar Content -->
-    </Backpex.HTML.Layout.sidebar_menu>
+  </:sidebar_branding>
+  <:sidebar>
+    <!-- Sidebar Content -->
   </:sidebar>
   <Backpex.HTML.Layout.flash_messages flash={@flash} />
   {render_slot(@inner_block)}

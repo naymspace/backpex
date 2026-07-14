@@ -22,14 +22,14 @@
       </li>
     </Backpex.HTML.Layout.topbar_dropdown>
   </:topbar>
-  <:sidebar>
+  <:sidebar_branding>
     <Backpex.HTML.Layout.sidebar_branding />
-    <Backpex.HTML.Layout.sidebar_menu>
-      <!-- Example Sidebar Item -->
-      <!-- <Backpex.HTML.Layout.sidebar_item current_url={@current_url} navigate={"/admin/users"}>
-        <.icon name="hero-users" class="size-5" /> Users
-      </Backpex.HTML.Layout.sidebar_item> -->
-    </Backpex.HTML.Layout.sidebar_menu>
+  </:sidebar_branding>
+  <:sidebar>
+    <!-- Example Sidebar Item -->
+    <!-- <Backpex.HTML.Layout.sidebar_item current_url={@current_url} navigate={"/admin/users"}>
+      <.icon name="hero-users" class="size-5" /> Users
+    </Backpex.HTML.Layout.sidebar_item> -->
   </:sidebar>
   <Backpex.HTML.Layout.flash_messages flash={@flash} />
   {render_slot(@inner_block)}
