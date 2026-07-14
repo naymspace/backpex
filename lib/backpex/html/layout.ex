@@ -66,6 +66,7 @@ defmodule Backpex.HTML.Layout do
       <nav
         :if={@has_sidebar}
         id="backpex-sidebar"
+        inert={not @sidebar_open}
         phx-hook="BackpexSidebarSections"
         data-suppress-transition
         class={
