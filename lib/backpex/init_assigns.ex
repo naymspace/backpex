@@ -29,12 +29,24 @@ defmodule Backpex.InitAssigns do
 
     socket =
       socket
+      |> assign_preferences_identity(ctx)
       |> assign_current_theme(ctx)
       |> assign_sidebar_open(ctx)
       |> assign_sidebar_section_states(ctx)
       |> attach_current_url_hook()
 
     {:cont, socket}
+  end
+
+  # The browser cannot know who it is talking to; the server can. Hand it an
+  # opaque fingerprint of the current preference identity so it can stamp the
+  # unacknowledged writes it holds in `backpex_prefs` and drop them again once
+  # the identity changes — otherwise the write user A left in flight when they
+  # logged out would be rendered for, and replayed by, user B. Layouts pass this
+  # to `Backpex.HTML.Layout.app_shell/1`; `nil` (no endpoint secret, or a session
+  # with no CSRF token yet) turns the pending cookie off entirely.
+  defp assign_preferences_identity(socket, ctx) do
+    assign(socket, :preferences_identity, PreferenceLiveView.identity_fingerprint(ctx, socket.endpoint))
   end
 
   defp assign_current_theme(socket, ctx) do

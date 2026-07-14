@@ -16,6 +16,7 @@ defmodule DemoWeb.Live.PreferencesPersistenceTest do
   import Demo.EctoFactory
   import Phoenix.LiveViewTest
 
+  alias Backpex.Preferences.Context
   alias Backpex.Preferences.Keys, as: PrefKeys
   alias Backpex.Preferences.LiveView, as: PrefLiveView
 
@@ -25,6 +26,9 @@ defmodule DemoWeb.Live.PreferencesPersistenceTest do
   # arguments. Bind the event name and key to module-level constants or local
   # variables before the macro call so the pattern is literal-shaped.
   @event_name PrefLiveView.event_name()
+
+  # The shape `Plug.CSRFProtection` generates (18 random bytes, base64url).
+  @csrf_token "0hs7B3xF1qLmNpQrStUvWx"
 
   describe "persist: [:order]" do
     test "sort change via column-header click emits push_event with order key", %{conn: conn} do
@@ -176,18 +180,35 @@ defmodule DemoWeb.Live.PreferencesPersistenceTest do
     # working, these fail and nothing else in the suite does: a `live/2` test
     # cannot see this, because its connect params already carry the overlay.
 
-    # The wire format the JS hook writes: encodeURIComponent(JSON.stringify(map)).
-    defp put_pending_writes(conn, writes) do
+    # The wire format the JS hook writes: encodeURIComponent(JSON.stringify(envelope)),
+    # where the envelope stamps the pending writes with the identity fingerprint the
+    # server rendered into `data-preferences-identity`. Stamped by default with the
+    # identity of the very request being made — the browser wrote it while looking at
+    # a page rendered for this same user.
+    defp put_pending_writes(conn, writes, identity \\ nil) do
+      fingerprint = identity || fingerprint(Plug.Conn.get_session(conn))
+
       encoded =
-        writes
+        %{"id" => fingerprint, "values" => writes}
         |> Jason.encode!()
         |> URI.encode(&URI.char_unreserved?/1)
 
       Plug.Test.put_req_cookie(conn, PrefLiveView.client_cookie(), encoded)
     end
 
-    defp stale_session(conn, preferences) do
-      Plug.Test.init_test_session(conn, %{"backpex_preferences" => preferences})
+    # Every request of a session but its very first carries a CSRF token, and the
+    # fingerprint needs it: it is what scopes the session-backed preference store.
+    defp stale_session(conn, preferences, csrf_token \\ @csrf_token) do
+      Plug.Test.init_test_session(conn, %{
+        "_csrf_token" => csrf_token,
+        "backpex_preferences" => preferences
+      })
+    end
+
+    defp fingerprint(session) do
+      session
+      |> Context.from_mount()
+      |> PrefLiveView.identity_fingerprint(DemoWeb.Endpoint)
     end
 
     test "sidebar renders closed even though the session still says open", %{conn: conn} do
@@ -312,6 +333,53 @@ defmodule DemoWeb.Live.PreferencesPersistenceTest do
         |> get(~p"/admin/posts?filters[published][]=published")
 
       assert conn.status == 200
+    end
+
+    test "a cookie stamped for another identity is ignored", %{conn: conn} do
+      # THE LEAK this stamp exists to close. User A closed the sidebar and hit
+      # "Log out" before the POST resolved: the page went away with the promise,
+      # so nothing ever retired the entry and the cookie (path=/, max-age 300,
+      # shared by every tab) is still in the jar when user B logs in a minute
+      # later. Unstamped, B's dead render would paint A's choice — and B's
+      # `replayPending()` would POST it into B's store.
+      #
+      # B's session is a different session, so B's fingerprint differs, so the
+      # cookie is void and B's own stored preference renders. The check runs on
+      # the server: the dead render is exactly where a cookie the browser should
+      # have discarded — or one any script on the origin planted — lands.
+      insert(:post, title: "Alpha", published: true)
+
+      previous_user = %{"_csrf_token" => "a-different-session-token", "backpex_preferences" => %{}}
+
+      conn =
+        conn
+        |> stale_session(%{"global" => %{"sidebar_open" => true}})
+        |> put_pending_writes(%{"global.sidebar_open" => false}, fingerprint(previous_user))
+        |> get(~p"/admin/posts?filters[published][]=published")
+
+      html = html_response(conn, 200)
+
+      # The stored value wins — no trace of the previous user's write.
+      assert html =~ ~s(data-sidebar-open="true")
+      refute html =~ ~s(data-sidebar-open="false")
+    end
+
+    test "the fingerprint is rendered into the page for the browser to stamp with", %{conn: conn} do
+      # The other half of the contract: the browser can only scope its cookie to
+      # an identity the server told it about. `app_shell` renders it onto the
+      # preferences hook element.
+      insert(:post, title: "Alpha", published: true)
+
+      conn =
+        conn
+        |> stale_session(%{})
+        |> get(~p"/admin/posts?filters[published][]=published")
+
+      html = html_response(conn, 200)
+      expected = fingerprint(%{"_csrf_token" => @csrf_token, "backpex_preferences" => %{}})
+
+      assert is_binary(expected)
+      assert html =~ ~s(data-preferences-identity="#{expected}")
     end
 
     test "a garbage cookie does not crash the dead render", %{conn: conn} do

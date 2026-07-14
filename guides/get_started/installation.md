@@ -157,6 +157,7 @@ To get you started quickly, we provide a layout component you can copy & paste i
   fluid={@fluid?}
   live_resource={@live_resource}
   sidebar_open={@sidebar_open}
+  preferences_identity={@preferences_identity}
 >
   <:topbar>
     <div class="flex-1"></div>
@@ -186,7 +187,9 @@ To get you started quickly, we provide a layout component you can copy & paste i
 </Backpex.HTML.Layout.app_shell>
 ```
 
-These assigns (`@current_theme`, `@sidebar_open`, `@sidebar_section_states`) are populated by `Backpex.InitAssigns` — see [Add resource routes](#add-resource-routes) below for setup.
+These assigns (`@current_theme`, `@sidebar_open`, `@sidebar_section_states`, `@preferences_identity`) are populated by `Backpex.InitAssigns` — see [Add resource routes](#add-resource-routes) below for setup.
+
+`@preferences_identity` is an opaque fingerprint of the user the preferences belong to. Backpex renders it into the page so the browser can tell whose unacknowledged preference writes it is holding — and drop them when the user changes. Pass it through; omitting it costs you a correct first paint after a fast toggle-and-reload (see [Why the client sometimes overrides the server](live_resource/user-preferences.md#why-the-client-sometimes-overrides-the-server)).
 
 In addition we recommend to add a bodyless function definition and to configure declarative assigns for your layout component.
 
@@ -201,6 +204,7 @@ defmodule MyAppWeb.Layouts do
   attr :current_url, :string, required: true, doc: "the current url"
   attr :sidebar_open, :boolean, default: true, doc: "initial sidebar open state"
   attr :sidebar_section_states, :map, default: %{}, doc: "map of sidebar section open states"
+  attr :preferences_identity, :string, default: nil, doc: "fingerprint of the current preference identity"
 
   slot :inner_block, required: true
 
@@ -387,6 +391,7 @@ If you copied the provided layout component from [the section above](#create-a-d
   fluid={@fluid?}
   live_resource={@live_resource}
   sidebar_open={@sidebar_open}
+  preferences_identity={@preferences_identity}
 >
   <:topbar>
     <!-- Topbar Content -->
@@ -614,6 +619,7 @@ You can add a theme selector to your layout component to allow users to change t
   fluid={@fluid?}
   live_resource={@live_resource}
   sidebar_open={@sidebar_open}
+  preferences_identity={@preferences_identity}
 >
   <:topbar>
     <div class="flex-1"></div>

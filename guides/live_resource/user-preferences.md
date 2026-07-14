@@ -69,16 +69,17 @@ the session; every setting is routed independently.
 |---|---|---|---|
 | Your app's session cookie | e.g. `_my_app_key` | your session config | Where the Session adapter persists preferences. |
 | `sessionStorage` | `backpex.prefs.*` | the tab | Per-tab mirror of preferences written since the websocket connected. Opt-in per key. |
-| Cookie | `backpex_prefs` | `max-age` 300, normally deleted within one round-trip | Preference writes the server has not acknowledged yet. |
+| Cookie | `backpex_prefs` | `max-age` 300, normally deleted within one round-trip | Preference writes the server has not acknowledged yet, stamped with the identity that made them. |
 
 `backpex_prefs` is written by JavaScript — synchronously, which is the whole
 point — so it is **not** `HttpOnly`. Attributes: `path=/`, `SameSite=Lax`,
-`max-age=300`, plus `Secure` over HTTPS. The value is a flat `{key: value}`
-JSON map of the writes whose POST has not come back yet; each entry is deleted
-as soon as its POST responds, so the cookie is absent most of the time. Backpex
-reads it on the disconnected mount only — it is an input to a *render*, never to
-an adapter write. Unlike the `sessionStorage` mirror it is shared across tabs of
-the same browser. See [Why the client sometimes overrides the
+`max-age=300`, plus `Secure` over HTTPS. The value is an envelope, `{"id":
+"<identity fingerprint>", "values": {key: value}}`, holding the writes whose POST
+has not come back yet; each entry is deleted as soon as its POST responds, so the
+cookie is absent most of the time. Backpex reads it on the disconnected mount
+only — it is an input to a *render*, never to an adapter write. Unlike the
+`sessionStorage` mirror it is shared across tabs of the same browser. See [Why
+the client sometimes overrides the
 server](#why-the-client-sometimes-overrides-the-server).
 
 If your app shows a cookie-consent banner, classify `backpex_prefs` as
@@ -86,10 +87,56 @@ If your app shows a cookie-consent banner, classify `backpex_prefs` as
 the same origin, and exists only so the page the user just asked for renders in
 the state they just asked for.
 
+### Scoping the pending cookie to a user
+
+The cookie can outlive the person who wrote it: a preference toggled a moment
+before "Log out" leaves a POST in flight whose promise dies with the page, so
+nothing ever retires the entry and it sits there for up to five minutes. If the
+next user logs in inside that window, an unscoped cookie would be overlaid onto
+*their* first paint and replayed into *their* store.
+
+So every entry is stamped with an **identity fingerprint**
+(`Backpex.Preferences.LiveView.identity_fingerprint/2`): a keyed digest, over the
+endpoint's `secret_key_base`, of
+
+1. the identity your `:identity` resolver returned (with `nil` /
+   `:unidentified` folded into one distinct anonymous value), and
+2. the Phoenix session's CSRF token.
+
+Both, because Backpex can host more than one store and they are not scoped
+alike. One `:identity` resolver serves every prefix — the router picks the
+*adapter* per prefix, not the identity — but `Backpex.Preferences.Adapters.Session`
+(the default, and the whole store in a zero-config install) ignores identity
+altogether and scopes by the **session**. Digesting only the identity would give
+every user of an anonymous session-backed install the same fingerprint, which is
+the bug. The CSRF token is the session's stable per-session secret: unchanged by
+preference writes, and regenerated exactly when the session is renewed — which is
+what `phx.gen.auth`'s `renew_session/1` does on login and logout.
+
+Together they keep the cookie's scope at least as narrow as the narrowest store's.
+An app that neither renews the session on login nor configures `:identity` gets
+one fingerprint for both users — but it also hands them the same session, so the
+Session adapter is already sharing the *stored* preferences between them; the
+cookie leaks nothing the store does not.
+
+The server renders the fingerprint into `data-preferences-identity` (pass
+`preferences_identity={@preferences_identity}` to `app_shell`). The browser
+discards the whole cookie when it does not match, and so does the disconnected
+mount — which does not trust the browser to have discarded it, because that is
+exactly where a planted cookie lands. The digest is keyed, so it exposes no user
+id to the scripts that can read this cookie.
+
+When there is no fingerprint to be had — no `secret_key_base`, a layout that does
+not pass the assign, or the very first request of a brand-new session, whose CSRF
+token `Plug.CSRFProtection` only writes back at the end of the response — Backpex
+behaves as though the cookie did not exist: a first paint that may be one write
+stale, never a write attributed to the wrong user.
+
 Because the cookie is browser-written and unsigned, anything any script on the
 origin can plant reaches a render. `Backpex.Preferences.Context.put_client/2`
 therefore filters both client carriers — the cookie and the connect params —
-before they become an overlay:
+before they become an overlay (the fingerprint is an *additional* gate, not a
+replacement: it says who wrote a value, not that the value is sane):
 
 - keys that fail `Backpex.Preferences.Key.validate/1` are dropped;
 - values that fail `Backpex.Preferences.Keys.valid_value?/2` are dropped.
@@ -240,6 +287,7 @@ needs:
   fluid={@fluid?}
   live_resource={@live_resource}
   sidebar_open={@sidebar_open}
+  preferences_identity={@preferences_identity}
 >
   <:topbar>
     <Backpex.HTML.Layout.theme_selector
@@ -1015,7 +1063,9 @@ LiveView patches it away a frame later: the flash. `Backpex.Preferences.LiveView
 decodes the cookie on the disconnected mount and folds it into the same client
 overlay the connect params feed. Every key gets this automatically — mirrored or
 not — which is why filters, order and column visibility also survive a fast
-reload, not just the sidebar.
+reload, not just the sidebar. A pending write only ever applies to the identity
+that made it: see [Scoping the pending cookie to a
+user](#scoping-the-pending-cookie-to-a-user).
 
 **The `sessionStorage` mirror → the websocket join.** LiveView freezes the
 Phoenix session at websocket-connect time. When a user clicks an internal link

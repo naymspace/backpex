@@ -171,8 +171,15 @@ var SESSION_PREFIX = "backpex.prefs.";
 var COOKIE_NAME = "backpex_prefs";
 var COOKIE_MAX_AGE = 300;
 var COOKIE_MAX_BYTES = 3072;
+var COOKIE_IDENTITY_KEY = "id";
+var COOKIE_VALUES_KEY = "values";
+var HOOK_ELEMENT_ID = "backpex-preferences";
 function sessionKey(key) {
   return SESSION_PREFIX + key;
+}
+function currentIdentity() {
+  const identity = document.getElementById(HOOK_ELEMENT_ID)?.dataset?.preferencesIdentity;
+  return identity || null;
 }
 function serialize(value) {
   if (typeof value === "string") return value;
@@ -196,23 +203,47 @@ function cookieAttributes(maxAge) {
   const secure = window.location.protocol === "https:" ? "; Secure" : "";
   return `; path=/; max-age=${maxAge}; SameSite=Lax${secure}`;
 }
-function readPending() {
+function readEnvelope() {
   const entry = document.cookie.split("; ").find((cookie) => cookie.startsWith(`${COOKIE_NAME}=`));
-  if (!entry) return {};
+  if (!entry) return null;
   try {
     const decoded = JSON.parse(decodeURIComponent(entry.slice(COOKIE_NAME.length + 1)));
-    if (!decoded || typeof decoded !== "object" || Array.isArray(decoded)) return {};
-    return decoded;
+    if (!decoded || typeof decoded !== "object" || Array.isArray(decoded)) return null;
+    const values = decoded[COOKIE_VALUES_KEY];
+    if (!values || typeof values !== "object" || Array.isArray(values)) return null;
+    return { id: decoded[COOKIE_IDENTITY_KEY], values };
   } catch {
-    return {};
+    return null;
+  }
+}
+function readPending() {
+  const identity = currentIdentity();
+  if (!identity) return {};
+  const envelope = readEnvelope();
+  if (!envelope || envelope.id !== identity) return {};
+  return envelope.values;
+}
+function discardForeignPending() {
+  const envelope = readEnvelope();
+  if (envelope && envelope.id !== currentIdentity()) {
+    document.cookie = `${COOKIE_NAME}=${cookieAttributes(0)}`;
   }
 }
 function writePendingMap(map) {
+  const identity = currentIdentity();
+  if (!identity) {
+    document.cookie = `${COOKIE_NAME}=${cookieAttributes(0)}`;
+    return;
+  }
   const pending = { ...map };
-  let encoded = encodeURIComponent(JSON.stringify(pending));
+  const encode = () => encodeURIComponent(JSON.stringify({
+    [COOKIE_IDENTITY_KEY]: identity,
+    [COOKIE_VALUES_KEY]: pending
+  }));
+  let encoded = encode();
   while (encoded.length > COOKIE_MAX_BYTES && Object.keys(pending).length > 1) {
     delete pending[Object.keys(pending)[0]];
-    encoded = encodeURIComponent(JSON.stringify(pending));
+    encoded = encode();
   }
   if (encoded.length > COOKIE_MAX_BYTES) {
     console.warn(
@@ -262,6 +293,10 @@ var BackpexPreferences = {
    * Name of the cookie carrying this browser's unacknowledged preference
    * writes. A wire contract with `Backpex.Preferences.LiveView.client_cookie/0`.
    *
+   * Its value is an envelope — `{ id: <identity fingerprint>, values: { key:
+   * value } }` — URI-encoded. The fingerprint is what scopes the writes to the
+   * user who made them; see `readPending`.
+   *
    * @returns {string}
    */
   cookieName() {
@@ -274,6 +309,10 @@ var BackpexPreferences = {
    * The gate any hook must check before adopting a server-rendered attribute:
    * a render whose session predates the pending write carries the OLD value,
    * and adopting it would undo the user's click.
+   *
+   * Only ever true for writes made by the identity this page was rendered for —
+   * a write left behind by the previous user of this browser is not "pending",
+   * it is void.
    *
    * @param {string} key - Dot-notation key (e.g., "global.sidebar_open")
    * @returns {boolean}
@@ -395,8 +434,14 @@ var BackpexPreferences = {
    * — `order` and `filters`, which round-trip through the URL — must not be
    * pinned across live navigation for the rest of the page load. Pending values
    * reach the socket directly from the cookie instead; see `connectParams()`.
+   *
+   * This is also what expires the mirror on a change of user. A login or a
+   * logout is a full page load, so this runs; a cookie stamped for the previous
+   * identity yields no pending keys at all, and every mirrored key is therefore
+   * dropped before it can reach the next join's connect params.
    */
   prime() {
+    discardForeignPending();
     const pending = readPending();
     try {
       const stale = [];
@@ -448,6 +493,12 @@ var BackpexPreferences = {
    * retried by the page that fired it — and its pending marker would otherwise
    * be sticky until `max-age` expires. The replay makes it durable and lets it
    * retire.
+   *
+   * It replays only what `readPending()` returns, which is nothing at all when
+   * the cookie was stamped for another identity — the same page that dies
+   * mid-POST is often the one the user left by logging out, and re-POSTing that
+   * write would persist the previous user's preference into the next user's
+   * store.
    */
   replayPending() {
     if (this.replayCalled) return;

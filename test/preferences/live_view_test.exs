@@ -1,15 +1,39 @@
 defmodule Backpex.Preferences.LiveViewTest do
   use ExUnit.Case, async: true
 
+  alias Backpex.Preferences.Context
   alias Backpex.Preferences.LiveView, as: PreferenceLiveView
   alias Phoenix.LiveView.Socket
   alias Phoenix.LiveView.Utils, as: LiveViewUtils
 
   doctest PreferenceLiveView
 
+  # The fingerprint is a MAC over the endpoint's `secret_key_base`, and
+  # `identity_fingerprint/2` reaches it through `endpoint.config/1`. That is the
+  # entire contract, so a stub satisfies it without booting a Phoenix endpoint.
+  defmodule Endpoint do
+    @moduledoc false
+    def config(:secret_key_base), do: String.duplicate("s", 64)
+    def config(_key), do: nil
+  end
+
+  # An endpoint whose secret is unusable — the "degrade to no cookie" path.
+  defmodule SecretlessEndpoint do
+    @moduledoc false
+    def config(_key), do: nil
+  end
+
+  # A session with a CSRF token in it. Every request after the first one of a
+  # session carries it, and the fingerprint needs it: it is what scopes the
+  # session-backed store (see `identity_fingerprint/2`).
+  defp session(extra \\ %{}) do
+    Map.merge(%{"_csrf_token" => "csrf-token-a"}, extra)
+  end
+
   defp connected_socket(client_prefs) do
     %Socket{
       transport_pid: self(),
+      endpoint: Endpoint,
       private: %{connect_params: %{"backpex_prefs" => client_prefs}}
     }
   end
@@ -17,7 +41,7 @@ defmodule Backpex.Preferences.LiveViewTest do
   # The disconnected ("dead") render. LiveView hands the mount the `%Plug.Conn{}`
   # of the document GET in `socket.private[:connect_info]`, which is the only
   # place the browser's `backpex_prefs` cookie can be read from.
-  defp disconnected_socket(raw_cookie) do
+  defp disconnected_socket(raw_cookie, endpoint \\ Endpoint) do
     conn =
       :get
       |> Plug.Test.conn("/")
@@ -29,16 +53,29 @@ defmodule Backpex.Preferences.LiveViewTest do
       end)
       |> Plug.Conn.fetch_cookies()
 
-    %Socket{private: %{connect_info: conn}}
+    %Socket{endpoint: endpoint, private: %{connect_info: conn}}
   end
 
-  # What the JS writes: `encodeURIComponent(JSON.stringify(map))`. `URI.encode/2`
-  # with `char_unreserved?/1` escapes everything outside the unreserved set, which
-  # is the closest Elixir equivalent, and `URI.decode/1` is its inverse.
+  # What the JS writes: `encodeURIComponent(JSON.stringify(envelope))`, where the
+  # envelope stamps the pending writes with the identity fingerprint the server
+  # served this page with. `URI.encode/2` with `char_unreserved?/1` escapes
+  # everything outside the unreserved set, which is the closest Elixir equivalent,
+  # and `URI.decode/1` is its inverse.
   defp encode_cookie(map) do
     map
     |> Jason.encode!()
     |> URI.encode(&URI.char_unreserved?/1)
+  end
+
+  # The cookie a browser served by `session` would have written.
+  defp encode_pending(values, session \\ session()) do
+    encode_cookie(%{"id" => fingerprint(session), "values" => values})
+  end
+
+  defp fingerprint(session, endpoint \\ Endpoint) do
+    session
+    |> Context.from_mount()
+    |> PreferenceLiveView.identity_fingerprint(endpoint)
   end
 
   describe "event_name/0" do
@@ -103,26 +140,120 @@ defmodule Backpex.Preferences.LiveViewTest do
     end
   end
 
+  describe "identity_fingerprint/2" do
+    test "is stable for the same identity and session" do
+      assert fingerprint(session()) == fingerprint(session())
+      assert is_binary(fingerprint(session()))
+    end
+
+    test "changes when the session's CSRF token changes" do
+      # The session-scope half of the digest. `Backpex.Preferences.Adapters.Session`
+      # scopes its store by the session and ignores identity entirely, so a renewed
+      # session — which is what logging in and out does — MUST invalidate the cookie
+      # even when every user resolves to the same (anonymous) identity.
+      refute fingerprint(session()) == fingerprint(%{"_csrf_token" => "csrf-token-b"})
+    end
+
+    test "leaks no part of the inputs" do
+      # The cookie is readable by any script on the origin. The digest is keyed and
+      # must not carry the identity or the session's CSRF token in the clear.
+      fp = fingerprint(session())
+
+      refute fp =~ "csrf-token-a"
+      refute fp =~ "anonymous"
+    end
+
+    test "is nil when the session carries no CSRF token" do
+      # The first request of a brand-new session: `Plug.CSRFProtection` only writes
+      # the token back in a `before_send` callback, so there is no session scope to
+      # digest yet. Folding a shared placeholder in instead is exactly where two
+      # anonymous users would collide — degrade instead.
+      assert fingerprint(%{}) == nil
+    end
+
+    test "is nil when the endpoint has no usable secret" do
+      assert fingerprint(session(), SecretlessEndpoint) == nil
+      assert fingerprint(session(), nil) == nil
+      # A module that does not even export config/1 (a socket built in a test).
+      assert fingerprint(session(), Enum) == nil
+    end
+  end
+
   describe "mount_context/2 on a disconnected mount" do
     test "carries the browser's unacknowledged writes from the backpex_prefs cookie" do
       # The whole point of the cookie: the session cookie a document GET carries
       # can be a full POST round-trip behind the user's last write, so the dead
       # render must read the browser's pending writes to paint the right state.
-      socket = disconnected_socket(encode_cookie(%{"global.sidebar_open" => false}))
+      socket = disconnected_socket(encode_pending(%{"global.sidebar_open" => false}))
 
-      ctx = PreferenceLiveView.mount_context(socket, %{"backpex_preferences" => %{}})
+      ctx = PreferenceLiveView.mount_context(socket, session(%{"backpex_preferences" => %{}}))
 
       assert ctx.client == %{"global.sidebar_open" => false}
       assert ctx.source == :mount
     end
 
+    test "ignores a cookie stamped with another identity" do
+      # THE LEAK. User A toggles a preference and logs out before the POST
+      # resolves: nothing retires the entry, and the cookie (path=/, max-age 300)
+      # survives into user B's session. Rendering it would paint A's choice for B,
+      # and B's replay would POST it into B's store.
+      #
+      # B's session is a different session, so B's fingerprint differs, so the
+      # whole cookie is void — values and all. Note that the check runs HERE and
+      # not only in the browser: the dead render is where an outlived or planted
+      # cookie lands, and we do not trust the client to have discarded it.
+      users_session = session()
+      other_session = %{"_csrf_token" => "csrf-token-b"}
+
+      socket = disconnected_socket(encode_pending(%{"global.sidebar_open" => false}, other_session))
+
+      ctx = PreferenceLiveView.mount_context(socket, users_session)
+
+      assert ctx.client == %{}
+    end
+
+    test "ignores a cookie whose fingerprint is missing or not a string" do
+      # A pre-fingerprint cookie (a bare `{key: value}` map), or a hand-planted one
+      # that omits the stamp. No stamp, no proof of who wrote it: void.
+      bare = encode_cookie(%{"global.sidebar_open" => false})
+      unstamped = encode_cookie(%{"values" => %{"global.sidebar_open" => false}})
+      mistyped = encode_cookie(%{"id" => 1, "values" => %{"global.sidebar_open" => false}})
+
+      for cookie <- [bare, unstamped, mistyped] do
+        socket = disconnected_socket(cookie)
+        ctx = PreferenceLiveView.mount_context(socket, session())
+
+        assert ctx.client == %{}
+      end
+    end
+
+    test "ignores the cookie entirely when no fingerprint can be computed" do
+      # No secret to key the digest with (and, equivalently, a session with no CSRF
+      # token): we cannot tell whose writes these are, so we behave as if the cookie
+      # did not exist — the pre-fingerprint first paint, never a wrong-user write.
+      cookie = encode_pending(%{"global.sidebar_open" => false})
+
+      secretless = disconnected_socket(cookie, SecretlessEndpoint)
+      ctx = PreferenceLiveView.mount_context(secretless, session())
+
+      assert ctx.client == %{}
+
+      # A session with no CSRF token yet: same degrade, other input.
+      socket = disconnected_socket(cookie)
+      ctx = PreferenceLiveView.mount_context(socket, %{})
+
+      assert ctx.client == %{}
+    end
+
     test "drops cookie keys no adapter prefix serves" do
       # Same gate as the connect params: the cookie is written by the browser and
       # is not signed, so an unknown key must never shadow a read or reach the
-      # adapter router. `Context.put_client/2` runs `Key.validate/1`.
-      socket = disconnected_socket(encode_cookie(%{"global.theme" => "dark", "evil.key" => 1}))
+      # adapter router. `Context.put_client/2` runs `Key.validate/1`. The
+      # fingerprint proves who wrote the values, not that they are sane, so both
+      # gates run.
+      socket = disconnected_socket(encode_pending(%{"global.theme" => "dark", "evil.key" => 1}))
 
-      ctx = PreferenceLiveView.mount_context(socket, %{})
+      ctx = PreferenceLiveView.mount_context(socket, session())
 
       assert ctx.client == %{"global.theme" => "dark"}
     end
@@ -130,7 +261,7 @@ defmodule Backpex.Preferences.LiveViewTest do
     test "has no client preferences when the request carries no cookie" do
       socket = disconnected_socket(nil)
 
-      ctx = PreferenceLiveView.mount_context(socket, %{})
+      ctx = PreferenceLiveView.mount_context(socket, session())
 
       assert ctx.client == %{}
     end
@@ -140,7 +271,7 @@ defmodule Backpex.Preferences.LiveViewTest do
       # client wrote (or a proxy mangled) must never crash a mount.
       socket = disconnected_socket("%zz%")
 
-      ctx = PreferenceLiveView.mount_context(socket, %{})
+      ctx = PreferenceLiveView.mount_context(socket, session())
 
       assert ctx.client == %{}
     end
@@ -148,17 +279,17 @@ defmodule Backpex.Preferences.LiveViewTest do
     test "degrades to no client preferences when the cookie is not JSON" do
       socket = disconnected_socket("not-json")
 
-      ctx = PreferenceLiveView.mount_context(socket, %{})
+      ctx = PreferenceLiveView.mount_context(socket, session())
 
       assert ctx.client == %{}
     end
 
     test "degrades to no client preferences when the cookie holds a JSON array" do
-      # Only an object is a preference map. An array or scalar must not reach
-      # `Context.put_client/2`, which expects a map.
+      # Only an envelope object is a cookie Backpex wrote. An array or scalar must
+      # not reach `Context.put_client/2`, which expects a map.
       socket = disconnected_socket(URI.encode(~s(["global.theme"]), &URI.char_unreserved?/1))
 
-      ctx = PreferenceLiveView.mount_context(socket, %{})
+      ctx = PreferenceLiveView.mount_context(socket, session())
 
       assert ctx.client == %{}
     end
@@ -166,7 +297,7 @@ defmodule Backpex.Preferences.LiveViewTest do
     test "degrades to no client preferences when the cookie holds a JSON scalar" do
       socket = disconnected_socket("42")
 
-      ctx = PreferenceLiveView.mount_context(socket, %{})
+      ctx = PreferenceLiveView.mount_context(socket, session())
 
       assert ctx.client == %{}
     end
@@ -174,13 +305,13 @@ defmodule Backpex.Preferences.LiveViewTest do
     test "degrades to no client preferences when the cookie exceeds the size cap" do
       # The JS caps the cookie at 3KB; anything past the 4KB read cap is not a
       # cookie Backpex wrote, so decode it we will not.
-      oversized = encode_cookie(%{"global.theme" => String.duplicate("a", 5_000)})
+      oversized = encode_pending(%{"global.theme" => String.duplicate("a", 5_000)})
 
       assert byte_size(oversized) > 4_096
 
       socket = disconnected_socket(oversized)
 
-      ctx = PreferenceLiveView.mount_context(socket, %{})
+      ctx = PreferenceLiveView.mount_context(socket, session())
 
       assert ctx.client == %{}
     end

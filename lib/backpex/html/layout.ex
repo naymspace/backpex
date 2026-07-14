@@ -33,6 +33,15 @@ defmodule Backpex.HTML.Layout do
   attr :fluid, :boolean, default: false, doc: "toggles fluid layout"
   attr :sidebar_open, :boolean, default: true, doc: "initial sidebar open state"
 
+  attr :preferences_identity, :string,
+    default: nil,
+    doc: """
+    opaque fingerprint of the current preference identity, assigned by `Backpex.InitAssigns`.
+    Pass `@preferences_identity`. Without it the browser cannot tell whose unacknowledged
+    preference writes it is holding, so it stops carrying them across a reload and the first
+    paint after a fast toggle may be stale. See `Backpex.Preferences.LiveView.identity_fingerprint/2`.
+    """
+
   slot :inner_block
 
   slot :topbar, doc: "content to be displayed in the topbar" do
@@ -59,6 +68,7 @@ defmodule Backpex.HTML.Layout do
         id="backpex-preferences"
         phx-hook="BackpexPreferencesHook"
         data-preferences-path={Router.preferences_path(@socket)}
+        data-preferences-identity={@preferences_identity}
         class="hidden"
       >
       </div>

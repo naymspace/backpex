@@ -3,8 +3,19 @@ defmodule Backpex.InitAssignsTest do
 
   alias Backpex.InitAssigns
   alias Backpex.Preferences.Adapter
+  alias Backpex.Preferences.Context
+  alias Backpex.Preferences.LiveView, as: PreferenceLiveView
   alias Phoenix.LiveView.Lifecycle
   alias Phoenix.LiveView.Socket
+
+  # The only thing `Backpex.Preferences.LiveView.identity_fingerprint/2` asks of
+  # an endpoint is `config(:secret_key_base)`, so a stub stands in for a booted
+  # Phoenix endpoint.
+  defmodule Endpoint do
+    @moduledoc false
+    def config(:secret_key_base), do: String.duplicate("s", 64)
+    def config(_key), do: nil
+  end
 
   # --- test-only adapter --------------------------------------------------
 
@@ -79,7 +90,7 @@ defmodule Backpex.InitAssignsTest do
   # private map must carry a `:lifecycle` struct and a `:live_temp` map.
   defp build_socket do
     %Socket{
-      endpoint: __MODULE__.Endpoint,
+      endpoint: Endpoint,
       router: __MODULE__.Router,
       assigns: %{__changed__: %{}},
       private: %{
@@ -106,19 +117,40 @@ defmodule Backpex.InitAssignsTest do
   # `socket.private[:connect_info]` — the shape `Phoenix.LiveView.Static` builds —
   # with the browser's unacknowledged preference writes in the `backpex_prefs`
   # cookie.
-  defp cookie_socket(client_prefs) do
+  #
+  # The cookie is stamped with the identity fingerprint of `stamped_for` — by
+  # default the very session being mounted, i.e. the browser wrote it while
+  # looking at a page rendered for this same user. Pass a different session to
+  # simulate a cookie the *previous* user of this browser left behind.
+  defp cookie_socket(client_prefs, session, stamped_for \\ nil) do
     socket = build_socket()
+    fingerprint = fingerprint(stamped_for || session)
 
     conn =
       :get
       |> Plug.Test.conn("/")
-      |> Plug.Test.put_req_cookie("backpex_prefs", encode_cookie(client_prefs))
+      |> Plug.Test.put_req_cookie(
+        "backpex_prefs",
+        encode_cookie(%{"id" => fingerprint, "values" => client_prefs})
+      )
       |> Plug.Conn.fetch_cookies()
 
     %{socket | private: Map.put(socket.private, :connect_info, conn)}
   end
 
-  # Mirrors the browser's `encodeURIComponent(JSON.stringify(map))`.
+  defp fingerprint(session) do
+    session
+    |> Context.from_mount()
+    |> PreferenceLiveView.identity_fingerprint(Endpoint)
+  end
+
+  # Every request of a session but its first carries a CSRF token, and the
+  # fingerprint needs it: it is what scopes the session-backed store.
+  defp session(preferences) do
+    %{"_csrf_token" => "csrf-token-a", "backpex_preferences" => preferences}
+  end
+
+  # Mirrors the browser's `encodeURIComponent(JSON.stringify(envelope))`.
   defp encode_cookie(map) do
     map
     |> Jason.encode!()
@@ -321,25 +353,22 @@ defmodule Backpex.InitAssignsTest do
       #
       # This covers BOTH read paths: `get/3` (theme, sidebar_open) and
       # `get_map/3` (the sidebar_section prefix).
-      session = %{
-        "backpex_preferences" => %{
+      session =
+        session(%{
           "global" => %{
             "theme" => "light",
             "sidebar_open" => true,
             "sidebar_section" => %{"blog" => true, "users" => true}
           }
-        }
+        })
+
+      pending = %{
+        "global.theme" => "dark",
+        "global.sidebar_open" => false,
+        "global.sidebar_section.blog" => false
       }
 
-      socket =
-        mount(
-          session,
-          cookie_socket(%{
-            "global.theme" => "dark",
-            "global.sidebar_open" => false,
-            "global.sidebar_section.blog" => false
-          })
-        )
+      socket = mount(session, cookie_socket(pending, session))
 
       assert socket.assigns.current_theme == "dark"
       assert socket.assigns.sidebar_open == false
@@ -352,11 +381,9 @@ defmodule Backpex.InitAssignsTest do
     test "keys absent from the cookie still render from the session" do
       # The cookie holds pending writes ONLY. It must never blank out a key the
       # server already knows about — that would make it a second store.
-      session = %{
-        "backpex_preferences" => %{"global" => %{"theme" => "dark", "sidebar_open" => false}}
-      }
+      session = session(%{"global" => %{"theme" => "dark", "sidebar_open" => false}})
 
-      socket = mount(session, cookie_socket(%{"global.sidebar_open" => true}))
+      socket = mount(session, cookie_socket(%{"global.sidebar_open" => true}, session))
 
       assert socket.assigns.sidebar_open == true
       assert socket.assigns.current_theme == "dark"
@@ -365,11 +392,44 @@ defmodule Backpex.InitAssignsTest do
     test "an empty cookie leaves the session's render untouched" do
       # The steady state: nothing in flight, so the cookie is absent or empty and
       # the adapter is authoritative on every key.
-      session = %{"backpex_preferences" => %{"global" => %{"sidebar_open" => false}}}
+      session = session(%{"global" => %{"sidebar_open" => false}})
 
-      socket = mount(session, cookie_socket(%{}))
+      socket = mount(session, cookie_socket(%{}, session))
 
       assert socket.assigns.sidebar_open == false
+    end
+
+    test "a cookie stamped for another identity renders the session, not the cookie" do
+      # User A closed the sidebar and logged out before the POST landed; the entry
+      # never retired and the cookie outlived them. User B's session is a different
+      # session, so the stamp does not match and the whole cookie is void: B's
+      # render comes from B's stored preferences.
+      previous_user = session(%{})
+      session = %{"_csrf_token" => "csrf-token-b", "backpex_preferences" => %{"global" => %{"sidebar_open" => true}}}
+
+      socket = mount(session, cookie_socket(%{"global.sidebar_open" => false}, session, previous_user))
+
+      assert socket.assigns.sidebar_open == true
+    end
+  end
+
+  describe "on_mount/4 assigns the preference identity" do
+    test "assigns the fingerprint the layout stamps into the page" do
+      # `app_shell` renders this into `data-preferences-identity`, where the JS
+      # hook reads it to stamp (and to validate) the pending-write cookie.
+      socket = mount(session(%{}))
+
+      assert socket.assigns.preferences_identity == fingerprint(session(%{}))
+      assert is_binary(socket.assigns.preferences_identity)
+    end
+
+    test "assigns nil when no fingerprint can be computed" do
+      # A session with no CSRF token yet (the first request of a new session).
+      # The layout then renders no attribute and the pending cookie is off — the
+      # behavior from before the cookie existed.
+      socket = mount(%{})
+
+      assert socket.assigns.preferences_identity == nil
     end
   end
 
@@ -430,7 +490,7 @@ defmodule Backpex.InitAssignsTest do
       assert length(contexts) >= 3
 
       Enum.each(contexts, fn ctx ->
-        assert %Backpex.Preferences.Context{} = ctx
+        assert %Context{} = ctx
         assert ctx.session == session
         assert ctx.assigns[:current_user] == current_user
       end)

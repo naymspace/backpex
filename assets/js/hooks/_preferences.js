@@ -19,7 +19,10 @@
  *   request — including a reload fired milliseconds later, long before the
  *   keepalive POST's `Set-Cookie` has updated the session. Without it the dead
  *   render paints the pre-toggle state and LiveView corrects it a frame later:
- *   the flash.
+ *   the flash. Every entry is stamped with the identity fingerprint the server
+ *   rendered into `data-preferences-identity`, and is discarded whole once that
+ *   fingerprint changes: a write belongs to the user who made it, and this
+ *   cookie can outlive them (see `readPending`).
  * - The sessionStorage MIRROR reaches the websocket join via `connectParams()`.
  *   It is the only carrier that exists on a `live_redirect`, which makes no HTTP
  *   request at all: the server reads a session snapshot frozen at connect time
@@ -50,8 +53,36 @@ const COOKIE_MAX_AGE = 300
 // against the session cookie the Session adapter writes.
 const COOKIE_MAX_BYTES = 3072
 
+// The cookie's envelope. `id` is the identity fingerprint the server stamped on
+// this page's render, `values` the pending writes. A wire contract with
+// Backpex.Preferences.LiveView (keep both keys aligned).
+const COOKIE_IDENTITY_KEY = 'id'
+const COOKIE_VALUES_KEY = 'values'
+
+// The element the server renders the fingerprint into (see
+// Backpex.HTML.Layout.app_shell/1). Also the hook's own element, but the DOM is
+// the source of truth on purpose: `connectParams()` runs BEFORE any hook mounts,
+// and LiveView patches the attribute in place if the identity ever changes
+// without a page load.
+const HOOK_ELEMENT_ID = 'backpex-preferences'
+
 function sessionKey (key) {
   return SESSION_PREFIX + key
+}
+
+/**
+ * The identity fingerprint of the page currently rendered, or null when the
+ * server did not give us one (an older layout that does not pass
+ * `preferences_identity`, no endpoint secret, a brand-new session).
+ *
+ * The pending cookie is only usable when we have it: a write must never be
+ * carried across a change of user. Without it, `readPending` returns nothing and
+ * `writePendingMap` writes nothing — i.e. the behavior before the cookie
+ * existed, a possibly stale first paint after a fast reload and no more.
+ */
+function currentIdentity () {
+  const identity = document.getElementById(HOOK_ELEMENT_ID)?.dataset?.preferencesIdentity
+  return identity || null
 }
 
 // The wire format for a single preference value. Booleans and numbers go over
@@ -90,30 +121,83 @@ function cookieAttributes (maxAge) {
   return `; path=/; max-age=${maxAge}; SameSite=Lax${secure}`
 }
 
-// The unacknowledged writes this browser is holding, as a { key: value } map.
-// Any malformed value degrades to `{}` — the cookie is client-written and a
+// The raw cookie envelope, or null when it is absent or unreadable. Any
+// malformed value degrades to null — the cookie is client-written and a
 // third-party script or a truncated write must never throw here.
-function readPending () {
+function readEnvelope () {
   const entry = document.cookie
     .split('; ')
     .find((cookie) => cookie.startsWith(`${COOKIE_NAME}=`))
 
-  if (!entry) return {}
+  if (!entry) return null
 
   try {
     const decoded = JSON.parse(decodeURIComponent(entry.slice(COOKIE_NAME.length + 1)))
-    if (!decoded || typeof decoded !== 'object' || Array.isArray(decoded)) return {}
-    return decoded
+    if (!decoded || typeof decoded !== 'object' || Array.isArray(decoded)) return null
+
+    const values = decoded[COOKIE_VALUES_KEY]
+    if (!values || typeof values !== 'object' || Array.isArray(values)) return null
+
+    return { id: decoded[COOKIE_IDENTITY_KEY], values }
   } catch {
-    return {}
+    return null
   }
 }
 
-// Serializes the whole pending map into the cookie, deleting it when empty so
-// the common case (nothing in flight) costs no bytes on any request.
+// The unacknowledged writes this browser is holding *for the current identity*,
+// as a { key: value } map.
+//
+// A pending entry may only ever apply to the identity that created it. The
+// cookie outlives the page that wrote it (max-age 300, path `/`, shared by every
+// tab) — long enough for the user to log out mid-POST and someone else to log in
+// — so a stamp that does not match the fingerprint this page was served with
+// means the whole cookie belongs to someone else: discard it, values and all.
+// The server re-checks this on the dead render; it does not trust us to have
+// done it.
+function readPending () {
+  const identity = currentIdentity()
+  if (!identity) return {}
+
+  const envelope = readEnvelope()
+  if (!envelope || envelope.id !== identity) return {}
+
+  return envelope.values
+}
+
+// Drops a cookie stamped for a different identity (or one we can no longer
+// identify) so it stops riding every request until it expires. Called once per
+// page load from `prime()`; `readPending` already refuses to read it, this only
+// stops paying for it.
+function discardForeignPending () {
+  const envelope = readEnvelope()
+  if (envelope && envelope.id !== currentIdentity()) {
+    document.cookie = `${COOKIE_NAME}=${cookieAttributes(0)}`
+  }
+}
+
+// Serializes the whole pending map into the cookie, stamped with the identity
+// the server rendered this page for, and deletes it when empty so the common
+// case (nothing in flight) costs no bytes on any request.
+//
+// With no identity there is nothing to stamp: writing an unstamped cookie would
+// only produce bytes that every reader — this file and the dead render alike —
+// is bound to throw away.
 function writePendingMap (map) {
+  const identity = currentIdentity()
+
+  if (!identity) {
+    document.cookie = `${COOKIE_NAME}=${cookieAttributes(0)}`
+    return
+  }
+
   const pending = { ...map }
-  let encoded = encodeURIComponent(JSON.stringify(pending))
+  const encode = () =>
+    encodeURIComponent(JSON.stringify({
+      [COOKIE_IDENTITY_KEY]: identity,
+      [COOKIE_VALUES_KEY]: pending
+    }))
+
+  let encoded = encode()
 
   // Evict oldest-first until it fits. JS objects preserve string-key insertion
   // order, so `Object.keys()[0]` is the least recent write — the newest user
@@ -121,7 +205,7 @@ function writePendingMap (map) {
   // stale first paint after a reload inside the race window.
   while (encoded.length > COOKIE_MAX_BYTES && Object.keys(pending).length > 1) {
     delete pending[Object.keys(pending)[0]]
-    encoded = encodeURIComponent(JSON.stringify(pending))
+    encoded = encode()
   }
 
   if (encoded.length > COOKIE_MAX_BYTES) {
@@ -190,6 +274,10 @@ const BackpexPreferences = {
    * Name of the cookie carrying this browser's unacknowledged preference
    * writes. A wire contract with `Backpex.Preferences.LiveView.client_cookie/0`.
    *
+   * Its value is an envelope — `{ id: <identity fingerprint>, values: { key:
+   * value } }` — URI-encoded. The fingerprint is what scopes the writes to the
+   * user who made them; see `readPending`.
+   *
    * @returns {string}
    */
   cookieName () {
@@ -203,6 +291,10 @@ const BackpexPreferences = {
    * The gate any hook must check before adopting a server-rendered attribute:
    * a render whose session predates the pending write carries the OLD value,
    * and adopting it would undo the user's click.
+   *
+   * Only ever true for writes made by the identity this page was rendered for —
+   * a write left behind by the previous user of this browser is not "pending",
+   * it is void.
    *
    * @param {string} key - Dot-notation key (e.g., "global.sidebar_open")
    * @returns {boolean}
@@ -334,8 +426,15 @@ const BackpexPreferences = {
    * — `order` and `filters`, which round-trip through the URL — must not be
    * pinned across live navigation for the rest of the page load. Pending values
    * reach the socket directly from the cookie instead; see `connectParams()`.
+   *
+   * This is also what expires the mirror on a change of user. A login or a
+   * logout is a full page load, so this runs; a cookie stamped for the previous
+   * identity yields no pending keys at all, and every mirrored key is therefore
+   * dropped before it can reach the next join's connect params.
    */
   prime () {
+    discardForeignPending()
+
     const pending = readPending()
 
     try {
@@ -392,6 +491,12 @@ const BackpexPreferences = {
    * retried by the page that fired it — and its pending marker would otherwise
    * be sticky until `max-age` expires. The replay makes it durable and lets it
    * retire.
+   *
+   * It replays only what `readPending()` returns, which is nothing at all when
+   * the cookie was stamped for another identity — the same page that dies
+   * mid-POST is often the one the user left by logging out, and re-POSTing that
+   * write would persist the previous user's preference into the next user's
+   * store.
    */
   replayPending () {
     if (this.replayCalled) return
@@ -474,7 +579,8 @@ const BackpexPreferences = {
  * LiveView hook that initializes BackpexPreferences
  * and listens for push_events from the server.
  *
- * Mount this hook on an element with data-preferences-path attribute.
+ * Mount this hook on an element with data-preferences-path and
+ * data-preferences-identity attributes.
  */
 const BackpexPreferencesHook = {
   mounted () {

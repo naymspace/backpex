@@ -10,6 +10,10 @@ defmodule DemoWeb.Layouts do
   attr :current_theme, :string, default: nil, doc: "the currently selected theme"
   attr :sidebar_open, :boolean, default: true, doc: "initial sidebar open state"
 
+  attr :preferences_identity, :string,
+    default: nil,
+    doc: "opaque fingerprint of the current preference identity, assigned by Backpex.InitAssigns"
+
   slot :inner_block, required: true
 
   def admin(assigns)
