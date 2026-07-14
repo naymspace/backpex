@@ -787,7 +787,7 @@ defmodule Backpex.LiveResource do
       else
         init_order
         |> resolve_init_order(assigns)
-        |> Map.put(:schema, schema)
+        |> Map.merge(%{schema: schema, field_name: nil})
       end
 
     [
