@@ -704,10 +704,7 @@ config :backpex, Backpex.Preferences, validate_keys: true
 `:log` emits `Logger.warning/1` on each unknown key and still dispatches
 the call (returns the default on reads). `true` raises `ArgumentError` on
 the spot, surfacing typos as loud test failures. The validator runs on
-`get/3`, `fetch/3`, `get_map/3`, and `put/4`. `put_batch/3` is intentionally
-skipped — it is the cross-adapter dispatch used by
-`Backpex.PreferencesController` and should not reject requests for an
-unknown prefix at the library boundary.
+`get/3`, `fetch/3`, `get_map/3`, `put/4`, and `put_batch/3`.
 
 `Backpex.Preferences.Keys` supplies helpers (`theme/0`, `sidebar_open/0`,
 `columns/1`, …) that are self-checked at compile time to always emit
