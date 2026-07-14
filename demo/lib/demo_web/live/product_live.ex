@@ -5,7 +5,8 @@ defmodule DemoWeb.ProductLive do
       repo: Demo.Repo,
       update_changeset: &Demo.Product.changeset/3,
       create_changeset: &Demo.Product.changeset/3
-    ]
+    ],
+    persist: [:order, :filters, :columns]
 
   import Ecto.Query, warn: false
 
