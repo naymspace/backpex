@@ -105,7 +105,7 @@ defmodule Backpex.HTML.Layout do
             "flex min-h-screen flex-col",
             # First paint reflects the server-persisted state; the hook then
             # takes over at runtime via the higher-specificity data-shift classes.
-            @sidebar_open && "lg:ml-[var(--sidebar-width,16rem)]",
+            @has_sidebar && @sidebar_open && "lg:ml-[var(--sidebar-width,16rem)]",
             "data-[shift=on]:ml-[var(--sidebar-width,16rem)] data-[shift=off]:ml-0",
             "motion-safe:transition-[margin-left] motion-safe:duration-300 motion-safe:ease-in-out",
             "data-[suppress-transition]:transition-none"
