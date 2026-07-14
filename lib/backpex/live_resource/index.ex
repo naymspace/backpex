@@ -392,13 +392,7 @@ defmodule Backpex.LiveResource.Index do
   defp maybe_sync_columns(%{assigns: %{live_resource: live_resource, active_fields: active_fields}} = socket, prefs) do
     with true <- persist_enabled?(live_resource, :columns),
          %{} = columns <- Map.get(prefs, PreferenceKeys.columns(live_resource)) do
-      updated_fields =
-        Enum.map(active_fields, fn {name, config} ->
-          case Map.get(columns, Atom.to_string(name)) do
-            active when is_boolean(active) -> {name, %{config | active: active}}
-            _other -> {name, config}
-          end
-        end)
+      updated_fields = apply_synced_columns(active_fields, columns)
 
       if updated_fields == active_fields do
         socket
@@ -411,6 +405,15 @@ defmodule Backpex.LiveResource.Index do
   end
 
   defp maybe_sync_columns(socket, _prefs), do: socket
+
+  defp apply_synced_columns(active_fields, columns) do
+    Enum.map(active_fields, fn {name, config} ->
+      case Map.get(columns, Atom.to_string(name)) do
+        active when is_boolean(active) -> {name, %{config | active: active}}
+        _other -> {name, config}
+      end
+    end)
+  end
 
   defp maybe_sync_metrics(
          %{assigns: %{live_resource: live_resource, metric_visibility: metric_visibility}} = socket,
