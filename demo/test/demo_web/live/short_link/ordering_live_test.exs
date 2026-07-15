@@ -4,8 +4,8 @@ defmodule DemoWeb.Live.ShortLink.OrderingLiveTest do
   import Demo.EctoFactory
   import Phoenix.LiveViewTest
 
-  # Short links have primary_key: :short_key and no :id column at all, so they
-  # declare init_order: %{by: :short_key, direction: :asc}
+  # Short links have primary_key: :short_key and no :id column at all. The
+  # default init_order derives from the primary key, so it is short_key ascending.
 
   describe "default ordering" do
     test "orders by short_key ascending by default", %{conn: conn} do
@@ -63,7 +63,7 @@ defmodule DemoWeb.Live.ShortLink.OrderingLiveTest do
       conn
       |> visit(~p"/admin/short-links?#{params}")
       |> assert_has("table tbody tr", count: 3)
-      # falls back to init_order.by (:short_key)
+      # falls back to the default order column (:short_key)
       |> assert_has("table tbody tr:first-child td", text: "aaa")
       |> assert_has("table tbody tr:nth-child(2) td", text: "bbb")
       |> assert_has("table tbody tr:last-child td", text: "ccc")

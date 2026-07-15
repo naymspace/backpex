@@ -9,7 +9,6 @@ defmodule DemoWeb.ShortLinkLive do
       create_changeset: &Demo.ShortLink.changeset/3
     ],
     primary_key: :short_key,
-    init_order: %{by: :short_key, direction: :asc},
     persist: [:order, :filters, :columns, :metrics]
 
   @impl Backpex.LiveResource

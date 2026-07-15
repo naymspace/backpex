@@ -68,10 +68,15 @@ defmodule Backpex.LiveResource do
       default: 15
     ],
     init_order: [
-      doc: "Order that will be used when no other order options are given.",
+      doc: """
+      Order that will be used when no other order options are given.
+
+      Defaults to ascending order by the configured `primary_key`.
+      """,
       type: {
         :or,
         [
+          {:in, [nil]},
           {:fun, 1},
           map: [
             by: [
@@ -85,7 +90,7 @@ defmodule Backpex.LiveResource do
           ]
         ]
       },
-      default: Macro.escape(%{by: :id, direction: :asc})
+      default: nil
     ],
     fluid?: [
       doc: "If the layout fills out the entire width.",
@@ -295,6 +300,11 @@ defmodule Backpex.LiveResource do
       @resource_opts NimbleOptions.validate!(opts, options_schema)
 
       @adapter_opts @resource_opts[:adapter].validate_config!(@resource_opts[:adapter_config])
+
+      def config(:init_order) do
+        @resource_opts[:init_order] ||
+          %{by: @resource_opts[:primary_key], direction: :asc}
+      end
 
       def config(key), do: Keyword.get(@resource_opts, key)
 
