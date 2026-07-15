@@ -79,10 +79,9 @@ defmodule Backpex.Preferences.Router do
   Returns the matching `{module, opts}` for `key`, or raises if no route
   (including `:default`) matches.
 
-  This is the single resolution entry point: point reads, writes, and subtree
-  reads (`Backpex.Preferences.get_map/3`, which passes the subtree's prefix)
-  all resolve through it, so a key and the prefix it lives under can never
-  disagree about which adapter owns them.
+  This is the resolution entry point for point reads and writes. Subtree reads
+  use `resolve_subtree/2` because exact routes and nested wildcards can carve
+  keys beneath a broader prefix into another adapter.
 
   ## Examples
 
@@ -121,6 +120,60 @@ defmodule Backpex.Preferences.Router do
       {_pattern, module, opts} ->
         {module, opts}
     end
+  end
+
+  @doc """
+  Returns the routes that can own `prefix` or keys beneath it, ordered from
+  broadest to most specific.
+
+  A subtree can span adapters when an exact route or nested wildcard carves a
+  key out of a broader route. `Backpex.Preferences.get_map/3` reads these
+  routes in order so the more specific route wins for the part it owns.
+
+  ## Examples
+
+      iex> routes = [
+      ...>   {"global.sidebar_section.blog", MyApp.DatabaseAdapter, []},
+      ...>   {"global.*", Backpex.Preferences.Adapters.Session, []}
+      ...> ]
+      iex> Backpex.Preferences.Router.resolve_subtree("global.sidebar_section", routes)
+      [
+        {"global.*", Backpex.Preferences.Adapters.Session, []},
+        {"global.sidebar_section.blog", MyApp.DatabaseAdapter, []}
+      ]
+  """
+  @spec resolve_subtree(String.t()) :: [route()]
+  @spec resolve_subtree(String.t(), [route()]) :: [route()]
+  def resolve_subtree(prefix, routes \\ routes()) when is_binary(prefix) do
+    normalized = normalize(routes)
+    prefix_segments = Key.parse(prefix)
+    base_route = subtree_base_route(prefix_segments, normalized)
+
+    nested_routes =
+      Enum.filter(normalized, fn
+        {:default, _module, _opts} ->
+          false
+
+        {pattern, _module, _opts} ->
+          pattern
+          |> route_prefix()
+          |> descendant_of?(prefix_segments)
+      end)
+
+    routes =
+      [base_route | nested_routes]
+      |> Enum.reject(&is_nil/1)
+      |> Enum.uniq()
+      |> Enum.sort_by(&specificity/1)
+
+    if routes == [] do
+      raise ArgumentError,
+            "no Backpex.Preferences adapter matches prefix #{inspect(prefix)} or any key beneath it; " <>
+              "configure a matching route or a :default route under " <>
+              "config :backpex, Backpex.Preferences, adapters: [...]"
+    end
+
+    routes
   end
 
   @doc false
@@ -235,6 +288,30 @@ defmodule Backpex.Preferences.Router do
 
   defp matches?({:default, _module, _opts}, _key), do: true
   defp matches?({pattern, _module, _opts}, key) when is_binary(pattern), do: Key.match?(pattern, key)
+
+  defp subtree_base_route(prefix_segments, routes) do
+    routes
+    |> Enum.filter(fn
+      {pattern, _module, _opts} when is_binary(pattern) ->
+        case Key.wildcard_prefix(pattern) do
+          nil -> false
+          wildcard_prefix -> prefix_of?(wildcard_prefix, prefix_segments)
+        end
+
+      {:default, _module, _opts} ->
+        false
+    end)
+    |> Enum.max_by(&specificity/1, fn -> Enum.find(routes, &match?({:default, _, _}, &1)) end)
+  end
+
+  defp route_prefix(pattern), do: Key.wildcard_prefix(pattern) || Key.parse(pattern)
+
+  defp descendant_of?(route_segments, prefix_segments), do: prefix_of?(prefix_segments, route_segments)
+
+  defp prefix_of?(prefix_segments, segments) do
+    length(segments) >= length(prefix_segments) and
+      Enum.take(segments, length(prefix_segments)) == prefix_segments
+  end
 
   # Ranks a route so `Enum.max_by/2` picks the most specific match. Tiers
   # (higher beats lower):

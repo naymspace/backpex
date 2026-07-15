@@ -45,6 +45,7 @@ defmodule Backpex.Preferences do
   alias Backpex.Preferences.Adapter
   alias Backpex.Preferences.Adapters
   alias Backpex.Preferences.Context
+  alias Backpex.Preferences.Key
   alias Backpex.Preferences.LiveView, as: PreferenceLiveView
   alias Backpex.Preferences.Router
   alias Phoenix.LiveView.Socket
@@ -146,11 +147,34 @@ defmodule Backpex.Preferences do
   @spec get_map(Context.t() | map(), String.t(), keyword()) :: map()
   def get_map(ctx_or_session, prefix, opts \\ []) do
     ctx = resolve_identity(Context.coerce(ctx_or_session))
-    {module, adapter_opts} = Router.resolve(prefix)
+    prefix_segments = Key.parse(prefix)
 
+    {stored, _adapter_results} =
+      prefix
+      |> Router.resolve_subtree()
+      |> Enum.reduce({%{}, %{}}, fn {_pattern, module, adapter_opts} = route, {acc, adapter_results} ->
+        adapter_key = {module, adapter_opts}
+
+        {route_map, adapter_results} =
+          case Map.fetch(adapter_results, adapter_key) do
+            {:ok, route_map} ->
+              {route_map, adapter_results}
+
+            :error ->
+              route_map = read_subtree_route(route, ctx, prefix, opts)
+              {route_map, Map.put(adapter_results, adapter_key, route_map)}
+          end
+
+        {merge_subtree_route(route_map, acc, prefix_segments, route), adapter_results}
+      end)
+
+    Map.merge(stored, client_map(ctx, prefix))
+  end
+
+  defp read_subtree_route({pattern, module, adapter_opts}, ctx, prefix, opts) do
     result =
       try do
-        {module, module.get_map(ctx, prefix, merge_opts(adapter_opts, opts))}
+        module.get_map(ctx, prefix, merge_opts(adapter_opts, opts))
       rescue
         reason ->
           Logger.warning(
@@ -158,29 +182,85 @@ defmodule Backpex.Preferences do
               "#{inspect(prefix)}: #{Exception.format(:error, reason, __STACKTRACE__)}"
           )
 
-          {module, {:error, {:exception, reason}}}
+          {:error, {:exception, reason}}
       end
 
-    stored =
-      case result do
-        {_module, {:ok, map}} when is_map(map) ->
-          map
+    case result do
+      {:ok, map} when is_map(map) ->
+        map
 
-        # See `get_from_adapter/4`: `:unidentified` on a read is a documented
-        # "not found", not a failure — no warning.
-        {_module, {:error, :unidentified}} ->
-          %{}
+      # See `get_from_adapter/4`: `:unidentified` on a read is a documented
+      # "not found", not a failure — no warning.
+      {:error, :unidentified} ->
+        %{}
 
-        {_module, {:error, reason}} ->
-          Logger.warning(
-            "Backpex.Preferences: adapter #{inspect(module)} returned error on get_map/3 for prefix " <>
-              "#{inspect(prefix)}: #{inspect(reason)}; falling back to %{}"
-          )
+      {:error, reason} ->
+        Logger.warning(
+          "Backpex.Preferences: adapter #{inspect(module)} returned error on get_map/3 for prefix " <>
+            "#{inspect(prefix)} while reading route #{inspect(pattern)}: #{inspect(reason)}; " <>
+            "falling back to %{}"
+        )
 
-          %{}
+        %{}
+
+      other ->
+        Logger.warning(
+          "Backpex.Preferences: adapter #{inspect(module)} returned an invalid get_map/3 response " <>
+            "for prefix #{inspect(prefix)} while reading route #{inspect(pattern)}: #{inspect(other)}; " <>
+            "falling back to %{}"
+        )
+
+        %{}
+    end
+  end
+
+  defp merge_subtree_route(route_map, acc, prefix_segments, {pattern, _module, _adapter_opts}) do
+    route_segments =
+      case pattern do
+        :default -> prefix_segments
+        pattern -> Key.wildcard_prefix(pattern) || Key.parse(pattern)
       end
 
-    Map.merge(stored, client_map(ctx, prefix))
+    relative_path = Enum.drop(route_segments, length(prefix_segments))
+
+    case fetch_nested(route_map, relative_path) do
+      {:ok, value} -> put_nested_value(acc, relative_path, value)
+      :error -> delete_nested_value(acc, relative_path)
+    end
+  end
+
+  defp fetch_nested(value, []), do: {:ok, value}
+
+  defp fetch_nested(map, [segment | rest]) when is_map(map) do
+    case Map.fetch(map, segment) do
+      {:ok, value} -> fetch_nested(value, rest)
+      :error -> :error
+    end
+  end
+
+  defp fetch_nested(_value, _path), do: :error
+
+  defp put_nested_value(_map, [], value) when is_map(value), do: value
+  defp put_nested_value(map, [], _value), do: map
+  defp put_nested_value(map, [segment], value), do: Map.put(map, segment, value)
+
+  defp put_nested_value(map, [segment | rest], value) do
+    nested = if is_map(Map.get(map, segment)), do: Map.get(map, segment), else: %{}
+    Map.put(map, segment, put_nested_value(nested, rest, value))
+  end
+
+  defp delete_nested_value(_map, []), do: %{}
+  defp delete_nested_value(map, [segment]), do: Map.delete(map, segment)
+
+  defp delete_nested_value(map, [segment | rest]) do
+    case Map.get(map, segment) do
+      nested when is_map(nested) ->
+        updated = delete_nested_value(nested, rest)
+        if updated == %{}, do: Map.delete(map, segment), else: Map.put(map, segment, updated)
+
+      _other ->
+        map
+    end
   end
 
   # Client-supplied values (LiveView connect params) win over stored ones: they

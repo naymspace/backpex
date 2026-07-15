@@ -382,10 +382,10 @@ goes to the session. Order does not matter — specificity decides.
 than letting the keys you meant to route quietly land somewhere else. Use
 `:default` to match every key.
 
-There is no suffix or predicate matching: an adapter owns a **prefix** of the
-key space. That is what lets a subtree read (`get_map/3`, which resolves the
-prefix through the same routes as the keys beneath it) name a single owner and
-see all of its own writes.
+There is no suffix or predicate matching: adapters own exact keys or prefixes
+of the key space. A subtree read (`get_map/3`) reads every intersecting route
+and applies the same specificity rules, so an exact key or nested wildcard can
+live in another adapter without becoming invisible to its parent subtree.
 
 ### Identity resolver
 

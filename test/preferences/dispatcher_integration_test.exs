@@ -138,5 +138,36 @@ defmodule Backpex.Preferences.DispatcherIntegrationTest do
                "order" => ["name", "email"]
              }
     end
+
+    test "combines an exact child route with its wildcard parent's stored siblings" do
+      key = "global.sidebar_section.blog"
+
+      Application.put_env(:backpex, Backpex.Preferences,
+        adapters: [
+          {key, InMemory, []},
+          {"global.*", Session, []}
+        ]
+      )
+
+      session = %{
+        "backpex_preferences" => %{
+          "global" => %{
+            "sidebar_section" => %{"blog" => true, "settings" => true}
+          }
+        }
+      }
+
+      write_ctx = %{Context.from_mount(session) | source: :controller}
+
+      assert {:ok, []} = Preferences.put_batch(write_ctx, [{key, false}])
+      assert InMemory.dump() == %{key => false}
+
+      assert session
+             |> Context.from_mount()
+             |> Preferences.get_map("global.sidebar_section") == %{
+               "blog" => false,
+               "settings" => true
+             }
+    end
   end
 end

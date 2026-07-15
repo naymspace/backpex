@@ -195,7 +195,7 @@ defmodule Backpex.Preferences.RouterTest do
     end
   end
 
-  describe "resolve/2 as the subtree-owner lookup for get_map/3" do
+  describe "subtree routing for get_map/3" do
     test "a prefix resolves to the adapter that owns the keys under it" do
       routes = [
         {"resource.*", EctoAdapter, []},
@@ -229,6 +229,30 @@ defmodule Backpex.Preferences.RouterTest do
       prefix = Keys.sidebar_section_prefix()
 
       assert Router.resolve(prefix, routes) == Router.resolve(prefix <> ".blog", routes)
+    end
+
+    test "resolve_subtree/2 includes an exact child route after its wildcard parent" do
+      routes = [
+        {"global.sidebar_section.blog", BlogAdapter, []},
+        {"global.*", SessionAdapter, []}
+      ]
+
+      assert Router.resolve_subtree("global.sidebar_section", routes) == [
+               {"global.*", SessionAdapter, []},
+               {"global.sidebar_section.blog", BlogAdapter, []}
+             ]
+    end
+
+    test "resolve_subtree/2 excludes a broad wildcard fully shadowed at the requested prefix" do
+      routes = [
+        {"resource.foo.*", FooAdapter, []},
+        {"resource.*", ResourceAdapter, []},
+        {:default, SessionAdapter, []}
+      ]
+
+      assert Router.resolve_subtree("resource.foo", routes) == [
+               {"resource.foo.*", FooAdapter, []}
+             ]
     end
   end
 
