@@ -507,13 +507,13 @@ defmodule Backpex.LiveResource.Index do
 
     per_page_options = live_resource.config(:per_page_options)
     per_page_default = live_resource.config(:per_page_default)
+    orderable_fields = LiveResource.orderable_fields(fields)
     init_order = live_resource.config(:init_order)
     init_order = LiveResource.resolve_init_order(init_order, socket.assigns)
-    init_order = maybe_override_init_order(init_order, params, persisted.order)
+    init_order = maybe_override_init_order(init_order, params, persisted.order, orderable_fields)
 
     filters = LiveResource.active_filters(socket.assigns)
     schema = live_resource.adapter_config(:schema)
-    orderable_fields = LiveResource.orderable_fields(fields)
 
     # Build filter changeset from URL params and extract valid values
     raw_filter_params =
@@ -576,28 +576,35 @@ defmodule Backpex.LiveResource.Index do
     |> apply_index_return_to()
   end
 
-  defp maybe_override_init_order(init_order, _params, nil), do: init_order
+  defp maybe_override_init_order(init_order, _params, nil, _orderable_fields), do: init_order
 
-  defp maybe_override_init_order(init_order, params, stored_order) do
+  defp maybe_override_init_order(init_order, params, stored_order, orderable_fields) do
     cond do
       Map.has_key?(params, "order_by") or Map.has_key?(params, "order_direction") ->
         init_order
 
       match?(%{"by" => by, "direction" => dir} when is_binary(by) and is_binary(dir), stored_order) ->
-        parse_stored_order(stored_order) || init_order
+        parse_stored_order(stored_order, orderable_fields) || init_order
 
       true ->
         init_order
     end
   end
 
-  defp parse_stored_order(%{"by" => by, "direction" => direction}) do
-    %{by: String.to_existing_atom(by), direction: String.to_existing_atom(direction)}
-  rescue
-    ArgumentError -> nil
+  defp parse_stored_order(%{"by" => by, "direction" => direction}, orderable_fields) do
+    field = Enum.find(orderable_fields, &(Atom.to_string(&1) == by))
+
+    direction =
+      case direction do
+        "asc" -> :asc
+        "desc" -> :desc
+        _other -> nil
+      end
+
+    if field && direction, do: %{by: field, direction: direction}
   end
 
-  defp parse_stored_order(_other), do: nil
+  defp parse_stored_order(_other, _orderable_fields), do: nil
 
   defp fallback_filter_params(stored) when is_map(stored), do: stored
   defp fallback_filter_params(_other), do: %{}

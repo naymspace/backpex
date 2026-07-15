@@ -53,6 +53,103 @@ defmodule DemoWeb.Live.PreferencesPersistenceTest do
         value: %{"by" => "title", "direction" => "asc"}
       })
     end
+
+    test "invalid persisted direction falls back to and repairs the initial order", %{conn: conn} do
+      search = unique_search("persisted-order")
+
+      posts =
+        for title <- ["Cherry", "Apple", "Banana"] do
+          insert(:post, title: "#{search}-#{title}", published: true)
+        end
+
+      first = Enum.min_by(posts, & &1.id)
+
+      conn = put_persisted_order(conn, %{"by" => "title", "direction" => "error"})
+
+      {:ok, view, _html} = live(conn, ~p"/admin/posts?filters[published][]=published&search=#{search}")
+
+      assert has_element?(view, "table tbody tr:first-child td", first.title)
+
+      expected_key = PrefKeys.order(@resource_mod)
+
+      assert_push_event(view, @event_name, %{
+        key: ^expected_key,
+        mirror: "session",
+        value: %{"by" => "id", "direction" => "asc"}
+      })
+    end
+
+    test "persisted non-orderable field falls back to and repairs the initial order", %{conn: conn} do
+      search = unique_search("persisted-order")
+
+      posts =
+        for title <- ["Cherry", "Apple", "Banana"] do
+          insert(:post, title: "#{search}-#{title}", published: true)
+        end
+
+      first = Enum.min_by(posts, & &1.id)
+
+      # `tags` is an existing field/atom, but PostLive marks it non-orderable.
+      conn = put_persisted_order(conn, %{"by" => "tags", "direction" => "desc"})
+
+      {:ok, view, _html} = live(conn, ~p"/admin/posts?filters[published][]=published&search=#{search}")
+
+      assert has_element?(view, "table tbody tr:first-child td", first.title)
+
+      expected_key = PrefKeys.order(@resource_mod)
+
+      assert_push_event(view, @event_name, %{
+        key: ^expected_key,
+        mirror: "session",
+        value: %{"by" => "id", "direction" => "asc"}
+      })
+    end
+
+    test "valid persisted order remains the default for a clean URL", %{conn: conn} do
+      search = unique_search("persisted-order")
+
+      insert(:post, title: "#{search}-Cherry", published: true)
+      insert(:post, title: "#{search}-Apple", published: true)
+      insert(:post, title: "#{search}-Banana", published: true)
+
+      conn = put_persisted_order(conn, %{"by" => "title", "direction" => "desc"})
+
+      {:ok, view, _html} = live(conn, ~p"/admin/posts?filters[published][]=published&search=#{search}")
+
+      assert has_element?(view, "table tbody tr:first-child td", "#{search}-Cherry")
+      assert has_element?(view, "table tbody tr:last-child td", "#{search}-Apple")
+    end
+
+    test "explicit URL order takes precedence over valid persisted order", %{conn: conn} do
+      search = unique_search("persisted-order")
+
+      insert(:post, title: "#{search}-Popular", likes: 500, published: true)
+      insert(:post, title: "#{search}-Average", likes: 50, published: true)
+      insert(:post, title: "#{search}-New", likes: 1, published: true)
+
+      conn = put_persisted_order(conn, %{"by" => "title", "direction" => "desc"})
+
+      {:ok, view, _html} =
+        live(
+          conn,
+          ~p"/admin/posts?filters[published][]=published&order_by=likes&order_direction=asc&search=#{search}"
+        )
+
+      assert has_element?(view, "table tbody tr:first-child td", "#{search}-New")
+      assert has_element?(view, "table tbody tr:last-child td", "#{search}-Popular")
+    end
+  end
+
+  defp unique_search(scope) do
+    "#{scope}-#{System.unique_integer([:positive, :monotonic])}"
+  end
+
+  defp put_persisted_order(conn, order) do
+    Plug.Test.init_test_session(conn, %{
+      "backpex_preferences" => %{
+        "resource" => %{"DemoWeb.PostLive" => %{"order" => order}}
+      }
+    })
   end
 
   describe "persist: [:filters]" do
@@ -116,8 +213,12 @@ defmodule DemoWeb.Live.PreferencesPersistenceTest do
       # `maybe_redirect_to_default_filters` would see `query_options.filters
       # == %{}` and re-apply the `:default` from the `published` filter,
       # overwriting the user's persisted clear.
-      insert(:post, title: "Published Post", published: true)
-      insert(:post, title: "Draft Post", published: false)
+      search = unique_search("empty-filters")
+      published_title = "#{search}-Published"
+      draft_title = "#{search}-Draft"
+
+      insert(:post, title: published_title, published: true)
+      insert(:post, title: draft_title, published: false)
 
       session = %{
         "backpex_preferences" => %{
@@ -127,11 +228,11 @@ defmodule DemoWeb.Live.PreferencesPersistenceTest do
 
       conn = Plug.Test.init_test_session(conn, session)
 
-      {:ok, _view, html} = live(conn, ~p"/admin/posts")
+      {:ok, _view, html} = live(conn, ~p"/admin/posts?search=#{search}")
 
       # Both posts are visible → no `published` default was applied.
-      assert html =~ "Published Post"
-      assert html =~ "Draft Post"
+      assert html =~ published_title
+      assert html =~ draft_title
     end
 
     test "no persisted filters still triggers redirect to defaults on mount", %{conn: conn} do
