@@ -327,7 +327,9 @@ var BackpexPreferences = {
    * the browser makes — including a reload that lands inside the POST's
    * round-trip window, whose session cookie is still one write behind. The
    * disconnected mount reads the cookie and renders the user's actual state.
-   * The entry retires as soon as the POST responds (see `persist/3`).
+   * This is best effort: the cookie has a 3072-byte budget and is disabled
+   * without an identity fingerprint. The entry retires as soon as the POST
+   * responds (see `persist/3`).
    *
    * When `opts.mirror === 'session'` the value is *additionally* written to
    * sessionStorage, where it survives the whole page load. That is what keeps
@@ -338,12 +340,13 @@ var BackpexPreferences = {
    *
    * `opts.mirror === false` (or omitting `opts` entirely) keeps the value out
    * of the long-lived mirror. The right choice whenever the server is
-   * authoritative on every render — for example filters and order, which
-   * round-trip through the URL and must not be pinned across live navigation.
-   * Such keys still get the short-lived pending cookie, so their first paint
-   * after a fast reload is correct too.
+   * authoritative on every render — for example transient filters and order
+   * when preference persistence is disabled and the URL is the only store.
+   * Persisted filters/order are mount fallbacks and do use the mirror. An
+   * unmirrored key still attempts the short-lived pending-cookie fast path,
+   * subject to that cookie's size and identity limits.
    *
-   * @param {string} key - Dot-notation key (e.g., "global.theme")
+   * @param {string} key - Preference key (e.g., "global.theme" or "resource:MyApp.PostLive:columns")
    * @param {any} value - Value to store
    * @param {{ mirror?: 'session' | false }} [opts]
    */
