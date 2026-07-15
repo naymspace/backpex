@@ -42,7 +42,6 @@ defmodule Backpex.Preferences do
       see the function docs for the partial-success semantics).
   """
 
-  alias Backpex.Preferences.Adapter
   alias Backpex.Preferences.Adapters
   alias Backpex.Preferences.Context
   alias Backpex.Preferences.Key
