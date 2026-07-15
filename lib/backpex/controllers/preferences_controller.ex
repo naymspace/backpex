@@ -37,6 +37,20 @@ defmodule Backpex.PreferencesController do
   whenever the session lapses — this avoids surfacing them as 4xx noise.
   Batches always halt on any error (including `:unidentified`) and return
   422.
+
+  Entries in a batch are retained only when they are maps containing a binary
+  `"key"` and a `"value"` field. Other members are silently discarded; an
+  empty or all-invalid list is therefore a successful no-op (`200 {ok: true}`).
+  A payload that matches neither the single nor batch shape returns
+  `400 {ok: false, error: "missing key/value"}`.
+
+  This controller does not call `Backpex.Preferences.Key.validate/1` or
+  `Backpex.Preferences.Keys.valid_value?/2`. Custom HTTP clients and adapters
+  are responsible for their own key/value constraints. The validation in
+  `Backpex.Preferences.Context.put_client/2` applies only to the render overlay;
+  it is not endpoint validation or authorization. Adapter reads are not
+  shape-checked either, so a custom client that persists a wrong-typed built-in
+  value can later break a built-in render unless the adapter rejects it.
   """
 
   use Phoenix.Controller, formats: [:json]

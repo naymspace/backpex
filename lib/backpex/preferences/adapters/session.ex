@@ -18,6 +18,12 @@ defmodule Backpex.Preferences.Adapters.Session do
   an HTTP request cycle. The dispatcher handles this by falling back to
   `push_event/3`, which round-trips the write through the browser and the
   preferences controller.
+
+  ## `nil` values
+
+  `get/3` maps a stored `nil` to `{:ok, :not_found}`. Store a tagged value such
+  as `%{"value" => nil}` if application code must distinguish an explicit nil
+  from an absent preference.
   """
 
   @behaviour Backpex.Preferences.Adapter

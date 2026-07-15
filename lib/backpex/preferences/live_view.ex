@@ -191,17 +191,20 @@ defmodule Backpex.Preferences.LiveView do
       behind the user's last write, so the freshly-read session is *not*
       authoritative: it renders the pre-toggle state, which LiveView then
       patches away — the flash. The browser writes its unacknowledged writes to
-      `backpex_prefs` synchronously, so they ride the very next request and the
-      first paint is already correct. Entries retire as soon as their POST
-      responds, so the cookie can never shadow an adapter.
+      `backpex_prefs` synchronously, so entries that fit its 3072-byte budget
+      ride the very next request. The cookie is skipped when no identity
+      fingerprint is available; in either degradation case the first paint may
+      be stale until LiveView connects. Entries retire as soon as their POST
+      responds, so the cookie cannot permanently shadow an adapter.
 
       The cookie is only honored when its `identity_fingerprint/2` matches the
       identity of the request being rendered. This is the one place an
       attacker-plantable (or simply outlived) cookie lands, so the check runs
       here and does not trust the browser to have discarded it already.
 
-  Both carriers feed the same `Backpex.Preferences.Context` client overlay, so
-  both renders derive the state from the same values and agree by construction.
+  Both carriers feed the same `Backpex.Preferences.Context` client overlay.
+  When the pending value is available to both transports, the disconnected and
+  connected renders derive their state from the same value.
 
   Only valid for calls during `mount/3` (including `on_mount` hooks), where
   `Phoenix.LiveView.get_connect_params/1` is available.

@@ -62,7 +62,7 @@ defmodule Backpex.Preferences.Keys do
 
   The prefix is used with `Backpex.Preferences.get_map/3` to read every
   section's state in one call. Individual section writes go through the JS
-  `BackpexPreferences.set/2` helper as `"global.sidebar_section.<id>"`.
+  `BackpexPreferences.set(...)` helper as `"global.sidebar_section.<id>"`.
 
   ## Examples
 
@@ -132,10 +132,11 @@ defmodule Backpex.Preferences.Keys do
 
   This is a *shape* gate, not an authorization gate: it asks only whether the
   built-in reader for this key can consume the value without raising. Values
-  for keys Backpex does not own (`"custom."`, app-registered prefixes, and
-  unknown `resource:` suffixes) pass through — Backpex cannot know their
-  shape, so a host that reads its own keys out of the overlay must tolerate
-  whatever the browser can send.
+  for keys Backpex does not own (`"custom."` and unknown `resource:` suffixes)
+  pass through — Backpex cannot know their shape, so a host that reads its own
+  keys out of the overlay must tolerate whatever the browser can send. There
+  is no registration API for additional top-level prefixes; application-owned
+  overlay keys belong under `"custom."`.
 
   ## Examples
 

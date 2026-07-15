@@ -536,7 +536,7 @@ defmodule Backpex.HTML.Layout do
   attr :id, :string,
     required: true,
     doc:
-      "A unique id for this section. Used to save and load the opening state of this section and to wire aria-controls, so every section on the page must have its own."
+      "A unique id for this section. Used as the final segment of the `global.sidebar_section.<id>` preference key, in the browser hook's attribute selector, and to wire aria-controls. Use only ASCII letters, digits, underscores, and hyphens (`[A-Za-z0-9_-]+`); dots/colons alter key parsing and quotes/backslashes are unsafe in the selector."
 
   attr :sidebar_section_states, :map,
     doc:

@@ -243,6 +243,11 @@ defmodule Backpex.Filters.Range do
   @doc """
   Parses both start and end values for a range filter.
 
+  Number boundaries accept numeric strings, integers, and floats. Date and
+  datetime boundaries accept ISO 8601 date strings or `Date` structs. `nil` and
+  the empty string mean an open boundary. For the supported range types, invalid
+  strings and unsupported value types parse to `nil`.
+
   ## Examples
 
       iex> Backpex.Filters.Range.maybe_parse_range(:number, "10", "100")
@@ -260,6 +265,12 @@ defmodule Backpex.Filters.Range do
       iex> Backpex.Filters.Range.maybe_parse_range(:datetime, "2024-01-01", "2024-12-31")
       {"2024-01-01T00:00:00+00:00", "2024-12-31T23:59:59+00:00"}
 
+      iex> Backpex.Filters.Range.maybe_parse_range(:number, 10, 99.5)
+      {10, 99.5}
+
+      iex> Backpex.Filters.Range.maybe_parse_range(:date, ~D[2024-01-01], nil)
+      {"2024-01-01", nil}
+
   """
   def maybe_parse_range(type, start_at, end_at) do
     {maybe_parse(type, start_at), maybe_parse(type, end_at, true)}
@@ -270,6 +281,10 @@ defmodule Backpex.Filters.Range do
 
   The third parameter `is_end?` determines whether to treat the value as an end boundary
   (which affects datetime parsing by adding 23:59:59 instead of 00:00:00).
+  `nil` and `""` return `nil` for every supported type. Date and datetime values
+  may be ISO 8601 date strings or `Date` structs; number values may be numeric
+  strings, integers, or floats. For these supported range types, invalid strings
+  and unsupported value types return `nil`.
 
   ## Examples
 
@@ -300,6 +315,12 @@ defmodule Backpex.Filters.Range do
       iex> Backpex.Filters.Range.maybe_parse(:datetime, "invalid")
       nil
 
+      iex> Backpex.Filters.Range.maybe_parse(:datetime, ~D[2024-12-31], true)
+      "2024-12-31T23:59:59+00:00"
+
+      iex> Backpex.Filters.Range.maybe_parse(:number, 42.5)
+      42.5
+
   """
   def maybe_parse(type, value, is_end? \\ false)
 
@@ -327,9 +348,12 @@ defmodule Backpex.Filters.Range do
   def maybe_parse(:number, value, _is_end?), do: parse_float_or_int(value)
 
   @doc """
-  Parses a string value as either an integer or float.
+  Parses a value as either an integer or float.
 
-  Prefers integer representation for whole numbers.
+  Integers and floats are returned unchanged. Binary input must contain one
+  complete integer or float representation; trailing characters are rejected.
+  Unsupported values return `nil`. String input prefers integer representation
+  for whole numbers.
 
   ## Examples
 
@@ -361,6 +385,15 @@ defmodule Backpex.Filters.Range do
       nil
 
       iex> Backpex.Filters.Range.parse_float_or_int("")
+      nil
+
+      iex> Backpex.Filters.Range.parse_float_or_int(42)
+      42
+
+      iex> Backpex.Filters.Range.parse_float_or_int(3.5)
+      3.5
+
+      iex> Backpex.Filters.Range.parse_float_or_int(nil)
       nil
 
   """

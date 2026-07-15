@@ -27,8 +27,9 @@ defmodule Backpex.Preferences.Router do
 
   `"*"` is only meaningful as the final segment. Any other placement (`"*"`
   alone, `"resource.*.columns"`, `"res*"`) is a configuration error and
-  raises at boot — it could never match a key, and a pattern that silently
-  matches nothing is worse than one that refuses to start.
+  raises when routes are first normalized (normally on the first preference
+  resolution) — it could never match a key, and a pattern that silently matches
+  nothing is worse than one that is rejected.
 
   ## Match strategy
 
@@ -49,7 +50,9 @@ defmodule Backpex.Preferences.Router do
 
   With no `:adapters` config the router falls back to a single
   `{:default, Backpex.Preferences.Adapters.Session, []}` route, so the
-  zero-config behavior routes every key to the Session adapter.
+  zero-config behavior routes every key to the Session adapter. Once an
+  `:adapters` list is configured there is no implicit fallback; add an explicit
+  `:default` route unless the configured patterns cover every key.
   """
 
   alias Backpex.Preferences.Key

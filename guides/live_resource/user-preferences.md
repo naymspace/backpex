@@ -3,8 +3,10 @@
 Backpex persists UI state — theme, sidebar, per-resource column visibility,
 metric toggles, and anything you want to add — through a pluggable adapter
 layer. Out of the box everything lives in the Phoenix session (zero config
-required). Configure a database adapter for one prefix and the rest stay in
-the session; every setting is routed independently.
+required). To route one prefix to a database and keep the rest in the session,
+configure that route **and** an explicit Session `:default` route; once an
+`:adapters` list exists, Backpex does not add an implicit fallback. Every
+setting is routed independently.
 
 ## How It Works
 
@@ -27,7 +29,7 @@ the session; every setting is routed independently.
 │                        │              │                                  │
 │                        └──────┬───────┘                                  │
 │                               ▼                                          │
-│                    Server-rendered HTML with correct state               │
+│                    Server-rendered HTML with resolved state              │
 │                                                                          │
 └──────────────────────────────────────────────────────────────────────────┘
 
@@ -49,15 +51,16 @@ the session; every setting is routed independently.
 │   Router → adapter(s) → side effects                                     │
 │            │                                                             │
 │            ▼                                                             │
-│   Best-effort apply: {ok: true} or {ok: false, error: {key, reason}}     │
+│   Best-effort apply: {"ok":true} or {"ok":false,"error":{...}}        │
 │                                                                          │
 └──────────────────────────────────────────────────────────────────────────┘
 ```
 
 **Key benefits:**
 
-- **No flicker.** The server renders initial state from the adapter on every
-  request, so the first paint is already correct.
+- **Server-rendered state.** The server renders stored state from the adapter
+  on every request. A bounded pending cookie covers most reloads that race an
+  in-flight write; see its size and identity limitations below.
 - **Instant UI.** Writes are async (`keepalive: true`) — the browser never
   blocks on persistence.
 - **Storage is your call.** Per-browser session is the default; swap any
@@ -82,10 +85,17 @@ only — it is an input to a *render*, never to an adapter write. Unlike the
 the client sometimes overrides the
 server](#why-the-client-sometimes-overrides-the-server).
 
-If your app shows a cookie-consent banner, classify `backpex_prefs` as
-**strictly necessary**: it carries no identifier, is not readable by anyone but
-the same origin, and exists only so the page the user just asked for renders in
-the state they just asked for.
+The encoded cookie has a 3072-byte budget. If several pending writes exceed it,
+Backpex evicts the oldest entries until it fits. If one entry cannot fit, it is
+not written to the cookie. No pending cookie is written when the page lacks a
+usable preference identity fingerprint. Persistence still proceeds in both
+cases, but a document reload inside the POST round trip may initially render the
+previous stored value.
+
+If your app shows a cookie-consent banner, `backpex_prefs` is designed as a
+strictly functional cookie: it carries a keyed fingerprint rather than a raw
+user id and exists only to render the state the user just requested. Confirm the
+classification required by your own jurisdiction and consent policy.
 
 ### Scoping the pending cookie to a user
 
@@ -154,11 +164,22 @@ see `Backpex.Preferences.Keys.valid_value?/2`.
 ## Contracts
 
 Backpex dispatches every preference read and write through a
-`%Backpex.Preferences.Context{}` carrying the current session **and** the
-current `assigns` (controller `conn.assigns` on the write path,
-`socket.assigns` on the LiveView read path). Adapters — and the identity
-resolver they share — are expected to read from `ctx.assigns` first and fall
-back to `ctx.session` only when the assigns view is empty.
+`%Backpex.Preferences.Context{}`, but the available session and assigns depend
+on how that context was built:
+
+| Call path | `ctx.session` | `ctx.assigns` | Client overlay |
+|---|---|---|---|
+| `Backpex.Preferences.LiveView.mount_context(socket, session)` | current mount session | `socket.assigns` | cookie or connect params |
+| `Backpex.Preferences.Context.from_conn(conn)` / `Preferences.put(conn, ...)` | current conn session | `conn.assigns` | none |
+| bare session passed to `get/3` or `get_map/3` | supplied session | `%{}` | none |
+| `Preferences.put(socket, ...)` | `%{}` | `socket.assigns` | none |
+| explicitly constructed `%Context{}` | whatever the caller supplied | whatever the caller supplied | whatever the caller supplied |
+
+Adapters — and the identity resolver they share — should prefer
+`ctx.assigns`, then fall back to `ctx.session` only on call paths that actually
+carry a session. In particular, a server-originated LiveView write must resolve
+identity from `socket.assigns`; `Preferences.put(socket, ...)` does not have the
+mount session.
 
 For that guarantee to hold, the host app must satisfy a handful of
 ordering and content contracts. None of these are enforced at compile time,
@@ -262,7 +283,7 @@ prefix its own keys with `custom.` to avoid colliding with Backpex.
 | Key                                        | Type     | Read at                                  | Written at                            | Opt-in?                 |
 |--------------------------------------------|----------|------------------------------------------|---------------------------------------|-------------------------|
 | `global.theme`                             | string   | `Backpex.InitAssigns`                    | JS theme selector                     | always on               |
-| `global.sidebar_open`                      | boolean  | `Backpex.InitAssigns`                    | JS sidebar toggle                     | always on               |
+| `global.sidebar_open`                      | boolean  | `Backpex.InitAssigns`                    | JS desktop sidebar toggle             | always on               |
 | `global.sidebar_section.<id>`              | boolean  | `Backpex.InitAssigns` (via `get_map/3`)  | JS sidebar section toggle             | always on               |
 | `resource:<Module>:columns`                | map      | Index view mount                         | `toggle_column` event                 | `persist: [:columns]`   |
 | `resource:<Module>:metrics_visible`        | boolean  | Index view mount                         | `toggle_metrics` event                | `persist: [:metrics]`   |
@@ -272,6 +293,14 @@ prefix its own keys with `custom.` to avoid colliding with Backpex.
 Keys with embedded module names use `:` as a separator so module-name dots
 (e.g. `MyApp.MyLive`) don't create extra path segments. See
 `Backpex.Preferences.Key`.
+
+`global.sidebar_open` stores only the desktop (`lg` and wider) state. The mobile
+drawer always starts closed and mobile open/close actions are not persisted.
+
+Sidebar section ids become the final segment of
+`global.sidebar_section.<id>`. Use unique ids matching `[A-Za-z0-9_-]+`.
+Dots and colons alter preference-key parsing, and quotes or backslashes are
+unsafe in the browser hook's attribute selector.
 
 ## Reading preferences in your layout
 
@@ -325,12 +354,13 @@ for the key's prefix.
 | Pluggable per setting (e.g. theme in session, columns in DB)    | Mix both, route by prefix                           |
 
 The Session adapter stores everything in a single Phoenix session key. If
-your session is cookie-backed the whole tree must fit under ~4KB, so avoid
-routing bulky per-resource state there. As a heads-up, the Session adapter
-logs a warning when a single write pushes the stored tree past ~3KB — that
-is your cue to route the heavy prefixes (per-resource column visibility,
-saved filters, etc.) to a database-backed adapter before you hit the hard
-limit.
+your session is cookie-backed, the **entire encoded session cookie** — Backpex
+preferences plus your application's other session data, signing/encryption
+overhead, and cookie attributes — must fit the browser/Plug limit (commonly
+about 4KB). The Session adapter logs a warning when its preference tree alone
+passes 3072 bytes. That is an early signal to route heavy prefixes
+(per-resource column visibility, saved filters, etc.) to a database-backed
+adapter. It is not a guarantee that the next cookie write will fit.
 
 ### Routing by prefix
 
@@ -356,6 +386,13 @@ Patterns:
 With no `:adapters` config, the router falls back to a single `:default` →
 Session route so existing apps need no changes.
 
+Once you configure `:adapters`, that zero-config fallback is disabled. Every
+key must match a configured exact/wildcard route or an explicit `:default`.
+Otherwise `Backpex.Preferences.Router` raises when it first resolves the
+unmatched key. Include
+`{:default, Backpex.Preferences.Adapters.Session, []}` when unspecified keys
+should remain session-backed.
+
 #### Routing a single resource
 
 Patterns are split into segments by the same rule as keys, so a wildcard can
@@ -378,9 +415,10 @@ The narrower route owns every `MyApp.PostLive` key; every other resource still
 goes to the session. Order does not matter — specificity decides.
 
 `"*"` is only valid as the **final** segment. A bare `"*"`, or a pattern like
-`"resource.*.columns"`, can never match a key, so Backpex raises at boot rather
-than letting the keys you meant to route quietly land somewhere else. Use
-`:default` to match every key.
+`"resource.*.columns"`, can never match a key, so Backpex raises when the
+adapter config is first normalized (normally on the first preference route
+resolution) rather than letting the keys you meant to route quietly land
+somewhere else. Use `:default` to match every key.
 
 There is no suffix or predicate matching: adapters own exact keys or prefixes
 of the key space. A subtree read (`get_map/3`) reads every intersecting route
@@ -431,7 +469,10 @@ stashed on `ctx.identity` so each adapter call during that single dispatch
 reuses the same value. Return `:unidentified` (or raise) when no user is
 logged in. Adapter reads are treated as "not found" and the caller falls
 back to the `:default` option; writes return `{:error, :unidentified}` and
-the controller responds `200 {ok: false, errors: [{…, :unidentified}]}`.
+the controller responds with a singular error object:
+`200 {"ok": false, "error": {"key": "...", "reason": "unidentified"}}`
+for a single write. In a batch, `:unidentified` is an ordinary first error and
+returns the same body with status `422`.
 
 ## Writing a custom adapter
 
@@ -443,10 +484,11 @@ Implement `Backpex.Preferences.Adapter`. Three callbacks:
   yourself (the usual case for a DB adapter), or `{:ok, {:put_session, key,
   map}}` to ask the caller to write `map` into the Phoenix session.
 
-The side-effect protocol is what keeps adapters pure. They don't touch
-`Plug.Conn` — they describe what the caller should do. This is what lets
-the controller compose cross-adapter batch writes and lets server-side code
-dispatch the same adapters without an HTTP request.
+The side-effect protocol keeps adapters independent of `Plug.Conn`. A Session
+adapter describes the session effect for the controller to apply; a database
+adapter may perform its own storage write and return `{:ok, :persisted}`. This
+lets the controller compose cross-adapter batch writes and lets server-side
+code dispatch the same adapters without an HTTP request.
 
 `{:put_session, _, _}` is only honorable on a `%Plug.Conn{}` —
 `Plug.Session` is HTTP-only. An adapter that stores in the session must
@@ -456,12 +498,56 @@ write through the browser instead.
 
 Batch writes are **best-effort, first-error-wins**: on the first adapter
 error the dispatcher halts, returns `{:error, {key, reason}}`, and the
-controller responds `422 {ok: false, error: %{key: _, reason: _}}` without
+controller responds `422 {"ok": false, "error": {"key": "...", "reason":
+"..."}}` without
 applying any session-backed side effects collected earlier in the batch.
 Adapters that persist eagerly (e.g. a DB-backed adapter that wrote via
 `Repo.insert!`) may have already committed earlier writes — the adapter
 behaviour has no rollback primitive, so callers should treat partial
 success as possible.
+
+### HTTP endpoint contract
+
+`backpex_routes/0` mounts `POST /backpex_preferences` (under the surrounding
+scope). `BackpexPreferences.set(...)` is the normal client and sends JSON with the
+Phoenix CSRF header. Custom clients may send either supported payload shape:
+
+```json
+{"key": "custom.dashboard.view_mode", "value": "list"}
+```
+
+```json
+{"preferences": [
+  {"key": "global.theme", "value": "dark"},
+  {"key": "global.sidebar_open", "value": false}
+]}
+```
+
+The response contract is:
+
+- `200 {"ok": true}` when all retained entries were accepted.
+- `200 {"ok": false, "error": {"key": "...", "reason": "unidentified"}}`
+  when a single write targets an adapter that cannot identify the user.
+- `422 {"ok": false, "error": {"key": "...", "reason": "..."}}` for the
+  first adapter error in a batch or any other write error.
+- `400 {"ok": false, "error": "missing key/value"}` when the outer payload
+  matches neither supported shape.
+
+The batch parser silently discards members that are not objects containing a
+binary `key` and a `value` field. An empty batch, or a batch where every member
+is discarded, therefore returns `200 {"ok": true}` and performs no writes.
+
+The controller is a transport boundary, not a schema validator. It does **not**
+call `Backpex.Preferences.Key.validate/1` or
+`Backpex.Preferences.Keys.valid_value?/2` before dispatch, so a handcrafted
+request can persist an unknown key or a wrong-typed built-in value if its
+adapter accepts it. The built-in JS API emits valid keys and values; custom HTTP
+clients and custom adapters must validate any constraints they require. The
+separate client-overlay validation protects rendering only and does not make
+the persistence endpoint an authorization or validation boundary. Adapter reads
+are not shape-checked either, so persisting a wrong-typed built-in value can
+later break a built-in render. Validate before dispatch or reject the value in
+the adapter.
 
 ### Respond only once the value is readable
 
@@ -531,8 +617,10 @@ Backpex itself uses exactly this pattern for its dispatcher tests — see
 ## Ecto adapter recipes
 
 Backpex ships the adapter behavior but not an Ecto adapter, because the
-right table shape depends on how your app already organizes user data. Below
-are two complete recipes — pick whichever matches your schema.
+right table shape depends on how your app already organizes user data. The
+generic key/value implementation below is complete; the following
+prefix-to-column section is a design variant for adapting it to an existing
+settings table.
 
 ### Recipe A — generic key/value table
 
@@ -661,7 +749,7 @@ config :backpex, Backpex.Preferences,
   ]
 ```
 
-### Recipe B — prefix → column mapping
+### Design variant B — prefix → column mapping
 
 Use when you already have a user settings table (one row per user) with
 typed JSON columns. Lets each Backpex prefix write into a named column
@@ -740,19 +828,31 @@ ships.
 
 ```elixir
 def mount(_params, session, socket) do
-  view_mode = Backpex.Preferences.get(session, "custom.dashboard.view_mode", default: "grid")
-  panel_states = Backpex.Preferences.get_map(session, "custom.dashboard.panels")
+  ctx = Backpex.Preferences.LiveView.mount_context(socket, session)
+
+  view_mode = Backpex.Preferences.get(ctx, "custom.dashboard.view_mode", default: "grid")
+  panel_states = Backpex.Preferences.get_map(ctx, "custom.dashboard.panels")
 
   {:ok, assign(socket, view_mode: view_mode, panel_states: panel_states)}
 end
 ```
+
+Use `mount_context/2` during `mount/3`, after your authentication on-mount
+hook. It preserves `socket.assigns` for identity resolution and includes the
+validated pending-cookie/connect-param overlay. Passing the bare `session`
+map is supported, but it has no assigns and cannot see pending or per-tab
+mirrored values.
 
 ### Writing from the browser
 
 ```javascript
 import { BackpexPreferences } from 'backpex'
 
-BackpexPreferences.set('custom.dashboard.view_mode', 'list')
+BackpexPreferences.set(
+  'custom.dashboard.view_mode',
+  'list',
+  { mirror: 'session' }
+)
 ```
 
 ### Writing from the server
@@ -763,7 +863,13 @@ From a LiveView `handle_event`, use `Backpex.Preferences.put/4`:
 def handle_event("toggle_view_mode", _params, socket) do
   new_mode = if socket.assigns.view_mode == "grid", do: "list", else: "grid"
 
-  {:ok, socket} = Backpex.Preferences.put(socket, "custom.dashboard.view_mode", new_mode)
+  {:ok, socket} =
+    Backpex.Preferences.put(
+      socket,
+      "custom.dashboard.view_mode",
+      new_mode,
+      mirror: :session
+    )
 
   {:noreply, assign(socket, :view_mode, new_mode)}
 end
@@ -773,7 +879,24 @@ Under the hood `put/4` tries the configured adapter first. When the
 adapter is session-backed (no HTTP request in a LiveView event), it falls
 back to a `push_event/3` round-trip so the browser persists via the
 preferences controller on its next paint. DB-backed adapters just write
-directly and return.
+directly and return. `mirror: :session` matters on the Session fallback because
+this preference is read at mount and must survive a same-socket live
+navigation; it is ignored when the configured adapter persists server-side.
+
+### Namespace and subtree limitations
+
+Browser overlays accept only the top-level prefixes recognized by
+`Backpex.Preferences.Key.validate/1`: `global`, `resource`, and `custom`. There
+is no API for registering another top-level prefix. Put application-owned keys
+under `custom.*` if they must participate in the pending cookie or LiveView
+connect-param overlay.
+
+`get_map/3` overlays client values by looking for dot-form descendants of
+`prefix` (`prefix <> "."`). Use dot-separated `custom.*` keys for application
+subtrees such as `custom.dashboard.panels.left`. A colon-form subtree such as
+`resource:MyApp.PostLive:*` can still be read from adapters, but pending client
+entries are not reconstructed into `get_map/3`; read those keys individually
+with `get/3` when client-overlay precedence is required.
 
 ## Gotchas
 
@@ -805,9 +928,11 @@ the default-filter redirect whenever the result is not `nil`. Apply the same
 pattern in any custom persistence logic you build on top of
 `Backpex.Preferences`.
 
-If `nil` is itself a value your preference can legitimately hold, pass a
-sentinel instead — `Backpex.Preferences.get(session, key, default: :__unset__)`
-— and match on that.
+The default Session adapter reserves `nil` for “not found”: storing `nil` and
+then reading it is indistinguishable from a missing key, even if you pass a
+sentinel default. Store a tagged value such as `%{"value" => nil}` instead. A
+custom adapter may preserve `nil` by returning `{:ok, nil}`; only with such an
+adapter can `default: :__unset__` distinguish missing from stored `nil`.
 
 ## Testing Backpex LiveResources
 
@@ -868,12 +993,13 @@ end
 **The precedence rule, stated once: the client overrides the server exactly
 when it holds a write the server has not acknowledged.** A write is
 acknowledged once its POST to the preferences endpoint has come back with an
-HTTP response — any response. `200 {ok: true}`, the `200 {ok: false, error:
-{reason: "unidentified"}}` an anonymous visitor gets, and a `422` all count: the
-server has seen the write and decided on it, so replaying it is pointless and
-keeping a client overlay would pin the value forever. Until then, the browser is
-the only party that knows what the user picked, and it has to carry that
-knowledge to the server itself.
+HTTP response — any response. `200 {"ok": true}`, the single-write
+`200 {"ok": false, "error": {"key": "...", "reason": "unidentified"}}`
+an anonymous visitor gets, and a `422` all count: the server has seen the write
+and decided on it, so replaying it is pointless and keeping a client overlay
+would pin the value forever. Until then, the browser is the only party that
+knows what the user picked, and it has to carry that knowledge to the server
+itself.
 
 It does so over **two carriers**, because a page is rendered over two different
 transports and each transport can only see one of them:
@@ -924,9 +1050,11 @@ contradict the paint the user is looking at.
 ### When to use `mirror: 'session'`
 
 `mirror` governs the **long-lived per-tab mirror** only. The short-lived pending
-cookie is written for every key regardless, so the choice below is not about the
-first paint after a reload — that is always correct — but about whether the
-value must survive a `live_redirect`.
+cookie is attempted for every key regardless, so the mirror choice is primarily
+about whether the value must survive a `live_redirect`. The pending cookie is a
+best-effort fast-reload carrier: it is capped at 3072 encoded bytes, evicts old
+entries, skips a single oversized entry, and is disabled without an identity
+fingerprint.
 
 Use it when **all** of the following are true:
 
@@ -944,8 +1072,9 @@ Use it when **all** of the following are true:
 Skip the mirror (just call `BackpexPreferences.set(key, value)`) when:
 
 - The value round-trips through something the server sees on every render
-  anyway. Backpex's filters and order are the example: they live in the URL, and
-  pinning them in the mirror would fight live navigation.
+  anyway and is not also used as a persisted mount fallback. Transient filters
+  and order with the default `persist: []` live entirely in the URL and do not
+  need preference writes at all.
 - The server is always authoritative on every render — e.g. a DB-backed
   preference read fresh from Ecto in `mount/3`. There's no frozen snapshot
   to override.
@@ -954,8 +1083,15 @@ Skip the mirror (just call `BackpexPreferences.set(key, value)`) when:
   (`backpex_prefs` *is* shared across tabs, but it only ever holds a write for
   as long as its POST is in flight, so it cannot pin a divergence.)
 
-An unmirrored key still gets a correct first paint after a fast reload. What it
-gives up is the `live_redirect` guarantee.
+When `persist: [:filters]` or `persist: [:order]` is enabled, Backpex does use
+`mirror: :session` for the preference write. The URL remains authoritative when
+it contains the relevant params, while the mirrored preference supplies the
+mount fallback when it does not. Custom code should follow the same rule when a
+URL-backed value is also persisted as a future default.
+
+An unmirrored key still attempts to use the pending cookie for a fast reload.
+What it always gives up is the `live_redirect` guarantee; if the pending cookie
+cannot carry the entry, the first paint of a racing reload may also be stale.
 
 ### Server-originated writes: `Preferences.put/4`
 
@@ -1056,9 +1192,13 @@ Two API notes for hook authors:
 
 ## Troubleshooting
 
-**"My preferences vanish after a few writes."** The default cookie-backed
-session has a hard ~4KB limit; once the tree overflows, the session silently
-truncates. Route bulky prefixes (columns, filters) onto a database adapter.
+**"My preferences vanish after a few writes."** A cookie-backed session has a
+hard size limit (commonly about 4KB for the complete encoded session, not just
+Backpex's tree). Plug does not silently truncate an oversized session; the
+response write may fail with `Plug.Conn.CookieOverflowError`. The
+Session adapter warns once its own tree passes 3072 bytes, but other session
+data and encoding overhead can make failure happen earlier. Route bulky
+prefixes (columns, filters) onto a database adapter.
 
 **"Changes aren't saving for some users."** The configured adapter likely
 returned `{:error, :unidentified}` — your identity resolver couldn't find a

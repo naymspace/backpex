@@ -71,9 +71,13 @@ defmodule Backpex.Preferences do
   user never set this" from "the user deliberately stored an empty value".
   An explicitly cleared `%{}` or `[]` is a real preference and must not be
   overwritten by an application default; this is how `persist: [:filters]`
-  decides whether to apply a resource's filter defaults. Pass a sentinel
-  (`default: :__unset__`) when `nil` is itself a value the preference can
-  hold.
+  decides whether to apply a resource's filter defaults.
+
+  The default Session adapter reserves `nil` for “not found”, so it cannot
+  distinguish a stored `nil` from a missing key. Store a tagged value such as
+  `%{"value" => nil}` when that distinction matters. A custom adapter that
+  returns `{:ok, nil}` may preserve `nil`; with such an adapter, a sentinel
+  default (for example `default: :__unset__`) distinguishes the missing case.
 
   ## Examples
 
@@ -128,6 +132,12 @@ defmodule Backpex.Preferences do
 
   Returns `%{}` when nothing is stored, the adapter cannot identify the user,
   or the adapter fails for any other reason.
+
+  Client-overlay descendants are reconstructed only for dot-form keys by
+  matching `prefix <> "."`. Adapter-backed colon-form subtrees remain readable,
+  but pending client values for keys such as `resource:MyApp.PostLive:columns`
+  are not merged into a `get_map/3` result. Use `get/3` for colon-form keys when
+  client-overlay precedence is required.
 
   ## Examples
 
@@ -297,6 +307,11 @@ defmodule Backpex.Preferences do
   (default behavior of the Session adapter outside a controller), falls back
   to `push_event/3` so the browser can retry via the preferences controller
   on its next paint.
+
+  A socket target supplies `socket.assigns` but no mount session to the
+  adapter/identity context (`ctx.session` is `%{}`). Identity resolution for
+  server-originated LiveView writes must therefore work from assigns. A conn
+  target supplies both `conn.assigns` and the current session.
 
   Returns one of:
 

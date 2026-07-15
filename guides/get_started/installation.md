@@ -12,7 +12,7 @@ Backpex is built on top of Phoenix LiveView, so you need to have Phoenix LiveVie
 
 > #### Info {: .info}
 >
-> We have created an initial version of the [Backpex installer task](Mix.Tasks.Backpex.Install.html), which runs with the help of the [Igniter](https://github.com/ash-project/igniter) framework. This installer automates the upcoming steps up to the "[Create an example resource](installation.html#create-an-example-resource)" step. Feedback is welcome!
+> We have created an initial version of the [Backpex installer task](Mix.Tasks.Backpex.Install.html), which runs with the help of the [Igniter](https://github.com/ash-project/igniter) framework. It automates many of the upcoming edits, including importing and registering the Backpex hooks. It does **not** rewrite your `LiveSocket` params; it prints a notice with the `backpexParams` edit you must apply manually. Review the generated diff and complete any remaining steps in this guide. Feedback is welcome!
 
 ### Tailwind CSS
 
@@ -64,7 +64,7 @@ plus a `params` helper for your `LiveSocket`.
 ```javascript
 import { Hooks as BackpexHooks, backpexParams } from 'backpex';
 
-const Hooks = [] // your application hooks (optional)
+const Hooks = {} // your application hooks (optional)
 
 const liveSocket = new LiveSocket('/live', Socket, {
   params: backpexParams({ _csrf_token: csrfToken }),
@@ -84,6 +84,27 @@ needs no wiring — and `backpexParams` remains required because it is the only
 carrier that exists on a `live_redirect`, which makes no HTTP request at all.
 See [User Preferences](../live_resource/user-preferences.md) for the full
 rationale.
+
+The helper accepts a params **object**, not an existing params function. If
+your application already computes connect params dynamically, compose the
+preference params in your own function instead:
+
+```javascript
+import { BackpexPreferences, Hooks as BackpexHooks } from 'backpex'
+
+const appParams = () => ({
+  _csrf_token: csrfToken,
+  locale: document.documentElement.lang
+})
+
+const liveSocket = new LiveSocket('/live', Socket, {
+  params: () => ({
+    ...appParams(),
+    ...BackpexPreferences.connectParams()
+  }),
+  hooks: { ...BackpexHooks }
+})
+```
 
 ## daisyUI
 
@@ -189,7 +210,7 @@ To get you started quickly, we provide a layout component you can copy & paste i
 
 These assigns (`@current_theme`, `@sidebar_open`, `@sidebar_section_states`, `@preferences_identity`) are populated by `Backpex.InitAssigns` — see [Add resource routes](#add-resource-routes) below for setup.
 
-`@preferences_identity` is an opaque fingerprint of the user the preferences belong to. Backpex renders it into the page so the browser can tell whose unacknowledged preference writes it is holding — and drop them when the user changes. Pass it through; omitting it costs you a correct first paint after a fast toggle-and-reload (see [Why the client sometimes overrides the server](live_resource/user-preferences.md#why-the-client-sometimes-overrides-the-server)).
+`@preferences_identity` is an opaque fingerprint of the user the preferences belong to. Backpex renders it into the page so the browser can tell whose unacknowledged preference writes it is holding — and drop them when the user changes. Pass it through; without it Backpex disables the pending-cookie fast path, so a toggle-and-reload inside the write's round trip may initially render the previous stored value (see [Why the client sometimes overrides the server](../live_resource/user-preferences.md#why-the-client-sometimes-overrides-the-server)).
 
 In addition we recommend to add a bodyless function definition and to configure declarative assigns for your layout component.
 
@@ -202,6 +223,7 @@ defmodule MyAppWeb.Layouts do
   attr :flash, :map, required: true, doc: "the map of flash messages"
   attr :fluid?, :boolean, default: true, doc: "if the content uses full width"
   attr :current_url, :string, required: true, doc: "the current url"
+  attr :current_theme, :string, default: nil, doc: "the currently selected theme"
   attr :sidebar_open, :boolean, default: true, doc: "initial sidebar open state"
   attr :sidebar_section_states, :map, default: %{}, doc: "map of sidebar section open states"
   attr :preferences_identity, :string, default: nil, doc: "fingerprint of the current preference identity"
@@ -645,4 +667,9 @@ You can add a theme selector to your layout component to allow users to change t
 </Backpex.HTML.Layout.app_shell>
 ```
 
-Theme changes are automatically persisted to the session cookie, so users will see their selected theme on subsequent page loads without any flickering.
+Theme changes are automatically persisted through the adapter configured for
+`global.theme` (the Phoenix session in a zero-config installation). Subsequent
+page loads are server-rendered from that stored value. A bounded pending cookie
+covers most reloads that race the write; without an identity fingerprint or
+when the pending entry exceeds its cookie budget, the initial paint may briefly
+show the previous stored theme.
