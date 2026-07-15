@@ -274,21 +274,16 @@ defmodule Backpex.Preferences do
     client
     |> Enum.filter(fn {key, _value} -> String.starts_with?(key, scope) end)
     |> Enum.reduce(%{}, fn {key, value}, acc ->
-      key
-      |> String.replace_prefix(scope, "")
-      |> String.split(".")
-      |> put_nested(acc, value)
+      path =
+        key
+        |> String.replace_prefix(scope, "")
+        |> String.split(".")
+
+      put_nested_value(acc, path, value)
     end)
   end
 
   defp client_map(_ctx_or_session, _prefix), do: %{}
-
-  defp put_nested([segment], acc, value), do: Map.put(acc, segment, value)
-
-  defp put_nested([segment | rest], acc, value) do
-    nested = if is_map(Map.get(acc, segment)), do: Map.get(acc, segment), else: %{}
-    Map.put(acc, segment, put_nested(rest, nested, value))
-  end
 
   @doc """
   Persists a preference from within a LiveView socket or Plug controller.
@@ -437,20 +432,7 @@ defmodule Backpex.Preferences do
     # order while staying O(n) in batch size.
     result =
       Enum.reduce_while(entries, {[], ctx}, fn {key, value}, {reversed_acc, current_ctx} ->
-        {module, adapter_opts} = Router.resolve(key)
-
-        result =
-          try do
-            module.put(current_ctx, key, value, merge_opts(adapter_opts, opts))
-          rescue
-            reason ->
-              Logger.warning(
-                "Backpex.Preferences: adapter #{inspect(module)} raised in put/4 for key " <>
-                  "#{inspect(key)}: #{Exception.format(:error, reason, __STACKTRACE__)}"
-              )
-
-              {:error, {:exception, reason}}
-          end
+        {_module, result} = dispatch_put(current_ctx, key, value, opts)
 
         case result do
           {:ok, :persisted} ->
