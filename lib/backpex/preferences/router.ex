@@ -211,26 +211,24 @@ defmodule Backpex.Preferences.Router do
   # Distinguishes a module alias (e.g. `MyApp.Foo` → `:"Elixir.MyApp.Foo"`)
   # from a plain atom (e.g. `:not_a_module`) so misconfigured routes fail at
   # config time with a clear message instead of crashing downstream.
+  defp validate_module!(nil, entry) do
+    raise ArgumentError,
+          "expected adapter module for route #{inspect(entry)}, got: nil"
+  end
+
   defp validate_module!(module, entry) when is_atom(module) do
-    cond do
-      is_nil(module) ->
-        raise ArgumentError,
-              "expected adapter module for route #{inspect(entry)}, got: nil"
-
-      module_alias?(module) ->
-        :ok
-
-      true ->
-        raise ArgumentError,
-              "expected adapter module for route #{inspect(entry)}, got: " <> inspect(module)
+    if module_alias?(module) do
+      :ok
+    else
+      raise ArgumentError,
+            "expected adapter module for route #{inspect(entry)}, got: " <> inspect(module)
     end
   end
 
   defp module_alias?(atom) when is_atom(atom) do
-    case Atom.to_string(atom) do
-      "Elixir." <> _rest -> true
-      _other -> false
-    end
+    atom
+    |> Atom.to_string()
+    |> String.starts_with?("Elixir.")
   end
 
   defp validate_pattern!(:default, _entry), do: :ok
@@ -302,8 +300,7 @@ defmodule Backpex.Preferences.Router do
   defp descendant_of?(route_segments, prefix_segments), do: prefix_of?(prefix_segments, route_segments)
 
   defp prefix_of?(prefix_segments, segments) do
-    length(segments) >= length(prefix_segments) and
-      Enum.take(segments, length(prefix_segments)) == prefix_segments
+    List.starts_with?(segments, prefix_segments)
   end
 
   # Ranks a route so `Enum.max_by/2` picks the most specific match. Tiers

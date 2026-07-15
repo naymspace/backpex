@@ -145,12 +145,11 @@ defmodule Backpex.Preferences.Key do
       nil
   """
   def wildcard_prefix(pattern) when is_binary(pattern) do
-    case parse(pattern) do
-      segments when length(segments) > 1 ->
-        if List.last(segments) == "*", do: Enum.drop(segments, -1)
+    segments = parse(pattern)
 
-      _single_segment ->
-        nil
+    case List.pop_at(segments, -1) do
+      {"*", [_first | _rest] = prefix_segments} -> prefix_segments
+      _other -> nil
     end
   end
 
@@ -194,8 +193,7 @@ defmodule Backpex.Preferences.Key do
   end
 
   defp match_prefix?(prefix_segments, key_segments) do
-    length(key_segments) >= length(prefix_segments) and
-      Enum.take(key_segments, length(prefix_segments)) == prefix_segments
+    List.starts_with?(key_segments, prefix_segments)
   end
 
   @builtin_prefixes ["global", "resource", "custom"]
@@ -240,7 +238,6 @@ defmodule Backpex.Preferences.Key do
 
   def validate(key) when is_binary(key) do
     case parse(key) do
-      [""] -> {:error, :empty}
       ["" | _rest] -> {:error, :malformed}
       [first | _rest] -> check_prefix(first)
       [] -> {:error, :empty}
