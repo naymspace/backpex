@@ -371,7 +371,7 @@ defmodule Backpex.LiveResource.Index do
   # falls back to the browser round-trip. Preferences are best effort, so an
   # adapter that refuses the write leaves the socket — and the interaction that
   # triggered it — untouched.
-  defp put_preference(socket, key, value, opts \\ []) do
+  defp put_preference(socket, key, value, opts) do
     case Preferences.put(socket, key, value, opts) do
       {:ok, socket} -> socket
       {:error, _reason} -> socket
@@ -418,7 +418,7 @@ defmodule Backpex.LiveResource.Index do
       persisted = socket.assigns.backpex_persisted_index_state
 
       socket
-      |> put_preference(PreferenceKeys.filters(live_resource), filters)
+      |> put_preference(PreferenceKeys.filters(live_resource), filters, mirror: :session)
       |> assign(:backpex_persisted_index_state, %{persisted | filters: filters})
     else
       socket
@@ -615,7 +615,7 @@ defmodule Backpex.LiveResource.Index do
         socket
       else
         socket
-        |> put_preference(PreferenceKeys.order(live_resource), value)
+        |> put_preference(PreferenceKeys.order(live_resource), value, mirror: :session)
         |> assign(:backpex_persisted_index_state, %{persisted | order: value})
       end
     else

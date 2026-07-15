@@ -49,6 +49,7 @@ defmodule DemoWeb.Live.PreferencesPersistenceTest do
 
       assert_push_event(view, @event_name, %{
         key: ^expected_key,
+        mirror: "session",
         value: %{"by" => "title", "direction" => "asc"}
       })
     end
@@ -77,6 +78,7 @@ defmodule DemoWeb.Live.PreferencesPersistenceTest do
       # two-value set and carries the filters key.
       assert_push_event(view, @event_name, %{
         key: ^expected_key,
+        mirror: "session",
         value: %{"published" => ["published", "not_published"]}
       })
     end
@@ -102,7 +104,7 @@ defmodule DemoWeb.Live.PreferencesPersistenceTest do
 
       expected_key = PrefKeys.filters(@resource_mod)
 
-      assert_push_event(view, @event_name, %{key: ^expected_key, value: value})
+      assert_push_event(view, @event_name, %{key: ^expected_key, mirror: "session", value: value})
       assert value == %{}
     end
 
