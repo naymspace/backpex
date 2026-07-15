@@ -45,7 +45,6 @@ defmodule Backpex.Preferences.Keys do
       iex> Backpex.Preferences.Keys.theme()
       "global.theme"
   """
-  @spec theme() :: String.t()
   def theme, do: "global.theme"
 
   @doc """
@@ -56,7 +55,6 @@ defmodule Backpex.Preferences.Keys do
       iex> Backpex.Preferences.Keys.sidebar_open()
       "global.sidebar_open"
   """
-  @spec sidebar_open() :: String.t()
   def sidebar_open, do: "global.sidebar_open"
 
   @doc """
@@ -71,7 +69,6 @@ defmodule Backpex.Preferences.Keys do
       iex> Backpex.Preferences.Keys.sidebar_section_prefix()
       "global.sidebar_section"
   """
-  @spec sidebar_section_prefix() :: String.t()
   def sidebar_section_prefix, do: "global.sidebar_section"
 
   @doc """
@@ -82,7 +79,6 @@ defmodule Backpex.Preferences.Keys do
       iex> Backpex.Preferences.Keys.columns(Backpex.Preferences)
       "resource:Backpex.Preferences:columns"
   """
-  @spec columns(module()) :: String.t()
   def columns(live_resource) when is_atom(live_resource) do
     Key.resource_key(live_resource, "columns")
   end
@@ -95,7 +91,6 @@ defmodule Backpex.Preferences.Keys do
       iex> Backpex.Preferences.Keys.order(Backpex.Preferences)
       "resource:Backpex.Preferences:order"
   """
-  @spec order(module()) :: String.t()
   def order(live_resource) when is_atom(live_resource) do
     Key.resource_key(live_resource, "order")
   end
@@ -108,7 +103,6 @@ defmodule Backpex.Preferences.Keys do
       iex> Backpex.Preferences.Keys.filters(Backpex.Preferences)
       "resource:Backpex.Preferences:filters"
   """
-  @spec filters(module()) :: String.t()
   def filters(live_resource) when is_atom(live_resource) do
     Key.resource_key(live_resource, "filters")
   end
@@ -121,7 +115,6 @@ defmodule Backpex.Preferences.Keys do
       iex> Backpex.Preferences.Keys.metrics_visible(Backpex.Preferences)
       "resource:Backpex.Preferences:metrics_visible"
   """
-  @spec metrics_visible(module()) :: String.t()
   def metrics_visible(live_resource) when is_atom(live_resource) do
     Key.resource_key(live_resource, "metrics_visible")
   end
@@ -155,7 +148,6 @@ defmodule Backpex.Preferences.Keys do
       iex> Backpex.Preferences.Keys.valid_value?("custom.acme.anything", %{"a" => 1})
       true
   """
-  @spec valid_value?(String.t(), term()) :: boolean()
   def valid_value?(key, value) when is_binary(key) do
     key |> Key.parse() |> shape(value)
   end

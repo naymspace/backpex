@@ -29,7 +29,6 @@ defmodule DemoWeb.PersistingPreferencesAdapter do
   @table :demo_test_persisting_prefs
 
   @doc "Starts the backing ETS table. Safe to call multiple times."
-  @spec start() :: :ok
   def start do
     case :ets.whereis(@table) do
       :undefined -> :ets.new(@table, [:named_table, :public, :set])
@@ -40,7 +39,6 @@ defmodule DemoWeb.PersistingPreferencesAdapter do
   end
 
   @doc "Clears the backing ETS table."
-  @spec reset() :: :ok
   def reset do
     start()
     :ets.delete_all_objects(@table)
@@ -48,7 +46,6 @@ defmodule DemoWeb.PersistingPreferencesAdapter do
   end
 
   @doc "Returns every stored entry as a flat `key => value` map."
-  @spec dump() :: map()
   def dump do
     start()
     @table |> :ets.tab2list() |> Map.new()

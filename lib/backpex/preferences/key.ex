@@ -80,7 +80,6 @@ defmodule Backpex.Preferences.Key do
       iex> Backpex.Preferences.Key.parse("global")
       ["global"]
   """
-  @spec parse(String.t()) :: [String.t()]
   def parse(key) when is_binary(key) do
     if String.contains?(key, ":") do
       String.split(key, ":")
@@ -103,7 +102,6 @@ defmodule Backpex.Preferences.Key do
       iex> Backpex.Preferences.Key.resource_key(Backpex.Preferences, "columns")
       "resource:Backpex.Preferences:columns"
   """
-  @spec encode_module(module()) :: String.t()
   def encode_module(module) when is_atom(module) do
     inspect(module)
   end
@@ -116,7 +114,6 @@ defmodule Backpex.Preferences.Key do
       iex> Backpex.Preferences.Key.resource_key(Backpex.Preferences, "metrics_visible")
       "resource:Backpex.Preferences:metrics_visible"
   """
-  @spec resource_key(module(), String.t()) :: String.t()
   def resource_key(module, suffix) when is_atom(module) and is_binary(suffix) do
     "resource:" <> encode_module(module) <> ":" <> suffix
   end
@@ -147,7 +144,6 @@ defmodule Backpex.Preferences.Key do
       iex> Backpex.Preferences.Key.wildcard_prefix("*")
       nil
   """
-  @spec wildcard_prefix(String.t()) :: [String.t()] | nil
   def wildcard_prefix(pattern) when is_binary(pattern) do
     case parse(pattern) do
       segments when length(segments) > 1 ->
@@ -190,7 +186,6 @@ defmodule Backpex.Preferences.Key do
       iex> Backpex.Preferences.Key.match?("global.theme", "global.theme")
       true
   """
-  @spec match?(String.t(), String.t()) :: boolean()
   def match?(pattern, key) when is_binary(pattern) and is_binary(key) do
     case wildcard_prefix(pattern) do
       nil -> pattern == key
@@ -241,7 +236,6 @@ defmodule Backpex.Preferences.Key do
       iex> Backpex.Preferences.Key.validate("")
       {:error, :empty}
   """
-  @spec validate(String.t()) :: :ok | {:error, :unknown_prefix | :empty | :malformed}
   def validate(""), do: {:error, :empty}
 
   def validate(key) when is_binary(key) do

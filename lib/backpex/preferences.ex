@@ -85,7 +85,6 @@ defmodule Backpex.Preferences do
       iex> Backpex.Preferences.get(%{}, "global.theme", default: "light")
       "light"
   """
-  @spec get(Context.t() | map(), String.t(), keyword()) :: term()
   def get(ctx_or_session, key, opts \\ []) do
     default = Keyword.get(opts, :default)
 
@@ -144,7 +143,6 @@ defmodule Backpex.Preferences do
       iex> Backpex.Preferences.get_map(%{}, "global.sidebar_section")
       %{}
   """
-  @spec get_map(Context.t() | map(), String.t(), keyword()) :: map()
   def get_map(ctx_or_session, prefix, opts \\ []) do
     ctx = resolve_identity(Context.coerce(ctx_or_session))
     prefix_segments = Key.parse(prefix)
@@ -337,8 +335,6 @@ defmodule Backpex.Preferences do
       Backpex.Preferences.put(socket, "global.theme", "dark")
       #=> {:ok, %Phoenix.LiveView.Socket{}}
   """
-  @spec put(Plug.Conn.t() | Socket.t(), String.t(), term(), keyword()) ::
-          {:ok, Plug.Conn.t() | Socket.t()} | {:error, term()}
   def put(target, key, value, opts \\ [])
 
   def put(%Plug.Conn{} = conn, key, value, opts) do
@@ -434,8 +430,6 @@ defmodule Backpex.Preferences do
       ])
       #=> {:ok, [{:put_session, "backpex_preferences", %{...}}]}
   """
-  @spec put_batch(Context.t(), [{String.t(), term()}], keyword()) ::
-          {:ok, [Adapter.side_effect()]} | {:error, {String.t(), term()}}
   def put_batch(%Context{} = ctx, entries, opts \\ []) when is_list(entries) do
     ctx = resolve_identity(ctx)
 
@@ -489,7 +483,6 @@ defmodule Backpex.Preferences do
 
   Exposed for the preferences controller; not intended for general callers.
   """
-  @spec apply_effects_on_conn(Plug.Conn.t(), [Adapter.side_effect()]) :: Plug.Conn.t()
   def apply_effects_on_conn(%Plug.Conn{} = conn, effects) when is_list(effects) do
     Enum.reduce(effects, conn, fn {:put_session, k, v}, c -> Plug.Conn.put_session(c, k, v) end)
   end
@@ -507,7 +500,6 @@ defmodule Backpex.Preferences do
 
   Convenience passthrough to `Backpex.Preferences.Adapters.Session.session_key/0`.
   """
-  @spec session_key() :: String.t()
   def session_key, do: Adapters.Session.session_key()
 
   defp dispatch_get(ctx_or_session, key, opts) do

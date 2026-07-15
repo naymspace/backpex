@@ -23,7 +23,6 @@ defmodule Backpex.Test.InMemoryPreferencesAdapter do
   @table :backpex_test_in_memory_prefs
 
   @doc "Starts the backing ETS table. Safe to call multiple times."
-  @spec start() :: :ok
   def start do
     case :ets.whereis(@table) do
       :undefined -> :ets.new(@table, [:named_table, :public, :set])
@@ -34,7 +33,6 @@ defmodule Backpex.Test.InMemoryPreferencesAdapter do
   end
 
   @doc "Clears the backing ETS table."
-  @spec reset() :: :ok
   def reset do
     start()
     :ets.delete_all_objects(@table)
@@ -42,7 +40,6 @@ defmodule Backpex.Test.InMemoryPreferencesAdapter do
   end
 
   @doc "Returns the full map of stored entries for an identity."
-  @spec dump(any()) :: map()
   def dump(identity \\ :anonymous) do
     start()
     :ets.match_object(@table, {{identity, :_}, :_}) |> Map.new(fn {{_id, k}, v} -> {k, v} end)

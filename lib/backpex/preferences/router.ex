@@ -61,7 +61,6 @@ defmodule Backpex.Preferences.Router do
   Loads the configured routes, falling back to a Session-adapter default when
   no config is set.
   """
-  @spec routes() :: [route()]
   def routes do
     configured =
       :backpex
@@ -99,8 +98,6 @@ defmodule Backpex.Preferences.Router do
       iex> Backpex.Preferences.Router.resolve("resource:MyApp.UserLive:columns", routes)
       {MyApp.EctoAdapter, [repo: MyApp.Repo]}
   """
-  @spec resolve(String.t()) :: {module(), keyword()}
-  @spec resolve(String.t(), [route()]) :: {module(), keyword()}
   def resolve(key, routes \\ routes()) when is_binary(key) do
     normalized = normalize(routes)
 
@@ -142,8 +139,6 @@ defmodule Backpex.Preferences.Router do
         {"global.sidebar_section.blog", MyApp.DatabaseAdapter, []}
       ]
   """
-  @spec resolve_subtree(String.t()) :: [route()]
-  @spec resolve_subtree(String.t(), [route()]) :: [route()]
   def resolve_subtree(prefix, routes \\ routes()) when is_binary(prefix) do
     normalized = normalize(routes)
     prefix_segments = Key.parse(prefix)
@@ -177,7 +172,6 @@ defmodule Backpex.Preferences.Router do
   end
 
   @doc false
-  @spec default_routes() :: [route()]
   def default_routes do
     [{:default, Backpex.Preferences.Adapters.Session, []}]
   end
@@ -190,7 +184,6 @@ defmodule Backpex.Preferences.Router do
   bad adapter module, an unusable pattern, or a wildcard that could never
   match a key.
   """
-  @spec normalize([term()]) :: [route()]
   def normalize(routes) when is_list(routes) do
     Enum.map(routes, &validate_route/1)
   end

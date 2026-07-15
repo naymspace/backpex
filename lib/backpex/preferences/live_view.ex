@@ -48,7 +48,6 @@ defmodule Backpex.Preferences.LiveView do
 
   Exposed for tests that need to assert on the emitted event shape.
   """
-  @spec event_name() :: String.t()
   def event_name, do: "backpex:set_preference"
 
   @doc """
@@ -57,7 +56,6 @@ defmodule Backpex.Preferences.LiveView do
   A browser contract — keep it aligned with `COOKIE_NAME` in
   `assets/js/hooks/_preferences.js`.
   """
-  @spec client_cookie() :: String.t()
   def client_cookie, do: @client_cookie
 
   @doc """
@@ -116,7 +114,6 @@ defmodule Backpex.Preferences.LiveView do
   write. See `Backpex.HTML.Layout.app_shell/1`, which renders the value into
   `data-preferences-identity` for the JS hook.
   """
-  @spec identity_fingerprint(Context.t(), module() | nil) :: String.t() | nil
   def identity_fingerprint(%Context{} = ctx, endpoint) do
     with {:ok, secret} <- endpoint_secret(endpoint),
          {:ok, session_scope} <- session_scope(ctx.session) do
@@ -209,7 +206,6 @@ defmodule Backpex.Preferences.LiveView do
   Only valid for calls during `mount/3` (including `on_mount` hooks), where
   `Phoenix.LiveView.get_connect_params/1` is available.
   """
-  @spec mount_context(Socket.t(), map()) :: Context.t()
   def mount_context(%Socket{} = socket, session) when is_map(session) do
     # Resolve the identity once, here: the disconnected branch needs it to
     # fingerprint the cookie, and stashing it on the Context also spares every
@@ -319,7 +315,6 @@ defmodule Backpex.Preferences.LiveView do
       socket
       |> Backpex.Preferences.LiveView.push_write(Backpex.Preferences.Keys.theme(), "dark")
   """
-  @spec push_write(Socket.t(), String.t(), term(), keyword()) :: Socket.t()
   def push_write(%Socket{} = socket, key, value, opts \\ []) when is_binary(key) do
     payload =
       case Keyword.get(opts, :mirror) do

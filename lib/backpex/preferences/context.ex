@@ -48,7 +48,6 @@ defmodule Backpex.Preferences.Context do
 
   `assigns` defaults to `%{}` for callers that only have a session on hand.
   """
-  @spec from_mount(map(), map()) :: t()
   def from_mount(session, assigns \\ %{}) when is_map(session) and is_map(assigns) do
     %Context{source: :mount, session: session, assigns: assigns}
   end
@@ -98,7 +97,6 @@ defmodule Backpex.Preferences.Context do
       iex> ctx.client
       %{"global.sidebar_open" => false}
   """
-  @spec put_client(t(), map()) :: t()
   def put_client(%Context{} = ctx, client) when is_map(client) do
     %{ctx | client: Map.filter(client, fn {key, value} -> valid_client_entry?(key, value) end)}
   end
@@ -118,7 +116,6 @@ defmodule Backpex.Preferences.Context do
   itself — adapters receive the extracted values and never see the `conn`
   directly, which keeps adapter code free of a `Plug.Conn` dependency.
   """
-  @spec from_conn(Plug.Conn.t()) :: t()
   def from_conn(%Plug.Conn{} = conn) do
     %Context{
       source: :controller,
@@ -131,7 +128,6 @@ defmodule Backpex.Preferences.Context do
   Build a context for a server-originated preference write from within a
   LiveView (e.g. a `handle_event` that already knows the new value).
   """
-  @spec from_socket(map(), map()) :: t()
   def from_socket(session, assigns) when is_map(session) and is_map(assigns) do
     %Context{source: :server, session: session, assigns: assigns}
   end
@@ -152,7 +148,6 @@ defmodule Backpex.Preferences.Context do
   rejected rather than silently wrapped — wrapping them would mask caller
   bugs and route a nonsense context into the adapter layer.
   """
-  @spec coerce(t() | map()) :: t()
   def coerce(%Context{} = ctx), do: ctx
 
   def coerce(session) when is_map(session) and not is_struct(session) do
@@ -192,6 +187,5 @@ defmodule Backpex.Preferences.Context do
   the already-resolved value; the resolver itself runs once per dispatcher
   call, not once per session.
   """
-  @spec put_identity(t(), identity()) :: t()
   def put_identity(%Context{} = ctx, identity), do: %{ctx | identity: identity}
 end

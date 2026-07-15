@@ -31,7 +31,6 @@ defmodule Backpex.Preferences.Adapters.Session do
   @session_key "backpex_preferences"
 
   @doc "Returns the Phoenix session key used to store the preferences tree."
-  @spec session_key() :: String.t()
   def session_key, do: @session_key
 
   @impl Adapter
