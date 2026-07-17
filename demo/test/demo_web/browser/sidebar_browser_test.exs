@@ -3,6 +3,8 @@ defmodule DemoWeb.Browser.SidebarBrowserTest do
   use DemoWeb, :verified_routes
   use DemoWeb.A11yAssertions
 
+  import Demo.EctoFactory
+
   @moduletag :playwright
 
   # LiveView freezes the session at websocket-connect time, so a re-mount
@@ -145,6 +147,26 @@ defmodule DemoWeb.Browser.SidebarBrowserTest do
       |> evaluate("sessionStorage.getItem('backpex.prefs.global.sidebar_open')", fn value ->
         assert value == "false"
       end)
+    end
+  end
+
+  describe "the sidebar transition guard" do
+    # `data-suppress-transition` is static markup, so morphdom morphs it back on
+    # any patch that re-renders the shell. Only mounted() used to take it off,
+    # so the first sort left the sidebar unable to animate for the rest of the
+    # page load. live_redirect hides this — it replaces the nodes and re-mounts
+    # the hook; the in-place patch is the path that strands the guard.
+    test "a live_patch does not strand the transition guard", %{conn: conn} do
+      insert_list(3, :address)
+
+      conn
+      |> visit(~p"/admin/addresses")
+      |> assert_has("body .phx-connected")
+      |> assert_has(~s|#backpex-sidebar:not([data-suppress-transition])|)
+      # Sorting re-renders the shell in place, without re-mounting the hook.
+      |> click(~s|thead a[href*="order_by=street"]|)
+      |> assert_has(~s|#backpex-sidebar:not([data-suppress-transition])|)
+      |> assert_has(~s|#backpex-main:not([data-suppress-transition])|)
     end
   end
 end
