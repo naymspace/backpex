@@ -804,7 +804,10 @@ What each flag does:
 
 - **`:order`** — reads `resource:<Module>:order` at mount; uses it as the
   initial order when the URL has no `order_by` / `order_direction` params.
-  Writes every time the order changes.
+  Writes every time the user changes the order. A stored order takes
+  precedence over `init_order` on later mounts, so nothing is written until
+  the user actually picks one: passively viewing an index leaves the resource
+  free to keep deciding its own default (see below).
 - **`:filters`** — reads `resource:<Module>:filters` at mount; uses it as
   the fallback filter set when the URL has no `filters` param. Writes every
   time filters change.
@@ -818,6 +821,21 @@ What each flag does:
 All four keys route through whichever adapter you configured for
 `"resource.*"` — typically the Session adapter by default, or a per-user DB
 adapter once you wire one up.
+
+### `:order` and `init_order`
+
+A stored order overrides `init_order` from the next mount on. That is the
+point of the option — but it means an order that gets stored is an order the
+resource can no longer choose for that user. So a preference is written only
+when the user picks an order (a column-header click, or `order_by` /
+`order_direction` in the URL), never on a plain index view.
+
+That keeps the two composable: `init_order` decides the default for as long as
+the user has expressed no preference, including a `fun/1` that recomputes it
+per render, and a user who has picked an order keeps it. Were the default
+written on first view instead, it would freeze per user at whatever it
+resolved to the first time they happened to open the page — and a later change
+to the resource's default would never reach them.
 
 ### Replacing a hand-rolled persistence layer
 

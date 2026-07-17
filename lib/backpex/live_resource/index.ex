@@ -512,9 +512,14 @@ defmodule Backpex.LiveResource.Index do
     per_page_options = live_resource.config(:per_page_options)
     per_page_default = live_resource.config(:per_page_default)
     orderable_fields = LiveResource.orderable_fields(fields)
-    init_order = live_resource.config(:init_order)
-    init_order = LiveResource.resolve_init_order(init_order, socket.assigns)
-    init_order = maybe_override_init_order(init_order, params, persisted.order, orderable_fields)
+
+    # The resource's own default, before any stored order overrides it.
+    # `maybe_persist_order/3` needs it to tell a user's choice apart from the
+    # default they simply have not diverged from.
+    resource_default_order =
+      live_resource.config(:init_order) |> LiveResource.resolve_init_order(socket.assigns)
+
+    init_order = maybe_override_init_order(resource_default_order, params, persisted.order, orderable_fields)
 
     filters = LiveResource.active_filters(socket.assigns)
     schema = live_resource.adapter_config(:schema)
@@ -576,7 +581,7 @@ defmodule Backpex.LiveResource.Index do
     |> maybe_redirect_to_default_filters()
     |> assign_items()
     |> maybe_assign_metrics()
-    |> maybe_persist_order(query_options)
+    |> maybe_persist_order(query_options, resource_default_order)
     |> apply_index_return_to()
   end
 
@@ -613,26 +618,53 @@ defmodule Backpex.LiveResource.Index do
   defp fallback_filter_params(stored) when is_map(stored), do: stored
   defp fallback_filter_params(_other), do: %{}
 
-  defp maybe_persist_order(socket, query_options) do
+  defp maybe_persist_order(socket, query_options, resource_default_order) do
     %{live_resource: live_resource, backpex_persisted_index_state: persisted} = socket.assigns
 
-    if persist_enabled?(live_resource, :order) do
-      value = %{
-        "by" => Atom.to_string(query_options.order_by),
-        "direction" => Atom.to_string(query_options.order_direction)
-      }
+    value = encode_order(query_options.order_by, query_options.order_direction)
 
-      if persisted.order == value do
-        socket
-      else
-        socket
-        |> put_preference(PreferenceKeys.order(live_resource), value, mirror: :session)
-        |> assign(:backpex_persisted_index_state, %{persisted | order: value})
-      end
+    if persist_enabled?(live_resource, :order) and
+         persist_order?(persisted.order, value, encode_order(resource_default_order)) do
+      socket
+      |> put_preference(PreferenceKeys.order(live_resource), value, mirror: :session)
+      |> assign(:backpex_persisted_index_state, %{persisted | order: value})
     else
       socket
     end
   end
+
+  # A preference records what the *user* chose. This runs from the render
+  # pipeline rather than an event handler — the order can arrive in the URL, so
+  # there is no single event to hang it on — which means it has to work out for
+  # itself whether there is a choice here worth recording.
+  #
+  # `nil` means the user has never chosen an order, the same "never set"
+  # distinction `read_persisted(:filters, ...)` relies on. While the effective
+  # order still matches the resource's own default there is nothing to record:
+  # reading `nil` back yields that same default, so storing it changes no
+  # outcome — it only freezes it. A stored order wins over `init_order` from the
+  # next mount on, so writing the default here would mean a later change to it
+  # never reaches existing users, and a `fun/1` `init_order` would silently stop
+  # recomputing after one render.
+  #
+  # Note the URL is not the signal: Backpex's own default-filter redirect
+  # canonicalizes `order_by`/`order_direction` into it, so their presence says
+  # nothing about who chose the order.
+  defp persist_order?(nil, value, resource_default_order), do: value != resource_default_order
+
+  # A stored order exists: keep it in sync. This is also the repair path — when
+  # a stored order names a column that no longer exists, `init_order` takes over
+  # and the corrected value is written back.
+  defp persist_order?(stored, value, _resource_default_order), do: stored != value
+
+  defp encode_order(%{by: by, direction: direction}), do: encode_order(by, direction)
+  defp encode_order(_other), do: nil
+
+  defp encode_order(by, direction) when is_atom(by) and is_atom(direction) do
+    %{"by" => Atom.to_string(by), "direction" => Atom.to_string(direction)}
+  end
+
+  defp encode_order(_by, _direction), do: nil
 
   defp apply_index_return_to(socket) do
     %{live_resource: live_resource, params: params, query_options: query_options, filters_changed: filters_changed} =

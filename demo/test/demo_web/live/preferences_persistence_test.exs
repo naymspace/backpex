@@ -120,6 +120,68 @@ defmodule DemoWeb.Live.PreferencesPersistenceTest do
       assert has_element?(view, "table tbody tr:last-child td", "#{search}-Apple")
     end
 
+    test "a first visit with no order chosen writes nothing", %{conn: conn} do
+      # The order on a first visit comes from the resource's own init_order, not
+      # from the user. Storing it would freeze that default per user: the stored
+      # value wins over init_order from the next mount on, so a later change to
+      # the resource's default would never reach them.
+      search = unique_search("persisted-order")
+      insert(:post, title: "#{search}-Alpha", published: true)
+
+      {:ok, view, _html} = live(conn, ~p"/admin/posts?filters[published][]=published&search=#{search}")
+
+      assert has_element?(view, "table tbody tr:first-child td", "#{search}-Alpha")
+      refute_push_event(view, @event_name, %{key: _key, value: %{"by" => _by, "direction" => _dir}})
+    end
+
+    test "a first visit through the default-filter redirect writes nothing", %{conn: conn} do
+      # The redirect canonicalizes order_by/order_direction into the URL, so the
+      # params carry an order on a plain first visit — one nobody chose. This is
+      # the path a real first visit takes, and the URL is why it cannot be the
+      # signal for "the user picked this".
+      insert(:post, title: "Alpha", published: true)
+
+      assert {:error, {:live_redirect, %{to: to}}} = live(conn, ~p"/admin/posts")
+      assert to =~ "order_by=id"
+
+      {:ok, view, _html} = live(conn, to)
+
+      refute_push_event(view, @event_name, %{key: _key, value: %{"by" => _by, "direction" => _dir}})
+    end
+
+    test "an explicit URL order equal to the default writes nothing", %{conn: conn} do
+      # Storing it would change no outcome — reading `nil` back yields the same
+      # order — and would cost the resource the ability to keep choosing.
+      search = unique_search("persisted-order")
+      insert(:post, title: "#{search}-Alpha", published: true)
+
+      {:ok, view, _html} =
+        live(
+          conn,
+          ~p"/admin/posts?filters[published][]=published&order_by=id&order_direction=asc&search=#{search}"
+        )
+
+      refute_push_event(view, @event_name, %{key: _key, value: %{"by" => _by, "direction" => _dir}})
+    end
+
+    test "an explicit URL order that diverges from the default is written", %{conn: conn} do
+      search = unique_search("persisted-order")
+      insert(:post, title: "#{search}-Alpha", published: true)
+
+      {:ok, view, _html} =
+        live(
+          conn,
+          ~p"/admin/posts?filters[published][]=published&order_by=title&order_direction=desc&search=#{search}"
+        )
+
+      expected_key = PrefKeys.order(@resource_mod)
+
+      assert_push_event(view, @event_name, %{
+        key: ^expected_key,
+        value: %{"by" => "title", "direction" => "desc"}
+      })
+    end
+
     test "explicit URL order takes precedence over valid persisted order", %{conn: conn} do
       search = unique_search("persisted-order")
 
