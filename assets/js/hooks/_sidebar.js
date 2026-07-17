@@ -100,6 +100,12 @@ export default {
     }
 
     this.applyState()
+
+    // `data-suppress-transition` is static markup, so any patch that re-renders
+    // the shell — a live_patch from sorting or filtering, say — morphs it back
+    // onto these elements. Nothing else takes it off again, which left the
+    // sidebar unable to animate for the rest of the page load.
+    this.releaseTransitions()
   },
 
   destroyed () {

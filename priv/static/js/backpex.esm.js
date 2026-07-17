@@ -583,6 +583,7 @@ var sidebar_default = {
       if (!BackpexPreferences.isPending("global.sidebar_open")) this.desktopOpen = serverOpen;
     }
     this.applyState();
+    this.releaseTransitions();
   },
   destroyed() {
     this.toggleBtn?.removeEventListener("click", this._onToggleClick);
