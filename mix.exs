@@ -51,7 +51,6 @@ defmodule Backpex.MixProject do
       # core
       {:nimble_options, "~> 1.1"},
       {:gettext, ">= 0.26.0"},
-      {:jason, "~> 1.2"},
 
       # phoenix
       {:phoenix, ">= 1.7.6 and < 1.9.0"},
