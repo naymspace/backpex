@@ -69,14 +69,7 @@ defmodule Backpex.HTML.Layout do
       phx-hook={@has_sidebar && "BackpexSidebar"}
       data-sidebar-open={to_string(@sidebar_open)}
     >
-      <div
-        id="backpex-preferences"
-        phx-hook="BackpexPreferencesHook"
-        data-preferences-path={Router.preferences_path(@socket)}
-        data-preferences-identity={@preferences_identity}
-        class="hidden"
-      >
-      </div>
+      <.preferences_root socket={@socket} preferences_identity={@preferences_identity} />
       <%!-- Sidebar (single element for both mobile and desktop) --%>
       <nav
         :if={@has_sidebar}
@@ -169,6 +162,54 @@ defmodule Backpex.HTML.Layout do
   end
 
   defp build_slot_class(slot), do: Enum.map(slot, &Map.get(&1, :class))
+
+  @doc """
+  Renders the element that wires up preference persistence.
+
+  **Required for preferences to persist.** Every preference write — the theme
+  selector, sidebar state, sidebar sections, and any `push_event` from a
+  LiveResource — is sent by the `BackpexPreferences` JS hook, and this element
+  is where the hook learns the endpoint to POST to. Without it on the page,
+  writes are dropped with a console warning: the UI still updates optimistically,
+  so nothing looks broken until the next reload reverts it.
+
+  `app_shell/1` renders this for you. Render it yourself, once per page, only if
+  you build a layout without `app_shell/1`:
+
+      <.preferences_root socket={@socket} preferences_identity={@preferences_identity} />
+
+  ## Examples
+
+      <Backpex.HTML.Layout.preferences_root
+        socket={@socket}
+        preferences_identity={@preferences_identity}
+      />
+  """
+  @doc type: :component
+
+  attr :socket, :any, required: true, doc: "the socket"
+
+  attr :preferences_identity, :string,
+    default: nil,
+    doc: """
+    opaque fingerprint of the current preference identity, assigned by `Backpex.InitAssigns`.
+    Pass `@preferences_identity`. Without it the browser cannot tell whose unacknowledged
+    preference writes it is holding, so it stops carrying them across a reload and the first
+    paint after a fast toggle may be stale. See `Backpex.Preferences.LiveView.identity_fingerprint/2`.
+    """
+
+  def preferences_root(assigns) do
+    ~H"""
+    <div
+      id="backpex-preferences"
+      phx-hook="BackpexPreferencesHook"
+      data-preferences-path={Router.preferences_path(@socket)}
+      data-preferences-identity={@preferences_identity}
+      class="hidden"
+    >
+    </div>
+    """
+  end
 
   @doc """
   Renders a topbar.

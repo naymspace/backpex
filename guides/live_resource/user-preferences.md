@@ -338,6 +338,31 @@ needs:
 </Backpex.HTML.Layout.app_shell>
 ```
 
+### Custom layouts must render `preferences_root`
+
+Every preference write is sent by the `BackpexPreferences` JS hook, which reads
+the endpoint to POST to from a single element on the page:
+
+```heex
+<div id="backpex-preferences" phx-hook="BackpexPreferencesHook" data-preferences-path=... />
+```
+
+`Backpex.HTML.Layout.app_shell/1` renders that element for you, so a layout
+built on `app_shell` needs nothing extra. A layout that does **not** use
+`app_shell` must render it itself, once per page:
+
+```heex
+<Backpex.HTML.Layout.preferences_root
+  socket={@socket}
+  preferences_identity={@preferences_identity}
+/>
+```
+
+Without it, every write — theme, sidebar, sidebar sections, and the
+`persist:` keys — is dropped. The failure is quiet: the UI updates
+optimistically, so it looks like it worked until the next reload reverts it,
+and the only signal is a console warning.
+
 ## Storage adapters
 
 An adapter owns the "where" of preference storage. Backpex ships one

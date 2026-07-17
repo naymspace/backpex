@@ -528,7 +528,12 @@ const BackpexPreferences = {
    */
   persist (key, value, seq) {
     if (!this.endpointPath) {
-      console.warn('BackpexPreferences: endpointPath not initialized')
+      console.warn(
+        `BackpexPreferences: dropping the write to ${key} because there is no #${HOOK_ELEMENT_ID} element on the ` +
+        'page to read the preferences endpoint from. Backpex.HTML.Layout.app_shell/1 renders it; a custom layout ' +
+        'must render <.preferences_root socket={@socket} preferences_identity={@preferences_identity} /> itself. ' +
+        'See the Backpex user-preferences guide.'
+      )
       return
     }
     if (!this.csrfToken) {
