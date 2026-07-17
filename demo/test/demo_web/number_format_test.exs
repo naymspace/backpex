@@ -27,9 +27,11 @@ defmodule DemoWeb.NumberFormatTest do
     end
 
     test "rounds floats and decimals to integers" do
+      decimal = Decimal.new("1234.6")
+
       assert NumberFormat.to_delimited(1_234.4) == "1.234"
       assert NumberFormat.to_delimited(1_234.6) == "1.235"
-      assert NumberFormat.to_delimited(Decimal.new("1234.6")) == "1.235"
+      assert NumberFormat.to_delimited(decimal) == "1.235"
     end
   end
 end
