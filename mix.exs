@@ -51,7 +51,6 @@ defmodule Backpex.MixProject do
       # core
       {:nimble_options, "~> 1.1"},
       {:gettext, ">= 0.26.0"},
-      {:jason, "~> 1.2"},
 
       # phoenix
       {:phoenix, ">= 1.7.6 and < 1.9.0"},
@@ -60,7 +59,7 @@ defmodule Backpex.MixProject do
       {:phoenix_live_view, "~> 1.0"},
 
       # adapters
-      {:ecto_sql, "~> 3.6"},
+      {:ecto, "~> 3.6"},
       {:postgrex, ">= 0.0.0"},
       {:phoenix_ecto, "~> 4.4"},
 
@@ -85,7 +84,8 @@ defmodule Backpex.MixProject do
 
   defp aliases do
     [
-      lint: ["compile --warning-as-errors", "deps.unlock --unused", "format", "credo", "test"],
+      lint: ["compile --warning-as-errors", "deps.unlock --unused", "deps.unused", "format", "credo", "test"],
+      "deps.unused": ["run --no-start scripts/check_unused_deps.exs"],
       "assets.build": [
         "esbuild module",
         "esbuild main"

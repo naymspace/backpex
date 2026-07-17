@@ -101,8 +101,11 @@ jobs:
       - name: Sobelow
         run: mix sobelow --config
 
-      - name: Deps Unused
+      - name: Deps Unused (mix.lock entries)
         run: mix deps.unlock --check-unused
+
+      - name: Deps Unused (code references)
+        run: mix deps.unused
 
       - name: Run tests
         run: mix test
