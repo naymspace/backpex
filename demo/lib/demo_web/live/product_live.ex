@@ -88,7 +88,7 @@ defmodule DemoWeb.ProductLive do
         end,
         render: fn assigns ->
           ~H"""
-          <p>{Number.Delimit.number_to_delimited(@value, precision: 0, delimiter: ".")}</p>
+          <p>{DemoWeb.NumberFormat.to_delimited(@value)}</p>
           """
         end
       },

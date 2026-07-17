@@ -1,7 +1,7 @@
 defmodule Backpex.MixProject do
   use Mix.Project
 
-  @version "0.19.2"
+  @version "0.19.4"
 
   @source_url "https://github.com/naymspace/backpex"
   @changelog_url "https://github.com/naymspace/backpex/releases"
@@ -51,8 +51,6 @@ defmodule Backpex.MixProject do
       # core
       {:nimble_options, "~> 1.1"},
       {:gettext, ">= 0.26.0"},
-      {:jason, "~> 1.2"},
-      {:number, "~> 1.0"},
 
       # phoenix
       {:phoenix, ">= 1.7.6 and < 1.9.0"},
@@ -61,7 +59,7 @@ defmodule Backpex.MixProject do
       {:phoenix_live_view, "~> 1.0"},
 
       # adapters
-      {:ecto_sql, "~> 3.6"},
+      {:ecto, "~> 3.6"},
       {:postgrex, ">= 0.0.0"},
       {:phoenix_ecto, "~> 4.4"},
 
