@@ -565,10 +565,7 @@ var sidebar_default = {
     const breakpoint = getComputedStyle(document.documentElement).getPropertyValue("--breakpoint-lg").trim() || "64rem";
     this.mediaQuery = window.matchMedia(`(min-width: ${breakpoint})`);
     this.applyState();
-    requestAnimationFrame(() => {
-      this.sidebar.removeAttribute("data-suppress-transition");
-      this.main.removeAttribute("data-suppress-transition");
-    });
+    this.releaseTransitions();
     this._onToggleClick = () => this.handleToggle();
     this._onOverlayClick = () => this.closeMobile();
     this._onMediaChange = (e) => this.handleResize(e);
@@ -593,6 +590,25 @@ var sidebar_default = {
     this.mediaQuery?.removeEventListener("change", this._onMediaChange);
     document.removeEventListener("keydown", this._onKeydown);
     this.main?.removeAttribute("inert");
+  },
+  // `data-suppress-transition` is server-rendered so the correction applyState()
+  // may have just made — the mirror disagreeing with a dead render one write
+  // behind — snaps instead of animating. Releasing it in the same style-change
+  // event that applies that correction defeats it: a transition starts from the
+  // *after-change* style, so the suppressed before-change style buys nothing and
+  // the sidebar slides for 300ms instead. Force the corrected state through a
+  // style recalculation while still suppressed, so it becomes the before-change
+  // style, then release against an unchanged value.
+  //
+  // Deliberately synchronous rather than requestAnimationFrame: rAF never fires
+  // in a background tab, which would strand the guard and leave the sidebar
+  // unable to animate for the rest of the page load.
+  releaseTransitions() {
+    if (!this.sidebar.hasAttribute("data-suppress-transition") && !this.main.hasAttribute("data-suppress-transition")) return;
+    this.sidebar.getBoundingClientRect();
+    this.main.getBoundingClientRect();
+    this.sidebar.removeAttribute("data-suppress-transition");
+    this.main.removeAttribute("data-suppress-transition");
   },
   isDesktop() {
     return this.mediaQuery.matches;
