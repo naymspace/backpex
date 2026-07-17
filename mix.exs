@@ -60,7 +60,7 @@ defmodule Backpex.MixProject do
       {:phoenix_live_view, "~> 1.0"},
 
       # adapters
-      {:ecto_sql, "~> 3.6"},
+      {:ecto, "~> 3.6"},
       {:postgrex, ">= 0.0.0"},
       {:phoenix_ecto, "~> 4.4"},
 
