@@ -208,14 +208,15 @@ defmodule Backpex.InitAssignsTest do
       assert socket.assigns.sidebar_section_states == %{"users" => true, "blog" => false}
     end
 
-    test "accepts non-boolean sidebar_open as-is (adapter has no schema enforcement)" do
-      # The Session adapter is a dumb key/value store — it returns whatever is
-      # stored. Document the current behavior: `sidebar_open` can hold any term
-      # if the host app writes one. Layout components are responsible for
-      # coercing.
+    test "falls back to the default when a non-boolean sidebar_open is stored" do
+      # The write path refuses these, but a store can still hold one from an
+      # earlier Backpex version or a third-party adapter. `app_shell/1` renders
+      # `inert={not @sidebar_open}`, which raises on anything but a boolean — so
+      # passing the stored value through would 500 every admin page for as long
+      # as the value lived, with no way to reach a page to clear it.
       session = %{"backpex_preferences" => %{"global" => %{"sidebar_open" => "nope"}}}
       socket = mount(session)
-      assert socket.assigns.sidebar_open == "nope"
+      assert socket.assigns.sidebar_open == true
     end
   end
 

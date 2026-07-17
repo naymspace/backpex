@@ -321,12 +321,16 @@ defmodule Backpex.LiveResource.Index do
   defp assign_active_fields(socket, ctx) do
     %{fields: fields, live_resource: live_resource} = socket.assigns
 
+    # A non-map here would raise in `Map.get/3` below. The write path refuses
+    # one, but a store can still hold it from an earlier version or a
+    # third-party adapter — fall back to "everything visible" rather than
+    # taking the page down.
     saved_columns =
-      if persist_enabled?(live_resource, :columns) do
-        resource_key = PreferenceKeys.columns(live_resource)
-        Preferences.get(ctx, resource_key, default: %{})
+      with true <- persist_enabled?(live_resource, :columns),
+           saved when is_map(saved) <- Preferences.get(ctx, PreferenceKeys.columns(live_resource), default: %{}) do
+        saved
       else
-        %{}
+        _other -> %{}
       end
 
     active_fields =

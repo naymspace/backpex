@@ -45,6 +45,7 @@ defmodule Backpex.Preferences do
   alias Backpex.Preferences.Adapters
   alias Backpex.Preferences.Context
   alias Backpex.Preferences.Key
+  alias Backpex.Preferences.Keys
   alias Backpex.Preferences.LiveView, as: PreferenceLiveView
   alias Backpex.Preferences.Router
   alias Phoenix.LiveView.Socket
@@ -515,20 +516,42 @@ defmodule Backpex.Preferences do
     end
   end
 
+  # Every write — HTTP endpoint, LiveView, host app — funnels through here, so
+  # this is where a value that a built-in reader provably cannot consume gets
+  # refused. Without it a single wrong-typed write persists and then raises on
+  # every later render (`not "false"`, `Map.get/3` on a binary), 500ing every
+  # admin page for the life of that user's session with no way to reach a page
+  # to undo it. `Context.put_client/2` already applies the same gate to the
+  # ephemeral overlay; the durable path must not be the weaker of the two.
+  #
+  # This is a shape gate, not authorization: keys Backpex does not own
+  # (`custom.*`, unknown `resource:` suffixes) pass through untouched, so it
+  # costs host apps no flexibility.
   defp dispatch_put(%Context{} = ctx, key, value, opts) do
     {module, adapter_opts} = Router.resolve(key)
 
-    try do
-      {module, module.put(ctx, key, value, merge_opts(adapter_opts, opts))}
-    rescue
-      reason ->
-        Logger.warning(
-          "Backpex.Preferences: adapter #{inspect(module)} raised in put/4 for key " <>
-            "#{inspect(key)}: #{Exception.format(:error, reason, __STACKTRACE__)}"
-        )
+    if Keys.valid_value?(key, value) do
+      dispatch_put_to_adapter(module, adapter_opts, ctx, key, value, opts)
+    else
+      Logger.warning(
+        "Backpex.Preferences: refusing put/4 for key #{inspect(key)}: #{inspect(value)} is not a " <>
+          "shape the built-in reader for this key can consume. Storing it would raise on later renders."
+      )
 
-        {module, {:error, {:exception, reason}}}
+      {module, {:error, :invalid_value}}
     end
+  end
+
+  defp dispatch_put_to_adapter(module, adapter_opts, ctx, key, value, opts) do
+    {module, module.put(ctx, key, value, merge_opts(adapter_opts, opts))}
+  rescue
+    reason ->
+      Logger.warning(
+        "Backpex.Preferences: adapter #{inspect(module)} raised in put/4 for key " <>
+          "#{inspect(key)}: #{Exception.format(:error, reason, __STACKTRACE__)}"
+      )
+
+      {module, {:error, {:exception, reason}}}
   end
 
   defp push_event_fallback(socket, key, value, opts) do

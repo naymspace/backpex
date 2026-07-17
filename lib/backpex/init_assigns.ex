@@ -54,8 +54,17 @@ defmodule Backpex.InitAssigns do
     assign(socket, :current_theme, theme)
   end
 
+  # The write path refuses a non-boolean here, but a store can still hold one
+  # from an earlier Backpex version or a third-party adapter, and `app_shell/1`
+  # renders `inert={not @sidebar_open}` — which raises on anything else. Falling
+  # back to the default keeps a bad stored value from 500ing every page.
   defp assign_sidebar_open(socket, ctx) do
-    sidebar_open = Preferences.get(ctx, Keys.sidebar_open(), default: true)
+    sidebar_open =
+      case Preferences.get(ctx, Keys.sidebar_open(), default: true) do
+        open when is_boolean(open) -> open
+        _other -> true
+      end
+
     assign(socket, :sidebar_open, sidebar_open)
   end
 

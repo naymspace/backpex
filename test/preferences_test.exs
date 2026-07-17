@@ -126,6 +126,68 @@ defmodule Backpex.PreferencesTest do
     end
   end
 
+  describe "write-path value validation" do
+    setup do
+      %{ctx: %{Context.from_mount(%{}) | source: :controller}}
+    end
+
+    test "refuses a wrong-typed built-in value before it reaches the adapter", %{ctx: ctx} do
+      key = Keys.sidebar_open()
+
+      log =
+        capture_log(fn ->
+          assert {:error, {^key, :invalid_value}} = Preferences.put_batch(ctx, [{key, "false"}])
+        end)
+
+      assert log =~ "refusing put/4"
+    end
+
+    test "the refused write leaves nothing behind", %{ctx: ctx} do
+      capture_log(fn ->
+        assert {:error, {_key, :invalid_value}} =
+                 Preferences.put_batch(ctx, [{Keys.columns(MyApp.UserLive), "not-a-map"}])
+      end)
+    end
+
+    test "halts the batch at the invalid entry", %{ctx: ctx} do
+      entries = [
+        {Keys.theme(), "dark"},
+        {Keys.sidebar_open(), "false"},
+        {Keys.theme(), "light"}
+      ]
+
+      key = Keys.sidebar_open()
+
+      capture_log(fn ->
+        assert {:error, {^key, :invalid_value}} = Preferences.put_batch(ctx, entries)
+      end)
+    end
+
+    test "accepts correctly-typed built-in values", %{ctx: ctx} do
+      assert {:ok, _effects} = Preferences.put_batch(ctx, [{Keys.sidebar_open(), false}])
+      assert {:ok, _effects} = Preferences.put_batch(ctx, [{Keys.theme(), "dark"}])
+      assert {:ok, _effects} = Preferences.put_batch(ctx, [{Keys.columns(MyApp.UserLive), %{"name" => true}}])
+      assert {:ok, _effects} = Preferences.put_batch(ctx, [{Keys.metrics_visible(MyApp.UserLive), true}])
+    end
+
+    test "lets keys Backpex does not own through unchecked", %{ctx: ctx} do
+      # Backpex cannot know the shape of these, so it must not guess at one.
+      assert {:ok, _effects} = Preferences.put_batch(ctx, [{"custom.acme.anything", "whatever"}])
+      assert {:ok, _effects} = Preferences.put_batch(ctx, [{"custom.acme.nested", %{"a" => [1, 2]}}])
+    end
+
+    test "applies to socket-origin writes too", %{ctx: _ctx} do
+      socket = %Socket{}
+
+      log =
+        capture_log(fn ->
+          assert {:error, :invalid_value} = Preferences.put(socket, Keys.sidebar_open(), "false")
+        end)
+
+      assert log =~ "refusing put/4"
+    end
+  end
+
   describe "put/4" do
     test "Plug.Conn origin with the Session adapter persists through put_session" do
       conn = conn(:post, "/") |> Plug.Test.init_test_session(%{})

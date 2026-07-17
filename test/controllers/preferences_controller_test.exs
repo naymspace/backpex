@@ -246,6 +246,30 @@ defmodule Backpex.PreferencesControllerTest do
     end
   end
 
+  describe "update/2 with a wrong-typed built-in value" do
+    test "returns 422 instead of persisting a value that breaks later renders", %{conn: conn} do
+      conn =
+        capture_log_result(fn ->
+          PreferencesController.update(conn, %{"key" => Keys.sidebar_open(), "value" => "false"})
+        end)
+
+      assert conn.status == 422
+      body = Jason.decode!(conn.resp_body)
+      assert body["error"] == %{"key" => Keys.sidebar_open(), "reason" => "invalid_value"}
+      assert Plug.Conn.get_session(conn, Preferences.session_key()) == nil
+    end
+
+    test "still accepts keys Backpex does not own", %{conn: conn} do
+      conn = PreferencesController.update(conn, %{"key" => "custom.acme.thing", "value" => "anything"})
+
+      assert conn.status == 200
+
+      assert Plug.Conn.get_session(conn, Preferences.session_key()) == %{
+               "custom" => %{"acme" => %{"thing" => "anything"}}
+             }
+    end
+  end
+
   describe "update/2 when the adapter refuses an oversized write" do
     test "returns 422 rather than raising CookieOverflowError", %{conn: conn} do
       conn =

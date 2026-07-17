@@ -51,13 +51,17 @@ defmodule Backpex.PreferencesController do
   A payload that matches neither the single nor batch shape returns
   `400 {ok: false, error: "missing key/value"}`.
 
-  This controller does not call `Backpex.Preferences.Key.validate/1` or
-  `Backpex.Preferences.Keys.valid_value?/2`. Custom HTTP clients and adapters
-  are responsible for their own key/value constraints. The validation in
-  `Backpex.Preferences.Context.put_client/2` applies only to the render overlay;
-  it is not endpoint validation or authorization. Adapter reads are not
-  shape-checked either, so a custom client that persists a wrong-typed built-in
-  value can later break a built-in render unless the adapter rejects it.
+  `Backpex.Preferences.put_batch/3` refuses a value that the built-in reader
+  for its key cannot consume (`Backpex.Preferences.Keys.valid_value?/2`),
+  returning `422 {ok: false, error: %{key: _, reason: "invalid_value"}}`. Keys
+  Backpex does not own (`custom.*`, unknown `resource:` suffixes) have no known
+  shape and pass through unchecked — an adapter that needs constraints on those
+  enforces its own.
+
+  That gate is a shape check, **not authorization**. This controller does not
+  ask whether the caller may write the key, only whether the value would break
+  a later render. Authorization belongs in the pipeline the route is mounted
+  in, or in the adapter.
   """
 
   use Phoenix.Controller, formats: [:json]

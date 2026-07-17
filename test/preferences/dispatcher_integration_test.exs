@@ -126,7 +126,7 @@ defmodule Backpex.Preferences.DispatcherIntegrationTest do
 
       entries = [
         {"resource.foo.columns", %{"name" => true, "email" => false}},
-        {"resource.foo.order", ["name", "email"]}
+        {"resource.foo.order", %{"by" => "name", "direction" => "asc"}}
       ]
 
       {:ok, _effects} = Preferences.put_batch(ctx, entries)
@@ -135,7 +135,7 @@ defmodule Backpex.Preferences.DispatcherIntegrationTest do
 
       assert Preferences.get_map(read_ctx, "resource.foo") == %{
                "columns" => %{"name" => true, "email" => false},
-               "order" => ["name", "email"]
+               "order" => %{"by" => "name", "direction" => "asc"}
              }
     end
 
