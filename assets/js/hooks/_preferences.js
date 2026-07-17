@@ -512,13 +512,15 @@ const BackpexPreferences = {
    * Persist a preference to the server immediately.
    * Uses keepalive to ensure request completes even during page navigation.
    *
-   * Any *completed* response retires the pending entry — including
+   * A response the server *decided on* retires the pending entry — including
    * `200 {ok: false, reason: "unidentified"}` and `422`, which the preferences
-   * controller returns for writes it refuses. The server has seen the write and
-   * decided on it; replaying it would be pointless and keeping the client
-   * overlay would pin the value forever. Only a request that never completed
-   * (page unloaded mid-POST — the race this whole mechanism exists for — or a
-   * network error) stays pending.
+   * controller returns for writes it refuses. Replaying those would be
+   * pointless and keeping the client overlay would pin the value forever.
+   *
+   * A 5xx does not retire it: the server crashed rather than ruling on the
+   * write, so the value may or may not have landed. Same for a request that
+   * never completed (page unloaded mid-POST — the race this whole mechanism
+   * exists for — or a network error). Those stay pending and are replayed.
    *
    * @param {string} key
    * @param {any} value
@@ -554,7 +556,13 @@ const BackpexPreferences = {
       },
       body: JSON.stringify({ key, value })
     })
-      .then(() => {
+      .then((response) => {
+        if (response.status >= 500) {
+          console.error(
+            `BackpexPreferences: server error persisting ${key} (HTTP ${response.status}); leaving it pending`
+          )
+          return
+        }
         if (this._seq[key] === seq) clearPending(key, value)
       })
       .catch((error) => {

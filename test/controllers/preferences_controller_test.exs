@@ -245,4 +245,34 @@ defmodule Backpex.PreferencesControllerTest do
       assert body["error"]["reason"] == "unidentified"
     end
   end
+
+  describe "update/2 when the adapter refuses an oversized write" do
+    test "returns 422 rather than raising CookieOverflowError", %{conn: conn} do
+      conn =
+        capture_log_result(fn ->
+          PreferencesController.update(conn, %{"key" => Keys.theme(), "value" => String.duplicate("x", 5_000)})
+        end)
+
+      assert conn.status == 422
+      body = Jason.decode!(conn.resp_body)
+      assert body["ok"] == false
+      assert body["error"] == %{"key" => Keys.theme(), "reason" => "too_large"}
+    end
+
+    test "leaves the session untouched so earlier preferences survive", %{conn: conn} do
+      conn = Plug.Conn.put_session(conn, Preferences.session_key(), %{"global" => %{"theme" => "light"}})
+
+      conn =
+        capture_log_result(fn ->
+          PreferencesController.update(conn, %{"key" => Keys.theme(), "value" => String.duplicate("x", 5_000)})
+        end)
+
+      assert Plug.Conn.get_session(conn, Preferences.session_key()) == %{"global" => %{"theme" => "light"}}
+    end
+  end
+
+  defp capture_log_result(fun) do
+    {result, _log} = ExUnit.CaptureLog.with_log(fun)
+    result
+  end
 end

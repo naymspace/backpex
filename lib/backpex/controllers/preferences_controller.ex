@@ -31,6 +31,13 @@ defmodule Backpex.PreferencesController do
   already committed earlier writes — the adapter behaviour has no rollback
   primitive, so callers should treat partial success as possible.
 
+  An adapter that refuses a write because its store cannot hold it returns
+  `{:error, :too_large}`, which surfaces as
+  `422 {ok: false, error: %{key: _, reason: "too_large"}}` — see the size limit
+  section of `Backpex.Preferences.Adapters.Session`. The refusal is the
+  designed outcome, not a bug: the alternative is a `CookieOverflowError` 500
+  on this and every later request.
+
   Single-write `:unidentified` is treated as a no-op rather than an error:
   the response is `200 {ok: false, error: %{reason: "unidentified"}}` and no
   warning is logged. The JS hook fires writes from anonymous visitors

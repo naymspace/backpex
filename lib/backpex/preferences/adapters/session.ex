@@ -11,6 +11,35 @@ defmodule Backpex.Preferences.Adapters.Session do
   Reference implementation for the `Backpex.Preferences.Adapter` behavior — a
   reasonable template when writing your own adapter.
 
+  ## Size limit
+
+  With the default `:cookie` session store the browser caps the whole cookie —
+  Backpex's preferences *plus* everything the host app keeps in the session,
+  such as `phx.gen.auth`'s user token — at 4096 bytes. Past that,
+  `Plug.Session.COOKIE` raises `Plug.Conn.CookieOverflowError` and the request
+  500s. `put/4` therefore estimates the size of the resulting cookie and
+  refuses a write that would breach the budget with `{:error, :too_large}`,
+  leaving the stored value untouched;
+  `Backpex.PreferencesController` turns that into a `422` so the browser can
+  stop carrying the write. A warning is logged well before the ceiling.
+
+  ### Options
+
+    * `:max_bytes` — the wire budget for the encoded session, in bytes
+      (default: `4096`, matching the cookie store). Use `:infinity` for a
+      server-side session store (ETS, Redis, ...), which has no such cap:
+
+          config :backpex, Backpex.Preferences,
+            adapters: [
+              {:default, Backpex.Preferences.Adapters.Session, max_bytes: :infinity}
+            ]
+
+  The estimate covers the whole session, not just Backpex's subtree, and
+  accounts for the ~4/3 growth of Base64 plus the signature `Plug.Session`
+  adds. It is deliberately approximate: it is a budget check, not an exact
+  reproduction of the store's encoding. Prefer a database-backed adapter over
+  raising `:max_bytes` when per-user data genuinely does not fit.
+
   ## Write-path limitations
 
   `put/4` returns `{:error, :requires_http}` for any source other than
@@ -62,29 +91,66 @@ defmodule Backpex.Preferences.Adapters.Session do
     end
   end
 
-  @cookie_warn_bytes 3072
+  # `Plug.Session.COOKIE`'s ceiling, and the browser's: 4096 bytes for the
+  # whole cookie. Warn at 75% of the budget so there is room to react before
+  # writes start being refused.
+  @default_max_bytes 4096
+  @warn_ratio 0.75
+
+  # `Plug.Session` term-encodes the session, signs it, and Base64-encodes the
+  # result. Base64 grows the payload by 4/3; the signature adds a fixed tail
+  # (key digest + HMAC, Base64'd). 96 bytes covers the default SHA256 signer
+  # with headroom — an over-estimate is the safe direction for a budget check.
+  @signature_overhead 96
 
   @impl Adapter
-  def put(%Context{source: :controller, session: session}, key, value, _opts) do
+  def put(%Context{source: :controller, session: session}, key, value, opts) do
     path = Key.parse(key)
     updated = session |> root() |> deep_put(path, value)
+    max_bytes = Keyword.get(opts, :max_bytes, @default_max_bytes)
 
-    size = updated |> :erlang.term_to_binary() |> byte_size()
+    # Measure the whole session the way the store will write it, not just
+    # Backpex's subtree: the budget is shared with whatever the host app keeps
+    # in the session (auth tokens, flash, ...), and a subtree-only measurement
+    # cannot see how much of it is already spoken for.
+    size = session |> Map.put(@session_key, updated) |> encoded_size()
 
-    if size > @cookie_warn_bytes do
-      Logger.warning(
-        "Backpex.Preferences: the session preferences entry is #{size} bytes " <>
-          "(threshold #{@cookie_warn_bytes} bytes). Writes may start failing with " <>
-          "CookieOverflowError once the entry exceeds ~4KB. Consider routing bulky " <>
-          "prefixes to a database-backed preferences adapter."
-      )
+    cond do
+      max_bytes == :infinity ->
+        {:ok, {:put_session, @session_key, updated}}
+
+      size > max_bytes ->
+        Logger.warning(
+          "Backpex.Preferences: refusing the write to #{inspect(key)}: the session would encode to " <>
+            "~#{size} bytes, over the #{max_bytes} byte budget. The cookie session store cannot hold " <>
+            "it, so storing it would raise CookieOverflowError on this and every later request. " <>
+            "Route bulky prefixes to a database-backed preferences adapter, or set `max_bytes: " <>
+            ":infinity` if this app uses a server-side session store."
+        )
+
+        {:error, :too_large}
+
+      size > max_bytes * @warn_ratio ->
+        Logger.warning(
+          "Backpex.Preferences: the session encodes to ~#{size} bytes, approaching the " <>
+            "#{max_bytes} byte budget. Writes will be refused once it is exceeded. Consider routing " <>
+            "bulky prefixes to a database-backed preferences adapter."
+        )
+
+        {:ok, {:put_session, @session_key, updated}}
+
+      true ->
+        {:ok, {:put_session, @session_key, updated}}
     end
-
-    {:ok, {:put_session, @session_key, updated}}
   end
 
   def put(%Context{source: source}, _key, _value, _opts) when source in [:mount, :server] do
     {:error, :requires_http}
+  end
+
+  defp encoded_size(session) do
+    raw = session |> :erlang.term_to_binary() |> byte_size()
+    ceil(raw * 4 / 3) + @signature_overhead
   end
 
   # The session key is expected to hold a map, but a misbehaving host app (or

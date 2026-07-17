@@ -356,11 +356,38 @@ for the key's prefix.
 The Session adapter stores everything in a single Phoenix session key. If
 your session is cookie-backed, the **entire encoded session cookie** — Backpex
 preferences plus your application's other session data, signing/encryption
-overhead, and cookie attributes — must fit the browser/Plug limit (commonly
-about 4KB). The Session adapter logs a warning when its preference tree alone
-passes 3072 bytes. That is an early signal to route heavy prefixes
-(per-resource column visibility, saved filters, etc.) to a database-backed
-adapter. It is not a guarantee that the next cookie write will fit.
+overhead, and cookie attributes — must fit the browser/Plug limit of 4096
+bytes.
+
+The adapter enforces that budget rather than letting the store raise. On every
+write it estimates the size of the resulting cookie — the whole session, not
+just Backpex's subtree, since the budget is shared with your app's own session
+data — and:
+
+- logs a warning once the estimate passes 75% of the budget, and
+- refuses the write with `{:error, :too_large}` once it would exceed it,
+  leaving the previously stored value untouched.
+
+A refused write surfaces to the browser as `422 {ok: false, error: %{reason:
+"too_large"}}`, and the JS hook stops carrying it. The alternative would be a
+`Plug.Conn.CookieOverflowError` — an HTTP 500 on this and every later request,
+with no way for the user to reach a page to undo it.
+
+The warning is the signal to route heavy prefixes (per-resource column
+visibility, saved filters, etc.) to a database-backed adapter before writes
+start being refused. If your session is **not** cookie-backed (ETS, Redis, a
+database), the 4KB cap does not apply — lift it:
+
+```elixir
+config :backpex, Backpex.Preferences,
+  adapters: [
+    {:default, Backpex.Preferences.Adapters.Session, max_bytes: :infinity}
+  ]
+```
+
+The estimate is approximate by design: it is a budget check, not an exact
+reproduction of `Plug.Session`'s encoding. It errs toward over-estimating, so
+it refuses slightly before the true ceiling rather than slightly after.
 
 ### Routing by prefix
 

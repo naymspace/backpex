@@ -30,6 +30,11 @@ defmodule Backpex.Preferences.Adapter do
     server-side helper in `Backpex.Preferences` catches this and falls back to
     a `push_event/3` round-trip so the browser can retry via the HTTP
     endpoint.
+  - `{:error, :too_large}` — the value would push the adapter's store past a
+    size limit it cannot exceed (e.g. the ~4KB cookie session store). The
+    write is refused whole; the previously stored value is untouched.
+    `Backpex.PreferencesController` surfaces this as a `422`. An adapter with
+    no meaningful size ceiling never returns it.
 
   ## Side-effect protocol
 
@@ -92,7 +97,11 @@ defmodule Backpex.Preferences.Adapter do
   Return `{:ok, :persisted}` when the adapter stored the value itself (a DB
   write), or `{:ok, {:put_session, key, map}}` to ask the caller to apply the
   one side effect the adapter cannot perform on its own (see the module docs).
+
+  Refuse rather than emit a write the store cannot hold: an adapter with a
+  size ceiling returns `{:error, :too_large}` when the value would breach it,
+  leaving the stored value untouched.
   """
   @callback put(ctx :: Context.t(), key :: String.t(), value :: term(), opts :: keyword()) ::
-              {:ok, put_result()} | {:error, :unidentified | :requires_http | term()}
+              {:ok, put_result()} | {:error, :unidentified | :requires_http | :too_large | term()}
 end
