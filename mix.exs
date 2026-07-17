@@ -1,7 +1,7 @@
 defmodule Backpex.MixProject do
   use Mix.Project
 
-  @version "0.19.3"
+  @version "0.19.4"
 
   @source_url "https://github.com/naymspace/backpex"
   @changelog_url "https://github.com/naymspace/backpex/releases"
@@ -52,7 +52,6 @@ defmodule Backpex.MixProject do
       {:nimble_options, "~> 1.1"},
       {:gettext, ">= 0.26.0"},
       {:jason, "~> 1.2"},
-      {:number, "~> 1.0"},
 
       # phoenix
       {:phoenix, ">= 1.7.6 and < 1.9.0"},
