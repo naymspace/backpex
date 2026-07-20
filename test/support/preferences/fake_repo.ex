@@ -46,13 +46,17 @@ defmodule Backpex.Test.Preferences.FakeRepo do
         do: {key, envelope}
   end
 
-  def insert!(struct, opts) do
-    conflict_target = Keyword.fetch!(opts, :conflict_target)
-    [identity_field, :key] = conflict_target
+  # `Ecto.Repo.insert!/2` takes a struct or a changeset; mirror that.
+  def insert!(insertable, opts) do
+    [identity_field, :key] = Keyword.fetch!(opts, :conflict_target)
+    row = apply_changes(insertable)
 
-    put_row(Map.fetch!(struct, identity_field), struct.key, struct.value)
-    struct
+    put_row(Map.fetch!(row, identity_field), row.key, row.value)
+    row
   end
+
+  defp apply_changes(%Ecto.Changeset{} = changeset), do: Ecto.Changeset.apply_changes(changeset)
+  defp apply_changes(struct), do: struct
 
   # Values bound into the query's `where` clauses, in order.
   defp params(%Ecto.Query{wheres: wheres}) do

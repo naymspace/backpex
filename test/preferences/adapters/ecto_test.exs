@@ -136,6 +136,16 @@ defmodule Backpex.Preferences.Adapters.EctoTest do
       assert [] = FakeRepo.rows_for(:unidentified)
     end
 
+    # `struct/2` would silently drop the unknown key and write a NULL identity,
+    # surfacing much later as a not-null violation.
+    test "raises on an :identity_field the schema does not have", %{ctx: ctx} do
+      opts = [repo: FakeRepo, schema: Preference, identity_field: :nope]
+
+      assert_raise ArgumentError, ~r/unknown field `:nope`/, fn ->
+        EctoAdapter.put(ctx, "global.theme", "dark", opts)
+      end
+    end
+
     test "honors a custom :identity_field", %{ctx: ctx} do
       opts = [repo: FakeRepo, schema: PreferenceWithoutTimestamps, identity_field: :account_id]
 

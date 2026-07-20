@@ -76,8 +76,23 @@ defmodule Backpex.Preferences.Adapters.Ecto do
   therefore `{"resource:MyApp.PostLive:columns", %{"value" => %{...}}}`, not a
   bare value — worth knowing when reading the table by hand.
 
-  Keys are stored whole, one row each. `c:get_map/3` rebuilds the nested shape
-  it must return via `Backpex.Preferences.Adapter.nest/2`.
+  Keys are stored whole, one row each. `c:Backpex.Preferences.Adapter.get_map/3`
+  rebuilds the nested shape it must return via
+  `Backpex.Preferences.Adapter.nest/2`.
+
+  ## Writes do not use your schema's `changeset/2`
+
+  Rows are cast and inserted by this module, so a `changeset/2` on your schema
+  is not consulted. That is deliberate: the adapter owns all three columns, and
+  a host validation it cannot anticipate — a required field it does not set, a
+  format check on `:key` — would fail every preference write with no way for
+  the user to recover.
+
+  Nothing is lost by it. The adapter never writes a partial row, and the upsert
+  resolves conflicts in the database, so `validate_required/2` and
+  `unique_constraint/3` on those columns can never fire on this path.
+
+  Define a `changeset/2` anyway if you write these rows yourself elsewhere.
   """
 
   @behaviour Backpex.Preferences.Adapter
@@ -86,6 +101,7 @@ defmodule Backpex.Preferences.Adapters.Ecto do
 
   alias Backpex.Preferences.Adapter
   alias Backpex.Preferences.Context
+  alias Ecto.Changeset
 
   @envelope "value"
 
@@ -128,10 +144,11 @@ defmodule Backpex.Preferences.Adapters.Ecto do
   def put(%Context{identity: identity}, key, value, opts) do
     config = config(opts)
 
-    attrs = %{config.identity_field => identity, :key => key, :value => encode(value)}
+    params = %{config.identity_field => identity, :key => key, :value => encode(value)}
 
     config.schema
-    |> struct(attrs)
+    |> struct()
+    |> Changeset.cast(params, [config.identity_field, :key, :value])
     |> config.repo.insert!(
       on_conflict: {:replace, replaced_fields(config)},
       conflict_target: [config.identity_field, :key]
