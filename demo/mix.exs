@@ -55,7 +55,7 @@ defmodule Demo.MixProject do
       {:telemetry_metrics, "~> 1.0"},
       {:gettext, "~> 1.0"},
       {:sentry, "~> 13.0"},
-      {:circular_buffer, "~> 1.0.0"},
+      {:circular_buffer, "~> 1.1.0"},
 
       # phoenix
       {:bandit, "~> 1.0"},
