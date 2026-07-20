@@ -375,7 +375,7 @@ for the key's prefix.
 | If you want…                                                    | Use…                                                |
 |-----------------------------------------------------------------|-----------------------------------------------------|
 | Zero config, per-browser state, small values (theme, sidebar)   | Session (default)                                   |
-| Per-user, survives across devices, bulky values (columns, filters) | Ecto adapter (you write it — see recipes below)   |
+| Per-user, survives across devices, bulky values (columns, filters) | `Backpex.Preferences.Adapters.Ecto`                 |
 | Pluggable per setting (e.g. theme in session, columns in DB)    | Mix both, route by prefix                           |
 
 The Session adapter stores everything in a single Phoenix session key. If
@@ -421,7 +421,8 @@ it refuses slightly before the true ceiling rather than slightly after.
 config :backpex, Backpex.Preferences,
   adapters: [
     {"global.*",   Backpex.Preferences.Adapters.Session, []},
-    {"resource.*", MyApp.Preferences.EctoAdapter, repo: MyApp.Repo},
+    {"resource.*", Backpex.Preferences.Adapters.Ecto,
+     repo: MyApp.Repo, schema: MyApp.Preferences.UserPreference},
     {:default,     Backpex.Preferences.Adapters.Session, []}
   ],
   identity: {MyAppWeb.PreferencesIdentity, :resolve, []}
@@ -457,7 +458,8 @@ that resource out of the broader `"resource.*"` route:
 config :backpex, Backpex.Preferences,
   adapters: [
     # PostLive carries far more column state than the session cookie should hold.
-    {"resource:MyApp.PostLive:*", MyApp.Preferences.EctoAdapter, repo: MyApp.Repo},
+    {"resource:MyApp.PostLive:*", Backpex.Preferences.Adapters.Ecto,
+     repo: MyApp.Repo, schema: MyApp.Preferences.UserPreference},
     {"resource.*", Backpex.Preferences.Adapters.Session, []},
     {:default, Backpex.Preferences.Adapters.Session, []}
   ]
@@ -666,18 +668,16 @@ end
 Backpex itself uses exactly this pattern for its dispatcher tests — see
 `test/support/in_memory_preferences_adapter.ex` for a fully-worked version.
 
-## Ecto adapter recipes
+## Database-backed preferences
 
-Backpex ships the adapter behavior but not an Ecto adapter, because the
-right table shape depends on how your app already organizes user data. The
-generic key/value implementation below is complete; the following
-prefix-to-column section is a design variant for adapting it to an existing
-settings table.
+`Backpex.Preferences.Adapters.Ecto` stores one row per preference key. Reach
+for it when you outgrow the Session adapter's ~4KB cookie budget, or when
+preferences should follow a user across devices and browsers.
 
-### Recipe A — generic key/value table
+You supply the table; Backpex supplies the adapter. There is no adapter
+module to write.
 
-Good default when you don't already have a settings/profile table. Each row
-is one preference.
+### Setup
 
 ```elixir
 defmodule MyApp.Repo.Migrations.CreateBackpexUserPreferences do
@@ -697,7 +697,6 @@ end
 
 defmodule MyApp.Preferences.UserPreference do
   use Ecto.Schema
-  import Ecto.Changeset
 
   schema "backpex_user_preferences" do
     field :user_id, :integer
@@ -705,113 +704,56 @@ defmodule MyApp.Preferences.UserPreference do
     field :value,   :map, default: %{}
     timestamps(type: :utc_datetime_usec)
   end
-
-  def changeset(user_preference, attrs) do
-    user_preference
-    |> cast(attrs, [:user_id, :key, :value])
-    |> validate_required([:user_id, :key, :value])
-    |> unique_constraint([:user_id, :key])
-  end
 end
+```
 
-defmodule MyApp.Preferences.EctoAdapter do
-  @behaviour Backpex.Preferences.Adapter
-
-  import Ecto.Query
-  alias MyApp.Preferences.UserPreference
-
-  @impl true
-  def get(%{identity: :unidentified}, _key, _opts), do: {:ok, :not_found}
-  def get(%{identity: user_id}, key, opts) do
-    repo = Keyword.fetch!(opts, :repo)
-
-    case repo.one(from p in UserPreference, where: p.user_id == ^user_id and p.key == ^key, select: p.value) do
-      nil -> {:ok, :not_found}
-      %{"__raw__" => value} -> {:ok, value}
-      value -> {:ok, value}
-    end
-  end
-
-  @impl true
-  def get_map(%{identity: :unidentified}, _prefix, _opts), do: {:ok, %{}}
-  def get_map(%{identity: user_id}, prefix, opts) do
-    repo = Keyword.fetch!(opts, :repo)
-    like = prefix <> "%"
-
-    rows =
-      repo.all(
-        from p in UserPreference,
-          where: p.user_id == ^user_id and like(p.key, ^like),
-          select: {p.key, p.value}
-      )
-
-    nested = reshape_to_nested(rows, prefix)
-    {:ok, nested}
-  end
-
-  @impl true
-  def put(%{identity: :unidentified}, _key, _value, _opts), do: {:error, :unidentified}
-  def put(%{identity: user_id}, key, value, opts) do
-    repo = Keyword.fetch!(opts, :repo)
-
-    attrs = %{user_id: user_id, key: key, value: wrap_value(value)}
-
-    %UserPreference{}
-    |> UserPreference.changeset(attrs)
-    |> repo.insert!(on_conflict: {:replace, [:value, :updated_at]}, conflict_target: [:user_id, :key])
-
-    {:ok, :persisted}
-  end
-
-  defp wrap_value(map) when is_map(map), do: map
-  defp wrap_value(other), do: %{"__raw__" => other}
-
-  defp reshape_to_nested(rows, prefix) do
-    prefix_segments = Backpex.Preferences.Key.parse(prefix)
-
-    Enum.reduce(rows, %{}, fn {key, value}, acc ->
-      value = case value do
-        %{"__raw__" => v} -> v
-        v -> v
-      end
-
-      segments = Backpex.Preferences.Key.parse(key)
-      case Enum.split(segments, length(prefix_segments)) do
-        {^prefix_segments, []} -> acc
-        {^prefix_segments, rest} -> put_path(acc, rest, value)
-        _ -> acc
-      end
-    end)
-  end
-
-  defp put_path(map, [k], value), do: Map.put(map, k, value)
-
-  defp put_path(map, [k | rest], value) do
-    child = Map.get(map, k)
-    child = if is_map(child), do: child, else: %{}
-    Map.put(map, k, put_path(child, rest, value))
-  end
-end
-
+```elixir
 # config/config.exs
 config :backpex, Backpex.Preferences,
   adapters: [
-    {"resource.*", MyApp.Preferences.EctoAdapter, repo: MyApp.Repo},
-    {:default,     Backpex.Preferences.Adapters.Session, []}
-  ]
+    {"resource.*", Backpex.Preferences.Adapters.Ecto,
+     repo: MyApp.Repo, schema: MyApp.Preferences.UserPreference},
+    {:default, Backpex.Preferences.Adapters.Session, []}
+  ],
+  identity: {MyAppWeb.PreferencesIdentity, :resolve, []}
 ```
 
-### Design variant B — prefix → column mapping
+The unique index is required — writes upsert against it. The `:user_id` column
+type must match what your identity resolver returns; a `:binary_id` user id
+needs a `:binary_id` column. Rename the column via `identity_field:` if you
+prefer something else; `:key` and `:value` are fixed.
 
-Use when you already have a user settings table (one row per user) with
-typed JSON columns. Lets each Backpex prefix write into a named column
-rather than a generic rows table.
+Route only the prefixes that need it. Sending `global.*` to the database costs
+a query per mount to render sidebar state that fits the cookie comfortably —
+worth it if you want that state to follow users across devices, wasteful
+otherwise.
 
-When you already have a typed settings table, adapt Recipe A by replacing
-the k/v schema: route each prefix to its own column and dispatch reads and
-writes based on the key's segments. See the
-[ash_backpex](https://github.com/enoonan/ash_backpex) community example for
-a working implementation.
+### How values are stored
+
+Preference values are frequently scalars — `metrics_visible` and every
+`global.sidebar_section.<id>` are booleans, `global.theme` is a string — and a
+`:map` column cannot hold those. Every value is therefore wrapped in a
+`%{"value" => term}` envelope on write and unwrapped on read:
+
+```
+key                                    | value
+---------------------------------------+----------------------------------
+global.sidebar_section.blog            | {"value": true}
+resource:MyApp.PostLive:order          | {"value": {"by": "id", ...}}
+```
+
+Worth knowing when reading the table by hand or asserting on rows in a test.
+
+### Design variant — prefix → column mapping
+
+Use when you already have a user settings table (one row per user) with typed
+JSON columns, and want each Backpex prefix to write into a named column rather
+than a generic rows table. That needs a custom adapter (see
+[Writing a custom adapter](#writing-a-custom-adapter)); dispatch reads and
+writes on the key's segments and build `get_map/3`'s return value with
+`Backpex.Preferences.Adapter.nest/2`. The
+[ash_backpex](https://github.com/enoonan/ash_backpex) community project is a
+worked example.
 
 ## Opt-in persistence for ordering, filters, columns, metrics
 
@@ -884,7 +826,7 @@ end
 use Backpex.LiveResource,
   adapter_config: [...],
   persist: [:order]
-# MyApp.OrderingSettings writes move into MyApp.Preferences.EctoAdapter once;
+# MyApp.OrderingSettings writes move into the configured preference adapter;
 # every opt-in resource benefits.
 ```
 

@@ -166,11 +166,5 @@ defmodule Backpex.Preferences.Adapters.Session do
 
   defp root(_other), do: %{}
 
-  defp deep_put(map, [k], value), do: Map.put(map, k, value)
-
-  defp deep_put(map, [k | rest], value) do
-    child = Map.get(map, k)
-    child = if is_map(child), do: child, else: %{}
-    Map.put(map, k, deep_put(child, rest, value))
-  end
+  defp deep_put(map, path, value), do: Adapter.deep_put(map, path, value)
 end

@@ -20,7 +20,7 @@ defmodule Backpex.Preferences do
       config :backpex, Backpex.Preferences,
         adapters: [
           {"global.*",   Backpex.Preferences.Adapters.Session, []},
-          {"resource.*", MyApp.Preferences.EctoAdapter, repo: MyApp.Repo},
+          {"resource.*", Backpex.Preferences.Adapters.Ecto, repo: MyApp.Repo, schema: MyApp.Preference},
           {:default,     Backpex.Preferences.Adapters.Session, []}
         ],
         identity: {MyAppWeb.PreferencesIdentity, :resolve, []}
