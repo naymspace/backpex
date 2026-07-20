@@ -723,6 +723,20 @@ type must match what your identity resolver returns; a `:binary_id` user id
 needs a `:binary_id` column. Rename the column via `identity_field:` if you
 prefer something else; `:key` and `:value` are fixed.
 
+> #### Match your app's primary key convention {: .warning}
+>
+> The schema above uses Ecto's default `:id` primary key. If your app sets
+> `migration_primary_key: [type: :binary_id]` on the repo — or generates
+> schemas from a base module that does — the migration creates a `uuid` `id`
+> column with no database default, while a bare `use Ecto.Schema` still expects
+> the database to fill it. Inserts then fail at runtime with `null value in
+> column "id" violates not-null constraint`. Declare the primary key the way
+> the rest of your schemas do:
+>
+> ```elixir
+> @primary_key {:id, :binary_id, autogenerate: true}
+> ```
+
 Route only the prefixes that need it. Sending `global.*` to the database costs
 a query per mount to render sidebar state that fits the cookie comfortably —
 worth it if you want that state to follow users across devices, wasteful
