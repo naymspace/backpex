@@ -79,5 +79,38 @@ defmodule Backpex.HTML.LayoutTest do
     end
   end
 
+  describe "sidebar_section/1" do
+    test "renders the section closed when its state says so" do
+      html = sidebar_section(id: "blog", sidebar_section_states: %{"blog" => false})
+
+      assert html =~ ~r/data-section-open="false"/
+      assert html =~ ~r/aria-expanded="false"/
+      assert html =~ ~r/display: none;/
+    end
+
+    test "unknown section ids default to open" do
+      html = sidebar_section(id: "blog", sidebar_section_states: %{"other" => false})
+
+      assert html =~ ~r/data-section-open="true"/
+    end
+
+    test "defaults to %{} when the attr is omitted" do
+      # This is a function component, so an omitted attr cannot inherit the
+      # caller's `@sidebar_section_states` assign — `assign_new/3` only ever
+      # sees the attrs passed at the call site. The attr default is therefore
+      # the whole story, and callers must pass the assign explicitly. Pinned
+      # because the docs previously promised a parent fallback that cannot
+      # exist, which silently lost every user's collapsed sections.
+      html = sidebar_section(id: "blog")
+
+      assert html =~ ~r/data-section-open="true"/
+    end
+  end
+
+  defp sidebar_section(assigns) do
+    label = [%{__slot__: :label, inner_block: fn _assigns, _arg -> "Blog" end}]
+    render_component(&Layout.sidebar_section/1, Keyword.put_new(assigns, :label, label))
+  end
+
   defp socket, do: %Phoenix.LiveView.Socket{router: TestRouter}
 end

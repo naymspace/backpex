@@ -580,14 +580,14 @@ defmodule Backpex.HTML.Layout do
       "A unique id for this section. Used as the final segment of the `global.sidebar_section.<id>` preference key, in the browser hook's attribute selector, and to wire aria-controls. Use only ASCII letters, digits, underscores, and hyphens (`[A-Za-z0-9_-]+`); dots/colons alter key parsing and quotes/backslashes are unsafe in the selector."
 
   attr :sidebar_section_states, :map,
+    default: %{},
     doc:
-      "map of section states. When the attr is omitted, the component falls back to the parent's `@sidebar_section_states` assign (via `assign_new/3`), or `%{}` if the parent didn't set one. Unknown section ids default to open."
+      "map of section states, as assigned by `Backpex.InitAssigns`. Pass `@sidebar_section_states` explicitly — this is a function component, so an omitted attr does *not* inherit the surrounding assign, it defaults to `%{}` and every section renders open. Unknown section ids default to open."
 
   slot :inner_block
   slot :label, required: true, doc: "label to be displayed on the section."
 
   def sidebar_section(assigns) do
-    assigns = assign_new(assigns, :sidebar_section_states, fn -> %{} end)
     open = Map.get(assigns.sidebar_section_states, assigns.id, true)
 
     assigns =
