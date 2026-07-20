@@ -843,7 +843,13 @@ defmodule Backpex.HTML.Resource do
       |> assign(:selected, assigns.query_options.per_page)
 
     ~H"""
-    <.form for={@form} class={@class} phx-change="select-page-size" phx-submit="select-page-size">
+    <.form
+      for={@form}
+      id="select-per-page-form"
+      class={@class}
+      phx-change="select-page-size"
+      phx-submit="select-page-size"
+    >
       <select name={@form[:value].name} class="select select-sm" aria-label={Backpex.__("Items per page", @live_resource)}>
         <button>
           <selectedcontent></selectedcontent>
@@ -1121,7 +1127,7 @@ defmodule Backpex.HTML.Resource do
 
   ## Examples
 
-      <.form :let={f} for={@form} phx-change="validate" phx-submit="submit">
+      <.form :let={f} for={@form} id="edit-form" phx-change="validate" phx-submit="submit">
         <.edit_card>
           <:panel label="Names">
             <.input field={f[:first_name]} type="text" />
