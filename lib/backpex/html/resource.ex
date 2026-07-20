@@ -1151,7 +1151,7 @@ defmodule Backpex.HTML.Resource do
 
   ## Examples
 
-      <.form :let={f} for={@form} phx-change="validate" phx-submit="submit">
+      <.form :let={f} for={@form} id="edit-form" phx-change="validate" phx-submit="submit">
         <.edit_card>
           <:panel label="Names">
             <.input field={f[:first_name]} type="text" />
