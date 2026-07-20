@@ -48,4 +48,57 @@ defmodule Backpex.Preferences.KeysTest do
       assert segments == ["resource", "MyApp.UserLive", "columns"]
     end
   end
+
+  describe "valid_value?/2 accepts the shapes built-in readers expect" do
+    test "each built-in leaf accepts its own shape" do
+      assert Keys.valid_value?(Keys.theme(), "dark")
+      assert Keys.valid_value?(Keys.sidebar_open(), false)
+      assert Keys.valid_value?("global.sidebar_section.blog", false)
+      columns = Keys.columns(MyApp.UserLive)
+      metrics_visible = Keys.metrics_visible(MyApp.UserLive)
+      order = Keys.order(MyApp.UserLive)
+      filters = Keys.filters(MyApp.UserLive)
+
+      assert Keys.valid_value?(columns, %{"name" => true})
+      assert Keys.valid_value?(metrics_visible, true)
+      assert Keys.valid_value?(order, %{"by" => "name"})
+      assert Keys.valid_value?(filters, %{"status" => "active"})
+    end
+
+    test "keys Backpex owns no reader for still pass through" do
+      assert Keys.valid_value?("custom.acme.anything", %{"a" => 1})
+      assert Keys.valid_value?("global.unknown_future_key", %{"a" => 1})
+      assert Keys.valid_value?("resource:MyApp.UserLive:unknown_suffix", %{"a" => 1})
+    end
+  end
+
+  describe "valid_value?/2 rejects writes that would retype a built-in leaf" do
+    # Adapters store at whatever depth they are handed, so a key naming an
+    # interior node of a built-in path installs children no leaf check ever
+    # saw. Reading one back then raises in the render — `to_string/1` on a map
+    # for a section state, `data-theme` interpolation for the theme — 500ing
+    # every Backpex page for the life of the store entry.
+    test "an interior node of a built-in path is refused" do
+      refute Keys.valid_value?("global", %{"theme" => %{}})
+      refute Keys.valid_value?("global", "anything")
+      refute Keys.valid_value?("global.sidebar_section", %{"blog" => %{}})
+      refute Keys.valid_value?("resource", %{})
+      refute Keys.valid_value?("resource:MyApp.UserLive", %{"columns" => "nonsense"})
+    end
+
+    test "a node below a built-in leaf is refused" do
+      refute Keys.valid_value?("global.theme.x", "dark")
+      refute Keys.valid_value?("global.sidebar_open.x", true)
+      refute Keys.valid_value?("global.sidebar_section.blog.deep", true)
+      refute Keys.valid_value?("resource:MyApp.UserLive:columns:x", true)
+      refute Keys.valid_value?("resource:MyApp.UserLive:filters:x", %{})
+    end
+
+    test "rejection does not depend on the value being ill-shaped" do
+      # The leaf shape is irrelevant: the *path* is what makes the write
+      # unsafe, so even a boolean at `global.sidebar_section` is refused.
+      refute Keys.valid_value?("global.sidebar_section", true)
+      refute Keys.valid_value?("global.sidebar_section.blog.deep", false)
+    end
+  end
 end

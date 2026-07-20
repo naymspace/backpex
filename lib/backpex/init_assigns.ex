@@ -68,8 +68,16 @@ defmodule Backpex.InitAssigns do
     assign(socket, :sidebar_open, sidebar_open)
   end
 
+  # `sidebar_section/1` renders `data-section-open={to_string(@open)}`, which
+  # raises on a map. Drop individual sections whose stored state is not a
+  # boolean rather than the whole map — one bad section should not reset the
+  # rest — and let the component's default (open) apply to those.
   defp assign_sidebar_section_states(socket, ctx) do
-    section_states = Preferences.get_map(ctx, Keys.sidebar_section_prefix())
+    section_states =
+      ctx
+      |> Preferences.get_map(Keys.sidebar_section_prefix())
+      |> Map.filter(fn {_id, open} -> is_boolean(open) end)
+
     assign(socket, :sidebar_section_states, section_states)
   end
 

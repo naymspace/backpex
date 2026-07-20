@@ -37,6 +37,11 @@ defmodule Backpex.Preferences.Keys do
 
   alias Backpex.Preferences.Key
 
+  # Segments Backpex owns a reader for. Used by `shape/2` to reject writes that
+  # would retype one of them from above or below.
+  @global_segments ["theme", "sidebar_open", "sidebar_section"]
+  @resource_segments ["columns", "metrics_visible", "order", "filters"]
+
   @doc """
   Key for the global UI theme.
 
@@ -138,6 +143,12 @@ defmodule Backpex.Preferences.Keys do
   is no registration API for additional top-level prefixes; application-owned
   overlay keys belong under `"custom."`.
 
+  Writes are checked against the *whole path*, not just the leaf. Adapters
+  store at whatever depth they are given, so a key naming an interior node of
+  a built-in path (`"global.sidebar_section"`) or a node below a built-in leaf
+  (`"global.theme.x"`) would replace that leaf's value with a differently
+  shaped one that no leaf check ever saw. Those keys are rejected.
+
   ## Examples
 
       iex> Backpex.Preferences.Keys.valid_value?("global.sidebar_open", false)
@@ -147,6 +158,25 @@ defmodule Backpex.Preferences.Keys do
       false
 
       iex> Backpex.Preferences.Keys.valid_value?("custom.acme.anything", %{"a" => 1})
+      true
+
+  A key that would retype a built-in leaf from above or below is refused:
+
+      iex> Backpex.Preferences.Keys.valid_value?("global.sidebar_section", %{"blog" => %{}})
+      false
+
+      iex> Backpex.Preferences.Keys.valid_value?("global.sidebar_section.blog.deep", true)
+      false
+
+      iex> Backpex.Preferences.Keys.valid_value?("global", %{"theme" => %{}})
+      false
+
+      iex> Backpex.Preferences.Keys.valid_value?("resource:MyApp.UserLive:columns:x", true)
+      false
+
+  Section states themselves are unaffected:
+
+      iex> Backpex.Preferences.Keys.valid_value?("global.sidebar_section.blog", false)
       true
   """
   def valid_value?(key, value) when is_binary(key) do
@@ -161,6 +191,21 @@ defmodule Backpex.Preferences.Keys do
   defp shape(["resource", _module, "columns"], value), do: boolean_map?(value)
   defp shape(["resource", _module, "metrics_visible"], value), do: is_boolean(value)
   defp shape(["resource", _module, suffix], value) when suffix in ["order", "filters"], do: string_keyed_map?(value)
+
+  # A write that lands on an interior node of a built-in path — or below a
+  # built-in leaf — retypes that leaf without ever being measured against it.
+  # `Backpex.Preferences.Adapters.Session.deep_put/3` writes at whatever depth
+  # it is handed, so `"global.sidebar_section"` carrying `%{"blog" => %{}}`
+  # installs a map where the section reader expects a boolean, and
+  # `"global.theme.x"` turns the theme into one. Neither key can be expressed
+  # as a leaf clause above, so reject them here rather than let the catch-all
+  # wave them through.
+  defp shape(["global"], _value), do: false
+  defp shape(["global", segment | _rest], _value) when segment in @global_segments, do: false
+  defp shape(["resource"], _value), do: false
+  defp shape(["resource", _module], _value), do: false
+  defp shape(["resource", _module, segment | _rest], _value) when segment in @resource_segments, do: false
+
   defp shape(_segments, _value), do: true
 
   defp boolean_map?(value) do

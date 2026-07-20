@@ -249,6 +249,25 @@ defmodule Backpex.InitAssignsTest do
       assert socket.assigns.current_theme == 42
     end
 
+    test "drops individual sections whose stored state is not a boolean" do
+      # `sidebar_section/1` renders `data-section-open={to_string(@open)}`,
+      # which raises `Protocol.UndefinedError` on a map. The write path refuses
+      # these now, but a store can still hold one from a third-party adapter —
+      # passing it through would 500 every admin page for as long as it lived.
+      # Only the bad section is dropped; its siblings must survive.
+      session = %{
+        "backpex_preferences" => %{
+          "global" => %{
+            "sidebar_section" => %{"blog" => %{}, "users" => false, "docs" => "nope"}
+          }
+        }
+      }
+
+      socket = mount(session)
+
+      assert socket.assigns.sidebar_section_states == %{"users" => false}
+    end
+
     test "sidebar_section_states falls back to %{} when the stored subtree is not a map" do
       # `Preferences.get_map/3` must degrade to `%{}` rather than returning a
       # scalar for the sidebar_section sub-tree — otherwise callers that
