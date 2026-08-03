@@ -5,10 +5,34 @@ defmodule Backpex.PreferencesControllerTest do
   import Plug.Test
 
   alias Backpex.Preferences
+  alias Backpex.Preferences.Adapter
   alias Backpex.Preferences.Adapters.Session
   alias Backpex.Preferences.Keys
   alias Backpex.PreferencesController
   alias Backpex.Test.InMemoryPreferencesAdapter, as: InMemory
+
+  defmodule RecordingAdapter do
+    @moduledoc false
+    @behaviour Adapter
+
+    @impl Adapter
+    def get(_ctx, _key, _opts), do: {:ok, :not_found}
+
+    @impl Adapter
+    def get_map(_ctx, _prefix, _opts), do: {:ok, %{}}
+
+    @impl Adapter
+    def put(ctx, key, value, _opts) do
+      send(self(), {:preference_put, ctx.scope, key, value})
+      {:ok, :persisted}
+    end
+  end
+
+  defmodule ScopeResolver do
+    @moduledoc false
+    def resolve(%Backpex.Preferences.Context{assigns: %{current_scope: scope}}), do: scope
+    def resolve(_ctx), do: :unscoped
+  end
 
   setup do
     conn =
@@ -57,6 +81,36 @@ defmodule Backpex.PreferencesControllerTest do
 
       session_prefs = Plug.Conn.get_session(conn, Preferences.session_key())
       assert session_prefs == %{"global" => %{"theme" => "light", "sidebar_open" => false}}
+    end
+  end
+
+  describe "update/2 with an application scope" do
+    setup do
+      prior = Application.get_env(:backpex, Backpex.Preferences)
+
+      Application.put_env(:backpex, Backpex.Preferences,
+        adapters: [{:default, RecordingAdapter, []}],
+        scope: {ScopeResolver, :resolve, []}
+      )
+
+      on_exit(fn ->
+        case prior do
+          nil -> Application.delete_env(:backpex, Backpex.Preferences)
+          value -> Application.put_env(:backpex, Backpex.Preferences, value)
+        end
+      end)
+
+      :ok
+    end
+
+    test "passes tenant-aware conn assigns through the scope resolver", %{conn: conn} do
+      scope = %{user_id: 7, tenant_id: 70}
+      conn = Plug.Conn.assign(conn, :current_scope, scope)
+
+      conn = PreferencesController.update(conn, %{"key" => Keys.theme(), "value" => "dark"})
+
+      assert conn.status == 200
+      assert_received {:preference_put, ^scope, "global.theme", "dark"}
     end
   end
 
@@ -176,17 +230,17 @@ defmodule Backpex.PreferencesControllerTest do
     end
   end
 
-  describe "update/2 when the adapter returns :unidentified (anonymous visitor)" do
+  describe "update/2 when the adapter returns :unscoped (anonymous visitor)" do
     setup do
       prior = Application.get_env(:backpex, Backpex.Preferences)
 
       # Route:
-      #   resource.* → unidentified adapter (mimics a DB adapter rejecting
+      #   resource.* → unscoped adapter (mimics a DB adapter rejecting
       #                anonymous visitors)
       #   :default   → session
       Application.put_env(:backpex, Backpex.Preferences,
         adapters: [
-          {"resource.*", Backpex.Test.UnidentifiedPreferencesAdapter, []},
+          {"resource.*", Backpex.Test.UnscopedPreferencesAdapter, []},
           {:default, Session, []}
         ]
       )
@@ -201,7 +255,7 @@ defmodule Backpex.PreferencesControllerTest do
       :ok
     end
 
-    test "single-write :unidentified returns 200 ok: false reason: unidentified", %{conn: conn} do
+    test "single-write :unscoped returns 200 ok: false reason: unscoped", %{conn: conn} do
       conn =
         PreferencesController.update(conn, %{
           "key" => Keys.columns(MyApp.UserLive),
@@ -212,11 +266,11 @@ defmodule Backpex.PreferencesControllerTest do
 
       assert Jason.decode!(conn.resp_body) == %{
                "ok" => false,
-               "error" => %{"key" => Keys.columns(MyApp.UserLive), "reason" => "unidentified"}
+               "error" => %{"key" => Keys.columns(MyApp.UserLive), "reason" => "unscoped"}
              }
     end
 
-    test "single-write :unidentified does not log a warning", %{conn: conn} do
+    test "single-write :unscoped does not log a warning", %{conn: conn} do
       log =
         capture_log(fn ->
           PreferencesController.update(conn, %{
@@ -226,10 +280,10 @@ defmodule Backpex.PreferencesControllerTest do
         end)
 
       refute log =~ "preference batch refused"
-      refute log =~ "unidentified"
+      refute log =~ "unscoped"
     end
 
-    test "batch with :unidentified entry still returns 422", %{conn: conn} do
+    test "batch with :unscoped entry still returns 422", %{conn: conn} do
       params = %{
         "preferences" => [
           %{"key" => Keys.theme(), "value" => "dark"},
@@ -242,7 +296,7 @@ defmodule Backpex.PreferencesControllerTest do
       assert conn.status == 422
       body = Jason.decode!(conn.resp_body)
       assert body["ok"] == false
-      assert body["error"]["reason"] == "unidentified"
+      assert body["error"]["reason"] == "unscoped"
     end
   end
 

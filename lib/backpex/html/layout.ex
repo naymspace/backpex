@@ -33,13 +33,21 @@ defmodule Backpex.HTML.Layout do
   attr :fluid, :boolean, default: false, doc: "toggles fluid layout"
   attr :sidebar_open, :boolean, default: true, doc: "initial sidebar open state"
 
-  attr :preferences_identity, :string,
+  attr :preferences_scope, :string,
     default: nil,
     doc: """
-    opaque fingerprint of the current preference identity, assigned by `Backpex.InitAssigns`.
-    Pass `@preferences_identity`. Without it the browser cannot tell whose unacknowledged
+    opaque fingerprint of the current preference scope, assigned by `Backpex.InitAssigns`.
+    Pass `@preferences_scope`. Without it the browser cannot tell which scope owns unacknowledged
     preference writes it is holding, so it stops carrying them across a reload and the first
-    paint after a fast toggle may be stale. See `Backpex.Preferences.LiveView.identity_fingerprint/2`.
+    paint after a fast toggle may be stale. See `Backpex.Preferences.LiveView.scope_fingerprint/2`.
+    """
+
+  attr :preferences_path, :string,
+    default: nil,
+    doc: """
+    preference endpoint path. Pass an explicit path when the route contains dynamic segments
+    (for example `/tenants/:tenant/backpex_preferences`) or when the router contains multiple
+    preferences routes.
     """
 
   slot :inner_block
@@ -69,7 +77,11 @@ defmodule Backpex.HTML.Layout do
       phx-hook={@has_sidebar && "BackpexSidebar"}
       data-sidebar-open={to_string(@sidebar_open)}
     >
-      <.preferences_root socket={@socket} preferences_identity={@preferences_identity} />
+      <.preferences_root
+        socket={@socket}
+        preferences_scope={@preferences_scope}
+        preferences_path={@preferences_path}
+      />
       <%!-- Sidebar (single element for both mobile and desktop) --%>
       <nav
         :if={@has_sidebar}
@@ -176,35 +188,41 @@ defmodule Backpex.HTML.Layout do
   `app_shell/1` renders this for you. Render it yourself, once per page, only if
   you build a layout without `app_shell/1`:
 
-      <.preferences_root socket={@socket} preferences_identity={@preferences_identity} />
+      <.preferences_root socket={@socket} preferences_scope={@preferences_scope} />
 
   ## Examples
 
       <Backpex.HTML.Layout.preferences_root
         socket={@socket}
-        preferences_identity={@preferences_identity}
+        preferences_scope={@preferences_scope}
+        preferences_path={~p"/tenants/\#{@tenant.id}/backpex_preferences"}
       />
   """
   @doc type: :component
 
   attr :socket, :any, required: true, doc: "the socket"
 
-  attr :preferences_identity, :string,
+  attr :preferences_scope, :string,
     default: nil,
     doc: """
-    opaque fingerprint of the current preference identity, assigned by `Backpex.InitAssigns`.
-    Pass `@preferences_identity`. Without it the browser cannot tell whose unacknowledged
+    opaque fingerprint of the current preference scope, assigned by `Backpex.InitAssigns`.
+    Pass `@preferences_scope`. Without it the browser cannot tell which scope owns unacknowledged
     preference writes it is holding, so it stops carrying them across a reload and the first
-    paint after a fast toggle may be stale. See `Backpex.Preferences.LiveView.identity_fingerprint/2`.
+    paint after a fast toggle may be stale. See `Backpex.Preferences.LiveView.scope_fingerprint/2`.
     """
+
+  attr :preferences_path, :string,
+    default: nil,
+    doc:
+      "explicit preference endpoint path; required when the route contains dynamic segments or the router has multiple preference routes"
 
   def preferences_root(assigns) do
     ~H"""
     <div
       id="backpex-preferences"
       phx-hook="BackpexPreferencesHook"
-      data-preferences-path={Router.preferences_path(@socket)}
-      data-preferences-identity={@preferences_identity}
+      data-preferences-path={@preferences_path || Router.preferences_path(@socket)}
+      data-preferences-scope={@preferences_scope}
       class="hidden"
     >
     </div>

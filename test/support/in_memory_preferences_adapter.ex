@@ -2,8 +2,8 @@ defmodule Backpex.Test.InMemoryPreferencesAdapter do
   @moduledoc """
   ETS-backed `Backpex.Preferences.Adapter` for tests.
 
-  Keys and values are namespaced by the resolved identity (falling back to
-  `:anonymous` when no identity is configured). Swap in during a test by
+  Keys and values are namespaced by the resolved scope (falling back to
+  `:unscoped` when no scope is configured). Swap in during a test by
   setting:
 
       Application.put_env(:backpex, Backpex.Preferences,
@@ -39,18 +39,18 @@ defmodule Backpex.Test.InMemoryPreferencesAdapter do
     :ok
   end
 
-  @doc "Returns the full map of stored entries for an identity."
-  def dump(identity \\ :anonymous) do
+  @doc "Returns the full map of stored entries for a scope."
+  def dump(scope \\ :unscoped) do
     start()
-    :ets.match_object(@table, {{identity, :_}, :_}) |> Map.new(fn {{_id, k}, v} -> {k, v} end)
+    :ets.match_object(@table, {{scope, :_}, :_}) |> Map.new(fn {{_scope, k}, v} -> {k, v} end)
   end
 
   @impl Adapter
   def get(ctx, key, _opts) do
     start()
-    identity = identity(ctx)
+    scope = scope(ctx)
 
-    case :ets.lookup(@table, {identity, key}) do
+    case :ets.lookup(@table, {scope, key}) do
       [{_row_key, value}] -> {:ok, value}
       [] -> {:ok, :not_found}
     end
@@ -59,14 +59,14 @@ defmodule Backpex.Test.InMemoryPreferencesAdapter do
   @impl Adapter
   def get_map(ctx, prefix, _opts) do
     start()
-    identity = identity(ctx)
+    scope = scope(ctx)
     prefix_segments = Key.parse(prefix)
 
     map =
       @table
       |> :ets.tab2list()
       |> Enum.reduce(%{}, fn
-        {{^identity, key}, value}, acc ->
+        {{^scope, key}, value}, acc ->
           segments = Key.parse(key)
 
           case strip_prefix(segments, prefix_segments) do
@@ -84,14 +84,13 @@ defmodule Backpex.Test.InMemoryPreferencesAdapter do
   @impl Adapter
   def put(ctx, key, value, _opts) do
     start()
-    identity = identity(ctx)
-    :ets.insert(@table, {{identity, key}, value})
+    scope = scope(ctx)
+    :ets.insert(@table, {{scope, key}, value})
     {:ok, :persisted}
   end
 
-  defp identity(%Context{identity: nil}), do: :anonymous
-  defp identity(%Context{identity: :unidentified}), do: :anonymous
-  defp identity(%Context{identity: id}), do: id
+  defp scope(%Context{scope: nil}), do: :unscoped
+  defp scope(%Context{scope: scope}), do: scope
 
   defp strip_prefix(segments, prefix) do
     case {segments, prefix} do

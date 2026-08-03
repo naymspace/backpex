@@ -274,16 +274,16 @@ defmodule Backpex.PreferencesTest do
       end)
     end
 
-    test "adapter returning {:error, :unidentified} is surfaced unchanged" do
-      with_adapters([{:default, Backpex.PreferencesTest.UnidentifiedAdapter, []}], fn ->
+    test "adapter returning {:error, :unscoped} is surfaced unchanged" do
+      with_adapters([{:default, Backpex.PreferencesTest.UnscopedAdapter, []}], fn ->
         conn = conn(:post, "/") |> Plug.Test.init_test_session(%{})
 
         log =
           capture_log(fn ->
-            assert {:error, :unidentified} = Preferences.put(conn, Keys.theme(), "dark")
+            assert {:error, :unscoped} = Preferences.put(conn, Keys.theme(), "dark")
           end)
 
-        assert log =~ ":unidentified"
+        assert log =~ ":unscoped"
       end)
     end
 
@@ -324,19 +324,19 @@ defmodule Backpex.PreferencesTest do
       end)
     end
 
-    test "get/3 falls back to default WITHOUT logging on {:error, :unidentified}" do
-      # `Backpex.Preferences.Adapter` defines `:unidentified` on reads as
+    test "get/3 falls back to default WITHOUT logging on {:error, :unscoped}" do
+      # `Backpex.Preferences.Adapter` defines `:unscoped` on reads as
       # "treat as not found", so it must resolve to the default and must NOT
       # log: the condition is expected (anonymous visitors, background jobs)
       # and would otherwise emit a warning on every single read.
-      with_adapters([{:default, Backpex.PreferencesTest.UnidentifiedAdapter, []}], fn ->
+      with_adapters([{:default, Backpex.PreferencesTest.UnscopedAdapter, []}], fn ->
         log =
           capture_log(fn ->
             assert Preferences.get(%{}, Keys.theme(), default: "light") == "light"
           end)
 
         refute log =~ "Backpex.Preferences"
-        refute log =~ ":unidentified"
+        refute log =~ ":unscoped"
       end)
     end
 
@@ -352,35 +352,51 @@ defmodule Backpex.PreferencesTest do
       end)
     end
 
-    test "get_map/3 falls back to %{} WITHOUT logging on {:error, :unidentified}" do
-      with_adapters([{:default, Backpex.PreferencesTest.UnidentifiedAdapter, []}], fn ->
+    test "get_map/3 falls back to %{} WITHOUT logging on {:error, :unscoped}" do
+      with_adapters([{:default, Backpex.PreferencesTest.UnscopedAdapter, []}], fn ->
         log =
           capture_log(fn ->
             assert Preferences.get_map(%{}, Keys.sidebar_section_prefix()) == %{}
           end)
 
         refute log =~ "Backpex.Preferences"
-        refute log =~ ":unidentified"
+        refute log =~ ":unscoped"
       end)
     end
   end
 
-  describe "identity resolver error path" do
-    test "a raising resolver triggers a Logger.warning and resolves to :unidentified" do
+  describe "scope resolver error path" do
+    test "a raising resolver triggers a Logger.warning and resolves to :unscoped" do
       with_adapters(
         [{:default, Session, []}],
-        [identity: {Backpex.PreferencesTest.RaisingIdentity, :resolve, []}],
+        [scope: {Backpex.PreferencesTest.RaisingScope, :resolve, []}],
         fn ->
           log =
             capture_log(fn ->
               # Reading goes through the resolver — a raise inside it is caught
-              # and falls back to :unidentified. The warning is the operator signal.
+              # and falls back to :unscoped. The warning is the operator signal.
               assert Preferences.get(%{}, Keys.theme(), default: "light") == "light"
             end)
 
           assert log =~ "preferences"
-          assert log =~ "identity resolver"
-          assert log =~ ":unidentified"
+          assert log =~ "scope resolver"
+          assert log =~ ":unscoped"
+        end
+      )
+    end
+
+    test "a resolver map with non-atom keys resolves to :unscoped" do
+      with_adapters(
+        [{:default, Session, []}],
+        [scope: {Backpex.PreferencesTest.StringKeyScope, :resolve, []}],
+        fn ->
+          log =
+            capture_log(fn ->
+              ctx = %{} |> Context.from_mount() |> Preferences.resolve_scope()
+              assert ctx.scope == :unscoped
+            end)
+
+          assert log =~ "non-atom keys"
         end
       )
     end
@@ -450,16 +466,21 @@ defmodule Backpex.PreferencesTest do
     def put(_ctx, _key, _value, _opts), do: raise("boom")
   end
 
-  defmodule UnidentifiedAdapter do
+  defmodule StringKeyScope do
+    @moduledoc false
+    def resolve(_ctx), do: %{"user_id" => 7}
+  end
+
+  defmodule UnscopedAdapter do
     @moduledoc false
     @behaviour Adapter
 
     @impl Adapter
-    def get(_ctx, _key, _opts), do: {:error, :unidentified}
+    def get(_ctx, _key, _opts), do: {:error, :unscoped}
     @impl Adapter
-    def get_map(_ctx, _prefix, _opts), do: {:error, :unidentified}
+    def get_map(_ctx, _prefix, _opts), do: {:error, :unscoped}
     @impl Adapter
-    def put(_ctx, _key, _value, _opts), do: {:error, :unidentified}
+    def put(_ctx, _key, _value, _opts), do: {:error, :unscoped}
   end
 
   defmodule SessionFromSocketAdapter do
@@ -488,8 +509,8 @@ defmodule Backpex.PreferencesTest do
     def put(_ctx, _key, _value, _opts), do: {:ok, :persisted}
   end
 
-  defmodule RaisingIdentity do
+  defmodule RaisingScope do
     @moduledoc false
-    def resolve(_ctx), do: raise("identity resolver boom")
+    def resolve(_ctx), do: raise("scope resolver boom")
   end
 end

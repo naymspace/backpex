@@ -33,6 +33,8 @@ export default {
     'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])',
 
   mounted () {
+    BackpexPreferences.syncScope()
+    this.preferenceScopeMarker = BackpexPreferences.scopeMarker
     this.sidebar = document.getElementById('backpex-sidebar')
     this.overlay = document.getElementById('backpex-sidebar-overlay')
     this.main = document.getElementById('backpex-main')
@@ -88,13 +90,23 @@ export default {
   updated () {
     if (!this.sidebar || !this.toggleBtn) return
 
+    BackpexPreferences.syncScope()
+    const preferenceScopeMarker = BackpexPreferences.scopeMarker
+    const scopeChanged = this.preferenceScopeMarker !== preferenceScopeMarker
+    this.preferenceScopeMarker = preferenceScopeMarker
+
     // Edge-triggered: `desktopOpen` drives higher-specificity `data-[state]`
     // classes, so re-asserting a stale cached value on every render would
     // permanently override the server. Adopt the attribute only when it
     // *changed* — and only when this tab has no write the server has yet to
     // acknowledge, since such a render was necessarily produced without it.
     const serverOpen = this.el.dataset.sidebarOpen === 'true'
-    if (serverOpen !== this.serverOpen) {
+    if (scopeChanged) {
+      this.serverOpen = serverOpen
+      this.desktopOpen = BackpexPreferences.get('global.sidebar_open', serverOpen)
+      this.mobileOpen = false
+      this.previousFocus = null
+    } else if (serverOpen !== this.serverOpen) {
       this.serverOpen = serverOpen
       if (!BackpexPreferences.isPending('global.sidebar_open')) this.desktopOpen = serverOpen
     }

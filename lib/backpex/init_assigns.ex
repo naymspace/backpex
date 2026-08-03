@@ -4,7 +4,7 @@ defmodule Backpex.InitAssigns do
 
   Must run **after** your app's authentication `on_mount` hook so that
   `socket.assigns` already holds `:current_user` / `:current_scope` (or
-  whatever your identity resolver looks for) by the time preferences are
+  whatever your scope resolver looks for) by the time preferences are
   read. See `guides/live_resource/user-preferences.md` for the full ordering
   contract.
   """
@@ -21,7 +21,7 @@ defmodule Backpex.InitAssigns do
     # Build the Context once so every read sees the same session + assigns
     # snapshot. `socket.assigns` already contains whatever the app's auth hook
     # put there (current_user, current_scope, ...), which is exactly what
-    # identity resolvers need. The context also carries the browser's own
+    # scope resolvers need. The context also carries the browser's own
     # preference overlay — connect params on a connected mount, the
     # `backpex_prefs` cookie on the dead render — which overrides stored values
     # the browser is known to be ahead of. See `Backpex.Preferences.LiveView`.
@@ -29,7 +29,7 @@ defmodule Backpex.InitAssigns do
 
     socket =
       socket
-      |> assign_preferences_identity(ctx)
+      |> assign_preferences_scope(ctx)
       |> assign_current_theme(ctx)
       |> assign_sidebar_open(ctx)
       |> assign_sidebar_section_states(ctx)
@@ -39,14 +39,14 @@ defmodule Backpex.InitAssigns do
   end
 
   # The browser cannot know who it is talking to; the server can. Hand it an
-  # opaque fingerprint of the current preference identity so it can stamp the
+  # opaque fingerprint of the current preference scope so it can stamp the
   # unacknowledged writes it holds in `backpex_prefs` and drop them again once
-  # the identity changes — otherwise the write user A left in flight when they
+  # the scope changes — otherwise the write user A left in flight when they
   # logged out would be rendered for, and replayed by, user B. Layouts pass this
   # to `Backpex.HTML.Layout.app_shell/1`; `nil` (no endpoint secret, or a session
   # with no CSRF token yet) turns the pending cookie off entirely.
-  defp assign_preferences_identity(socket, ctx) do
-    assign(socket, :preferences_identity, PreferenceLiveView.identity_fingerprint(ctx, socket.endpoint))
+  defp assign_preferences_scope(socket, ctx) do
+    assign(socket, :preferences_scope, PreferenceLiveView.scope_fingerprint(ctx, socket.endpoint))
   end
 
   defp assign_current_theme(socket, ctx) do

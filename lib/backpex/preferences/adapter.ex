@@ -3,15 +3,17 @@ defmodule Backpex.Preferences.Adapter do
   Behavior implemented by Backpex preference storage adapters.
 
   `Backpex.Preferences` dispatches each call to an adapter selected by the
-  key's prefix. Ship with `Backpex.Preferences.Adapters.Session` by default and
+  key's prefix. Backpex ships with `Backpex.Preferences.Adapters.Session` by default and
   configure others per prefix:
 
       config :backpex, Backpex.Preferences,
         adapters: [
           {"global.*",   Backpex.Preferences.Adapters.Session, []},
-          {"resource.*", Backpex.Preferences.Adapters.Ecto, repo: MyApp.Repo, schema: MyApp.Preference},
+          {"resource.*", Backpex.Preferences.Adapters.Ecto,
+           repo: MyApp.Repo, schema: MyApp.Preference, scope_fields: [:user_id, :tenant_id]},
           {:default,     Backpex.Preferences.Adapters.Session, []}
-        ]
+        ],
+        scope: {MyAppWeb.PreferencesScope, :resolve, []}
 
   ## Return semantics
 
@@ -20,8 +22,8 @@ defmodule Backpex.Preferences.Adapter do
   - `{:ok, :not_found}` — the adapter successfully determined that no value is
     stored for this key. `Backpex.Preferences.get/3` callers fall back to
     their `:default` option.
-  - `{:error, :unidentified}` — the adapter needs a resolved user (see
-    `Backpex.Preferences.Context.identity`) and does not have one. Reads
+  - `{:error, :unscoped}` — the adapter needs a resolved preference scope (see
+    `Backpex.Preferences.Context.scope`) and does not have one. Reads
     should be treated as "not found"; writes surface `{ok: false}` to the
     caller without crashing.
   - `{:error, :requires_http}` — the adapter can only write via a
@@ -80,7 +82,7 @@ defmodule Backpex.Preferences.Adapter do
   their `:default` option.
   """
   @callback get(ctx :: Context.t(), key :: String.t(), opts :: keyword()) ::
-              {:ok, term()} | {:ok, :not_found} | {:error, :unidentified | term()}
+              {:ok, term()} | {:ok, :not_found} | {:error, :unscoped | term()}
 
   @doc """
   Read every value under `prefix` and return them as a nested map.
@@ -90,7 +92,7 @@ defmodule Backpex.Preferences.Adapter do
   path segments that come after `prefix`, not by full dotted/coloned keys.
   """
   @callback get_map(ctx :: Context.t(), prefix :: String.t(), opts :: keyword()) ::
-              {:ok, map()} | {:error, :unidentified | term()}
+              {:ok, map()} | {:error, :unscoped | term()}
 
   @doc """
   Persist a value.
@@ -104,7 +106,7 @@ defmodule Backpex.Preferences.Adapter do
   leaving the stored value untouched.
   """
   @callback put(ctx :: Context.t(), key :: String.t(), value :: term(), opts :: keyword()) ::
-              {:ok, put_result()} | {:error, :unidentified | :requires_http | :too_large | term()}
+              {:ok, put_result()} | {:error, :unscoped | :requires_http | :too_large | term()}
 
   @doc """
   Builds the nested map `c:get_map/3` must return from flat `{key, value}` rows.

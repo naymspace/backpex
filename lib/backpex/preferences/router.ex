@@ -44,9 +44,11 @@ defmodule Backpex.Preferences.Router do
       config :backpex, Backpex.Preferences,
         adapters: [
           {"global.*",   Backpex.Preferences.Adapters.Session, []},
-          {"resource.*", Backpex.Preferences.Adapters.Ecto, repo: MyApp.Repo, schema: MyApp.Preference},
+          {"resource.*", Backpex.Preferences.Adapters.Ecto,
+           repo: MyApp.Repo, schema: MyApp.Preference, scope_fields: [:user_id, :tenant_id]},
           {:default,     Backpex.Preferences.Adapters.Session, []}
-        ]
+        ],
+        scope: {MyAppWeb.PreferencesScope, :resolve, []}
 
   With no `:adapters` config the router falls back to a single
   `{:default, Backpex.Preferences.Adapters.Session, []}` route, so the

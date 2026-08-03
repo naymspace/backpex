@@ -25,10 +25,35 @@ import { BackpexPreferences } from './_preferences'
  */
 export default {
   mounted () {
+    BackpexPreferences.syncScope()
+    this.preferenceScopeMarker = BackpexPreferences.scopeMarker
+
     // Initial theme already applied via server-rendered data-theme attribute
     // Just set up the change listener, scoped to the form element itself.
     this.boundHandleThemeChange = this.handleThemeChange.bind(this)
     this.el.addEventListener('backpex:theme-change', this.boundHandleThemeChange)
+    this.applyRenderedTheme()
+  },
+
+  updated () {
+    BackpexPreferences.syncScope()
+    const preferenceScopeMarker = BackpexPreferences.scopeMarker
+
+    if (this.preferenceScopeMarker !== preferenceScopeMarker) {
+      this.preferenceScopeMarker = preferenceScopeMarker
+      this.applyRenderedTheme()
+    }
+  },
+
+  applyRenderedTheme () {
+    const selectedTheme = this.el.querySelector('input[name="theme-selector"]:checked')
+    if (!selectedTheme) return
+
+    const theme = BackpexPreferences.get('global.theme', selectedTheme.value)
+    const mirroredTheme = Array.from(this.el.querySelectorAll('input[name="theme-selector"]'))
+      .find((input) => input.value === theme)
+    if (mirroredTheme) mirroredTheme.checked = true
+    document.documentElement.setAttribute('data-theme', theme)
   },
 
   handleThemeChange () {

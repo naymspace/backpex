@@ -3,7 +3,7 @@ defmodule Backpex.Preferences.Context do
   Runtime context passed to `Backpex.Preferences.Adapter` callbacks.
 
   A context captures where a preference read/write originated and gives
-  adapters the handles they need (session, assigns, identity) without
+  adapters the handles they need (session, assigns, scope) without
   forcing every adapter to know about `Plug.Conn` or LiveView socket
   internals.
 
@@ -15,33 +15,34 @@ defmodule Backpex.Preferences.Context do
   - `coerce/1` — wraps a bare session map so callers that only have a
     session on hand can still use the dispatcher.
 
-  ## The `identity` field
+  ## The `scope` field
 
-  `identity` holds the current user's identifier as returned by the configured
-  identity resolver (see `Backpex.Preferences`). It is `nil` before the
-  dispatcher runs resolution, `:unidentified` when the resolver could not find
-  a user, or any term the resolver returned on success (usually a user id).
+  `scope` holds the preference namespace returned by the configured scope
+  resolver (see `Backpex.Preferences`). A resolved scope is a non-empty,
+  atom-keyed map, for example `%{user_id: user.id, tenant_id: tenant.id}`. It is `nil` before
+  the dispatcher runs resolution and `:unscoped` when the resolver could not
+  determine a namespace.
 
-  Resolution runs per dispatcher call (per `get`/`put`/`get_map`), not once
-  per session. The resolved value is stashed on `ctx.identity` so adapter
-  callbacks invoked during the same dispatch reuse the same identity, but
-  the resolver re-runs on the next dispatcher call. Keep it cheap.
+  Resolution runs once for each unresolved context. Reusing a context whose
+  `scope` is already populated reuses the resolved scope. Entry points that
+  receive a bare session, conn, or socket build a fresh context and therefore
+  run the resolver again. Keep the resolver cheap.
   """
 
   alias __MODULE__
 
   @type source :: :mount | :controller | :server
-  @type identity :: term() | :unidentified | nil
+  @type scope :: %{required(atom()) => term()} | :unscoped | nil
 
   @type t :: %__MODULE__{
           source: source(),
           session: map(),
           assigns: map(),
-          identity: identity(),
+          scope: scope(),
           client: %{optional(String.t()) => term()}
         }
 
-  defstruct source: :mount, session: %{}, assigns: %{}, identity: nil, client: %{}
+  defstruct source: :mount, session: %{}, assigns: %{}, scope: nil, client: %{}
 
   @doc """
   Build a context for a read originating at LiveView mount.
@@ -180,12 +181,11 @@ defmodule Backpex.Preferences.Context do
   end
 
   @doc """
-  Returns `%{ctx | identity: identity}`.
+  Returns `%{ctx | scope: scope}`.
 
-  Called by the dispatcher after it runs the configured identity resolver
-  on each read/write. Adapter callbacks for that single dispatch receive
-  the already-resolved value; the resolver itself runs once per dispatcher
-  call, not once per session.
+  Called after the configured scope resolver runs. Adapter callbacks receive
+  the already-resolved scope, and subsequent dispatches that reuse this context
+  do not run the resolver again.
   """
-  def put_identity(%Context{} = ctx, identity), do: %{ctx | identity: identity}
+  def put_scope(%Context{} = ctx, scope), do: %{ctx | scope: scope}
 end

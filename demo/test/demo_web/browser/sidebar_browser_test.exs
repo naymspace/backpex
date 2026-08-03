@@ -144,9 +144,12 @@ defmodule DemoWeb.Browser.SidebarBrowserTest do
       end)
       # The mirror survives — it is the live_redirect carrier and has a
       # different job.
-      |> evaluate("sessionStorage.getItem('backpex.prefs.global.sidebar_open')", fn value ->
-        assert value == "false"
-      end)
+      |> evaluate(
+        "sessionStorage.getItem(`backpex.prefs.${document.getElementById('backpex-preferences').dataset.preferencesScope}.global.sidebar_open`)",
+        fn value ->
+          assert value == "false"
+        end
+      )
     end
   end
 

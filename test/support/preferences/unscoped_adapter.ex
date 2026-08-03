@@ -1,10 +1,10 @@
-defmodule Backpex.Test.UnidentifiedPreferencesAdapter do
+defmodule Backpex.Test.UnscopedPreferencesAdapter do
   @moduledoc """
   Test-only `Backpex.Preferences.Adapter` whose `put/4` always returns
-  `{:error, :unidentified}`. Reads succeed as "not found."
+  `{:error, :unscoped}`. Reads succeed as "not found."
 
   Used to exercise the controller's anonymous-visitor carve-out, where a
-  single-write `:unidentified` is treated as a 200 no-op instead of a 422.
+  single-write `:unscoped` is treated as a 200 no-op instead of a 422.
   """
 
   @behaviour Backpex.Preferences.Adapter
@@ -18,5 +18,5 @@ defmodule Backpex.Test.UnidentifiedPreferencesAdapter do
   def get_map(_ctx, _prefix, _opts), do: {:ok, %{}}
 
   @impl Adapter
-  def put(_ctx, _key, _value, _opts), do: {:error, :unidentified}
+  def put(_ctx, _key, _value, _opts), do: {:error, :unscoped}
 end

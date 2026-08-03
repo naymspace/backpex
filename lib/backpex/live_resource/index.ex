@@ -30,7 +30,7 @@ defmodule Backpex.LiveResource.Index do
         Backpex.__({"New %{resource}", %{resource: live_resource.singular_name()}}, live_resource)
       )
 
-    # Build a Context once per mount so identity resolvers see the same
+    # Build a Context once per mount so scope resolvers see the same
     # session + socket.assigns snapshot across every preference read (including
     # any auth-layer assigns like :current_scope or :current_user populated by
     # an earlier on_mount hook). It also carries the browser's connect-param

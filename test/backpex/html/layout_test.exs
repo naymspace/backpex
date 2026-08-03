@@ -15,6 +15,30 @@ defmodule Backpex.HTML.LayoutTest do
     end
   end
 
+  defmodule DynamicPreferencesRouter do
+    use Phoenix.Router, helpers: false
+
+    import Backpex.Router
+
+    scope "/tenants/:tenant" do
+      backpex_routes()
+    end
+  end
+
+  defmodule MultiplePreferencesRouter do
+    use Phoenix.Router, helpers: false
+
+    import Backpex.Router
+
+    scope "/admin" do
+      backpex_routes()
+    end
+
+    scope "/partners" do
+      backpex_routes()
+    end
+  end
+
   describe "theme_selector/1" do
     test "mounts the theme hook on the inner form, not on the dropdown wrapper" do
       # Regression: the <.dropdown> component hardcodes
@@ -47,19 +71,48 @@ defmodule Backpex.HTML.LayoutTest do
 
   describe "preferences_root/1" do
     test "renders the endpoint path the JS hook needs to persist anything" do
-      html = render_component(&Layout.preferences_root/1, socket: socket(), preferences_identity: "abc123")
+      html = render_component(&Layout.preferences_root/1, socket: socket(), preferences_scope: "abc123")
 
       assert html =~ ~r/id="backpex-preferences"/
       assert html =~ ~r/phx-hook="BackpexPreferencesHook"/
       assert html =~ ~r|data-preferences-path="/admin/backpex_preferences"|
-      assert html =~ ~r/data-preferences-identity="abc123"/
+      assert html =~ ~r/data-preferences-scope="abc123"/
     end
 
-    test "renders without an identity" do
+    test "uses an explicit endpoint path for a dynamically scoped route" do
+      html =
+        render_component(&Layout.preferences_root/1,
+          socket: socket(),
+          preferences_scope: "abc123",
+          preferences_path: "/tenants/42/backpex_preferences"
+        )
+
+      assert html =~ ~r|data-preferences-path="/tenants/42/backpex_preferences"|
+    end
+
+    test "requires an explicit endpoint path for a dynamic route" do
+      assert_raise ArgumentError, ~r/contains dynamic segments/, fn ->
+        render_component(&Layout.preferences_root/1,
+          socket: socket(DynamicPreferencesRouter),
+          preferences_scope: "abc123"
+        )
+      end
+    end
+
+    test "requires an explicit endpoint path when the router has multiple routes" do
+      assert_raise ArgumentError, ~r/Found multiple backpex_preferences routes/, fn ->
+        render_component(&Layout.preferences_root/1,
+          socket: socket(MultiplePreferencesRouter),
+          preferences_scope: "abc123"
+        )
+      end
+    end
+
+    test "renders without a scope fingerprint" do
       html = render_component(&Layout.preferences_root/1, socket: socket())
 
       assert html =~ ~r/id="backpex-preferences"/
-      refute html =~ ~r/data-preferences-identity/
+      refute html =~ ~r/data-preferences-scope/
     end
   end
 
@@ -71,11 +124,16 @@ defmodule Backpex.HTML.LayoutTest do
       # do not use app_shell/1 must render `preferences_root/1` themselves; this
       # asserts the app_shell path stays wired.
       html =
-        render_component(&Layout.app_shell/1, socket: socket(), preferences_identity: "abc123", inner_block: [])
+        render_component(&Layout.app_shell/1,
+          socket: socket(),
+          preferences_scope: "abc123",
+          preferences_path: "/tenants/42/backpex_preferences",
+          inner_block: []
+        )
 
       assert html =~ ~r/id="backpex-preferences"/
-      assert html =~ ~r|data-preferences-path="/admin/backpex_preferences"|
-      assert html =~ ~r/data-preferences-identity="abc123"/
+      assert html =~ ~r|data-preferences-path="/tenants/42/backpex_preferences"|
+      assert html =~ ~r/data-preferences-scope="abc123"/
     end
   end
 
@@ -112,5 +170,5 @@ defmodule Backpex.HTML.LayoutTest do
     render_component(&Layout.sidebar_section/1, Keyword.put_new(assigns, :label, label))
   end
 
-  defp socket, do: %Phoenix.LiveView.Socket{router: TestRouter}
+  defp socket(router \\ TestRouter), do: %Phoenix.LiveView.Socket{router: router}
 end

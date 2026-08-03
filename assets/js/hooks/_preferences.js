@@ -19,8 +19,8 @@
  *   request — including a reload fired milliseconds later, long before the
  *   keepalive POST's `Set-Cookie` has updated the session. Without it the dead
  *   render paints the pre-toggle state and LiveView corrects it a frame later:
- *   the flash. Every entry is stamped with the identity fingerprint the server
- *   rendered into `data-preferences-identity`, and is discarded whole once that
+ *   the flash. Every entry is stamped with the scope fingerprint the server
+ *   rendered into `data-preferences-scope`, and is discarded whole once that
  *   fingerprint changes: a write belongs to the user who made it, and this
  *   cookie can outlive them (see `readPending`).
  * - The sessionStorage MIRROR reaches the websocket join via `connectParams()`.
@@ -53,36 +53,46 @@ const COOKIE_MAX_AGE = 300
 // against the session cookie the Session adapter writes.
 const COOKIE_MAX_BYTES = 3072
 
-// The cookie's envelope. `id` is the identity fingerprint the server stamped on
+// The cookie's envelope. `scope` is the scope fingerprint the server stamped on
 // this page's render, `values` the pending writes. A wire contract with
 // Backpex.Preferences.LiveView (keep both keys aligned).
-const COOKIE_IDENTITY_KEY = 'id'
+const COOKIE_SCOPE_KEY = 'scope'
 const COOKIE_VALUES_KEY = 'values'
 
 // The element the server renders the fingerprint into (see
 // Backpex.HTML.Layout.app_shell/1). Also the hook's own element, but the DOM is
 // the source of truth on purpose: `connectParams()` runs BEFORE any hook mounts,
-// and LiveView patches the attribute in place if the identity ever changes
+// and LiveView patches the attribute in place if the scope ever changes
 // without a page load.
 const HOOK_ELEMENT_ID = 'backpex-preferences'
 
 function sessionKey (key) {
-  return SESSION_PREFIX + key
+  const scope = currentScope()
+  return scope ? `${SESSION_PREFIX}${scope}.${key}` : null
 }
 
 /**
- * The identity fingerprint of the page currently rendered, or null when the
+ * The scope fingerprint of the page currently rendered, or null when the
  * server did not give us one (an older layout that does not pass
- * `preferences_identity`, no endpoint secret, a brand-new session).
+ * `preferences_scope`, no endpoint secret, a brand-new session).
  *
  * The pending cookie is only usable when we have it: a write must never be
  * carried across a change of user. Without it, `readPending` returns nothing and
  * `writePendingMap` writes nothing — i.e. the behavior before the cookie
  * existed, a possibly stale first paint after a fast reload and no more.
  */
-function currentIdentity () {
-  const identity = document.getElementById(HOOK_ELEMENT_ID)?.dataset?.preferencesIdentity
-  return identity || null
+function currentScope () {
+  const scope = document.getElementById(HOOK_ELEMENT_ID)?.dataset?.preferencesScope
+  return scope || null
+}
+
+function currentEndpointPath () {
+  const path = document.getElementById(HOOK_ELEMENT_ID)?.dataset?.preferencesPath
+  return path || null
+}
+
+function currentScopeMarker () {
+  return JSON.stringify([currentScope(), currentEndpointPath()])
 }
 
 // The wire format for a single preference value. Booleans and numbers go over
@@ -98,8 +108,11 @@ function serialize (value) {
 // Best-effort read. Returns the raw string, or null if sessionStorage is
 // unavailable (private mode, disabled) or the key is absent.
 function readSession (key) {
+  const storageKey = sessionKey(key)
+  if (!storageKey) return null
+
   try {
-    return sessionStorage.getItem(sessionKey(key))
+    return sessionStorage.getItem(storageKey)
   } catch {
     return null
   }
@@ -109,8 +122,11 @@ function readSession (key) {
 // or quota-exceeded — the HTTP POST is still fired and remains authoritative
 // on the next fresh connect.
 function writeSession (key, value) {
+  const storageKey = sessionKey(key)
+  if (!storageKey) return
+
   try {
-    sessionStorage.setItem(sessionKey(key), value)
+    sessionStorage.setItem(storageKey, value)
   } catch {
     // sessionStorage may be unavailable (private mode, quota); best effort only
   }
@@ -138,16 +154,16 @@ function readEnvelope () {
     const values = decoded[COOKIE_VALUES_KEY]
     if (!values || typeof values !== 'object' || Array.isArray(values)) return null
 
-    return { id: decoded[COOKIE_IDENTITY_KEY], values }
+    return { scope: decoded[COOKIE_SCOPE_KEY], values }
   } catch {
     return null
   }
 }
 
-// The unacknowledged writes this browser is holding *for the current identity*,
+// The unacknowledged writes this browser is holding *for the current scope*,
 // as a { key: value } map.
 //
-// A pending entry may only ever apply to the identity that created it. The
+// A pending entry may only ever apply to the scope that created it. The
 // cookie outlives the page that wrote it (max-age 300, path `/`, shared by every
 // tab) — long enough for the user to log out mid-POST and someone else to log in
 // — so a stamp that does not match the fingerprint this page was served with
@@ -155,37 +171,37 @@ function readEnvelope () {
 // The server re-checks this on the dead render; it does not trust us to have
 // done it.
 function readPending () {
-  const identity = currentIdentity()
-  if (!identity) return {}
+  const scope = currentScope()
+  if (!scope) return {}
 
   const envelope = readEnvelope()
-  if (!envelope || envelope.id !== identity) return {}
+  if (!envelope || envelope.scope !== scope) return {}
 
   return envelope.values
 }
 
-// Drops a cookie stamped for a different identity (or one we can no longer
+// Drops a cookie stamped for a different scope (or one we can no longer
 // identify) so it stops riding every request until it expires. Called once per
 // page load from `prime()`; `readPending` already refuses to read it, this only
 // stops paying for it.
 function discardForeignPending () {
   const envelope = readEnvelope()
-  if (envelope && envelope.id !== currentIdentity()) {
+  if (envelope && envelope.scope !== currentScope()) {
     document.cookie = `${COOKIE_NAME}=${cookieAttributes(0)}`
   }
 }
 
-// Serializes the whole pending map into the cookie, stamped with the identity
+// Serializes the whole pending map into the cookie, stamped with the scope
 // the server rendered this page for, and deletes it when empty so the common
 // case (nothing in flight) costs no bytes on any request.
 //
-// With no identity there is nothing to stamp: writing an unstamped cookie would
+// With no scope there is nothing to stamp: writing an unstamped cookie would
 // only produce bytes that every reader — this file and the dead render alike —
 // is bound to throw away.
 function writePendingMap (map) {
-  const identity = currentIdentity()
+  const scope = currentScope()
 
-  if (!identity) {
+  if (!scope) {
     document.cookie = `${COOKIE_NAME}=${cookieAttributes(0)}`
     return
   }
@@ -193,7 +209,7 @@ function writePendingMap (map) {
   const pending = { ...map }
   const encode = () =>
     encodeURIComponent(JSON.stringify({
-      [COOKIE_IDENTITY_KEY]: identity,
+      [COOKIE_SCOPE_KEY]: scope,
       [COOKIE_VALUES_KEY]: pending
     }))
 
@@ -241,7 +257,9 @@ function markPending (key, value) {
 // the origin. Without the value check, a replay finishing in tab B could retire
 // a newer, still-unacknowledged write that tab A made in the meantime — and the
 // server would then be free to overrule a choice the user just made.
-function clearPending (key, value) {
+function clearPending (key, value, scope) {
+  if (!scope || currentScope() !== scope) return
+
   const pending = readPending()
   if (!(key in pending)) return
   if (JSON.stringify(pending[key]) !== JSON.stringify(value)) return
@@ -251,6 +269,8 @@ function clearPending (key, value) {
 
 const BackpexPreferences = {
   endpointPath: null,
+  scopeFingerprint: undefined,
+  scopeMarker: undefined,
   csrfToken: null,
   // Whether connectParams() has run for this page load. Set on the first
   // LiveView join, which is also where the mirror is primed from the cookie.
@@ -266,8 +286,30 @@ const BackpexPreferences = {
    * Called by the LiveView hook on mount.
    */
   init (endpointPath) {
-    this.endpointPath = endpointPath
     this.csrfToken = document.querySelector("meta[name='csrf-token']")?.content
+    return this.syncScope(endpointPath)
+  },
+
+  /**
+   * Reconcile manager state with the fingerprint currently rendered in the
+   * DOM. Every preference-owning hook calls this before reading client state,
+   * so hook update order cannot leak the previous tenant's in-memory state.
+   *
+   * @returns {boolean} true when the visible scope changed
+   */
+  syncScope (endpointPath = currentEndpointPath()) {
+    const scopeFingerprint = currentScope()
+    const scopeMarker = currentScopeMarker()
+
+    this.endpointPath = endpointPath
+    this.scopeFingerprint = scopeFingerprint
+
+    if (this.scopeMarker === scopeMarker) return false
+
+    this.scopeMarker = scopeMarker
+    this.replayCalled = false
+    this.prime()
+    return true
   },
 
   /**
@@ -278,7 +320,7 @@ const BackpexPreferences = {
    * a render whose session predates the pending write carries the OLD value,
    * and adopting it would undo the user's click.
    *
-   * Only ever true for writes made by the identity this page was rendered for —
+   * Only ever true for writes made by the scope this page was rendered for —
    * a write left behind by the previous user of this browser is not "pending",
    * it is void.
    *
@@ -335,7 +377,7 @@ const BackpexPreferences = {
    * round-trip window, whose session cookie is still one write behind. The
    * disconnected mount reads the cookie and renders the user's actual state.
    * This is best effort: the cookie has a 3072-byte budget and is disabled
-   * without an identity fingerprint. The entry retires as soon as the POST
+   * without a scope fingerprint. The entry retires as soon as the POST
    * responds (see `persist/3`).
    *
    * When `opts.mirror === 'session'` the value is *additionally* written to
@@ -351,7 +393,7 @@ const BackpexPreferences = {
    * when preference persistence is disabled and the URL is the only store.
    * Persisted filters/order are mount fallbacks and do use the mirror. An
    * unmirrored key still attempts the short-lived pending-cookie fast path,
-   * subject to that cookie's size and identity limits.
+   * subject to that cookie's size and scope limits.
    *
    * @param {string} key - Preference key (e.g., "global.theme" or "resource:MyApp.PostLive:columns")
    * @param {any} value - Value to store
@@ -379,13 +421,18 @@ const BackpexPreferences = {
    */
   mirroredEntries () {
     const entries = {}
+    const scope = currentScope()
+    if (!scope) return entries
+
+    const prefix = `${SESSION_PREFIX}${scope}.`
+
     try {
       for (let i = 0; i < sessionStorage.length; i++) {
         const storageKey = sessionStorage.key(i)
-        if (storageKey && storageKey.startsWith(SESSION_PREFIX)) {
+        if (storageKey && storageKey.startsWith(prefix)) {
           const raw = sessionStorage.getItem(storageKey)
           if (raw === null) continue
-          const key = storageKey.slice(SESSION_PREFIX.length)
+          const key = storageKey.slice(prefix.length)
           try {
             entries[key] = JSON.parse(raw)
           } catch {
@@ -418,20 +465,24 @@ const BackpexPreferences = {
    *
    * This is also what expires the mirror on a change of user. A login or a
    * logout is a full page load, so this runs; a cookie stamped for the previous
-   * identity yields no pending keys at all, and every mirrored key is therefore
+   * scope yields no pending keys at all, and every mirrored key is therefore
    * dropped before it can reach the next join's connect params.
    */
   prime () {
     discardForeignPending()
 
     const pending = readPending()
+    const scope = currentScope()
+    if (!scope) return
+
+    const prefix = `${SESSION_PREFIX}${scope}.`
 
     try {
       const stale = []
       for (let i = 0; i < sessionStorage.length; i++) {
         const storageKey = sessionStorage.key(i)
-        if (!storageKey || !storageKey.startsWith(SESSION_PREFIX)) continue
-        if (!(storageKey.slice(SESSION_PREFIX.length) in pending)) stale.push(storageKey)
+        if (!storageKey || !storageKey.startsWith(prefix)) continue
+        if (!(storageKey.slice(prefix.length) in pending)) stale.push(storageKey)
       }
       stale.forEach((storageKey) => sessionStorage.removeItem(storageKey))
     } catch {
@@ -460,15 +511,23 @@ const BackpexPreferences = {
    * also keeps the two carriers independent — a browser that allows cookies but
    * denies storage access still gets both renders right.
    *
-   * @returns {{backpex_prefs: Object<string, any>}}
+   * The payload is stamped with the scope fingerprint visible before the join.
+   * The server compares it with the scope resolved for the destination mount,
+   * so a `push_navigate` into another tenant cannot carry the source tenant's
+   * mirror across the boundary.
+   *
+   * @returns {{backpex_prefs: {scope: string|null, values: Object<string, any>}}}
    */
   connectParams () {
-    if (!this.connectParamsCalled) {
-      this.connectParamsCalled = true
-      this.prime()
-    }
+    this.connectParamsCalled = true
+    this.syncScope()
 
-    return { backpex_prefs: { ...this.mirroredEntries(), ...readPending() } }
+    return {
+      backpex_prefs: {
+        scope: currentScope(),
+        values: { ...this.mirroredEntries(), ...readPending() }
+      }
+    }
   },
 
   /**
@@ -482,7 +541,7 @@ const BackpexPreferences = {
    * retire.
    *
    * It replays only what `readPending()` returns, which is nothing at all when
-   * the cookie was stamped for another identity — the same page that dies
+   * the cookie was stamped for another scope — the same page that dies
    * mid-POST is often the one the user left by logging out, and re-POSTing that
    * write would persist the previous user's preference into the next user's
    * store.
@@ -496,7 +555,7 @@ const BackpexPreferences = {
     // an adapter refuses and never dispatches the ones behind it. A batch replay
     // would nonetheless see a single completed response and retire all of them,
     // silently losing the writes the server never even looked at. Single writes
-    // also give `:unidentified` its own `200 {ok: false}` per key instead of
+    // also give `:unscoped` its own `200 {ok: false}` per key instead of
     // failing the whole batch.
     //
     // `persist/3` re-marks each key pending (a no-op — it already is) and its
@@ -513,7 +572,7 @@ const BackpexPreferences = {
    * Uses keepalive to ensure request completes even during page navigation.
    *
    * A response the server *decided on* retires the pending entry — including
-   * `200 {ok: false, reason: "unidentified"}` and `422`, which the preferences
+   * `200 {ok: false, reason: "unscoped"}` and `422`, which the preferences
    * controller returns for writes it refuses. Replaying those would be
    * pointless and keeping the client overlay would pin the value forever.
    *
@@ -527,11 +586,13 @@ const BackpexPreferences = {
    * @param {number} [seq] - the write's sequence number, from `set/3`.
    */
   persist (key, value, seq) {
-    if (!this.endpointPath) {
+    const endpointPath = currentEndpointPath()
+
+    if (!endpointPath) {
       console.warn(
         `BackpexPreferences: dropping the write to ${key} because there is no #${HOOK_ELEMENT_ID} element on the ` +
         'page to read the preferences endpoint from. Backpex.HTML.Layout.app_shell/1 renders it; a custom layout ' +
-        'must render <.preferences_root socket={@socket} preferences_identity={@preferences_identity} /> itself. ' +
+        'must render <.preferences_root socket={@socket} preferences_scope={@preferences_scope} /> itself. ' +
         'See the Backpex user-preferences guide.'
       )
       return
@@ -540,6 +601,8 @@ const BackpexPreferences = {
       console.warn('BackpexPreferences: CSRF token not found')
       return
     }
+
+    const requestScope = currentScope()
 
     // Mark pending only once the request is actually going out. Marking in
     // set/3 instead would strand an entry in the cookie forever whenever these
@@ -552,7 +615,7 @@ const BackpexPreferences = {
     markPending(key, value)
 
     // Use keepalive to ensure request survives page navigation
-    fetch(this.endpointPath, {
+    fetch(endpointPath, {
       method: 'POST',
       keepalive: true,
       headers: {
@@ -568,7 +631,7 @@ const BackpexPreferences = {
           )
           return
         }
-        if (this._seq[key] === seq) clearPending(key, value)
+        if (this._seq[key] === seq) clearPending(key, value, requestScope)
       })
       .catch((error) => {
         // Leave the entry pending: the server never saw this write.
@@ -582,7 +645,7 @@ const BackpexPreferences = {
  * and listens for push_events from the server.
  *
  * Mount this hook on an element with data-preferences-path and
- * data-preferences-identity attributes.
+ * data-preferences-scope attributes.
  */
 const BackpexPreferencesHook = {
   mounted () {
@@ -603,6 +666,11 @@ const BackpexPreferencesHook = {
         'to your LiveSocket so preferences survive live navigation. See the Backpex installation guide.'
       )
     }
+  },
+
+  updated () {
+    BackpexPreferences.init(this.el.dataset.preferencesPath)
+    BackpexPreferences.replayPending()
   }
 }
 

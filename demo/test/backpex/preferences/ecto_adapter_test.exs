@@ -15,12 +15,13 @@ defmodule Demo.Backpex.Preferences.EctoAdapterTest do
   alias Backpex.Preferences.Context
   alias Demo.Preferences.UserPreference
 
-  @opts [repo: Demo.Repo, schema: UserPreference]
-  @identity 1
-  @other_identity 2
+  @opts [repo: Demo.Repo, schema: UserPreference, scope_fields: [:user_id, :tenant_id]]
+  @scope %{user_id: 1, tenant_id: 10}
+  @other_tenant_scope %{user_id: 1, tenant_id: 11}
+  @other_user_scope %{user_id: 2, tenant_id: 10}
 
   setup do
-    {:ok, ctx: %Context{identity: @identity}}
+    {:ok, ctx: %Context{scope: @scope}}
   end
 
   describe "round trip through Postgres" do
@@ -76,14 +77,24 @@ defmodule Demo.Backpex.Preferences.EctoAdapterTest do
       assert second.inserted_at == first.inserted_at
     end
 
-    test "keeps rows for different identities side by side", %{ctx: ctx} do
+    test "keeps rows for different tenant scopes side by side", %{ctx: ctx} do
       key = "global.theme"
 
       {:ok, :persisted} = EctoAdapter.put(ctx, key, "dark", @opts)
-      {:ok, :persisted} = EctoAdapter.put(%Context{identity: @other_identity}, key, "light", @opts)
+      {:ok, :persisted} = EctoAdapter.put(%Context{scope: @other_tenant_scope}, key, "light", @opts)
 
       assert {:ok, "dark"} = EctoAdapter.get(ctx, key, @opts)
-      assert {:ok, "light"} = EctoAdapter.get(%Context{identity: @other_identity}, key, @opts)
+      assert {:ok, "light"} = EctoAdapter.get(%Context{scope: @other_tenant_scope}, key, @opts)
+    end
+
+    test "keeps rows for different users in one tenant side by side", %{ctx: ctx} do
+      key = "global.theme"
+
+      {:ok, :persisted} = EctoAdapter.put(ctx, key, "dark", @opts)
+      {:ok, :persisted} = EctoAdapter.put(%Context{scope: @other_user_scope}, key, "light", @opts)
+
+      assert {:ok, "dark"} = EctoAdapter.get(ctx, key, @opts)
+      assert {:ok, "light"} = EctoAdapter.get(%Context{scope: @other_user_scope}, key, @opts)
     end
   end
 
@@ -92,7 +103,10 @@ defmodule Demo.Backpex.Preferences.EctoAdapterTest do
       {:ok, :persisted} = EctoAdapter.put(ctx, "global.sidebar_section.blog", true, @opts)
       {:ok, :persisted} = EctoAdapter.put(ctx, "global.sidebar_section.users", false, @opts)
       {:ok, :persisted} = EctoAdapter.put(ctx, "global.sidebar_open", true, @opts)
-      {:ok, :persisted} = EctoAdapter.put(%Context{identity: @other_identity}, "global.sidebar_open", false, @opts)
+
+      {:ok, :persisted} =
+        EctoAdapter.put(%Context{scope: @other_tenant_scope}, "global.sidebar_open", false, @opts)
+
       :ok
     end
 
@@ -110,8 +124,8 @@ defmodule Demo.Backpex.Preferences.EctoAdapterTest do
              }
     end
 
-    test "does not leak another identity's rows" do
-      assert {:ok, subtree} = EctoAdapter.get_map(%Context{identity: @other_identity}, "global", @opts)
+    test "does not leak another scope's rows" do
+      assert {:ok, subtree} = EctoAdapter.get_map(%Context{scope: @other_tenant_scope}, "global", @opts)
 
       assert subtree == %{"sidebar_open" => false}
     end

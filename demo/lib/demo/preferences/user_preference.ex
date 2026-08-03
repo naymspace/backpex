@@ -14,6 +14,7 @@ defmodule Demo.Preferences.UserPreference do
 
   schema "backpex_user_preferences" do
     field :user_id, :integer
+    field :tenant_id, :integer
     field :key, :string
     field :value, :map, default: %{}
 

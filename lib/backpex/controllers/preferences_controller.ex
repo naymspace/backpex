@@ -38,11 +38,11 @@ defmodule Backpex.PreferencesController do
   designed outcome, not a bug: the alternative is a `CookieOverflowError` 500
   on this and every later request.
 
-  Single-write `:unidentified` is treated as a no-op rather than an error:
-  the response is `200 {ok: false, error: %{reason: "unidentified"}}` and no
+  Single-write `:unscoped` is treated as a no-op rather than an error:
+  the response is `200 {ok: false, error: %{reason: "unscoped"}}` and no
   warning is logged. The JS hook fires writes from anonymous visitors
   whenever the session lapses — this avoids surfacing them as 4xx noise.
-  Batches always halt on any error (including `:unidentified`) and return
+  Batches always halt on any error (including `:unscoped`) and return
   422.
 
   Entries in a batch are retained only when they are maps containing a binary
@@ -90,11 +90,11 @@ defmodule Backpex.PreferencesController do
         |> Preferences.apply_effects_on_conn(effects)
         |> json(%{ok: true})
 
-      {:error, {key, :unidentified}} when length(entries) == 1 ->
+      {:error, {key, :unscoped}} when length(entries) == 1 ->
         # Anonymous visitors hitting a non-session adapter is an expected
         # no-op, not a 4xx. The JS hook fires-and-forgets, so surfacing this
         # as an error would only pollute Logger without affecting clients.
-        json(conn, %{ok: false, error: format_error({key, :unidentified})})
+        json(conn, %{ok: false, error: format_error({key, :unscoped})})
 
       {:error, {key, reason}} ->
         Logger.warning(

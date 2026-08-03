@@ -408,15 +408,15 @@ defmodule DemoWeb.Live.PreferencesPersistenceTest do
     # cannot see this, because its connect params already carry the overlay.
 
     # The wire format the JS hook writes: encodeURIComponent(JSON.stringify(envelope)),
-    # where the envelope stamps the pending writes with the identity fingerprint the
-    # server rendered into `data-preferences-identity`. Stamped by default with the
-    # identity of the very request being made — the browser wrote it while looking at
+    # where the envelope stamps the pending writes with the scope fingerprint the
+    # server rendered into `data-preferences-scope`. Stamped by default with the
+    # scope of the very request being made — the browser wrote it while looking at
     # a page rendered for this same user.
-    defp put_pending_writes(conn, writes, identity \\ nil) do
-      fingerprint = identity || fingerprint(Plug.Conn.get_session(conn))
+    defp put_pending_writes(conn, writes, scope \\ nil) do
+      fingerprint = scope || fingerprint(Plug.Conn.get_session(conn))
 
       encoded =
-        %{"id" => fingerprint, "values" => writes}
+        %{"scope" => fingerprint, "values" => writes}
         |> Jason.encode!()
         |> URI.encode(&URI.char_unreserved?/1)
 
@@ -435,7 +435,7 @@ defmodule DemoWeb.Live.PreferencesPersistenceTest do
     defp fingerprint(session) do
       session
       |> Context.from_mount()
-      |> PrefLiveView.identity_fingerprint(DemoWeb.Endpoint)
+      |> PrefLiveView.scope_fingerprint(DemoWeb.Endpoint)
     end
 
     test "sidebar renders closed even though the session still says open", %{conn: conn} do
@@ -562,7 +562,7 @@ defmodule DemoWeb.Live.PreferencesPersistenceTest do
       assert conn.status == 200
     end
 
-    test "a cookie stamped for another identity is ignored", %{conn: conn} do
+    test "a cookie stamped for another scope is ignored", %{conn: conn} do
       # THE LEAK this stamp exists to close. User A closed the sidebar and hit
       # "Log out" before the POST resolved: the page went away with the promise,
       # so nothing ever retired the entry and the cookie (path=/, max-age 300,
@@ -593,7 +593,7 @@ defmodule DemoWeb.Live.PreferencesPersistenceTest do
 
     test "the fingerprint is rendered into the page for the browser to stamp with", %{conn: conn} do
       # The other half of the contract: the browser can only scope its cookie to
-      # an identity the server told it about. `app_shell` renders it onto the
+      # a scope the server told it about. `app_shell` renders it onto the
       # preferences hook element.
       insert(:post, title: "Alpha", published: true)
 
@@ -606,7 +606,7 @@ defmodule DemoWeb.Live.PreferencesPersistenceTest do
       expected = fingerprint(%{"_csrf_token" => @csrf_token, "backpex_preferences" => %{}})
 
       assert is_binary(expected)
-      assert html =~ ~s(data-preferences-identity="#{expected}")
+      assert html =~ ~s(data-preferences-scope="#{expected}")
     end
 
     test "a garbage cookie does not crash the dead render", %{conn: conn} do

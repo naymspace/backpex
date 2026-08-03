@@ -8,7 +8,7 @@ defmodule Backpex.InitAssignsTest do
   alias Phoenix.LiveView.Lifecycle
   alias Phoenix.LiveView.Socket
 
-  # The only thing `Backpex.Preferences.LiveView.identity_fingerprint/2` asks of
+  # The only thing `Backpex.Preferences.LiveView.scope_fingerprint/2` asks of
   # an endpoint is `config(:secret_key_base)`, so a stub stands in for a booted
   # Phoenix endpoint.
   defmodule Endpoint do
@@ -103,13 +103,16 @@ defmodule Backpex.InitAssignsTest do
 
   # A connected socket carrying the preferences the browser mirrored in
   # sessionStorage and handed back in its join params.
-  defp connected_socket(client_prefs) do
+  defp connected_socket(client_prefs, session) do
     socket = build_socket()
 
     %{
       socket
       | transport_pid: self(),
-        private: Map.put(socket.private, :connect_params, %{"backpex_prefs" => client_prefs})
+        private:
+          Map.put(socket.private, :connect_params, %{
+            "backpex_prefs" => %{"scope" => fingerprint(session), "values" => client_prefs}
+          })
     }
   end
 
@@ -118,7 +121,7 @@ defmodule Backpex.InitAssignsTest do
   # with the browser's unacknowledged preference writes in the `backpex_prefs`
   # cookie.
   #
-  # The cookie is stamped with the identity fingerprint of `stamped_for` — by
+  # The cookie is stamped with the scope fingerprint of `stamped_for` — by
   # default the very session being mounted, i.e. the browser wrote it while
   # looking at a page rendered for this same user. Pass a different session to
   # simulate a cookie the *previous* user of this browser left behind.
@@ -131,7 +134,7 @@ defmodule Backpex.InitAssignsTest do
       |> Plug.Test.conn("/")
       |> Plug.Test.put_req_cookie(
         "backpex_prefs",
-        encode_cookie(%{"id" => fingerprint, "values" => client_prefs})
+        encode_cookie(%{"scope" => fingerprint, "values" => client_prefs})
       )
       |> Plug.Conn.fetch_cookies()
 
@@ -141,7 +144,7 @@ defmodule Backpex.InitAssignsTest do
   defp fingerprint(session) do
     session
     |> Context.from_mount()
-    |> PreferenceLiveView.identity_fingerprint(Endpoint)
+    |> PreferenceLiveView.scope_fingerprint(Endpoint)
   end
 
   # Every request of a session but its first carries a CSRF token, and the
@@ -333,15 +336,18 @@ defmodule Backpex.InitAssignsTest do
       # time still says the sidebar is open, but the user has closed it since
       # and the browser hands that back on the join. The connect param must win,
       # otherwise the first render is stale and visibly corrects itself.
-      session = %{"backpex_preferences" => %{"global" => %{"sidebar_open" => true, "theme" => "light"}}}
+      session = session(%{"global" => %{"sidebar_open" => true, "theme" => "light"}})
 
       socket =
         mount(
           session,
-          connected_socket(%{
-            "global.sidebar_open" => false,
-            "global.sidebar_section.blog" => false
-          })
+          connected_socket(
+            %{
+              "global.sidebar_open" => false,
+              "global.sidebar_section.blog" => false
+            },
+            session
+          )
         )
 
       assert socket.assigns.sidebar_open == false
@@ -419,7 +425,7 @@ defmodule Backpex.InitAssignsTest do
       assert socket.assigns.sidebar_open == false
     end
 
-    test "a cookie stamped for another identity renders the session, not the cookie" do
+    test "a cookie stamped for another scope renders the session, not the cookie" do
       # User A closed the sidebar and logged out before the POST landed; the entry
       # never retired and the cookie outlived them. User B's session is a different
       # session, so the stamp does not match and the whole cookie is void: B's
@@ -433,14 +439,14 @@ defmodule Backpex.InitAssignsTest do
     end
   end
 
-  describe "on_mount/4 assigns the preference identity" do
+  describe "on_mount/4 assigns the preference scope" do
     test "assigns the fingerprint the layout stamps into the page" do
-      # `app_shell` renders this into `data-preferences-identity`, where the JS
+      # `app_shell` renders this into `data-preferences-scope`, where the JS
       # hook reads it to stamp (and to validate) the pending-write cookie.
       socket = mount(session(%{}))
 
-      assert socket.assigns.preferences_identity == fingerprint(session(%{}))
-      assert is_binary(socket.assigns.preferences_identity)
+      assert socket.assigns.preferences_scope == fingerprint(session(%{}))
+      assert is_binary(socket.assigns.preferences_scope)
     end
 
     test "assigns nil when no fingerprint can be computed" do
@@ -449,7 +455,7 @@ defmodule Backpex.InitAssignsTest do
       # behavior from before the cookie existed.
       socket = mount(%{})
 
-      assert socket.assigns.preferences_identity == nil
+      assert socket.assigns.preferences_scope == nil
     end
   end
 
@@ -479,7 +485,7 @@ defmodule Backpex.InitAssignsTest do
 
   describe "on_mount/4 threads socket.assigns through the Context" do
     test "every preference read receives a Context carrying the session and socket.assigns" do
-      # The core DX guarantee: an Ecto-backed identity resolver should be able
+      # The core DX guarantee: an Ecto-backed scope resolver should be able
       # to read `ctx.assigns.current_scope` (or whatever the host app's auth
       # hook put on the socket) rather than re-implement session-token lookup.
       Application.put_env(:backpex, Backpex.Preferences, adapters: [{:default, RecordingAdapter, []}])

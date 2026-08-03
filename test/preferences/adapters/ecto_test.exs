@@ -9,8 +9,9 @@ defmodule Backpex.Preferences.Adapters.EctoTest do
     @moduledoc false
     use Ecto.Schema
 
-    schema "backpex_user_preferences" do
+    schema "backpex_preferences" do
       field :user_id, :integer
+      field :tenant_id, :integer
       field :key, :string
       field :value, :map, default: %{}
       timestamps(type: :utc_datetime_usec)
@@ -21,19 +22,21 @@ defmodule Backpex.Preferences.Adapters.EctoTest do
     @moduledoc false
     use Ecto.Schema
 
-    schema "backpex_user_preferences" do
+    schema "backpex_preferences" do
       field :account_id, :integer
+      field :workspace_id, :integer
       field :key, :string
       field :value, :map, default: %{}
     end
   end
 
-  @opts [repo: FakeRepo, schema: Preference]
-  @identity 7
-  @other_identity 8
+  @opts [repo: FakeRepo, schema: Preference, scope_fields: [:user_id, :tenant_id]]
+  @scope %{user_id: 7, tenant_id: 70}
+  @other_tenant_scope %{user_id: 7, tenant_id: 71}
+  @other_user_scope %{user_id: 8, tenant_id: 70}
 
   setup do
-    {:ok, ctx: %Context{identity: @identity}, unidentified: %Context{identity: :unidentified}}
+    {:ok, ctx: %Context{scope: @scope}, unscoped: %Context{scope: :unscoped}}
   end
 
   describe "get/3" do
@@ -50,19 +53,31 @@ defmodule Backpex.Preferences.Adapters.EctoTest do
     test "round-trips scalars the :map column cannot hold bare", %{ctx: ctx} do
       for value <- [true, false, "dark", 42] do
         {:ok, :persisted} = EctoAdapter.put(ctx, "global.scalar", value, @opts)
-
         assert {:ok, ^value} = EctoAdapter.get(ctx, "global.scalar", @opts)
       end
     end
 
-    test "does not read another identity's row", %{ctx: ctx} do
-      {:ok, :persisted} = EctoAdapter.put(%Context{identity: @other_identity}, "global.theme", "dark", @opts)
+    test "does not read the same user's row from another tenant", %{ctx: ctx} do
+      {:ok, :persisted} =
+        EctoAdapter.put(%Context{scope: @other_tenant_scope}, "global.theme", "dark", @opts)
 
       assert {:ok, :not_found} = EctoAdapter.get(ctx, "global.theme", @opts)
     end
 
-    test "reports :not_found without an identity", %{unidentified: ctx} do
+    test "does not read another user's row in the same tenant", %{ctx: ctx} do
+      {:ok, :persisted} = EctoAdapter.put(%Context{scope: @other_user_scope}, "global.theme", "dark", @opts)
+
       assert {:ok, :not_found} = EctoAdapter.get(ctx, "global.theme", @opts)
+    end
+
+    test "reports :not_found without a scope", %{unscoped: ctx} do
+      assert {:ok, :not_found} = EctoAdapter.get(ctx, "global.theme", @opts)
+    end
+
+    test "reports missing configured scope fields" do
+      ctx = %Context{scope: %{user_id: 7}}
+
+      assert {:error, {:invalid_scope, [:tenant_id]}} = EctoAdapter.get(ctx, "global.theme", @opts)
     end
   end
 
@@ -95,24 +110,22 @@ defmodule Backpex.Preferences.Adapters.EctoTest do
                EctoAdapter.get_map(ctx, "resource", @opts)
     end
 
-    # `LIKE 'global.sidebar_section%'` also matches `global.sidebarXsection.*`,
-    # so the adapter must reject on segments rather than trust the query.
     test "drops rows the LIKE wildcard over-matched", %{ctx: ctx} do
       {:ok, :persisted} = EctoAdapter.put(ctx, "global.sidebarXsection.blog", true, @opts)
 
-      assert {:ok, subtree} = EctoAdapter.get_map(ctx, "global.sidebar_section", @opts)
-      assert subtree == %{"blog" => true, "users" => false}
+      assert {:ok, %{"blog" => true, "users" => false}} =
+               EctoAdapter.get_map(ctx, "global.sidebar_section", @opts)
     end
 
     test "returns an empty map when nothing matches", %{ctx: ctx} do
       assert {:ok, %{}} = EctoAdapter.get_map(ctx, "resource", @opts)
     end
 
-    test "does not read another identity's rows" do
-      assert {:ok, %{}} = EctoAdapter.get_map(%Context{identity: @other_identity}, "global", @opts)
+    test "does not read rows from another scope" do
+      assert {:ok, %{}} = EctoAdapter.get_map(%Context{scope: @other_tenant_scope}, "global", @opts)
     end
 
-    test "returns an empty map without an identity", %{unidentified: ctx} do
+    test "returns an empty map without a scope", %{unscoped: ctx} do
       assert {:ok, %{}} = EctoAdapter.get_map(ctx, "global", @opts)
     end
   end
@@ -121,34 +134,73 @@ defmodule Backpex.Preferences.Adapters.EctoTest do
     test "wraps values in the storage envelope", %{ctx: ctx} do
       {:ok, :persisted} = EctoAdapter.put(ctx, "global.theme", "dark", @opts)
 
-      assert [{"global.theme", %{"value" => "dark"}}] = FakeRepo.rows_for(@identity)
+      assert [{"global.theme", %{"value" => "dark"}}] = FakeRepo.rows_for([7, 70])
     end
 
-    test "upserts rather than duplicating a key", %{ctx: ctx} do
+    test "upserts inside the complete scope rather than duplicating a key", %{ctx: ctx} do
       {:ok, :persisted} = EctoAdapter.put(ctx, "global.theme", "dark", @opts)
       {:ok, :persisted} = EctoAdapter.put(ctx, "global.theme", "light", @opts)
 
-      assert [{"global.theme", %{"value" => "light"}}] = FakeRepo.rows_for(@identity)
+      assert [{"global.theme", %{"value" => "light"}}] = FakeRepo.rows_for([7, 70])
     end
 
-    test "fails without an identity rather than writing an unreadable row", %{unidentified: ctx} do
-      assert {:error, :unidentified} = EctoAdapter.put(ctx, "global.theme", "dark", @opts)
-      assert [] = FakeRepo.rows_for(:unidentified)
+    test "keeps the same key in two tenants", %{ctx: ctx} do
+      {:ok, :persisted} = EctoAdapter.put(ctx, "global.theme", "dark", @opts)
+
+      {:ok, :persisted} =
+        EctoAdapter.put(%Context{scope: @other_tenant_scope}, "global.theme", "light", @opts)
+
+      assert [{"global.theme", %{"value" => "dark"}}] = FakeRepo.rows_for([7, 70])
+      assert [{"global.theme", %{"value" => "light"}}] = FakeRepo.rows_for([7, 71])
     end
 
-    # `struct/2` would silently drop the unknown key and write a NULL identity,
-    # surfacing much later as a not-null violation.
-    test "raises on an :identity_field the schema does not have", %{ctx: ctx} do
-      opts = [repo: FakeRepo, schema: Preference, identity_field: :nope]
+    test "fails without a scope rather than writing an unreadable row", %{unscoped: ctx} do
+      assert {:error, :unscoped} = EctoAdapter.put(ctx, "global.theme", "dark", @opts)
+      assert [] = FakeRepo.rows_for([])
+    end
 
-      assert_raise ArgumentError, ~r/unknown field `:nope`/, fn ->
+    test "reports missing configured scope fields" do
+      ctx = %Context{scope: %{user_id: 7}}
+
+      assert {:error, {:invalid_scope, [:tenant_id]}} = EctoAdapter.put(ctx, "global.theme", "dark", @opts)
+    end
+
+    test "raises when a scope field is absent from the schema", %{ctx: ctx} do
+      opts = Keyword.put(@opts, :scope_fields, [:user_id, :tenant_id, :workspace_id])
+
+      assert_raise ArgumentError, ~r/unknown preference schema fields: \[:workspace_id\]/, fn ->
         EctoAdapter.put(ctx, "global.theme", "dark", opts)
       end
     end
 
-    test "honors a custom :identity_field", %{ctx: ctx} do
-      opts = [repo: FakeRepo, schema: PreferenceWithoutTimestamps, identity_field: :account_id]
+    test "raises on invalid scope_fields", %{ctx: ctx} do
+      for fields <- [[], [:user_id, :user_id], ["user_id"]] do
+        opts = Keyword.put(@opts, :scope_fields, fields)
 
+        assert_raise ArgumentError, ~r/:scope_fields must be a non-empty list of unique atoms/, fn ->
+          EctoAdapter.put(ctx, "global.theme", "dark", opts)
+        end
+      end
+    end
+
+    test "raises when scope_fields contains adapter-owned fields", %{ctx: ctx} do
+      for fields <- [[:user_id, :key], [:value, :tenant_id], [:key, :value]] do
+        opts = Keyword.put(@opts, :scope_fields, fields)
+
+        assert_raise ArgumentError, ~r/:scope_fields contains adapter-owned fields/, fn ->
+          EctoAdapter.put(ctx, "global.theme", "dark", opts)
+        end
+      end
+    end
+
+    test "honors custom scope fields", %{ctx: _ctx} do
+      opts = [
+        repo: FakeRepo,
+        schema: PreferenceWithoutTimestamps,
+        scope_fields: [:account_id, :workspace_id]
+      ]
+
+      ctx = %Context{scope: %{account_id: 7, workspace_id: 9, ignored: true}}
       {:ok, :persisted} = EctoAdapter.put(ctx, "global.theme", "dark", opts)
 
       assert {:ok, "dark"} = EctoAdapter.get(ctx, "global.theme", opts)

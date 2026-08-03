@@ -26,16 +26,16 @@ defmodule Backpex.Preferences.LiveView do
   @max_cookie_bytes 4096
 
   # The cookie is an envelope, not a bare map: the values are only valid for the
-  # identity that wrote them (see `identity_fingerprint/2`), so the fingerprint
+  # scope that wrote them (see `scope_fingerprint/2`), so the fingerprint
   # travels with them. A wire contract with `assets/js/hooks/_preferences.js`.
-  @cookie_identity_key "id"
+  @cookie_scope_key "scope"
   @cookie_values_key "values"
 
   # Domain separator, versioned. It is mixed into the digest so the same secret
   # cannot produce a colliding fingerprint for some other Backpex feature, and so
   # a future change to what the digest covers invalidates every cookie in flight
   # instead of silently reinterpreting it.
-  @fingerprint_domain "backpex.preferences.identity.v1"
+  @fingerprint_domain "backpex.preferences.scope.v1"
 
   # 128 bits of a SHA-256 MAC. Long enough that guessing a fingerprint is
   # hopeless, short enough (22 base64url chars) not to eat the cookie budget the
@@ -59,7 +59,7 @@ defmodule Backpex.Preferences.LiveView do
   def client_cookie, do: @client_cookie
 
   @doc """
-  Opaque, non-identifying fingerprint of the preference identity behind this
+  Opaque fingerprint of the preference scope behind this
   request, or `nil` when it cannot be computed.
 
   The `backpex_prefs` cookie is `path=/`, non-`HttpOnly` and lives up to five
@@ -68,7 +68,7 @@ defmodule Backpex.Preferences.LiveView do
   with the page, so nothing ever retires the entry), user B logs in on the same
   browser a minute later, and B's dead render would be overlaid with A's value —
   and B's replay would POST it into B's store. A pending write must therefore
-  only ever apply to the identity that made it, and the fingerprint is what pins
+  only ever apply to the scope that made it, and the fingerprint is what pins
   it: the browser stamps the cookie with the value it was served, and both the
   dead render (`mount_context/2`) and the JS discard the cookie when it does not
   match the current one.
@@ -78,16 +78,15 @@ defmodule Backpex.Preferences.LiveView do
   Two things, because a Backpex install can have more than one preference store
   and they are not scoped alike:
 
-    * **The resolved identity** (the `:identity` MFA, see `Backpex.Preferences`).
+    * **The resolved scope** (the `:scope` MFA, see `Backpex.Preferences`).
       One resolver serves every key — the router picks the *adapter* per prefix,
-      not the identity — so there is a single identity per request. `nil` and
-      `:unidentified` fold into one distinct `"anonymous"` value, which is *not*
-      the same digest as any real identity.
+      not the scope — so there is a single scope map per request. An unresolved
+      scope folds into one distinct `:unscoped` value.
 
     * **The Phoenix session's CSRF token.** `Backpex.Preferences.Adapters.Session`
       — the default adapter, and the one behind any zero-config install — ignores
-      `identity` entirely and scopes its store by the *session*. Digesting the
-      identity alone would leave every anonymous-but-session-backed install (i.e.
+      `scope` entirely and scopes its store by the *session*. Digesting the
+      scope alone would leave every unscoped session-backed install (i.e.
       the default) with one fingerprint for all users, which is the bug. The CSRF
       token is the session's stable, per-session secret: constant for the life of
       a session, unaffected by preference writes (unlike the session as a whole,
@@ -97,12 +96,12 @@ defmodule Backpex.Preferences.LiveView do
 
   Digesting both keeps the cookie's scope at least as narrow as the narrowest
   store's. An app that neither renews the session on login nor configures
-  `:identity` gets the same fingerprint for A and B — but such an app also hands
+  `:scope` gets the same fingerprint for A and B — but such an app also hands
   A and B *the same session*, so the Session adapter already shares the stored
   preferences between them; the cookie leaks nothing the store does not.
 
   The digest is a keyed MAC over the endpoint's `secret_key_base`, never the raw
-  identity: any script on the origin can read this cookie, and a user id in it
+  scope: any script on the origin can read this cookie, and user or tenant ids in it
   would be an identifier we do not otherwise expose.
 
   ## Degrading
@@ -112,13 +111,13 @@ defmodule Backpex.Preferences.LiveView do
   `Plug.CSRFProtection` has written one back). Callers must then behave as if
   there were no cookie at all: a possibly stale first paint, never a wrong-user
   write. See `Backpex.HTML.Layout.app_shell/1`, which renders the value into
-  `data-preferences-identity` for the JS hook.
+  `data-preferences-scope` for the JS hook.
   """
-  def identity_fingerprint(%Context{} = ctx, endpoint) do
+  def scope_fingerprint(%Context{} = ctx, endpoint) do
     with {:ok, secret} <- endpoint_secret(endpoint),
          {:ok, session_scope} <- session_scope(ctx.session) do
-      identity = Preferences.resolve_identity(ctx).identity
-      payload = :erlang.term_to_binary({@fingerprint_domain, identity_string(identity), session_scope})
+      scope = Preferences.resolve_scope(ctx).scope
+      payload = :erlang.term_to_binary({@fingerprint_domain, scope, session_scope})
 
       :hmac
       |> :crypto.mac(:sha256, secret, payload)
@@ -157,21 +156,10 @@ defmodule Backpex.Preferences.LiveView do
 
   defp session_scope(_session), do: :error
 
-  # Identities are usually ids or binaries. `to_string/1` covers those; anything
-  # without a `String.Chars` implementation (a struct, a map) still has to hash
-  # to something stable, and `inspect/1` is stable for equal terms.
-  defp identity_string(identity) when identity in [nil, :unidentified], do: "anonymous"
-
-  defp identity_string(identity) do
-    to_string(identity)
-  rescue
-    Protocol.UndefinedError -> inspect(identity)
-  end
-
   @doc """
   Builds the `Backpex.Preferences.Context` for a LiveView mount.
 
-  Combines the session and `socket.assigns` (what identity resolvers need)
+  Combines the session and `socket.assigns` (what scope resolvers need)
   with the preferences the browser is holding, which take precedence over
   stored values.
 
@@ -192,13 +180,13 @@ defmodule Backpex.Preferences.LiveView do
       authoritative: it renders the pre-toggle state, which LiveView then
       patches away — the flash. The browser writes its unacknowledged writes to
       `backpex_prefs` synchronously, so entries that fit its 3072-byte budget
-      ride the very next request. The cookie is skipped when no identity
+      ride the very next request. The cookie is skipped when no scope
       fingerprint is available; in either degradation case the first paint may
       be stale until LiveView connects. Entries retire as soon as their POST
       responds, so the cookie cannot permanently shadow an adapter.
 
-      The cookie is only honored when its `identity_fingerprint/2` matches the
-      identity of the request being rendered. This is the one place an
+      The cookie is only honored when its `scope_fingerprint/2` matches the
+      scope of the request being rendered. This is the one place an
       attacker-plantable (or simply outlived) cookie lands, so the check runs
       here and does not trust the browser to have discarded it already.
 
@@ -210,26 +198,31 @@ defmodule Backpex.Preferences.LiveView do
   `Phoenix.LiveView.get_connect_params/1` is available.
   """
   def mount_context(%Socket{} = socket, session) when is_map(session) do
-    # Resolve the identity once, here: the disconnected branch needs it to
+    # Resolve the scope once, here: the disconnected branch needs it to
     # fingerprint the cookie, and stashing it on the Context also spares every
     # `get/3` in this mount a second run of the resolver.
     ctx =
       session
       |> Context.from_mount(socket.assigns)
-      |> Preferences.resolve_identity()
+      |> Preferences.resolve_scope()
 
     Context.put_client(ctx, client_preferences(socket, ctx))
   end
 
   defp client_preferences(socket, ctx) do
     if LiveView.connected?(socket) do
-      socket
-      |> LiveView.get_connect_params()
-      |> Kernel.||(%{})
-      |> Map.get(@connect_param, %{})
+      connected_client_preferences(socket, ctx)
     else
       disconnected_client_preferences(socket, ctx)
     end
+  end
+
+  defp connected_client_preferences(socket, ctx) do
+    socket
+    |> LiveView.get_connect_params()
+    |> Kernel.||(%{})
+    |> Map.get(@connect_param)
+    |> decode_client_envelope(scope_fingerprint(ctx, socket.endpoint))
   end
 
   # LiveView hands the disconnected mount the `%Plug.Conn{}` in
@@ -243,7 +236,7 @@ defmodule Backpex.Preferences.LiveView do
     |> Plug.Conn.fetch_cookies()
     |> Map.fetch!(:cookies)
     |> Map.get(@client_cookie)
-    |> decode_client_cookie(identity_fingerprint(ctx, socket.endpoint))
+    |> decode_client_cookie(scope_fingerprint(ctx, socket.endpoint))
   end
 
   defp disconnected_client_preferences(_socket, _ctx), do: %{}
@@ -256,9 +249,9 @@ defmodule Backpex.Preferences.LiveView do
   #    behind by the previous user of this browser — or planted by any script on
   #    the origin, which a non-HttpOnly cookie invites — carries a fingerprint
   #    that cannot match this request's, and is dropped whole. No fingerprint at
-  #    all (see `identity_fingerprint/2`) means we cannot tell, so we drop it too.
+  #    all (see `scope_fingerprint/2`) means we cannot tell, so we drop it too.
   # 3. Keys and values, gated downstream by `Context.put_client/2` (`Key.validate/1`
-  #    and `Keys.valid_value?/2`), so a same-identity cookie still cannot put a
+  #    and `Keys.valid_value?/2`), so a same-scope cookie still cannot put a
   #    wrong-typed value into a render.
   #
   # The fingerprint is an *additional* gate, not a replacement for (3): it proves
@@ -266,16 +259,21 @@ defmodule Backpex.Preferences.LiveView do
   defp decode_client_cookie(raw, fingerprint)
        when is_binary(raw) and byte_size(raw) <= @max_cookie_bytes and is_binary(fingerprint) do
     with {:ok, json} <- safe_uri_decode(raw),
-         {:ok, %{@cookie_identity_key => id, @cookie_values_key => values}}
-         when is_binary(id) and is_map(values) <- Phoenix.json_library().decode(json),
-         true <- Plug.Crypto.secure_compare(id, fingerprint) do
-      values
+         {:ok, envelope} <- Phoenix.json_library().decode(json) do
+      decode_client_envelope(envelope, fingerprint)
     else
       _other -> %{}
     end
   end
 
   defp decode_client_cookie(_raw, _fingerprint), do: %{}
+
+  defp decode_client_envelope(%{@cookie_scope_key => scope, @cookie_values_key => values}, fingerprint)
+       when is_binary(scope) and is_binary(fingerprint) and is_map(values) do
+    if Plug.Crypto.secure_compare(scope, fingerprint), do: values, else: %{}
+  end
+
+  defp decode_client_envelope(_envelope, _fingerprint), do: %{}
 
   # Plug does not URI-decode cookie values and the browser writes
   # `encodeURIComponent(JSON.stringify(map))`, so `URI.decode/1` is the inverse.

@@ -294,23 +294,43 @@ defmodule Backpex.Router do
   end
 
   @doc """
-  Finds the preferences path by the given socket.
+  Finds the preferences path by the given socket when the router contains one
+  static preferences route.
+
+  Dynamic routes and routers with multiple preferences routes are ambiguous
+  without application context. Pass `preferences_path` to
+  `Backpex.HTML.Layout.preferences_root/1` (or `app_shell/1`) in those cases.
   """
   def preferences_path(socket) do
-    route =
-      Enum.find(Map.get(socket, :router).__routes__(), fn element ->
+    routes =
+      Enum.filter(Map.get(socket, :router).__routes__(), fn element ->
         element[:plug] == Backpex.PreferencesController and element[:plug_opts] == :update
       end)
 
-    case route do
-      %{path: path} ->
+    case routes do
+      [%{path: path}] ->
+        if String.contains?(path, ":") do
+          raise ArgumentError, """
+          The backpex_preferences route contains dynamic segments: #{inspect(path)}.
+          Pass an explicit preferences_path with every segment resolved.
+          """
+        end
+
         path
 
-      nil ->
+      [] ->
         raise ArgumentError, """
         Could not find backpex_preferences route. Make sure you have added backpex_routes to your router.
 
         See: https://hexdocs.pm/backpex/installation.html#add-backpex-routes
+        """
+
+      routes ->
+        paths = Enum.map(routes, & &1.path)
+
+        raise ArgumentError, """
+        Found multiple backpex_preferences routes: #{inspect(paths)}.
+        Pass the preferences_path for the current application scope explicitly.
         """
     end
   end

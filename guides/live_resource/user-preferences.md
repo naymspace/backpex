@@ -60,7 +60,7 @@ setting is routed independently.
 
 - **Server-rendered state.** The server renders stored state from the adapter
   on every request. A bounded pending cookie covers most reloads that race an
-  in-flight write; see its size and identity limitations below.
+  in-flight write; see its size and scope limitations below.
 - **Instant UI.** Writes are async (`keepalive: true`) — the browser never
   blocks on persistence.
 - **Storage is your call.** Per-browser session is the default; swap any
@@ -71,13 +71,13 @@ setting is routed independently.
 | Store | Name | Lifetime | Holds |
 |---|---|---|---|
 | Your app's session cookie | e.g. `_my_app_key` | your session config | Where the Session adapter persists preferences. |
-| `sessionStorage` | `backpex.prefs.*` | the tab | Per-tab mirror of preferences written since the websocket connected. Opt-in per key. |
-| Cookie | `backpex_prefs` | `max-age` 300, normally deleted within one round-trip | Preference writes the server has not acknowledged yet, stamped with the identity that made them. |
+| `sessionStorage` | `backpex.prefs.<scope fingerprint>.*` | the tab | Per-tab, per-scope mirror of preferences written since the websocket connected. Opt-in per key. |
+| Cookie | `backpex_prefs` | `max-age` 300, normally deleted within one round-trip | Preference writes the server has not acknowledged yet, stamped with the scope that made them. |
 
 `backpex_prefs` is written by JavaScript — synchronously, which is the whole
 point — so it is **not** `HttpOnly`. Attributes: `path=/`, `SameSite=Lax`,
-`max-age=300`, plus `Secure` over HTTPS. The value is an envelope, `{"id":
-"<identity fingerprint>", "values": {key: value}}`, holding the writes whose POST
+`max-age=300`, plus `Secure` over HTTPS. The value is an envelope, `{"scope":
+"<scope fingerprint>", "values": {key: value}}`, holding the writes whose POST
 has not come back yet; each entry is deleted as soon as its POST responds, so the
 cookie is absent most of the time. Backpex reads it on the disconnected mount
 only — it is an input to a *render*, never to an adapter write. Unlike the
@@ -88,7 +88,7 @@ server](#why-the-client-sometimes-overrides-the-server).
 The encoded cookie has a 3072-byte budget. If several pending writes exceed it,
 Backpex evicts the oldest entries until it fits. If one entry cannot fit, it is
 not written to the cookie. No pending cookie is written when the page lacks a
-usable preference identity fingerprint. Persistence still proceeds in both
+usable preference scope fingerprint. Persistence still proceeds in both
 cases, but a document reload inside the POST round trip may initially render the
 previous stored value.
 
@@ -97,7 +97,7 @@ strictly functional cookie: it carries a keyed fingerprint rather than a raw
 user id and exists only to render the state the user just requested. Confirm the
 classification required by your own jurisdiction and consent policy.
 
-### Scoping the pending cookie to a user
+### Scoping the pending cookie
 
 The cookie can outlive the person who wrote it: a preference toggled a moment
 before "Log out" leaves a POST in flight whose promise dies with the page, so
@@ -105,32 +105,32 @@ nothing ever retires the entry and it sits there for up to five minutes. If the
 next user logs in inside that window, an unscoped cookie would be overlaid onto
 *their* first paint and replayed into *their* store.
 
-So every entry is stamped with an **identity fingerprint**
-(`Backpex.Preferences.LiveView.identity_fingerprint/2`): a keyed digest, over the
+So every entry is stamped with a **scope fingerprint**
+(`Backpex.Preferences.LiveView.scope_fingerprint/2`): a keyed digest, over the
 endpoint's `secret_key_base`, of
 
-1. the identity your `:identity` resolver returned (with `nil` /
-   `:unidentified` folded into one distinct anonymous value), and
+1. the scope map your `:scope` resolver returned (or the distinct
+   `:unscoped` value), and
 2. the Phoenix session's CSRF token.
 
 Both, because Backpex can host more than one store and they are not scoped
-alike. One `:identity` resolver serves every prefix — the router picks the
-*adapter* per prefix, not the identity — but `Backpex.Preferences.Adapters.Session`
-(the default, and the whole store in a zero-config install) ignores identity
-altogether and scopes by the **session**. Digesting only the identity would give
+alike. One `:scope` resolver serves every prefix — the router picks the
+*adapter* per prefix, not the scope — but `Backpex.Preferences.Adapters.Session`
+(the default, and the whole store in a zero-config install) ignores scope
+altogether and scopes by the **session**. Digesting only the scope would give
 every user of an anonymous session-backed install the same fingerprint, which is
 the bug. The CSRF token is the session's stable per-session secret: unchanged by
 preference writes, and regenerated exactly when the session is renewed — which is
 what `phx.gen.auth`'s `renew_session/1` does on login and logout.
 
 Together they keep the cookie's scope at least as narrow as the narrowest store's.
-An app that neither renews the session on login nor configures `:identity` gets
+An app that neither renews the session on login nor configures `:scope` gets
 one fingerprint for both users — but it also hands them the same session, so the
 Session adapter is already sharing the *stored* preferences between them; the
 cookie leaks nothing the store does not.
 
-The server renders the fingerprint into `data-preferences-identity` (pass
-`preferences_identity={@preferences_identity}` to `app_shell`). The browser
+The server renders the fingerprint into `data-preferences-scope` (pass
+`preferences_scope={@preferences_scope}` to `app_shell`). The browser
 discards the whole cookie when it does not match, and so does the disconnected
 mount — which does not trust the browser to have discarded it, because that is
 exactly where a planted cookie lands. The digest is keyed, so it exposes no user
@@ -146,7 +146,7 @@ Because the cookie is browser-written and unsigned, anything any script on the
 origin can plant reaches a render. `Backpex.Preferences.Context.put_client/2`
 therefore filters both client carriers — the cookie and the connect params —
 before they become an overlay (the fingerprint is an *additional* gate, not a
-replacement: it says who wrote a value, not that the value is sane):
+replacement: it says which scope wrote a value, not that the value is sane):
 
 - keys that fail `Backpex.Preferences.Key.validate/1` are dropped;
 - values that fail `Backpex.Preferences.Keys.valid_value?/2` are dropped.
@@ -175,27 +175,29 @@ on how that context was built:
 | `Preferences.put(socket, ...)` | `%{}` | `socket.assigns` | none |
 | explicitly constructed `%Context{}` | whatever the caller supplied | whatever the caller supplied | whatever the caller supplied |
 
-Adapters — and the identity resolver they share — should prefer
+Adapters — and the scope resolver they share — should prefer
 `ctx.assigns`, then fall back to `ctx.session` only on call paths that actually
 carry a session. In particular, a server-originated LiveView write must resolve
-identity from `socket.assigns`; `Preferences.put(socket, ...)` does not have the
+scope from `socket.assigns`; `Preferences.put(socket, ...)` does not have the
 mount session.
 
 For that guarantee to hold, the host app must satisfy a handful of
 ordering and content contracts. None of these are enforced at compile time,
 so it is worth spelling them out explicitly.
 
-### Ordering: auth runs first
+### Ordering: authentication and application scope run first
 
 - **LiveView read path.** `Backpex.InitAssigns` must be attached **after**
-  your app's authentication `on_mount` hook so that `socket.assigns` already
-  holds `:current_user` / `:current_scope` by the time preferences are read.
+  every hook that builds the application scope so that `socket.assigns`
+  already holds the user, tenant, workspace, or other namespace fields by the
+  time preferences are read.
   In a typical Phoenix 1.8 `live_session`:
 
   ```elixir
   live_session :authenticated,
     on_mount: [
       {MyAppWeb.UserAuth, :ensure_authenticated},
+      {MyAppWeb.TenantAuth, :assign_tenant},
       Backpex.InitAssigns
     ] do
     # ... Backpex routes ...
@@ -203,49 +205,63 @@ so it is worth spelling them out explicitly.
   ```
 
   If the order is reversed, `InitAssigns` will see an empty `socket.assigns`
-  and your identity resolver will have to fall back to reading the raw
-  session token — defeating the point of threading assigns through.
+  and the resolver cannot construct the complete scope. Do not silently fall
+  back to a user-only scope when a tenant field is required: that would merge
+  preferences across tenants.
 
-- **Controller write path.** The preferences controller is mounted behind
-  the standard browser pipeline. As long as your auth plug runs before
-  `Backpex.PreferencesController`, `conn.assigns` already contains the
-  authenticated user by the time `Preferences.put/4` or
-  `Preferences.put_batch/3` executes. This is true by construction of
-  `Plug.Conn.assigns` but worth stating.
+- **Controller write path.** Mount the preferences controller behind a
+  pipeline that constructs the same application scope. For a tenant-scoped
+  store, put the endpoint below the tenant segment and authorize the tenant
+  before the controller:
 
-### The identity resolver receives a Context
+  ```elixir
+  scope "/tenants/:tenant", MyAppWeb do
+    pipe_through [:browser, :require_authenticated_user, :assign_tenant]
+
+    backpex_routes()
+  end
+  ```
+
+  The generated route contains a dynamic segment, so pass its concrete path
+  to the layout:
+
+  ```heex
+  <Backpex.HTML.Layout.app_shell
+    socket={@socket}
+    preferences_scope={@preferences_scope}
+    preferences_path={~p"/tenants/#{@current_scope.tenant.id}/backpex_preferences"}
+  >
+    ...
+  </Backpex.HTML.Layout.app_shell>
+  ```
+
+### The scope resolver receives a Context
 
 Your resolver gets a `%Backpex.Preferences.Context{}`, not a raw session.
-Read from `ctx.assigns` first — it is the post-auth, freshest view. Fall
-back to `ctx.session` only for edge cases where assigns cannot carry the
-answer (e.g. a non-LiveView write path that bypasses your auth `on_mount`
-but still sits behind the router's session + auth plug pipeline):
+Read from `ctx.assigns` — it is the post-auth, post-tenant view. A raw session
+usually cannot reconstruct a complete tenant scope. Return `:unscoped` rather
+than returning a partial map that could join namespaces accidentally:
 
 ```elixir
-defmodule MyAppWeb.PreferencesIdentity do
+defmodule MyAppWeb.PreferencesScope do
   alias Backpex.Preferences.Context
 
-  # Primary: whatever your auth layer put on assigns.
-  def resolve(%Context{assigns: %{current_scope: %{user: %{id: id}}}}), do: id
-  def resolve(%Context{assigns: %{current_user: %{id: id}}}), do: id
-
-  # Fallback: a raw session token. Useful when you truly only have a
-  # session on hand (background jobs, tests, hand-crafted calls).
-  def resolve(%Context{session: %{"user_token" => token}}) when is_binary(token) do
-    case MyApp.Accounts.get_user_by_session_token(token) do
-      %{id: id} -> id
-      _ -> :unidentified
-    end
+  def resolve(%Context{
+        assigns: %{
+          current_scope: %{user: %{id: user_id}, tenant: %{id: tenant_id}}
+        }
+      }) do
+    %{user_id: user_id, tenant_id: tenant_id}
   end
 
-  def resolve(_ctx), do: :unidentified
+  def resolve(_ctx), do: :unscoped
 end
 ```
 
-The resolver runs once per dispatcher call and its result is cached on the
-context for the rest of that single dispatch (so one read never invokes it
-twice). Keep it cheap all the same — every `Preferences.get/3` and
-`Preferences.put/4` call triggers a fresh resolution.
+The resolver runs once for each unresolved context. Reusing the resolved
+context — as `Backpex.InitAssigns` does for all reads during one mount — reuses
+the same scope. Calls that start from a bare session, conn, or socket build a
+fresh context and resolve again. Keep the resolver cheap.
 
 ### Session key must survive `renew_session`
 
@@ -272,7 +288,7 @@ end
 ```
 
 DB-backed adapters are unaffected by `renew_session` — they key off the
-user id, not the session. This note only matters for prefixes routed to
+resolved scope map, not the session. This note only matters for prefixes routed to
 `Backpex.Preferences.Adapters.Session`.
 
 ## Built-in preference keys
@@ -319,7 +335,7 @@ needs:
   fluid={@fluid?}
   live_resource={@live_resource}
   sidebar_open={@sidebar_open}
-  preferences_identity={@preferences_identity}
+  preferences_scope={@preferences_scope}
 >
   <:topbar>
     <Backpex.HTML.Layout.theme_selector
@@ -354,7 +370,7 @@ built on `app_shell` needs nothing extra. A layout that does **not** use
 ```heex
 <Backpex.HTML.Layout.preferences_root
   socket={@socket}
-  preferences_identity={@preferences_identity}
+  preferences_scope={@preferences_scope}
 />
 ```
 
@@ -365,10 +381,10 @@ and the only signal is a console warning.
 
 ## Storage adapters
 
-An adapter owns the "where" of preference storage. Backpex ships one
-(`Backpex.Preferences.Adapters.Session`) and lets you plug in others per
-prefix. `Backpex.Preferences` routes each call through the adapter configured
-for the key's prefix.
+An adapter owns the "where" of preference storage. Backpex ships Session and
+Ecto adapters (the Ecto adapter uses your application's schema and table) and
+lets you plug in others per prefix. `Backpex.Preferences` routes each call
+through the adapter configured for the key's prefix.
 
 ### Picking an adapter
 
@@ -422,10 +438,12 @@ config :backpex, Backpex.Preferences,
   adapters: [
     {"global.*",   Backpex.Preferences.Adapters.Session, []},
     {"resource.*", Backpex.Preferences.Adapters.Ecto,
-     repo: MyApp.Repo, schema: MyApp.Preferences.UserPreference},
+     repo: MyApp.Repo,
+     schema: MyApp.Preferences.Preference,
+     scope_fields: [:user_id, :tenant_id]},
     {:default,     Backpex.Preferences.Adapters.Session, []}
   ],
-  identity: {MyAppWeb.PreferencesIdentity, :resolve, []}
+  scope: {MyAppWeb.PreferencesScope, :resolve, []}
 ```
 
 Dispatch uses **longest-prefix match**, so specific patterns always beat
@@ -459,7 +477,9 @@ config :backpex, Backpex.Preferences,
   adapters: [
     # PostLive carries far more column state than the session cookie should hold.
     {"resource:MyApp.PostLive:*", Backpex.Preferences.Adapters.Ecto,
-     repo: MyApp.Repo, schema: MyApp.Preferences.UserPreference},
+     repo: MyApp.Repo,
+     schema: MyApp.Preferences.Preference,
+     scope_fields: [:user_id, :tenant_id]},
     {"resource.*", Backpex.Preferences.Adapters.Session, []},
     {:default, Backpex.Preferences.Adapters.Session, []}
   ]
@@ -479,53 +499,45 @@ of the key space. A subtree read (`get_map/3`) reads every intersecting route
 and applies the same specificity rules, so an exact key or nested wildcard can
 live in another adapter without becoming invisible to its parent subtree.
 
-### Identity resolver
+### Scope resolver
 
-Database adapters need a user id. Rather than each adapter implementing its
-own lookup, configure **one** resolver and every adapter gets the result:
+Database adapters need a namespace. Configure **one** resolver that returns a
+non-empty atom-keyed map and every adapter receives it:
 
 ```elixir
 # config/config.exs
 config :backpex, Backpex.Preferences,
-  identity: {MyAppWeb.PreferencesIdentity, :resolve, []}
+  scope: {MyAppWeb.PreferencesScope, :resolve, []}
 ```
 
 ```elixir
-defmodule MyAppWeb.PreferencesIdentity do
+defmodule MyAppWeb.PreferencesScope do
   alias Backpex.Preferences.Context
 
-  # Prefer assigns: Backpex passes the live socket's / conn's assigns in
-  # `ctx.assigns`, so whatever your auth layer put there (current_scope,
-  # current_user, ...) is already resolved by the time preferences are read.
-  def resolve(%Context{assigns: %{current_scope: %{user: %{id: id}}}}), do: id
-  def resolve(%Context{assigns: %{current_user: %{id: id}}}), do: id
-
-  # Fall back to the raw session only when assigns can't answer (e.g. a
-  # non-LiveView write path, a test that constructed a Context by hand).
-  def resolve(%Context{session: %{"user_token" => token}}) when is_binary(token) do
-    case MyApp.Accounts.get_user_by_session_token(token) do
-      %{id: id} -> id
-      _ -> :unidentified
-    end
+  def resolve(%Context{
+        assigns: %{
+          current_scope: %{user: %{id: user_id}, tenant: %{id: tenant_id}}
+        }
+      }) do
+    %{user_id: user_id, tenant_id: tenant_id}
   end
 
-  def resolve(_ctx), do: :unidentified
+  def resolve(_ctx), do: :unscoped
 end
 ```
 
 See the [Contracts](#contracts) section for why the assigns-first order
 matters and what the host app must guarantee for it to hold.
 
-The dispatcher calls the resolver once per read/write call — there is no
-cross-call memoization, so the resolver runs every time. Keep it cheap
-(assigns lookup, session read, or a fast cache hit). The resolved value is
-stashed on `ctx.identity` so each adapter call during that single dispatch
-reuses the same value. Return `:unidentified` (or raise) when no user is
-logged in. Adapter reads are treated as "not found" and the caller falls
-back to the `:default` option; writes return `{:error, :unidentified}` and
+The dispatcher resolves each context once. Reusing a context with a populated
+`scope` reuses the same map; entry points that receive a bare session, conn, or
+socket build a fresh context and resolve again. Keep it cheap (assigns lookup,
+session read, or a fast cache hit). Return `:unscoped` (or raise) when the complete scope
+cannot be resolved. Adapter reads are treated as "not found" and the caller falls
+back to the `:default` option; writes return `{:error, :unscoped}` and
 the controller responds with a singular error object:
-`200 {"ok": false, "error": {"key": "...", "reason": "unidentified"}}`
-for a single write. In a batch, `:unidentified` is an ordinary first error and
+`200 {"ok": false, "error": {"key": "...", "reason": "unscoped"}}`
+for a single write. In a batch, `:unscoped` is an ordinary first error and
 returns the same body with status `422`.
 
 ## Writing a custom adapter
@@ -580,8 +592,8 @@ Phoenix CSRF header. Custom clients may send either supported payload shape:
 The response contract is:
 
 - `200 {"ok": true}` when all retained entries were accepted.
-- `200 {"ok": false, "error": {"key": "...", "reason": "unidentified"}}`
-  when a single write targets an adapter that cannot identify the user.
+- `200 {"ok": false, "error": {"key": "...", "reason": "unscoped"}}`
+  when a single write targets an adapter that cannot resolve its complete scope.
 - `422 {"ok": false, "error": {"key": "...", "reason": "..."}}` for the
   first adapter error in a batch or any other write error.
 - `400 {"ok": false, "error": "missing key/value"}` when the outer payload
@@ -591,17 +603,13 @@ The batch parser silently discards members that are not objects containing a
 binary `key` and a `value` field. An empty batch, or a batch where every member
 is discarded, therefore returns `200 {"ok": true}` and performs no writes.
 
-The controller is a transport boundary, not a schema validator. It does **not**
-call `Backpex.Preferences.Key.validate/1` or
-`Backpex.Preferences.Keys.valid_value?/2` before dispatch, so a handcrafted
-request can persist an unknown key or a wrong-typed built-in value if its
-adapter accepts it. The built-in JS API emits valid keys and values; custom HTTP
-clients and custom adapters must validate any constraints they require. The
-separate client-overlay validation protects rendering only and does not make
-the persistence endpoint an authorization or validation boundary. Adapter reads
-are not shape-checked either, so persisting a wrong-typed built-in value can
-later break a built-in render. Validate before dispatch or reject the value in
-the adapter.
+The dispatcher validates value shapes for keys Backpex owns, regardless of
+whether the write came from the controller, a LiveView, or host application
+code. A wrong-typed built-in value returns `:invalid_value` before any adapter
+sees it. Unknown and `custom.*` keys remain adapter-owned and may carry any
+value their adapter accepts; this shape check is not an authorization boundary.
+Adapter reads are necessarily defensive too, because rows may predate the
+validation or be written outside Backpex.
 
 ### Respond only once the value is readable
 
@@ -638,7 +646,7 @@ defmodule MyApp.Test.InMemoryPreferencesAdapter do
   @impl true
   def get(ctx, key, _opts) do
     start()
-    case :ets.lookup(@table, {identity(ctx), key}) do
+    case :ets.lookup(@table, {scope(ctx), key}) do
       [{_, value}] -> {:ok, value}
       [] -> {:ok, :not_found}
     end
@@ -647,7 +655,7 @@ defmodule MyApp.Test.InMemoryPreferencesAdapter do
   @impl true
   def get_map(ctx, prefix, _opts) do
     start()
-    # Reconstruct a nested map from flat (identity, key) rows — see
+    # Reconstruct a nested map from flat (scope, key) rows — see
     # lib/backpex/preferences/adapters/session.ex for the shape to return.
     {:ok, %{}}
   end
@@ -655,13 +663,12 @@ defmodule MyApp.Test.InMemoryPreferencesAdapter do
   @impl true
   def put(ctx, key, value, _opts) do
     start()
-    :ets.insert(@table, {{identity(ctx), key}, value})
+    :ets.insert(@table, {{scope(ctx), key}, value})
     {:ok, :persisted}
   end
 
-  defp identity(%{identity: nil}), do: :anonymous
-  defp identity(%{identity: :unidentified}), do: :anonymous
-  defp identity(%{identity: id}), do: id
+  defp scope(%{scope: nil}), do: :unscoped
+  defp scope(%{scope: scope}), do: scope
 end
 ```
 
@@ -680,26 +687,28 @@ module to write.
 ### Setup
 
 ```elixir
-defmodule MyApp.Repo.Migrations.CreateBackpexUserPreferences do
+defmodule MyApp.Repo.Migrations.CreateBackpexPreferences do
   use Ecto.Migration
 
   def change do
-    create table(:backpex_user_preferences) do
+    create table(:backpex_preferences) do
       add :user_id, references(:users, on_delete: :delete_all), null: false
+      add :tenant_id, references(:tenants, on_delete: :delete_all), null: false
       add :key,     :string, null: false
       add :value,   :map,    null: false, default: %{}
       timestamps(type: :utc_datetime_usec)
     end
 
-    create unique_index(:backpex_user_preferences, [:user_id, :key])
+    create unique_index(:backpex_preferences, [:user_id, :tenant_id, :key])
   end
 end
 
-defmodule MyApp.Preferences.UserPreference do
+defmodule MyApp.Preferences.Preference do
   use Ecto.Schema
 
-  schema "backpex_user_preferences" do
+  schema "backpex_preferences" do
     field :user_id, :integer
+    field :tenant_id, :integer
     field :key,     :string
     field :value,   :map, default: %{}
     timestamps(type: :utc_datetime_usec)
@@ -711,17 +720,18 @@ end
 # config/config.exs
 config :backpex, Backpex.Preferences,
   adapters: [
-    {"resource.*", Backpex.Preferences.Adapters.Ecto,
-     repo: MyApp.Repo, schema: MyApp.Preferences.UserPreference},
-    {:default, Backpex.Preferences.Adapters.Session, []}
+    {:default, Backpex.Preferences.Adapters.Ecto,
+     repo: MyApp.Repo,
+     schema: MyApp.Preferences.Preference,
+     scope_fields: [:user_id, :tenant_id]}
   ],
-  identity: {MyAppWeb.PreferencesIdentity, :resolve, []}
+  scope: {MyAppWeb.PreferencesScope, :resolve, []}
 ```
 
-The unique index is required — writes upsert against it. The `:user_id` column
-type must match what your identity resolver returns; a `:binary_id` user id
-needs a `:binary_id` column. Rename the column via `identity_field:` if you
-prefer something else; `:key` and `:value` are fixed.
+The unique index is required and must contain `scope_fields ++ [:key]` in the
+same order because writes use that list as their conflict target. Every scope
+field must exist on the schema, and its type must match the corresponding value
+returned by the scope resolver. The `:key` and `:value` field names are fixed.
 
 > #### Match your app's primary key convention {: .warning}
 >
@@ -737,10 +747,9 @@ prefer something else; `:key` and `:value` are fixed.
 > @primary_key {:id, :binary_id, autogenerate: true}
 > ```
 
-Route only the prefixes that need it. Sending `global.*` to the database costs
-a query per mount to render sidebar state that fits the cookie comfortably —
-worth it if you want that state to follow users across devices, wasteful
-otherwise.
+The example routes every key through Ecto so theme, sidebar, filters, order and
+columns are all tenant-scoped. Route selected prefixes to the Session adapter
+only when those settings should deliberately be session-scoped instead.
 
 ### How values are stored
 
@@ -864,7 +873,7 @@ end
 ```
 
 Use `mount_context/2` during `mount/3`, after your authentication on-mount
-hook. It preserves `socket.assigns` for identity resolution and includes the
+hook. It preserves `socket.assigns` for scope resolution and includes the
 validated pending-cookie/connect-param overlay. Passing the bare `session`
 map is supported, but it has no assigns and cannot see pending or per-tab
 mirrored values.
@@ -1020,7 +1029,7 @@ end
 when it holds a write the server has not acknowledged.** A write is
 acknowledged once its POST to the preferences endpoint has come back with an
 HTTP response — any response. `200 {"ok": true}`, the single-write
-`200 {"ok": false, "error": {"key": "...", "reason": "unidentified"}}`
+`200 {"ok": false, "error": {"key": "...", "reason": "unscoped"}}`
 an anonymous visitor gets, and a `422` all count: the server has seen the write
 and decided on it, so replaying it is pointless and keeping a client overlay
 would pin the value forever. Until then, the browser is the only party that
@@ -1040,9 +1049,8 @@ LiveView patches it away a frame later: the flash. `Backpex.Preferences.LiveView
 decodes the cookie on the disconnected mount and folds it into the same client
 overlay the connect params feed. Every key gets this automatically — mirrored or
 not — which is why filters, order and column visibility also survive a fast
-reload, not just the sidebar. A pending write only ever applies to the identity
-that made it: see [Scoping the pending cookie to a
-user](#scoping-the-pending-cookie-to-a-user).
+reload, not just the sidebar. A pending write only ever applies to the scope
+that made it: see [Scoping the pending cookie](#scoping-the-pending-cookie).
 
 **The `sessionStorage` mirror → the websocket join.** LiveView freezes the
 Phoenix session at websocket-connect time. When a user clicks an internal link
@@ -1079,7 +1087,7 @@ contradict the paint the user is looking at.
 cookie is attempted for every key regardless, so the mirror choice is primarily
 about whether the value must survive a `live_redirect`. The pending cookie is a
 best-effort fast-reload carrier: it is capped at 3072 encoded bytes, evicts old
-entries, skips a single oversized entry, and is disabled without an identity
+entries, skips a single oversized entry, and is disabled without a scope
 fingerprint.
 
 Use it when **all** of the following are true:
@@ -1226,15 +1234,16 @@ Session adapter warns once its own tree passes 3072 bytes, but other session
 data and encoding overhead can make failure happen earlier. Route bulky
 prefixes (columns, filters) onto a database adapter.
 
-**"Changes aren't saving for some users."** The configured adapter likely
-returned `{:error, :unidentified}` — your identity resolver couldn't find a
-user (e.g. auth plug hasn't run yet). Check `Plug.Conn.get_session(conn,
-:user_id)` / `socket.assigns.current_user` at the moment the write is made.
+**"Changes aren't saving for some scopes."** The configured adapter likely
+returned `{:error, :unscoped}` because the resolver could not build the full
+scope, or `{:error, {:invalid_scope, fields}}` because a configured field was
+missing. Check `conn.assigns` / `socket.assigns` after the authentication and
+tenant hooks have run.
 
-**"I want to inspect what's stored for a user."** Session adapter: read
+**"I want to inspect what's stored for a scope."** Session adapter: read
 `Plug.Conn.get_session(conn, "backpex_preferences")` directly. DB adapter:
 query your table (`backpex_user_preferences` or whatever you named it).
 
-**"How do I reset a user's preferences?"** Drop their rows (DB adapter) or
+**"How do I reset a scope's preferences?"** Drop its rows (DB adapter) or
 `Plug.Conn.delete_session(conn, "backpex_preferences")` (session). No
 Backpex-specific API exists — treat the store like the data store it is.

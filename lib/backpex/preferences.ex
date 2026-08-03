@@ -8,7 +8,7 @@ defmodule Backpex.Preferences do
   a longest-prefix match against the configured routes (see
   `Backpex.Preferences.Router`), so different prefixes can live in different
   storage backends — e.g. `global.*` in the Phoenix session and `resource.*`
-  in a per-user database table.
+  in a scoped database table.
 
   ## Zero-config defaults
 
@@ -20,10 +20,11 @@ defmodule Backpex.Preferences do
       config :backpex, Backpex.Preferences,
         adapters: [
           {"global.*",   Backpex.Preferences.Adapters.Session, []},
-          {"resource.*", Backpex.Preferences.Adapters.Ecto, repo: MyApp.Repo, schema: MyApp.Preference},
+          {"resource.*", Backpex.Preferences.Adapters.Ecto,
+           repo: MyApp.Repo, schema: MyApp.Preference, scope_fields: [:user_id, :tenant_id]},
           {:default,     Backpex.Preferences.Adapters.Session, []}
         ],
-        identity: {MyAppWeb.PreferencesIdentity, :resolve, []}
+        scope: {MyAppWeb.PreferencesScope, :resolve, []}
 
   ## Key format
 
@@ -54,7 +55,7 @@ defmodule Backpex.Preferences do
 
   @doc """
   Reads a preference. Falls back to `opts[:default]` when the value is
-  missing or the adapter cannot identify the current user.
+  missing or the adapter cannot resolve the current preference scope.
 
   Accepts a `%Backpex.Preferences.Context{}` or a bare Phoenix session map.
   The session-map form is convenient for call sites that only have a
@@ -106,11 +107,11 @@ defmodule Backpex.Preferences do
       {_module, {:ok, value}} ->
         value
 
-      # `Backpex.Preferences.Adapter` defines `{:error, :unidentified}` on reads
-      # as "treat as not found": the adapter needs a resolved user and has none.
+      # `Backpex.Preferences.Adapter` defines `{:error, :unscoped}` on reads
+      # as "treat as not found": the adapter needs a resolved scope and has none.
       # That is an expected condition (anonymous visitors, background jobs), so
       # it falls back to the default silently rather than logging every read.
-      {_module, {:error, :unidentified}} ->
+      {_module, {:error, :unscoped}} ->
         default
 
       {module, {:error, reason}} ->
@@ -131,7 +132,7 @@ defmodule Backpex.Preferences do
   but the shape returned here matches what a single nested `get/3` at that
   prefix would have produced.
 
-  Returns `%{}` when nothing is stored, the adapter cannot identify the user,
+  Returns `%{}` when nothing is stored, the adapter cannot resolve the scope,
   or the adapter fails for any other reason.
 
   Client-overlay descendants are reconstructed only for dot-form keys by
@@ -154,7 +155,7 @@ defmodule Backpex.Preferences do
       %{}
   """
   def get_map(ctx_or_session, prefix, opts \\ []) do
-    ctx = resolve_identity(Context.coerce(ctx_or_session))
+    ctx = resolve_scope(Context.coerce(ctx_or_session))
     prefix_segments = Key.parse(prefix)
 
     {stored, _adapter_results} =
@@ -197,9 +198,9 @@ defmodule Backpex.Preferences do
       {:ok, map} when is_map(map) ->
         map
 
-      # See `get_from_adapter/4`: `:unidentified` on a read is a documented
+      # See `get_from_adapter/4`: `:unscoped` on a read is a documented
       # "not found", not a failure — no warning.
-      {:error, :unidentified} ->
+      {:error, :unscoped} ->
         %{}
 
       {:error, reason} ->
@@ -310,7 +311,7 @@ defmodule Backpex.Preferences do
   on its next paint.
 
   A socket target supplies `socket.assigns` but no mount session to the
-  adapter/identity context (`ctx.session` is `%{}`). Identity resolution for
+  adapter/scope context (`ctx.session` is `%{}`). Scope resolution for
   server-originated LiveView writes must therefore work from assigns. A conn
   target supplies both `conn.assigns` and the current session.
 
@@ -348,7 +349,7 @@ defmodule Backpex.Preferences do
   def put(target, key, value, opts \\ [])
 
   def put(%Plug.Conn{} = conn, key, value, opts) do
-    ctx = conn |> Context.from_conn() |> resolve_identity()
+    ctx = conn |> Context.from_conn() |> resolve_scope()
 
     case dispatch_put(ctx, key, value, opts) do
       {_module, {:ok, :persisted}} ->
@@ -371,7 +372,7 @@ defmodule Backpex.Preferences do
     ctx =
       %{}
       |> Context.from_socket(socket.assigns)
-      |> resolve_identity()
+      |> resolve_scope()
 
     case dispatch_put(ctx, key, value, opts) do
       {_module, {:ok, :persisted}} ->
@@ -441,7 +442,7 @@ defmodule Backpex.Preferences do
       #=> {:ok, [{:put_session, "backpex_preferences", %{...}}]}
   """
   def put_batch(%Context{} = ctx, entries, opts \\ []) when is_list(entries) do
-    ctx = resolve_identity(ctx)
+    ctx = resolve_scope(ctx)
 
     # Accumulate effects by prepending each adapter's effects in reverse, then
     # reverse the whole list at the end — preserves the original left-to-right
@@ -485,12 +486,12 @@ defmodule Backpex.Preferences do
   end
 
   @doc false
-  def resolve_identity(%Context{identity: nil} = ctx) do
-    identity = run_identity_resolver(ctx)
-    Context.put_identity(ctx, identity)
+  def resolve_scope(%Context{scope: nil} = ctx) do
+    scope = run_scope_resolver(ctx)
+    Context.put_scope(ctx, scope)
   end
 
-  def resolve_identity(%Context{} = ctx), do: ctx
+  def resolve_scope(%Context{} = ctx), do: ctx
 
   @doc """
   Returns the Phoenix session key used by the Session adapter.
@@ -500,7 +501,7 @@ defmodule Backpex.Preferences do
   def session_key, do: Adapters.Session.session_key()
 
   defp dispatch_get(ctx_or_session, key, opts) do
-    ctx = resolve_identity(Context.coerce(ctx_or_session))
+    ctx = resolve_scope(Context.coerce(ctx_or_session))
     {module, adapter_opts} = Router.resolve(key)
 
     try do
@@ -565,49 +566,71 @@ defmodule Backpex.Preferences do
     Keyword.merge(adapter_opts, Keyword.drop(call_opts, [:default, :mirror]))
   end
 
-  defp run_identity_resolver(ctx) do
-    case Application.get_env(:backpex, __MODULE__, [])[:identity] do
+  defp run_scope_resolver(ctx) do
+    case Application.get_env(:backpex, __MODULE__, [])[:scope] do
       {mod, fun, args} when is_atom(mod) and is_atom(fun) and is_list(args) ->
         safe_apply(mod, fun, [ctx | args])
 
       nil ->
-        :unidentified
+        :unscoped
 
       other ->
         Logger.warning(
-          "Backpex.Preferences: invalid :identity config #{inspect(other)}; " <>
-            "expected {module, function, args} or nil; falling back to :unidentified"
+          "Backpex.Preferences: invalid :scope config #{inspect(other)}; " <>
+            "expected {module, function, args} or nil; falling back to :unscoped"
         )
 
-        :unidentified
+        :unscoped
     end
   end
 
   defp safe_apply(mod, fun, args) do
-    normalize_identity(apply(mod, fun, args))
+    normalize_scope(apply(mod, fun, args))
   rescue
     reason ->
       Logger.warning(
-        "Backpex.Preferences: resolving identity via #{inspect({mod, fun, length(args)})} raised: " <>
-          "#{Exception.format(:error, reason, __STACKTRACE__)}; falling back to :unidentified"
+        "Backpex.Preferences: resolving scope via #{inspect({mod, fun, length(args)})} raised: " <>
+          "#{Exception.format(:error, reason, __STACKTRACE__)}; falling back to :unscoped"
       )
 
-      :unidentified
+      :unscoped
   catch
     kind, reason ->
       Logger.warning(
-        "Backpex.Preferences: resolving identity via #{inspect({mod, fun, length(args)})} " <>
-          "threw #{inspect(kind)}: #{inspect(reason)}; falling back to :unidentified"
+        "Backpex.Preferences: resolving scope via #{inspect({mod, fun, length(args)})} " <>
+          "threw #{inspect(kind)}: #{inspect(reason)}; falling back to :unscoped"
       )
 
-      :unidentified
+      :unscoped
   end
 
-  defp normalize_identity({:ok, nil}), do: :unidentified
-  defp normalize_identity({:ok, id}), do: id
-  defp normalize_identity(:unidentified), do: :unidentified
-  defp normalize_identity(:error), do: :unidentified
-  defp normalize_identity({:error, _reason}), do: :unidentified
-  defp normalize_identity(nil), do: :unidentified
-  defp normalize_identity(id), do: id
+  defp normalize_scope({:ok, scope}), do: normalize_scope(scope)
+
+  defp normalize_scope(scope) when is_map(scope) and map_size(scope) > 0 do
+    if scope |> Map.keys() |> Enum.all?(&is_atom/1) do
+      scope
+    else
+      Logger.warning(
+        "Backpex.Preferences: scope resolver returned a map with non-atom keys " <>
+          "#{inspect(scope)}; falling back to :unscoped"
+      )
+
+      :unscoped
+    end
+  end
+
+  defp normalize_scope(:unscoped), do: :unscoped
+  defp normalize_scope(:error), do: :unscoped
+  defp normalize_scope({:error, _reason}), do: :unscoped
+  defp normalize_scope(nil), do: :unscoped
+
+  defp normalize_scope(other) do
+    Logger.warning(
+      "Backpex.Preferences: scope resolver returned #{inspect(other)}; " <>
+        "expected a non-empty atom-keyed map, {:ok, map}, :unscoped, nil, or an error tuple; " <>
+        "falling back to :unscoped"
+    )
+
+    :unscoped
+  end
 end

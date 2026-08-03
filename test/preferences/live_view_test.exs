@@ -1,5 +1,5 @@
 defmodule Backpex.Preferences.LiveViewTest do
-  use ExUnit.Case, async: true
+  use ExUnit.Case, async: false
 
   alias Backpex.Preferences.Context
   alias Backpex.Preferences.LiveView, as: PreferenceLiveView
@@ -9,7 +9,7 @@ defmodule Backpex.Preferences.LiveViewTest do
   doctest PreferenceLiveView
 
   # The fingerprint is a MAC over the endpoint's `secret_key_base`, and
-  # `identity_fingerprint/2` reaches it through `endpoint.config/1`. That is the
+  # `scope_fingerprint/2` reaches it through `endpoint.config/1`. That is the
   # entire contract, so a stub satisfies it without booting a Phoenix endpoint.
   defmodule Endpoint do
     @moduledoc false
@@ -23,18 +23,43 @@ defmodule Backpex.Preferences.LiveViewTest do
     def config(_key), do: nil
   end
 
+  defmodule ScopeResolver do
+    @moduledoc false
+    def resolve(%Context{assigns: assigns}), do: Map.get(assigns, :preference_scope, :unscoped)
+  end
+
+  setup do
+    prior = Application.get_env(:backpex, Backpex.Preferences)
+    config = Keyword.put(prior || [], :scope, {ScopeResolver, :resolve, []})
+    Application.put_env(:backpex, Backpex.Preferences, config)
+
+    on_exit(fn ->
+      case prior do
+        nil -> Application.delete_env(:backpex, Backpex.Preferences)
+        value -> Application.put_env(:backpex, Backpex.Preferences, value)
+      end
+    end)
+  end
+
   # A session with a CSRF token in it. Every request after the first one of a
   # session carries it, and the fingerprint needs it: it is what scopes the
-  # session-backed store (see `identity_fingerprint/2`).
+  # session-backed store (see `scope_fingerprint/2`).
   defp session(extra \\ %{}) do
     Map.merge(%{"_csrf_token" => "csrf-token-a"}, extra)
   end
 
-  defp connected_socket(client_prefs) do
+  defp connected_socket(client_prefs, mount_session, scope \\ :unscoped) do
     %Socket{
       transport_pid: self(),
       endpoint: Endpoint,
-      private: %{connect_params: %{"backpex_prefs" => client_prefs}}
+      private: %{
+        connect_params: %{
+          "backpex_prefs" => %{
+            "scope" => fingerprint(mount_session, Endpoint, scope),
+            "values" => client_prefs
+          }
+        }
+      }
     }
   end
 
@@ -57,7 +82,7 @@ defmodule Backpex.Preferences.LiveViewTest do
   end
 
   # What the JS writes: `encodeURIComponent(JSON.stringify(envelope))`, where the
-  # envelope stamps the pending writes with the identity fingerprint the server
+  # envelope stamps the pending writes with the scope fingerprint the server
   # served this page with. `URI.encode/2` with `char_unreserved?/1` escapes
   # everything outside the unreserved set, which is the closest Elixir equivalent,
   # and `URI.decode/1` is its inverse.
@@ -69,13 +94,14 @@ defmodule Backpex.Preferences.LiveViewTest do
 
   # The cookie a browser served by `session` would have written.
   defp encode_pending(values, session \\ session()) do
-    encode_cookie(%{"id" => fingerprint(session), "values" => values})
+    encode_cookie(%{"scope" => fingerprint(session), "values" => values})
   end
 
-  defp fingerprint(session, endpoint \\ Endpoint) do
+  defp fingerprint(session, endpoint \\ Endpoint, scope \\ :unscoped) do
     session
     |> Context.from_mount()
-    |> PreferenceLiveView.identity_fingerprint(endpoint)
+    |> Context.put_scope(scope)
+    |> PreferenceLiveView.scope_fingerprint(endpoint)
   end
 
   describe "event_name/0" do
@@ -96,9 +122,10 @@ defmodule Backpex.Preferences.LiveViewTest do
 
   describe "mount_context/2" do
     test "carries the browser's connect-param preferences on a connected mount" do
-      socket = connected_socket(%{"global.theme" => "dark"})
+      mount_session = session(%{"backpex_preferences" => %{}})
+      socket = connected_socket(%{"global.theme" => "dark"}, mount_session)
 
-      ctx = PreferenceLiveView.mount_context(socket, %{"backpex_preferences" => %{}})
+      ctx = PreferenceLiveView.mount_context(socket, mount_session)
 
       assert ctx.client == %{"global.theme" => "dark"}
       assert ctx.source == :mount
@@ -107,11 +134,39 @@ defmodule Backpex.Preferences.LiveViewTest do
     test "drops connect-param keys no adapter prefix serves" do
       # The payload comes from the browser: an unknown key must not shadow a
       # read, and must not reach the adapter router.
-      socket = connected_socket(%{"global.theme" => "dark", "evil.key" => "x"})
+      mount_session = session()
+      socket = connected_socket(%{"global.theme" => "dark", "evil.key" => "x"}, mount_session)
 
-      ctx = PreferenceLiveView.mount_context(socket, %{})
+      ctx = PreferenceLiveView.mount_context(socket, mount_session)
 
       assert ctx.client == %{"global.theme" => "dark"}
+    end
+
+    test "drops connect-param preferences stamped for another tenant scope" do
+      mount_session = session()
+      source_scope = %{user_id: 7, tenant_id: 70}
+      destination_scope = %{user_id: 7, tenant_id: 71}
+
+      socket = connected_socket(%{"global.theme" => "dark"}, mount_session, source_scope)
+
+      socket = %{socket | assigns: %{preference_scope: destination_scope}}
+      resolved_ctx = PreferenceLiveView.mount_context(socket, mount_session)
+
+      assert resolved_ctx.client == %{}
+      assert resolved_ctx.scope == destination_scope
+    end
+
+    test "accepts connect-param preferences stamped for the resolved tenant scope" do
+      mount_session = session()
+      tenant_scope = %{user_id: 7, tenant_id: 70}
+
+      socket = connected_socket(%{"global.theme" => "dark"}, mount_session, tenant_scope)
+      socket = %{socket | assigns: %{preference_scope: tenant_scope}}
+
+      resolved_ctx = PreferenceLiveView.mount_context(socket, mount_session)
+
+      assert resolved_ctx.client == %{"global.theme" => "dark"}
+      assert resolved_ctx.scope == tenant_scope
     end
 
     test "has no client preferences on a disconnected mount without connect_info" do
@@ -132,27 +187,35 @@ defmodule Backpex.Preferences.LiveViewTest do
     end
   end
 
-  describe "identity_fingerprint/2" do
-    test "is stable for the same identity and session" do
+  describe "scope_fingerprint/2" do
+    test "is stable for the same scope and session" do
       assert fingerprint(session()) == fingerprint(session())
       assert is_binary(fingerprint(session()))
     end
 
+    test "changes when the tenant part of the resolved scope changes" do
+      user_scope = %{user_id: 7, tenant_id: 70}
+      other_tenant_scope = %{user_id: 7, tenant_id: 71}
+
+      refute fingerprint(session(), Endpoint, user_scope) ==
+               fingerprint(session(), Endpoint, other_tenant_scope)
+    end
+
     test "changes when the session's CSRF token changes" do
       # The session-scope half of the digest. `Backpex.Preferences.Adapters.Session`
-      # scopes its store by the session and ignores identity entirely, so a renewed
+      # scopes its store by the session and ignores scope entirely, so a renewed
       # session — which is what logging in and out does — MUST invalidate the cookie
-      # even when every user resolves to the same (anonymous) identity.
+      # even when every request is unscoped.
       refute fingerprint(session()) == fingerprint(%{"_csrf_token" => "csrf-token-b"})
     end
 
     test "leaks no part of the inputs" do
       # The cookie is readable by any script on the origin. The digest is keyed and
-      # must not carry the identity or the session's CSRF token in the clear.
-      fp = fingerprint(session())
+      # must not carry the scope or the session's CSRF token in the clear.
+      fp = fingerprint(session(), Endpoint, %{user_id: 7, tenant_id: 70})
 
       refute fp =~ "csrf-token-a"
-      refute fp =~ "anonymous"
+      refute fp =~ "tenant_id"
     end
 
     test "is nil when the session carries no CSRF token" do
@@ -184,7 +247,7 @@ defmodule Backpex.Preferences.LiveViewTest do
       assert ctx.source == :mount
     end
 
-    test "ignores a cookie stamped with another identity" do
+    test "ignores a cookie stamped with another scope" do
       # THE LEAK. User A toggles a preference and logs out before the POST
       # resolves: nothing retires the entry, and the cookie (path=/, max-age 300)
       # survives into user B's session. Rendering it would paint A's choice for B,
@@ -209,7 +272,7 @@ defmodule Backpex.Preferences.LiveViewTest do
       # that omits the stamp. No stamp, no proof of who wrote it: void.
       bare = encode_cookie(%{"global.sidebar_open" => false})
       unstamped = encode_cookie(%{"values" => %{"global.sidebar_open" => false}})
-      mistyped = encode_cookie(%{"id" => 1, "values" => %{"global.sidebar_open" => false}})
+      mistyped = encode_cookie(%{"scope" => 1, "values" => %{"global.sidebar_open" => false}})
 
       for cookie <- [bare, unstamped, mistyped] do
         socket = disconnected_socket(cookie)

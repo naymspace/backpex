@@ -146,7 +146,8 @@ Backpex needs a `backpex_preferences` route in your router. This route is used b
 
 Backpex provides a macro you can use to add the required routes to your router. Make sure to import `Backpex.Router` at the top of your router file or prefix the function calls.
 
-You have to do this step only once in your router file, so if you already added the [`backpex_routes/0`](Backpex.Router.html#backpex_routes/0) macro, you can skip this step.
+Add this route in every independently scoped Backpex area that needs to persist
+preferences. A fixed `/admin` scope normally needs it once.
 
 ```elixir
 # router.ex
@@ -161,7 +162,36 @@ scope "/admin", MyAppWeb do
 end
 ```
 
-It does not matter where you place the [`backpex_routes/0`](Backpex.Router.html#backpex_routes/0) macro in your router file. You can insert it in every scope you want to, but we recommend placing it in the scope you want to use backpex in, e.g. `/admin`. But always make sure that the scope you put it in pipes through the `:browser` pipeline: `pipe_through :browser`.
+Place [`backpex_routes/0`](Backpex.Router.html#backpex_routes/0) behind the same
+authentication and application-scope plugs as the pages that use it. Always
+include the `:browser` pipeline.
+
+For tenant-scoped preferences, put the endpoint below the tenant segment and
+run tenant authorization first:
+
+```elixir
+scope "/tenants/:tenant", MyAppWeb do
+  pipe_through [:browser, :require_authenticated_user, :assign_tenant]
+
+  backpex_routes()
+end
+```
+
+Then pass the concrete endpoint path to `app_shell` because Backpex cannot fill
+dynamic route segments without application data. Also pass an explicit path
+when the router contains multiple preferences routes; Backpex deliberately
+fails fast instead of guessing which application's scope should receive the
+write.
+
+```heex
+<Backpex.HTML.Layout.app_shell
+  socket={@socket}
+  preferences_scope={@preferences_scope}
+  preferences_path={~p"/tenants/#{@current_scope.tenant.id}/backpex_preferences"}
+>
+  ...
+</Backpex.HTML.Layout.app_shell>
+```
 
 ## Create a default admin layout component
 
@@ -178,7 +208,7 @@ To get you started quickly, we provide a layout component you can copy & paste i
   fluid={@fluid?}
   live_resource={@live_resource}
   sidebar_open={@sidebar_open}
-  preferences_identity={@preferences_identity}
+  preferences_scope={@preferences_scope}
 >
   <:topbar>
     <div class="flex-1"></div>
@@ -208,9 +238,14 @@ To get you started quickly, we provide a layout component you can copy & paste i
 </Backpex.HTML.Layout.app_shell>
 ```
 
-These assigns (`@current_theme`, `@sidebar_open`, `@sidebar_section_states`, `@preferences_identity`) are populated by `Backpex.InitAssigns` — see [Add resource routes](#add-resource-routes) below for setup.
+These assigns (`@current_theme`, `@sidebar_open`, `@sidebar_section_states`, `@preferences_scope`) are populated by `Backpex.InitAssigns` — see [Add resource routes](#add-resource-routes) below for setup.
 
-`@preferences_identity` is an opaque fingerprint of the user the preferences belong to. Backpex renders it into the page so the browser can tell whose unacknowledged preference writes it is holding — and drop them when the user changes. Pass it through; without it Backpex disables the pending-cookie fast path, so a toggle-and-reload inside the write's round trip may initially render the previous stored value (see [Why the client sometimes overrides the server](../live_resource/user-preferences.md#why-the-client-sometimes-overrides-the-server)).
+`@preferences_scope` is an opaque fingerprint of the complete namespace the
+preferences belong to, such as a user inside a tenant. Backpex renders it into
+the page so the browser can drop unacknowledged writes when that scope changes.
+Pass it through; without it Backpex disables the pending-cookie fast path, so a
+toggle-and-reload inside the write's round trip may initially render the
+previous stored value (see [Why the client sometimes overrides the server](../live_resource/user-preferences.md#why-the-client-sometimes-overrides-the-server)).
 
 In addition we recommend to add a bodyless function definition and to configure declarative assigns for your layout component.
 
@@ -226,7 +261,7 @@ defmodule MyAppWeb.Layouts do
   attr :current_theme, :string, default: nil, doc: "the currently selected theme"
   attr :sidebar_open, :boolean, default: true, doc: "initial sidebar open state"
   attr :sidebar_section_states, :map, default: %{}, doc: "map of sidebar section open states"
-  attr :preferences_identity, :string, default: nil, doc: "fingerprint of the current preference identity"
+  attr :preferences_scope, :string, default: nil, doc: "fingerprint of the current preference scope"
 
   slot :inner_block, required: true
 
@@ -413,7 +448,7 @@ If you copied the provided layout component from [the section above](#create-a-d
   fluid={@fluid?}
   live_resource={@live_resource}
   sidebar_open={@sidebar_open}
-  preferences_identity={@preferences_identity}
+  preferences_scope={@preferences_scope}
 >
   <:topbar>
     <!-- Topbar Content -->
@@ -637,7 +672,7 @@ You can add a theme selector to your layout component to allow users to change t
   fluid={@fluid?}
   live_resource={@live_resource}
   sidebar_open={@sidebar_open}
-  preferences_identity={@preferences_identity}
+  preferences_scope={@preferences_scope}
 >
   <:topbar>
     <div class="flex-1"></div>
@@ -670,6 +705,6 @@ You can add a theme selector to your layout component to allow users to change t
 Theme changes are automatically persisted through the adapter configured for
 `global.theme` (the Phoenix session in a zero-config installation). Subsequent
 page loads are server-rendered from that stored value. A bounded pending cookie
-covers most reloads that race the write; without an identity fingerprint or
+covers most reloads that race the write; without a scope fingerprint or
 when the pending entry exceeds its cookie budget, the initial paint may briefly
 show the previous stored theme.

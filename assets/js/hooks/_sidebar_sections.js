@@ -20,6 +20,8 @@ import { BackpexPreferences } from './_preferences'
  */
 export default {
   mounted () {
+    BackpexPreferences.syncScope()
+    this.preferenceScopeMarker = BackpexPreferences.scopeMarker
     // Per-toggle click handlers, keyed off the toggle element, so they can
     // be removed reliably (a fresh bound fn would never match).
     this._sectionHandlers = new WeakMap()
@@ -34,6 +36,15 @@ export default {
   },
 
   updated () {
+    BackpexPreferences.syncScope()
+    const preferenceScopeMarker = BackpexPreferences.scopeMarker
+
+    if (this.preferenceScopeMarker !== preferenceScopeMarker) {
+      this.preferenceScopeMarker = preferenceScopeMarker
+      this._sectionStates = {}
+      this._serverStates = {}
+    }
+
     this.initializeSections()
     this.applySectionStates()
   },

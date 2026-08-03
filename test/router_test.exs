@@ -169,6 +169,16 @@ defmodule Backpex.RouterTest do
       end
     end
 
+    defmodule TenantPreferencesRouter do
+      use Phoenix.Router, helpers: false
+
+      import Backpex.Router, only: [backpex_routes: 0]
+
+      scope "/tenants/:tenant", Test do
+        backpex_routes()
+      end
+    end
+
     test "defines the preferences controller route" do
       routes = PreferencesRouter.__routes__()
 
@@ -187,6 +197,14 @@ defmodule Backpex.RouterTest do
         end)
 
       assert length(backpex_routes) == 1
+    end
+
+    test "can mount the preferences controller below a dynamic application scope" do
+      assert Enum.any?(TenantPreferencesRouter.__routes__(), fn route ->
+               route.path == "/tenants/:tenant/backpex_preferences" and
+                 route.verb == :post and
+                 route.plug == Backpex.PreferencesController
+             end)
     end
   end
 
