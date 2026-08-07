@@ -25,8 +25,7 @@ defmodule BackpexWeb do
 
   This entrypoint is intended for Backpex extension modules that may additionally
   `use MyAppWeb, :html`. Importing `Phoenix.Component` provides the `~H` sigil and
-  component helpers without registering another `Phoenix.Component.Declarative`
-  `@before_compile` hook.
+  component helpers without registering another declarative `@before_compile` hook.
   """
   def heex do
     quote do
