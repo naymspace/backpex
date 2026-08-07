@@ -4,7 +4,7 @@
   "workspaces": {
     "": {
       "dependencies": {
-        "daisyui": "5.7.15",
+        "daisyui": "5.7.16",
       },
       "devDependencies": {
         "@sentry/browser": "10.68.0",
@@ -158,7 +158,7 @@
 
     "cssesc": ["cssesc@3.0.0", "", { "bin": { "cssesc": "bin/cssesc" } }, "sha512-/Tb/JcjK111nNScGob5MNtsntNM1aCNUDipB/TkwZFhyDrrE47SOx/18wF2bbjgc3ZzCSKW1T5nt5EbFoAz/Vg=="],
 
-    "daisyui": ["daisyui@5.7.15", "", {}, "sha512-62W6wiH6AhFKJ2ZcpJVcuPGQXbIgwq8BZZx78iJ3/T8lqrdY+UpQlYWb4IQQQXZ81NMwyX+CKS2+8HaTOE3ctA=="],
+    "daisyui": ["daisyui@5.7.16", "", {}, "sha512-V9CJxvrWIXTDuP/0tpijjWaKaKJNYo2IrULJfTWs3/DjW9rPqswk1n8NCLQRLrTutmlG2Ech7nkJDpCnF+6Dzw=="],
 
     "data-view-buffer": ["data-view-buffer@1.0.2", "", { "dependencies": { "call-bound": "^1.0.3", "es-errors": "^1.3.0", "is-data-view": "^1.0.2" } }, "sha512-EmKO5V3OLXh1rtK2wgXRansaK1/mtVdTUEiEI0W8RkvgT05kfxaH29PliLnpLP73yYO6142Q72QNa8Wx/A5CqQ=="],
 
