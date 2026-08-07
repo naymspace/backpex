@@ -1,0 +1,167 @@
+# This file is compiled explicitly by Backpex.WebHelpersTest.
+defmodule Backpex.WebHelpersTest.Helpers do
+  @moduledoc false
+
+  def host_helper, do: "host helper"
+end
+
+defmodule Backpex.WebHelpersTest.Web do
+  @moduledoc false
+
+  def html do
+    quote do
+      use Phoenix.Component
+
+      import Backpex.WebHelpersTest.Helpers
+    end
+  end
+
+  def live_component do
+    quote do
+      use Phoenix.LiveComponent
+
+      import Backpex.WebHelpersTest.Helpers
+    end
+  end
+
+  defmacro __using__(which) when is_atom(which) do
+    apply(__MODULE__, which, [])
+  end
+end
+
+defmodule Backpex.WebHelpersTest.ItemActionBackpexFirst do
+  @moduledoc false
+
+  use BackpexWeb, :item_action
+  use Backpex.WebHelpersTest.Web, :html
+
+  @impl Backpex.ItemAction
+  def icon(assigns, _item), do: ~H"<span>{host_helper()}</span>"
+
+  @impl Backpex.ItemAction
+  def label(_assigns, _item), do: host_helper()
+
+  @impl Backpex.ItemAction
+  def link(_assigns, _item), do: "/items"
+end
+
+defmodule Backpex.WebHelpersTest.ItemActionWebFirst do
+  @moduledoc false
+
+  use Backpex.WebHelpersTest.Web, :html
+  use BackpexWeb, :item_action
+
+  @impl Backpex.ItemAction
+  def icon(assigns, _item), do: ~H"<span>{host_helper()}</span>"
+
+  @impl Backpex.ItemAction
+  def label(_assigns, _item), do: host_helper()
+
+  @impl Backpex.ItemAction
+  def link(_assigns, _item), do: "/items"
+end
+
+defmodule Backpex.WebHelpersTest.FilterBackpexFirst do
+  @moduledoc false
+
+  use BackpexWeb, :filter
+  use Backpex.Filter
+  use Backpex.WebHelpersTest.Web, :html
+
+  @impl Backpex.Filter
+  def render(assigns), do: ~H"<span>{host_helper()}</span>"
+
+  @impl Backpex.Filter
+  def render_form(assigns), do: ~H"<span>{host_helper()}</span>"
+end
+
+defmodule Backpex.WebHelpersTest.FilterWebFirst do
+  @moduledoc false
+
+  use Backpex.WebHelpersTest.Web, :html
+  use BackpexWeb, :filter
+  use Backpex.Filter
+
+  @impl Backpex.Filter
+  def render(assigns), do: ~H"<span>{host_helper()}</span>"
+
+  @impl Backpex.Filter
+  def render_form(assigns), do: ~H"<span>{host_helper()}</span>"
+end
+
+defmodule Backpex.WebHelpersTest.SelectFilterBackpexFirst do
+  @moduledoc false
+
+  use Backpex.Filters.Select
+  use Backpex.WebHelpersTest.Web, :html
+
+  alias Backpex.Filters.Select
+
+  @impl Select
+  def prompt, do: host_helper()
+
+  @impl Select
+  def options(_assigns), do: [{host_helper(), "value"}]
+end
+
+defmodule Backpex.WebHelpersTest.SelectFilterWebFirst do
+  @moduledoc false
+
+  use Backpex.WebHelpersTest.Web, :html
+  use Backpex.Filters.Select
+
+  alias Backpex.Filters.Select
+
+  @impl Select
+  def prompt, do: host_helper()
+
+  @impl Select
+  def options(_assigns), do: [{host_helper(), "value"}]
+end
+
+defmodule Backpex.WebHelpersTest.MetricBackpexFirst do
+  @moduledoc false
+
+  use BackpexWeb, :metric
+  use Backpex.WebHelpersTest.Web, :html
+
+  @impl Backpex.Metric
+  def render(assigns), do: ~H"<span>{host_helper()}</span>"
+
+  @impl Backpex.Metric
+  def query(query, _select, _repo), do: query
+
+  @impl Backpex.Metric
+  def format(data, _format), do: data
+end
+
+defmodule Backpex.WebHelpersTest.MetricWebFirst do
+  @moduledoc false
+
+  use Backpex.WebHelpersTest.Web, :html
+  use BackpexWeb, :metric
+
+  @impl Backpex.Metric
+  def render(assigns), do: ~H"<span>{host_helper()}</span>"
+
+  @impl Backpex.Metric
+  def query(query, _select, _repo), do: query
+
+  @impl Backpex.Metric
+  def format(data, _format), do: data
+end
+
+defmodule Backpex.WebHelpersTest.Field do
+  @moduledoc false
+
+  use Backpex.Field,
+    live_component: {Backpex.WebHelpersTest.Web, :live_component}
+
+  attr :value, :any, default: nil
+
+  @impl Backpex.Field
+  def render_value(assigns), do: ~H"<span>{@value || host_helper()}</span>"
+
+  @impl Backpex.Field
+  def render_form(assigns), do: ~H"<span>{host_helper()}</span>"
+end
