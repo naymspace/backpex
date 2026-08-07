@@ -482,6 +482,11 @@ You can also group sidebar items into collapsible sections using the `Backpex.HT
 
 The `sidebar_section_states` assign (provided by `Backpex.InitAssigns`) tracks which sections are expanded or collapsed, and persists user preferences across page loads.
 
+Empty sections are hidden by CSS before the first paint. Use `sidebar_item/1` for
+their leaf entries (including entries inside nested sections); it adds the
+`data-sidebar-item` marker that makes every non-empty ancestor visible. If you
+render a custom leaf instead, add `data-sidebar-item` to its root element.
+
 ### Configure a default route
 
 In case you want a default route for `/admin` we recommend creating a redirect controller such as the following:

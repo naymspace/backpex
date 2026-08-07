@@ -698,11 +698,6 @@ var sidebar_sections_default = {
       const toggle = section.querySelector("[data-menu-dropdown-toggle]");
       const content = section.querySelector("[data-menu-dropdown-content]");
       if (!toggle || !content) return;
-      if (!this.hasContent(content)) {
-        section.style.display = "none";
-        return;
-      }
-      section.classList.remove("hidden");
       const id = section.dataset.sectionId;
       const key = `global.sidebar_section.${id}`;
       const serverOpen = section.dataset.sectionOpen === "true";
@@ -738,18 +733,6 @@ var sidebar_sections_default = {
       toggle.setAttribute("aria-expanded", String(open));
       content.style.display = open ? "" : "none";
     }
-  },
-  hasContent(element) {
-    if (!element || element.children.length === 0) return false;
-    for (const child of element.children) {
-      const childContent = child.querySelector("[data-menu-dropdown-content]");
-      if (childContent) {
-        if (this.hasContent(childContent)) return true;
-      } else {
-        return true;
-      }
-    }
-    return false;
   },
   handleSectionToggle(event) {
     const section = event.currentTarget.closest("[data-section-id]");

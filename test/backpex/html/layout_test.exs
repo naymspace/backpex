@@ -145,6 +145,13 @@ defmodule Backpex.HTML.LayoutTest do
   end
 
   describe "sidebar_section/1" do
+    test "hides sections without marked sidebar items before hooks mount" do
+      html = sidebar_section(id: "empty")
+
+      assert html =~ "not-has-[[data-sidebar-item]]:hidden"
+      refute html =~ "<li data-sidebar-item>"
+    end
+
     test "renders the section closed when its state says so" do
       html = sidebar_section(id: "blog", sidebar_section_states: %{"blog" => false})
 
@@ -169,6 +176,21 @@ defmodule Backpex.HTML.LayoutTest do
       html = sidebar_section(id: "blog")
 
       assert html =~ ~r/data-section-open="true"/
+    end
+  end
+
+  describe "sidebar_item/1" do
+    test "marks items so empty ancestor sections can be hidden with CSS" do
+      inner_block = [%{__slot__: :inner_block, inner_block: fn _assigns, _arg -> "Posts" end}]
+
+      html =
+        render_component(&Layout.sidebar_item/1,
+          current_url: "/admin/posts",
+          navigate: "/admin/posts",
+          inner_block: inner_block
+        )
+
+      assert html =~ ~r/<li data-sidebar-item>/
     end
   end
 

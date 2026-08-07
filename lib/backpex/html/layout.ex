@@ -601,7 +601,10 @@ defmodule Backpex.HTML.Layout do
     doc:
       "map of section states, as assigned by `Backpex.InitAssigns`. Pass `@sidebar_section_states` explicitly — this is a function component, so an omitted attr does *not* inherit the surrounding assign, it defaults to `%{}` and every section renders open. Unknown section ids default to open."
 
-  slot :inner_block
+  slot :inner_block,
+    doc:
+      "section entries rendered with `sidebar_item/1` or nested `sidebar_section/1`; custom leaf elements must include `data-sidebar-item` so non-empty sections are visible"
+
   slot :label, required: true, doc: "label to be displayed on the section."
 
   def sidebar_section(assigns) do
@@ -613,7 +616,11 @@ defmodule Backpex.HTML.Layout do
       |> assign(:content_id, "sidebar-section-#{assigns.id}-content")
 
     ~H"""
-    <li data-section-id={@id} data-section-open={to_string(@open)} class={@class}>
+    <li
+      data-section-id={@id}
+      data-section-open={to_string(@open)}
+      class={["not-has-[[data-sidebar-item]]:hidden", @class]}
+    >
       <button
         type="button"
         data-menu-dropdown-toggle
@@ -662,7 +669,7 @@ defmodule Backpex.HTML.Layout do
       |> assign(:extra, assigns_to_attributes(assigns))
 
     ~H"""
-    <li>
+    <li data-sidebar-item>
       <.link class={[@class, @active && "bg-neutral text-neutral-content"]} {@extra}>
         {render_slot(@inner_block)}
       </.link>

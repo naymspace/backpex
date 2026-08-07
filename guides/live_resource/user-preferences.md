@@ -322,6 +322,12 @@ Sidebar section ids become the final segment of
 Dots and colons alter preference-key parsing, and quotes or backslashes are
 unsafe in the browser hook's attribute selector.
 
+Sections without a descendant marked with `data-sidebar-item` stay hidden
+through CSS, so they cannot flash before the LiveView hooks mount.
+`sidebar_item/1` adds the marker automatically; custom leaf markup must add it
+explicitly. Nested sections become visible as soon as any descendant contains a
+marked item.
+
 ## Reading preferences in your layout
 
 `Backpex.InitAssigns` already populates the assigns that the built-in layout

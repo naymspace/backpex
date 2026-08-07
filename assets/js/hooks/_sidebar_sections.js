@@ -72,14 +72,6 @@ export default {
       // section can't throw and break setup for every other section.
       if (!toggle || !content) return
 
-      // Hide sections without content.
-      if (!this.hasContent(content)) {
-        section.style.display = 'none'
-        return
-      }
-
-      section.classList.remove('hidden')
-
       // Seed once from the sessionStorage mirror, preferring it over the
       // server-rendered attribute: on a fresh connect the two agree, but on a
       // re-mount after live_redirect the server re-rendered from a stale
@@ -129,19 +121,6 @@ export default {
       toggle.setAttribute('aria-expanded', String(open))
       content.style.display = open ? '' : 'none'
     }
-  },
-
-  hasContent (element) {
-    if (!element || element.children.length === 0) return false
-    for (const child of element.children) {
-      const childContent = child.querySelector('[data-menu-dropdown-content]')
-      if (childContent) {
-        if (this.hasContent(childContent)) return true
-      } else {
-        return true
-      }
-    }
-    return false
   },
 
   handleSectionToggle (event) {

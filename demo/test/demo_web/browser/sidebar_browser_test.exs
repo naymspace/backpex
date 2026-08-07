@@ -52,6 +52,57 @@ defmodule DemoWeb.Browser.SidebarBrowserTest do
     end
   end
 
+  describe "empty sidebar sections" do
+    test "CSS hides empty nested sections and reveals them when an item appears", %{conn: conn} do
+      conn
+      |> visit(~p"/admin/posts")
+      |> assert_has("body .phx-connected")
+      |> evaluate(
+        """
+        (() => {
+          const parent = document.createElement('li')
+          parent.id = 'empty-section-parent'
+          parent.className = 'not-has-[[data-sidebar-item]]:hidden'
+          parent.innerHTML = `
+            <ul>
+              <li id="empty-section-child" class="not-has-[[data-sidebar-item]]:hidden">
+                <ul id="empty-section-content"></ul>
+              </li>
+            </ul>
+          `
+          document.querySelector('#backpex-sidebar').appendChild(parent)
+
+          return {
+            parent: getComputedStyle(parent).display,
+            child: getComputedStyle(parent.querySelector('#empty-section-child')).display
+          }
+        })()
+        """,
+        fn display ->
+          assert display == %{"child" => "none", "parent" => "none"}
+        end
+      )
+      |> evaluate(
+        """
+        (() => {
+          const item = document.createElement('li')
+          item.dataset.sidebarItem = ''
+          document.querySelector('#empty-section-content').appendChild(item)
+
+          return {
+            parent: getComputedStyle(document.querySelector('#empty-section-parent')).display,
+            child: getComputedStyle(document.querySelector('#empty-section-child')).display
+          }
+        })()
+        """,
+        fn display ->
+          refute display["parent"] == "none"
+          refute display["child"] == "none"
+        end
+      )
+    end
+  end
+
   describe "quick reload inside the persist race window" do
     # The bug, reproduced deterministically. The preferences POST is stalled so
     # the server NEVER sees the toggle: the session cookie stays "sidebar open"
