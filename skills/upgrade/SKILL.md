@@ -17,7 +17,7 @@ You are an expert at upgrading Backpex versions. When the user wants to upgrade,
 Check `mix.exs` for the Backpex dependency:
 
 ```elixir
-{:backpex, "~> 0.17.0"}
+{:backpex, "~> 0.19.0"}
 ```
 
 ## Upgrade Guides Location
@@ -45,11 +45,11 @@ All upgrade guides are at `guides/upgrading/` in the Backpex repository (also av
 
 ## Upgrade Process
 
-1. **Read ALL upgrade guides** between current and target version. For example, upgrading from 0.15 to 0.18 requires reading v0.16, v0.17, and v0.18 guides.
+1. **Read ALL upgrade guides** between current and target version. For example, upgrading from 0.15 to 0.19 requires reading v0.16, v0.17, v0.18, and v0.19 guides.
 
 2. **Bump the dependency** in `mix.exs`:
    ```elixir
-   {:backpex, "~> 0.18.0"}
+   {:backpex, "~> 0.19.0"}
    ```
 
 3. **Run `mix deps.get`** to fetch the new version.
