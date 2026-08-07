@@ -45,7 +45,8 @@ defmodule Backpex.Preferences.Adapters.Ecto do
           {:default, Backpex.Preferences.Adapters.Ecto,
            repo: MyApp.Repo,
            schema: MyApp.Preferences.Preference,
-           scope_fields: [:user_id, :tenant_id]}
+           scope_fields: [:user_id, :tenant_id],
+           storage_key_prefix: "backpex."}
         ],
         scope: {MyAppWeb.PreferencesScope, :resolve, []}
 
@@ -59,6 +60,10 @@ defmodule Backpex.Preferences.Adapters.Ecto do
     * `:scope_fields` — non-empty list of schema fields that identify the
       preference namespace. Required. The `:key` and `:value` field names are
       fixed.
+    * `:storage_key_prefix` — string prepended to keys in the database and
+      removed again on reads. Defaults to `""`. The value is used exactly as
+      configured, so include any separator you want in storage, for example
+      `"backpex."`.
 
   ## Scope
 
@@ -111,7 +116,10 @@ defmodule Backpex.Preferences.Adapters.Ecto do
     config = config(opts)
 
     with {:ok, scoped_values} <- scoped_values(scope, config.scope_fields) do
-      query = from r in scope_query(config, scoped_values), where: r.key == ^key, select: r.value
+      query =
+        from r in scope_query(config, scoped_values),
+          where: r.key == ^storage_key(config, key),
+          select: r.value
 
       case config.repo.one(query) do
         nil -> {:ok, :not_found}
@@ -127,7 +135,7 @@ defmodule Backpex.Preferences.Adapters.Ecto do
     config = config(opts)
 
     with {:ok, scoped_values} <- scoped_values(scope, config.scope_fields) do
-      {:ok, {config.repo, config.schema, scoped_values}}
+      {:ok, {config.repo, config.schema, config.storage_key_prefix, scoped_values}}
     end
   end
 
@@ -138,18 +146,21 @@ defmodule Backpex.Preferences.Adapters.Ecto do
     config = config(opts)
 
     with {:ok, scoped_values} <- scoped_values(scope, config.scope_fields) do
+      storage_prefix = storage_key(config, prefix)
+
       # `LIKE` treats `_` in the pattern as a wildcard, so this can over-fetch.
       # `Adapter.nest/2` re-checks every row on parsed segments and drops the
       # ones that are not real descendants, so over-fetching is safe.
       query =
         from r in scope_query(config, scoped_values),
-          where: like(r.key, ^(prefix <> "%")),
+          where: like(r.key, ^(storage_prefix <> "%")),
           select: {r.key, r.value}
 
       rows =
         query
         |> config.repo.all()
-        |> Enum.map(fn {key, envelope} -> {key, decode(envelope)} end)
+        |> Enum.filter(fn {key, _envelope} -> String.starts_with?(key, storage_prefix) end)
+        |> Enum.map(fn {key, envelope} -> {logical_key(config, key), decode(envelope)} end)
 
       {:ok, Adapter.nest(rows, prefix)}
     end
@@ -162,7 +173,7 @@ defmodule Backpex.Preferences.Adapters.Ecto do
     config = config(opts)
 
     with {:ok, scoped_values} <- scoped_values(scope, config.scope_fields) do
-      changes = Map.merge(scoped_values, %{key: key, value: encode(value)})
+      changes = Map.merge(scoped_values, %{key: storage_key(config, key), value: encode(value)})
 
       conflict_target =
         config.scope_fields
@@ -186,10 +197,18 @@ defmodule Backpex.Preferences.Adapters.Ecto do
     repo = Keyword.fetch!(opts, :repo)
     schema = Keyword.fetch!(opts, :schema)
     scope_fields = Keyword.fetch!(opts, :scope_fields)
+    storage_key_prefix = Keyword.get(opts, :storage_key_prefix, "")
 
     validate_scope_fields!(schema, scope_fields)
+    validate_storage_key_prefix!(storage_key_prefix)
 
-    %{repo: repo, schema: schema, scope_fields: scope_fields}
+    %{repo: repo, schema: schema, scope_fields: scope_fields, storage_key_prefix: storage_key_prefix}
+  end
+
+  defp validate_storage_key_prefix!(storage_key_prefix) when is_binary(storage_key_prefix), do: :ok
+
+  defp validate_storage_key_prefix!(_storage_key_prefix) do
+    raise ArgumentError, ":storage_key_prefix must be a string"
   end
 
   defp validate_scope_fields!(schema, scope_fields) when is_list(scope_fields) and scope_fields != [] do
@@ -247,6 +266,9 @@ defmodule Backpex.Preferences.Adapters.Ecto do
       [:value]
     end
   end
+
+  defp storage_key(config, key), do: config.storage_key_prefix <> key
+  defp logical_key(config, key), do: String.replace_prefix(key, config.storage_key_prefix, "")
 
   defp encode(value), do: %{@envelope => value}
 

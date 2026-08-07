@@ -41,8 +41,18 @@ defmodule Backpex.Preferences.Adapters.EctoTest do
 
   describe "client_namespace/2" do
     test "contains exactly the configured scope fields", %{ctx: ctx} do
-      assert {:ok, {FakeRepo, Preference, %{user_id: 7, tenant_id: 70}}} =
+      assert {:ok, {FakeRepo, Preference, "", %{user_id: 7, tenant_id: 70}}} =
                EctoAdapter.client_namespace(ctx, @opts)
+    end
+
+    test "distinguishes storage key prefixes", %{ctx: ctx} do
+      prefixed_opts = Keyword.put(@opts, :storage_key_prefix, "backpex.")
+
+      refute EctoAdapter.client_namespace(ctx, @opts) ==
+               EctoAdapter.client_namespace(ctx, prefixed_opts)
+
+      assert {:ok, {FakeRepo, Preference, "backpex.", %{user_id: 7, tenant_id: 70}}} =
+               EctoAdapter.client_namespace(ctx, prefixed_opts)
     end
 
     test "ignores scope values the adapter does not use" do
@@ -150,6 +160,16 @@ defmodule Backpex.Preferences.Adapters.EctoTest do
     test "returns an empty map without a scope", %{unscoped: ctx} do
       assert {:ok, %{}} = EctoAdapter.get_map(ctx, "global", @opts)
     end
+
+    test "strips the storage key prefix before nesting", %{ctx: ctx} do
+      opts = Keyword.put(@opts, :storage_key_prefix, "backpex.")
+
+      {:ok, :persisted} = EctoAdapter.put(ctx, "global.sidebar_section.blog", true, opts)
+      {:ok, :persisted} = EctoAdapter.put(ctx, "global.sidebar_section.users", false, opts)
+
+      assert {:ok, %{"blog" => true, "users" => false}} =
+               EctoAdapter.get_map(ctx, "global.sidebar_section", opts)
+    end
   end
 
   describe "put/4" do
@@ -157,6 +177,16 @@ defmodule Backpex.Preferences.Adapters.EctoTest do
       {:ok, :persisted} = EctoAdapter.put(ctx, "global.theme", "dark", @opts)
 
       assert [{"global.theme", %{"value" => "dark"}}] = FakeRepo.rows_for([7, 70])
+    end
+
+    test "stores prefixed keys and reads them through their logical key", %{ctx: ctx} do
+      opts = Keyword.put(@opts, :storage_key_prefix, "backpex.")
+
+      {:ok, :persisted} = EctoAdapter.put(ctx, "global.theme", "dark", opts)
+
+      assert [{"backpex.global.theme", %{"value" => "dark"}}] = FakeRepo.rows_for([7, 70])
+      assert {:ok, "dark"} = EctoAdapter.get(ctx, "global.theme", opts)
+      assert {:ok, :not_found} = EctoAdapter.get(ctx, "backpex.global.theme", opts)
     end
 
     test "upserts inside the complete scope rather than duplicating a key", %{ctx: ctx} do
@@ -212,6 +242,14 @@ defmodule Backpex.Preferences.Adapters.EctoTest do
         assert_raise ArgumentError, ~r/:scope_fields contains adapter-owned fields/, fn ->
           EctoAdapter.put(ctx, "global.theme", "dark", opts)
         end
+      end
+    end
+
+    test "raises when storage_key_prefix is not a string", %{ctx: ctx} do
+      opts = Keyword.put(@opts, :storage_key_prefix, :backpex)
+
+      assert_raise ArgumentError, ~r/:storage_key_prefix must be a string/, fn ->
+        EctoAdapter.put(ctx, "global.theme", "dark", opts)
       end
     end
 

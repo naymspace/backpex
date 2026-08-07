@@ -758,7 +758,8 @@ config :backpex, Backpex.Preferences,
     {:default, Backpex.Preferences.Adapters.Ecto,
      repo: MyApp.Repo,
      schema: MyApp.Preferences.Preference,
-     scope_fields: [:user_id, :tenant_id]}
+     scope_fields: [:user_id, :tenant_id],
+     storage_key_prefix: "backpex."}
   ],
   scope: {MyAppWeb.PreferencesScope, :resolve, []}
 ```
@@ -767,6 +768,13 @@ The unique index is required and must contain `scope_fields ++ [:key]` in the
 same order because writes use that list as their conflict target. Every scope
 field must exist on the schema, and its type must match the corresponding value
 returned by the scope resolver. The `:key` and `:value` field names are fixed.
+
+`storage_key_prefix` is optional and defaults to `""`. When configured, the Ecto
+adapter prepends it only in the database and removes it again on reads, so callers
+continue using Backpex's logical keys. The value is used exactly as configured;
+include the separator you want, for example `"backpex."` stores
+`global.theme` as `backpex.global.theme`. Changing the prefix selects a new
+storage namespace; existing rows under another prefix are not read or migrated.
 
 > #### Match your app's primary key convention {: .warning}
 >
@@ -794,13 +802,15 @@ Preference values are frequently scalars — `metrics_visible` and every
 `%{"value" => term}` envelope on write and unwrapped on read:
 
 ```
-key                                    | value
----------------------------------------+----------------------------------
-global.sidebar_section.blog            | {"value": true}
-resource:MyApp.PostLive:order          | {"value": {"by": "id", ...}}
+key                                             | value
+------------------------------------------------+----------------------------------
+backpex.global.sidebar_section.blog             | {"value": true}
+backpex.resource:MyApp.PostLive:order           | {"value": {"by": "id", ...}}
 ```
 
-Worth knowing when reading the table by hand or asserting on rows in a test.
+The `backpex.` prefix in this example comes from `storage_key_prefix`; without
+that option the logical keys are stored unchanged. Worth knowing when reading
+the table by hand or asserting on rows in a test.
 
 ### Design variant — prefix → column mapping
 

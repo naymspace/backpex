@@ -51,6 +51,15 @@ defmodule Demo.Backpex.Preferences.EctoAdapterTest do
       assert {:ok, nil} = EctoAdapter.get(ctx, "global.explicit_nil", @opts)
       assert {:ok, :not_found} = EctoAdapter.get(ctx, "global.never_written", @opts)
     end
+
+    test "stores a prefixed physical key while reading the logical key", %{ctx: ctx} do
+      opts = Keyword.put(@opts, :storage_key_prefix, "backpex.")
+
+      assert {:ok, :persisted} = EctoAdapter.put(ctx, "global.theme", "dark", opts)
+
+      assert %UserPreference{key: "backpex.global.theme"} = Repo.one!(UserPreference)
+      assert {:ok, "dark"} = EctoAdapter.get(ctx, "global.theme", opts)
+    end
   end
 
   describe "upsert" do
