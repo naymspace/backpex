@@ -301,10 +301,10 @@ defmodule Backpex.Field do
     end
   end
 
-defp live_component(live_component, _caller) do
-  raise ArgumentError,
-        "expected :live_component to be a {module, entrypoint} tuple, got: #{Macro.to_string(live_component)}"
-end
+  defp live_component(live_component, _caller) do
+    raise ArgumentError,
+          "expected :live_component to be a {module, entrypoint} tuple, got: #{Macro.to_string(live_component)}"
+  end
 
   defmacro __before_compile__(_env) do
     quote generated: true do
