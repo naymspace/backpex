@@ -121,6 +121,17 @@ defmodule Backpex.Preferences.Adapters.Ecto do
   end
 
   @impl Adapter
+  def client_namespace(%Context{scope: scope}, _opts) when scope in [nil, :unscoped], do: {:error, :unscoped}
+
+  def client_namespace(%Context{scope: scope}, opts) when is_map(scope) do
+    config = config(opts)
+
+    with {:ok, scoped_values} <- scoped_values(scope, config.scope_fields) do
+      {:ok, {config.repo, config.schema, scoped_values}}
+    end
+  end
+
+  @impl Adapter
   def get_map(%Context{scope: scope}, _prefix, _opts) when scope in [nil, :unscoped], do: {:ok, %{}}
 
   def get_map(%Context{scope: scope}, prefix, opts) when is_map(scope) do

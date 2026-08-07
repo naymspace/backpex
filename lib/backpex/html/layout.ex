@@ -33,13 +33,11 @@ defmodule Backpex.HTML.Layout do
   attr :fluid, :boolean, default: false, doc: "toggles fluid layout"
   attr :sidebar_open, :boolean, default: true, doc: "initial sidebar open state"
 
-  attr :preferences_scope, :string,
+  attr :preferences_manifest, :map,
     default: nil,
     doc: """
-    opaque fingerprint of the current preference scope, assigned by `Backpex.InitAssigns`.
-    Pass `@preferences_scope`. Without it the browser cannot tell which scope owns unacknowledged
-    preference writes it is holding, so it stops carrying them across a reload and the first
-    paint after a fast toggle may be stale. See `Backpex.Preferences.LiveView.scope_fingerprint/2`.
+    adapter-route manifest assigned by `Backpex.InitAssigns`. Pass `@preferences_manifest` so the
+    browser can preserve session-wide values while isolating values from narrower adapter scopes.
     """
 
   attr :preferences_path, :string,
@@ -79,7 +77,7 @@ defmodule Backpex.HTML.Layout do
     >
       <.preferences_root
         socket={@socket}
-        preferences_scope={@preferences_scope}
+        preferences_manifest={@preferences_manifest}
         preferences_path={@preferences_path}
       />
       <%!-- Sidebar (single element for both mobile and desktop) --%>
@@ -188,13 +186,13 @@ defmodule Backpex.HTML.Layout do
   `app_shell/1` renders this for you. Render it yourself, once per page, only if
   you build a layout without `app_shell/1`:
 
-      <.preferences_root socket={@socket} preferences_scope={@preferences_scope} />
+      <.preferences_root socket={@socket} preferences_manifest={@preferences_manifest} />
 
   ## Examples
 
       <Backpex.HTML.Layout.preferences_root
         socket={@socket}
-        preferences_scope={@preferences_scope}
+        preferences_manifest={@preferences_manifest}
         preferences_path={~p"/tenants/\#{@tenant.id}/backpex_preferences"}
       />
   """
@@ -202,13 +200,11 @@ defmodule Backpex.HTML.Layout do
 
   attr :socket, :any, required: true, doc: "the socket"
 
-  attr :preferences_scope, :string,
+  attr :preferences_manifest, :map,
     default: nil,
     doc: """
-    opaque fingerprint of the current preference scope, assigned by `Backpex.InitAssigns`.
-    Pass `@preferences_scope`. Without it the browser cannot tell which scope owns unacknowledged
-    preference writes it is holding, so it stops carrying them across a reload and the first
-    paint after a fast toggle may be stale. See `Backpex.Preferences.LiveView.scope_fingerprint/2`.
+    adapter-route manifest assigned by `Backpex.InitAssigns`. Pass `@preferences_manifest` so the
+    browser can preserve session-wide values while isolating values from narrower adapter scopes.
     """
 
   attr :preferences_path, :string,
@@ -222,12 +218,15 @@ defmodule Backpex.HTML.Layout do
       id="backpex-preferences"
       phx-hook="BackpexPreferencesHook"
       data-preferences-path={@preferences_path || Router.preferences_path(@socket)}
-      data-preferences-scope={@preferences_scope}
+      data-preferences-manifest={encode_preferences_manifest(@preferences_manifest)}
       class="hidden"
     >
     </div>
     """
   end
+
+  defp encode_preferences_manifest(nil), do: nil
+  defp encode_preferences_manifest(manifest), do: Phoenix.json_library().encode!(manifest)
 
   @doc """
   Renders a topbar.

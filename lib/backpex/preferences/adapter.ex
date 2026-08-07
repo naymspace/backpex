@@ -109,6 +109,24 @@ defmodule Backpex.Preferences.Adapter do
               {:ok, put_result()} | {:error, :unscoped | :requires_http | :too_large | term()}
 
   @doc """
+  Returns the adapter namespace used to scope browser-carried preference values.
+
+  Backpex signs this value together with the adapter module and the Phoenix
+  session identity. The resulting opaque token lets the browser carry values
+  across LiveView joins without leaking a value into a different storage
+  namespace. Return only terms that are stable for the lifetime of the
+  underlying preference namespace.
+
+  This callback is optional. Adapters that omit it conservatively fall back to
+  the complete application preference scope and their route options. Implement
+  it when the adapter uses a projection of that scope or ignores it entirely.
+  """
+  @callback client_namespace(ctx :: Context.t(), opts :: keyword()) ::
+              {:ok, term()} | {:error, :unscoped | term()}
+
+  @optional_callbacks client_namespace: 2
+
+  @doc """
   Builds the nested map `c:get_map/3` must return from flat `{key, value}` rows.
 
   Stores that keep one entry per full key — a database table, Redis, ETS —

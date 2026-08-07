@@ -186,7 +186,7 @@ write.
 ```heex
 <Backpex.HTML.Layout.app_shell
   socket={@socket}
-  preferences_scope={@preferences_scope}
+  preferences_manifest={@preferences_manifest}
   preferences_path={~p"/tenants/#{@current_scope.tenant.id}/backpex_preferences"}
 >
   ...
@@ -208,7 +208,7 @@ To get you started quickly, we provide a layout component you can copy & paste i
   fluid={@fluid?}
   live_resource={@live_resource}
   sidebar_open={@sidebar_open}
-  preferences_scope={@preferences_scope}
+  preferences_manifest={@preferences_manifest}
 >
   <:topbar>
     <div class="flex-1"></div>
@@ -238,14 +238,14 @@ To get you started quickly, we provide a layout component you can copy & paste i
 </Backpex.HTML.Layout.app_shell>
 ```
 
-These assigns (`@current_theme`, `@sidebar_open`, `@sidebar_section_states`, `@preferences_scope`) are populated by `Backpex.InitAssigns` — see [Add resource routes](#add-resource-routes) below for setup.
+These assigns (`@current_theme`, `@sidebar_open`, `@sidebar_section_states`, `@preferences_manifest`) are populated by `Backpex.InitAssigns` — see [Add resource routes](#add-resource-routes) below for setup.
 
-`@preferences_scope` is an opaque fingerprint of the complete namespace the
-preferences belong to, such as a user inside a tenant. Backpex renders it into
-the page so the browser can drop unacknowledged writes when that scope changes.
-Pass it through; without it Backpex disables the pending-cookie fast path, so a
-toggle-and-reload inside the write's round trip may initially render the
-previous stored value (see [Why the client sometimes overrides the server](../live_resource/user-preferences.md#why-the-client-sometimes-overrides-the-server)).
+`@preferences_manifest` contains one opaque, server-signed namespace token per
+configured adapter route. Backpex uses it to keep session-backed values across
+tenant navigation while discarding values whose adapter namespace changed.
+Pass it through; without it Backpex disables browser overlays, so live
+navigation or a toggle-and-reload inside the write's round trip may initially
+render the previous stored value (see [Why the client sometimes overrides the server](../live_resource/user-preferences.md#why-the-client-sometimes-overrides-the-server)).
 
 In addition we recommend to add a bodyless function definition and to configure declarative assigns for your layout component.
 
@@ -261,7 +261,7 @@ defmodule MyAppWeb.Layouts do
   attr :current_theme, :string, default: nil, doc: "the currently selected theme"
   attr :sidebar_open, :boolean, default: true, doc: "initial sidebar open state"
   attr :sidebar_section_states, :map, default: %{}, doc: "map of sidebar section open states"
-  attr :preferences_scope, :string, default: nil, doc: "fingerprint of the current preference scope"
+  attr :preferences_manifest, :map, default: nil, doc: "signed client namespace manifest"
 
   slot :inner_block, required: true
 
@@ -448,7 +448,7 @@ If you copied the provided layout component from [the section above](#create-a-d
   fluid={@fluid?}
   live_resource={@live_resource}
   sidebar_open={@sidebar_open}
-  preferences_scope={@preferences_scope}
+  preferences_manifest={@preferences_manifest}
 >
   <:topbar>
     <!-- Topbar Content -->
@@ -672,7 +672,7 @@ You can add a theme selector to your layout component to allow users to change t
   fluid={@fluid?}
   live_resource={@live_resource}
   sidebar_open={@sidebar_open}
-  preferences_scope={@preferences_scope}
+  preferences_manifest={@preferences_manifest}
 >
   <:topbar>
     <div class="flex-1"></div>
@@ -705,6 +705,6 @@ You can add a theme selector to your layout component to allow users to change t
 Theme changes are automatically persisted through the adapter configured for
 `global.theme` (the Phoenix session in a zero-config installation). Subsequent
 page loads are server-rendered from that stored value. A bounded pending cookie
-covers most reloads that race the write; without a scope fingerprint or
+covers most reloads that race the write; without a signed namespace manifest or
 when the pending entry exceeds its cookie budget, the initial paint may briefly
 show the previous stored theme.

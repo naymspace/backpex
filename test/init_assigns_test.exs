@@ -8,9 +8,8 @@ defmodule Backpex.InitAssignsTest do
   alias Phoenix.LiveView.Lifecycle
   alias Phoenix.LiveView.Socket
 
-  # The only thing `Backpex.Preferences.LiveView.scope_fingerprint/2` asks of
-  # an endpoint is `config(:secret_key_base)`, so a stub stands in for a booted
-  # Phoenix endpoint.
+  # Route tokens only ask an endpoint for `config(:secret_key_base)`, so a stub
+  # stands in for a booted Phoenix endpoint.
   defmodule Endpoint do
     @moduledoc false
     def config(:secret_key_base), do: String.duplicate("s", 64)
@@ -111,7 +110,7 @@ defmodule Backpex.InitAssignsTest do
       | transport_pid: self(),
         private:
           Map.put(socket.private, :connect_params, %{
-            "backpex_prefs" => %{"scope" => fingerprint(session), "values" => client_prefs}
+            "backpex_prefs" => client_envelope(client_prefs, session)
           })
     }
   end
@@ -121,34 +120,40 @@ defmodule Backpex.InitAssignsTest do
   # with the browser's unacknowledged preference writes in the `backpex_prefs`
   # cookie.
   #
-  # The cookie is stamped with the scope fingerprint of `stamped_for` — by
+  # Each cookie entry is stamped with a route token for `stamped_for` — by
   # default the very session being mounted, i.e. the browser wrote it while
   # looking at a page rendered for this same user. Pass a different session to
   # simulate a cookie the *previous* user of this browser left behind.
   defp cookie_socket(client_prefs, session, stamped_for \\ nil) do
     socket = build_socket()
-    fingerprint = fingerprint(stamped_for || session)
 
     conn =
       :get
       |> Plug.Test.conn("/")
       |> Plug.Test.put_req_cookie(
         "backpex_prefs",
-        encode_cookie(%{"scope" => fingerprint, "values" => client_prefs})
+        encode_cookie(client_envelope(client_prefs, stamped_for || session))
       )
       |> Plug.Conn.fetch_cookies()
 
     %{socket | private: Map.put(socket.private, :connect_info, conn)}
   end
 
-  defp fingerprint(session) do
-    session
-    |> Context.from_mount()
-    |> PreferenceLiveView.scope_fingerprint(Endpoint)
+  defp client_envelope(values, session) do
+    token =
+      session
+      |> Context.from_mount()
+      |> PreferenceLiveView.client_manifest(Endpoint)
+      |> Map.fetch!("routes")
+      |> List.first()
+      |> Map.fetch!("token")
+
+    entries = Map.new(values, fn {key, value} -> {key, %{"token" => token, "value" => value}} end)
+    %{"version" => 1, "values" => entries}
   end
 
   # Every request of a session but its first carries a CSRF token, and the
-  # fingerprint needs it: it is what scopes the session-backed store.
+  # route token needs it: it is what scopes the session-backed store.
   defp session(preferences) do
     %{"_csrf_token" => "csrf-token-a", "backpex_preferences" => preferences}
   end
@@ -439,23 +444,24 @@ defmodule Backpex.InitAssignsTest do
     end
   end
 
-  describe "on_mount/4 assigns the preference scope" do
-    test "assigns the fingerprint the layout stamps into the page" do
-      # `app_shell` renders this into `data-preferences-scope`, where the JS
-      # hook reads it to stamp (and to validate) the pending-write cookie.
+  describe "on_mount/4 assigns the preferences manifest" do
+    test "assigns the adapter routes the layout stamps into the page" do
+      # `app_shell` renders this into `data-preferences-manifest`, where the JS
+      # hook reads it to route and validate browser-carried values per key.
       socket = mount(session(%{}))
 
-      assert socket.assigns.preferences_scope == fingerprint(session(%{}))
-      assert is_binary(socket.assigns.preferences_scope)
+      assert %{"version" => 1, "routes" => [route]} = socket.assigns.preferences_manifest
+      assert route["kind"] == "default"
+      assert is_binary(route["token"])
     end
 
-    test "assigns nil when no fingerprint can be computed" do
+    test "assigns nil when route tokens cannot be computed" do
       # A session with no CSRF token yet (the first request of a new session).
       # The layout then renders no attribute and the pending cookie is off — the
       # behavior from before the cookie existed.
       socket = mount(%{})
 
-      assert socket.assigns.preferences_scope == nil
+      assert socket.assigns.preferences_manifest == nil
     end
   end
 

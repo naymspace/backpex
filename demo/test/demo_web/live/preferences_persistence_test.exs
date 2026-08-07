@@ -408,15 +408,19 @@ defmodule DemoWeb.Live.PreferencesPersistenceTest do
     # cannot see this, because its connect params already carry the overlay.
 
     # The wire format the JS hook writes: encodeURIComponent(JSON.stringify(envelope)),
-    # where the envelope stamps the pending writes with the scope fingerprint the
-    # server rendered into `data-preferences-scope`. Stamped by default with the
-    # scope of the very request being made — the browser wrote it while looking at
-    # a page rendered for this same user.
-    defp put_pending_writes(conn, writes, scope \\ nil) do
-      fingerprint = scope || fingerprint(Plug.Conn.get_session(conn))
+    # where each pending write carries the adapter namespace token the server
+    # rendered into `data-preferences-manifest`. By default the token belongs to
+    # the session making this request.
+    defp put_pending_writes(conn, writes, stamped_for \\ nil) do
+      token = namespace_token(stamped_for || Plug.Conn.get_session(conn))
+
+      entries =
+        Map.new(writes, fn {key, value} ->
+          {key, %{"token" => token, "value" => value}}
+        end)
 
       encoded =
-        %{"scope" => fingerprint, "values" => writes}
+        %{"version" => 1, "values" => entries}
         |> Jason.encode!()
         |> URI.encode(&URI.char_unreserved?/1)
 
@@ -424,7 +428,7 @@ defmodule DemoWeb.Live.PreferencesPersistenceTest do
     end
 
     # Every request of a session but its very first carries a CSRF token, and the
-    # fingerprint needs it: it is what scopes the session-backed preference store.
+    # route token needs it: it is what scopes the session-backed preference store.
     defp stale_session(conn, preferences, csrf_token \\ @csrf_token) do
       Plug.Test.init_test_session(conn, %{
         "_csrf_token" => csrf_token,
@@ -432,10 +436,13 @@ defmodule DemoWeb.Live.PreferencesPersistenceTest do
       })
     end
 
-    defp fingerprint(session) do
+    defp namespace_token(session) do
       session
       |> Context.from_mount()
-      |> PrefLiveView.scope_fingerprint(DemoWeb.Endpoint)
+      |> PrefLiveView.client_manifest(DemoWeb.Endpoint)
+      |> Map.fetch!("routes")
+      |> List.first()
+      |> Map.fetch!("token")
     end
 
     test "sidebar renders closed even though the session still says open", %{conn: conn} do
@@ -570,8 +577,8 @@ defmodule DemoWeb.Live.PreferencesPersistenceTest do
       # later. Unstamped, B's dead render would paint A's choice — and B's
       # `replayPending()` would POST it into B's store.
       #
-      # B's session is a different session, so B's fingerprint differs, so the
-      # cookie is void and B's own stored preference renders. The check runs on
+      # B's session is different, so B's namespace token differs, so the entry
+      # is void and B's own stored preference renders. The check runs on
       # the server: the dead render is exactly where a cookie the browser should
       # have discarded — or one any script on the origin planted — lands.
       insert(:post, title: "Alpha", published: true)
@@ -581,7 +588,7 @@ defmodule DemoWeb.Live.PreferencesPersistenceTest do
       conn =
         conn
         |> stale_session(%{"global" => %{"sidebar_open" => true}})
-        |> put_pending_writes(%{"global.sidebar_open" => false}, fingerprint(previous_user))
+        |> put_pending_writes(%{"global.sidebar_open" => false}, previous_user)
         |> get(~p"/admin/posts?filters[published][]=published")
 
       html = html_response(conn, 200)
@@ -591,10 +598,9 @@ defmodule DemoWeb.Live.PreferencesPersistenceTest do
       refute html =~ ~s(data-sidebar-open="false")
     end
 
-    test "the fingerprint is rendered into the page for the browser to stamp with", %{conn: conn} do
-      # The other half of the contract: the browser can only scope its cookie to
-      # a scope the server told it about. `app_shell` renders it onto the
-      # preferences hook element.
+    test "the adapter namespace manifest is rendered for the browser", %{conn: conn} do
+      # The browser can only scope an entry to a route the server told it about.
+      # `app_shell` renders the signed manifest onto the preferences hook element.
       insert(:post, title: "Alpha", published: true)
 
       conn =
@@ -603,10 +609,11 @@ defmodule DemoWeb.Live.PreferencesPersistenceTest do
         |> get(~p"/admin/posts?filters[published][]=published")
 
       html = html_response(conn, 200)
-      expected = fingerprint(%{"_csrf_token" => @csrf_token, "backpex_preferences" => %{}})
+      expected = namespace_token(%{"_csrf_token" => @csrf_token, "backpex_preferences" => %{}})
 
       assert is_binary(expected)
-      assert html =~ ~s(data-preferences-scope="#{expected}")
+      assert html =~ "data-preferences-manifest="
+      assert html =~ expected
     end
 
     test "a garbage cookie does not crash the dead render", %{conn: conn} do

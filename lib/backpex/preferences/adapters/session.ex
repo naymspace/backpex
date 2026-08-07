@@ -80,6 +80,9 @@ defmodule Backpex.Preferences.Adapters.Session do
   end
 
   @impl Adapter
+  def client_namespace(_ctx, _opts), do: {:ok, {:session, @session_key}}
+
+  @impl Adapter
   def get_map(%Context{session: session}, prefix, _opts) do
     path = Key.parse(prefix)
     value = get_in(root(session), path)

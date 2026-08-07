@@ -39,6 +39,28 @@ defmodule Backpex.Preferences.Adapters.EctoTest do
     {:ok, ctx: %Context{scope: @scope}, unscoped: %Context{scope: :unscoped}}
   end
 
+  describe "client_namespace/2" do
+    test "contains exactly the configured scope fields", %{ctx: ctx} do
+      assert {:ok, {FakeRepo, Preference, %{user_id: 7, tenant_id: 70}}} =
+               EctoAdapter.client_namespace(ctx, @opts)
+    end
+
+    test "ignores scope values the adapter does not use" do
+      opts = Keyword.put(@opts, :scope_fields, [:user_id])
+      first = %Context{scope: %{user_id: 7, tenant_id: 70}}
+      second = %Context{scope: %{user_id: 7, tenant_id: 71}}
+
+      assert EctoAdapter.client_namespace(first, opts) == EctoAdapter.client_namespace(second, opts)
+    end
+
+    test "rejects an unresolved or incomplete scope", %{unscoped: unscoped} do
+      assert EctoAdapter.client_namespace(unscoped, @opts) == {:error, :unscoped}
+
+      assert EctoAdapter.client_namespace(%Context{scope: %{user_id: 7}}, @opts) ==
+               {:error, {:invalid_scope, [:tenant_id]}}
+    end
+  end
+
   describe "get/3" do
     test "returns :not_found when nothing is stored", %{ctx: ctx} do
       assert {:ok, :not_found} = EctoAdapter.get(ctx, "resource:PostLive:order", @opts)

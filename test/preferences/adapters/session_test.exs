@@ -5,6 +5,16 @@ defmodule Backpex.Preferences.Adapters.SessionTest do
   alias Backpex.Preferences.Context
   alias Backpex.Preferences.Keys
 
+  describe "client_namespace/2" do
+    test "uses the Phoenix session namespace independently of application scope" do
+      first = %Context{session: %{}, scope: %{user_id: 7, tenant_id: 70}}
+      second = %Context{session: %{}, scope: %{user_id: 7, tenant_id: 71}}
+
+      assert Session.client_namespace(first, []) == {:ok, {:session, "backpex_preferences"}}
+      assert Session.client_namespace(second, []) == Session.client_namespace(first, [])
+    end
+  end
+
   describe "get/3" do
     test "returns {:ok, value} when the path is populated" do
       ctx = Context.from_mount(%{"backpex_preferences" => %{"global" => %{"theme" => "dark"}}})

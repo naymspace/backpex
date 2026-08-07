@@ -10,9 +10,9 @@ defmodule DemoWeb.Layouts do
   attr :current_theme, :string, default: nil, doc: "the currently selected theme"
   attr :sidebar_open, :boolean, default: true, doc: "initial sidebar open state"
 
-  attr :preferences_scope, :string,
+  attr :preferences_manifest, :map,
     default: nil,
-    doc: "opaque fingerprint of the current preference scope, assigned by Backpex.InitAssigns"
+    doc: "adapter route manifest for client-carried preference values, assigned by Backpex.InitAssigns"
 
   slot :inner_block, required: true
 

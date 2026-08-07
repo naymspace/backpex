@@ -29,7 +29,7 @@ defmodule Backpex.InitAssigns do
 
     socket =
       socket
-      |> assign_preferences_scope(ctx)
+      |> assign_preferences_manifest(ctx)
       |> assign_current_theme(ctx)
       |> assign_sidebar_open(ctx)
       |> assign_sidebar_section_states(ctx)
@@ -38,15 +38,13 @@ defmodule Backpex.InitAssigns do
     {:cont, socket}
   end
 
-  # The browser cannot know who it is talking to; the server can. Hand it an
-  # opaque fingerprint of the current preference scope so it can stamp the
-  # unacknowledged writes it holds in `backpex_prefs` and drop them again once
-  # the scope changes — otherwise the write user A left in flight when they
-  # logged out would be rendered for, and replayed by, user B. Layouts pass this
-  # to `Backpex.HTML.Layout.app_shell/1`; `nil` (no endpoint secret, or a session
-  # with no CSRF token yet) turns the pending cookie off entirely.
-  defp assign_preferences_scope(socket, ctx) do
-    assign(socket, :preferences_scope, PreferenceLiveView.scope_fingerprint(ctx, socket.endpoint))
+  # The browser cannot know which adapter namespace it is talking to; the
+  # server can. Each adapter route receives an opaque token for the namespace it
+  # actually uses. Layouts hand this manifest to the browser so session-backed values can
+  # survive an application-scope change without carrying tenant-scoped values
+  # with them. `nil` disables the client overlay when tokens cannot be signed.
+  defp assign_preferences_manifest(socket, ctx) do
+    assign(socket, :preferences_manifest, PreferenceLiveView.client_manifest(ctx, socket.endpoint))
   end
 
   defp assign_current_theme(socket, ctx) do

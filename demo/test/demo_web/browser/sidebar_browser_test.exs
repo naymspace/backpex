@@ -116,8 +116,13 @@ defmodule DemoWeb.Browser.SidebarBrowserTest do
       |> assert_has(~s|#{@sidebar_toggle}[aria-expanded="false"]|)
       # (a) The write is in the cookie, synchronously, before any round trip.
       |> evaluate("document.cookie", fn cookie ->
-        assert cookie =~ "backpex_prefs"
-        assert URI.decode(cookie) =~ ~s("global.sidebar_open":false)
+        entry = cookie |> String.split("; ") |> Enum.find(&String.starts_with?(&1, "backpex_prefs="))
+        assert is_binary(entry)
+
+        envelope = entry |> String.split("=", parts: 2) |> List.last() |> URI.decode() |> Jason.decode!()
+        assert envelope["version"] == 1
+        assert get_in(envelope, ["values", "global.sidebar_open", "value"]) == false
+        assert is_binary(get_in(envelope, ["values", "global.sidebar_open", "token"]))
       end)
       # (b) THE FLASH ITSELF: the document the browser would paint first.
       |> evaluate(@fetch_dead_render, [is_function: true], fn html ->
@@ -145,7 +150,12 @@ defmodule DemoWeb.Browser.SidebarBrowserTest do
       # The mirror survives — it is the live_redirect carrier and has a
       # different job.
       |> evaluate(
-        "sessionStorage.getItem(`backpex.prefs.${document.getElementById('backpex-preferences').dataset.preferencesScope}.global.sidebar_open`)",
+        """
+        (() => {
+          const manifest = JSON.parse(document.getElementById('backpex-preferences').dataset.preferencesManifest)
+          return sessionStorage.getItem(`backpex.prefs.${manifest.routes[0].token}.global.sidebar_open`)
+        })()
+        """,
         fn value ->
           assert value == "false"
         end

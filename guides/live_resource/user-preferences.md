@@ -71,33 +71,32 @@ setting is routed independently.
 | Store | Name | Lifetime | Holds |
 |---|---|---|---|
 | Your app's session cookie | e.g. `_my_app_key` | your session config | Where the Session adapter persists preferences. |
-| `sessionStorage` | `backpex.prefs.<scope fingerprint>.*` | the tab | Per-tab, per-scope mirror of preferences written since the websocket connected. Opt-in per key. |
-| Cookie | `backpex_prefs` | `max-age` 300, normally deleted within one round-trip | Preference writes the server has not acknowledged yet, stamped with the scope that made them. |
+| `sessionStorage` | `backpex.prefs.<route token>.<key>` | the tab | Per-tab mirror of preferences written since the websocket connected. Opt-in per key and isolated by its adapter namespace. |
+| Cookie | `backpex_prefs` | `max-age` 300, normally deleted within one round-trip | Preference writes the server has not acknowledged yet, each stamped with its adapter namespace token. |
 
 `backpex_prefs` is written by JavaScript — synchronously, which is the whole
 point — so it is **not** `HttpOnly`. Attributes: `path=/`, `SameSite=Lax`,
-`max-age=300`, plus `Secure` over HTTPS. The value is an envelope, `{"scope":
-"<scope fingerprint>", "values": {key: value}}`, holding the writes whose POST
-has not come back yet; each entry is deleted as soon as its POST responds, so the
-cookie is absent most of the time. Backpex reads it on the disconnected mount
-only — it is an input to a *render*, never to an adapter write. Unlike the
-`sessionStorage` mirror it is shared across tabs of the same browser. See [Why
-the client sometimes overrides the
-server](#why-the-client-sometimes-overrides-the-server).
+`max-age=300`, plus `Secure` over HTTPS. The value is a versioned envelope,
+`{"version": 1, "values": {key: {"token": "...", "value": value}}}`, holding
+the writes whose POST has not come back yet. Each entry is deleted as soon as
+its POST responds, so the cookie is absent most of the time. Backpex reads it on
+the disconnected mount only — it is an input to a *render*, never to an adapter
+write. Unlike the `sessionStorage` mirror it is shared across tabs of the same
+browser. See [Why the client sometimes overrides the server](#why-the-client-sometimes-overrides-the-server).
 
 The encoded cookie has a 3072-byte budget. If several pending writes exceed it,
 Backpex evicts the oldest entries until it fits. If one entry cannot fit, it is
 not written to the cookie. No pending cookie is written when the page lacks a
-usable preference scope fingerprint. Persistence still proceeds in both
+usable signed preferences manifest. Persistence still proceeds in both
 cases, but a document reload inside the POST round trip may initially render the
 previous stored value.
 
 If your app shows a cookie-consent banner, `backpex_prefs` is designed as a
-strictly functional cookie: it carries a keyed fingerprint rather than a raw
-user id and exists only to render the state the user just requested. Confirm the
+strictly functional cookie: it carries keyed namespace tokens rather than raw
+user or tenant ids and exists only to render the state the user just requested. Confirm the
 classification required by your own jurisdiction and consent policy.
 
-### Scoping the pending cookie
+### Scoping browser-carried values per adapter
 
 The cookie can outlive the person who wrote it: a preference toggled a moment
 before "Log out" leaves a POST in flight whose promise dies with the page, so
@@ -105,48 +104,53 @@ nothing ever retires the entry and it sits there for up to five minutes. If the
 next user logs in inside that window, an unscoped cookie would be overlaid onto
 *their* first paint and replayed into *their* store.
 
-So every entry is stamped with a **scope fingerprint**
-(`Backpex.Preferences.LiveView.scope_fingerprint/2`): a keyed digest, over the
-endpoint's `secret_key_base`, of
+One application can route `global.*` into the Phoenix session and
+`resource.*` into a tenant-scoped database. A single fingerprint of the whole
+application scope is therefore too broad for the Session adapter and too narrow
+for the database adapter. Backpex instead signs one **client namespace token per
+adapter route**. Each token is a keyed digest over the endpoint's
+`secret_key_base`, the adapter module, the namespace reported by that adapter,
+and the Phoenix session's CSRF token.
 
-1. the scope map your `:scope` resolver returned (or the distinct
-   `:unscoped` value), and
-2. the Phoenix session's CSRF token.
+The built-in adapters report the namespace they actually use:
 
-Both, because Backpex can host more than one store and they are not scoped
-alike. One `:scope` resolver serves every prefix — the router picks the
-*adapter* per prefix, not the scope — but `Backpex.Preferences.Adapters.Session`
-(the default, and the whole store in a zero-config install) ignores scope
-altogether and scopes by the **session**. Digesting only the scope would give
-every user of an anonymous session-backed install the same fingerprint, which is
-the bug. The CSRF token is the session's stable per-session secret: unchanged by
-preference writes, and regenerated exactly when the session is renewed — which is
-what `phx.gen.auth`'s `renew_session/1` does on login and logout.
+- `Backpex.Preferences.Adapters.Session` reports the Phoenix preferences session
+  key and deliberately ignores the application scope. Its token stays stable
+  when the current tenant changes, so theme and sidebar state survive tenant
+  navigation.
+- `Backpex.Preferences.Adapters.Ecto` reports its repo, schema, and exactly the
+  values named by `scope_fields`. Its token changes only when a field that can
+  select another database row changes.
 
-Together they keep the cookie's scope at least as narrow as the narrowest store's.
-An app that neither renews the session on login nor configures `:scope` gets
-one fingerprint for both users — but it also hands them the same session, so the
-Session adapter is already sharing the *stored* preferences between them; the
-cookie leaks nothing the store does not.
+Custom adapters may implement the optional
+`c:Backpex.Preferences.Adapter.client_namespace/2` callback and return any stable
+term that uniquely identifies their storage namespace. Adapters that omit the
+callback conservatively use the complete resolved application scope plus their
+route options.
 
-The server renders the fingerprint into `data-preferences-scope` (pass
-`preferences_scope={@preferences_scope}` to `app_shell`). The browser
-discards the whole cookie when it does not match, and so does the disconnected
-mount — which does not trust the browser to have discarded it, because that is
-exactly where a planted cookie lands. The digest is keyed, so it exposes no user
-id to the scripts that can read this cookie.
+`Backpex.InitAssigns` renders the signed route list into
+`data-preferences-manifest` (pass
+`preferences_manifest={@preferences_manifest}` to `app_shell`). The browser
+routes each key through that manifest and discards only entries whose own token
+no longer matches; compatible siblings remain. The preferences endpoint path is
+transport metadata, not part of the namespace, so changing a dynamic tenant URL
+does not invalidate a compatible Session-backed mirror.
 
-When there is no fingerprint to be had — no `secret_key_base`, a layout that does
-not pass the assign, or the very first request of a brand-new session, whose CSRF
-token `Plug.CSRFProtection` only writes back at the end of the response — Backpex
-behaves as though the cookie did not exist: a first paint that may be one write
-stale, never a write attributed to the wrong user.
+The disconnected mount repeats token validation and does not trust the browser
+to discard an outlived or planted cookie. The digest is keyed, so neither the
+manifest nor browser storage exposes raw session, user, or tenant identifiers.
+
+When tokens cannot be signed — no `secret_key_base`, a layout that does not pass
+the manifest, or the very first request of a brand-new session, whose CSRF token
+`Plug.CSRFProtection` only writes back at the end of the response — Backpex
+behaves as though the browser overlay did not exist: a first paint that may be
+one write stale, never a value attributed to the wrong namespace.
 
 Because the cookie is browser-written and unsigned, anything any script on the
 origin can plant reaches a render. `Backpex.Preferences.Context.put_client/2`
 therefore filters both client carriers — the cookie and the connect params —
-before they become an overlay (the fingerprint is an *additional* gate, not a
-replacement: it says which scope wrote a value, not that the value is sane):
+before they become an overlay (the namespace token is an *additional* gate, not
+a replacement: it says which store owns a value, not that the value is sane):
 
 - keys that fail `Backpex.Preferences.Key.validate/1` are dropped;
 - values that fail `Backpex.Preferences.Keys.valid_value?/2` are dropped.
@@ -228,7 +232,7 @@ so it is worth spelling them out explicitly.
   ```heex
   <Backpex.HTML.Layout.app_shell
     socket={@socket}
-    preferences_scope={@preferences_scope}
+    preferences_manifest={@preferences_manifest}
     preferences_path={~p"/tenants/#{@current_scope.tenant.id}/backpex_preferences"}
   >
     ...
@@ -335,7 +339,7 @@ needs:
   fluid={@fluid?}
   live_resource={@live_resource}
   sidebar_open={@sidebar_open}
-  preferences_scope={@preferences_scope}
+  preferences_manifest={@preferences_manifest}
 >
   <:topbar>
     <Backpex.HTML.Layout.theme_selector
@@ -370,7 +374,7 @@ built on `app_shell` needs nothing extra. A layout that does **not** use
 ```heex
 <Backpex.HTML.Layout.preferences_root
   socket={@socket}
-  preferences_scope={@preferences_scope}
+  preferences_manifest={@preferences_manifest}
 />
 ```
 
@@ -542,13 +546,38 @@ returns the same body with status `422`.
 
 ## Writing a custom adapter
 
-Implement `Backpex.Preferences.Adapter`. Three callbacks:
+Implement `Backpex.Preferences.Adapter`. Three callbacks are required:
 
 - `get/3` — read one key. Return `{:ok, value}` or `{:ok, :not_found}`.
 - `get_map/3` — read everything under a prefix as a nested map.
 - `put/4` — persist one value. Return `{:ok, :persisted}` when you stored it
   yourself (the usual case for a DB adapter), or `{:ok, {:put_session, key,
   map}}` to ask the caller to write `map` into the Phoenix session.
+
+One callback is optional but recommended when the adapter does not use the
+complete application scope:
+
+- `client_namespace/2` — return `{:ok, stable_term}` describing exactly the
+  namespace in which this adapter stores the current route's values. Backpex
+  signs the term; it is never sent to the browser in the clear. Return
+  `{:error, :unscoped}` when no safe namespace is available. If the callback is
+  omitted, Backpex uses the complete resolved scope and the route options.
+
+For example, an adapter keyed only by account should project away an unrelated
+workspace switch:
+
+```elixir
+@impl true
+def client_namespace(%Context{scope: %{account_id: account_id}}, _opts) do
+  {:ok, {:account, account_id}}
+end
+
+def client_namespace(_ctx, _opts), do: {:error, :unscoped}
+```
+
+The term must change whenever the adapter could read a different value for the
+same preference key, and remain stable when only transport details (such as a
+dynamic endpoint path) change.
 
 The side-effect protocol keeps adapters independent of `Plug.Conn`. A Session
 adapter describes the session effect for the controller to apply; a database
@@ -1050,7 +1079,7 @@ decodes the cookie on the disconnected mount and folds it into the same client
 overlay the connect params feed. Every key gets this automatically — mirrored or
 not — which is why filters, order and column visibility also survive a fast
 reload, not just the sidebar. A pending write only ever applies to the scope
-that made it: see [Scoping the pending cookie](#scoping-the-pending-cookie).
+that made it: see [Scoping browser-carried values per adapter](#scoping-browser-carried-values-per-adapter).
 
 **The `sessionStorage` mirror → the websocket join.** LiveView freezes the
 Phoenix session at websocket-connect time. When a user clicks an internal link
@@ -1087,8 +1116,8 @@ contradict the paint the user is looking at.
 cookie is attempted for every key regardless, so the mirror choice is primarily
 about whether the value must survive a `live_redirect`. The pending cookie is a
 best-effort fast-reload carrier: it is capped at 3072 encoded bytes, evicts old
-entries, skips a single oversized entry, and is disabled without a scope
-fingerprint.
+entries, skips a single oversized entry, and is disabled without a signed
+preferences manifest.
 
 Use it when **all** of the following are true:
 
