@@ -13,6 +13,7 @@ defmodule Demo.MixProject do
       deps: deps(),
       aliases: aliases(),
       gettext: gettext(),
+      hex: [cooldown: "3d"],
       listeners: [Phoenix.CodeReloader]
     ]
   end

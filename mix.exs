@@ -20,6 +20,7 @@ defmodule Backpex.MixProject do
       gettext: gettext(),
 
       # Hex.pm
+      hex: [cooldown: "3d"],
       package: package(),
       description: "Highly customizable administration panel for Phoenix LiveView applications.",
 
