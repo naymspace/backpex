@@ -13,6 +13,7 @@ defmodule Demo.MixProject do
       deps: deps(),
       aliases: aliases(),
       gettext: gettext(),
+      hex: [cooldown: "3d"],
       listeners: [Phoenix.CodeReloader]
     ]
   end
@@ -42,12 +43,12 @@ defmodule Demo.MixProject do
       {:lazy_html, "~> 0.1.3", only: :test},
       {:ex_machina, "~> 2.3"},
       {:faker, "~> 1.2", hex: :fakerer},
-      {:phoenix_test, "~> 0.11.0", only: :test, runtime: false},
+      {:phoenix_test, "~> 0.12.0", only: :test, runtime: false},
       {:phoenix_test_playwright, "~> 0.15.0", only: :test, runtime: false},
       {:a11y_audit, "~> 0.4.0", only: :test},
       {:live_debugger, "~> 1.0", only: :dev},
       {:quokka, "~> 2.9", only: [:dev, :test], runtime: false},
-      {:tidewave, "~> 0.6", only: [:dev]},
+      {:tidewave, "~> 0.8", only: [:dev]},
 
       # core
       {:dns_cluster, "~> 0.2.0"},

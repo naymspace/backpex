@@ -1,7 +1,7 @@
 defmodule Backpex.MixProject do
   use Mix.Project
 
-  @version "0.19.6"
+  @version "0.19.7"
 
   @source_url "https://github.com/naymspace/backpex"
   @changelog_url "https://github.com/naymspace/backpex/releases"
@@ -20,6 +20,7 @@ defmodule Backpex.MixProject do
       gettext: gettext(),
 
       # Hex.pm
+      hex: [cooldown: "3d"],
       package: package(),
       description: "Highly customizable administration panel for Phoenix LiveView applications.",
 

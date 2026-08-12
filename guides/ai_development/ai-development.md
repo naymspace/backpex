@@ -62,7 +62,7 @@ Example: "Create an export action that lets users download posts as CSV"
 
 The `upgrade` skill assists with Backpex version upgrades. It reads the relevant upgrade guides, identifies breaking changes, and applies migrations systematically.
 
-Example: "Upgrade Backpex from 0.16 to 0.18"
+Example: "Upgrade Backpex from 0.16 to 0.19"
 
 ## Invoking Skills
 
