@@ -16,6 +16,98 @@ defmodule DemoWeb.Browser.SidebarBrowserTest do
   @blog_toggle ~s|[data-section-id="blog"] [data-menu-dropdown-toggle]|
   @sidebar_toggle ~s|#backpex-sidebar-toggle|
 
+  @install_preference_gate """
+  () => {
+    const originalFetch = window.fetch.bind(window)
+    const gate = { active: 0, calls: [], maxActive: 0 }
+    window.__backpexPreferenceGate = gate
+
+    window.fetch = (input, options = {}) => {
+      const url = typeof input === 'string' ? input : input.url
+      if (!url.includes('backpex_preferences')) return originalFetch(input, options)
+
+      let release
+      const blocked = new Promise((resolve) => { release = resolve })
+      const call = { body: JSON.parse(options.body), release }
+      gate.calls.push(call)
+      gate.active += 1
+      gate.maxActive = Math.max(gate.maxActive, gate.active)
+
+      return blocked
+        .then(() => originalFetch(input, options))
+        .finally(() => { gate.active -= 1 })
+    }
+
+    return true
+  }
+  """
+
+  @await_preference_calls """
+  async (count) => {
+    for (let index = 0; index < 100; index++) {
+      const gate = window.__backpexPreferenceGate
+      if (gate.calls.length >= count) {
+        return {
+          active: gate.active,
+          calls: gate.calls.map(({ body }) => body),
+          maxActive: gate.maxActive
+        }
+      }
+      await new Promise((resolve) => setTimeout(resolve, 50))
+    }
+
+    throw new Error(`Timed out waiting for ${count} preference request(s)`)
+  }
+  """
+
+  @preference_gate_state """
+  () => {
+    const gate = window.__backpexPreferenceGate
+    return {
+      active: gate.active,
+      calls: gate.calls.map(({ body }) => body),
+      maxActive: gate.maxActive
+    }
+  }
+  """
+
+  @release_preference_call """
+  (index) => {
+    window.__backpexPreferenceGate.calls[index].release()
+    return true
+  }
+  """
+
+  @await_preference_gate_settled """
+  async () => {
+    for (let index = 0; index < 100; index++) {
+      const gate = window.__backpexPreferenceGate
+      if (gate.active === 0 && !document.cookie.includes('backpex_prefs')) {
+        return { active: gate.active, maxActive: gate.maxActive }
+      }
+      await new Promise((resolve) => setTimeout(resolve, 50))
+    }
+
+    throw new Error('Timed out waiting for preference writes to settle')
+  }
+  """
+
+  @select_theme """
+  (theme) => {
+    document.querySelector(`input[name="theme-selector"][value="${theme}"]`).click()
+    return document.documentElement.dataset.theme
+  }
+  """
+
+  @clear_preference_mirrors """
+  () => {
+    Object.keys(sessionStorage)
+      .filter((key) => key.startsWith('backpex.prefs.'))
+      .forEach((key) => sessionStorage.removeItem(key))
+    return true
+  }
+  """
+
   describe "sidebar section state across live_redirect" do
     test "collapsed section stays collapsed after navigating to a sibling LiveResource", %{conn: conn} do
       conn
@@ -100,6 +192,154 @@ defmodule DemoWeb.Browser.SidebarBrowserTest do
           refute display["child"] == "none"
         end
       )
+    end
+  end
+
+  describe "preference write ordering" do
+    test "serializes sibling Session preferences changed during an active request", %{conn: conn} do
+      conn
+      |> visit(~p"/admin/posts")
+      |> assert_has("body .phx-connected")
+      |> evaluate(@install_preference_gate, is_function: true)
+      |> evaluate(~s|document.querySelector('[data-section-id="blog"] [data-menu-dropdown-toggle]').click()|)
+      |> evaluate(@await_preference_calls, [is_function: true, arg: 1], fn gate ->
+        assert gate["active"] == 1
+        assert gate["maxActive"] == 1
+
+        assert body_entries(List.first(gate["calls"])) == [
+                 %{"key" => "global.sidebar_section.blog", "value" => false}
+               ]
+      end)
+      |> evaluate(~s|document.querySelector('#backpex-sidebar-toggle').click()|)
+      |> evaluate(@preference_gate_state, [is_function: true], fn gate ->
+        assert gate["active"] == 1
+        assert gate["maxActive"] == 1
+        assert length(gate["calls"]) == 1
+      end)
+      |> evaluate(@release_preference_call, is_function: true, arg: 0)
+      |> evaluate(@await_preference_calls, [is_function: true, arg: 2], fn gate ->
+        assert gate["active"] == 1
+        assert gate["maxActive"] == 1
+
+        assert body_entries(Enum.at(gate["calls"], 1)) == [
+                 %{"key" => "global.sidebar_open", "value" => false}
+               ]
+      end)
+      |> evaluate(@release_preference_call, is_function: true, arg: 1)
+      |> evaluate(@await_preference_gate_settled, [is_function: true], fn gate ->
+        assert gate == %{"active" => 0, "maxActive" => 1}
+      end)
+      |> evaluate(@clear_preference_mirrors, is_function: true)
+      |> visit(~p"/admin/posts")
+      |> assert_has("body .phx-connected")
+      |> assert_has(~s|#backpex-app-shell[data-sidebar-open="false"]|)
+      |> assert_has(~s|[data-section-id="blog"][data-section-open="false"]|)
+    end
+
+    test "persists the latest intent when the same key changes during a request", %{conn: conn} do
+      conn
+      |> visit(~p"/admin/posts")
+      |> assert_has("body .phx-connected")
+      |> evaluate(@install_preference_gate, is_function: true)
+      |> evaluate(@select_theme, is_function: true, arg: "dark")
+      |> evaluate(@await_preference_calls, [is_function: true, arg: 1], fn gate ->
+        assert gate["active"] == 1
+
+        assert body_entries(List.first(gate["calls"])) == [
+                 %{"key" => "global.theme", "value" => "dark"}
+               ]
+      end)
+      |> evaluate(@select_theme, is_function: true, arg: "cupcake")
+      |> evaluate(@preference_gate_state, [is_function: true], fn gate ->
+        assert gate["active"] == 1
+        assert gate["maxActive"] == 1
+        assert length(gate["calls"]) == 1
+      end)
+      |> evaluate(@release_preference_call, is_function: true, arg: 0)
+      |> evaluate(@await_preference_calls, [is_function: true, arg: 2], fn gate ->
+        assert gate["active"] == 1
+        assert gate["maxActive"] == 1
+
+        assert body_entries(Enum.at(gate["calls"], 1)) == [
+                 %{"key" => "global.theme", "value" => "cupcake"}
+               ]
+      end)
+      |> evaluate(@release_preference_call, is_function: true, arg: 1)
+      |> evaluate(@await_preference_gate_settled, [is_function: true], fn gate ->
+        assert gate == %{"active" => 0, "maxActive" => 1}
+      end)
+      |> evaluate(@clear_preference_mirrors, is_function: true)
+      |> visit(~p"/admin/posts")
+      |> assert_has("body .phx-connected")
+      |> assert_has(~s|html[data-theme="cupcake"]|)
+      |> evaluate(
+        ~s|document.querySelector('input[name="theme-selector"][value="cupcake"]').checked|,
+        &assert/1
+      )
+    end
+  end
+
+  describe "preference batch rejection" do
+    setup do
+      prior = Application.get_env(:backpex, Backpex.Preferences)
+
+      Application.put_env(:backpex, Backpex.Preferences,
+        adapters: [{:default, DemoWeb.SelectivelyRejectingSessionPreferencesAdapter, []}]
+      )
+
+      on_exit(fn ->
+        case prior do
+          nil -> Application.delete_env(:backpex, Backpex.Preferences)
+          value -> Application.put_env(:backpex, Backpex.Preferences, value)
+        end
+      end)
+    end
+
+    test "retries unaffected Session writes after the first rejected entry", %{conn: conn} do
+      conn
+      |> visit(~p"/admin/posts")
+      |> assert_has("body .phx-connected")
+      |> evaluate(@install_preference_gate, is_function: true)
+      |> evaluate(
+        """
+        () => {
+          document.querySelector('input[name="theme-selector"][value="dark"]').click()
+          document.querySelector('#backpex-sidebar-toggle').click()
+          document.querySelector('[data-section-id="blog"] [data-menu-dropdown-toggle]').click()
+          return true
+        }
+        """,
+        is_function: true
+      )
+      |> evaluate(@await_preference_calls, [is_function: true, arg: 1], fn gate ->
+        assert gate["active"] == 1
+
+        assert body_entries(List.first(gate["calls"])) == [
+                 %{"key" => "global.theme", "value" => "dark"},
+                 %{"key" => "global.sidebar_open", "value" => false},
+                 %{"key" => "global.sidebar_section.blog", "value" => false}
+               ]
+      end)
+      |> evaluate(@release_preference_call, is_function: true, arg: 0)
+      |> evaluate(@await_preference_calls, [is_function: true, arg: 2], fn gate ->
+        assert gate["active"] == 1
+        assert gate["maxActive"] == 1
+
+        assert body_entries(Enum.at(gate["calls"], 1)) == [
+                 %{"key" => "global.theme", "value" => "dark"},
+                 %{"key" => "global.sidebar_section.blog", "value" => false}
+               ]
+      end)
+      |> evaluate(@release_preference_call, is_function: true, arg: 1)
+      |> evaluate(@await_preference_gate_settled, [is_function: true], fn gate ->
+        assert gate == %{"active" => 0, "maxActive" => 1}
+      end)
+      |> evaluate(@clear_preference_mirrors, is_function: true)
+      |> visit(~p"/admin/posts")
+      |> assert_has("body .phx-connected")
+      |> assert_has(~s|html[data-theme="dark"]|)
+      |> assert_has(~s|#backpex-app-shell[data-sidebar-open="true"]|)
+      |> assert_has(~s|[data-section-id="blog"][data-section-open="false"]|)
     end
   end
 
@@ -233,4 +473,7 @@ defmodule DemoWeb.Browser.SidebarBrowserTest do
       |> assert_has(~s|#backpex-main:not([data-suppress-transition])|)
     end
   end
+
+  defp body_entries(%{"preferences" => entries}), do: entries
+  defp body_entries(%{"key" => key, "value" => value}), do: [%{"key" => key, "value" => value}]
 end

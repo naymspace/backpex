@@ -55,6 +55,16 @@ defmodule Backpex.Preferences.Adapter do
   `Plug.Session` is HTTP-only. An adapter that stores in the session must
   therefore return `{:error, :requires_http}` when it is called outside a
   controller, so the dispatcher can round-trip the write through the browser.
+
+  ## Retry semantics
+
+  `c:put/4` must be idempotent for the same key and value. Browser writes may
+  be coalesced into a batch. If one entry is rejected, Backpex retries the
+  other entries because the controller discards accumulated Session effects
+  and does not dispatch entries after the failure. An eager adapter may
+  therefore receive the same successful put twice. Implement durable writes
+  as assignment/upsert operations; do not attach non-idempotent work such as
+  counters, notifications, or one-shot external calls directly to `put/4`.
   """
 
   alias Backpex.Preferences.Context
@@ -104,6 +114,9 @@ defmodule Backpex.Preferences.Adapter do
   Refuse rather than emit a write the store cannot hold: an adapter with a
   size ceiling returns `{:error, :too_large}` when the value would breach it,
   leaving the stored value untouched.
+
+  This callback must be idempotent for the same key and value; see "Retry
+  semantics" in the module documentation.
   """
   @callback put(ctx :: Context.t(), key :: String.t(), value :: term(), opts :: keyword()) ::
               {:ok, put_result()} | {:error, :unscoped | :requires_http | :too_large | term()}

@@ -150,6 +150,7 @@ var SESSION_PREFIX = "backpex.prefs.";
 var COOKIE_NAME = "backpex_prefs";
 var COOKIE_MAX_AGE = 300;
 var COOKIE_MAX_BYTES = 3072;
+var KEEPALIVE_MAX_BYTES = 60 * 1024;
 var WIRE_VERSION = 1;
 var HOOK_ELEMENT_ID = "backpex-preferences";
 function hookElement() {
@@ -348,6 +349,17 @@ function clearPending(key, value, token) {
   delete remaining[key];
   writePendingMap(remaining);
 }
+function queueIdentity(endpointPath, token, key) {
+  return JSON.stringify(token ? [token, key] : [endpointPath, key]);
+}
+function requestBody(entries) {
+  return JSON.stringify({
+    preferences: entries.map(({ key, value }) => ({ key, value }))
+  });
+}
+function byteLength(value) {
+  return new TextEncoder().encode(value).byteLength;
+}
 var BackpexPreferences = {
   endpointPath: null,
   manifest: null,
@@ -357,6 +369,9 @@ var BackpexPreferences = {
   replayCalled: false,
   primed: false,
   _seq: {},
+  _queued: /* @__PURE__ */ new Map(),
+  _inFlight: null,
+  _flushScheduled: false,
   init(endpointPath) {
     this.csrfToken = document.querySelector("meta[name='csrf-token']")?.content;
     return this.syncScope(endpointPath);
@@ -375,6 +390,7 @@ var BackpexPreferences = {
       pruneForeignMirrors();
       pruneForeignPending();
     }
+    if (manifestChanged || endpointChanged) this.reconcileQueue(endpointPath);
     if (endpointChanged) this.replayCalled = false;
     return manifestChanged;
   },
@@ -449,26 +465,121 @@ var BackpexPreferences = {
       console.warn("BackpexPreferences: CSRF token not found");
       return;
     }
-    const requestToken = markPending(key, value);
-    fetch(endpointPath, {
+    const token = markPending(key, value);
+    const identity = queueIdentity(endpointPath, token, key);
+    this._queued.delete(identity);
+    this._queued.set(identity, { endpointPath, identity, key, seq, token, value });
+    this.scheduleFlush();
+  },
+  reconcileQueue(endpointPath) {
+    const compatible = /* @__PURE__ */ new Map();
+    for (const entry of this._queued.values()) {
+      if (!entry.token || tokenForKey(entry.key) !== entry.token) continue;
+      const updated = {
+        ...entry,
+        endpointPath,
+        identity: queueIdentity(endpointPath, entry.token, entry.key)
+      };
+      compatible.set(updated.identity, updated);
+    }
+    this._queued = compatible;
+  },
+  scheduleFlush() {
+    if (this._flushScheduled || this._inFlight || this._queued.size === 0) return;
+    this._flushScheduled = true;
+    queueMicrotask(() => {
+      this._flushScheduled = false;
+      this.flush();
+    });
+  },
+  flush() {
+    if (this._inFlight || this._queued.size === 0) return;
+    const batch = this.nextBatch();
+    this._inFlight = batch;
+    Promise.resolve().then(() => fetch(batch.endpointPath, {
       method: "POST",
-      keepalive: true,
+      keepalive: batch.keepalive,
       headers: {
         "Content-Type": "application/json",
         "x-csrf-token": this.csrfToken
       },
-      body: JSON.stringify({ key, value })
-    }).then((response) => {
-      if (response.status >= 500) {
-        console.error(
-          `BackpexPreferences: server error persisting ${key} (HTTP ${response.status}); leaving it pending`
-        );
-        return;
-      }
-      if (this._seq[key] === seq) clearPending(key, value, requestToken);
-    }).catch((error) => {
+      body: batch.body
+    })).then((response) => this.handleResponse(response, batch)).catch((error) => {
       console.error("BackpexPreferences: failed to persist", error);
+    }).finally(() => {
+      this._inFlight = null;
+      this.scheduleFlush();
     });
+  },
+  nextBatch() {
+    const first = this._queued.values().next().value;
+    const entries = [];
+    let body = null;
+    for (const entry of this._queued.values()) {
+      if (entry.endpointPath !== first.endpointPath || entry.token !== first.token) continue;
+      const nextEntries = [...entries, entry];
+      const nextBody = requestBody(nextEntries);
+      if (entries.length > 0 && byteLength(nextBody) > KEEPALIVE_MAX_BYTES) break;
+      entries.push(entry);
+      body = nextBody;
+      if (byteLength(body) > KEEPALIVE_MAX_BYTES) break;
+    }
+    entries.forEach(({ identity }) => this._queued.delete(identity));
+    return {
+      body,
+      endpointPath: first.endpointPath,
+      entries,
+      keepalive: byteLength(body) <= KEEPALIVE_MAX_BYTES
+    };
+  },
+  async handleResponse(response, batch) {
+    if (response.status >= 500) {
+      const keys = batch.entries.map(({ key }) => key).join(", ");
+      console.error(
+        `BackpexPreferences: server error persisting ${keys} (HTTP ${response.status}); leaving them pending`
+      );
+      return;
+    }
+    if (response.status === 422) {
+      let body = null;
+      try {
+        body = await response.json();
+      } catch {
+      }
+      this.handleRejectedBatch(batch, body?.error?.key);
+      return;
+    }
+    batch.entries.forEach((entry) => this.acknowledge(entry));
+  },
+  handleRejectedBatch(batch, failedKey) {
+    const failedEntry = batch.entries.find(({ key }) => key === failedKey);
+    if (typeof failedKey !== "string" || !failedEntry) {
+      batch.entries.forEach((entry) => this.acknowledge(entry));
+      return;
+    }
+    const survivors = [];
+    for (const entry of batch.entries) {
+      if (entry.key === failedKey) {
+        this.acknowledge(entry);
+      } else if (this.currentEntry(entry)) {
+        const endpointPath = entry.token ? this.endpointPath : entry.endpointPath;
+        if (!endpointPath) continue;
+        const identity = queueIdentity(endpointPath, entry.token, entry.key);
+        if (!this._queued.has(identity)) {
+          survivors.push({ ...entry, endpointPath, identity });
+        }
+      }
+    }
+    this._queued = new Map([
+      ...survivors.map((entry) => [entry.identity, entry]),
+      ...this._queued
+    ]);
+  },
+  currentEntry(entry) {
+    return this._seq[entry.key] === entry.seq && tokenForKey(entry.key) === entry.token;
+  },
+  acknowledge(entry) {
+    if (this.currentEntry(entry)) clearPending(entry.key, entry.value, entry.token);
   }
 };
 var BackpexPreferencesHook = {

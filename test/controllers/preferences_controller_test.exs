@@ -132,6 +132,24 @@ defmodule Backpex.PreferencesControllerTest do
       assert session_prefs == %{"global" => %{"theme" => "dark", "sidebar_open" => false}}
     end
 
+    test "keeps sibling keys and applies the last value for a repeated key", %{conn: conn} do
+      params = %{
+        "preferences" => [
+          %{"key" => Keys.theme(), "value" => "dark"},
+          %{"key" => Keys.sidebar_open(), "value" => false},
+          %{"key" => Keys.theme(), "value" => "cupcake"}
+        ]
+      }
+
+      conn = PreferencesController.update(conn, params)
+
+      assert conn.status == 200
+
+      assert Plug.Conn.get_session(conn, Preferences.session_key()) == %{
+               "global" => %{"theme" => "cupcake", "sidebar_open" => false}
+             }
+    end
+
     test "ignores invalid entries in the batch but still persists valid ones", %{conn: conn} do
       params = %{
         "preferences" => [

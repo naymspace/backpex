@@ -11,6 +11,7 @@ const SESSION_PREFIX = 'backpex.prefs.'
 const COOKIE_NAME = 'backpex_prefs'
 const COOKIE_MAX_AGE = 300
 const COOKIE_MAX_BYTES = 3072
+const KEEPALIVE_MAX_BYTES = 60 * 1024
 const WIRE_VERSION = 1
 const HOOK_ELEMENT_ID = 'backpex-preferences'
 
@@ -262,6 +263,20 @@ function clearPending (key, value, token) {
   writePendingMap(remaining)
 }
 
+function queueIdentity (endpointPath, token, key) {
+  return JSON.stringify(token ? [token, key] : [endpointPath, key])
+}
+
+function requestBody (entries) {
+  return JSON.stringify({
+    preferences: entries.map(({ key, value }) => ({ key, value }))
+  })
+}
+
+function byteLength (value) {
+  return new TextEncoder().encode(value).byteLength
+}
+
 const BackpexPreferences = {
   endpointPath: null,
   manifest: null,
@@ -271,6 +286,9 @@ const BackpexPreferences = {
   replayCalled: false,
   primed: false,
   _seq: {},
+  _queued: new Map(),
+  _inFlight: null,
+  _flushScheduled: false,
 
   init (endpointPath) {
     this.csrfToken = document.querySelector("meta[name='csrf-token']")?.content
@@ -293,6 +311,8 @@ const BackpexPreferences = {
       pruneForeignMirrors()
       pruneForeignPending()
     }
+
+    if (manifestChanged || endpointChanged) this.reconcileQueue(endpointPath)
 
     if (endpointChanged) this.replayCalled = false
     return manifestChanged
@@ -391,29 +411,163 @@ const BackpexPreferences = {
       return
     }
 
-    const requestToken = markPending(key, value)
+    const token = markPending(key, value)
+    const identity = queueIdentity(endpointPath, token, key)
 
-    fetch(endpointPath, {
-      method: 'POST',
-      keepalive: true,
-      headers: {
-        'Content-Type': 'application/json',
-        'x-csrf-token': this.csrfToken
-      },
-      body: JSON.stringify({ key, value })
+    // Coalesce writes that have not started yet. Once a request is in flight,
+    // the next intent waits behind it so an older response can never overwrite
+    // a newer value (or a sibling Session preference's cookie update).
+    this._queued.delete(identity)
+    this._queued.set(identity, { endpointPath, identity, key, seq, token, value })
+    this.scheduleFlush()
+  },
+
+  reconcileQueue (endpointPath) {
+    const compatible = new Map()
+
+    for (const entry of this._queued.values()) {
+      if (!entry.token || tokenForKey(entry.key) !== entry.token) continue
+      const updated = {
+        ...entry,
+        endpointPath,
+        identity: queueIdentity(endpointPath, entry.token, entry.key)
+      }
+      compatible.set(updated.identity, updated)
+    }
+
+    this._queued = compatible
+  },
+
+  scheduleFlush () {
+    if (this._flushScheduled || this._inFlight || this._queued.size === 0) return
+    this._flushScheduled = true
+
+    queueMicrotask(() => {
+      this._flushScheduled = false
+      this.flush()
     })
-      .then((response) => {
-        if (response.status >= 500) {
-          console.error(
-            `BackpexPreferences: server error persisting ${key} (HTTP ${response.status}); leaving it pending`
-          )
-          return
-        }
-        if (this._seq[key] === seq) clearPending(key, value, requestToken)
-      })
+  },
+
+  flush () {
+    if (this._inFlight || this._queued.size === 0) return
+
+    const batch = this.nextBatch()
+    this._inFlight = batch
+
+    Promise.resolve()
+      .then(() => fetch(batch.endpointPath, {
+        method: 'POST',
+        keepalive: batch.keepalive,
+        headers: {
+          'Content-Type': 'application/json',
+          'x-csrf-token': this.csrfToken
+        },
+        body: batch.body
+      }))
+      .then((response) => this.handleResponse(response, batch))
       .catch((error) => {
         console.error('BackpexPreferences: failed to persist', error)
       })
+      .finally(() => {
+        this._inFlight = null
+        this.scheduleFlush()
+      })
+  },
+
+  nextBatch () {
+    const first = this._queued.values().next().value
+    const entries = []
+    let body = null
+
+    for (const entry of this._queued.values()) {
+      if (entry.endpointPath !== first.endpointPath || entry.token !== first.token) continue
+
+      const nextEntries = [...entries, entry]
+      const nextBody = requestBody(nextEntries)
+
+      if (entries.length > 0 && byteLength(nextBody) > KEEPALIVE_MAX_BYTES) break
+
+      entries.push(entry)
+      body = nextBody
+
+      if (byteLength(body) > KEEPALIVE_MAX_BYTES) break
+    }
+
+    entries.forEach(({ identity }) => this._queued.delete(identity))
+
+    return {
+      body,
+      endpointPath: first.endpointPath,
+      entries,
+      keepalive: byteLength(body) <= KEEPALIVE_MAX_BYTES
+    }
+  },
+
+  async handleResponse (response, batch) {
+    if (response.status >= 500) {
+      const keys = batch.entries.map(({ key }) => key).join(', ')
+      console.error(
+        `BackpexPreferences: server error persisting ${keys} (HTTP ${response.status}); leaving them pending`
+      )
+      return
+    }
+
+    if (response.status === 422) {
+      let body = null
+
+      try {
+        body = await response.json()
+      } catch {
+        // The built-in controller always returns JSON. Fall through to the
+        // terminal acknowledgement used for malformed custom responses.
+      }
+
+      this.handleRejectedBatch(batch, body?.error?.key)
+      return
+    }
+
+    batch.entries.forEach((entry) => this.acknowledge(entry))
+  },
+
+  handleRejectedBatch (batch, failedKey) {
+    const failedEntry = batch.entries.find(({ key }) => key === failedKey)
+
+    if (typeof failedKey !== 'string' || !failedEntry) {
+      batch.entries.forEach((entry) => this.acknowledge(entry))
+      return
+    }
+
+    const survivors = []
+
+    for (const entry of batch.entries) {
+      if (entry.key === failedKey) {
+        this.acknowledge(entry)
+      } else if (this.currentEntry(entry)) {
+        const endpointPath = entry.token ? this.endpointPath : entry.endpointPath
+        if (!endpointPath) continue
+
+        const identity = queueIdentity(endpointPath, entry.token, entry.key)
+        if (!this._queued.has(identity)) {
+          survivors.push({ ...entry, endpointPath, identity })
+        }
+      }
+    }
+
+    // The controller stops at the first error and discards accumulated
+    // Session effects. Retry every other still-current entry; eager adapters
+    // are required to accept idempotent puts.
+    this._queued = new Map([
+      ...survivors.map((entry) => [entry.identity, entry]),
+      ...this._queued
+    ])
+  },
+
+  currentEntry (entry) {
+    return this._seq[entry.key] === entry.seq && tokenForKey(entry.key) === entry.token
+  },
+
+  acknowledge (entry) {
+    if (this.currentEntry(entry)) clearPending(entry.key, entry.value, entry.token)
   }
 }
 

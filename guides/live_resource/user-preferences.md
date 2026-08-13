@@ -42,7 +42,10 @@ setting is routed independently.
 │   BackpexPreferences.set(key, value)                                     │
 │            │                                                             │
 │            ▼                                                             │
-│   POST /backpex_preferences  (async, keepalive)                          │
+│   Ordered queue → coalesced namespace batch                              │
+│            │                                                             │
+│            ▼                                                             │
+│   POST /backpex_preferences  (async, one request per tab at a time)      │
 │            │                                                             │
 │            ▼                                                             │
 │   Backpex.PreferencesController → Preferences.put_batch/2                │
@@ -61,8 +64,10 @@ setting is routed independently.
 - **Server-rendered state.** The server renders stored state from the adapter
   on every request. A bounded pending cookie covers most reloads that race an
   in-flight write; see its size and scope limitations below.
-- **Instant UI.** Writes are async (`keepalive: true`) — the browser never
-  blocks on persistence.
+- **Instant UI.** Writes are async — the browser never blocks on persistence.
+  Within the current tab and document, the client coalesces same-tick writes
+  and sends only one batch at a time, so an older response cannot overwrite a
+  newer intent or a sibling Session preference.
 - **Storage is your call.** Per-browser session is the default; swap any
   prefix onto a per-user database with a few lines of config.
 
@@ -78,11 +83,13 @@ setting is routed independently.
 point — so it is **not** `HttpOnly`. Attributes: `path=/`, `SameSite=Lax`,
 `max-age=300`, plus `Secure` over HTTPS. The value is a versioned envelope,
 `{"version": 1, "values": {key: {"token": "...", "value": value}}}`, holding
-the writes whose POST has not come back yet. Each entry is deleted as soon as
-its POST responds, so the cookie is absent most of the time. Backpex reads it on
-the disconnected mount only — it is an input to a *render*, never to an adapter
-write. Unlike the `sessionStorage` mirror it is shared across tabs of the same
-browser. See [Why the client sometimes overrides the server](#why-the-client-sometimes-overrides-the-server).
+the writes whose POST has not come back yet. Each entry is deleted when its
+write is acknowledged. For a rejected batch, only the failed entry is
+acknowledged immediately; unaffected entries stay pending and are retried.
+Backpex reads the cookie on the disconnected mount only — it is an input to a
+*render*, never to an adapter write. Unlike the `sessionStorage` mirror it is
+shared across tabs of the same browser. See [Why the client sometimes overrides
+the server](#why-the-client-sometimes-overrides-the-server).
 
 The encoded cookie has a 3072-byte budget. If several pending writes exceed it,
 Backpex evicts the oldest entries until it fits. If one entry cannot fit, it is
@@ -597,6 +604,14 @@ return `{:error, :requires_http}` when called outside a controller (the
 Session adapter does exactly this), so the dispatcher can round-trip the
 write through the browser instead.
 
+Browser writes are coalesced by signed adapter namespace and dispatched through
+a per-document single-flight queue. This ordering is important for the Session
+adapter: the next request in that tab is created only after the previous
+response has installed its updated session cookie. Writes to the same key that
+have not started yet are coalesced to the latest value. Request bodies are split
+below the browser's `keepalive` size limit; an individually oversized body is
+sent without `keepalive`.
+
 Batch writes are **best-effort, first-error-wins**: on the first adapter
 error the dispatcher halts, returns `{:error, {key, reason}}`, and the
 controller responds `422 {"ok": false, "error": {"key": "...", "reason":
@@ -610,8 +625,9 @@ success as possible.
 ### HTTP endpoint contract
 
 `backpex_routes/0` mounts `POST /backpex_preferences` (under the surrounding
-scope). `BackpexPreferences.set(...)` is the normal client and sends JSON with the
-Phoenix CSRF header. Custom clients may send either supported payload shape:
+scope). `BackpexPreferences.set(...)` is the normal client and sends ordered,
+coalesced batches with the Phoenix CSRF header. Custom clients may send either
+supported payload shape:
 
 ```json
 {"key": "custom.dashboard.view_mode", "value": "list"}
@@ -648,10 +664,11 @@ validation or be written outside Backpex.
 
 ### Respond only once the value is readable
 
-The browser retires its client overlay for a key as soon as the write's HTTP
-response arrives, because a completed response means *the server has seen this
-write* (see [Why the client sometimes overrides the
-server](#why-the-client-sometimes-overrides-the-server)). An adapter that
+The browser retires its client overlay for a key as soon as that write is
+acknowledged (see [Why the client sometimes overrides the
+server](#why-the-client-sometimes-overrides-the-server)). A successful batch
+acknowledges every entry. A `422` acknowledges its failed entry but requeues the
+other entries, because the controller may not have applied them. An adapter that
 persists **asynchronously** — a queued or fire-and-forget write, a database with
 read-replica lag — breaks that rule: the overlay retires while the next read
 still returns the old value, and the flicker the subsystem exists to remove
@@ -1071,15 +1088,15 @@ end
 ### Why the client sometimes overrides the server
 
 **The precedence rule, stated once: the client overrides the server exactly
-when it holds a write the server has not acknowledged.** A write is
-acknowledged once its POST to the preferences endpoint has come back with an
-HTTP response — any response. `200 {"ok": true}`, the single-write
+when it holds a write the server has not acknowledged.** `200 {"ok": true}`
+acknowledges every entry in its request, and the single-entry
 `200 {"ok": false, "error": {"key": "...", "reason": "unscoped"}}`
-an anonymous visitor gets, and a `422` all count: the server has seen the write
-and decided on it, so replaying it is pointless and keeping a client overlay
-would pin the value forever. Until then, the browser is the only party that
-knows what the user picked, and it has to carry that knowledge to the server
-itself.
+acknowledges that rejected write. On a batch `422`, only the named failed key is
+acknowledged: the controller stops at that entry, drops accumulated Session
+effects, and never dispatches later entries, so every other still-current entry
+is retried. Network failures and `5xx` responses leave entries pending for a
+reload replay. Until acknowledgement, the browser is the only party that knows
+what the user picked, and it has to carry that knowledge to the server itself.
 
 It does so over **two carriers**, because a page is rendered over two different
 transports and each transport can only see one of them:
@@ -1162,6 +1179,12 @@ Skip the mirror (just call `BackpexPreferences.set(key, value)`) when:
   (`backpex_prefs` *is* shared across tabs, but it only ever holds a write for
   as long as its POST is in flight, so it cannot pin a divergence.)
 
+The write queue is also per document. Separate tabs, or an old `keepalive`
+request finishing after a full reload, can still update a cookie-backed Session
+adapter concurrently because browser session cookies have no atomic compare-and-
+set operation. Use a database-backed adapter when preferences require strict
+cross-tab or cross-document ordering.
+
 When `persist: [:filters]` or `persist: [:order]` is enabled, Backpex does use
 `mirror: :session` for the preference write. The URL remains authoritative when
 it contains the relevant params, while the mirrored preference supplies the
@@ -1230,7 +1253,7 @@ export default {
       this.applyDensity(this.compact)
       // Marks the write pending in `backpex_prefs` (so a reload right now still
       // paints it), mirrors it to sessionStorage (so it survives live_redirect),
-      // then POSTs to the preferences endpoint.
+      // then queues it for an ordered, coalesced preferences POST.
       BackpexPreferences.set(KEY, this.compact, { mirror: 'session' })
     })
   },
