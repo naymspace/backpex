@@ -23,7 +23,7 @@
   },
   "devDependencies": {
     "@sentry/browser": "10.69.0",
-    "playwright": "1.62.0",
+    "playwright": "1.62.1",
     "postcss": "8.5.26",
     "standard": "17.1.2",
     "stylelint": "17.14.1",
