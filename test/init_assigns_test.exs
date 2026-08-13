@@ -248,13 +248,15 @@ defmodule Backpex.InitAssignsTest do
       assert socket.assigns.sidebar_section_states == %{}
     end
 
-    test "returns the stored value unchanged when the theme slot holds a non-string" do
-      # The Session adapter doesn't type-check; surfacing the raw value lets
-      # layout code decide whether to coerce. Pin current behavior so a silent
-      # change to coerce-at-read surfaces here.
+    test "falls back to nil when the theme slot holds a non-string" do
+      # The write path refuses these, but a store can still hold one from an
+      # earlier Backpex version or a third-party adapter. Host root layouts
+      # render `data-theme={@current_theme || "light"}`, which raises on
+      # anything but a string — so passing the stored value through would 500
+      # every page for as long as the value lived.
       session = %{"backpex_preferences" => %{"global" => %{"theme" => 42}}}
       socket = mount(session)
-      assert socket.assigns.current_theme == 42
+      assert socket.assigns.current_theme == nil
     end
 
     test "drops individual sections whose stored state is not a boolean" do

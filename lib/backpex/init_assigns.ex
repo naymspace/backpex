@@ -47,8 +47,18 @@ defmodule Backpex.InitAssigns do
     assign(socket, :preferences_manifest, PreferenceLiveView.client_manifest(ctx, socket.endpoint))
   end
 
+  # The write path refuses a non-binary here, but a store can still hold one
+  # from an earlier Backpex version or a third-party adapter, and host root
+  # layouts render the value into `data-theme` — which raises on anything but
+  # a string. Falling back to `nil` (the documented "no preference" value)
+  # keeps a bad stored value from 500ing every page.
   defp assign_current_theme(socket, ctx) do
-    theme = Preferences.get(ctx, Keys.theme())
+    theme =
+      case Preferences.get(ctx, Keys.theme()) do
+        theme when is_binary(theme) -> theme
+        _other -> nil
+      end
+
     assign(socket, :current_theme, theme)
   end
 
