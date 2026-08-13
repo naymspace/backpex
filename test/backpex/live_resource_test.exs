@@ -81,4 +81,17 @@ defmodule Backpex.LiveResourceTest do
       assert LiveResource.return_to_param(%{"return_to" => ["/admin"]}) == nil
     end
   end
+
+  describe "Index.handle_event/3" do
+    test "toggle_column is a no-op for a field the resource does not know" do
+      # `field` arrives in a client-controlled event payload; an unknown name
+      # must not crash the LiveView.
+      socket = %Phoenix.LiveView.Socket{
+        assigns: %{__changed__: %{}, active_fields: [{:title, %{active: true}}]}
+      }
+
+      assert {:noreply, ^socket} =
+               Backpex.LiveResource.Index.handle_event("toggle_column", %{"field" => "bogus"}, socket)
+    end
+  end
 end

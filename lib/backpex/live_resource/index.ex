@@ -245,26 +245,33 @@ defmodule Backpex.LiveResource.Index do
   end
 
   def handle_event("toggle_column", %{"field" => field}, socket) do
-    field_atom = String.to_existing_atom(field)
     active_fields = socket.assigns.active_fields
 
-    updated_fields =
-      Enum.map(active_fields, fn
-        {^field_atom, config} -> {field_atom, %{config | active: !config.active}}
-        other -> other
-      end)
+    # `field` is client-controlled: match it against the known fields instead
+    # of atomizing it, so a tampered payload is a no-op rather than a crash.
+    case Enum.find(active_fields, fn {name, _config} -> Atom.to_string(name) == field end) do
+      nil ->
+        noreply(socket)
 
-    columns =
-      Map.new(updated_fields, fn {k, %{active: v}} ->
-        {Atom.to_string(k), v}
-      end)
+      {field_atom, _config} ->
+        updated_fields =
+          Enum.map(active_fields, fn
+            {^field_atom, config} -> {field_atom, %{config | active: !config.active}}
+            other -> other
+          end)
 
-    live_resource = socket.assigns.live_resource
+        columns =
+          Map.new(updated_fields, fn {k, %{active: v}} ->
+            {Atom.to_string(k), v}
+          end)
 
-    socket
-    |> assign(:active_fields, updated_fields)
-    |> maybe_push_columns(live_resource, columns)
-    |> noreply()
+        live_resource = socket.assigns.live_resource
+
+        socket
+        |> assign(:active_fields, updated_fields)
+        |> maybe_push_columns(live_resource, columns)
+        |> noreply()
+    end
   end
 
   def handle_event("toggle_metrics", _params, socket) do
