@@ -533,10 +533,10 @@ var BackpexPreferences = {
     };
   },
   async handleResponse(response, batch) {
-    if (response.status >= 500) {
+    if (response.status >= 500 || response.status === 401 || response.status === 403) {
       const keys = batch.entries.map(({ key }) => key).join(", ");
       console.error(
-        `BackpexPreferences: server error persisting ${keys} (HTTP ${response.status}); leaving them pending`
+        `BackpexPreferences: error persisting ${keys} (HTTP ${response.status}); leaving them pending`
       );
       return;
     }

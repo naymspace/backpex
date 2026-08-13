@@ -504,10 +504,13 @@ const BackpexPreferences = {
   },
 
   async handleResponse (response, batch) {
-    if (response.status >= 500) {
+    // 401/403 mean the session or CSRF token went stale (e.g. a re-login in
+    // another tab), not that the writes are invalid — leave them pending so
+    // the next full document load replays them with fresh credentials.
+    if (response.status >= 500 || response.status === 401 || response.status === 403) {
       const keys = batch.entries.map(({ key }) => key).join(', ')
       console.error(
-        `BackpexPreferences: server error persisting ${keys} (HTTP ${response.status}); leaving them pending`
+        `BackpexPreferences: error persisting ${keys} (HTTP ${response.status}); leaving them pending`
       )
       return
     }
