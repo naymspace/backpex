@@ -266,4 +266,105 @@ defmodule Backpex.Preferences.Adapters.EctoTest do
       assert {:ok, "dark"} = EctoAdapter.get(ctx, "global.theme", opts)
     end
   end
+
+  describe "put/4 write limits" do
+    test "refuses a storage key over :max_key_bytes instead of surfacing a database error", %{ctx: ctx} do
+      key = "custom." <> String.duplicate("a", 249)
+
+      ExUnit.CaptureLog.capture_log(fn ->
+        assert {:error, :key_too_long} = EctoAdapter.put(ctx, key, "x", @opts)
+      end)
+
+      assert [] = FakeRepo.rows_for([7, 70])
+    end
+
+    test "counts the storage prefix against :max_key_bytes", %{ctx: ctx} do
+      key = "custom." <> String.duplicate("a", 248)
+      assert {:ok, :persisted} = EctoAdapter.put(ctx, key, "x", @opts)
+
+      prefixed_opts = Keyword.put(@opts, :storage_key_prefix, "backpex.")
+
+      ExUnit.CaptureLog.capture_log(fn ->
+        assert {:error, :key_too_long} = EctoAdapter.put(ctx, key, "x", prefixed_opts)
+      end)
+    end
+
+    test "allows any key length with max_key_bytes: :infinity", %{ctx: ctx} do
+      opts = Keyword.put(@opts, :max_key_bytes, :infinity)
+      key = "custom." <> String.duplicate("a", 500)
+
+      assert {:ok, :persisted} = EctoAdapter.put(ctx, key, "x", opts)
+    end
+
+    test "refuses a value over :max_value_bytes", %{ctx: ctx} do
+      opts = Keyword.put(@opts, :max_value_bytes, 64)
+
+      ExUnit.CaptureLog.capture_log(fn ->
+        assert {:error, :too_large} = EctoAdapter.put(ctx, "custom.blob", String.duplicate("x", 100), opts)
+      end)
+
+      assert [] = FakeRepo.rows_for([7, 70])
+      assert {:ok, :persisted} = EctoAdapter.put(ctx, "custom.blob", "small", opts)
+    end
+
+    test "allows any value size with max_value_bytes: :infinity", %{ctx: ctx} do
+      opts = Keyword.put(@opts, :max_value_bytes, :infinity)
+
+      assert {:ok, :persisted} =
+               EctoAdapter.put(ctx, "custom.blob", String.duplicate("x", 100_000), opts)
+    end
+
+    test "refuses a new key once the scope holds :max_keys rows", %{ctx: ctx} do
+      opts = Keyword.put(@opts, :max_keys, 2)
+
+      assert {:ok, :persisted} = EctoAdapter.put(ctx, "custom.one", 1, opts)
+      assert {:ok, :persisted} = EctoAdapter.put(ctx, "custom.two", 2, opts)
+
+      ExUnit.CaptureLog.capture_log(fn ->
+        assert {:error, :too_many_keys} = EctoAdapter.put(ctx, "custom.three", 3, opts)
+      end)
+
+      assert length(FakeRepo.rows_for([7, 70])) == 2
+    end
+
+    test "still updates an existing key at the :max_keys cap", %{ctx: ctx} do
+      opts = Keyword.put(@opts, :max_keys, 2)
+
+      assert {:ok, :persisted} = EctoAdapter.put(ctx, "custom.one", 1, opts)
+      assert {:ok, :persisted} = EctoAdapter.put(ctx, "custom.two", 2, opts)
+      assert {:ok, :persisted} = EctoAdapter.put(ctx, "custom.one", 11, opts)
+
+      assert {:ok, 11} = EctoAdapter.get(ctx, "custom.one", opts)
+    end
+
+    test "counts keys per scope, not per table", %{ctx: ctx} do
+      opts = Keyword.put(@opts, :max_keys, 1)
+
+      assert {:ok, :persisted} = EctoAdapter.put(ctx, "custom.one", 1, opts)
+
+      assert {:ok, :persisted} =
+               EctoAdapter.put(%Context{scope: @other_user_scope}, "custom.one", 1, opts)
+
+      assert {:ok, :persisted} =
+               EctoAdapter.put(%Context{scope: @other_tenant_scope}, "custom.one", 1, opts)
+    end
+
+    test "allows unlimited keys with max_keys: :infinity", %{ctx: ctx} do
+      opts = Keyword.put(@opts, :max_keys, :infinity)
+
+      for index <- 1..5 do
+        assert {:ok, :persisted} = EctoAdapter.put(ctx, "custom.key_#{index}", index, opts)
+      end
+    end
+
+    test "raises on invalid limit options", %{ctx: ctx} do
+      for {option, value} <- [max_key_bytes: 0, max_value_bytes: -1, max_keys: "many"] do
+        opts = Keyword.put(@opts, option, value)
+
+        assert_raise ArgumentError, ~r/must be a positive integer or :infinity/, fn ->
+          EctoAdapter.put(ctx, "global.theme", "dark", opts)
+        end
+      end
+    end
+  end
 end

@@ -64,6 +64,31 @@ defmodule Backpex.Preferences.Adapters.Ecto do
       removed again on reads. Defaults to `""`. The value is used exactly as
       configured, so include any separator you want in storage, for example
       `"backpex."`.
+    * `:max_key_bytes` — upper bound for the byte size of a stored key
+      (prefix included), or `:infinity`. Defaults to `255`, matching the
+      `varchar(255)` column the documented migration creates. Longer keys are
+      refused with `{:error, :key_too_long}` instead of surfacing as a
+      database error.
+    * `:max_value_bytes` — write budget for a single value, or `:infinity`.
+      Defaults to `65536`. Values are measured via `:erlang.external_size/1`
+      of the stored envelope — an approximation of the row's storage
+      footprint, which is the right direction for a budget check. Oversized
+      values are refused with `{:error, :too_large}`.
+    * `:max_keys` — how many distinct keys one scope may hold, or
+      `:infinity`. Defaults to `1000`. Writes that would create a row beyond
+      the cap are refused with `{:error, :too_many_keys}`; updates to
+      existing keys always go through.
+
+  ## Write limits
+
+  Preference writes arrive from the browser, so without a ceiling a single
+  authenticated caller could grow the table without bound — the
+  `Backpex.Preferences.Keys` gate checks value *shape* for built-in keys, not
+  size, and keys Backpex does not own pass through unchecked. The three limit
+  options above close that hole with defaults far beyond what legitimate
+  Backpex traffic writes (a handful of small maps per resource). A refusal
+  surfaces to the client as a `422` from `Backpex.PreferencesController`, the
+  same designed outcome as the Session adapter's `{:error, :too_large}`.
 
   ## Scope
 
@@ -106,8 +131,15 @@ defmodule Backpex.Preferences.Adapters.Ecto do
   alias Backpex.Preferences.Context
   alias Ecto.Changeset
 
+  require Logger
+
   @envelope "value"
   @reserved_scope_fields [:key, :value]
+
+  # The documented migration stores keys in a `:string` column — varchar(255).
+  @default_max_key_bytes 255
+  @default_max_value_bytes 65_536
+  @default_max_keys 1_000
 
   @impl Adapter
   def get(%Context{scope: scope}, _key, _opts) when scope in [nil, :unscoped], do: {:ok, :not_found}
@@ -171,9 +203,13 @@ defmodule Backpex.Preferences.Adapters.Ecto do
 
   def put(%Context{scope: scope}, key, value, opts) when is_map(scope) do
     config = config(opts)
+    storage_key = storage_key(config, key)
 
-    with {:ok, scoped_values} <- scoped_values(scope, config.scope_fields) do
-      changes = Map.merge(scoped_values, %{key: storage_key(config, key), value: encode(value)})
+    with {:ok, scoped_values} <- scoped_values(scope, config.scope_fields),
+         :ok <- refuse_oversized_key(config, key, storage_key),
+         :ok <- refuse_oversized_value(config, key, value),
+         :ok <- refuse_exceeded_key_quota(config, scoped_values, storage_key, key) do
+      changes = Map.merge(scoped_values, %{key: storage_key, value: encode(value)})
 
       conflict_target =
         config.scope_fields
@@ -193,16 +229,101 @@ defmodule Backpex.Preferences.Adapters.Ecto do
     end
   end
 
+  defp refuse_oversized_key(%{max_key_bytes: :infinity}, _key, _storage_key), do: :ok
+
+  defp refuse_oversized_key(config, key, storage_key) do
+    if byte_size(storage_key) <= config.max_key_bytes do
+      :ok
+    else
+      Logger.warning(
+        "Backpex.Preferences: refusing the write to #{inspect(key)}: the storage key is " <>
+          "#{byte_size(storage_key)} bytes, over the #{config.max_key_bytes} byte `:max_key_bytes` limit."
+      )
+
+      {:error, :key_too_long}
+    end
+  end
+
+  defp refuse_oversized_value(%{max_value_bytes: :infinity}, _key, _value), do: :ok
+
+  defp refuse_oversized_value(config, key, value) do
+    size = value |> encode() |> :erlang.external_size()
+
+    if size <= config.max_value_bytes do
+      :ok
+    else
+      Logger.warning(
+        "Backpex.Preferences: refusing the write to #{inspect(key)}: the value measures " <>
+          "~#{size} bytes, over the #{config.max_value_bytes} byte `:max_value_bytes` budget. " <>
+          "Raise the limit if per-key data this large is intended."
+      )
+
+      {:error, :too_large}
+    end
+  end
+
+  defp refuse_exceeded_key_quota(%{max_keys: :infinity}, _scoped_values, _storage_key, _key), do: :ok
+
+  defp refuse_exceeded_key_quota(config, scoped_values, storage_key, key) do
+    exists_query =
+      from r in scope_query(config, scoped_values),
+        where: r.key == ^storage_key,
+        select: true
+
+    cond do
+      config.repo.one(exists_query) ->
+        :ok
+
+      key_count(config, scoped_values) < config.max_keys ->
+        :ok
+
+      true ->
+        Logger.warning(
+          "Backpex.Preferences: refusing the write to #{inspect(key)}: this scope already holds " <>
+            "#{config.max_keys} keys (`:max_keys`). Raise the limit if a scope legitimately needs more."
+        )
+
+        {:error, :too_many_keys}
+    end
+  end
+
+  defp key_count(config, scoped_values) do
+    config
+    |> scope_query(scoped_values)
+    |> config.repo.aggregate(:count)
+  end
+
   defp config(opts) do
     repo = Keyword.fetch!(opts, :repo)
     schema = Keyword.fetch!(opts, :schema)
     scope_fields = Keyword.fetch!(opts, :scope_fields)
     storage_key_prefix = Keyword.get(opts, :storage_key_prefix, "")
+    max_key_bytes = Keyword.get(opts, :max_key_bytes, @default_max_key_bytes)
+    max_value_bytes = Keyword.get(opts, :max_value_bytes, @default_max_value_bytes)
+    max_keys = Keyword.get(opts, :max_keys, @default_max_keys)
 
     validate_scope_fields!(schema, scope_fields)
     validate_storage_key_prefix!(storage_key_prefix)
+    validate_limit!(:max_key_bytes, max_key_bytes)
+    validate_limit!(:max_value_bytes, max_value_bytes)
+    validate_limit!(:max_keys, max_keys)
 
-    %{repo: repo, schema: schema, scope_fields: scope_fields, storage_key_prefix: storage_key_prefix}
+    %{
+      repo: repo,
+      schema: schema,
+      scope_fields: scope_fields,
+      storage_key_prefix: storage_key_prefix,
+      max_key_bytes: max_key_bytes,
+      max_value_bytes: max_value_bytes,
+      max_keys: max_keys
+    }
+  end
+
+  defp validate_limit!(_name, limit) when is_integer(limit) and limit > 0, do: :ok
+  defp validate_limit!(_name, :infinity), do: :ok
+
+  defp validate_limit!(name, limit) do
+    raise ArgumentError, "#{inspect(name)} must be a positive integer or :infinity, got: #{inspect(limit)}"
   end
 
   defp validate_storage_key_prefix!(storage_key_prefix) when is_binary(storage_key_prefix), do: :ok

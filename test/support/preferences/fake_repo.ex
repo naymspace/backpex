@@ -32,6 +32,11 @@ defmodule Backpex.Test.Preferences.FakeRepo do
         do: {key, envelope}
   end
 
+  def aggregate(query, :count) do
+    scope_values = params(query)
+    Enum.count(rows(), fn {{row_scope, _key}, _envelope} -> row_scope == scope_values end)
+  end
+
   # `Ecto.Repo.insert!/2` takes a struct or a changeset; mirror that.
   def insert!(insertable, opts) do
     conflict_target = Keyword.fetch!(opts, :conflict_target)
