@@ -73,7 +73,12 @@ defmodule DemoWeb.ProductLive do
       manufacturer: %{
         module: Backpex.Fields.URL,
         label: "Manufacturer URL",
-        orderable: false
+        orderable: false,
+        anchor_text: fn assigns ->
+          host = URI.parse(assigns.value).host
+          name = String.replace(host, ~r/\.(com|org|net|io)$/, "")
+          "Visit #{name}"
+        end
       },
       quantity: %{
         module: Backpex.Fields.Number,

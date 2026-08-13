@@ -1,0 +1,40 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "description": "Set a minimum release age of 3 days for Hex packages, to give time for a new release to be flagged as malicious.",
+  "packageRules": [
+    {
+      "matchDatasources": [
+        "hex"
+      ],
+      "minimumReleaseAge": "3 days",
+      "internalChecksFilter": "strict"
+    },
+    {
+      "matchDatasources": [
+        "hex"
+      ],
+      "matchUpdateTypes": [
+        "lockFileMaintenance"
+      ],
+      "minimumReleaseAge": null
+    },
+    {
+      "matchDatasources": [
+        "hex"
+      ],
+      "matchUpdateTypes": [
+        "replacement"
+      ],
+      "minimumReleaseAge": null
+    },
+    {
+      "matchDatasources": [
+        "hex"
+      ],
+      "matchUpdateTypes": [
+        "pin"
+      ],
+      "minimumReleaseAge": null
+    }
+  ]
+}
