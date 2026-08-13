@@ -54,6 +54,9 @@ defmodule Backpex.HTML.Layout do
     attr :class, :string, doc: "additional class that will be added to the component"
   end
 
+  slot :sidebar_toggle_icon,
+    doc: "icon displayed in the sidebar toggle button; defaults to `hero-bars-3-solid`"
+
   slot :sidebar_branding,
     doc: "branding to be displayed above the sidebar navigation, e.g. `Backpex.HTML.Layout.sidebar_branding/1`"
 
@@ -153,7 +156,11 @@ defmodule Backpex.HTML.Layout do
             aria-expanded={to_string(@sidebar_open)}
             aria-controls="backpex-sidebar"
           >
-            <.icon name="hero-bars-3-solid" class="h-6 w-6" />
+            <%= if @sidebar_toggle_icon == [] do %>
+              <.icon name="hero-bars-3-solid" class="size-6" />
+            <% else %>
+              {render_slot(@sidebar_toggle_icon)}
+            <% end %>
           </button>
           {render_slot(@topbar)}
         </.topbar>

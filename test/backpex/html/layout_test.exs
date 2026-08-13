@@ -142,6 +142,24 @@ defmodule Backpex.HTML.LayoutTest do
       assert html =~ ~r/data-preferences-manifest=/
       assert html =~ "abc123"
     end
+
+    test "renders the default sidebar toggle icon when no icon slot is given" do
+      html = render_app_shell()
+
+      assert html =~ ~r/id="backpex-sidebar-toggle"/
+      assert html =~ ~r/class="hero-bars-3-solid size-6"/
+    end
+
+    test "renders a custom sidebar toggle icon from the slot" do
+      sidebar_toggle_icon = [
+        %{__slot__: :sidebar_toggle_icon, inner_block: fn _assigns, _arg -> "Custom toggle icon" end}
+      ]
+
+      html = render_app_shell(sidebar_toggle_icon: sidebar_toggle_icon)
+
+      assert html =~ "Custom toggle icon"
+      refute html =~ "hero-bars-3-solid"
+    end
   end
 
   describe "sidebar_section/1" do
@@ -197,6 +215,15 @@ defmodule Backpex.HTML.LayoutTest do
   defp sidebar_section(assigns) do
     label = [%{__slot__: :label, inner_block: fn _assigns, _arg -> "Blog" end}]
     render_component(&Layout.sidebar_section/1, Keyword.put_new(assigns, :label, label))
+  end
+
+  defp render_app_shell(attrs \\ []) do
+    sidebar = [%{__slot__: :sidebar, inner_block: fn _assigns, _arg -> "Sidebar" end}]
+
+    render_component(
+      &Layout.app_shell/1,
+      Keyword.merge([socket: socket(), inner_block: [], sidebar: sidebar], attrs)
+    )
   end
 
   defp socket(router \\ TestRouter), do: %Phoenix.LiveView.Socket{router: router}
