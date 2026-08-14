@@ -92,6 +92,9 @@ jobs:
       - name: JavaScript Standard
         run: bun run lint:standard
 
+      - name: Run JavaScript tests
+        run: bun run test:js
+
       - name: Build docs with warnings as errors
         run: mix docs --warnings-as-errors
 

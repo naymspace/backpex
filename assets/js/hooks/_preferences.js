@@ -206,19 +206,31 @@ function readPending () {
 function writePendingMap (values) {
   const pending = { ...values }
   const encode = () => encodeURIComponent(JSON.stringify({ version: WIRE_VERSION, values: pending }))
+
+  const oversizedKeys = Object.entries(pending)
+    .filter(([key, entry]) => {
+      const encodedEntry = encodeURIComponent(
+        JSON.stringify({ version: WIRE_VERSION, values: { [key]: entry } })
+      )
+
+      return encodedEntry.length > COOKIE_MAX_BYTES
+    })
+    .map(([key]) => key)
+
+  oversizedKeys.forEach((key) => delete pending[key])
+
+  if (oversizedKeys.length > 0) {
+    console.warn(
+      'BackpexPreferences: pending preference write exceeds the cookie budget; ' +
+      'the first render after a reload may be stale until the POST lands.'
+    )
+  }
+
   let encoded = encode()
 
   while (encoded.length > COOKIE_MAX_BYTES && Object.keys(pending).length > 1) {
     delete pending[Object.keys(pending)[0]]
     encoded = encode()
-  }
-
-  if (encoded.length > COOKIE_MAX_BYTES) {
-    console.warn(
-      'BackpexPreferences: pending preference write exceeds the cookie budget; ' +
-      'the first render after a reload may be stale until the POST lands.'
-    )
-    return
   }
 
   if (Object.keys(pending).length === 0) {
@@ -275,6 +287,19 @@ function requestBody (entries) {
 
 function byteLength (value) {
   return new TextEncoder().encode(value).byteLength
+}
+
+async function responseJSON (response) {
+  const contentType = response.headers?.get?.('content-type')
+  const mediaType = contentType?.split(';', 1)[0].trim().toLowerCase()
+
+  if (mediaType !== 'application/json' && !mediaType?.endsWith('+json')) return null
+
+  try {
+    return await response.json()
+  } catch {
+    return null
+  }
 }
 
 const BackpexPreferences = {
@@ -504,32 +529,48 @@ const BackpexPreferences = {
   },
 
   async handleResponse (response, batch) {
-    // 401/403 mean the session or CSRF token went stale (e.g. a re-login in
-    // another tab), not that the writes are invalid — leave them pending so
-    // the next full document load replays them with fresh credentials.
-    if (response.status >= 500 || response.status === 401 || response.status === 403) {
-      const keys = batch.entries.map(({ key }) => key).join(', ')
-      console.error(
-        `BackpexPreferences: error persisting ${keys} (HTTP ${response.status}); leaving them pending`
-      )
+    // Fetch follows redirects by default. An expired Phoenix session therefore
+    // arrives here as the final 200 HTML login page, not as the original 302.
+    // It must remain pending so a full reload can replay it after re-auth.
+    if (response.redirected) {
+      this.logUnconfirmedResponse(response, batch)
       return
     }
 
     if (response.status === 422) {
-      let body = null
-
-      try {
-        body = await response.json()
-      } catch {
-        // The built-in controller always returns JSON. Fall through to the
-        // terminal acknowledgement used for malformed custom responses.
-      }
+      const body = await responseJSON(response)
 
       this.handleRejectedBatch(batch, body?.error?.key)
       return
     }
 
-    batch.entries.forEach((entry) => this.acknowledge(entry))
+    if (response.status === 200) {
+      const body = await responseJSON(response)
+
+      if (body?.ok === true) {
+        batch.entries.forEach((entry) => this.acknowledge(entry))
+        return
+      }
+
+      // The built-in controller uses 200 {ok: false} for an expected terminal
+      // no-op, such as an anonymous write to a scoped adapter. Retire that
+      // entry deliberately instead of treating the response as persistence.
+      if (body?.ok === false) {
+        this.handleRejectedBatch(batch, body?.error?.key)
+        return
+      }
+    }
+
+    this.logUnconfirmedResponse(response, batch)
+  },
+
+  logUnconfirmedResponse (response, batch) {
+    const keys = batch.entries.map(({ key }) => key).join(', ')
+    const reason = response.redirected ? 'redirected response' : `HTTP ${response.status}`
+
+    console.error(
+      `BackpexPreferences: error persisting ${keys} (${reason}); leaving them pending`
+    )
   },
 
   handleRejectedBatch (batch, failedKey) {
