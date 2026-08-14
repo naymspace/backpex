@@ -124,7 +124,8 @@ defmodule Backpex.MixProject do
         end
       end,
       skip_code_autolink_to: [
-        "Ecto.Query.DynamicExpr"
+        "Ecto.Query.DynamicExpr",
+        "Backpex.Router.cookie_path/1"
       ]
     ]
   end
@@ -157,6 +158,7 @@ defmodule Backpex.MixProject do
       "guides/live_resource/fluid-layout.md",
       "guides/live_resource/listen-to-pubsub-events.md",
       "guides/live_resource/additional-classes-for-index-table-rows.md",
+      "guides/live_resource/user-preferences.md",
 
       # Fields
       "guides/fields/what-is-a-field.md",
@@ -196,6 +198,7 @@ defmodule Backpex.MixProject do
       "guides/translations/translations.md",
 
       # Upgrade Guides
+      "guides/upgrading/v0.20.md",
       "guides/upgrading/v0.19.md",
       "guides/upgrading/v0.18.md",
       "guides/upgrading/v0.17.md",
@@ -240,7 +243,8 @@ defmodule Backpex.MixProject do
       Fields: ~r/Backpex\.Field.?/,
       Actions: ~r/Backpex\.(ItemAction|ResourceAction).?/,
       Filters: ~r/Backpex\.Filter.?/,
-      Metrics: ~r/Backpex\.Metric.?/
+      Metrics: ~r/Backpex\.Metric.?/,
+      Preferences: ~r/Backpex\.Preferences.*/
     ]
   end
 

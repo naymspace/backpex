@@ -6,7 +6,8 @@ defmodule DemoWeb.CategoryLive do
       update_changeset: &Demo.Category.update_changeset/3,
       create_changeset: &Demo.Category.create_changeset/3
     ],
-    init_order: %{by: :name, direction: :asc}
+    init_order: %{by: :name, direction: :asc},
+    persist: [:order, :filters, :columns, :metrics]
 
   @impl Backpex.LiveResource
   def layout(_assigns), do: {DemoWeb.Layouts, :admin}

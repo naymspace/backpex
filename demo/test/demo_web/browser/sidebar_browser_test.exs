@@ -1,0 +1,479 @@
+defmodule DemoWeb.Browser.SidebarBrowserTest do
+  use PhoenixTest.Playwright.Case, async: false
+  use DemoWeb, :verified_routes
+  use DemoWeb.A11yAssertions
+
+  import Demo.EctoFactory
+
+  @moduletag :playwright
+
+  # LiveView freezes the session at websocket-connect time, so a re-mount
+  # after live_redirect inside the same live_session reads a stale cookie
+  # and re-renders the sidebar (and its sections) from the default. The
+  # hook keeps the user's most recent toggle in sessionStorage and
+  # re-asserts it over the stale server render; these tests cover that.
+
+  @blog_toggle ~s|[data-section-id="blog"] [data-menu-dropdown-toggle]|
+  @sidebar_toggle ~s|#backpex-sidebar-toggle|
+
+  @install_preference_gate """
+  () => {
+    const originalFetch = window.fetch.bind(window)
+    const gate = { active: 0, calls: [], maxActive: 0 }
+    window.__backpexPreferenceGate = gate
+
+    window.fetch = (input, options = {}) => {
+      const url = typeof input === 'string' ? input : input.url
+      if (!url.includes('backpex_preferences')) return originalFetch(input, options)
+
+      let release
+      const blocked = new Promise((resolve) => { release = resolve })
+      const call = { body: JSON.parse(options.body), release }
+      gate.calls.push(call)
+      gate.active += 1
+      gate.maxActive = Math.max(gate.maxActive, gate.active)
+
+      return blocked
+        .then(() => originalFetch(input, options))
+        .finally(() => { gate.active -= 1 })
+    }
+
+    return true
+  }
+  """
+
+  @await_preference_calls """
+  async (count) => {
+    for (let index = 0; index < 100; index++) {
+      const gate = window.__backpexPreferenceGate
+      if (gate.calls.length >= count) {
+        return {
+          active: gate.active,
+          calls: gate.calls.map(({ body }) => body),
+          maxActive: gate.maxActive
+        }
+      }
+      await new Promise((resolve) => setTimeout(resolve, 50))
+    }
+
+    throw new Error(`Timed out waiting for ${count} preference request(s)`)
+  }
+  """
+
+  @preference_gate_state """
+  () => {
+    const gate = window.__backpexPreferenceGate
+    return {
+      active: gate.active,
+      calls: gate.calls.map(({ body }) => body),
+      maxActive: gate.maxActive
+    }
+  }
+  """
+
+  @release_preference_call """
+  (index) => {
+    window.__backpexPreferenceGate.calls[index].release()
+    return true
+  }
+  """
+
+  @await_preference_gate_settled """
+  async () => {
+    for (let index = 0; index < 100; index++) {
+      const gate = window.__backpexPreferenceGate
+      if (gate.active === 0 && !document.cookie.includes('backpex_prefs')) {
+        return { active: gate.active, maxActive: gate.maxActive }
+      }
+      await new Promise((resolve) => setTimeout(resolve, 50))
+    }
+
+    throw new Error('Timed out waiting for preference writes to settle')
+  }
+  """
+
+  @select_theme """
+  (theme) => {
+    document.querySelector(`input[name="theme-selector"][value="${theme}"]`).click()
+    return document.documentElement.dataset.theme
+  }
+  """
+
+  @clear_preference_mirrors """
+  () => {
+    Object.keys(sessionStorage)
+      .filter((key) => key.startsWith('backpex.prefs.'))
+      .forEach((key) => sessionStorage.removeItem(key))
+    return true
+  }
+  """
+
+  describe "sidebar section state across live_redirect" do
+    test "collapsed section stays collapsed after navigating to a sibling LiveResource", %{conn: conn} do
+      conn
+      |> visit(~p"/admin/posts")
+      |> assert_has("body .phx-connected")
+      |> assert_has(~s|#{@blog_toggle}[aria-expanded="true"]|)
+      |> assert_a11y()
+      |> click(@blog_toggle)
+      |> assert_has(~s|#{@blog_toggle}[aria-expanded="false"]|)
+      |> assert_a11y()
+      |> click(~s|a[href="/admin/invoices"]|)
+      |> assert_path("/admin/invoices")
+      |> assert_has(~s|#{@blog_toggle}[aria-expanded="false"]|)
+    end
+  end
+
+  describe "sidebar open/closed state across live_redirect" do
+    # Collapsed sidebar becomes `inert`, so a user-simulated click on a
+    # sidebar link can't reach it. Fire a programmatic click via
+    # `HTMLElement.click()` — it bubbles through LiveView's delegated
+    # click handler and still triggers the live_redirect.
+    test "collapsed sidebar stays collapsed after navigating to a sibling LiveResource", %{conn: conn} do
+      conn
+      |> visit(~p"/admin/posts")
+      |> assert_has("body .phx-connected")
+      |> assert_has(~s|#{@sidebar_toggle}[aria-expanded="true"]|)
+      |> assert_a11y()
+      |> click(@sidebar_toggle)
+      |> assert_has(~s|#{@sidebar_toggle}[aria-expanded="false"]|)
+      |> assert_a11y()
+      |> evaluate(~s|document.querySelector('a[href="/admin/invoices"]').click()|)
+      |> assert_path("/admin/invoices")
+      |> assert_has(~s|#{@sidebar_toggle}[aria-expanded="false"]|)
+    end
+  end
+
+  describe "empty sidebar sections" do
+    test "CSS hides empty nested sections and reveals them when an item appears", %{conn: conn} do
+      conn
+      |> visit(~p"/admin/posts")
+      |> assert_has("body .phx-connected")
+      |> evaluate(
+        """
+        (() => {
+          const parent = document.createElement('li')
+          parent.id = 'empty-section-parent'
+          parent.className = 'not-has-[[data-sidebar-item]]:hidden'
+          parent.innerHTML = `
+            <ul>
+              <li id="empty-section-child" class="not-has-[[data-sidebar-item]]:hidden">
+                <ul id="empty-section-content"></ul>
+              </li>
+            </ul>
+          `
+          document.querySelector('#backpex-sidebar').appendChild(parent)
+
+          return {
+            parent: getComputedStyle(parent).display,
+            child: getComputedStyle(parent.querySelector('#empty-section-child')).display
+          }
+        })()
+        """,
+        fn display ->
+          assert display == %{"child" => "none", "parent" => "none"}
+        end
+      )
+      |> evaluate(
+        """
+        (() => {
+          const item = document.createElement('li')
+          item.dataset.sidebarItem = ''
+          document.querySelector('#empty-section-content').appendChild(item)
+
+          return {
+            parent: getComputedStyle(document.querySelector('#empty-section-parent')).display,
+            child: getComputedStyle(document.querySelector('#empty-section-child')).display
+          }
+        })()
+        """,
+        fn display ->
+          refute display["parent"] == "none"
+          refute display["child"] == "none"
+        end
+      )
+    end
+  end
+
+  describe "preference write ordering" do
+    test "serializes sibling Session preferences changed during an active request", %{conn: conn} do
+      conn
+      |> visit(~p"/admin/posts")
+      |> assert_has("body .phx-connected")
+      |> evaluate(@install_preference_gate, is_function: true)
+      |> evaluate(~s|document.querySelector('[data-section-id="blog"] [data-menu-dropdown-toggle]').click()|)
+      |> evaluate(@await_preference_calls, [is_function: true, arg: 1], fn gate ->
+        assert gate["active"] == 1
+        assert gate["maxActive"] == 1
+
+        assert body_entries(List.first(gate["calls"])) == [
+                 %{"key" => "global.sidebar_section.blog", "value" => false}
+               ]
+      end)
+      |> evaluate(~s|document.querySelector('#backpex-sidebar-toggle').click()|)
+      |> evaluate(@preference_gate_state, [is_function: true], fn gate ->
+        assert gate["active"] == 1
+        assert gate["maxActive"] == 1
+        assert length(gate["calls"]) == 1
+      end)
+      |> evaluate(@release_preference_call, is_function: true, arg: 0)
+      |> evaluate(@await_preference_calls, [is_function: true, arg: 2], fn gate ->
+        assert gate["active"] == 1
+        assert gate["maxActive"] == 1
+
+        assert body_entries(Enum.at(gate["calls"], 1)) == [
+                 %{"key" => "global.sidebar_open", "value" => false}
+               ]
+      end)
+      |> evaluate(@release_preference_call, is_function: true, arg: 1)
+      |> evaluate(@await_preference_gate_settled, [is_function: true], fn gate ->
+        assert gate == %{"active" => 0, "maxActive" => 1}
+      end)
+      |> evaluate(@clear_preference_mirrors, is_function: true)
+      |> visit(~p"/admin/posts")
+      |> assert_has("body .phx-connected")
+      |> assert_has(~s|#backpex-app-shell[data-sidebar-open="false"]|)
+      |> assert_has(~s|[data-section-id="blog"][data-section-open="false"]|)
+    end
+
+    test "persists the latest intent when the same key changes during a request", %{conn: conn} do
+      conn
+      |> visit(~p"/admin/posts")
+      |> assert_has("body .phx-connected")
+      |> evaluate(@install_preference_gate, is_function: true)
+      |> evaluate(@select_theme, is_function: true, arg: "dark")
+      |> evaluate(@await_preference_calls, [is_function: true, arg: 1], fn gate ->
+        assert gate["active"] == 1
+
+        assert body_entries(List.first(gate["calls"])) == [
+                 %{"key" => "global.theme", "value" => "dark"}
+               ]
+      end)
+      |> evaluate(@select_theme, is_function: true, arg: "cupcake")
+      |> evaluate(@preference_gate_state, [is_function: true], fn gate ->
+        assert gate["active"] == 1
+        assert gate["maxActive"] == 1
+        assert length(gate["calls"]) == 1
+      end)
+      |> evaluate(@release_preference_call, is_function: true, arg: 0)
+      |> evaluate(@await_preference_calls, [is_function: true, arg: 2], fn gate ->
+        assert gate["active"] == 1
+        assert gate["maxActive"] == 1
+
+        assert body_entries(Enum.at(gate["calls"], 1)) == [
+                 %{"key" => "global.theme", "value" => "cupcake"}
+               ]
+      end)
+      |> evaluate(@release_preference_call, is_function: true, arg: 1)
+      |> evaluate(@await_preference_gate_settled, [is_function: true], fn gate ->
+        assert gate == %{"active" => 0, "maxActive" => 1}
+      end)
+      |> evaluate(@clear_preference_mirrors, is_function: true)
+      |> visit(~p"/admin/posts")
+      |> assert_has("body .phx-connected")
+      |> assert_has(~s|html[data-theme="cupcake"]|)
+      |> evaluate(
+        ~s|document.querySelector('input[name="theme-selector"][value="cupcake"]').checked|,
+        &assert/1
+      )
+    end
+  end
+
+  describe "preference batch rejection" do
+    setup do
+      prior = Application.get_env(:backpex, Backpex.Preferences)
+
+      Application.put_env(:backpex, Backpex.Preferences,
+        adapters: [{:default, DemoWeb.SelectivelyRejectingSessionPreferencesAdapter, []}]
+      )
+
+      on_exit(fn ->
+        case prior do
+          nil -> Application.delete_env(:backpex, Backpex.Preferences)
+          value -> Application.put_env(:backpex, Backpex.Preferences, value)
+        end
+      end)
+    end
+
+    test "retries unaffected Session writes after the first rejected entry", %{conn: conn} do
+      conn
+      |> visit(~p"/admin/posts")
+      |> assert_has("body .phx-connected")
+      |> evaluate(@install_preference_gate, is_function: true)
+      |> evaluate(
+        """
+        () => {
+          document.querySelector('input[name="theme-selector"][value="dark"]').click()
+          document.querySelector('#backpex-sidebar-toggle').click()
+          document.querySelector('[data-section-id="blog"] [data-menu-dropdown-toggle]').click()
+          return true
+        }
+        """,
+        is_function: true
+      )
+      |> evaluate(@await_preference_calls, [is_function: true, arg: 1], fn gate ->
+        assert gate["active"] == 1
+
+        assert body_entries(List.first(gate["calls"])) == [
+                 %{"key" => "global.theme", "value" => "dark"},
+                 %{"key" => "global.sidebar_open", "value" => false},
+                 %{"key" => "global.sidebar_section.blog", "value" => false}
+               ]
+      end)
+      |> evaluate(@release_preference_call, is_function: true, arg: 0)
+      |> evaluate(@await_preference_calls, [is_function: true, arg: 2], fn gate ->
+        assert gate["active"] == 1
+        assert gate["maxActive"] == 1
+
+        assert body_entries(Enum.at(gate["calls"], 1)) == [
+                 %{"key" => "global.theme", "value" => "dark"},
+                 %{"key" => "global.sidebar_section.blog", "value" => false}
+               ]
+      end)
+      |> evaluate(@release_preference_call, is_function: true, arg: 1)
+      |> evaluate(@await_preference_gate_settled, [is_function: true], fn gate ->
+        assert gate == %{"active" => 0, "maxActive" => 1}
+      end)
+      |> evaluate(@clear_preference_mirrors, is_function: true)
+      |> visit(~p"/admin/posts")
+      |> assert_has("body .phx-connected")
+      |> assert_has(~s|html[data-theme="dark"]|)
+      |> assert_has(~s|#backpex-app-shell[data-sidebar-open="true"]|)
+      |> assert_has(~s|[data-section-id="blog"][data-section-open="false"]|)
+    end
+  end
+
+  describe "quick reload inside the persist race window" do
+    # The bug, reproduced deterministically. The preferences POST is stalled so
+    # the server NEVER sees the toggle: the session cookie stays "sidebar open"
+    # for the whole test. That is exactly the state a real browser is in for the
+    # ~1.1s between the click and the POST's Set-Cookie, and any reload landing
+    # in that window used to paint the OLD sidebar and then flip.
+    #
+    # Everything the fix has to do is therefore observable here:
+    #   1. the toggle is recorded in the `backpex_prefs` cookie synchronously;
+    #   2. a document GET made in that state already renders the CLOSED sidebar
+    #      (assertion (b) — the literal bytes the browser paints first, which is
+    #      what the flash is, and it is not subject to paint-timing flakiness);
+    #   3. after the reload the page STAYS closed instead of being stomped back
+    #      open by the hook's once-cached `desktopOpen` (aggravating factor B);
+    #   4. once the POST is allowed through, the pending entry retires and the
+    #      cookie disappears, so it can never become a second store.
+
+    # Stall the preferences POST only. Every other request (including the
+    # document fetch below) goes through the original `fetch`, which we stash on
+    # `window` so the test can still make one.
+    @stall_preferences """
+    () => {
+      window.__originalFetch = window.fetch.bind(window)
+      window.fetch = (input, opts) => {
+        const url = typeof input === 'string' ? input : input.url
+        if (url.includes('backpex_preferences')) return new Promise(() => {})
+        return window.__originalFetch(input, opts)
+      }
+      return true
+    }
+    """
+
+    # The bytes a hard reload would paint, fetched in the state the click left
+    # the browser in: stale session cookie + fresh `backpex_prefs` cookie.
+    @fetch_dead_render """
+    async () => {
+      const response = await window.__originalFetch(location.href, { cache: 'no-store' })
+      return await response.text()
+    }
+    """
+
+    # `replayPending()` re-POSTs the write on the next page load; the response
+    # retires the entry. Poll rather than sleep so the test does not encode the
+    # round-trip time.
+    @await_cookie_retired """
+    async () => {
+      for (let i = 0; i < 50; i++) {
+        if (!document.cookie.includes('backpex_prefs')) return 'retired'
+        await new Promise((resolve) => setTimeout(resolve, 100))
+      }
+      return document.cookie
+    }
+    """
+
+    test "a reload before the preferences POST lands renders the collapsed sidebar", %{conn: conn} do
+      conn
+      |> visit(~p"/admin/posts")
+      |> assert_has("body .phx-connected")
+      |> assert_has(~s|#{@sidebar_toggle}[aria-expanded="true"]|)
+      |> evaluate(@stall_preferences, is_function: true)
+      |> click(@sidebar_toggle)
+      |> assert_has(~s|#{@sidebar_toggle}[aria-expanded="false"]|)
+      # (a) The write is in the cookie, synchronously, before any round trip.
+      |> evaluate("document.cookie", fn cookie ->
+        entry = cookie |> String.split("; ") |> Enum.find(&String.starts_with?(&1, "backpex_prefs="))
+        assert is_binary(entry)
+
+        envelope = entry |> String.split("=", parts: 2) |> List.last() |> URI.decode() |> Jason.decode!()
+        assert envelope["version"] == 1
+        assert get_in(envelope, ["values", "global.sidebar_open", "value"]) == false
+        assert is_binary(get_in(envelope, ["values", "global.sidebar_open", "token"]))
+      end)
+      # (b) THE FLASH ITSELF: the document the browser would paint first.
+      |> evaluate(@fetch_dead_render, [is_function: true], fn html ->
+        assert html =~ ~s(data-sidebar-open="false")
+        refute html =~ ~s(data-sidebar-open="true")
+        refute html =~ "lg:translate-x-0"
+      end)
+      # A full document GET — same cookies, same dead render, now actually
+      # painted. The stalled `fetch` stub dies with the old document, so the
+      # reloaded page replays the pending write for real.
+      |> visit(~p"/admin/posts")
+      |> assert_has("body .phx-connected")
+      # (c) It lands closed and STAYS closed. Before the fix the hook re-asserted
+      # its mount-time `desktopOpen` through the higher-specificity
+      # `data-[state]` classes and the page ended up open.
+      |> assert_has(~s|#{@sidebar_toggle}[aria-expanded="false"]|)
+      |> assert_has(~s|#backpex-sidebar[data-state="closed"]|)
+      |> assert_has(~s|#backpex-main[data-shift="off"]|)
+      |> assert_a11y()
+      # (d) The pending entry retires on the replay's response: the cookie holds
+      # unacknowledged writes only and cannot shadow the adapter.
+      |> evaluate(@await_cookie_retired, [is_function: true], fn result ->
+        assert result == "retired"
+      end)
+      # The mirror survives — it is the live_redirect carrier and has a
+      # different job.
+      |> evaluate(
+        """
+        (() => {
+          const manifest = JSON.parse(document.getElementById('backpex-preferences').dataset.preferencesManifest)
+          return sessionStorage.getItem(`backpex.prefs.${manifest.routes[0].token}.global.sidebar_open`)
+        })()
+        """,
+        fn value ->
+          assert value == "false"
+        end
+      )
+    end
+  end
+
+  describe "the sidebar transition guard" do
+    # `data-suppress-transition` is static markup, so morphdom morphs it back on
+    # any patch that re-renders the shell. Only mounted() used to take it off,
+    # so the first sort left the sidebar unable to animate for the rest of the
+    # page load. live_redirect hides this — it replaces the nodes and re-mounts
+    # the hook; the in-place patch is the path that strands the guard.
+    test "a live_patch does not strand the transition guard", %{conn: conn} do
+      insert_list(3, :address)
+
+      conn
+      |> visit(~p"/admin/addresses")
+      |> assert_has("body .phx-connected")
+      |> assert_has(~s|#backpex-sidebar:not([data-suppress-transition])|)
+      # Sorting re-renders the shell in place, without re-mounting the hook.
+      |> click(~s|thead a[href*="order_by=street"]|)
+      |> assert_has(~s|#backpex-sidebar:not([data-suppress-transition])|)
+      |> assert_has(~s|#backpex-main:not([data-suppress-transition])|)
+    end
+  end
+
+  defp body_entries(%{"preferences" => entries}), do: entries
+  defp body_entries(%{"key" => key, "value" => value}), do: [%{"key" => key, "value" => value}]
+end

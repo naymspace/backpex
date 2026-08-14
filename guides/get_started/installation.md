@@ -12,7 +12,7 @@ Backpex is built on top of Phoenix LiveView, so you need to have Phoenix LiveVie
 
 > #### Info {: .info}
 >
-> We have created an initial version of the [Backpex installer task](Mix.Tasks.Backpex.Install.html), which runs with the help of the [Igniter](https://github.com/ash-project/igniter) framework. This installer automates the upcoming steps up to the "[Create an example resource](installation.html#create-an-example-resource)" step. Feedback is welcome!
+> We have created an initial version of the [Backpex installer task](Mix.Tasks.Backpex.Install.html), which runs with the help of the [Igniter](https://github.com/ash-project/igniter) framework. It automates many of the upcoming edits, including importing and registering the Backpex hooks. It does **not** rewrite your `LiveSocket` params; it prints a notice with the `backpexParams` edit you must apply manually. Review the generated diff and complete any remaining steps in this guide. Feedback is welcome!
 
 ### Tailwind CSS
 
@@ -56,18 +56,53 @@ config :backpex, :pubsub_server, MyApp.PubSub
 See the [Listen to PubSub Events](live_resource/listen-to-pubsub-events.md) guide for more info on how use and customize
 your PubSub configuration.
 
-## Backpex Hooks
+## Backpex Hooks and connect params
 
-Backpex comes with a few JS hooks which need to be included in your `app.js`.
+Backpex comes with a few JS hooks which need to be included in your `app.js`,
+plus a `params` helper for your `LiveSocket`.
 
 ```javascript
-import { Hooks as BackpexHooks } from 'backpex';
+import { Hooks as BackpexHooks, backpexParams } from 'backpex';
 
-const Hooks = [] // your application hooks (optional)
+const Hooks = {} // your application hooks (optional)
 
 const liveSocket = new LiveSocket('/live', Socket, {
-  params: { _csrf_token: csrfToken },
+  params: backpexParams({ _csrf_token: csrfToken }),
   hooks: {...Hooks, ...BackpexHooks }
+})
+```
+
+`backpexParams` wraps your own connect params and adds the preferences the
+browser has stored for this tab. A LiveView reads the session snapshot taken
+when the websocket connected, so after a `live_redirect` it cannot see
+preferences written since — without the params, hidden columns and metrics
+reappear as soon as the user navigates. Passing a function (rather than a plain
+object) matters: LiveView re-evaluates it on every join, which is what keeps the
+values current. The connect params are one of two carriers for the browser's
+preference overlay — the other is the short-lived `backpex_prefs` cookie, which
+needs no wiring — and `backpexParams` remains required because it is the only
+carrier that exists on a `live_redirect`, which makes no HTTP request at all.
+See [User Preferences](../live_resource/user-preferences.md) for the full
+rationale.
+
+The helper accepts a params **object**, not an existing params function. If
+your application already computes connect params dynamically, compose the
+preference params in your own function instead:
+
+```javascript
+import { BackpexPreferences, Hooks as BackpexHooks } from 'backpex'
+
+const appParams = () => ({
+  _csrf_token: csrfToken,
+  locale: document.documentElement.lang
+})
+
+const liveSocket = new LiveSocket('/live', Socket, {
+  params: () => ({
+    ...appParams(),
+    ...BackpexPreferences.connectParams()
+  }),
+  hooks: { ...BackpexHooks }
 })
 ```
 
@@ -107,11 +142,12 @@ Backpex ships with a formatter configuration. To use it, add Backpex to the list
 
 To make LiveResources accessible in your application, you first need to configure your router (`router.ex`).
 
-Backpex needs to add a `backpex_cookies` route to your router. This route is used to set the cookies needed for a Backpex LiveResource.
+Backpex needs a `backpex_preferences` route in your router. This route is used by Backpex to persist user preferences such as the active theme and sidebar state.
 
 Backpex provides a macro you can use to add the required routes to your router. Make sure to import `Backpex.Router` at the top of your router file or prefix the function calls.
 
-You have to do this step only once in your router file, so if you already added the [`backpex_routes/0`](Backpex.Router.html#backpex_routes/0) macro, you can skip this step.
+Add this route in every independently scoped Backpex area that needs to persist
+preferences. A fixed `/admin` scope normally needs it once.
 
 ```elixir
 # router.ex
@@ -126,7 +162,36 @@ scope "/admin", MyAppWeb do
 end
 ```
 
-It does not matter where you place the [`backpex_routes/0`](Backpex.Router.html#backpex_routes/0) macro in your router file. You can insert it in every scope you want to, but we recommend placing it in the scope you want to use backpex in, e.g. `/admin`. But always make sure that the scope you put it in pipes through the `:browser` pipeline: `pipe_through :browser`.
+Place [`backpex_routes/0`](Backpex.Router.html#backpex_routes/0) behind the same
+authentication and application-scope plugs as the pages that use it. Always
+include the `:browser` pipeline.
+
+For tenant-scoped preferences, put the endpoint below the tenant segment and
+run tenant authorization first:
+
+```elixir
+scope "/tenants/:tenant", MyAppWeb do
+  pipe_through [:browser, :require_authenticated_user, :assign_tenant]
+
+  backpex_routes()
+end
+```
+
+Then pass the concrete endpoint path to `app_shell` because Backpex cannot fill
+dynamic route segments without application data. Also pass an explicit path
+when the router contains multiple preferences routes; Backpex deliberately
+fails fast instead of guessing which application's scope should receive the
+write.
+
+```heex
+<Backpex.HTML.Layout.app_shell
+  socket={@socket}
+  preferences_manifest={@preferences_manifest}
+  preferences_path={~p"/tenants/#{@current_scope.tenant.id}/backpex_preferences"}
+>
+  ...
+</Backpex.HTML.Layout.app_shell>
+```
 
 ## Create a default admin layout component
 
@@ -138,9 +203,15 @@ Although Backpex does not ship with a predefined layout component, it does provi
 To get you started quickly, we provide a layout component you can copy & paste into your application. Place it as a file in your `lib/myapp_web/templates/layout` directory. You can name it whatever you like, but we recommend using `admin.html.heex`. You can also use this component as the only layout in your application if your application consists of only an admin interface. This layout component uses the `Backpex.HTML.Layout.app_shell/1` component, which can be used to easily add an app shell layout to your application.
 
 ```heex
-<Backpex.HTML.Layout.app_shell fluid={@fluid?} live_resource={@live_resource}>
+<Backpex.HTML.Layout.app_shell
+  socket={@socket}
+  fluid={@fluid?}
+  live_resource={@live_resource}
+  sidebar_open={@sidebar_open}
+  preferences_manifest={@preferences_manifest}
+>
   <:topbar>
-    <Backpex.HTML.Layout.topbar_branding />
+    <div class="flex-1"></div>
 
     <Backpex.HTML.Layout.topbar_dropdown class="mr-2 md:mr-0">
       <:label>
@@ -156,6 +227,9 @@ To get you started quickly, we provide a layout component you can copy & paste i
       </li>
     </Backpex.HTML.Layout.topbar_dropdown>
   </:topbar>
+  <:sidebar_branding>
+    <Backpex.HTML.Layout.sidebar_branding />
+  </:sidebar_branding>
   <:sidebar>
     <!-- Sidebar Content -->
   </:sidebar>
@@ -163,6 +237,15 @@ To get you started quickly, we provide a layout component you can copy & paste i
   {render_slot(@inner_block)}
 </Backpex.HTML.Layout.app_shell>
 ```
+
+These assigns (`@current_theme`, `@sidebar_open`, `@sidebar_section_states`, `@preferences_manifest`) are populated by `Backpex.InitAssigns` — see [Add resource routes](#add-resource-routes) below for setup.
+
+`@preferences_manifest` contains one opaque, server-signed namespace token per
+configured adapter route. Backpex uses it to keep session-backed values across
+tenant navigation while discarding values whose adapter namespace changed.
+Pass it through; without it Backpex disables browser overlays, so live
+navigation or a toggle-and-reload inside the write's round trip may initially
+render the previous stored value (see [Why the client sometimes overrides the server](../live_resource/user-preferences.md#why-the-client-sometimes-overrides-the-server)).
 
 In addition we recommend to add a bodyless function definition and to configure declarative assigns for your layout component.
 
@@ -175,6 +258,10 @@ defmodule MyAppWeb.Layouts do
   attr :flash, :map, required: true, doc: "the map of flash messages"
   attr :fluid?, :boolean, default: true, doc: "if the content uses full width"
   attr :current_url, :string, required: true, doc: "the current url"
+  attr :current_theme, :string, default: nil, doc: "the currently selected theme"
+  attr :sidebar_open, :boolean, default: true, doc: "initial sidebar open state"
+  attr :sidebar_section_states, :map, default: %{}, doc: "map of sidebar section open states"
+  attr :preferences_manifest, :map, default: nil, doc: "signed client namespace manifest"
 
   slot :inner_block, required: true
 
@@ -356,12 +443,18 @@ You probably also want to add link to your created LiveResource in the sidebar. 
 If you copied the provided layout component from [the section above](#create-a-default-admin-layout), you can just use the `sidebar_item/1` component inside the sidebar slot like this:
 
 ```heex
-<Backpex.HTML.Layout.app_shell fluid={@fluid?} live_resource={@live_resource}>
+<Backpex.HTML.Layout.app_shell
+  socket={@socket}
+  fluid={@fluid?}
+  live_resource={@live_resource}
+  sidebar_open={@sidebar_open}
+  preferences_manifest={@preferences_manifest}
+>
   <:topbar>
     <!-- Topbar Content -->
   </:topbar>
   <:sidebar>
-    <!-- Add these lines -->
+    <!-- Add sidebar items -->
     <Backpex.HTML.Layout.sidebar_item current_url={@current_url} navigate={~p"/admin/posts"}>
       <.icon name="hero-book-open" class="size-5" /> Posts
     </Backpex.HTML.Layout.sidebar_item>
@@ -371,7 +464,28 @@ If you copied the provided layout component from [the section above](#create-a-d
 </Backpex.HTML.Layout.app_shell>
 ```
 
-Note that Backpex also provides the `Backpex.HTML.Layout.sidebar_item/1` component to create nested sidebar sections.
+You can also group sidebar items into collapsible sections using the `Backpex.HTML.Layout.sidebar_section/1` component:
+
+```heex
+<:sidebar>
+  <Backpex.HTML.Layout.sidebar_section id="blog" sidebar_section_states={@sidebar_section_states}>
+    <:label>Blog</:label>
+    <Backpex.HTML.Layout.sidebar_item current_url={@current_url} navigate={~p"/admin/posts"}>
+      <.icon name="hero-book-open" class="size-5" /> Posts
+    </Backpex.HTML.Layout.sidebar_item>
+    <Backpex.HTML.Layout.sidebar_item current_url={@current_url} navigate={~p"/admin/categories"}>
+      <.icon name="hero-tag" class="size-5" /> Categories
+    </Backpex.HTML.Layout.sidebar_item>
+  </Backpex.HTML.Layout.sidebar_section>
+</:sidebar>
+```
+
+The `sidebar_section_states` assign (provided by `Backpex.InitAssigns`) tracks which sections are expanded or collapsed, and persists user preferences across page loads.
+
+Empty sections are hidden by CSS before the first paint. Use `sidebar_item/1` for
+their leaf entries (including entries inside nested sections); it adds the
+`data-sidebar-item` marker that makes every non-empty ancestor visible. If you
+render a custom leaf instead, add `data-sidebar-item` to its root element.
 
 ### Configure a default route
 
@@ -533,13 +647,13 @@ First, you need to add the themes to your stylesheet. You can add the themes to 
 
 The full list of themes can be found at the [daisyUI website](https://daisyui.com/docs/themes/).
 
-**2. Set the assign and the default daisyUI theme in your root layout.**
+**2. Set the default daisyUI theme in your root layout.**
 
-We fetch the theme from the assigns and set the `data-theme` attribute on the `html` tag. If no theme is set, we default to the `light` theme.
+Set the `data-theme` attribute on the `html` tag using the `@current_theme` assign. The `Backpex.InitAssigns` hook (which you should already have configured in your router) will automatically populate this assign from the user's saved preference.
 
 ```heex
 # root.html.heex
-<html data-theme={assigns[:theme] || "light"}>
+<html data-theme={assigns[:current_theme] || "light"}>
   ...
 </html>
 ```
@@ -553,31 +667,24 @@ If you just want to use a single theme, you can set the `data-theme` attribute t
 </html>
 ```
 
-**3. Add `Backpex.ThemeSelectorPlug` to the pipeline in the router**
-
-To add the saved theme to the assigns, you can add the `Backpex.ThemeSelectorPlug` to the pipeline in your router. This plug will fetch the selected theme from the session and put it in the assigns.
-
-```elixir
-# router.ex
-  pipeline :browser do
-    ...
-    # Add this plug
-    plug Backpex.ThemeSelectorPlug
-  end
-```
-
-**4. Add the theme selector component to the app shell**
+**3. Add the theme selector component to the app shell**
 
 You can add a theme selector to your layout component to allow users to change the theme. The following example shows how to add a theme selector to the `admin` component. The list of themes should match the themes you added to your stylesheet.
 
 ```heex
-<Backpex.HTML.Layout.app_shell fluid={@fluid?} live_resource={@live_resource}>
+<Backpex.HTML.Layout.app_shell
+  socket={@socket}
+  fluid={@fluid?}
+  live_resource={@live_resource}
+  sidebar_open={@sidebar_open}
+  preferences_manifest={@preferences_manifest}
+>
   <:topbar>
-    <Backpex.HTML.Layout.topbar_branding />
+    <div class="flex-1"></div>
 
     <!-- Add this -->
     <Backpex.HTML.Layout.theme_selector
-      socket={@socket}
+      current_theme={@current_theme}
       themes={[
         {"Light", "light"},
         {"Dark", "dark"},
@@ -589,22 +696,20 @@ You can add a theme selector to your layout component to allow users to change t
       <!-- Topbar Dropdown -->
     </Backpex.HTML.Layout.topbar_dropdown>
   </:topbar>
+  <:sidebar_branding>
+    <Backpex.HTML.Layout.sidebar_branding />
+  </:sidebar_branding>
   <:sidebar>
     <!-- Sidebar Content -->
   </:sidebar>
   <Backpex.HTML.Layout.flash_messages flash={@flash} />
-  <%= @inner_content %>
+  {render_slot(@inner_block)}
 </Backpex.HTML.Layout.app_shell>
 ```
 
-**5. Set selected theme**
-
-To set the selected theme as soon as possible, you can run this function inside your `app.js`:
-
-```javascript
-import { Hooks as BackpexHooks } from 'backpex';
-// ...
-BackpexHooks.BackpexThemeSelector.setStoredTheme()
-```
-
-This will minimize flashes with the old theme in some situations.
+Theme changes are automatically persisted through the adapter configured for
+`global.theme` (the Phoenix session in a zero-config installation). Subsequent
+page loads are server-rendered from that stored value. A bounded pending cookie
+covers most reloads that race the write; without a signed namespace manifest or
+when the pending entry exceeds its cookie budget, the initial paint may briefly
+show the previous stored theme.
