@@ -22,7 +22,7 @@ services:
       postgres:
         condition: service_healthy
   postgres:
-    image: postgres:16.14@sha256:95206741a5b214807675e14165369d05b93a9cf692223b616d07cca227e74b0b
+    image: postgres:16.15@sha256:cac8243312724d445e81848fef5614bccfaebee4bd53c99033378cb478db8d99
     environment:
       - POSTGRES_PASSWORD=postgres
     ports:
