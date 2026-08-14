@@ -5,8 +5,8 @@ import { Socket } from 'phoenix'
 import { LiveSocket } from 'phoenix_live_view'
 import { hooks as colocatedHooks } from 'phoenix-colocated/demo'
 // in your app.js, just use 'backpex' like this:
-// import { Hooks as BackpexHooks } from 'backpex'
-import { Hooks as BackpexHooks } from '#backpex'
+// import { Hooks as BackpexHooks, backpexParams } from 'backpex'
+import { Hooks as BackpexHooks, backpexParams } from '#backpex'
 
 /**
  * Sentry
@@ -24,17 +24,12 @@ window.addEventListener('phx:page-loading-start', _info => topbar.show(250))
 window.addEventListener('phx:page-loading-stop', _info => topbar.hide())
 
 /**
- * Theme Selector
- */
-BackpexHooks.BackpexThemeSelector.setStoredTheme()
-
-/**
  * phoenix_live_view
  */
 const csrfToken = document.querySelector("meta[name='csrf-token']").getAttribute('content')
 
 const liveSocket = new LiveSocket('/live', Socket, {
-  params: { _csrf_token: csrfToken },
+  params: backpexParams({ _csrf_token: csrfToken }),
   hooks: { ...BackpexHooks, ...colocatedHooks }
 })
 

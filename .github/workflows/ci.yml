@@ -92,6 +92,9 @@ jobs:
       - name: JavaScript Standard
         run: bun run lint:standard
 
+      - name: Run JavaScript tests
+        run: bun run test:js
+
       - name: Build docs with warnings as errors
         run: mix docs --warnings-as-errors
 
@@ -329,7 +332,7 @@ jobs:
 
       - name: Log in to the container registry
         if: env.PUSH_IMAGE == 'true'
-        uses: docker/login-action@371161bbe7024a29a25c5e19bfcbc0804fe9ad2c # v4.5.2
+        uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4.6.0
         with:
           registry: ${{ env.REGISTRY }}
           username: ${{ github.actor }}

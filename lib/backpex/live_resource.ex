@@ -68,10 +68,15 @@ defmodule Backpex.LiveResource do
       default: 15
     ],
     init_order: [
-      doc: "Order that will be used when no other order options are given.",
+      doc: """
+      Order that will be used when no other order options are given.
+
+      Defaults to ascending order by the configured `primary_key`.
+      """,
       type: {
         :or,
         [
+          {:in, [nil]},
           {:fun, 1},
           map: [
             by: [
@@ -85,7 +90,7 @@ defmodule Backpex.LiveResource do
           ]
         ]
       },
-      default: Macro.escape(%{by: :id, direction: :asc})
+      default: nil
     ],
     fluid?: [
       doc: "If the layout fills out the entire width.",
@@ -109,6 +114,21 @@ defmodule Backpex.LiveResource do
       """,
       type: {:or, [:mod_arg, :atom, {:list, {:or, [:mod_arg, :atom]}}]},
       required: false
+    ],
+    persist: [
+      doc: """
+      Opt in to persisting index-view state (`:order`, `:filters`, `:columns`, `:metrics`)
+      via `Backpex.Preferences`. Accepts any subset of `[:order, :filters, :columns, :metrics]`.
+
+      When empty (the default), the index view's state lives only in the URL (for
+      `:order` and `:filters`) and in-memory (for `:columns` and `:metrics`). When an
+      item is listed, Backpex reads the corresponding preference on mount and falls back
+      to it whenever the URL-derived value is absent, and writes the preference on
+      every change. Storage is routed through whichever adapter is configured for
+      the `resource.*` prefix in `config :backpex, Backpex.Preferences, adapters:`.
+      """,
+      type: {:list, {:in, [:order, :filters, :columns, :metrics]}},
+      default: []
     ]
   ]
 
@@ -280,6 +300,11 @@ defmodule Backpex.LiveResource do
       @resource_opts NimbleOptions.validate!(opts, options_schema)
 
       @adapter_opts @resource_opts[:adapter].validate_config!(@resource_opts[:adapter_config])
+
+      def config(:init_order) do
+        @resource_opts[:init_order] ||
+          %{by: @resource_opts[:primary_key], direction: :asc}
+      end
 
       def config(key), do: Keyword.get(@resource_opts, key)
 
@@ -772,7 +797,7 @@ defmodule Backpex.LiveResource do
       else
         init_order
         |> resolve_init_order(assigns)
-        |> Map.put(:schema, schema)
+        |> Map.merge(%{schema: schema, field_name: nil})
       end
 
     [

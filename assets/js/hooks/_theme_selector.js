@@ -1,56 +1,77 @@
+import { BackpexPreferences } from './_preferences'
+
 /**
  * Hook for selecting a theme.
+ *
+ * Mounted on the inner `<form id="backpex-theme-selector-form">` element
+ * rather than the surrounding dropdown wrapper: the `<.dropdown>` component
+ * hardcodes `phx-hook="BackpexDropdown"` on its root, so passing a second
+ * `phx-hook` via `@rest` produced a duplicate attribute that the browser
+ * silently dropped. Mounting on the form sidesteps the collision, lets
+ * `this.el` be the form directly, and scopes the change listener to it.
+ *
+ * Initial theme is server-rendered via the `data-theme` attribute on
+ * `<html>`. Changes are persisted via BackpexPreferences with
+ * `mirror: 'session'`, like every other server-rendered preference.
+ *
+ * The mirror is what the theme-selector radio's `checked` state needs. That
+ * radio DOES live inside the LiveView-rendered tree, so without the mirror the
+ * connected render — and every live_redirect after it — re-checks the OLD radio
+ * whenever the write has not landed in the connect-time session snapshot, i.e.
+ * the connected render contradicts the dead render. The `data-theme` attribute
+ * on `<html>` itself is a separate matter: it sits outside the LiveView root
+ * and is only re-rendered on a full page load, where the `backpex_prefs` cookie
+ * already makes the dead render correct.
  */
 export default {
   mounted () {
-    const form = document.querySelector('#backpex-theme-selector-form')
-    const storedTheme = window.localStorage.getItem('backpexTheme')
+    BackpexPreferences.syncScope()
+    this.preferenceScopeMarker = BackpexPreferences.scopeMarker
 
-    // Marking current theme as active
-    if (storedTheme != null) {
-      const activeThemeRadio = form.querySelector(
-        `input[name='theme-selector'][value='${storedTheme}']`
-      )
-      activeThemeRadio.checked = true
-    }
-
-    window.addEventListener('backpex:theme-change', this.handleThemeChange.bind(this))
+    // Initial theme already applied via server-rendered data-theme attribute
+    // Just set up the change listener, scoped to the form element itself.
+    this.boundHandleThemeChange = this.handleThemeChange.bind(this)
+    this.el.addEventListener('backpex:theme-change', this.boundHandleThemeChange)
+    this.applyRenderedTheme()
   },
-  // Event listener that handles the theme changes and store
-  // the selected theme in the session and also in localStorage
-  async handleThemeChange () {
-    const form = document.querySelector('#backpex-theme-selector-form')
-    const csrfToken = document.querySelector("meta[name='csrf-token']").getAttribute('content')
-    const cookiePath = form.dataset.cookiePath
-    const selectedTheme = form.querySelector(
+
+  updated () {
+    BackpexPreferences.syncScope()
+    const preferenceScopeMarker = BackpexPreferences.scopeMarker
+
+    if (this.preferenceScopeMarker !== preferenceScopeMarker) {
+      this.preferenceScopeMarker = preferenceScopeMarker
+      this.applyRenderedTheme()
+    }
+  },
+
+  applyRenderedTheme () {
+    const selectedTheme = this.el.querySelector('input[name="theme-selector"]:checked')
+    if (!selectedTheme) return
+
+    const theme = BackpexPreferences.get('global.theme', selectedTheme.value)
+    const mirroredTheme = Array.from(this.el.querySelectorAll('input[name="theme-selector"]'))
+      .find((input) => input.value === theme)
+    if (mirroredTheme) mirroredTheme.checked = true
+    document.documentElement.setAttribute('data-theme', theme)
+  },
+
+  handleThemeChange () {
+    const selectedTheme = this.el.querySelector(
       'input[name="theme-selector"]:checked'
     )
 
     if (selectedTheme) {
-      window.localStorage.setItem('backpexTheme', selectedTheme.value)
-      document.documentElement.setAttribute(
-        'data-theme',
-        selectedTheme.value
-      )
-      await fetch(cookiePath, {
-        body: `select_theme=${selectedTheme.value}`,
-        method: 'POST',
-        headers: {
-          'Content-type': 'application/x-www-form-urlencoded',
-          'x-csrf-token': csrfToken
-        }
-      })
-    }
-  },
-  // Call this from your app.js as soon as possible to minimize flashes with the old theme in some situations.
-  setStoredTheme () {
-    const storedTheme = window.localStorage.getItem('backpexTheme')
+      // Update DOM immediately (optimistic)
+      document.documentElement.setAttribute('data-theme', selectedTheme.value)
 
-    if (storedTheme != null) {
-      document.documentElement.setAttribute('data-theme', storedTheme)
+      // Persist via BackpexPreferences — see the module-level comment above
+      // for why the theme is mirrored.
+      BackpexPreferences.set('global.theme', selectedTheme.value, { mirror: 'session' })
     }
   },
+
   destroyed () {
-    window.removeEventListener('backpex:theme-change', this.handleThemeChange.bind(this))
+    this.el.removeEventListener('backpex:theme-change', this.boundHandleThemeChange)
   }
 }
