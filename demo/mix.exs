@@ -48,7 +48,7 @@ defmodule Demo.MixProject do
       {:a11y_audit, "~> 0.4.0", only: :test},
       {:live_debugger, "~> 1.0", only: :dev},
       {:quokka, "~> 2.9", only: [:dev, :test], runtime: false},
-      {:tidewave, "~> 0.8", only: [:dev]},
+      {:tidewave, "~> 0.9", only: [:dev]},
 
       # core
       {:dns_cluster, "~> 0.2.0"},
