@@ -304,11 +304,6 @@ defmodule Backpex.Fields.HasMany do
     ~H"""
     <div class="badge badge-sm badge-soft badge-primary pointer-events-auto pr-0">
       <span>{@label}</span>
-      <%!--
-      The label is a pointer-only shortcut for the checkbox it points to. Screen reader users
-      unselect the option via that checkbox, so the label is hidden to keep it out of the
-      accessible name of the surrounding dropdown trigger.
-      --%>
       <label
         class="flex cursor-pointer items-center pr-2"
         for={"has-many-#{@name}-checkbox-value-#{@value}"}
