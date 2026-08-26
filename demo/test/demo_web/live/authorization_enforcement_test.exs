@@ -60,7 +60,9 @@ defmodule DemoWeb.Live.AuthorizationEnforcementTest do
       {:ok, view, _html} = live(conn, ~p"/admin/users")
 
       assert {{%Backpex.ForbiddenError{}, _stacktrace}, _mfa} =
-               catch_exit(render_click(view, "item-action", %{"action-key" => "user_soft_delete", "item-id" => admin.id}))
+               catch_exit(
+                 render_click(view, "item-action", %{"action-key" => "user_soft_delete", "item-id" => admin.id})
+               )
 
       assert Repo.get(User, admin.id).deleted_at == nil
     end
@@ -164,11 +166,10 @@ defmodule DemoWeb.Live.AuthorizationEnforcementTest do
       render_click(view, "update-selected-items", %{"id" => admin.id})
 
       assert {{%Backpex.ForbiddenError{}, _stacktrace}, _mfa} =
-               catch_exit(
-                 view
-                 |> form("#resource-form", change: %{reason: "widened after opening"})
-                 |> render_submit()
-               )
+               view
+               |> form("#resource-form", change: %{reason: "widened after opening"})
+               |> render_submit()
+               |> catch_exit()
 
       assert Repo.get(User, user.id).deleted_at == nil
       assert Repo.get(User, admin.id).deleted_at == nil
