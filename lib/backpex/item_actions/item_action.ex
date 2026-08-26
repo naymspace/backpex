@@ -265,26 +265,40 @@ defmodule Backpex.ItemAction do
   @doc """
   Handles an item action by executing the action's handle function.
 
-  This function filters items based on authorization, executes the action,
-  and allows customization of post-action behavior via the `after_handle` callback.
+  Every item is authorized against `key` before `c:handle/3` runs. This is strict: a single
+  unauthorized item raises `Backpex.ForbiddenError`, and a `nil` entry (a stale or forged item id)
+  raises `Backpex.NoResultsError`. Items are never silently dropped from the selection.
+
+  `c:handle/3` receives the full list of items, and `assigns.item_action_key` is set to the key the
+  action is registered under. Pass it as `:authorization_action` to `Backpex.Resource` functions so
+  actions registered under a custom key authorize against that key.
+
+  When `items` is empty, `c:handle/3` is not called at all — only `after_handle` runs.
   """
   def handle_item_action(socket, action, key, items, after_handle) do
     live_resource = socket.assigns.live_resource
-    authorized_items = Enum.filter(items, fn item -> live_resource.can?(socket.assigns, key, item) end)
 
-    case action.module.handle(socket, authorized_items, %{}) do
-      {:ok, socket} ->
-        after_handle.(socket)
+    Backpex.Authorization.authorize_all!(live_resource, socket.assigns, key, items)
 
-      unexpected_return ->
-        raise ArgumentError, """
-        Invalid return value from #{inspect(action.module)}.handle/3.
+    if items == [] do
+      after_handle.(socket)
+    else
+      socket = assign(socket, :item_action_key, key)
 
-        Expected: {:ok, socket}
-        Got: #{inspect(unexpected_return)}
+      case action.module.handle(socket, items, %{}) do
+        {:ok, socket} ->
+          after_handle.(socket)
 
-        Item Actions with no form fields must return {:ok, socket}.
-        """
+        unexpected_return ->
+          raise ArgumentError, """
+          Invalid return value from #{inspect(action.module)}.handle/3.
+
+          Expected: {:ok, socket}
+          Got: #{inspect(unexpected_return)}
+
+          Item Actions with no form fields must return {:ok, socket}.
+          """
+      end
     end
   end
 

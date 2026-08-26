@@ -79,6 +79,10 @@ defmodule Backpex.LiveResource.Show do
     {key, action} = LiveResource.fetch_action!(socket.assigns.item_actions, key)
     item = socket.assigns.item
 
+    # Gate before the modal opens: an unauthorized item must not even get a confirm dialog.
+    # `Backpex.ItemAction.handle_item_action/5` checks again as defense in depth.
+    Authorization.authorize_all!(socket.assigns.live_resource, socket.assigns, key, [item])
+
     if Backpex.ItemAction.has_confirm_modal?(action) do
       open_action_confirm_modal(socket, action, key)
     else

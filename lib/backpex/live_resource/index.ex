@@ -303,6 +303,10 @@ defmodule Backpex.LiveResource.Index do
     {key, action} = LiveResource.fetch_action!(socket.assigns.item_actions, key)
     items = socket.assigns.selected_items
 
+    # Gate before the modal opens: an unauthorized selection must not even get a confirm dialog.
+    # `Backpex.ItemAction.handle_item_action/5` checks again as defense in depth.
+    Authorization.authorize_all!(socket.assigns.live_resource, socket.assigns, key, items)
+
     if Backpex.ItemAction.has_confirm_modal?(action) do
       open_action_confirm_modal(socket, action, key)
     else

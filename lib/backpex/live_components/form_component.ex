@@ -5,6 +5,7 @@ defmodule Backpex.FormComponent do
   use BackpexWeb, :html
   use Phoenix.LiveComponent
 
+  alias Backpex.Authorization
   alias Backpex.Field
   alias Backpex.ItemAction
   alias Backpex.LiveResource
@@ -178,9 +179,10 @@ defmodule Backpex.FormComponent do
     |> noreply()
   end
 
-  def handle_event("save", %{"action-key" => key, "change" => change}, %{assigns: %{action_type: :item}} = socket) do
-    key = String.to_existing_atom(key)
-    handle_form_item_action(socket, key, change)
+  # The action to run is taken from `action_to_confirm`, which the view assigned when the modal was
+  # opened. A client-supplied action key must never decide which module executes.
+  def handle_event("save", %{"change" => change}, %{assigns: %{action_type: :item}} = socket) do
+    handle_form_item_action(socket, change)
   end
 
   def handle_event("save", %{"change" => change, "save-type" => save_type}, socket) do
@@ -195,9 +197,8 @@ defmodule Backpex.FormComponent do
     handle_save(socket, live_action, change, save_type)
   end
 
-  def handle_event("save", %{"action-key" => key}, socket) do
-    key = String.to_existing_atom(key)
-    handle_form_item_action(socket, key, %{})
+  def handle_event("save", _params, %{assigns: %{action_type: :item}} = socket) do
+    handle_form_item_action(socket, %{})
   end
 
   def handle_event("save", _params, socket) do
@@ -316,6 +317,10 @@ defmodule Backpex.FormComponent do
         } = assigns
     } = socket
 
+    # The gate at mount only covers opening the modal. Re-check on submit so a permission revoked
+    # while the form was open cannot be used.
+    Authorization.authorize!(live_resource, assigns, assigns.resource_action_id, nil)
+
     assocs = Map.get(assigns, :assocs, [])
     params = drop_readonly_changes(params, fields, assigns)
 
@@ -355,11 +360,42 @@ defmodule Backpex.FormComponent do
     end
   end
 
-  defp handle_form_item_action(socket, action_key, params) do
+  defp handle_form_item_action(socket, params) do
     %{
       assigns:
         %{
           live_resource: live_resource,
+          selected_items: selected_items,
+          action_to_confirm: action_to_confirm,
+          return_to: return_to
+        } = assigns
+    } = socket
+
+    action_key = action_to_confirm.key
+
+    # Gate before any changeset work: permission may have been revoked while the modal was open.
+    Authorization.authorize_all!(live_resource, assigns, action_key, selected_items)
+
+    if selected_items == [] do
+      empty_item_action_selection(socket, return_to)
+    else
+      run_form_item_action(socket, action_key, params)
+    end
+  end
+
+  defp empty_item_action_selection(socket, return_to) do
+    socket
+    |> assign(:show_form_errors, false)
+    |> assign(:selected_items, [])
+    |> assign(:select_all, false)
+    |> push_navigate(to: return_to)
+    |> noreply()
+  end
+
+  defp run_form_item_action(socket, action_key, params) do
+    %{
+      assigns:
+        %{
           fields: fields,
           selected_items: selected_items,
           action_to_confirm: action_to_confirm,
@@ -385,8 +421,9 @@ defmodule Backpex.FormComponent do
         {:ok, %{}}
       end
 
+    socket = assign(socket, :item_action_key, action_key)
+
     with {:ok, data} <- result,
-         selected_items = Enum.filter(selected_items, &live_resource.can?(socket.assigns, action_key, &1)),
          {:ok, socket} <- action_to_confirm.module.handle(socket, selected_items, data) do
       socket
       |> assign(:show_form_errors, false)
