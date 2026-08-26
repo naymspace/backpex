@@ -228,7 +228,7 @@ def can?(_assigns, _action, _item), do: true
 
 Backpex enforces this for you — you do not need to check it again inside `c:Backpex.ItemAction.handle/3`. There are four things to know:
 
-**Enforcement is strict.** A selection containing a single unauthorized item raises `Backpex.ForbiddenError`; items are never silently dropped. A stale or forged item id raises `Backpex.NoResultsError`. Because a mixed selection would raise, the toolbar button is disabled whenever the selection is empty or contains an unauthorized item, and a row that is authorized for no bulk action at all cannot be selected.
+**Enforcement is strict.** A selection containing a single unauthorized item raises `Backpex.ForbiddenError`; items are never silently dropped. A stale or forged item id raises `Backpex.NoResultsError`. Raised from an event handler on a connected socket, either one crashes the LiveView and the client reloads — no error page and no message, only the guarantee that nothing was written. Users are kept away from the gates by the preflight checks, not by the gates' error reporting. Because a mixed selection would raise, the toolbar button is disabled whenever the selection is empty or contains an unauthorized item, and a row that is authorized for no bulk action at all cannot be selected.
 
 **Each gesture is authorized exactly once per step.** An action without a confirmation modal is authorized immediately before `c:Backpex.ItemAction.handle/3` runs. An action with one is authorized when the modal opens and again when it is submitted — the second check is deliberate, because a permission may be revoked, or the selection widened, while the modal is open.
 
@@ -260,7 +260,7 @@ Backpex.Resource.update_all(item.posts, [set: [user_id: nil]], socket.assigns, M
 
 > #### Do not swallow the gate {: .warning}
 >
-> This only applies to `Backpex.Resource` calls that are still gated — the ones you did *not* pass `authorize?: false`. A broad `rescue` around such a call catches `Backpex.ForbiddenError` and `Backpex.NoResultsError` too, turning a denied write into a flash message that reports the action as merely failed. Reraise them:
+> This only applies to `Backpex.Resource` calls that are still gated — the ones you did *not* pass `authorize?: false`. A broad `rescue` around such a call catches `Backpex.ForbiddenError` and `Backpex.NoResultsError` too, turning a refused write into an ordinary flash message: the request looks handled, and the failure is filed under "something went wrong" instead of "you may not do this". Reraise them:
 >
 > ```elixir
 > rescue

@@ -59,7 +59,13 @@ Backpex enforces `can?/3` centrally, through `Backpex.Authorization`. You do not
 There are two kinds of checks, and both run:
 
 - **Preflight** — decides whether a control is rendered or disabled. A user never sees a button for something they may not do.
-- **Gate** — runs immediately before something happens and raises `Backpex.ForbiddenError` (403) when it fails. This is what makes a forged or stale event safe.
+- **Gate** — runs immediately before something happens and raises `Backpex.ForbiddenError` when it fails. This is what makes a forged or stale event safe.
+
+> #### What a denial looks like {: .info}
+>
+> `Backpex.ForbiddenError` and `Backpex.NoResultsError` carry a `plug_status` of 403 and 404, but Phoenix LiveView only maps that to an HTTP status while a view **mounts** — the dead render. Raised from an event handler on a connected socket (which is where the item and resource action gates live), the LiveView process crashes and the client reloads the page. The user gets no error page and no flash message.
+>
+> That is the intended outcome: the point of a gate is that the write does not happen. Do not rely on it to communicate anything — a user should never reach a gate through the UI in the first place, because the preflight checks already hid or disabled the control.
 
 ### Where the gates are
 
@@ -83,7 +89,7 @@ Each gesture runs exactly one gate per step, so `can?/3` is not evaluated more t
 
 Checks over a selection are strict: a single unauthorized item raises, and nothing runs. Backpex does not silently drop items from a selection.
 
-A `nil` item — a stale or forged id — raises `Backpex.NoResultsError` (404) and never reaches your `can?/3`, so you do not need clauses for it.
+A `nil` item — a stale or forged id — raises `Backpex.NoResultsError` and never reaches your `can?/3`, so you do not need clauses for it.
 
 Because a mixed selection would raise, the bulk action button is disabled whenever the selection is empty or contains any unauthorized item. A row that is authorized for none of the bulk actions cannot be selected at all — its checkbox is disabled, so a user cannot build a selection that has no usable action.
 

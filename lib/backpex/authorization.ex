@@ -15,12 +15,18 @@ defmodule Backpex.Authorization do
 
   ## Failure semantics
 
-  * unauthorized → `Backpex.ForbiddenError` (403)
-  * `nil` item in `authorize_all!/4` (a stale or forged item id) → `Backpex.NoResultsError` (404)
+  * unauthorized → `Backpex.ForbiddenError`
+  * `nil` item in `authorize_all!/4` (a stale or forged item id) → `Backpex.NoResultsError`
 
   A `nil` item never reaches `c:Backpex.LiveResource.can?/3` through `authorize_all!/4`. This keeps
   user implementations free of `nil` clauses they never asked for, and it does not leak whether an
   id exists.
+
+  Both exceptions carry a `plug_status` (403 and 404), but Phoenix LiveView only turns that into an
+  HTTP status while a view mounts — that is, on the dead render. Raised from `handle_event/3` on a
+  connected socket, the LiveView process crashes and the client reloads the page: the user sees no
+  error page and no message. What a gate guarantees is that the operation did not happen, not that
+  anyone is told why.
 
   ## Strict semantics
 
