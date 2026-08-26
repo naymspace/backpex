@@ -7,6 +7,7 @@ defmodule Backpex.LiveResource.Index do
   alias Backpex.Adapters.Ecto, as: EctoAdapter
   alias Backpex.Authorization
   alias Backpex.FilterValidation
+  alias Backpex.ItemAction
   alias Backpex.LiveResource
   alias Backpex.PaginationValidation
   alias Backpex.Preferences
@@ -300,29 +301,23 @@ defmodule Backpex.LiveResource.Index do
   end
 
   defp maybe_handle_item_action(socket, key) do
-    {key, action} = LiveResource.fetch_action!(socket.assigns.item_actions, key)
     items = socket.assigns.selected_items
 
-    # Gate before the modal opens: an unauthorized selection must not even get a confirm dialog.
-    # `Backpex.ItemAction.handle_item_action/5` checks again as defense in depth.
-    Authorization.authorize_all!(socket.assigns.live_resource, socket.assigns, key, items)
-
-    if Backpex.ItemAction.has_confirm_modal?(action) do
-      open_action_confirm_modal(socket, action, key)
-    else
-      handle_item_action(socket, action, key, items)
+    case ItemAction.resolve_item_action!(socket, key, items) do
+      {:confirm, key, action} -> open_action_confirm_modal(socket, action, key)
+      {:dispatch, key, action} -> handle_item_action(socket, action, key, items)
     end
   end
 
   defp open_action_confirm_modal(socket, action, key) do
     socket
-    |> Backpex.ItemAction.assign_action_changeset(action)
+    |> ItemAction.assign_action_changeset(action)
     |> assign(:action_to_confirm, Map.put(action, :key, key))
     |> noreply()
   end
 
   defp handle_item_action(socket, action, key, items) do
-    Backpex.ItemAction.handle_item_action(socket, action, key, items, fn socket ->
+    ItemAction.handle_item_action(socket, action, key, items, fn socket ->
       socket
       |> assign(action_to_confirm: nil)
       |> assign(selected_items: [])
@@ -488,7 +483,7 @@ defmodule Backpex.LiveResource.Index do
   end
 
   defp assign_item_actions(socket) do
-    item_actions = Backpex.ItemAction.default_actions() |> socket.assigns.live_resource.item_actions()
+    item_actions = ItemAction.default_actions() |> socket.assigns.live_resource.item_actions()
     assign(socket, :item_actions, item_actions)
   end
 

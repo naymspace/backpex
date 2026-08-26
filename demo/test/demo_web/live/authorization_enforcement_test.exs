@@ -13,7 +13,6 @@ defmodule DemoWeb.Live.AuthorizationEnforcementTest do
   alias Demo.Repo
   alias Demo.ShortLink
   alias Demo.User
-  alias Phoenix.LiveView.Socket
 
   @moduletag :capture_log
 
@@ -23,12 +22,6 @@ defmodule DemoWeb.Live.AuthorizationEnforcementTest do
     Process.flag(:trap_exit, true)
 
     :ok
-  end
-
-  defp assign_socket(assigns) do
-    Enum.reduce(assigns, %Socket{}, fn {key, value}, socket ->
-      Phoenix.Component.assign(socket, key, value)
-    end)
   end
 
   describe "forged item actions on a resource that denies the action" do
@@ -176,32 +169,4 @@ defmodule DemoWeb.Live.AuthorizationEnforcementTest do
     end
   end
 
-  describe "rescue clauses in item actions" do
-    test "the built-in delete action reraises ForbiddenError instead of flashing it" do
-      product = insert(:product)
-
-      {:ok, short_link} =
-        Repo.insert(%ShortLink{short_key: "rescuekey", url: "https://example.com", product_id: product.id})
-
-      socket = assign_socket(live_resource: DemoWeb.ShortLinkLive, item_action_key: :delete)
-
-      assert_raise Backpex.ForbiddenError, fn ->
-        Backpex.ItemActions.Delete.handle(socket, [short_link], %{})
-      end
-
-      assert Repo.get_by(ShortLink, short_key: "rescuekey")
-    end
-
-    test "the demo soft delete action reraises ForbiddenError instead of flashing it" do
-      admin = insert(:user, %{role: :admin})
-
-      socket = assign_socket(live_resource: DemoWeb.UserLive, item_action_key: :user_soft_delete)
-
-      assert_raise Backpex.ForbiddenError, fn ->
-        DemoWeb.ItemActions.UserSoftDelete.handle(socket, [admin], %{})
-      end
-
-      assert Repo.get(User, admin.id).deleted_at == nil
-    end
-  end
 end

@@ -263,6 +263,31 @@ defmodule Backpex.ItemAction do
   end
 
   @doc """
+  Resolves a client-supplied item action key and decides how the gesture proceeds.
+
+  Returns `{:confirm, key, action}` for an action that has a confirmation modal and
+  `{:dispatch, key, action}` for one that runs immediately. An unregistered key raises
+  `Backpex.NoResultsError`.
+
+  Only the `{:confirm, _key, _action}` path is authorized here, before the modal opens: an
+  unauthorized selection must not even get a confirm dialog, and the modal's submit re-checks it.
+  The `{:dispatch, _key, _action}` path is deliberately *not* authorized here — `handle_item_action/5`
+  gates it, and that is the authoritative execution gate. Checking in both places would evaluate
+  `c:Backpex.LiveResource.can?/3` twice per item for one decision.
+  """
+  def resolve_item_action!(socket, key, items) when is_list(items) do
+    {key, action} = Backpex.LiveResource.fetch_action!(socket.assigns.item_actions, key)
+
+    if has_confirm_modal?(action) do
+      Backpex.Authorization.authorize_all!(socket.assigns.live_resource, socket.assigns, key, items)
+
+      {:confirm, key, action}
+    else
+      {:dispatch, key, action}
+    end
+  end
+
+  @doc """
   Handles an item action by executing the action's handle function.
 
   Every item is authorized against `key` before `c:handle/3` runs. This is strict: a single
@@ -270,8 +295,11 @@ defmodule Backpex.ItemAction do
   raises `Backpex.NoResultsError`. Items are never silently dropped from the selection.
 
   `c:handle/3` receives the full list of items, and `assigns.item_action_key` is set to the key the
-  action is registered under. Pass it as `:authorization_action` to `Backpex.Resource` functions so
-  actions registered under a custom key authorize against that key.
+  action is registered under.
+
+  Because this gate covered exactly these items under exactly this key, a `Backpex.Resource` call
+  inside `c:handle/3` that writes those same items should pass `authorize?: false` rather than
+  repeat the check. Writes to *other* items or resources keep the default gate.
 
   When `items` is empty, `c:handle/3` is not called at all — only `after_handle` runs.
   """

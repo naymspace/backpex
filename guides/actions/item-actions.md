@@ -183,6 +183,8 @@ defmodule DemoWeb.ItemAction.SoftDelete do
 
       socket =
         try do
+          # Backpex already authorized exactly these items under this action's key, so this write
+          # does not check again. See "Authorization" below.
           {:ok, _items} =
             Backpex.Resource.update_all(
               items,
@@ -190,17 +192,13 @@ defmodule DemoWeb.ItemAction.SoftDelete do
               socket.assigns,
               socket.assigns.live_resource,
               event_name: "deleted",
-              authorization_action: socket.assigns.item_action_key
+              authorize?: false
             )
 
           socket
           |> clear_flash()
           |> put_flash(:info, "Item(s) successfully deleted.")
         rescue
-          # Never swallow the authorization gate: it must reach the router as a 403.
-          error in [Backpex.ForbiddenError, Backpex.NoResultsError] ->
-            reraise error, __STACKTRACE__
-
           error ->
             socket
             |> clear_flash()
@@ -228,23 +226,30 @@ def can?(_assigns, :soft_delete, item), do: item.role != :admin
 def can?(_assigns, _action, _item), do: true
 ```
 
-Backpex enforces this for you — you do not need to check it again inside `c:Backpex.ItemAction.handle/3`. There are three things to know:
+Backpex enforces this for you — you do not need to check it again inside `c:Backpex.ItemAction.handle/3`. There are four things to know:
 
-**Enforcement is strict.** Every selected item is authorized before the confirm modal opens and again immediately before `c:Backpex.ItemAction.handle/3` runs. A selection containing a single unauthorized item raises `Backpex.ForbiddenError`; items are never silently dropped. A stale or forged item id raises `Backpex.NoResultsError`. Because a mixed selection would raise, the toolbar button is disabled whenever the selection is empty or contains an unauthorized item.
+**Enforcement is strict.** A selection containing a single unauthorized item raises `Backpex.ForbiddenError`; items are never silently dropped. A stale or forged item id raises `Backpex.NoResultsError`. Because a mixed selection would raise, the toolbar button is disabled whenever the selection is empty or contains an unauthorized item, and a row that is authorized for no bulk action at all cannot be selected.
+
+**Each gesture is authorized exactly once per step.** An action without a confirmation modal is authorized immediately before `c:Backpex.ItemAction.handle/3` runs. An action with one is authorized when the modal opens and again when it is submitted — the second check is deliberate, because a permission may be revoked, or the selection widened, while the modal is open.
 
 **`handle/3` gets the full selection, and is never called with `[]`.** For an empty selection Backpex skips the action entirely.
 
-**Use `assigns.item_action_key` when writing.** `Backpex.Resource` mutations default to `:new` / `:edit` / `:delete`. An action registered under a custom key should authorize under that key:
+**Inside `handle/3`, the items you were handed are already authorized.** Backpex guarantees the gate covered exactly those items under exactly this action's key, so a `Backpex.Resource` call that writes those same items should pass `authorize?: false`:
 
 ```elixir
-Backpex.Resource.delete_all(items, socket.assigns, socket.assigns.live_resource,
+Backpex.Resource.delete_all(items, socket.assigns, socket.assigns.live_resource, authorize?: false)
+```
+
+Anything else the action writes is *not* covered by that gate and keeps the default check. `Backpex.Resource` mutations default to `:new` / `:edit` / `:delete`; pass `:authorization_action` when a different key is the right one to check. `assigns.item_action_key` holds the key this action is registered under while `handle/3` runs, so the action does not need to hardcode it:
+
+```elixir
+# writing other items of the same resource, under this action's key
+Backpex.Resource.update_all(other_items, updates, socket.assigns, socket.assigns.live_resource,
   authorization_action: socket.assigns.item_action_key
 )
 ```
 
-Backpex sets `assigns.item_action_key` immediately before calling your `handle/3`, so the action does not need to know its own registration key.
-
-If your action writes to a *different* resource as a side effect (nullifying a foreign key, for example), that write is not a user-initiated action on that resource — pass `authorize?: false`:
+A cascade write to a *different* resource (nullifying a foreign key, for example) is not a user-initiated action on that resource at all — pass `authorize?: false`:
 
 ```elixir
 Backpex.Resource.update_all(item.posts, [set: [user_id: nil]], socket.assigns, MyAppWeb.PostLive,
@@ -255,4 +260,14 @@ Backpex.Resource.update_all(item.posts, [set: [user_id: nil]], socket.assigns, M
 
 > #### Do not swallow the gate {: .warning}
 >
-> A broad `rescue` around a `Backpex.Resource` call will catch `Backpex.ForbiddenError` and turn a 403 into a flash message. Reraise it, as the example above does.
+> This only applies to `Backpex.Resource` calls that are still gated — the ones you did *not* pass `authorize?: false`. A broad `rescue` around such a call catches `Backpex.ForbiddenError` and `Backpex.NoResultsError` too, turning a denied write into a flash message that reports the action as merely failed. Reraise them:
+>
+> ```elixir
+> rescue
+>   error in [Backpex.ForbiddenError, Backpex.NoResultsError] ->
+>     reraise error, __STACKTRACE__
+>
+>   error ->
+>     # your own error handling
+> end
+> ```

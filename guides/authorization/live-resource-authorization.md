@@ -71,11 +71,13 @@ There are two kinds of checks, and both run:
 | `Backpex.Resource.update/6` | `:edit` | the item |
 | `Backpex.Resource.update_all/5` | `:edit` | each item |
 | `Backpex.Resource.delete_all/4` | `:delete` | each item |
-| item action, before the confirm modal opens | the action key | each selected item |
-| item action, before `handle/3` runs | the action key | each selected item |
+| item action without a confirm modal, before `handle/3` runs | the action key | each selected item |
+| item action with a confirm modal, on open and on submit | the action key | each selected item |
 | resource action, on open and on submit | the action key | `nil` |
 
 The `Backpex.Resource` gates run **before** the changeset is built and before `c:Backpex.Field.before_changeset/6` is called, so your own code never executes for an unauthorized request.
+
+Each gesture runs exactly one gate per step, so `can?/3` is not evaluated more times than there are decisions to make. A modal flow has two steps on purpose: the second check catches a permission revoked, or a selection widened, while the modal was open.
 
 ### Strict semantics
 
@@ -83,14 +85,24 @@ Checks over a selection are strict: a single unauthorized item raises, and nothi
 
 A `nil` item — a stale or forged id — raises `Backpex.NoResultsError` (404) and never reaches your `can?/3`, so you do not need clauses for it.
 
-Because a mixed selection would raise, the bulk action button is disabled whenever the selection is empty or contains any unauthorized item.
+Because a mixed selection would raise, the bulk action button is disabled whenever the selection is empty or contains any unauthorized item. A row that is authorized for none of the bulk actions cannot be selected at all — its checkbox is disabled, so a user cannot build a selection that has no usable action.
+
+### What `handle/3` may assume
+
+The items handed to `c:Backpex.ItemAction.handle/3` have already been authorized under that action's key. Writing exactly those items back is the same decision the gate just made, so pass `authorize?: false` rather than paying for a second evaluation of your `can?/3`:
+
+```elixir
+Backpex.Resource.delete_all(items, socket.assigns, socket.assigns.live_resource, authorize?: false)
+```
+
+The guarantee covers only those items under that key. Writes to *other* items or to another resource keep the default gate.
 
 ### Overriding the action and the escape hatch
 
 Every `Backpex.Resource` mutation accepts two options:
 
-- `:authorization_action` — authorize against this action instead of the default. Item actions should pass `socket.assigns.item_action_key`, which Backpex sets before calling `c:Backpex.ItemAction.handle/3`, so an action registered under a custom key is authorized under that key.
-- `authorize?: false` — skip the check. Use this for system or cascade writes that are not a user-initiated action on the resource being written, for example nullifying a foreign key on another resource.
+- `:authorization_action` — authorize against this action instead of the default. It must be a non-nil atom. Item actions can pass `socket.assigns.item_action_key`, which Backpex sets before calling `c:Backpex.ItemAction.handle/3`, so an action registered under a custom key is authorized under that key.
+- `authorize?: false` — skip the check. Use this for a write the gate already covered (see above), and for system or cascade writes that are not a user-initiated action on the resource being written, for example nullifying a foreign key on another resource.
 
 ```elixir
 Backpex.Resource.update_all(item.posts, [set: [user_id: nil]], socket.assigns, MyAppWeb.PostLive,

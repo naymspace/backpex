@@ -5,7 +5,7 @@ defmodule Backpex.LiveResource.Show do
   import Phoenix.Component
 
   alias Backpex.Authorization
-  alias Backpex.LiveResource
+  alias Backpex.ItemAction
   alias Backpex.Resource
   alias Backpex.Router
 
@@ -71,22 +71,16 @@ defmodule Backpex.LiveResource.Show do
   end
 
   defp assign_item_actions(socket) do
-    item_actions = Backpex.ItemAction.default_actions() |> socket.assigns.live_resource.item_actions()
+    item_actions = ItemAction.default_actions() |> socket.assigns.live_resource.item_actions()
     assign(socket, :item_actions, item_actions)
   end
 
   defp maybe_handle_item_action(socket, key) do
-    {key, action} = LiveResource.fetch_action!(socket.assigns.item_actions, key)
     item = socket.assigns.item
 
-    # Gate before the modal opens: an unauthorized item must not even get a confirm dialog.
-    # `Backpex.ItemAction.handle_item_action/5` checks again as defense in depth.
-    Authorization.authorize_all!(socket.assigns.live_resource, socket.assigns, key, [item])
-
-    if Backpex.ItemAction.has_confirm_modal?(action) do
-      open_action_confirm_modal(socket, action, key)
-    else
-      handle_item_action(socket, action, key, item)
+    case ItemAction.resolve_item_action!(socket, key, [item]) do
+      {:confirm, key, action} -> open_action_confirm_modal(socket, action, key)
+      {:dispatch, key, action} -> handle_item_action(socket, action, key, item)
     end
   end
 
@@ -96,7 +90,7 @@ defmodule Backpex.LiveResource.Show do
 
     socket
     |> assign(:selected_items, [item])
-    |> Backpex.ItemAction.assign_action_changeset(action)
+    |> ItemAction.assign_action_changeset(action)
     |> assign(:return_to, return_to(socket, index_path))
     |> assign(:action_to_confirm, Map.put(action, :key, key))
     |> noreply()
@@ -106,7 +100,7 @@ defmodule Backpex.LiveResource.Show do
     %{live_resource: live_resource, params: params} = socket.assigns
     index_path = Router.get_path(socket, live_resource, params, :index)
 
-    Backpex.ItemAction.handle_item_action(socket, action, key, [item], fn socket ->
+    ItemAction.handle_item_action(socket, action, key, [item], fn socket ->
       socket
       |> assign(action_to_confirm: nil)
       |> maybe_navigate(return_to(socket, index_path))

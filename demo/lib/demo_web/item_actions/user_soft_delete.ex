@@ -67,10 +67,12 @@ defmodule DemoWeb.ItemActions.UserSoftDelete do
       try do
         updates = [set: [deleted_at: datetime]]
 
+        # Backpex authorized exactly these items under this action's key before calling handle/3,
+        # so the write does not check again.
         {:ok, _count} =
           Backpex.Resource.update_all(items, updates, socket.assigns, socket.assigns.live_resource,
-            authorization_action: socket.assigns.item_action_key,
-            event_name: "deleted"
+            event_name: "deleted",
+            authorize?: false
           )
 
         # nullify the user_id in the posts owned by the users. This is a cascade write on another
@@ -88,10 +90,6 @@ defmodule DemoWeb.ItemActions.UserSoftDelete do
         |> clear_flash()
         |> put_flash(:info, success_message(socket.assigns, items))
       rescue
-        # An authorization failure must reach the router as a 403, not become a flash message.
-        error in [Backpex.ForbiddenError, Backpex.NoResultsError] ->
-          reraise error, __STACKTRACE__
-
         error ->
           Logger.error("An error occurred while deleting the resource: #{inspect(error)}")
 

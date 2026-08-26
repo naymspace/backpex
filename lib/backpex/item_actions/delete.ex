@@ -44,9 +44,10 @@ defmodule Backpex.ItemActions.Delete do
   def handle(socket, items, _data) do
     %{live_resource: live_resource} = socket.assigns
 
-    opts = [authorization_action: Map.get(socket.assigns, :item_action_key, :delete)]
-
-    {:ok, deleted_items} = Resource.delete_all(items, socket.assigns, live_resource, opts)
+    # Backpex only calls `handle/3` once `Backpex.ItemAction.handle_item_action/5` (or the modal's
+    # submit gate) has authorized exactly these items under exactly this action's key. Re-checking
+    # them here would run the user's `can?/3` a second time for the same decision.
+    {:ok, deleted_items} = Resource.delete_all(items, socket.assigns, live_resource, authorize?: false)
 
     Enum.each(deleted_items, fn deleted_item -> live_resource.on_item_deleted(socket, deleted_item) end)
 
@@ -55,10 +56,6 @@ defmodule Backpex.ItemActions.Delete do
     |> put_flash(:info, success_message(socket.assigns, deleted_items))
     |> ok()
   rescue
-    # An authorization failure must reach the router as a 403, not become a flash message.
-    error in [Backpex.ForbiddenError, Backpex.NoResultsError] ->
-      reraise error, __STACKTRACE__
-
     error ->
       Logger.error("An error occurred while deleting the resource: #{inspect(error)}")
 
