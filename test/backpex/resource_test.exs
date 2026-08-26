@@ -233,9 +233,12 @@ defmodule Backpex.ResourceTest do
     end
 
     test "does not answer the pre-0.21 delete_all/2 signature" do
-      # `apply/3` keeps the compiler's type checker out of it — the point is the runtime behavior.
+      # The arguments go through a variable so the compiler's type checker does not flag the
+      # intentionally wrong call — what is under test is the runtime behavior.
+      args = [[%{id: 1}], AllowAll]
+
       assert_raise UndefinedFunctionError, fn ->
-        apply(Resource, :delete_all, [[%{id: 1}], AllowAll])
+        apply(Resource, :delete_all, args)
       end
     end
   end
@@ -303,8 +306,10 @@ defmodule Backpex.ResourceTest do
       # `update_all(items, updates, "deleted", MyLive)` has the same arity as the new
       # `update_all(items, updates, assigns, live_resource)`. The `is_map(assigns)` guard makes the
       # old call fail loudly instead of silently authorizing against a string.
+      args = [[%{id: 1}], [set: [x: 1]], "deleted", AllowAll]
+
       assert_raise FunctionClauseError, fn ->
-        apply(Resource, :update_all, [[%{id: 1}], [set: [x: 1]], "deleted", AllowAll])
+        apply(Resource, :update_all, args)
       end
     end
   end
