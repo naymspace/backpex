@@ -5,6 +5,7 @@ defmodule Backpex.LiveResource.Index do
   import Phoenix.Component
 
   alias Backpex.Adapters.Ecto, as: EctoAdapter
+  alias Backpex.Authorization
   alias Backpex.FilterValidation
   alias Backpex.LiveResource
   alias Backpex.PaginationValidation
@@ -496,7 +497,7 @@ defmodule Backpex.LiveResource.Index do
 
     action = live_resource.resource_actions()[id]
 
-    if not live_resource.can?(socket.assigns, id, nil), do: raise(Backpex.ForbiddenError)
+    Authorization.authorize!(live_resource, socket.assigns, id, nil)
 
     changeset_function = fn item, changes, metadata -> action.module.changeset(item, changes, metadata) end
     item = action.module.base_schema(socket.assigns)
@@ -514,7 +515,7 @@ defmodule Backpex.LiveResource.Index do
     %{live_resource: live_resource, params: params, fields: fields} = socket.assigns
     persisted = socket.assigns[:backpex_persisted_index_state] || %{order: nil, filters: nil}
 
-    if not live_resource.can?(socket.assigns, :index, nil), do: raise(Backpex.ForbiddenError)
+    Authorization.authorize!(live_resource, socket.assigns, :index, nil)
 
     per_page_options = live_resource.config(:per_page_options)
     per_page_default = live_resource.config(:per_page_default)

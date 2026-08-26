@@ -171,6 +171,26 @@ defmodule Backpex.LiveResource do
   @doc """
   The function that can be used to restrict access to certain actions. It will be called before performing
   an action and aborts when the function returns `false`.
+
+  ## Enforcement
+
+  Backpex enforces this callback centrally through `Backpex.Authorization`. It is evaluated both as a
+  preflight check (to hide or disable controls) and as a hard gate immediately before an action runs:
+
+  * `Backpex.Resource.insert/6` authorizes `:new` with a `nil` item.
+  * `Backpex.Resource.update/6` authorizes `:edit` with the item.
+  * `Backpex.Resource.delete_all/4` authorizes `:delete` per item.
+  * `Backpex.Resource.update_all/5` authorizes `:edit` per item.
+  * Item actions authorize their action key per item, resource actions authorize their key with a `nil` item.
+
+  The default action can be overridden per call with the `:authorization_action` option, and skipped
+  entirely with `authorize?: false` for system writes.
+
+  Enforcement is strict: a single unauthorized item in a selection raises `Backpex.ForbiddenError`
+  instead of silently dropping that item.
+
+  Read operations (`:index`, `:show`) are enforced in the view layer only. `Backpex.Resource.list/4`,
+  `Backpex.Resource.get/4` and `Backpex.Resource.count/4` do not call this callback.
   """
   @callback can?(assigns :: map(), action :: atom(), item :: map() | nil) :: boolean()
 

@@ -4,6 +4,7 @@ defmodule Backpex.LiveResource.Show do
 
   import Phoenix.Component
 
+  alias Backpex.Authorization
   alias Backpex.Resource
   alias Backpex.Router
 
@@ -61,7 +62,7 @@ defmodule Backpex.LiveResource.Show do
     primary_value = URI.decode(backpex_id)
     item = Resource.get!(primary_value, fields, socket.assigns, live_resource)
 
-    if not live_resource.can?(socket.assigns, :show, item), do: raise(Backpex.ForbiddenError)
+    Authorization.authorize!(live_resource, socket.assigns, :show, item)
 
     socket
     |> assign(:item, item)
