@@ -133,7 +133,9 @@ defmodule Backpex.LiveResource.Index do
   def handle_event("item-action", %{"action-key" => key, "item-id" => item_id}, socket) do
     %{items: items, live_resource: live_resource} = socket.assigns
 
-    item = find_item_by_primary_value(items, item_id, live_resource)
+    # A stale or forged id must never enter the selection: `nil` would reach the user's `can?/3`
+    # during render. 404 also keeps the event from confirming whether an id exists.
+    item = find_item_by_primary_value(items, item_id, live_resource) || raise(Backpex.NoResultsError)
 
     socket
     |> assign(selected_items: [item])
@@ -201,21 +203,27 @@ defmodule Backpex.LiveResource.Index do
   def handle_event("update-selected-items", %{"id" => id}, socket) do
     %{selected_items: selected_items, live_resource: live_resource, items: items} = socket.assigns
 
-    item = find_item_by_primary_value(items, id, live_resource)
+    # `id` is client-controlled. A tampered or stale id must be a no-op rather than putting `nil`
+    # into the selection, where it would reach the user's `can?/3` on the next render.
+    case find_item_by_primary_value(items, id, live_resource) do
+      nil ->
+        noreply(socket)
 
-    updated_selected_items =
-      if Enum.member?(selected_items, item) do
-        List.delete(selected_items, item)
-      else
-        [item | selected_items]
-      end
+      item ->
+        updated_selected_items =
+          if Enum.member?(selected_items, item) do
+            List.delete(selected_items, item)
+          else
+            [item | selected_items]
+          end
 
-    select_all = length(updated_selected_items) == length(items)
+        select_all = length(updated_selected_items) == length(items)
 
-    socket
-    |> assign(:selected_items, updated_selected_items)
-    |> assign(:select_all, select_all)
-    |> noreply()
+        socket
+        |> assign(:selected_items, updated_selected_items)
+        |> assign(:select_all, select_all)
+        |> noreply()
+    end
   end
 
   def handle_event("toggle-item-selection", _params, socket) do
@@ -292,8 +300,7 @@ defmodule Backpex.LiveResource.Index do
   end
 
   defp maybe_handle_item_action(socket, key) do
-    key = String.to_existing_atom(key)
-    action = socket.assigns.item_actions[key]
+    {key, action} = LiveResource.fetch_action!(socket.assigns.item_actions, key)
     items = socket.assigns.selected_items
 
     if Backpex.ItemAction.has_confirm_modal?(action) do
@@ -490,12 +497,10 @@ defmodule Backpex.LiveResource.Index do
   defp apply_action(socket, :resource_action) do
     %{live_resource: live_resource} = socket.assigns
 
-    id =
-      socket.assigns.params["backpex_id"]
-      |> URI.decode()
-      |> String.to_existing_atom()
-
-    action = live_resource.resource_actions()[id]
+    # The id comes from the URL: resolve it against the registered resource actions instead of
+    # atomizing it, so an unknown action is a 404 rather than an ArgumentError.
+    {id, action} =
+      LiveResource.fetch_action!(live_resource.resource_actions(), URI.decode(socket.assigns.params["backpex_id"]))
 
     Authorization.authorize!(live_resource, socket.assigns, id, nil)
 

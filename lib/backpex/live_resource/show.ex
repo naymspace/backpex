@@ -5,6 +5,7 @@ defmodule Backpex.LiveResource.Show do
   import Phoenix.Component
 
   alias Backpex.Authorization
+  alias Backpex.LiveResource
   alias Backpex.Resource
   alias Backpex.Router
 
@@ -75,8 +76,7 @@ defmodule Backpex.LiveResource.Show do
   end
 
   defp maybe_handle_item_action(socket, key) do
-    key = String.to_existing_atom(key)
-    action = socket.assigns.item_actions[key]
+    {key, action} = LiveResource.fetch_action!(socket.assigns.item_actions, key)
     item = socket.assigns.item
 
     if Backpex.ItemAction.has_confirm_modal?(action) do

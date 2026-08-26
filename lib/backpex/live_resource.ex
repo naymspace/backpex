@@ -1052,4 +1052,28 @@ defmodule Backpex.LiveResource do
   end
 
   defp safe_return_to?(_path), do: false
+
+  @doc """
+  Resolves a client-supplied action key against a keyword list of registered actions.
+
+  Returns `{key, action}` for the matching registration and raises `Backpex.NoResultsError` when the
+  key is not registered.
+
+  The key is matched by comparing binaries rather than by `String.to_existing_atom/1`: a forged key
+  must produce the same 404 as an unknown one, not an `ArgumentError` that depends on which atoms
+  happen to exist in the running system.
+
+  ## Examples
+
+      iex> Backpex.LiveResource.fetch_action!([delete: %{module: Backpex.ItemActions.Delete}], "delete")
+      {:delete, %{module: Backpex.ItemActions.Delete}}
+  """
+  def fetch_action!(actions, key) when is_list(actions) and is_binary(key) do
+    case Enum.find(actions, fn {registered_key, _action} -> Atom.to_string(registered_key) == key end) do
+      nil -> raise Backpex.NoResultsError
+      registration -> registration
+    end
+  end
+
+  def fetch_action!(_actions, _key), do: raise(Backpex.NoResultsError)
 end
