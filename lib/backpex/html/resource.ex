@@ -980,7 +980,9 @@ defmodule Backpex.HTML.Resource do
   # Pairs each bulk action with the reason it cannot be clicked right now, or `nil` when it can.
   # Computed once per button so the authorization check does not run twice per action.
   defp index_action_buttons(assigns) do
-    Enum.map(filter_item_actions(assigns.item_actions, :index), fn {key, action} ->
+    assigns.item_actions
+    |> filter_item_actions(:index)
+    |> Enum.map(fn {key, action} ->
       {key, action, action_disabled_reason(assigns, key, assigns.selected_items)}
     end)
   end

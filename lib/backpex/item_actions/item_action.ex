@@ -339,10 +339,12 @@ defmodule Backpex.ItemAction do
   action.
   """
   def dispatch(socket, action, key, items, data) do
-    socket
-    |> assign(:item_action_key, key)
-    |> action.module.handle(items, data)
-    |> case do
+    result =
+      socket
+      |> assign(:item_action_key, key)
+      |> action.module.handle(items, data)
+
+    case result do
       {:ok, socket} -> {:ok, assign(socket, :item_action_key, nil)}
       other -> other
     end
