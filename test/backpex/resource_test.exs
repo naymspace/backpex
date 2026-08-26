@@ -267,6 +267,15 @@ defmodule Backpex.ResourceTest do
       assert {:ok, ^items} = Resource.update_all(items, [set: [x: 1]], assigns, DenyAll, authorize?: false)
     end
 
+    test "does not answer the pre-0.21 update_all/3 signature" do
+      # The old head had `event_name \\ "updated"`, so it defined an arity-3 function too.
+      args = [[%{id: 1}], [set: [x: 1]], AllowAll]
+
+      assert_raise UndefinedFunctionError, fn ->
+        apply(Resource, :update_all, args)
+      end
+    end
+
     test "raises FunctionClauseError for the pre-0.21 update_all/4 signature", %{assigns: _assigns} do
       # `update_all(items, updates, "deleted", MyLive)` has the same arity as the new
       # `update_all(items, updates, assigns, live_resource)`. The `is_map(assigns)` guard makes the
