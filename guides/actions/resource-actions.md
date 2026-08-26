@@ -88,3 +88,24 @@ We validate the email address using the `validate_email/2` function provided by 
 > #### Info {: .info}
 >
 > Each resource action has its own route. The route is defined by the `id` of the resource action. If you use the [`live_resource/3`](Backpex.Router.html#live_resources/3) macro, the route is automatically added to the live resource.
+
+## Authorization
+
+A resource action is authorized against its `id`, with a `nil` item:
+
+```elixir
+# in your resource configuration file
+@impl Backpex.LiveResource
+def can?(assigns, :invite, _item), do: assigns.current_user.role == :admin
+def can?(_assigns, _action, _item), do: true
+```
+
+Backpex checks this twice: when the modal is opened (the button is not rendered at all when the check fails) and again when the form is submitted, so a permission revoked while the form was open cannot be used. An unauthorized submit raises `Backpex.ForbiddenError`.
+
+If your [`handle/2`](Backpex.ResourceAction.html#c:handle/2) calls `Backpex.Resource` functions, note that those authorize against their own defaults — `:new` for `insert/6`, `:edit` for `update/6` and `update_all/5`, `:delete` for `delete_all/4` — not against the resource action's key. Pass `authorization_action:` when the resource action's own key is the right one to check, or `authorize?: false` when the write is a system side effect rather than a user action on that resource:
+
+```elixir
+Backpex.Resource.update_all(items, updates, socket.assigns, MyAppWeb.UserLive,
+  authorization_action: :invite
+)
+```

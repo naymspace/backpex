@@ -179,25 +179,32 @@ defmodule DemoWeb.ItemAction.SoftDelete do
 
     @impl Backpex.ItemAction
     def handle(socket, items, data) do
-      datetime = DateTime.truncate(DateTime.utc_now(), :second)
+      datetime = DateTime.utc_now(:second)
 
       socket =
         try do
-          {:ok, _count_} =
+          {:ok, _items} =
             Backpex.Resource.update_all(
-              socket.assigns,
               items,
               [set: [deleted_at: datetime, reason: data.reason]],
-              "deleted"
+              socket.assigns,
+              socket.assigns.live_resource,
+              event_name: "deleted",
+              authorization_action: socket.assigns.item_action_key
             )
 
-            socket
-            |> clear_flash()
-            |> put_flash(:info, "Item(s) successfully deleted.")
-        rescue
           socket
           |> clear_flash()
-          |> put_flash(:error, error)
+          |> put_flash(:info, "Item(s) successfully deleted.")
+        rescue
+          # Never swallow the authorization gate: it must reach the router as a 403.
+          error in [Backpex.ForbiddenError, Backpex.NoResultsError] ->
+            reraise error, __STACKTRACE__
+
+          error ->
+            socket
+            |> clear_flash()
+            |> put_flash(:error, Exception.message(error))
         end
 
       {:ok, socket}
@@ -209,3 +216,43 @@ The above ItemAction require users to fill out the reason field before the actio
 
 > #### Important {: .note}
 > If your ItemAction has form fields, you must also implement the `c:Backpex.ItemAction.confirm/1` function.
+
+## Authorization
+
+Item actions are authorized against the key they are registered under. Implement [`can?/3`](Backpex.LiveResource.html#c:can?/3) in your resource configuration module:
+
+```elixir
+# in your resource configuration file
+@impl Backpex.LiveResource
+def can?(_assigns, :soft_delete, item), do: item.role != :admin
+def can?(_assigns, _action, _item), do: true
+```
+
+Backpex enforces this for you — you do not need to check it again inside `c:Backpex.ItemAction.handle/3`. There are three things to know:
+
+**Enforcement is strict.** Every selected item is authorized before the confirm modal opens and again immediately before `c:Backpex.ItemAction.handle/3` runs. A selection containing a single unauthorized item raises `Backpex.ForbiddenError`; items are never silently dropped. A stale or forged item id raises `Backpex.NoResultsError`. Because a mixed selection would raise, the toolbar button is disabled whenever the selection is empty or contains an unauthorized item.
+
+**`handle/3` gets the full selection, and is never called with `[]`.** For an empty selection Backpex skips the action entirely.
+
+**Use `assigns.item_action_key` when writing.** `Backpex.Resource` mutations default to `:new` / `:edit` / `:delete`. An action registered under a custom key should authorize under that key:
+
+```elixir
+Backpex.Resource.delete_all(items, socket.assigns, socket.assigns.live_resource,
+  authorization_action: socket.assigns.item_action_key
+)
+```
+
+Backpex sets `assigns.item_action_key` immediately before calling your `handle/3`, so the action does not need to know its own registration key.
+
+If your action writes to a *different* resource as a side effect (nullifying a foreign key, for example), that write is not a user-initiated action on that resource — pass `authorize?: false`:
+
+```elixir
+Backpex.Resource.update_all(item.posts, [set: [user_id: nil]], socket.assigns, MyAppWeb.PostLive,
+  event_name: "updated",
+  authorize?: false
+)
+```
+
+> #### Do not swallow the gate {: .warning}
+>
+> A broad `rescue` around a `Backpex.Resource` call will catch `Backpex.ForbiddenError` and turn a 403 into a flash message. Reraise it, as the example above does.
