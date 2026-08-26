@@ -67,7 +67,7 @@
       ]}>
         <div class={["flex items-center justify-end space-x-2"]}>
           <%= for {key, action} <- filter_item_actions(@item_actions, :row),
-                  @live_resource.can?(assigns, key, item) do %>
+                  Authorization.can?(@live_resource, assigns, key, item) do %>
             <%= if Backpex.ItemAction.has_link?(action) do %>
               <.link
                 id={"item-action-#{key}-#{LiveResource.primary_value(item, @live_resource)}"}

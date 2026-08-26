@@ -485,7 +485,7 @@ defmodule Backpex.LiveResource do
           </.main_title>
           <div class="flex items-center space-x-2">
             <%= for {key, action} <- Backpex.HTML.Resource.filter_item_actions(@item_actions, :show),
-                    @live_resource.can?(assigns, key, @item) do %>
+                    Backpex.Authorization.can?(@live_resource, assigns, key, @item) do %>
               <%= if Backpex.ItemAction.has_link?(action) do %>
                 <.link
                   id={"item-action-#{key}"}

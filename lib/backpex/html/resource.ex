@@ -9,6 +9,7 @@ defmodule Backpex.HTML.Resource do
   import Backpex.HTML.Layout
   import Phoenix.LiveView.TagEngine
 
+  alias Backpex.Authorization
   alias Backpex.LiveResource
   alias Backpex.ResourceAction
   alias Backpex.Router
@@ -105,7 +106,7 @@ defmodule Backpex.HTML.Resource do
     {_name, field_options} = field = Enum.find(fields, fn {field_name, _field_options} -> field_name == name end)
 
     readonly =
-      not live_resource.can?(assigns, :edit, item) or
+      not Authorization.can?(live_resource, assigns, :edit, item) or
         Backpex.Field.readonly?(field_options, assigns)
 
     assigns =
@@ -875,7 +876,10 @@ defmodule Backpex.HTML.Resource do
   def resource_buttons(assigns) do
     ~H"""
     <div class="mb-4 flex space-x-2">
-      <.link :if={@live_resource.can?(assigns, :new, nil)} patch={Router.get_path(@socket, @live_resource, @params, :new)}>
+      <.link
+        :if={Authorization.can?(@live_resource, assigns, :new, nil)}
+        patch={Router.get_path(@socket, @live_resource, @params, :new)}
+      >
         <button class="btn btn-sm btn-outline btn-primary">
           {@create_button_label}
         </button>
@@ -951,7 +955,7 @@ defmodule Backpex.HTML.Resource do
 
   defp resource_actions(assigns, resource_actions) do
     Enum.filter(resource_actions, fn {key, _action} ->
-      assigns.live_resource.can?(assigns, key, nil)
+      Authorization.can?(assigns.live_resource, assigns, key, nil)
     end)
   end
 
@@ -960,7 +964,7 @@ defmodule Backpex.HTML.Resource do
     resource_actions = resource_actions(assigns, assigns.resource_actions)
 
     Enum.any?(index_actions) &&
-      (Enum.any?(resource_actions) || assigns.live_resource.can?(assigns, :new, nil))
+      (Enum.any?(resource_actions) || Authorization.can?(assigns.live_resource, assigns, :new, nil))
   end
 
   @doc """
@@ -1004,7 +1008,7 @@ defmodule Backpex.HTML.Resource do
       |> assign(:search_active?, get_in(assigns, [:query_options, :search]) not in [nil, ""])
       |> assign(:filter_active?, get_in(assigns, [:query_options, :filters]) != %{})
       |> assign(:title, Backpex.__({"No %{resources} found", %{resources: plural_name}}, assigns.live_resource))
-      |> assign(:create_allowed, assigns.live_resource.can?(assigns, :new, nil))
+      |> assign(:create_allowed, Authorization.can?(assigns.live_resource, assigns, :new, nil))
 
     ~H"""
     <div class="flex justify-center py-16">
