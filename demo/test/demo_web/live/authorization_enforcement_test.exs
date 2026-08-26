@@ -119,14 +119,57 @@ defmodule DemoWeb.Live.AuthorizationEnforcementTest do
       %{user: insert(:user, %{role: :user}), admin: insert(:user, %{role: :admin})}
     end
 
-    test "disable the bulk action button", %{conn: conn, user: user, admin: admin} do
+    test "disable the bulk action button and say why", %{conn: conn, user: user, admin: admin} do
       {:ok, view, _html} = live(conn, ~p"/admin/users")
 
       render_click(view, "update-selected-items", %{"id" => user.id})
       refute has_element?(view, "button[phx-value-action-key='user_soft_delete'][disabled]")
 
+      # The admin's checkbox is disabled in the UI, so this selection can only be built by forging
+      # the event — but the button must still explain itself rather than being a dead end.
       render_click(view, "update-selected-items", %{"id" => admin.id})
+
       assert has_element?(view, "button[phx-value-action-key='user_soft_delete'][disabled]")
+
+      assert has_element?(
+               view,
+               "button[phx-value-action-key='user_soft_delete'][title='Your selection contains items you may not apply this action to.']"
+             )
+    end
+
+    test "an item no action applies to cannot be selected", %{conn: conn, user: user, admin: admin} do
+      {:ok, view, _html} = live(conn, ~p"/admin/users")
+
+      # `user_soft_delete` is the only bulk action on users and it is denied for admins, so an
+      # admin row can never take part in one.
+      assert has_element?(view, "#select-input-#{admin.id}[disabled]")
+      refute has_element?(view, "#select-input-#{user.id}[disabled]")
+
+      assert has_element?(
+               view,
+               "#select-input-#{admin.id}[title='No action is available for this item.']"
+             )
+    end
+
+    test "select all skips items no action applies to", %{conn: conn, user: user, admin: admin} do
+      {:ok, view, _html} = live(conn, ~p"/admin/users")
+
+      render_click(view, "toggle-item-selection", %{})
+
+      assert has_element?(view, "#select-input-#{user.id}[checked]")
+      refute has_element?(view, "#select-input-#{admin.id}[checked]")
+
+      # A select-all that produced an unusable selection would be the dead end this avoids.
+      refute has_element?(view, "button[phx-value-action-key='user_soft_delete'][disabled]")
+    end
+
+    test "empty selections say what to do instead of just being disabled", %{conn: conn} do
+      {:ok, view, _html} = live(conn, ~p"/admin/users")
+
+      assert has_element?(
+               view,
+               "button[phx-value-action-key='user_soft_delete'][title='Select at least one item to use this action.']"
+             )
     end
 
     test "raise ForbiddenError when the bulk action is forged anyway", %{conn: conn, user: user, admin: admin} do

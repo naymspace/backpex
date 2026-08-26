@@ -897,9 +897,10 @@ defmodule Backpex.HTML.Resource do
       <div :if={display_divider?(assigns)} class="border-base-300 my-0.5 border-r-2 border-solid" />
 
       <button
-        :for={{key, action} <- filter_item_actions(@item_actions, :index)}
+        :for={{key, action, disabled_reason} <- index_action_buttons(assigns)}
         class="btn btn-sm btn-outline btn-primary"
-        disabled={action_disabled?(assigns, key, @selected_items)}
+        disabled={disabled_reason != nil}
+        title={disabled_reason}
         phx-click="item-action"
         phx-value-action-key={key}
       >
@@ -976,11 +977,66 @@ defmodule Backpex.HTML.Resource do
     end)
   end
 
+  # Pairs each bulk action with the reason it cannot be clicked right now, or `nil` when it can.
+  # Computed once per button so the authorization check does not run twice per action.
+  defp index_action_buttons(assigns) do
+    Enum.map(filter_item_actions(assigns.item_actions, :index), fn {key, action} ->
+      {key, action, action_disabled_reason(assigns, key, assigns.selected_items)}
+    end)
+  end
+
   # Enforcement is strict: a selection containing a single unauthorized item raises. So the button
   # must be disabled unless *every* selected item is authorized. `Enum.all?([]) == true`, so the
-  # empty selection has to be handled explicitly.
-  defp action_disabled?(assigns, action_key, items) do
-    items == [] or not Backpex.Authorization.can_all?(assigns.live_resource, assigns, action_key, items)
+  # empty selection has to be handled explicitly. The reason is surfaced as a tooltip — a button
+  # that is disabled without saying why is a dead end.
+  defp action_disabled_reason(assigns, action_key, items) do
+    cond do
+      items == [] ->
+        Backpex.__("Select at least one item to use this action.", assigns.live_resource)
+
+      not Authorization.can_all?(assigns.live_resource, assigns, action_key, items) ->
+        Backpex.__("Your selection contains items you may not apply this action to.", assigns.live_resource)
+
+      true ->
+        nil
+    end
+  end
+
+  # `{item, index, selectable?}` per row, so the table computes the selectable state once instead of
+  # once per attribute that needs it.
+  defp index_rows(assigns) do
+    assigns.items
+    |> Enum.with_index()
+    |> Enum.map(fn {item, index} -> {item, index, item_selectable?(assigns, item)} end)
+  end
+
+  @doc """
+  Returns whether `item` can take part in any of the bulk (index) item actions.
+
+  A row that is authorized for none of them can never be acted on from the toolbar. Its selection
+  checkbox is therefore disabled and "select all" skips it — otherwise a user could assemble a
+  selection for which every action is disabled, with nothing saying which row caused it.
+  """
+  def item_selectable?(assigns, item) do
+    assigns.item_actions
+    |> filter_item_actions(:index)
+    |> Enum.any?(fn {key, _action} -> Authorization.can?(assigns.live_resource, assigns, key, item) end)
+  end
+
+  @doc """
+  Accessible name for a row's selection checkbox, explaining the disabled state when there is one.
+  """
+  def select_item_label(assigns, item, selectable?) do
+    id = LiveResource.primary_value(item, assigns.live_resource)
+
+    if selectable? do
+      Backpex.__({"Select item with id: %{id}", %{id: id}}, assigns.live_resource)
+    else
+      Backpex.__(
+        {"Item with id %{id} cannot be selected: no action is available for it", %{id: id}},
+        assigns.live_resource
+      )
+    end
   end
 
   @doc """

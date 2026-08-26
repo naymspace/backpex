@@ -218,7 +218,11 @@ defmodule Backpex.LiveResource.Index do
             [item | selected_items]
           end
 
-        select_all = length(updated_selected_items) == length(items)
+        # Rows the user may not act on at all are not selectable, so "everything is selected" means
+        # every *selectable* row — not every row on the page.
+        select_all =
+          updated_selected_items != [] and
+            length(updated_selected_items) == length(selectable_items(socket.assigns))
 
         socket
         |> assign(:selected_items, updated_selected_items)
@@ -228,11 +232,12 @@ defmodule Backpex.LiveResource.Index do
   end
 
   def handle_event("toggle-item-selection", _params, socket) do
-    select_all = not socket.assigns.select_all
-    selected_items = (select_all && socket.assigns.items) || []
+    # Selecting a row the user may not act on would only produce a selection whose every bulk
+    # action is disabled, so select-all skips those rows.
+    selected_items = if socket.assigns.select_all, do: [], else: selectable_items(socket.assigns)
 
     socket
-    |> assign(:select_all, select_all)
+    |> assign(:select_all, selected_items != [])
     |> assign(:selected_items, selected_items)
     |> noreply()
   end
@@ -324,6 +329,10 @@ defmodule Backpex.LiveResource.Index do
       |> assign(select_all: false)
       |> noreply()
     end)
+  end
+
+  defp selectable_items(assigns) do
+    Enum.filter(assigns.items, &Backpex.HTML.Resource.item_selectable?(assigns, &1))
   end
 
   defp find_item_by_primary_value(items, primary_value, live_resource) do
