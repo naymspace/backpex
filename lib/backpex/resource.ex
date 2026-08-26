@@ -116,7 +116,7 @@ defmodule Backpex.Resource do
     * `:authorize?` (optional, default `true`): Set to `false` to skip authorization.
   """
   def delete_all(items, assigns, live_resource, opts \\ [])
-      when is_list(items) and is_map(assigns) and is_atom(live_resource) do
+      when is_list(items) and is_non_struct_map(assigns) and is_atom(live_resource) do
     _opts = authorize_items!(items, assigns, live_resource, opts, :delete)
 
     adapter = live_resource.config(:adapter)
@@ -212,7 +212,7 @@ defmodule Backpex.Resource do
     * `:authorize?` (optional, default `true`): Set to `false` to skip authorization.
   """
   def update_all(items, updates, assigns, live_resource, opts \\ [])
-      when is_list(items) and is_map(assigns) and is_atom(live_resource) do
+      when is_list(items) and is_non_struct_map(assigns) and is_atom(live_resource) do
     opts = authorize_items!(items, assigns, live_resource, opts, :edit)
 
     event_name = Keyword.get(opts, :event_name, "updated")

@@ -6,6 +6,7 @@ defmodule Backpex.AuthorizationTest do
   alias Backpex.Test.LiveResources.DenyAll
   alias Backpex.Test.LiveResources.KeyAware
   alias Backpex.Test.LiveResources.Recording
+  alias Phoenix.LiveView.Socket
 
   @assigns %{live_resource: AllowAll}
 
@@ -25,6 +26,14 @@ defmodule Backpex.AuthorizationTest do
     test "supports a nil item" do
       refute Authorization.can?(KeyAware, @assigns, :new, nil)
       assert Authorization.can?(KeyAware, @assigns, :edit, nil)
+    end
+
+    test "refuses a socket where assigns are expected" do
+      # Authorizing against a `%Phoenix.LiveView.Socket{}` would answer for the wrong context. The
+      # guard has to reject it loudly instead of handing the struct to `can?/3`.
+      assert_raise FunctionClauseError, fn ->
+        Authorization.can?(AllowAll, %Socket{}, :new, nil)
+      end
     end
   end
 

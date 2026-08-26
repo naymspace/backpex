@@ -8,6 +8,7 @@ defmodule Backpex.ResourceTest do
   alias Backpex.Test.LiveResources.NoAdmins
   alias Backpex.Test.LiveResources.OnlyCustomKey
   alias Backpex.Test.LiveResources.Recording
+  alias Phoenix.LiveView.Socket
 
   setup do
     start_supervised!({Phoenix.PubSub, name: LiveResources.pubsub_server()})
@@ -192,6 +193,18 @@ defmodule Backpex.ResourceTest do
       assert_raise UndefinedFunctionError, fn ->
         apply(Resource, :delete_all, args)
       end
+    end
+
+    test "refuses a socket where assigns are expected" do
+      # Passing the socket instead of its assigns would authorize against the wrong context. The
+      # `is_non_struct_map/1` guard makes that a hard error rather than a silent mismatch.
+      args = [[%{id: 1}], %Socket{}, DenyAll]
+
+      assert_raise FunctionClauseError, fn ->
+        apply(Resource, :delete_all, args)
+      end
+
+      refute_received {:adapter, :delete_all, _items}
     end
   end
 

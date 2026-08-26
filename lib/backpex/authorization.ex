@@ -30,6 +30,12 @@ defmodule Backpex.Authorization do
   Note that `Enum.all?/2` returns `true` for an empty list, so an empty selection passes vacuously.
   Callers that need "empty means not allowed" (a disabled bulk action button, for example) must
   handle the empty case themselves.
+
+  ## Assigns, not the socket
+
+  Every function here takes `assigns`, not a `%Phoenix.LiveView.Socket{}`. A guard enforces that:
+  passing the socket by mistake would authorize against the wrong context, and a struct must fail
+  loudly rather than reach a permissive `c:Backpex.LiveResource.can?/3` clause.
   """
 
   @doc """
@@ -39,7 +45,8 @@ defmodule Backpex.Authorization do
   actions).
   """
   @spec can?(module(), map(), atom(), map() | nil) :: boolean()
-  def can?(live_resource, assigns, action, item) when is_atom(live_resource) and is_map(assigns) and is_atom(action) do
+  def can?(live_resource, assigns, action, item)
+      when is_atom(live_resource) and is_non_struct_map(assigns) and is_atom(action) do
     live_resource.can?(assigns, action, item)
   end
 
