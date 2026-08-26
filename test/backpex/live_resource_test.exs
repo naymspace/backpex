@@ -4,6 +4,7 @@ defmodule Backpex.LiveResourceTest do
   import Ecto.Query
 
   alias Backpex.Adapters.Ecto, as: EctoAdapter
+  alias Backpex.ItemActions.Delete
   alias Backpex.LiveResource
 
   defmodule TestPost do
@@ -79,6 +80,34 @@ defmodule Backpex.LiveResourceTest do
 
     test "returns nil when the param is not a string" do
       assert LiveResource.return_to_param(%{"return_to" => ["/admin"]}) == nil
+    end
+  end
+
+  describe "fetch_action!/2" do
+    @actions [delete: %{module: Delete}, show: %{module: Backpex.ItemActions.Show}]
+
+    test "returns the registration for a known key" do
+      assert LiveResource.fetch_action!(@actions, "delete") == {:delete, %{module: Delete}}
+    end
+
+    test "raises NoResultsError for an unregistered key" do
+      # Matching binaries rather than `String.to_existing_atom/1` keeps a forged key a 404 instead
+      # of an ArgumentError that depends on which atoms happen to exist in the running system.
+      assert_raise Backpex.NoResultsError, fn ->
+        LiveResource.fetch_action!(@actions, "no_such_action_key")
+      end
+    end
+
+    test "raises NoResultsError for an existing atom that is not registered here" do
+      assert_raise Backpex.NoResultsError, fn ->
+        LiveResource.fetch_action!(@actions, "edit")
+      end
+    end
+
+    test "raises NoResultsError for a non-binary key" do
+      assert_raise Backpex.NoResultsError, fn ->
+        LiveResource.fetch_action!(@actions, ["delete"])
+      end
     end
   end
 
