@@ -42,15 +42,23 @@ defmodule Backpex.ItemActions.Delete do
 
   @impl Backpex.ItemAction
   def handle(socket, items, _data) do
-    {:ok, deleted_items} = Resource.delete_all(items, socket.assigns.live_resource)
+    %{live_resource: live_resource} = socket.assigns
 
-    Enum.each(deleted_items, fn deleted_item -> socket.assigns.live_resource.on_item_deleted(socket, deleted_item) end)
+    opts = [authorization_action: Map.get(socket.assigns, :item_action_key, :delete)]
+
+    {:ok, deleted_items} = Resource.delete_all(items, socket.assigns, live_resource, opts)
+
+    Enum.each(deleted_items, fn deleted_item -> live_resource.on_item_deleted(socket, deleted_item) end)
 
     socket
     |> clear_flash()
     |> put_flash(:info, success_message(socket.assigns, deleted_items))
     |> ok()
   rescue
+    # An authorization failure must reach the router as a 403, not become a flash message.
+    error in [Backpex.ForbiddenError, Backpex.NoResultsError] ->
+      reraise error, __STACKTRACE__
+
     error ->
       Logger.error("An error occurred while deleting the resource: #{inspect(error)}")
 
