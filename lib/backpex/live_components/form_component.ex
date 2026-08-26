@@ -366,24 +366,27 @@ defmodule Backpex.FormComponent do
         %{
           live_resource: live_resource,
           selected_items: selected_items,
-          action_to_confirm: action_to_confirm,
+          action_to_confirm: action,
           return_to: return_to
         } = assigns
     } = socket
 
-    action_key = action_to_confirm.key
+    action_key = action.key
 
-    # Gate before any changeset work: permission may have been revoked while the modal was open.
+    # Gate before any changeset work: permission may have been revoked, or the selection widened,
+    # while the modal was open.
     Authorization.authorize_all!(live_resource, assigns, action_key, selected_items)
 
     if selected_items == [] do
-      empty_item_action_selection(socket, return_to)
+      close_item_action(socket, return_to)
     else
-      run_form_item_action(socket, action_key, params)
+      run_form_item_action(socket, action, action_key, selected_items, return_to, params)
     end
   end
 
-  defp empty_item_action_selection(socket, return_to) do
+  # The selection is done with either way: whether the action ran or there was nothing to run it
+  # on, the modal closes, the selection is dropped and we return to where we came from.
+  defp close_item_action(socket, return_to) do
     socket
     |> assign(:show_form_errors, false)
     |> assign(:selected_items, [])
@@ -392,29 +395,17 @@ defmodule Backpex.FormComponent do
     |> noreply()
   end
 
-  defp run_form_item_action(socket, action_key, params) do
-    %{
-      assigns:
-        %{
-          fields: fields,
-          selected_items: selected_items,
-          action_to_confirm: action_to_confirm,
-          return_to: return_to
-        } = assigns
-    } = socket
+  defp run_form_item_action(socket, action, action_key, selected_items, return_to, params) do
+    %{assigns: %{fields: fields} = assigns} = socket
 
     params = drop_readonly_changes(params, fields, assigns)
 
     result =
-      if ItemAction.has_form?(action_to_confirm) do
-        changeset_function = fn item, changes, metadata ->
-          action_to_confirm.module.changeset(item, changes, metadata)
-        end
-
+      if ItemAction.has_form?(action) do
         metadata = Resource.build_changeset_metadata(assigns)
 
         assigns.action_item
-        |> changeset_function.(params, metadata)
+        |> action.module.changeset(params, metadata)
         |> Map.put(:action, :insert)
         |> Ecto.Changeset.apply_action(:insert)
       else
@@ -422,13 +413,8 @@ defmodule Backpex.FormComponent do
       end
 
     with {:ok, data} <- result,
-         {:ok, socket} <- ItemAction.dispatch(socket, action_to_confirm, action_key, selected_items, data) do
-      socket
-      |> assign(:show_form_errors, false)
-      |> assign(:selected_items, [])
-      |> assign(:select_all, false)
-      |> push_navigate(to: return_to)
-      |> noreply()
+         {:ok, socket} <- ItemAction.dispatch(socket, action, action_key, selected_items, data) do
+      close_item_action(socket, return_to)
     else
       {:error, changeset} ->
         form = Component.to_form(changeset, as: :change)
@@ -440,7 +426,7 @@ defmodule Backpex.FormComponent do
 
       unexpected_return ->
         raise ArgumentError, """
-        Invalid return value from #{inspect(action_to_confirm.module)}.handle/2.
+        Invalid return value from #{inspect(action.module)}.handle/2.
 
         Expected: {:ok, socket} or {:error, changeset}
         Got: #{inspect(unexpected_return)}
