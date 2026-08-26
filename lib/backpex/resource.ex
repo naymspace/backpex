@@ -24,8 +24,9 @@ defmodule Backpex.Resource do
 
   Two options control this on every mutation:
 
-  * `:authorization_action` (atom) — authorize against this action instead of the default. Item
-    actions should pass `assigns.item_action_key` so a custom registration key is honored.
+  * `:authorization_action` (atom) — authorize against this action instead of the default. It must
+    be a non-nil atom; anything else raises `ArgumentError` rather than being handed to a
+    permissive catch-all `can?/3` clause.
   * `:authorize?` (boolean, default `true`) — set to `false` to skip the check entirely. This is the
     escape hatch for system or cascade writes that are not a user-initiated action on that resource,
     for example nullifying foreign keys on another resource.
@@ -252,6 +253,14 @@ defmodule Backpex.Resource do
 
     if !is_boolean(authorize?) do
       raise ArgumentError, "expected :authorize? to be a boolean, got: #{inspect(authorize?)}"
+    end
+
+    # `Keyword.pop/3` returns an explicitly passed `nil` rather than the default, and `nil` is an
+    # atom — so an unvalidated `authorization_action: nil` would reach `can?(assigns, nil, item)`,
+    # where a permissive catch-all clause silently authorizes the mutation. Refuse it here.
+    if is_nil(authorization_action) or not is_atom(authorization_action) do
+      raise ArgumentError,
+            "expected :authorization_action to be a non-nil atom, got: #{inspect(authorization_action)}"
     end
 
     {authorize?, authorization_action, opts}

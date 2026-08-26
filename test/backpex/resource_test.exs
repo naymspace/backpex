@@ -71,6 +71,28 @@ defmodule Backpex.ResourceTest do
         Resource.insert(item, %{}, f, assigns, AllowAll, authorize?: :nope)
       end
     end
+
+    test "raises when :authorization_action is nil and never reaches the adapter", %{
+      assigns: assigns,
+      item: item,
+      fields: f
+    } do
+      # `Keyword.pop/3` hands back an explicitly passed `nil` instead of the default, and `nil` is
+      # an atom — so without validation this would check `can?(assigns, nil, item)`, which a
+      # permissive catch-all clause happily authorizes.
+      assert_raise ArgumentError, ~r/:authorization_action/, fn ->
+        Resource.insert(item, %{}, f, assigns, DenyAll, authorization_action: nil)
+      end
+
+      refute_received {:adapter, :change, _opts}
+      refute_received {:adapter, :insert, _item, _attrs}
+    end
+
+    test "raises when :authorization_action is not an atom", %{assigns: assigns, item: item, fields: f} do
+      assert_raise ArgumentError, ~r/:authorization_action/, fn ->
+        Resource.insert(item, %{}, f, assigns, AllowAll, authorization_action: "custom_key")
+      end
+    end
   end
 
   describe "update/6" do
@@ -127,6 +149,14 @@ defmodule Backpex.ResourceTest do
     test "raises NoResultsError when the list contains nil", %{assigns: assigns} do
       assert_raise Backpex.NoResultsError, fn ->
         Resource.delete_all([%{id: 1}, nil], assigns, AllowAll)
+      end
+
+      refute_received {:adapter, :delete_all, _items}
+    end
+
+    test "raises when :authorization_action is nil and never reaches the adapter", %{assigns: assigns} do
+      assert_raise ArgumentError, ~r/:authorization_action/, fn ->
+        Resource.delete_all([%{id: 1}], assigns, DenyAll, authorization_action: nil)
       end
 
       refute_received {:adapter, :delete_all, _items}
