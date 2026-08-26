@@ -2,94 +2,16 @@ defmodule Backpex.ResourceTest do
   use ExUnit.Case, async: true
 
   alias Backpex.Resource
-  alias Backpex.ResourceTest.PubSub
-
-  @pubsub_server PubSub
-  @topic "backpex_resource_test"
-
-  defmodule StubAdapter do
-    @moduledoc false
-
-    # Every call reports back to the test process. Tests use `refute_received/1` to prove that a
-    # denied mutation never reached the data layer.
-
-    def change(item, attrs, _fields, _assigns, _live_resource, opts) do
-      send(self(), {:adapter, :change, opts})
-
-      {:changeset, item, attrs}
-    end
-
-    def insert({:changeset, item, attrs}, _live_resource) do
-      send(self(), {:adapter, :insert, item, attrs})
-
-      {:ok, item}
-    end
-
-    def update({:changeset, item, attrs}, _live_resource) do
-      send(self(), {:adapter, :update, item, attrs})
-
-      {:ok, item}
-    end
-
-    def delete_all(items, _live_resource) do
-      send(self(), {:adapter, :delete_all, items})
-
-      {:ok, items}
-    end
-
-    def update_all(items, updates, _live_resource) do
-      send(self(), {:adapter, :update_all, items, updates})
-
-      {length(items), nil}
-    end
-  end
-
-  defmodule AllowAll do
-    @moduledoc false
-    def config(:adapter), do: Backpex.ResourceTest.StubAdapter
-    def can?(_assigns, _action, _item), do: true
-    def pubsub, do: [server: PubSub, topic: "backpex_resource_test"]
-  end
-
-  defmodule DenyAll do
-    @moduledoc false
-    def config(:adapter), do: Backpex.ResourceTest.StubAdapter
-    def can?(_assigns, _action, _item), do: false
-    def pubsub, do: [server: PubSub, topic: "backpex_resource_test"]
-  end
-
-  defmodule Recording do
-    @moduledoc false
-    def config(:adapter), do: Backpex.ResourceTest.StubAdapter
-
-    def can?(_assigns, action, item) do
-      send(self(), {:can?, action, item})
-
-      true
-    end
-
-    def pubsub, do: [server: PubSub, topic: "backpex_resource_test"]
-  end
-
-  defmodule OnlyCustomKey do
-    @moduledoc false
-    def config(:adapter), do: Backpex.ResourceTest.StubAdapter
-    def can?(_assigns, :custom_key, _item), do: true
-    def can?(_assigns, _action, _item), do: false
-    def pubsub, do: [server: PubSub, topic: "backpex_resource_test"]
-  end
-
-  defmodule NoAdmins do
-    @moduledoc false
-    def config(:adapter), do: Backpex.ResourceTest.StubAdapter
-    def can?(_assigns, _action, %{role: :admin} = _item), do: false
-    def can?(_assigns, _action, _item), do: true
-    def pubsub, do: [server: PubSub, topic: "backpex_resource_test"]
-  end
+  alias Backpex.Test.LiveResources
+  alias Backpex.Test.LiveResources.AllowAll
+  alias Backpex.Test.LiveResources.DenyAll
+  alias Backpex.Test.LiveResources.NoAdmins
+  alias Backpex.Test.LiveResources.OnlyCustomKey
+  alias Backpex.Test.LiveResources.Recording
 
   setup do
-    start_supervised!({Phoenix.PubSub, name: @pubsub_server})
-    :ok = Phoenix.PubSub.subscribe(@pubsub_server, @topic)
+    start_supervised!({Phoenix.PubSub, name: LiveResources.pubsub_server()})
+    :ok = Phoenix.PubSub.subscribe(LiveResources.pubsub_server(), LiveResources.pubsub_topic())
 
     %{assigns: %{some: :assign}, item: %{id: 1}, fields: []}
   end

@@ -2,32 +2,10 @@ defmodule Backpex.AuthorizationTest do
   use ExUnit.Case, async: true
 
   alias Backpex.Authorization
-
-  defmodule AllowAll do
-    @moduledoc false
-    def can?(_assigns, _action, _item), do: true
-  end
-
-  defmodule DenyAll do
-    @moduledoc false
-    def can?(_assigns, _action, _item), do: false
-  end
-
-  defmodule KeyAware do
-    @moduledoc false
-    def can?(_assigns, :delete, %{role: :admin} = _item), do: false
-    def can?(_assigns, :delete, _item), do: true
-    def can?(_assigns, :new, nil), do: false
-    def can?(_assigns, _action, _item), do: true
-  end
-
-  defmodule Recorder do
-    @moduledoc false
-    def can?(assigns, action, item) do
-      send(assigns.test_pid, {:can?, action, item})
-      true
-    end
-  end
+  alias Backpex.Test.LiveResources.AllowAll
+  alias Backpex.Test.LiveResources.DenyAll
+  alias Backpex.Test.LiveResources.KeyAware
+  alias Backpex.Test.LiveResources.Recording
 
   @assigns %{live_resource: AllowAll}
 
@@ -40,7 +18,7 @@ defmodule Backpex.AuthorizationTest do
     test "passes action and item through untouched" do
       item = %{id: 1}
 
-      assert Authorization.can?(Recorder, %{test_pid: self()}, :edit, item)
+      assert Authorization.can?(Recording, @assigns, :edit, item)
       assert_received {:can?, :edit, ^item}
     end
 
@@ -99,7 +77,7 @@ defmodule Backpex.AuthorizationTest do
 
     test "never passes nil to the live resource" do
       assert_raise Backpex.NoResultsError, fn ->
-        Authorization.authorize_all!(Recorder, %{test_pid: self()}, :delete, [nil])
+        Authorization.authorize_all!(Recording, @assigns, :delete, [nil])
       end
 
       refute_received {:can?, :delete, nil}

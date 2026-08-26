@@ -2,18 +2,9 @@ defmodule Backpex.ItemActionTest do
   use ExUnit.Case, async: true
 
   alias Backpex.ItemAction
+  alias Backpex.Test.LiveResources.AllowAll
+  alias Backpex.Test.LiveResources.NoAdmins
   alias Phoenix.LiveView.Socket
-
-  defmodule AllowAll do
-    @moduledoc false
-    def can?(_assigns, _action, _item), do: true
-  end
-
-  defmodule NoAdmins do
-    @moduledoc false
-    def can?(_assigns, _action, %{role: :admin} = _item), do: false
-    def can?(_assigns, _action, _item), do: true
-  end
 
   defmodule EchoAction do
     @moduledoc false
