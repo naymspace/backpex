@@ -972,11 +972,11 @@ defmodule Backpex.HTML.Resource do
     end)
   end
 
+  # Enforcement is strict: a selection containing a single unauthorized item raises. So the button
+  # must be disabled unless *every* selected item is authorized. `Enum.all?([]) == true`, so the
+  # empty selection has to be handled explicitly.
   defp action_disabled?(assigns, action_key, items) do
-    Enum.filter(items, fn item ->
-      assigns.live_resource.can?(assigns, action_key, item)
-    end)
-    |> Enum.empty?()
+    items == [] or not Backpex.Authorization.can_all?(assigns.live_resource, assigns, action_key, items)
   end
 
   @doc """
