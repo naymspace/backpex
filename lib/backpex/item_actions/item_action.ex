@@ -294,8 +294,8 @@ defmodule Backpex.ItemAction do
   unauthorized item raises `Backpex.ForbiddenError`, and a `nil` entry (a stale or forged item id)
   raises `Backpex.NoResultsError`. Items are never silently dropped from the selection.
 
-  `c:handle/3` receives the full list of items, and `assigns.item_action_key` is set to the key the
-  action is registered under.
+  `c:handle/3` receives the full list of items, and `assigns.item_action_key` is available for the
+  duration of that call only — see `dispatch/5`.
 
   Because this gate covered exactly these items under exactly this key, a `Backpex.Resource` call
   inside `c:handle/3` that writes those same items should pass `authorize?: false` rather than
@@ -311,9 +311,7 @@ defmodule Backpex.ItemAction do
     if items == [] do
       after_handle.(socket)
     else
-      socket = assign(socket, :item_action_key, key)
-
-      case action.module.handle(socket, items, %{}) do
+      case dispatch(socket, action, key, items, %{}) do
         {:ok, socket} ->
           after_handle.(socket)
 
@@ -327,6 +325,26 @@ defmodule Backpex.ItemAction do
           Item Actions with no form fields must return {:ok, socket}.
           """
       end
+    end
+  end
+
+  @doc """
+  Calls `c:handle/3` with `assigns.item_action_key` set to `key`, and clears the assign again on the
+  socket the action returns.
+
+  The key is scoped to exactly one dispatch. Leaving it set would let a later dispatch — or any
+  component rendered afterwards — read the key of an action that already finished.
+
+  Returns whatever `c:handle/3` returned. Authorization is the caller's job: this only runs the
+  action.
+  """
+  def dispatch(socket, action, key, items, data) do
+    socket
+    |> assign(:item_action_key, key)
+    |> action.module.handle(items, data)
+    |> case do
+      {:ok, socket} -> {:ok, assign(socket, :item_action_key, nil)}
+      other -> other
     end
   end
 

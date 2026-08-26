@@ -240,7 +240,7 @@ Backpex enforces this for you — you do not need to check it again inside `c:Ba
 Backpex.Resource.delete_all(items, socket.assigns, socket.assigns.live_resource, authorize?: false)
 ```
 
-Anything else the action writes is *not* covered by that gate and keeps the default check. `Backpex.Resource` mutations default to `:new` / `:edit` / `:delete`; pass `:authorization_action` when a different key is the right one to check. `assigns.item_action_key` holds the key this action is registered under while `handle/3` runs, so the action does not need to hardcode it:
+Anything else the action writes is *not* covered by that gate and keeps the default check. `Backpex.Resource` mutations default to `:new` / `:edit` / `:delete`; pass `:authorization_action` when a different key is the right one to check. `assigns.item_action_key` holds the key this action is registered under for the duration of the `handle/3` call — Backpex clears it again afterwards — so the action does not need to hardcode it:
 
 ```elixir
 # writing other items of the same resource, under this action's key

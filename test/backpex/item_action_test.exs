@@ -37,6 +37,23 @@ defmodule Backpex.ItemActionTest do
       assert_received {:handled, ^items, :user_soft_delete}
     end
 
+    test "clears item_action_key once the dispatch is over" do
+      socket = build_socket(AllowAll)
+
+      # The key belongs to one dispatch. Leaving it set would let a later dispatch, or anything
+      # rendered afterwards, read the key of an action that already finished.
+      assert {:after_handle, socket} =
+               ItemAction.handle_item_action(
+                 socket,
+                 %{module: EchoAction},
+                 :user_soft_delete,
+                 [%{id: 1}],
+                 &after_handle/1
+               )
+
+      assert socket.assigns.item_action_key == nil
+    end
+
     test "raises ForbiddenError when a single item is unauthorized and never calls handle/3" do
       items = [%{id: 1, role: :user}, %{id: 2, role: :admin}]
       socket = build_socket(NoAdmins)

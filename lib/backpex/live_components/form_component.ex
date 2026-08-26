@@ -421,10 +421,8 @@ defmodule Backpex.FormComponent do
         {:ok, %{}}
       end
 
-    socket = assign(socket, :item_action_key, action_key)
-
     with {:ok, data} <- result,
-         {:ok, socket} <- action_to_confirm.module.handle(socket, selected_items, data) do
+         {:ok, socket} <- ItemAction.dispatch(socket, action_to_confirm, action_key, selected_items, data) do
       socket
       |> assign(:show_form_errors, false)
       |> assign(:selected_items, [])

@@ -101,7 +101,7 @@ The guarantee covers only those items under that key. Writes to *other* items or
 
 Every `Backpex.Resource` mutation accepts two options:
 
-- `:authorization_action` — authorize against this action instead of the default. It must be a non-nil atom. Item actions can pass `socket.assigns.item_action_key`, which Backpex sets before calling `c:Backpex.ItemAction.handle/3`, so an action registered under a custom key is authorized under that key.
+- `:authorization_action` — authorize against this action instead of the default. It must be a non-nil atom. Item actions can pass `socket.assigns.item_action_key`, so an action registered under a custom key is authorized under that key. Backpex sets that assign just before calling `c:Backpex.ItemAction.handle/3` and clears it again when the call returns, so it is meaningful for exactly one dispatch.
 - `authorize?: false` — skip the check. Use this for a write the gate already covered (see above), and for system or cascade writes that are not a user-initiated action on the resource being written, for example nullifying a foreign key on another resource.
 
 ```elixir
