@@ -68,19 +68,30 @@ defmodule DemoWeb.ItemActions.UserSoftDelete do
         updates = [set: [deleted_at: datetime]]
 
         {:ok, _count} =
-          Backpex.Resource.update_all(items, updates, "deleted", socket.assigns.live_resource)
+          Backpex.Resource.update_all(items, updates, socket.assigns, socket.assigns.live_resource,
+            authorization_action: socket.assigns.item_action_key,
+            event_name: "deleted"
+          )
 
-        # nullify the user_id in the posts owned by the users
+        # nullify the user_id in the posts owned by the users. This is a cascade write on another
+        # resource, not a user-initiated action on it, so it skips authorization deliberately.
         _nullified_posts =
           items
           |> Enum.map(fn item ->
-            Backpex.Resource.update_all(item.posts, [set: [user_id: nil]], "updated", DemoWeb.PostLive)
+            Backpex.Resource.update_all(item.posts, [set: [user_id: nil]], socket.assigns, DemoWeb.PostLive,
+              event_name: "updated",
+              authorize?: false
+            )
           end)
 
         socket
         |> clear_flash()
         |> put_flash(:info, success_message(socket.assigns, items))
       rescue
+        # An authorization failure must reach the router as a 403, not become a flash message.
+        error in [Backpex.ForbiddenError, Backpex.NoResultsError] ->
+          reraise error, __STACKTRACE__
+
         error ->
           Logger.error("An error occurred while deleting the resource: #{inspect(error)}")
 
