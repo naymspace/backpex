@@ -10,6 +10,7 @@ Backpex provides the following built-in field types:
 
 - `Backpex.Fields.BelongsTo`
 - `Backpex.Fields.Boolean`
+- `Backpex.Fields.Checkgroup`
 - `Backpex.Fields.Currency`
 - `Backpex.Fields.DateTime`
 - `Backpex.Fields.Date`
