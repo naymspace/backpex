@@ -226,15 +226,35 @@ defmodule Backpex.Field do
 
   @doc """
   Defines `Backpex.Field` behaviour and provides default implementations.
+
+  A custom field can use its application's LiveComponent entrypoint to make
+  application helpers such as Gettext and verified routes available:
+
+      use Backpex.Field,
+        config_schema: @config_schema,
+        live_component: {MyAppWeb, :live_component}
+
+  The configured entrypoint must set up a `Phoenix.LiveComponent`, as the standard
+  Phoenix-generated `MyAppWeb, :live_component` entrypoint does.
   """
   defmacro __using__(opts) do
-    quote bind_quoted: [opts: opts] do
+    opts = Macro.expand(opts, __CALLER__)
+
+    if !Keyword.keyword?(opts) do
+      raise ArgumentError, "expected Backpex.Field options to be a keyword list, got: #{Macro.to_string(opts)}"
+    end
+
+    {live_component, opts} = Keyword.pop(opts, :live_component)
+    live_component = live_component(live_component, __CALLER__)
+
+    quote bind_quoted: [opts: opts], unquote: true do
       @config_schema opts[:config_schema] || []
 
       @before_compile Backpex.Field
       @behaviour Backpex.Field
 
-      use BackpexWeb, :field
+      unquote(live_component)
+      use BackpexWeb, :field_helpers
 
       @doc """
       Returns the schema of configurable options for this field.
@@ -260,6 +280,30 @@ defmodule Backpex.Field do
         end
       end
     end
+  end
+
+  defp live_component(nil, _caller) do
+    quote do
+      use Phoenix.LiveComponent
+    end
+  end
+
+  defp live_component({module, entrypoint}, caller) when is_atom(entrypoint) do
+    module = Macro.expand(module, caller)
+
+    if !is_atom(module) do
+      raise ArgumentError,
+            "expected :live_component to contain a module, got: #{Macro.to_string(module)}"
+    end
+
+    quote do
+      use unquote(module), unquote(entrypoint)
+    end
+  end
+
+  defp live_component(live_component, _caller) do
+    raise ArgumentError,
+          "expected :live_component to be a {module, entrypoint} tuple, got: #{Macro.to_string(live_component)}"
   end
 
   defmacro __before_compile__(_env) do
