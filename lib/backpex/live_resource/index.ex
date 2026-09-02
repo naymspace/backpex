@@ -5,7 +5,9 @@ defmodule Backpex.LiveResource.Index do
   import Phoenix.Component
 
   alias Backpex.Adapters.Ecto, as: EctoAdapter
+  alias Backpex.Authorization
   alias Backpex.FilterValidation
+  alias Backpex.ItemAction
   alias Backpex.LiveResource
   alias Backpex.PaginationValidation
   alias Backpex.Preferences
@@ -75,15 +77,18 @@ defmodule Backpex.LiveResource.Index do
 
     primary_value = LiveResource.primary_value(item, live_resource)
 
-    case find_item_by_primary_value(items, primary_value, live_resource) do
-      nil ->
-        noreply(socket)
+    socket =
+      case find_item_by_primary_value(items, primary_value, live_resource) do
+        nil -> socket
+        _item -> refresh_items(socket)
+      end
 
-      _item ->
-        socket
-        |> refresh_items()
-        |> noreply()
-    end
+    # Drop the row from the selection whether or not it was on this page: a deleted item left in
+    # `selected_items` inflates the confirm dialog's count and then raises `Backpex.NoResultsError`
+    # at the execution gate.
+    socket
+    |> drop_selected_item(primary_value)
+    |> noreply()
   end
 
   # credo:disable-for-this-file Credo.Check.Design.DuplicatedCode
@@ -132,7 +137,9 @@ defmodule Backpex.LiveResource.Index do
   def handle_event("item-action", %{"action-key" => key, "item-id" => item_id}, socket) do
     %{items: items, live_resource: live_resource} = socket.assigns
 
-    item = find_item_by_primary_value(items, item_id, live_resource)
+    # A stale or forged id must never enter the selection: `nil` would reach the user's `can?/3`
+    # during render. 404 also keeps the event from confirming whether an id exists.
+    item = find_item_by_primary_value(items, item_id, live_resource) || raise(Backpex.NoResultsError)
 
     socket
     |> assign(selected_items: [item])
@@ -200,29 +207,40 @@ defmodule Backpex.LiveResource.Index do
   def handle_event("update-selected-items", %{"id" => id}, socket) do
     %{selected_items: selected_items, live_resource: live_resource, items: items} = socket.assigns
 
-    item = find_item_by_primary_value(items, id, live_resource)
+    # `id` is client-controlled. A tampered or stale id must be a no-op rather than putting `nil`
+    # into the selection, where it would reach the user's `can?/3` on the next render.
+    case find_item_by_primary_value(items, id, live_resource) do
+      nil ->
+        noreply(socket)
 
-    updated_selected_items =
-      if Enum.member?(selected_items, item) do
-        List.delete(selected_items, item)
-      else
-        [item | selected_items]
-      end
+      item ->
+        updated_selected_items =
+          if Enum.member?(selected_items, item) do
+            List.delete(selected_items, item)
+          else
+            [item | selected_items]
+          end
 
-    select_all = length(updated_selected_items) == length(items)
+        # Rows the user may not act on at all are not selectable, so "everything is selected" means
+        # every *selectable* row — not every row on the page.
+        select_all =
+          updated_selected_items != [] and
+            length(updated_selected_items) == length(selectable_items(socket.assigns))
 
-    socket
-    |> assign(:selected_items, updated_selected_items)
-    |> assign(:select_all, select_all)
-    |> noreply()
+        socket
+        |> assign(:selected_items, updated_selected_items)
+        |> assign(:select_all, select_all)
+        |> noreply()
+    end
   end
 
   def handle_event("toggle-item-selection", _params, socket) do
-    select_all = not socket.assigns.select_all
-    selected_items = (select_all && socket.assigns.items) || []
+    # Selecting a row the user may not act on would only produce a selection whose every bulk
+    # action is disabled, so select-all skips those rows.
+    selected_items = if socket.assigns.select_all, do: [], else: selectable_items(socket.assigns)
 
     socket
-    |> assign(:select_all, select_all)
+    |> assign(:select_all, selected_items != [])
     |> assign(:selected_items, selected_items)
     |> noreply()
   end
@@ -291,32 +309,33 @@ defmodule Backpex.LiveResource.Index do
   end
 
   defp maybe_handle_item_action(socket, key) do
-    key = String.to_existing_atom(key)
-    action = socket.assigns.item_actions[key]
     items = socket.assigns.selected_items
 
-    if Backpex.ItemAction.has_confirm_modal?(action) do
-      open_action_confirm_modal(socket, action, key)
-    else
-      handle_item_action(socket, action, key, items)
+    case ItemAction.resolve_item_action!(socket, key, items) do
+      {:confirm, key, action} -> open_action_confirm_modal(socket, action, key)
+      {:dispatch, key, action} -> handle_item_action(socket, action, key, items)
     end
   end
 
   defp open_action_confirm_modal(socket, action, key) do
     socket
-    |> Backpex.ItemAction.assign_action_changeset(action)
+    |> ItemAction.assign_action_changeset(action)
     |> assign(:action_to_confirm, Map.put(action, :key, key))
     |> noreply()
   end
 
   defp handle_item_action(socket, action, key, items) do
-    Backpex.ItemAction.handle_item_action(socket, action, key, items, fn socket ->
+    ItemAction.handle_item_action(socket, action, key, items, fn socket ->
       socket
       |> assign(action_to_confirm: nil)
       |> assign(selected_items: [])
       |> assign(select_all: false)
       |> noreply()
     end)
+  end
+
+  defp selectable_items(assigns) do
+    Enum.filter(assigns.items, &Backpex.HTML.Resource.item_selectable?(assigns, &1))
   end
 
   defp find_item_by_primary_value(items, primary_value, live_resource) do
@@ -436,23 +455,60 @@ defmodule Backpex.LiveResource.Index do
     end
   end
 
+  # The selection caches whole records, so a row that changed elsewhere has to be replaced there
+  # too — otherwise the confirm dialog and every preflight `can?/3` keep describing the old values.
+  # This is a UI nicety only: `Backpex.ItemAction.authorize_fresh!/3` re-reads the selection before
+  # the execution gate either way.
   defp update_item(socket, item) do
-    %{live_resource: live_resource, fields: fields, items: items} = socket.assigns
+    %{live_resource: live_resource, fields: fields} = socket.assigns
 
     primary_value = LiveResource.primary_value(item, live_resource)
-    primary_value_str = to_string(primary_value)
-    {:ok, updated_item} = Resource.get(primary_value, fields, socket.assigns, live_resource)
 
-    updated_items =
-      Enum.map(items, fn current_item ->
-        if to_string(LiveResource.primary_value(current_item, live_resource)) == primary_value_str do
-          updated_item
-        else
-          current_item
-        end
+    case Resource.get(primary_value, fields, socket.assigns, live_resource) do
+      {:ok, nil} ->
+        # The row left the item query's scope between the broadcast and this read. Treat it like a
+        # deletion rather than putting `nil` into `items` or `selected_items`, where it would reach
+        # the user's `can?/3` on the next render.
+        socket
+        |> refresh_items()
+        |> drop_selected_item(primary_value)
+
+      {:ok, updated_item} ->
+        replace = fn list -> replace_item(list, primary_value, updated_item, live_resource) end
+
+        socket
+        |> assign(:items, replace.(socket.assigns.items))
+        |> assign(:selected_items, replace.(socket.assigns.selected_items))
+    end
+  end
+
+  defp replace_item(list, primary_value, updated_item, live_resource) do
+    primary_value_str = to_string(primary_value)
+
+    Enum.map(list, fn current_item ->
+      if to_string(LiveResource.primary_value(current_item, live_resource)) == primary_value_str do
+        updated_item
+      else
+        current_item
+      end
+    end)
+  end
+
+  # Drops a vanished row from the selection and keeps `select_all` in step with it, so the toolbar
+  # does not claim everything is selected once the selection shrank.
+  defp drop_selected_item(socket, primary_value) do
+    %{selected_items: selected_items, live_resource: live_resource} = socket.assigns
+
+    primary_value_str = to_string(primary_value)
+
+    remaining =
+      Enum.reject(selected_items, fn item ->
+        to_string(LiveResource.primary_value(item, live_resource)) == primary_value_str
       end)
 
-    assign(socket, :items, updated_items)
+    socket
+    |> assign(:selected_items, remaining)
+    |> assign(:select_all, remaining != [] and length(remaining) == length(selectable_items(socket.assigns)))
   end
 
   defp assign_metrics_visibility(socket, ctx) do
@@ -476,7 +532,7 @@ defmodule Backpex.LiveResource.Index do
   end
 
   defp assign_item_actions(socket) do
-    item_actions = Backpex.ItemAction.default_actions() |> socket.assigns.live_resource.item_actions()
+    item_actions = ItemAction.default_actions() |> socket.assigns.live_resource.item_actions()
     assign(socket, :item_actions, item_actions)
   end
 
@@ -489,14 +545,12 @@ defmodule Backpex.LiveResource.Index do
   defp apply_action(socket, :resource_action) do
     %{live_resource: live_resource} = socket.assigns
 
-    id =
-      socket.assigns.params["backpex_id"]
-      |> URI.decode()
-      |> String.to_existing_atom()
+    # The id comes from the URL: resolve it against the registered resource actions instead of
+    # atomizing it, so an unknown action is a 404 rather than an ArgumentError.
+    {id, action} =
+      LiveResource.fetch_action!(live_resource.resource_actions(), URI.decode(socket.assigns.params["backpex_id"]))
 
-    action = live_resource.resource_actions()[id]
-
-    if not live_resource.can?(socket.assigns, id, nil), do: raise(Backpex.ForbiddenError)
+    Authorization.authorize!(live_resource, socket.assigns, id, nil)
 
     changeset_function = fn item, changes, metadata -> action.module.changeset(item, changes, metadata) end
     item = action.module.base_schema(socket.assigns)
@@ -514,7 +568,7 @@ defmodule Backpex.LiveResource.Index do
     %{live_resource: live_resource, params: params, fields: fields} = socket.assigns
     persisted = socket.assigns[:backpex_persisted_index_state] || %{order: nil, filters: nil}
 
-    if not live_resource.can?(socket.assigns, :index, nil), do: raise(Backpex.ForbiddenError)
+    Authorization.authorize!(live_resource, socket.assigns, :index, nil)
 
     per_page_options = live_resource.config(:per_page_options)
     per_page_default = live_resource.config(:per_page_default)

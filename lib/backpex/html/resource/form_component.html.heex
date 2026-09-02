@@ -6,13 +6,6 @@
     phx-target={@myself}
     phx-change="validate"
     phx-submit="save"
-    phx-value-action-key={
-      if @action_type == :item do
-        @action_to_confirm.key
-      else
-        nil
-      end
-    }
     multipart
   >
     <.edit_card>

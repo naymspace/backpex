@@ -42,9 +42,14 @@ defmodule Backpex.ItemActions.Delete do
 
   @impl Backpex.ItemAction
   def handle(socket, items, _data) do
-    {:ok, deleted_items} = Resource.delete_all(items, socket.assigns.live_resource)
+    %{live_resource: live_resource} = socket.assigns
 
-    Enum.each(deleted_items, fn deleted_item -> socket.assigns.live_resource.on_item_deleted(socket, deleted_item) end)
+    # Backpex only calls `handle/3` once `Backpex.ItemAction.authorize_fresh!/3` has re-read these
+    # items and authorized exactly them under exactly this action's key — `items` *is* that re-read
+    # list. Re-checking here would run the user's `can?/3` a second time for the same decision.
+    {:ok, deleted_items} = Resource.delete_all(items, socket.assigns, live_resource, authorize?: false)
+
+    Enum.each(deleted_items, fn deleted_item -> live_resource.on_item_deleted(socket, deleted_item) end)
 
     socket
     |> clear_flash()

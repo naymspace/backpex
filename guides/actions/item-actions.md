@@ -179,25 +179,30 @@ defmodule DemoWeb.ItemAction.SoftDelete do
 
     @impl Backpex.ItemAction
     def handle(socket, items, data) do
-      datetime = DateTime.truncate(DateTime.utc_now(), :second)
+      datetime = DateTime.utc_now(:second)
 
       socket =
         try do
-          {:ok, _count_} =
+          # Backpex already authorized exactly these items under this action's key, so this write
+          # does not check again. See "Authorization" below.
+          {:ok, _items} =
             Backpex.Resource.update_all(
-              socket.assigns,
               items,
               [set: [deleted_at: datetime, reason: data.reason]],
-              "deleted"
+              socket.assigns,
+              socket.assigns.live_resource,
+              event_name: "deleted",
+              authorize?: false
             )
 
-            socket
-            |> clear_flash()
-            |> put_flash(:info, "Item(s) successfully deleted.")
-        rescue
           socket
           |> clear_flash()
-          |> put_flash(:error, error)
+          |> put_flash(:info, "Item(s) successfully deleted.")
+        rescue
+          error ->
+            socket
+            |> clear_flash()
+            |> put_flash(:error, Exception.message(error))
         end
 
       {:ok, socket}
@@ -209,3 +214,66 @@ The above ItemAction require users to fill out the reason field before the actio
 
 > #### Important {: .note}
 > If your ItemAction has form fields, you must also implement the `c:Backpex.ItemAction.confirm/1` function.
+
+## Authorization
+
+Item actions are authorized against the key they are registered under. Implement [`can?/3`](Backpex.LiveResource.html#c:can?/3) in your resource configuration module:
+
+```elixir
+# in your resource configuration file
+@impl Backpex.LiveResource
+def can?(_assigns, :soft_delete, item), do: item.role != :admin
+def can?(_assigns, _action, _item), do: true
+```
+
+Backpex enforces this for you — you do not need to check it again inside `c:Backpex.ItemAction.handle/3`. There are five things to know:
+
+**Enforcement is strict.** A selection containing a single unauthorized item raises `Backpex.ForbiddenError`; items are never silently dropped. A stale or forged item id raises `Backpex.NoResultsError`. Raised from an event handler on a connected socket, either one crashes the LiveView and the client reloads — no error page and no message, only the guarantee that nothing was written. Users are kept away from the gates by the preflight checks, not by the gates' error reporting. Because a mixed selection would raise, the toolbar button is disabled whenever the selection is empty or contains an unauthorized item, and a row that is authorized for no bulk action at all cannot be selected.
+
+**Each gesture is authorized exactly once per step.** An action without a confirmation modal is authorized immediately before `c:Backpex.ItemAction.handle/3` runs. An action with one is authorized when the modal opens and again when it is submitted — the second check is deliberate, because a permission may be revoked, or the selection widened, while the modal is open.
+
+**The selection is re-read right before the execution gate.** A selection is a snapshot: rows are cached when they are selected, and a confirmation modal can stay open for as long as the user likes. Backpex therefore re-reads every selected item by its primary key immediately before the authoritative gate — the one that runs just before `c:Backpex.ItemAction.handle/3` — authorizes those fresh records, and hands *them* to `handle/3`. If another actor changed a row in the meantime, `can?/3` sees the new values, not the rendered ones. If a row was deleted, or left the resource's [`item_query/3`](item-query.html) scope, it comes back as `nil` and the gate raises `Backpex.NoResultsError` instead of writing to a record nobody checked. The re-read goes through the adapter, so `item_query/3` applies exactly as it does everywhere else.
+
+> #### The re-read is not a lock {: .warning}
+>
+> A window remains between the re-read and whatever `c:Backpex.ItemAction.handle/3` writes. Backpex deliberately does not open a transaction or lock the rows: your `handle/3` owns the write and decides what isolation it needs. An action that requires strict atomicity has to re-read and lock inside its own `handle/3` — for example in an `c:Ecto.Repo.transaction/2` with a `lock: "FOR UPDATE"` query.
+
+**`handle/3` gets the full selection, and is never called with `[]`.** For an empty selection Backpex skips the action entirely.
+
+**Inside `handle/3`, the items you were handed are already authorized.** They are the records Backpex just re-read, and the gate covered exactly those items under exactly this action's key — so a `Backpex.Resource` call that writes those same items should pass `authorize?: false`:
+
+```elixir
+Backpex.Resource.delete_all(items, socket.assigns, socket.assigns.live_resource, authorize?: false)
+```
+
+Anything else the action writes is *not* covered by that gate and keeps the default check. `Backpex.Resource` mutations default to `:new` / `:edit` / `:delete`; pass `:authorization_action` when a different key is the right one to check. `assigns.item_action_key` holds the key this action is registered under for the duration of the `handle/3` call — Backpex clears it again afterwards — so the action does not need to hardcode it:
+
+```elixir
+# writing other items of the same resource, under this action's key
+Backpex.Resource.update_all(other_items, updates, socket.assigns, socket.assigns.live_resource,
+  authorization_action: socket.assigns.item_action_key
+)
+```
+
+A cascade write to a *different* resource (nullifying a foreign key, for example) is not a user-initiated action on that resource at all — pass `authorize?: false`:
+
+```elixir
+Backpex.Resource.update_all(item.posts, [set: [user_id: nil]], socket.assigns, MyAppWeb.PostLive,
+  event_name: "updated",
+  authorize?: false
+)
+```
+
+> #### Do not swallow the gate {: .warning}
+>
+> This only applies to `Backpex.Resource` calls that are still gated — the ones you did *not* pass `authorize?: false`. A broad `rescue` around such a call catches `Backpex.ForbiddenError` and `Backpex.NoResultsError` too, turning a refused write into an ordinary flash message: the request looks handled, and the failure is filed under "something went wrong" instead of "you may not do this". Reraise them:
+>
+> ```elixir
+> rescue
+>   error in [Backpex.ForbiddenError, Backpex.NoResultsError] ->
+>     reraise error, __STACKTRACE__
+>
+>   error ->
+>     # your own error handling
+> end
+> ```

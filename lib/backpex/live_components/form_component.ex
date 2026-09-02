@@ -5,6 +5,7 @@ defmodule Backpex.FormComponent do
   use BackpexWeb, :html
   use Phoenix.LiveComponent
 
+  alias Backpex.Authorization
   alias Backpex.Field
   alias Backpex.ItemAction
   alias Backpex.LiveResource
@@ -178,9 +179,10 @@ defmodule Backpex.FormComponent do
     |> noreply()
   end
 
-  def handle_event("save", %{"action-key" => key, "change" => change}, %{assigns: %{action_type: :item}} = socket) do
-    key = String.to_existing_atom(key)
-    handle_form_item_action(socket, key, change)
+  # The action to run is taken from `action_to_confirm`, which the view assigned when the modal was
+  # opened. A client-supplied action key must never decide which module executes.
+  def handle_event("save", %{"change" => change}, %{assigns: %{action_type: :item}} = socket) do
+    handle_form_item_action(socket, change)
   end
 
   def handle_event("save", %{"change" => change, "save-type" => save_type}, socket) do
@@ -195,9 +197,8 @@ defmodule Backpex.FormComponent do
     handle_save(socket, live_action, change, save_type)
   end
 
-  def handle_event("save", %{"action-key" => key}, socket) do
-    key = String.to_existing_atom(key)
-    handle_form_item_action(socket, key, %{})
+  def handle_event("save", _params, %{assigns: %{action_type: :item}} = socket) do
+    handle_form_item_action(socket, %{})
   end
 
   def handle_event("save", _params, socket) do
@@ -316,6 +317,10 @@ defmodule Backpex.FormComponent do
         } = assigns
     } = socket
 
+    # The gate at mount only covers opening the modal. Re-check on submit so a permission revoked
+    # while the form was open cannot be used.
+    Authorization.authorize!(live_resource, assigns, assigns.resource_action_id, nil)
+
     assocs = Map.get(assigns, :assocs, [])
     params = drop_readonly_changes(params, fields, assigns)
 
@@ -355,30 +360,50 @@ defmodule Backpex.FormComponent do
     end
   end
 
-  defp handle_form_item_action(socket, action_key, params) do
-    %{
-      assigns:
-        %{
-          live_resource: live_resource,
-          fields: fields,
-          selected_items: selected_items,
-          action_to_confirm: action_to_confirm,
-          return_to: return_to
-        } = assigns
-    } = socket
+  defp handle_form_item_action(socket, params) do
+    %{assigns: %{selected_items: selected_items, action_to_confirm: action, return_to: return_to}} = socket
+
+    action_key = action.key
+
+    # Authoritative gate, before any changeset work. The rows in `selected_items` are the snapshot
+    # taken when they were selected and the modal may have been open for a long time, so the
+    # selection is re-read from the data layer first and it is the *fresh* records that get
+    # authorized and dispatched. A permission revoked, a record changed out from under the modal,
+    # a row deleted, or the selection widened while the modal was open — all of them are caught
+    # here. See `Backpex.ItemAction.authorize_fresh!/3` for the residual window this leaves.
+    selected_items = ItemAction.authorize_fresh!(socket, action_key, selected_items)
+
+    if selected_items == [] do
+      close_item_action(socket, return_to)
+    else
+      socket
+      |> assign(:selected_items, selected_items)
+      |> run_form_item_action(action, action_key, selected_items, return_to, params)
+    end
+  end
+
+  # The selection is done with either way: whether the action ran or there was nothing to run it
+  # on, the modal closes, the selection is dropped and we return to where we came from.
+  defp close_item_action(socket, return_to) do
+    socket
+    |> assign(:show_form_errors, false)
+    |> assign(:selected_items, [])
+    |> assign(:select_all, false)
+    |> push_navigate(to: return_to)
+    |> noreply()
+  end
+
+  defp run_form_item_action(socket, action, action_key, selected_items, return_to, params) do
+    %{assigns: %{fields: fields} = assigns} = socket
 
     params = drop_readonly_changes(params, fields, assigns)
 
     result =
-      if ItemAction.has_form?(action_to_confirm) do
-        changeset_function = fn item, changes, metadata ->
-          action_to_confirm.module.changeset(item, changes, metadata)
-        end
-
+      if ItemAction.has_form?(action) do
         metadata = Resource.build_changeset_metadata(assigns)
 
         assigns.action_item
-        |> changeset_function.(params, metadata)
+        |> action.module.changeset(params, metadata)
         |> Map.put(:action, :insert)
         |> Ecto.Changeset.apply_action(:insert)
       else
@@ -386,14 +411,8 @@ defmodule Backpex.FormComponent do
       end
 
     with {:ok, data} <- result,
-         selected_items = Enum.filter(selected_items, &live_resource.can?(socket.assigns, action_key, &1)),
-         {:ok, socket} <- action_to_confirm.module.handle(socket, selected_items, data) do
-      socket
-      |> assign(:show_form_errors, false)
-      |> assign(:selected_items, [])
-      |> assign(:select_all, false)
-      |> push_navigate(to: return_to)
-      |> noreply()
+         {:ok, socket} <- ItemAction.dispatch(socket, action, action_key, selected_items, data) do
+      close_item_action(socket, return_to)
     else
       {:error, changeset} ->
         form = Component.to_form(changeset, as: :change)
@@ -405,7 +424,7 @@ defmodule Backpex.FormComponent do
 
       unexpected_return ->
         raise ArgumentError, """
-        Invalid return value from #{inspect(action_to_confirm.module)}.handle/2.
+        Invalid return value from #{inspect(action.module)}.handle/2.
 
         Expected: {:ok, socket} or {:error, changeset}
         Got: #{inspect(unexpected_return)}
