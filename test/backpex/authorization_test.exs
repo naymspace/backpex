@@ -31,8 +31,10 @@ defmodule Backpex.AuthorizationTest do
     test "refuses a socket where assigns are expected" do
       # Authorizing against a `%Phoenix.LiveView.Socket{}` would answer for the wrong context. The
       # guard has to reject it loudly instead of handing the struct to `can?/3`.
+      args = [AllowAll, %Socket{}, :new, nil]
+
       assert_raise FunctionClauseError, fn ->
-        Authorization.can?(AllowAll, %Socket{}, :new, nil)
+        apply(Authorization, :can?, args)
       end
     end
   end

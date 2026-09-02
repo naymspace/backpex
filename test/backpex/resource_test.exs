@@ -197,7 +197,7 @@ defmodule Backpex.ResourceTest do
 
     test "refuses a socket where assigns are expected" do
       # Passing the socket instead of its assigns would authorize against the wrong context. The
-      # `is_non_struct_map/1` guard makes that a hard error rather than a silent mismatch.
+      # `is_map/1` + `not is_struct/1` guard makes that a hard error rather than a silent mismatch.
       args = [[%{id: 1}], %Socket{}, DenyAll]
 
       assert_raise FunctionClauseError, fn ->

@@ -52,7 +52,7 @@ defmodule Backpex.Authorization do
   """
   @spec can?(module(), map(), atom(), map() | nil) :: boolean()
   def can?(live_resource, assigns, action, item)
-      when is_atom(live_resource) and is_non_struct_map(assigns) and is_atom(action) do
+      when is_atom(live_resource) and is_map(assigns) and not is_struct(assigns) and is_atom(action) do
     live_resource.can?(assigns, action, item)
   end
 
