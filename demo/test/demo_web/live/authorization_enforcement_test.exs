@@ -220,6 +220,61 @@ defmodule DemoWeb.Live.AuthorizationEnforcementTest do
     end
   end
 
+  describe "the selection follows the rows it points at" do
+    setup %{conn: conn} do
+      user = insert(:user, %{role: :user})
+
+      {:ok, view, _html} = live(conn, ~p"/admin/users")
+
+      render_click(view, "update-selected-items", %{"id" => user.id})
+      refute has_element?(view, "button[phx-value-action-key='user_soft_delete'][disabled]")
+
+      %{user: user, view: view}
+    end
+
+    test "an updated row is replaced in the selection, not only in the table", %{user: user, view: view} do
+      user |> Ecto.Changeset.change(role: :admin) |> Repo.update!()
+
+      send(view.pid, {"backpex:updated", user})
+      _html = render(view)
+
+      # The button reads the *selection* to decide. If the selection still held the `role: :user`
+      # snapshot it would stay enabled and lead straight into the submit gate.
+      assert has_element?(
+               view,
+               "button[phx-value-action-key='user_soft_delete'][title='Your selection contains items you may not apply this action to.']"
+             )
+    end
+
+    test "a deleted row leaves the selection", %{user: user, view: view} do
+      Repo.delete!(user)
+
+      send(view.pid, {"backpex:deleted", user})
+      _html = render(view)
+
+      assert has_element?(
+               view,
+               "button[phx-value-action-key='user_soft_delete'][title='Select at least one item to use this action.']"
+             )
+    end
+
+    test "a row that left the item query's scope leaves the selection too", %{user: user, view: view} do
+      # An update can take a row out of scope just as a delete removes it. Re-reading it returns
+      # nothing, so it must not linger in `items` or `selected_items` as `nil`.
+      user |> Ecto.Changeset.change(deleted_at: DateTime.utc_now(:second)) |> Repo.update!()
+
+      send(view.pid, {"backpex:updated", user})
+      html = render(view)
+
+      refute html =~ "select-input-#{user.id}"
+
+      assert has_element?(
+               view,
+               "button[phx-value-action-key='user_soft_delete'][title='Select at least one item to use this action.']"
+             )
+    end
+  end
+
   describe "the selection is re-read before the submit gate" do
     setup %{conn: conn} do
       user = insert(:user, %{role: :user})

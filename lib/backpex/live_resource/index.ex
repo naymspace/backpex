@@ -77,15 +77,18 @@ defmodule Backpex.LiveResource.Index do
 
     primary_value = LiveResource.primary_value(item, live_resource)
 
-    case find_item_by_primary_value(items, primary_value, live_resource) do
-      nil ->
-        noreply(socket)
+    socket =
+      case find_item_by_primary_value(items, primary_value, live_resource) do
+        nil -> socket
+        _item -> refresh_items(socket)
+      end
 
-      _item ->
-        socket
-        |> refresh_items()
-        |> noreply()
-    end
+    # Drop the row from the selection whether or not it was on this page: a deleted item left in
+    # `selected_items` inflates the confirm dialog's count and then raises `Backpex.NoResultsError`
+    # at the execution gate.
+    socket
+    |> drop_selected_item(primary_value)
+    |> noreply()
   end
 
   # credo:disable-for-this-file Credo.Check.Design.DuplicatedCode
@@ -452,23 +455,60 @@ defmodule Backpex.LiveResource.Index do
     end
   end
 
+  # The selection caches whole records, so a row that changed elsewhere has to be replaced there
+  # too — otherwise the confirm dialog and every preflight `can?/3` keep describing the old values.
+  # This is a UI nicety only: `Backpex.ItemAction.authorize_fresh!/3` re-reads the selection before
+  # the execution gate either way.
   defp update_item(socket, item) do
-    %{live_resource: live_resource, fields: fields, items: items} = socket.assigns
+    %{live_resource: live_resource, fields: fields} = socket.assigns
 
     primary_value = LiveResource.primary_value(item, live_resource)
-    primary_value_str = to_string(primary_value)
-    {:ok, updated_item} = Resource.get(primary_value, fields, socket.assigns, live_resource)
 
-    updated_items =
-      Enum.map(items, fn current_item ->
-        if to_string(LiveResource.primary_value(current_item, live_resource)) == primary_value_str do
-          updated_item
-        else
-          current_item
-        end
+    case Resource.get(primary_value, fields, socket.assigns, live_resource) do
+      {:ok, nil} ->
+        # The row left the item query's scope between the broadcast and this read. Treat it like a
+        # deletion rather than putting `nil` into `items` or `selected_items`, where it would reach
+        # the user's `can?/3` on the next render.
+        socket
+        |> refresh_items()
+        |> drop_selected_item(primary_value)
+
+      {:ok, updated_item} ->
+        replace = fn list -> replace_item(list, primary_value, updated_item, live_resource) end
+
+        socket
+        |> assign(:items, replace.(socket.assigns.items))
+        |> assign(:selected_items, replace.(socket.assigns.selected_items))
+    end
+  end
+
+  defp replace_item(list, primary_value, updated_item, live_resource) do
+    primary_value_str = to_string(primary_value)
+
+    Enum.map(list, fn current_item ->
+      if to_string(LiveResource.primary_value(current_item, live_resource)) == primary_value_str do
+        updated_item
+      else
+        current_item
+      end
+    end)
+  end
+
+  # Drops a vanished row from the selection and keeps `select_all` in step with it, so the toolbar
+  # does not claim everything is selected once the selection shrank.
+  defp drop_selected_item(socket, primary_value) do
+    %{selected_items: selected_items, live_resource: live_resource} = socket.assigns
+
+    primary_value_str = to_string(primary_value)
+
+    remaining =
+      Enum.reject(selected_items, fn item ->
+        to_string(LiveResource.primary_value(item, live_resource)) == primary_value_str
       end)
 
-    assign(socket, :items, updated_items)
+    socket
+    |> assign(:selected_items, remaining)
+    |> assign(:select_all, remaining != [] and length(remaining) == length(selectable_items(socket.assigns)))
   end
 
   defp assign_metrics_visibility(socket, ctx) do
