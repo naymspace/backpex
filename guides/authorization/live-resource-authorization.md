@@ -77,13 +77,26 @@ There are two kinds of checks, and both run:
 | `Backpex.Resource.update/6` | `:edit` | the item |
 | `Backpex.Resource.update_all/5` | `:edit` | each item |
 | `Backpex.Resource.delete_all/4` | `:delete` | each item |
-| item action without a confirm modal, before `handle/3` runs | the action key | each selected item |
-| item action with a confirm modal, on open and on submit | the action key | each selected item |
+| item action without a confirm modal, before `handle/3` runs | the action key | each selected item, **re-read** |
+| item action with a confirm modal, on open | the action key | each selected item, as rendered |
+| item action with a confirm modal, on submit | the action key | each selected item, **re-read** |
 | resource action, on open and on submit | the action key | `nil` |
 
 The `Backpex.Resource` gates run **before** the changeset is built and before `c:Backpex.Field.before_changeset/6` is called, so your own code never executes for an unauthorized request.
 
 Each gesture runs exactly one gate per step, so `can?/3` is not evaluated more times than there are decisions to make. A modal flow has two steps on purpose: the second check catches a permission revoked, or a selection widened, while the modal was open.
+
+### Item action gates re-read the selection
+
+A selection is a snapshot. Rows are cached in `selected_items` when they are selected, and a confirmation modal can stay open indefinitely. Authorizing that snapshot would mean checking values that may no longer be true, while the write that follows addresses the row by its primary key — so a record another actor changed in the meantime would be mutated under a permission it no longer has.
+
+Backpex therefore re-reads every selected item by its primary key immediately before the authoritative gate, checks `can?/3` against the **re-read** records, and passes those same records to `c:Backpex.ItemAction.handle/3`. Both execution paths do this: the direct dispatch of a confirm-less action, and the submit of a confirmation modal. The re-read goes through the adapter, so [`item_query/3`](item-query.html) applies — a row that was deleted, or that has left the query's scope, comes back as `nil` and raises `Backpex.NoResultsError`.
+
+The check when the modal *opens* is deliberately not re-read: it only decides whether the dialog appears, and the submit gate is the one that authorizes the write.
+
+> #### A re-read is not a lock {: .warning}
+>
+> A window remains between the re-read and whatever `c:Backpex.ItemAction.handle/3` writes. Backpex does not open a transaction or lock the rows here — `handle/3` owns the write and decides what isolation it needs. An action that requires strict atomicity has to re-read and lock inside its own `handle/3`, for example in an `c:Ecto.Repo.transaction/2` with a `lock: "FOR UPDATE"` query.
 
 ### Strict semantics
 
@@ -95,7 +108,7 @@ Because a mixed selection would raise, the bulk action button is disabled whenev
 
 ### What `handle/3` may assume
 
-The items handed to `c:Backpex.ItemAction.handle/3` have already been authorized under that action's key. Writing exactly those items back is the same decision the gate just made, so pass `authorize?: false` rather than paying for a second evaluation of your `can?/3`:
+The items handed to `c:Backpex.ItemAction.handle/3` are the records Backpex just re-read, and they have already been authorized under that action's key. Writing exactly those items back is the same decision the gate just made, so pass `authorize?: false` rather than paying for a second evaluation of your `can?/3`:
 
 ```elixir
 Backpex.Resource.delete_all(items, socket.assigns, socket.assigns.live_resource, authorize?: false)
@@ -119,7 +132,7 @@ Backpex.Resource.update_all(item.posts, [set: [user_id: nil]], socket.assigns, M
 
 ### Reads are not gated in `Backpex.Resource`
 
-`Backpex.Resource.list/4`, `get/4` and `count/4` do not call `can?/3`. Row-level read filtering belongs in [`item_query/3`](item-query.html) — dropping rows after pagination would corrupt item counts and select-all. `:index` and `:show` are enforced when the view mounts.
+`Backpex.Resource.list/4`, `get/4`, `count/4` and `reload/4` do not call `can?/3`. Row-level read filtering belongs in [`item_query/3`](item-query.html) — dropping rows after pagination would corrupt item counts and select-all. `:index` and `:show` are enforced when the view mounts. `reload/4` is the read the item action gates use before they authorize; it is the gate that follows it, not the read, that raises.
 
 ### Calling the checks yourself
 
