@@ -13,6 +13,11 @@ defmodule Backpex.Authorization do
   * **Gates** (`authorize!/4`, `authorize_all!/4`) — enforce the answer. Use these right before
     something actually happens. They raise instead of returning `false`.
 
+  A gate is only as current as the item you hand it. Where the item comes from a cached selection
+  that may be minutes old — an item action, above all — re-read it first, so the check answers for
+  the record the write will actually touch. `Backpex.ItemAction.authorize_fresh!/3` pairs
+  `Backpex.Resource.reload/4` with `authorize_all!/4` for exactly that.
+
   ## Failure semantics
 
   * unauthorized → `Backpex.ForbiddenError`

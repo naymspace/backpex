@@ -100,6 +100,43 @@ defmodule Backpex.Resource do
   end
 
   @doc """
+  Re-reads a list of items from the data layer, keeping the order of the given list.
+
+  Each item is fetched by its primary value through `get/4`, so the LiveResource's
+  [`item_query/3`](item-query.html) applies. An item that no longer exists — or that has left the
+  query's scope — comes back as `nil` instead of being dropped, which keeps the result positionally
+  aligned with the input and lets `Backpex.Authorization.authorize_all!/4` turn it into a
+  `Backpex.NoResultsError`. A `nil` in the input stays `nil`.
+
+  This is what makes the item action execution gates authorize the *current* record rather than the
+  snapshot that was cached when the row was selected. See `Backpex.ItemAction.authorize_fresh!/3`.
+
+  Like every other read in this module, this is **not** authorized.
+
+  ## Parameters
+
+  * `items` (list): The items to re-read.
+  * `fields` (list): The **resource** fields — they decide which associations are preloaded. Do not
+    pass an item action's form fields here.
+  * `assigns` (map): The current assigns of the socket.
+  * `live_resource` (module): The `Backpex.LiveResource` module.
+  """
+  def reload(items, fields, assigns, live_resource) when is_list(items) do
+    Enum.map(items, fn
+      nil ->
+        nil
+
+      item ->
+        primary_value = Backpex.LiveResource.primary_value(item, live_resource)
+
+        case get(primary_value, fields, assigns, live_resource) do
+          {:ok, reloaded_item} -> reloaded_item
+          {:error, _error} -> nil
+        end
+    end)
+  end
+
+  @doc """
   Deletes multiple items.
   Additionally broadcasts the corresponding event for each deleted item.
 

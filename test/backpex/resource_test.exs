@@ -127,6 +127,53 @@ defmodule Backpex.ResourceTest do
     end
   end
 
+  describe "reload/4" do
+    test "returns the current records, in the order they were given", %{fields: f} do
+      fresh = [%{id: 1, role: :admin}, %{id: 2, role: :user}]
+      assigns = %{stub_records: Map.new(fresh, &{&1.id, &1})}
+
+      stale = [%{id: 1, role: :user}, %{id: 2, role: :user}]
+
+      assert Resource.reload(stale, f, assigns, AllowAll) == fresh
+    end
+
+    test "keeps a vanished record as nil in its position", %{fields: f} do
+      assigns = %{stub_records: %{2 => %{id: 2, role: :user}}}
+
+      items = [%{id: 1, role: :user}, %{id: 2, role: :user}, %{id: 3, role: :user}]
+
+      assert Resource.reload(items, f, assigns, AllowAll) == [nil, %{id: 2, role: :user}, nil]
+    end
+
+    test "a nil entry stays nil and is not looked up", %{fields: f} do
+      assigns = %{stub_records: %{}}
+
+      assert Resource.reload([nil], f, assigns, AllowAll) == [nil]
+
+      refute_received {:adapter, :get, _primary_value}
+    end
+
+    test "reads by primary value, not by identity", %{fields: f} do
+      assigns = %{stub_records: %{7 => %{id: 7}}}
+
+      assert Resource.reload([%{id: 7, stale: true}], f, assigns, AllowAll) == [%{id: 7}]
+
+      assert_received {:adapter, :get, 7}
+    end
+
+    test "is a read and never authorizes", %{fields: f} do
+      assigns = %{stub_records: %{1 => %{id: 1}}}
+
+      assert Resource.reload([%{id: 1}], f, assigns, DenyAll) == [%{id: 1}]
+    end
+
+    test "does not touch the adapter for an empty list", %{fields: f} do
+      assert Resource.reload([], f, %{}, AllowAll) == []
+
+      refute_received {:adapter, :get, _primary_value}
+    end
+  end
+
   describe "delete_all/4" do
     test "authorizes :delete per item", %{assigns: assigns} do
       items = [%{id: 1}, %{id: 2}]

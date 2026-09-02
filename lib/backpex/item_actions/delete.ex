@@ -44,9 +44,9 @@ defmodule Backpex.ItemActions.Delete do
   def handle(socket, items, _data) do
     %{live_resource: live_resource} = socket.assigns
 
-    # Backpex only calls `handle/3` once `Backpex.ItemAction.handle_item_action/5` (or the modal's
-    # submit gate) has authorized exactly these items under exactly this action's key. Re-checking
-    # them here would run the user's `can?/3` a second time for the same decision.
+    # Backpex only calls `handle/3` once `Backpex.ItemAction.authorize_fresh!/3` has re-read these
+    # items and authorized exactly them under exactly this action's key — `items` *is* that re-read
+    # list. Re-checking here would run the user's `can?/3` a second time for the same decision.
     {:ok, deleted_items} = Resource.delete_all(items, socket.assigns, live_resource, authorize?: false)
 
     Enum.each(deleted_items, fn deleted_item -> live_resource.on_item_deleted(socket, deleted_item) end)

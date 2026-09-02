@@ -4,9 +4,12 @@ defmodule Backpex.ItemAction do
   """
   import Phoenix.Component
 
+  alias Backpex.Authorization
   alias Backpex.ItemActions.Delete
   alias Backpex.ItemActions.Edit
   alias Backpex.ItemActions.Show
+  alias Backpex.LiveResource
+  alias Backpex.Resource
   alias Phoenix.LiveView.Rendered
   alias Phoenix.LiveView.Socket
 
@@ -270,16 +273,20 @@ defmodule Backpex.ItemAction do
   `Backpex.NoResultsError`.
 
   Only the `{:confirm, _key, _action}` path is authorized here, before the modal opens: an
-  unauthorized selection must not even get a confirm dialog, and the modal's submit re-checks it.
+  unauthorized selection must not even get a confirm dialog. This is a *preflight* check on the
+  items as they are currently rendered — it only decides whether the dialog opens. The modal's
+  submit runs `authorize_fresh!/3`, which reloads the records first and is the authoritative gate,
+  so nothing is lost by not reloading here.
+
   The `{:dispatch, _key, _action}` path is deliberately *not* authorized here — `handle_item_action/5`
   gates it, and that is the authoritative execution gate. Checking in both places would evaluate
   `c:Backpex.LiveResource.can?/3` twice per item for one decision.
   """
   def resolve_item_action!(socket, key, items) when is_list(items) do
-    {key, action} = Backpex.LiveResource.fetch_action!(socket.assigns.item_actions, key)
+    {key, action} = LiveResource.fetch_action!(socket.assigns.item_actions, key)
 
     if has_confirm_modal?(action) do
-      Backpex.Authorization.authorize_all!(socket.assigns.live_resource, socket.assigns, key, items)
+      Authorization.authorize_all!(socket.assigns.live_resource, socket.assigns, key, items)
 
       {:confirm, key, action}
     else
@@ -288,29 +295,75 @@ defmodule Backpex.ItemAction do
   end
 
   @doc """
+  Re-reads `items` from the data layer and authorizes the reloaded records against `key`.
+
+  Returns the reloaded items, in the order they were given, ready to be handed to `dispatch/5`.
+
+  This is the authoritative execution gate for item actions, and both execution paths go through
+  it: `handle_item_action/5` for an action that runs immediately, and the confirmation modal's
+  submit in `Backpex.FormComponent`.
+
+  It reloads first because a selection is a snapshot. Rows are cached in `assigns.selected_items`
+  when they are selected, and a confirmation modal can stay open for as long as the user likes.
+  Authorizing the snapshot would let a record that has changed since then — a user promoted to
+  `admin`, say — be mutated under a permission it no longer has, because the write that follows
+  addresses the row by its primary key. The records handed to `c:handle/3` are therefore the ones
+  that were just authorized, not the ones that were rendered.
+
+  Failure semantics are those of `Backpex.Authorization.authorize_all!/4`: an item that no longer
+  exists, or that has left the LiveResource's `item_query/3` scope, reloads as `nil` and raises
+  `Backpex.NoResultsError`; a reloaded item that is not authorized raises `Backpex.ForbiddenError`.
+  Nothing is silently dropped from the selection.
+
+  The resource fields used for the reload are derived from `assigns.live_action`, so associations
+  are preloaded exactly as they are for the view the action was triggered from.
+
+  > #### The reload is not a lock {: .warning}
+  >
+  > A window remains between the reload and whatever `c:handle/3` writes. Backpex deliberately does
+  > not open a transaction or lock the rows here: `c:handle/3` owns the write and decides what
+  > isolation it needs. An action that requires strict atomicity has to re-read and lock inside its
+  > own `c:handle/3` — for example in an `c:Ecto.Repo.transaction/2` with a `lock: "FOR UPDATE"`
+  > query.
+  """
+  def authorize_fresh!(socket, key, items) when is_list(items) do
+    %{live_resource: live_resource, live_action: live_action} = socket.assigns
+
+    fields = LiveResource.fields(live_resource, live_action, socket.assigns)
+    fresh_items = Resource.reload(items, fields, socket.assigns, live_resource)
+
+    Authorization.authorize_all!(live_resource, socket.assigns, key, fresh_items)
+
+    fresh_items
+  end
+
+  @doc """
   Handles an item action by executing the action's handle function.
 
-  Every item is authorized against `key` before `c:handle/3` runs. This is strict: a single
-  unauthorized item raises `Backpex.ForbiddenError`, and a `nil` entry (a stale or forged item id)
-  raises `Backpex.NoResultsError`. Items are never silently dropped from the selection.
+  The selection is reloaded and authorized against `key` through `authorize_fresh!/3` before
+  `c:handle/3` runs, and it is the *reloaded* records that `c:handle/3` receives — see there for
+  what that guarantees and what it does not. This is strict: a single unauthorized item raises
+  `Backpex.ForbiddenError`, and an item that no longer exists (or a stale or forged item id) raises
+  `Backpex.NoResultsError`. Items are never silently dropped from the selection.
 
   `c:handle/3` receives the full list of items, and `assigns.item_action_key` is available for the
-  duration of that call only — see `dispatch/5`.
+  duration of that call only — see `dispatch/5`. `assigns.selected_items` is updated to the same
+  reloaded records, so an action that reads it sees what it was handed.
 
   Because this gate covered exactly these items under exactly this key, a `Backpex.Resource` call
   inside `c:handle/3` that writes those same items should pass `authorize?: false` rather than
   repeat the check. Writes to *other* items or resources keep the default gate.
 
-  When `items` is empty, `c:handle/3` is not called at all — only `after_handle` runs.
+  When the selection is empty, `c:handle/3` is not called at all — only `after_handle` runs.
   """
   def handle_item_action(socket, action, key, items, after_handle) do
-    live_resource = socket.assigns.live_resource
-
-    Backpex.Authorization.authorize_all!(live_resource, socket.assigns, key, items)
+    items = authorize_fresh!(socket, key, items)
 
     if items == [] do
       after_handle.(socket)
     else
+      socket = assign(socket, :selected_items, items)
+
       case dispatch(socket, action, key, items, %{}) do
         {:ok, socket} ->
           after_handle.(socket)
@@ -335,8 +388,8 @@ defmodule Backpex.ItemAction do
   The key is scoped to exactly one dispatch. Leaving it set would let a later dispatch — or any
   component rendered afterwards — read the key of an action that already finished.
 
-  Returns whatever `c:handle/3` returned. Authorization is the caller's job: this only runs the
-  action.
+  Returns whatever `c:handle/3` returned. Reloading and authorizing are the caller's job: this only
+  runs the action. Pass it the list `authorize_fresh!/3` returned, never a cached selection.
   """
   def dispatch(socket, action, key, items, data) do
     result =

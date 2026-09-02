@@ -361,26 +361,24 @@ defmodule Backpex.FormComponent do
   end
 
   defp handle_form_item_action(socket, params) do
-    %{
-      assigns:
-        %{
-          live_resource: live_resource,
-          selected_items: selected_items,
-          action_to_confirm: action,
-          return_to: return_to
-        } = assigns
-    } = socket
+    %{assigns: %{selected_items: selected_items, action_to_confirm: action, return_to: return_to}} = socket
 
     action_key = action.key
 
-    # Gate before any changeset work: permission may have been revoked, or the selection widened,
-    # while the modal was open.
-    Authorization.authorize_all!(live_resource, assigns, action_key, selected_items)
+    # Authoritative gate, before any changeset work. The rows in `selected_items` are the snapshot
+    # taken when they were selected and the modal may have been open for a long time, so the
+    # selection is re-read from the data layer first and it is the *fresh* records that get
+    # authorized and dispatched. A permission revoked, a record changed out from under the modal,
+    # a row deleted, or the selection widened while the modal was open — all of them are caught
+    # here. See `Backpex.ItemAction.authorize_fresh!/3` for the residual window this leaves.
+    selected_items = ItemAction.authorize_fresh!(socket, action_key, selected_items)
 
     if selected_items == [] do
       close_item_action(socket, return_to)
     else
-      run_form_item_action(socket, action, action_key, selected_items, return_to, params)
+      socket
+      |> assign(:selected_items, selected_items)
+      |> run_form_item_action(action, action_key, selected_items, return_to, params)
     end
   end
 
