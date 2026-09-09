@@ -70,7 +70,7 @@ defmodule Demo.MixProject do
       {:backpex, path: "../."},
       {:phoenix_ecto, "~> 4.0"},
       {:igniter, "~> 0.8"},
-      {:igniter_js, "~> 0.4"},
+      {:igniter_js, "~> 0.5"},
       {:ecto_sql, "~> 3.1"},
       {:postgrex, ">= 0.0.0"},
       {:ecto_psql_extras, "~> 0.8"},
