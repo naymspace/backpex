@@ -142,21 +142,31 @@ defmodule Backpex.Fields.HasMany do
     <div id={"has-many-#{@name}"}>
       <Layout.field_container>
         <:label :if={not @hide_label} align={Backpex.Field.align_label(@field_options, assigns)}>
-          <Layout.input_label as="span" text={@field_options[:label]} />
+          <Layout.input_label id={"#{@form[@name].id}-label"} as="span" text={@field_options[:label]} />
         </:label>
 
-        <Backpex.HTML.CoreComponents.dropdown id={"has-many-dropdown-#{@name}"} class="w-full">
+        <Backpex.HTML.CoreComponents.dropdown id={"has-many-dropdown-#{@name}"} class="w-full" readonly={@readonly}>
           <:trigger
             class={[
-              "input block h-fit w-full p-2",
-              @errors == [] && "bg-transparent",
-              @errors != [] && "input-error bg-error/10"
+              "block h-fit w-full p-2",
+              not @readonly && "input",
+              not @readonly && @errors == [] && "bg-transparent",
+              not @readonly && @errors != [] && "input-error bg-error/10",
+              @readonly && "rounded-field border-(length:--border) border min-h-10",
+              Backpex.HTML.Form.readonly_input_class(@readonly),
+              @readonly && @errors != [] && "border-error bg-error/10"
             ]}
-            aria_labelledby={Map.get(assigns, :aria_labelledby)}
+            aria_labelledby={Map.get(assigns, :aria_labelledby) || "#{@form[@name].id}-label"}
           >
             <div class="flex h-full w-full flex-wrap items-center gap-1 px-2">
               <p :if={@selected == []} class="p-0.5 text-sm">{@prompt}</p>
-              <.badge :for={{label, value} <- @selected} label={label} value={value} name={@name} />
+              <.badge
+                :for={{label, value} <- @selected}
+                label={label}
+                value={value}
+                readonly={@readonly}
+                name={@name}
+              />
             </div>
           </:trigger>
           <:menu class="w-full overflow-y-auto">
@@ -296,9 +306,16 @@ defmodule Backpex.Fields.HasMany do
     """
   end
 
+  attr :readonly, :boolean, default: false
   attr :name, :string, required: true
   attr :label, :string, required: true
   attr :value, :string, required: true
+
+  defp badge(%{readonly: true} = assigns) do
+    ~H"""
+    <span class="badge badge-sm badge-soft">{@label}</span>
+    """
+  end
 
   defp badge(assigns) do
     ~H"""

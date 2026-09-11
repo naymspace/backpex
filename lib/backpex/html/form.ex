@@ -60,14 +60,25 @@ defmodule Backpex.HTML.Form do
     ~H"""
     <div class={["fieldset py-0", @class]}>
       <label class="label cursor-pointer">
-        <input type="hidden" name={@name} value="false" tabindex="-1" aria-hidden="true" />
+        <input
+          type="hidden"
+          name={@name}
+          value="false"
+          tabindex="-1"
+          aria-hidden="true"
+          disabled={@rest[:disabled]}
+        />
         <input
           type="checkbox"
           id={@id}
           name={@name}
           value="true"
           checked={@checked}
-          class={[@input_class || "checkbox checkbox-primary", @errors != [] && (@error_class || "!checkbox-error")]}
+          class={[
+            @input_class || "checkbox checkbox-primary",
+            @rest[:disabled] && "opacity-100 text-base-content",
+            @errors != [] && (@error_class || "!checkbox-error")
+          ]}
           {@rest}
         />{@label}
       </label>
@@ -83,14 +94,25 @@ defmodule Backpex.HTML.Form do
     ~H"""
     <div class={["fieldset py-0", @class]}>
       <label class="label cursor-pointer">
-        <input type="hidden" name={@name} value="false" tabindex="-1" aria-hidden="true" />
+        <input
+          type="hidden"
+          name={@name}
+          value="false"
+          tabindex="-1"
+          aria-hidden="true"
+          disabled={@rest[:disabled]}
+        />
         <input
           type="checkbox"
           id={@id}
           name={@name}
           value="true"
           checked={@checked}
-          class={[@input_class || "toggle toggle-primary", @errors != [] && (@error_class || "!toggle-error")]}
+          class={[
+            @input_class || "toggle toggle-primary",
+            @rest[:disabled] && "opacity-100 text-base-content",
+            @errors != [] && (@error_class || "!toggle-error")
+          ]}
           {@rest}
         />{@label}
       </label>
@@ -110,9 +132,10 @@ defmodule Backpex.HTML.Form do
           name={@name}
           class={[
             @input_class || "select w-full",
+            readonly_input_class(@rest[:disabled]),
             @errors != [] &&
               (@error_class ||
-                 "select-error text-error-content bg-error/10 [&.select::picker(select)]:bg-base-100 [&.select::picker(select)]:text-base-content")
+                 "select-error border-error text-error-content bg-error/10 [&.select::picker(select)]:bg-base-100 [&.select::picker(select)]:text-base-content")
           ]}
           multiple={@multiple}
           {@rest}
@@ -138,7 +161,11 @@ defmodule Backpex.HTML.Form do
         <textarea
           id={@id}
           name={@name}
-          class={[@input_class || "textarea w-full", @errors != [] && (@error_class || "textarea-error bg-error/10")]}
+          class={[
+            @input_class || "textarea w-full",
+            readonly_input_class(@rest[:readonly] || @rest[:disabled]),
+            @errors != [] && (@error_class || "textarea-error border-error bg-error/10")
+          ]}
           {@rest}
         >{Phoenix.HTML.Form.normalize_value("textarea", @value)}</textarea>
       </label>
@@ -187,7 +214,11 @@ defmodule Backpex.HTML.Form do
           name={@name}
           id={@id}
           value={Phoenix.HTML.Form.normalize_value(@type, @value)}
-          class={[@input_class || "input w-full", @errors != [] && (@error_class || "input-error bg-error/10")]}
+          class={[
+            @input_class || "input w-full",
+            readonly_input_class(@rest[:readonly] || @rest[:disabled]),
+            @errors != [] && (@error_class || "input-error border-error bg-error/10")
+          ]}
           {@rest}
         />
       </label>
@@ -264,7 +295,8 @@ defmodule Backpex.HTML.Form do
         <%!-- As the input ignores updates, we need to wrap it in a span to apply the styles correctly --%>
         <span class={[
           @input_class || "[&_>_input]:input [&_>_input]:w-full",
-          @errors != [] && (@error_class || "[&_>_input]:input-error [&_>_input]:bg-error/10")
+          readonly_input_class(@rest[:readonly] || @rest[:disabled], :currency),
+          @errors != [] && (@error_class || "[&_>_input]:input-error [&_>_input]:border-error [&_>_input]:bg-error/10")
         ]}>
           <input id={@id} data-masked-input phx-update="ignore" {@rest} />
           <input type="hidden" value={@value} name={@name} data-hidden-input tabindex="-1" aria-hidden="true" />
@@ -274,6 +306,20 @@ defmodule Backpex.HTML.Form do
       <.help_text :if={@help_text}>{@help_text}</.help_text>
     </div>
     """
+  end
+
+  @doc false
+  def readonly_input_class(readonly, target \\ :input)
+
+  def readonly_input_class(readonly, _target) when readonly in [false, nil], do: nil
+
+  def readonly_input_class(_readonly, :input) do
+    "border-base-300 bg-base-200 text-base-content shadow-none placeholder:text-base-content"
+  end
+
+  # Currency styles live on the wrapper because LiveView ignores the masked input.
+  def readonly_input_class(_readonly, :currency) do
+    "[&_>_input]:border-base-300 [&_>_input]:bg-base-200 [&_>_input]:text-base-content [&_>_input]:shadow-none"
   end
 
   defp build_mask_pattern(:before, true, unit), do: "#{unit} num"
@@ -322,6 +368,7 @@ defmodule Backpex.HTML.Form do
   @doc type: :component
 
   attr :prompt, :string, required: true, doc: "string that will be shown when no option is selected"
+  attr :readonly, :boolean, default: false, doc: "whether the dropdown is readonly"
   attr :help_text, :string, default: nil, doc: "help text to be displayed below input"
   attr :not_found_text, :string, required: true, doc: "string that will be shown when there are no options"
   attr :options, :list, required: true, doc: "a list of options for the select"
@@ -345,14 +392,18 @@ defmodule Backpex.HTML.Form do
 
     ~H"""
     <div>
-      <.dropdown id={"multi-select-#{@field.id}"} class="w-full">
+      <.dropdown id={"multi-select-#{@field.id}"} class="w-full" readonly={@readonly}>
         <:trigger
           aria_label={@prompt}
           aria_labelledby={Map.get(assigns, :aria_labelledby)}
           class={[
-            "input block h-fit w-full p-2",
-            @errors == [] && "bg-transparent",
-            @errors != [] && "input-error bg-error/10"
+            "block h-fit w-full p-2",
+            not @readonly && "input",
+            not @readonly && @errors == [] && "bg-transparent",
+            not @readonly && @errors != [] && "input-error border-error bg-error/10",
+            @readonly && "rounded-field border-(length:--border) border min-h-10",
+            readonly_input_class(@readonly),
+            @readonly && @errors != [] && "border-error bg-error/10"
           ]}
         >
           <div class="flex h-full w-full flex-wrap items-center gap-1 px-2">
@@ -363,6 +414,7 @@ defmodule Backpex.HTML.Form do
               label={label}
               value={value}
               event_target={@event_target}
+              readonly={@readonly}
             />
           </div>
         </:trigger>
@@ -420,9 +472,16 @@ defmodule Backpex.HTML.Form do
   end
 
   attr :live_resource, :atom, required: true
+  attr :readonly, :boolean, default: false
   attr :label, :string, required: true
   attr :value, :any, required: true
   attr :event_target, :any, required: true
+
+  defp multi_select_badge(%{readonly: true} = assigns) do
+    ~H"""
+    <span class="badge badge-sm badge-soft">{@label}</span>
+    """
+  end
 
   defp multi_select_badge(assigns) do
     ~H"""
