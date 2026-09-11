@@ -24,6 +24,7 @@ defmodule Backpex.Filters.Range do
   > In addition it will add a `render` and `render_form` function in order to display the corresponding filter.
   > It will also implement the `Backpex.Filter.query` function to define a range query.
   """
+  use Phoenix.Component
   use BackpexWeb, :filter
 
   require Backpex

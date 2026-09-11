@@ -20,6 +20,24 @@ defmodule BackpexWeb do
   end
 
   @doc """
+  Includes the functions and helpers needed to render HEEx without setting up a
+  `Phoenix.Component` module.
+
+  This entrypoint is intended for Backpex extension modules that may additionally
+  `use MyAppWeb, :html`. Importing `Phoenix.Component` provides the `~H` sigil and
+  component helpers without registering another declarative `@before_compile` hook.
+  """
+  def heex do
+    quote do
+      import Phoenix.Component
+
+      require Phoenix.Component.Declarative
+
+      unquote(html_helpers())
+    end
+  end
+
+  @doc """
   Includes the functions and helpers available inside a `Backpex.LiveResource`.
 
   Unlike `html/0`, this only *imports* `Phoenix.Component` instead of `use`-ing it. A
@@ -40,13 +58,7 @@ defmodule BackpexWeb do
   # the module additionally brings in the component-aware `def` (via `use MyAppWeb, :html`),
   # regardless of the order of the `use` statements.
   def live_resource do
-    quote do
-      import Phoenix.Component
-
-      require Phoenix.Component.Declarative
-
-      unquote(html_helpers())
-    end
+    heex()
   end
 
   @doc """
@@ -56,6 +68,13 @@ defmodule BackpexWeb do
     quote do
       use Phoenix.LiveComponent
 
+      unquote(field_helpers())
+    end
+  end
+
+  @doc false
+  def field_helpers do
+    quote do
       alias Backpex.HTML
       alias Backpex.HTML.Form, as: BackpexForm
       alias Backpex.HTML.Layout
@@ -71,25 +90,22 @@ defmodule BackpexWeb do
   """
   def item_action do
     quote do
-      use Phoenix.Component
       use Backpex.ItemAction
 
       import Phoenix.LiveView
 
       alias Backpex.Router
 
-      unquote(html_helpers())
+      unquote(heex())
     end
   end
 
   def filter do
     quote do
-      use Phoenix.Component
-
       import Backpex.HTML.Form, only: [error: 1]
       import Ecto.Query, warn: false
 
-      unquote(html_helpers())
+      unquote(heex())
     end
   end
 
@@ -97,9 +113,9 @@ defmodule BackpexWeb do
     quote do
       @behaviour Backpex.Metric
 
-      use Phoenix.Component
-
       import Ecto.Query
+
+      unquote(heex())
     end
   end
 

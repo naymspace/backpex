@@ -53,6 +53,18 @@ The `render_form/1` function returns markup that is used to render a form on `ed
 
 See `Backpex.Field` for more information on the available callback functions. For example, you can implement `render_index_form/1` to make the field editable in the index view.
 
+## Using your application's web helpers
+
+Custom fields are LiveComponents. If a field needs helpers from your application, such as Gettext, core components, or verified routes, configure your application's LiveComponent entrypoint:
+
+```elixir
+use Backpex.Field,
+  config_schema: @config_schema,
+  live_component: {MyAppWeb, :live_component}
+```
+
+The standard Phoenix-generated `MyAppWeb, :live_component` entrypoint includes the application's HTML helpers while setting up `Phoenix.LiveComponent` exactly once. Do not additionally `use MyAppWeb, :html` in the same field module.
+
 ## Add field option validation
 
 With Backpex v0.9 we are validating field options. This ensures that only field options that are actually used by the field can be defined in the field options map. So if your custom field requires certain field options, make sure you define them.
