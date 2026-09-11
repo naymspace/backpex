@@ -31,18 +31,30 @@ These fields render the browser's native `readonly` attribute on their input, so
 Native `readonly` does not apply to these control types, so they render as `disabled` instead:
 
 - `Backpex.Fields.Select`
-- `Backpex.Fields.MultiSelect`
 - `Backpex.Fields.Boolean` — renders as a disabled toggle
 - `Backpex.Fields.BelongsTo`
-- `Backpex.Fields.HasMany` — dropdown is rendered as an inert element; selected badges lose the remove control
 
 **Custom readonly rendering**
 
 A few fields need tailored behavior beyond a single attribute:
 
+- `Backpex.Fields.MultiSelect` — dropdown is rendered as a labelled, non-interactive group; selected badges lose the remove control
+- `Backpex.Fields.HasMany` — dropdown is rendered as a labelled, non-interactive group; selected badges lose the remove control
 - `Backpex.Fields.Upload` — the drop target and "Upload a file" link are disabled, the cancel/remove buttons on pending and existing entries are hidden, and the existing-file list is still displayed so users can see what is attached.
 - `Backpex.Fields.InlineCRUD` — nested row fields become readonly, and the per-row delete checkbox and the add-row control are hidden entirely.
 - `Backpex.Fields.HasManyThrough` — the Actions column (edit/remove buttons) is hidden, the "new relational" button is disabled, and pivot and select inputs inside the modal are rendered as disabled.
+
+## Appearance and accessibility
+
+Readonly inputs use the active theme's `base-200` background, `base-300` border, and
+`base-content` text color. Native selects and custom dropdowns use the same treatment,
+so non-editable values remain readable in light and dark themes. Validation errors
+retain their error colors.
+
+Text-like inputs keep native `readonly` behavior: they remain keyboard-focusable,
+retain a visible focus outline, and allow text selection and copying. Controls that
+cannot use native `readonly` remain disabled or render as non-interactive groups.
+The visual treatment does not change which values are submitted with the form.
 
 ## Configuration
 

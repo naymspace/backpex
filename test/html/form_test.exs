@@ -119,7 +119,7 @@ defmodule Backpex.HTML.FormTest do
   end
 
   describe "multi_select/1" do
-    test "readonly prompt uses /60 contrast class" do
+    test "readonly prompt inherits readable text color" do
       assigns = base_assigns(readonly: true, selected: [])
 
       html = render_component(&BackpexForm.multi_select/1, assigns)
@@ -129,7 +129,9 @@ defmodule Backpex.HTML.FormTest do
       prompt = LazyHTML.query(doc, "p")
       [prompt_class] = LazyHTML.attribute(prompt, "class")
 
-      assert prompt_class =~ "text-base-content/60"
+      refute prompt_class =~ "text-base-content/"
+      trigger = LazyHTML.query(doc, "#multi-select-tags-trigger")
+      assert LazyHTML.attribute(trigger, "role") == ["group"]
     end
 
     test "readonly badge has no remove button or badge-primary class" do

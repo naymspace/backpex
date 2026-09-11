@@ -74,7 +74,11 @@ defmodule Backpex.HTML.Form do
           name={@name}
           value="true"
           checked={@checked}
-          class={[@input_class || "checkbox checkbox-primary", @errors != [] && (@error_class || "!checkbox-error")]}
+          class={[
+            @input_class || "checkbox checkbox-primary",
+            @rest[:disabled] && "opacity-100 text-base-content",
+            @errors != [] && (@error_class || "!checkbox-error")
+          ]}
           {@rest}
         />{@label}
       </label>
@@ -104,7 +108,11 @@ defmodule Backpex.HTML.Form do
           name={@name}
           value="true"
           checked={@checked}
-          class={[@input_class || "toggle toggle-primary", @errors != [] && (@error_class || "!toggle-error")]}
+          class={[
+            @input_class || "toggle toggle-primary",
+            @rest[:disabled] && "opacity-100 text-base-content",
+            @errors != [] && (@error_class || "!toggle-error")
+          ]}
           {@rest}
         />{@label}
       </label>
@@ -124,9 +132,10 @@ defmodule Backpex.HTML.Form do
           name={@name}
           class={[
             @input_class || "select w-full",
+            readonly_input_class(@rest[:disabled]),
             @errors != [] &&
               (@error_class ||
-                 "select-error text-error-content bg-error/10 [&.select::picker(select)]:bg-base-100 [&.select::picker(select)]:text-base-content")
+                 "select-error border-error text-error-content bg-error/10 [&.select::picker(select)]:bg-base-100 [&.select::picker(select)]:text-base-content")
           ]}
           multiple={@multiple}
           {@rest}
@@ -152,7 +161,11 @@ defmodule Backpex.HTML.Form do
         <textarea
           id={@id}
           name={@name}
-          class={[@input_class || "textarea w-full", @errors != [] && (@error_class || "textarea-error bg-error/10")]}
+          class={[
+            @input_class || "textarea w-full",
+            readonly_input_class(@rest[:readonly] || @rest[:disabled]),
+            @errors != [] && (@error_class || "textarea-error border-error bg-error/10")
+          ]}
           {@rest}
         >{Phoenix.HTML.Form.normalize_value("textarea", @value)}</textarea>
       </label>
@@ -172,7 +185,11 @@ defmodule Backpex.HTML.Form do
           name={@name}
           id={@id}
           value={Phoenix.HTML.Form.normalize_value(@type, @value)}
-          class={[@input_class || "input w-full", @errors != [] && (@error_class || "input-error bg-error/10")]}
+          class={[
+            @input_class || "input w-full",
+            readonly_input_class(@rest[:readonly] || @rest[:disabled]),
+            @errors != [] && (@error_class || "input-error border-error bg-error/10")
+          ]}
           {@rest}
         />
       </label>
@@ -249,7 +266,8 @@ defmodule Backpex.HTML.Form do
         <%!-- As the input ignores updates, we need to wrap it in a span to apply the styles correctly --%>
         <span class={[
           @input_class || "[&_>_input]:input [&_>_input]:w-full",
-          @errors != [] && (@error_class || "[&_>_input]:input-error [&_>_input]:bg-error/10")
+          readonly_input_class(@rest[:readonly] || @rest[:disabled], :currency),
+          @errors != [] && (@error_class || "[&_>_input]:input-error [&_>_input]:border-error [&_>_input]:bg-error/10")
         ]}>
           <input id={@id} data-masked-input phx-update="ignore" {@rest} />
           <input type="hidden" value={@value} name={@name} data-hidden-input tabindex="-1" aria-hidden="true" />
@@ -259,6 +277,20 @@ defmodule Backpex.HTML.Form do
       <.help_text :if={@help_text}>{@help_text}</.help_text>
     </div>
     """
+  end
+
+  @doc false
+  def readonly_input_class(readonly, target \\ :input)
+
+  def readonly_input_class(readonly, _target) when readonly in [false, nil], do: nil
+
+  def readonly_input_class(_readonly, :input) do
+    "border-base-300 bg-base-200 text-base-content shadow-none placeholder:text-base-content"
+  end
+
+  # Currency styles live on the wrapper because LiveView ignores the masked input.
+  def readonly_input_class(_readonly, :currency) do
+    "[&_>_input]:border-base-300 [&_>_input]:bg-base-200 [&_>_input]:text-base-content [&_>_input]:shadow-none"
   end
 
   defp build_mask_pattern(:before, true, unit), do: "#{unit} num"
@@ -338,12 +370,14 @@ defmodule Backpex.HTML.Form do
             "block h-fit w-full p-2",
             not @readonly && "input",
             not @readonly && @errors == [] && "bg-transparent",
-            not @readonly && @errors != [] && "input-error bg-error/10",
-            @readonly && "cursor-not-allowed bg-base-200"
+            not @readonly && @errors != [] && "input-error border-error bg-error/10",
+            @readonly && "rounded-field border-(length:--border) border min-h-10",
+            readonly_input_class(@readonly),
+            @readonly && @errors != [] && "border-error bg-error/10"
           ]}
         >
           <div class="flex h-full w-full flex-wrap items-center gap-1 px-2">
-            <p :if={@selected == []} class={["p-0.5 text-sm", @readonly && "text-base-content/60"]}>{@prompt}</p>
+            <p :if={@selected == []} class="p-0.5 text-sm">{@prompt}</p>
             <.multi_select_badge
               :for={{label, value} <- @selected}
               live_resource={@live_resource}

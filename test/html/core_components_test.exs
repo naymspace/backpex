@@ -60,10 +60,10 @@ defmodule Backpex.HTML.CoreComponentsTest do
       assert outer_class =~ "w-full"
 
       # No interactive attributes on the trigger in readonly mode.
-      assert LazyHTML.attribute(trigger, "role") == []
+      assert LazyHTML.attribute(trigger, "role") == ["group"]
       assert LazyHTML.attribute(trigger, "tabindex") == []
       assert LazyHTML.attribute(trigger, "aria-haspopup") == []
-      assert LazyHTML.attribute(trigger, "aria-label") == []
+      assert LazyHTML.attribute(trigger, "aria-label") == ["open"]
       assert LazyHTML.attribute(trigger, "aria-labelledby") == []
 
       # Menu div is not rendered in readonly mode.

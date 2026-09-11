@@ -66,7 +66,13 @@ defmodule Backpex.HTML.CoreComponents do
     if assigns.readonly do
       ~H"""
       <div id={@id} class={@class} {@rest}>
-        <div id={"#{@id}-trigger"} class={@trigger && @trigger[:class]}>
+        <div
+          id={"#{@id}-trigger"}
+          role="group"
+          aria-label={@trigger && @trigger[:aria_label]}
+          aria-labelledby={@trigger && Map.get(@trigger, :aria_labelledby)}
+          class={@trigger && @trigger[:class]}
+        >
           {render_slot(@trigger)}
         </div>
       </div>
