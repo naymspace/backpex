@@ -60,7 +60,14 @@ defmodule Backpex.HTML.Form do
     ~H"""
     <div class={["fieldset py-0", @class]}>
       <label class="label cursor-pointer">
-        <input type="hidden" name={@name} value="false" tabindex="-1" aria-hidden="true" />
+        <input
+          type="hidden"
+          name={@name}
+          value="false"
+          tabindex="-1"
+          aria-hidden="true"
+          disabled={@rest[:disabled]}
+        />
         <input
           type="checkbox"
           id={@id}
@@ -83,7 +90,14 @@ defmodule Backpex.HTML.Form do
     ~H"""
     <div class={["fieldset py-0", @class]}>
       <label class="label cursor-pointer">
-        <input type="hidden" name={@name} value="false" tabindex="-1" aria-hidden="true" />
+        <input
+          type="hidden"
+          name={@name}
+          value="false"
+          tabindex="-1"
+          aria-hidden="true"
+          disabled={@rest[:disabled]}
+        />
         <input
           type="checkbox"
           id={@id}
