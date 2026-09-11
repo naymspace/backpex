@@ -202,33 +202,8 @@ defmodule Backpex.Adapters.Ecto do
 
   def apply_criteria(query, criteria, fields) do
     Enum.reduce(criteria, query, fn
-      {:order, %{by: by, direction: direction, schema: schema, field_name: field_name}}, query ->
-        schema_name = get_custom_alias(fields, field_name, name_by_schema(schema))
-
-        direction =
-          case direction do
-            :desc -> :desc_nulls_last
-            :asc -> :asc_nulls_first
-          end
-
-        field =
-          Enum.find(fields, fn
-            {^by, field} -> field
-            {^field_name, %{display_field: ^by} = field} -> field
-            _field -> nil
-          end)
-
-        case field do
-          {_name, %{select: select} = _field_options} ->
-            query
-            |> order_by([{^schema_name, schema_name}], ^[{direction, select}])
-
-          _field ->
-            query
-            |> order_by([{^schema_name, schema_name}], [
-              {^direction, field(schema_name, ^by)}
-            ])
-        end
+      {:order, order}, query ->
+        apply_order(query, order, fields)
 
       {:limit, limit}, query ->
         query
@@ -242,6 +217,41 @@ defmodule Backpex.Adapters.Ecto do
       _criteria, query ->
         query
     end)
+  end
+
+  defp apply_order(query, %{by: by, direction: direction, schema: schema} = order, fields) do
+    field_name = Map.get(order, :field_name)
+    schema_name = get_custom_alias(fields, field_name, name_by_schema(schema))
+
+    direction =
+      case direction do
+        :desc -> :desc_nulls_last
+        :asc -> :asc_nulls_first
+      end
+
+    field =
+      Enum.find(fields, fn
+        {^by, field} -> field
+        {^field_name, %{display_field: ^by} = field} -> field
+        _field -> nil
+      end)
+
+    case field do
+      {_name, %{select: select} = _field_options} ->
+        query
+        |> order_by([{^schema_name, schema_name}], ^[{direction, select}])
+
+      _field ->
+        query
+        |> order_by([{^schema_name, schema_name}], [
+          {^direction, field(schema_name, ^by)}
+        ])
+    end
+  end
+
+  defp apply_order(_query, order, _fields) do
+    raise ArgumentError,
+          "expected order criteria to be a map with the keys :by, :direction and :schema, got: #{inspect(order)}"
   end
 
   @doc """

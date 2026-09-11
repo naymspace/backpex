@@ -5,18 +5,25 @@ defmodule DemoWeb.Live.FilmReview.OrderingLiveTest do
   import Phoenix.LiveViewTest
 
   # Film reviews use default init_order: %{by: :id, direction: :asc}
+  # Film reviews have binary_id (random UUID) primary keys, so ascending id order is
+  # unrelated to insertion order and has to be derived from the inserted records.
 
   describe "default ordering" do
     test "orders by id ascending by default", %{conn: conn} do
-      insert(:film_review, title: "First Review")
-      insert(:film_review, title: "Second Review")
-      insert(:film_review, title: "Third Review")
+      film_reviews = [
+        insert(:film_review, title: "First Review"),
+        insert(:film_review, title: "Second Review"),
+        insert(:film_review, title: "Third Review")
+      ]
+
+      [first, second, third] = Enum.sort_by(film_reviews, & &1.id)
 
       conn
       |> visit(~p"/admin/film-reviews")
       |> assert_has("table tbody tr", count: 3)
-      |> assert_has("table tbody tr:first-child td", text: "First Review")
-      |> assert_has("table tbody tr:last-child td", text: "Third Review")
+      |> assert_has("table tbody tr:first-child td", text: first.title)
+      |> assert_has("table tbody tr:nth-child(2) td", text: second.title)
+      |> assert_has("table tbody tr:last-child td", text: third.title)
     end
   end
 
@@ -52,17 +59,22 @@ defmodule DemoWeb.Live.FilmReview.OrderingLiveTest do
 
   describe "invalid ordering params" do
     test "falls back to default order_by for invalid order_by field", %{conn: conn} do
-      insert(:film_review, title: "First Review")
-      insert(:film_review, title: "Second Review")
-      insert(:film_review, title: "Third Review")
+      film_reviews = [
+        insert(:film_review, title: "First Review"),
+        insert(:film_review, title: "Second Review"),
+        insert(:film_review, title: "Third Review")
+      ]
+
+      [first, second, third] = Enum.sort_by(film_reviews, & &1.id)
 
       params = %{"order_by" => "nonexistent_field", "order_direction" => "asc"}
 
       conn
       |> visit(~p"/admin/film-reviews?#{params}")
       |> assert_has("table tbody tr", count: 3)
-      |> assert_has("table tbody tr:first-child td", text: "First Review")
-      |> assert_has("table tbody tr:last-child td", text: "Third Review")
+      |> assert_has("table tbody tr:first-child td", text: first.title)
+      |> assert_has("table tbody tr:nth-child(2) td", text: second.title)
+      |> assert_has("table tbody tr:last-child td", text: third.title)
     end
 
     test "falls back to default direction for invalid order_direction", %{conn: conn} do

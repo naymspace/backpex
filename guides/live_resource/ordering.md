@@ -1,6 +1,8 @@
 # Ordering
 
-You can configure the ordering of the resource index page. By default, the resources are ordered by the `id` field in ascending order.
+You can configure the ordering of the resource index page. By default, resources
+are ordered in ascending order by the LiveResource's configured `primary_key`
+(`:id` unless you override it).
 
 ## Configuration
 

@@ -7,7 +7,8 @@ defmodule DemoWeb.PostLive do
       create_changeset: &Demo.Post.create_changeset/3
     ],
     fluid?: true,
-    save_and_continue_button?: true
+    save_and_continue_button?: true,
+    persist: [:order, :filters, :columns, :metrics]
 
   import Ecto.Query, warn: false
 
@@ -159,7 +160,7 @@ defmodule DemoWeb.PostLive do
         searchable: true,
         render: fn assigns ->
           ~H"""
-          <p>{Number.Delimit.number_to_delimited(@value, precision: 0, delimiter: ".")}</p>
+          <p>{DemoWeb.NumberFormat.to_delimited(@value)}</p>
           """
         end
       },

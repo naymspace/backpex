@@ -159,7 +159,7 @@ defmodule Backpex.RouterTest do
   end
 
   describe "backpex_routes/0" do
-    defmodule CookieRouter do
+    defmodule PreferencesRouter do
       use Phoenix.Router, helpers: false
 
       import Backpex.Router, only: [backpex_routes: 0]
@@ -169,17 +169,27 @@ defmodule Backpex.RouterTest do
       end
     end
 
-    test "defines the cookie controller route" do
-      routes = CookieRouter.__routes__()
+    defmodule TenantPreferencesRouter do
+      use Phoenix.Router, helpers: false
 
-      cookie_route =
+      import Backpex.Router, only: [backpex_routes: 0]
+
+      scope "/tenants/:tenant", Test do
+        backpex_routes()
+      end
+    end
+
+    test "defines the preferences controller route" do
+      routes = PreferencesRouter.__routes__()
+
+      preferences_route =
         Enum.find(routes, fn route ->
-          route.path == "/backpex_cookies" && route.verb == :post
+          route.path == "/backpex_preferences" && route.verb == :post
         end)
 
-      assert cookie_route != nil
-      assert cookie_route.plug == Backpex.CookieController
-      assert cookie_route.plug_opts == :update
+      assert preferences_route != nil
+      assert preferences_route.plug == Backpex.PreferencesController
+      assert preferences_route.plug_opts == :update
 
       backpex_routes =
         Enum.filter(routes, fn route ->
@@ -187,6 +197,14 @@ defmodule Backpex.RouterTest do
         end)
 
       assert length(backpex_routes) == 1
+    end
+
+    test "can mount the preferences controller below a dynamic application scope" do
+      assert Enum.any?(TenantPreferencesRouter.__routes__(), fn route ->
+               route.path == "/tenants/:tenant/backpex_preferences" and
+                 route.verb == :post and
+                 route.plug == Backpex.PreferencesController
+             end)
     end
   end
 

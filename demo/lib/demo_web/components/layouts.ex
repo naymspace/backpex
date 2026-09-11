@@ -7,6 +7,12 @@ defmodule DemoWeb.Layouts do
   attr :flash, :map, required: true, doc: "the map of flash messages"
   attr :fluid?, :boolean, default: true, doc: "if the content uses full width"
   attr :current_url, :string, required: true, doc: "the current url"
+  attr :current_theme, :string, default: nil, doc: "the currently selected theme"
+  attr :sidebar_open, :boolean, default: true, doc: "initial sidebar open state"
+
+  attr :preferences_manifest, :map,
+    default: nil,
+    doc: "adapter route manifest for client-carried preference values, assigned by Backpex.InitAssigns"
 
   slot :inner_block, required: true
 

@@ -73,7 +73,7 @@ defmodule Backpex.HTML.CoreComponents do
       """
     else
       ~H"""
-      <div id={@id} class={["dropdown", @class]} {@rest}>
+      <div id={@id} class={["dropdown", @class]} phx-hook="BackpexDropdown" {@rest}>
         <div
           id={"#{@id}-trigger"}
           role="button"

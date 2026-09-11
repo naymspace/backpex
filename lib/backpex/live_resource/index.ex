@@ -8,6 +8,9 @@ defmodule Backpex.LiveResource.Index do
   alias Backpex.FilterValidation
   alias Backpex.LiveResource
   alias Backpex.PaginationValidation
+  alias Backpex.Preferences
+  alias Backpex.Preferences.Keys, as: PreferenceKeys
+  alias Backpex.Preferences.LiveView, as: PreferenceLiveView
   alias Backpex.Resource
   alias Backpex.Router
   alias Phoenix.LiveView
@@ -15,19 +18,31 @@ defmodule Backpex.LiveResource.Index do
   require Backpex
 
   def mount(params, session, socket, live_resource) do
+    socket =
+      socket
+      |> LiveResource.maybe_subscribe_to_pubsub(live_resource)
+      |> assign(:live_resource, live_resource)
+      |> assign(:panels, live_resource.panels())
+      |> assign(:fluid?, live_resource.config(:fluid?))
+      |> assign(:fields, live_resource.fields(socket.assigns.live_action, socket.assigns))
+      |> assign(
+        :create_button_label,
+        Backpex.__({"New %{resource}", %{resource: live_resource.singular_name()}}, live_resource)
+      )
+
+    # Build a Context once per mount so scope resolvers see the same
+    # session + socket.assigns snapshot across every preference read (including
+    # any auth-layer assigns like :current_scope or :current_user populated by
+    # an earlier on_mount hook). It also carries the browser's connect-param
+    # preferences, so a live_redirect re-mount renders the columns and metrics
+    # the user actually chose rather than the stale connect-time session's.
+    ctx = PreferenceLiveView.mount_context(socket, session)
+
     socket
-    |> LiveResource.maybe_subscribe_to_pubsub(live_resource)
-    |> assign(:live_resource, live_resource)
-    |> assign(:panels, live_resource.panels())
-    |> assign(:fluid?, live_resource.config(:fluid?))
-    |> assign(:fields, live_resource.fields(socket.assigns.live_action, socket.assigns))
-    |> assign(
-      :create_button_label,
-      Backpex.__({"New %{resource}", %{resource: live_resource.singular_name()}}, live_resource)
-    )
-    |> assign_metrics_visibility(session)
+    |> assign_persisted_index_state(ctx)
+    |> assign_metrics_visibility(ctx)
     |> assign_filters_changed_status(params)
-    |> assign_active_fields(session)
+    |> assign_active_fields(ctx)
     |> ok()
   end
 
@@ -111,19 +126,7 @@ defmodule Backpex.LiveResource.Index do
       end)
       |> Map.new()
 
-    to =
-      Router.get_path(
-        socket,
-        socket.assigns.live_resource,
-        socket.assigns.params,
-        :index,
-        Map.put(query_options, :filters, filters)
-      )
-
-    socket
-    |> assign(filters_changed: true)
-    |> LiveView.push_patch(to: to)
-    |> noreply()
+    apply_filter_change(socket, filters)
   end
 
   def handle_event("item-action", %{"action-key" => key, "item-id" => item_id}, socket) do
@@ -191,19 +194,7 @@ defmodule Backpex.LiveResource.Index do
       Map.get(query_options, :filters, %{})
       |> Map.put(field, get_preset_values.())
 
-    to =
-      Router.get_path(
-        socket,
-        socket.assigns.live_resource,
-        socket.assigns.params,
-        :index,
-        Map.put(query_options, :filters, filters)
-      )
-
-    socket
-    |> assign(filters_changed: true)
-    |> LiveView.push_patch(to: to)
-    |> noreply()
+    apply_filter_change(socket, filters)
   end
 
   def handle_event("update-selected-items", %{"id" => id}, socket) do
@@ -245,23 +236,57 @@ defmodule Backpex.LiveResource.Index do
   end
 
   def handle_event("clear-filter", %{"field" => field}, socket) do
-    %{live_resource: live_resource, query_options: query_options, params: params} = socket.assigns
+    filters =
+      socket.assigns.query_options
+      |> Map.get(:filters, %{})
+      |> Map.delete(field)
 
-    new_query_options =
-      Map.put(
-        query_options,
-        :filters,
-        Map.get(query_options, :filters, %{})
-        |> Map.delete(field)
-      )
+    apply_filter_change(socket, filters)
+  end
 
-    to = Router.get_path(socket, live_resource, params, :index, new_query_options)
+  def handle_event("toggle_column", %{"field" => field}, socket) do
+    active_fields = socket.assigns.active_fields
+
+    # `field` is client-controlled: match it against the known fields instead
+    # of atomizing it, so a tampered payload is a no-op rather than a crash.
+    case Enum.find(active_fields, fn {name, _config} -> Atom.to_string(name) == field end) do
+      nil ->
+        noreply(socket)
+
+      {field_atom, _config} ->
+        updated_fields =
+          Enum.map(active_fields, fn
+            {^field_atom, config} -> {field_atom, %{config | active: !config.active}}
+            other -> other
+          end)
+
+        columns =
+          Map.new(updated_fields, fn {k, %{active: v}} ->
+            {Atom.to_string(k), v}
+          end)
+
+        live_resource = socket.assigns.live_resource
+
+        socket
+        |> assign(:active_fields, updated_fields)
+        |> maybe_push_columns(live_resource, columns)
+        |> noreply()
+    end
+  end
+
+  def handle_event("toggle_metrics", _params, socket) do
+    %{live_resource: live_resource, metric_visibility: metric_visibility} = socket.assigns
+
+    resource_key_str = to_string(live_resource)
+    current_visible = Map.get(metric_visibility, resource_key_str, true)
+    new_visible = !current_visible
+
+    updated_visibility = Map.put(metric_visibility, resource_key_str, new_visible)
 
     socket
-    |> LiveView.push_patch(to: to)
-    |> assign(params: Map.merge(params, new_query_options))
-    |> assign(query_options: new_query_options)
-    |> assign(filters_changed: true)
+    |> assign(:metric_visibility, updated_visibility)
+    |> maybe_push_metrics(live_resource, new_visible)
+    |> maybe_assign_metrics()
     |> noreply()
   end
 
@@ -300,28 +325,114 @@ defmodule Backpex.LiveResource.Index do
     end)
   end
 
-  defp assign_active_fields(socket, session) do
+  defp assign_active_fields(socket, ctx) do
     %{fields: fields, live_resource: live_resource} = socket.assigns
 
-    saved_fields = get_in(session, ["backpex", "column_toggle", "#{live_resource}"]) || %{}
+    # A non-map here would raise in `Map.get/3` below. The write path refuses
+    # one, but a store can still hold it from an earlier version or a
+    # third-party adapter — fall back to "everything visible" rather than
+    # taking the page down.
+    saved_columns =
+      with true <- persist_enabled?(live_resource, :columns),
+           saved when is_map(saved) <- Preferences.get(ctx, PreferenceKeys.columns(live_resource), default: %{}) do
+        saved
+      else
+        _other -> %{}
+      end
 
     active_fields =
       Enum.map(fields, fn {name, %{label: label}} ->
-        {name,
-         %{
-           active: field_active?(name, saved_fields),
-           label: label
-         }}
+        active = Map.get(saved_columns, Atom.to_string(name), true)
+        {name, %{active: active, label: label}}
       end)
 
     assign(socket, :active_fields, active_fields)
   end
 
-  defp field_active?(name, saved_fields) do
-    case Map.get(saved_fields, Atom.to_string(name)) do
-      "true" -> true
-      "false" -> false
-      _other -> true
+  defp assign_persisted_index_state(socket, ctx) do
+    %{live_resource: live_resource} = socket.assigns
+
+    persisted = %{
+      order: read_persisted(:order, live_resource, ctx),
+      filters: read_persisted(:filters, live_resource, ctx)
+    }
+
+    assign(socket, :backpex_persisted_index_state, persisted)
+  end
+
+  defp read_persisted(:order, live_resource, ctx) do
+    if persist_enabled?(live_resource, :order) do
+      Preferences.get(ctx, PreferenceKeys.order(live_resource))
+    end
+  end
+
+  defp read_persisted(:filters, live_resource, ctx) do
+    if persist_enabled?(live_resource, :filters) do
+      Preferences.get(ctx, PreferenceKeys.filters(live_resource))
+    end
+  end
+
+  defp persist_enabled?(live_resource, what) do
+    what in (live_resource.config(:persist) || [])
+  end
+
+  # The adapter routed to this key decides how the write lands: one that
+  # persists server-side does so in place, and only one that cannot write
+  # outside an HTTP request (the Session adapter, the zero-config default)
+  # falls back to the browser round-trip. Preferences are best effort, so an
+  # adapter that refuses the write leaves the socket — and the interaction that
+  # triggered it — untouched.
+  defp put_preference(socket, key, value, opts) do
+    case Preferences.put(socket, key, value, opts) do
+      {:ok, socket} -> socket
+      {:error, _reason} -> socket
+    end
+  end
+
+  defp maybe_push_columns(socket, live_resource, columns) do
+    if persist_enabled?(live_resource, :columns) do
+      put_preference(socket, PreferenceKeys.columns(live_resource), columns, mirror: :session)
+    else
+      socket
+    end
+  end
+
+  defp maybe_push_metrics(socket, live_resource, visible) do
+    if persist_enabled?(live_resource, :metrics) do
+      put_preference(socket, PreferenceKeys.metrics_visible(live_resource), visible, mirror: :session)
+    else
+      socket
+    end
+  end
+
+  defp apply_filter_change(socket, new_filters) do
+    %{live_resource: live_resource, query_options: query_options, params: params} = socket.assigns
+
+    to =
+      Router.get_path(
+        socket,
+        live_resource,
+        params,
+        :index,
+        Map.put(query_options, :filters, new_filters)
+      )
+
+    socket
+    |> maybe_push_filters(live_resource, new_filters)
+    |> assign(filters_changed: true)
+    |> LiveView.push_patch(to: to)
+    |> noreply()
+  end
+
+  defp maybe_push_filters(socket, live_resource, filters) do
+    if persist_enabled?(live_resource, :filters) do
+      persisted = socket.assigns.backpex_persisted_index_state
+
+      socket
+      |> put_preference(PreferenceKeys.filters(live_resource), filters, mirror: :session)
+      |> assign(:backpex_persisted_index_state, %{persisted | filters: filters})
+    else
+      socket
     end
   end
 
@@ -344,11 +455,17 @@ defmodule Backpex.LiveResource.Index do
     assign(socket, :items, updated_items)
   end
 
-  defp assign_metrics_visibility(socket, session) do
-    value = get_in(session, ["backpex", "metric_visibility"]) || %{}
+  defp assign_metrics_visibility(socket, ctx) do
+    %{live_resource: live_resource} = socket.assigns
 
-    socket
-    |> assign(metric_visibility: value)
+    visible =
+      if persist_enabled?(live_resource, :metrics) do
+        Preferences.get(ctx, PreferenceKeys.metrics_visible(live_resource), default: true)
+      else
+        true
+      end
+
+    assign(socket, :metric_visibility, %{to_string(live_resource) => visible})
   end
 
   defp assign_filters_changed_status(socket, params) do
@@ -395,23 +512,30 @@ defmodule Backpex.LiveResource.Index do
 
   defp apply_index(socket) do
     %{live_resource: live_resource, params: params, fields: fields} = socket.assigns
+    persisted = socket.assigns[:backpex_persisted_index_state] || %{order: nil, filters: nil}
 
     if not live_resource.can?(socket.assigns, :index, nil), do: raise(Backpex.ForbiddenError)
 
     per_page_options = live_resource.config(:per_page_options)
     per_page_default = live_resource.config(:per_page_default)
-    init_order = live_resource.config(:init_order)
-    init_order = LiveResource.resolve_init_order(init_order, socket.assigns)
+    orderable_fields = LiveResource.orderable_fields(fields)
+
+    # The resource's own default, before any stored order overrides it.
+    # `maybe_persist_order/3` needs it to tell a user's choice apart from the
+    # default they simply have not diverged from.
+    resource_default_order =
+      live_resource.config(:init_order) |> LiveResource.resolve_init_order(socket.assigns)
+
+    init_order = maybe_override_init_order(resource_default_order, params, persisted.order, orderable_fields)
 
     filters = LiveResource.active_filters(socket.assigns)
     schema = live_resource.adapter_config(:schema)
-    orderable_fields = LiveResource.orderable_fields(fields)
 
     # Build filter changeset from URL params and extract valid values
     raw_filter_params =
       case Map.get(params, "filters") do
         value when is_map(value) -> value
-        _other -> %{}
+        _other -> fallback_filter_params(persisted.filters)
       end
 
     filter_changeset = FilterValidation.build_changeset(raw_filter_params, filters, socket.assigns)
@@ -464,8 +588,90 @@ defmodule Backpex.LiveResource.Index do
     |> maybe_redirect_to_default_filters()
     |> assign_items()
     |> maybe_assign_metrics()
+    |> maybe_persist_order(query_options, resource_default_order)
     |> apply_index_return_to()
   end
+
+  defp maybe_override_init_order(init_order, _params, nil, _orderable_fields), do: init_order
+
+  defp maybe_override_init_order(init_order, params, stored_order, orderable_fields) do
+    cond do
+      Map.has_key?(params, "order_by") or Map.has_key?(params, "order_direction") ->
+        init_order
+
+      match?(%{"by" => by, "direction" => dir} when is_binary(by) and is_binary(dir), stored_order) ->
+        parse_stored_order(stored_order, orderable_fields) || init_order
+
+      true ->
+        init_order
+    end
+  end
+
+  defp parse_stored_order(%{"by" => by, "direction" => direction}, orderable_fields) do
+    field = Enum.find(orderable_fields, &(Atom.to_string(&1) == by))
+
+    direction =
+      case direction do
+        "asc" -> :asc
+        "desc" -> :desc
+        _other -> nil
+      end
+
+    if field && direction, do: %{by: field, direction: direction}
+  end
+
+  defp parse_stored_order(_other, _orderable_fields), do: nil
+
+  defp fallback_filter_params(stored) when is_map(stored), do: stored
+  defp fallback_filter_params(_other), do: %{}
+
+  defp maybe_persist_order(socket, query_options, resource_default_order) do
+    %{live_resource: live_resource, backpex_persisted_index_state: persisted} = socket.assigns
+
+    value = encode_order(query_options.order_by, query_options.order_direction)
+
+    if persist_enabled?(live_resource, :order) and
+         persist_order?(persisted.order, value, encode_order(resource_default_order)) do
+      socket
+      |> put_preference(PreferenceKeys.order(live_resource), value, mirror: :session)
+      |> assign(:backpex_persisted_index_state, %{persisted | order: value})
+    else
+      socket
+    end
+  end
+
+  # A preference records what the *user* chose. This runs from the render
+  # pipeline rather than an event handler — the order can arrive in the URL, so
+  # there is no single event to hang it on — which means it has to work out for
+  # itself whether there is a choice here worth recording.
+  #
+  # `nil` means the user has never chosen an order, the same "never set"
+  # distinction `read_persisted(:filters, ...)` relies on. While the effective
+  # order still matches the resource's own default there is nothing to record:
+  # reading `nil` back yields that same default, so storing it changes no
+  # outcome — it only freezes it. A stored order wins over `init_order` from the
+  # next mount on, so writing the default here would mean a later change to it
+  # never reaches existing users, and a `fun/1` `init_order` would silently stop
+  # recomputing after one render.
+  #
+  # Note the URL is not the signal: Backpex's own default-filter redirect
+  # canonicalizes `order_by`/`order_direction` into it, so their presence says
+  # nothing about who chose the order.
+  defp persist_order?(nil, value, resource_default_order), do: value != resource_default_order
+
+  # A stored order exists: keep it in sync. This is also the repair path — when
+  # a stored order names a column that no longer exists, `init_order` takes over
+  # and the corrected value is written back.
+  defp persist_order?(stored, value, _resource_default_order), do: stored != value
+
+  defp encode_order(%{by: by, direction: direction}), do: encode_order(by, direction)
+  defp encode_order(_other), do: nil
+
+  defp encode_order(by, direction) when is_atom(by) and is_atom(direction) do
+    %{"by" => Atom.to_string(by), "direction" => Atom.to_string(direction)}
+  end
+
+  defp encode_order(_by, _direction), do: nil
 
   defp apply_index_return_to(socket) do
     %{live_resource: live_resource, params: params, query_options: query_options, filters_changed: filters_changed} =
@@ -493,36 +699,42 @@ defmodule Backpex.LiveResource.Index do
   defp maybe_put_search(query_options, _params), do: query_options
 
   defp maybe_redirect_to_default_filters(%{assigns: %{filters_changed: false}} = socket) do
-    %{live_resource: live_resource, query_options: query_options, params: params, filters: filters} = socket.assigns
+    %{live_resource: live_resource, query_options: query_options, filters: filters} = socket.assigns
+    persisted = socket.assigns[:backpex_persisted_index_state] || %{filters: nil}
 
-    filters_with_defaults =
-      filters
-      |> Enum.filter(fn {_key, filter_config} ->
-        Map.has_key?(filter_config, :default)
-      end)
+    cond do
+      # An explicit persisted filter state (including `%{}` from a deliberate
+      # clear) must win over `:default` filters. `read_persisted/3` returns
+      # `nil` when nothing is stored, so `is_nil/1` is the signal that the
+      # user has no saved preference yet.
+      persist_enabled?(live_resource, :filters) and not is_nil(persisted.filters) ->
+        socket
 
-    # redirect to default filters if no filters are set and defaults are available
-    if Map.get(query_options, :filters) == %{} and not Enum.empty?(filters_with_defaults) do
-      default_filter_options =
-        filters_with_defaults
-        |> Enum.map(fn {key, filter_config} ->
-          {key, filter_config.default}
-        end)
-        |> Map.new(fn {key, value} ->
-          {Atom.to_string(key), value}
-        end)
+      Map.get(query_options, :filters) == %{} and has_filter_defaults?(filters) ->
+        redirect_to_default_filters(socket)
 
-      # redirect with updated query options
-      options = Map.put(query_options, :filters, default_filter_options)
-      to = Router.get_path(socket, live_resource, params, :index, options)
-      LiveView.push_navigate(socket, to: to)
-    else
-      socket
+      true ->
+        socket
     end
   end
 
-  defp maybe_redirect_to_default_filters(socket) do
-    socket
+  defp maybe_redirect_to_default_filters(socket), do: socket
+
+  defp has_filter_defaults?(filters) do
+    Enum.any?(filters, fn {_key, config} -> Map.has_key?(config, :default) end)
+  end
+
+  defp redirect_to_default_filters(socket) do
+    %{live_resource: live_resource, query_options: query_options, params: params, filters: filters} = socket.assigns
+
+    default_filter_options =
+      filters
+      |> Enum.filter(fn {_key, filter_config} -> Map.has_key?(filter_config, :default) end)
+      |> Map.new(fn {key, filter_config} -> {Atom.to_string(key), filter_config.default} end)
+
+    options = Map.put(query_options, :filters, default_filter_options)
+    to = Router.get_path(socket, live_resource, params, :index, options)
+    LiveView.push_navigate(socket, to: to)
   end
 
   defp refresh_items(socket) do

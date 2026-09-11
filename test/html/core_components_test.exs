@@ -1,10 +1,9 @@
 defmodule Backpex.HTML.CoreComponentsTest do
   use ExUnit.Case, async: true
 
+  import Backpex.HTML.CoreComponents
   import Phoenix.Component
   import Phoenix.LiveViewTest
-
-  import Backpex.HTML.CoreComponents
 
   # A thin wrapper so we can exercise the `dropdown/1` slots via render_component/2.
   defmodule TestComponent do
@@ -35,6 +34,7 @@ defmodule Backpex.HTML.CoreComponentsTest do
       menu = LazyHTML.query(doc, "#test-dd-menu")
 
       assert LazyHTML.attribute(outer, "class") == ["dropdown w-full"]
+      assert LazyHTML.attribute(outer, "phx-hook") == ["BackpexDropdown"]
 
       assert LazyHTML.attribute(trigger, "role") == ["button"]
       assert LazyHTML.attribute(trigger, "tabindex") == ["0"]
@@ -56,6 +56,7 @@ defmodule Backpex.HTML.CoreComponentsTest do
       # User-supplied class is still passed through, but the dropdown class is not.
       [outer_class] = LazyHTML.attribute(outer, "class")
       refute outer_class =~ "dropdown"
+      assert LazyHTML.attribute(outer, "phx-hook") == []
       assert outer_class =~ "w-full"
 
       # No interactive attributes on the trigger in readonly mode.

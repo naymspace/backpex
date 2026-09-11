@@ -10,7 +10,8 @@
     "github>pehbehbeh/renovate-config//customManagers/hexTailwind",
     ":reviewer(Flo0807)",
     "helpers:pinGitHubActionDigestsToSemver",
-    "security:minimumReleaseAgeNpm"
+    "security:minimumReleaseAgeNpm",
+    "local>naymspace/backpex//.github/renovate/minimumReleaseAgeHex"
   ],
   "additionalBranchPrefix": "{{packageFileDir}}-",
   "pinDigests": false,

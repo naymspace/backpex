@@ -1,7 +1,7 @@
 defmodule Backpex.MixProject do
   use Mix.Project
 
-  @version "0.19.1"
+  @version "0.20.0"
 
   @source_url "https://github.com/naymspace/backpex"
   @changelog_url "https://github.com/naymspace/backpex/releases"
@@ -20,6 +20,7 @@ defmodule Backpex.MixProject do
       gettext: gettext(),
 
       # Hex.pm
+      hex: [cooldown: "3d"],
       package: package(),
       description: "Highly customizable administration panel for Phoenix LiveView applications.",
 
@@ -51,8 +52,6 @@ defmodule Backpex.MixProject do
       # core
       {:nimble_options, "~> 1.1"},
       {:gettext, ">= 0.26.0"},
-      {:jason, "~> 1.2"},
-      {:number, "~> 1.0"},
 
       # phoenix
       {:phoenix, ">= 1.7.6 and < 1.9.0"},
@@ -61,7 +60,7 @@ defmodule Backpex.MixProject do
       {:phoenix_live_view, "~> 1.0"},
 
       # adapters
-      {:ecto_sql, "~> 3.6"},
+      {:ecto, "~> 3.6"},
       {:postgrex, ">= 0.0.0"},
       {:phoenix_ecto, "~> 4.4"},
 
@@ -125,7 +124,8 @@ defmodule Backpex.MixProject do
         end
       end,
       skip_code_autolink_to: [
-        "Ecto.Query.DynamicExpr"
+        "Ecto.Query.DynamicExpr",
+        "Backpex.Router.cookie_path/1"
       ]
     ]
   end
@@ -158,6 +158,7 @@ defmodule Backpex.MixProject do
       "guides/live_resource/fluid-layout.md",
       "guides/live_resource/listen-to-pubsub-events.md",
       "guides/live_resource/additional-classes-for-index-table-rows.md",
+      "guides/live_resource/user-preferences.md",
 
       # Fields
       "guides/fields/what-is-a-field.md",
@@ -197,6 +198,7 @@ defmodule Backpex.MixProject do
       "guides/translations/translations.md",
 
       # Upgrade Guides
+      "guides/upgrading/v0.20.md",
       "guides/upgrading/v0.19.md",
       "guides/upgrading/v0.18.md",
       "guides/upgrading/v0.17.md",
@@ -241,7 +243,8 @@ defmodule Backpex.MixProject do
       Fields: ~r/Backpex\.Field.?/,
       Actions: ~r/Backpex\.(ItemAction|ResourceAction).?/,
       Filters: ~r/Backpex\.Filter.?/,
-      Metrics: ~r/Backpex\.Metric.?/
+      Metrics: ~r/Backpex\.Metric.?/,
+      Preferences: ~r/Backpex\.Preferences.*/
     ]
   end
 

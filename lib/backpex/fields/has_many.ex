@@ -160,7 +160,6 @@ defmodule Backpex.Fields.HasMany do
               <p :if={@selected == []} class={["p-0.5 text-sm", @readonly && "text-base-content/60"]}>{@prompt}</p>
               <.badge
                 :for={{label, value} <- @selected}
-                live_resource={@live_resource}
                 label={label}
                 value={value}
                 readonly={@readonly}
@@ -305,7 +304,6 @@ defmodule Backpex.Fields.HasMany do
     """
   end
 
-  attr :live_resource, :atom, required: true
   attr :readonly, :boolean, default: false
   attr :name, :string, required: true
   attr :label, :string, required: true
@@ -324,7 +322,7 @@ defmodule Backpex.Fields.HasMany do
       <label
         class="flex cursor-pointer items-center pr-2"
         for={"has-many-#{@name}-checkbox-value-#{@value}"}
-        aria-label={Backpex.__({"Unselect %{label}", %{label: @label}}, @live_resource)}
+        aria-hidden="true"
       >
         <Backpex.HTML.CoreComponents.icon name="hero-x-mark" class="size-4 scale-105 hover:scale-110" />
       </label>

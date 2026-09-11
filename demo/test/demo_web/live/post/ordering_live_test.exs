@@ -7,18 +7,25 @@ defmodule DemoWeb.Live.Post.OrderingLiveTest do
   # Posts use default init_order: %{by: :id, direction: :asc}
   # The :tags field has orderable: false
   # Posts have a default published filter, so we always pass published: true
+  # Posts have binary_id (random UUID) primary keys, so ascending id order is
+  # unrelated to insertion order and has to be derived from the inserted records.
 
   describe "default ordering" do
     test "orders by id ascending by default", %{conn: conn} do
-      insert(:post, title: "First Post", published: true)
-      insert(:post, title: "Second Post", published: true)
-      insert(:post, title: "Third Post", published: true)
+      posts = [
+        insert(:post, title: "First Post", published: true),
+        insert(:post, title: "Second Post", published: true),
+        insert(:post, title: "Third Post", published: true)
+      ]
+
+      [first, second, third] = Enum.sort_by(posts, & &1.id)
 
       conn
       |> visit(~p"/admin/posts")
       |> assert_has("table tbody tr", count: 3)
-      |> assert_has("table tbody tr:first-child td", text: "First Post")
-      |> assert_has("table tbody tr:last-child td", text: "Third Post")
+      |> assert_has("table tbody tr:first-child td", text: first.title)
+      |> assert_has("table tbody tr:nth-child(2) td", text: second.title)
+      |> assert_has("table tbody tr:last-child td", text: third.title)
     end
   end
 
@@ -68,9 +75,13 @@ defmodule DemoWeb.Live.Post.OrderingLiveTest do
 
   describe "invalid ordering params" do
     test "falls back to default order_by for invalid order_by field", %{conn: conn} do
-      insert(:post, title: "First Post", published: true)
-      insert(:post, title: "Second Post", published: true)
-      insert(:post, title: "Third Post", published: true)
+      posts = [
+        insert(:post, title: "First Post", published: true),
+        insert(:post, title: "Second Post", published: true),
+        insert(:post, title: "Third Post", published: true)
+      ]
+
+      [first, second, third] = Enum.sort_by(posts, & &1.id)
 
       params = %{
         "order_by" => "nonexistent_field",
@@ -81,8 +92,9 @@ defmodule DemoWeb.Live.Post.OrderingLiveTest do
       conn
       |> visit(~p"/admin/posts?#{params}")
       |> assert_has("table tbody tr", count: 3)
-      |> assert_has("table tbody tr:first-child td", text: "First Post")
-      |> assert_has("table tbody tr:last-child td", text: "Third Post")
+      |> assert_has("table tbody tr:first-child td", text: first.title)
+      |> assert_has("table tbody tr:nth-child(2) td", text: second.title)
+      |> assert_has("table tbody tr:last-child td", text: third.title)
     end
 
     test "falls back to default direction for invalid order_direction", %{conn: conn} do

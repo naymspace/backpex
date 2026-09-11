@@ -132,11 +132,7 @@ msgid "Items per page"
 msgstr ""
 
 #, elixir-autogen, elixir-format
-msgid "Main desktop navigation"
-msgstr ""
-
-#, elixir-autogen, elixir-format
-msgid "Main mobile navigation"
+msgid "Main navigation"
 msgstr ""
 
 #, elixir-autogen, elixir-format
@@ -232,11 +228,11 @@ msgid "Toggle columns"
 msgstr ""
 
 #, elixir-autogen, elixir-format
-msgid "Toggle menu"
+msgid "Toggle metrics"
 msgstr ""
 
 #, elixir-autogen, elixir-format
-msgid "Toggle metrics"
+msgid "Toggle sidebar"
 msgstr ""
 
 #, elixir-autogen, elixir-format

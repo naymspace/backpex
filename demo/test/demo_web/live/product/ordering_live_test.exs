@@ -6,18 +6,25 @@ defmodule DemoWeb.Live.Product.OrderingLiveTest do
 
   # Products use default init_order: %{by: :id, direction: :asc}
   # The :manufacturer field has orderable: false
+  # Products have binary_id (random UUID) primary keys, so ascending id order is
+  # unrelated to insertion order and has to be derived from the inserted records.
 
   describe "default ordering" do
     test "orders by id ascending by default", %{conn: conn} do
-      insert(:product, name: "First Product")
-      insert(:product, name: "Second Product")
-      insert(:product, name: "Third Product")
+      products = [
+        insert(:product, name: "First Product"),
+        insert(:product, name: "Second Product"),
+        insert(:product, name: "Third Product")
+      ]
+
+      [first, second, third] = Enum.sort_by(products, & &1.id)
 
       conn
       |> visit(~p"/admin/products")
       |> assert_has("table tbody tr", count: 3)
-      |> assert_has("table tbody tr:first-child td", text: "First Product")
-      |> assert_has("table tbody tr:last-child td", text: "Third Product")
+      |> assert_has("table tbody tr:first-child td", text: first.name)
+      |> assert_has("table tbody tr:nth-child(2) td", text: second.name)
+      |> assert_has("table tbody tr:last-child td", text: third.name)
     end
   end
 
@@ -81,9 +88,13 @@ defmodule DemoWeb.Live.Product.OrderingLiveTest do
 
   describe "invalid ordering params" do
     test "falls back to default order_by for invalid order_by field", %{conn: conn} do
-      insert(:product, name: "First Product")
-      insert(:product, name: "Second Product")
-      insert(:product, name: "Third Product")
+      products = [
+        insert(:product, name: "First Product"),
+        insert(:product, name: "Second Product"),
+        insert(:product, name: "Third Product")
+      ]
+
+      [first, second, third] = Enum.sort_by(products, & &1.id)
 
       # order_by falls back to init_order.by (:id), direction stays as provided (:asc)
       params = %{"order_by" => "nonexistent_field", "order_direction" => "asc"}
@@ -91,8 +102,9 @@ defmodule DemoWeb.Live.Product.OrderingLiveTest do
       conn
       |> visit(~p"/admin/products?#{params}")
       |> assert_has("table tbody tr", count: 3)
-      |> assert_has("table tbody tr:first-child td", text: "First Product")
-      |> assert_has("table tbody tr:last-child td", text: "Third Product")
+      |> assert_has("table tbody tr:first-child td", text: first.name)
+      |> assert_has("table tbody tr:nth-child(2) td", text: second.name)
+      |> assert_has("table tbody tr:last-child td", text: third.name)
     end
 
     test "falls back to default direction for invalid order_direction", %{conn: conn} do
@@ -111,9 +123,13 @@ defmodule DemoWeb.Live.Product.OrderingLiveTest do
     end
 
     test "non-orderable field falls back to default order", %{conn: conn} do
-      insert(:product, name: "First Product")
-      insert(:product, name: "Second Product")
-      insert(:product, name: "Third Product")
+      products = [
+        insert(:product, name: "First Product"),
+        insert(:product, name: "Second Product"),
+        insert(:product, name: "Third Product")
+      ]
+
+      [first, second, third] = Enum.sort_by(products, & &1.id)
 
       params = %{"order_by" => "manufacturer", "order_direction" => "asc"}
 
@@ -121,8 +137,9 @@ defmodule DemoWeb.Live.Product.OrderingLiveTest do
       |> visit(~p"/admin/products?#{params}")
       |> assert_has("table tbody tr", count: 3)
       # manufacturer is orderable: false, falls back to default: id asc
-      |> assert_has("table tbody tr:first-child td", text: "First Product")
-      |> assert_has("table tbody tr:last-child td", text: "Third Product")
+      |> assert_has("table tbody tr:first-child td", text: first.name)
+      |> assert_has("table tbody tr:nth-child(2) td", text: second.name)
+      |> assert_has("table tbody tr:last-child td", text: third.name)
     end
   end
 

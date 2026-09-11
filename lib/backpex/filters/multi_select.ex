@@ -108,7 +108,7 @@ defmodule Backpex.Filters.MultiSelect do
       |> assign(:trigger_text, trigger_text)
 
     ~H"""
-    <.dropdown id={"multi-select-#{@form.id}"} class="mt-2 w-full">
+    <.dropdown id={"multi-select-#{@form[@field].id}"} class="mt-2 w-full">
       <:trigger
         aria_label={@trigger_text}
         class={[

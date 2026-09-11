@@ -27,9 +27,26 @@ defmodule Backpex.HTML.Layout do
   """
   @doc type: :component
 
+  attr :socket, :any, required: true, doc: "the socket"
   attr :live_resource, :atom, default: nil, doc: "live resource module"
   attr :class, :string, default: nil, doc: "class added to the app shell container"
   attr :fluid, :boolean, default: false, doc: "toggles fluid layout"
+  attr :sidebar_open, :boolean, default: true, doc: "initial sidebar open state"
+
+  attr :preferences_manifest, :map,
+    default: nil,
+    doc: """
+    adapter-route manifest assigned by `Backpex.InitAssigns`. Pass `@preferences_manifest` so the
+    browser can preserve session-wide values while isolating values from narrower adapter scopes.
+    """
+
+  attr :preferences_path, :string,
+    default: nil,
+    doc: """
+    preference endpoint path. Pass an explicit path when the route contains dynamic segments
+    (for example `/tenants/:tenant/backpex_preferences`) or when the router contains multiple
+    preferences routes.
+    """
 
   slot :inner_block
 
@@ -37,72 +54,186 @@ defmodule Backpex.HTML.Layout do
     attr :class, :string, doc: "additional class that will be added to the component"
   end
 
-  slot :sidebar, doc: "content to be displayed in the sidebar" do
+  slot :sidebar_toggle_icon,
+    doc: "icon displayed in the sidebar toggle button; defaults to `hero-bars-3-solid`"
+
+  slot :sidebar_branding,
+    doc: "branding to be displayed above the sidebar navigation, e.g. `Backpex.HTML.Layout.sidebar_branding/1`"
+
+  slot :sidebar,
+    doc:
+      "navigation items to be displayed in the sidebar, e.g. `Backpex.HTML.Layout.sidebar_item/1` and `Backpex.HTML.Layout.sidebar_section/1`. The slot content is wrapped in the scrollable menu container and the `<ul>` those components require." do
     attr :class, :string, doc: "additional class that will be added to the component"
   end
 
   slot :footer, doc: "content to be displayed in the footer"
 
   def app_shell(assigns) do
-    ~H"""
-    <div id="backpex-app-shell" class={["drawer", @class]} phx-hook="BackpexSidebarSections">
-      <input id="menu-drawer" type="checkbox" class="drawer-toggle" aria-hidden="true" tabindex="-1" />
-      <div class="drawer-content">
-        <div class="bg-base-200 fixed inset-0 -z-10 h-full w-full"></div>
-        <nav
-          class={[
-            "menu hidden overflow-y-scroll px-2 pt-5 pb-4 md:fixed md:inset-y-0 md:mt-16 md:block md:w-64",
-            build_slot_class(@sidebar)
-          ]}
-          aria-label={Backpex.__("Main desktop navigation", @live_resource)}
-        >
-          <ul>
-            {render_slot(@sidebar)}
-          </ul>
-        </nav>
+    assigns = assign(assigns, :has_sidebar, assigns.sidebar != [] or assigns.sidebar_branding != [])
 
-        <div class={["flex flex-1 flex-col", length(@sidebar) > 0 && "md:pl-64"]}>
-          <div class="fixed top-0 z-30 block w-full md:-ml-64">
-            <.topbar class={build_slot_class(@topbar)}>
-              {render_slot(@topbar)}
-              <label
-                :if={@sidebar != []}
-                for="menu-drawer"
-                class="btn btn-square drawer-button btn-ghost md:hidden"
-                aria-label={Backpex.__("Toggle menu", @live_resource)}
-              >
-                <.icon name="hero-bars-3-solid" class="h-6" />
-              </label>
-            </.topbar>
-          </div>
-          <main class="h-[calc(100vh-4rem)] mt-[4rem]">
-            <div class={["mx-auto mt-5 px-4 sm:px-6 md:px-8", !@fluid && "max-w-7xl"]}>
-              {render_slot(@inner_block)}
-            </div>
-            {render_slot(@footer)}
-            <.footer :if={@footer == []} />
-          </main>
-        </div>
-      </div>
-      <div class="drawer-side z-40">
-        <label for="menu-drawer" class="drawer-overlay"></label>
-        <nav
-          class={[
-            "bg-base-100 menu min-h-full w-64 flex-1 flex-col overflow-y-auto px-2 pt-5 pb-4",
+    ~H"""
+    <div
+      id="backpex-app-shell"
+      class={["min-h-screen", @class]}
+      phx-hook={@has_sidebar && "BackpexSidebar"}
+      data-sidebar-open={to_string(@sidebar_open)}
+    >
+      <.preferences_root
+        socket={@socket}
+        preferences_manifest={@preferences_manifest}
+        preferences_path={@preferences_path}
+      />
+      <%!-- Sidebar (single element for both mobile and desktop) --%>
+      <nav
+        :if={@has_sidebar}
+        id="backpex-sidebar"
+        inert={not @sidebar_open}
+        phx-hook="BackpexSidebarSections"
+        data-suppress-transition
+        class={
+          [
+            "fixed inset-y-0 left-0 z-40 flex w-[var(--sidebar-width,16rem)] flex-col",
+            "bg-base-100 border-base-300 border-r",
+            # First paint reflects the server-persisted state; the hook then
+            # takes over at runtime via the higher-specificity data-state classes.
+            "-translate-x-full",
+            @sidebar_open && "lg:translate-x-0",
+            "data-[state=open]:translate-x-0 data-[state=closed]:-translate-x-full",
+            "motion-safe:transition-transform motion-safe:duration-300 motion-safe:ease-in-out",
+            "data-[suppress-transition]:transition-none",
             build_slot_class(@sidebar)
-          ]}
-          aria-label={Backpex.__("Main mobile navigation", @live_resource)}
-        >
-          <ul>
+          ]
+        }
+        aria-label={Backpex.__("Main navigation", @live_resource)}
+      >
+        {render_slot(@sidebar_branding)}
+        <div class="menu w-full flex-1 overflow-y-auto px-2 py-2">
+          <ul class="w-full">
             {render_slot(@sidebar)}
           </ul>
-        </nav>
+        </div>
+      </nav>
+
+      <%!-- Overlay for mobile --%>
+      <div
+        :if={@has_sidebar}
+        id="backpex-sidebar-overlay"
+        class="fixed inset-0 z-30 bg-neutral/50 opacity-0 pointer-events-none data-[visible=on]:opacity-100 data-[visible=on]:pointer-events-auto motion-safe:transition-opacity motion-safe:duration-300 lg:hidden"
+        aria-hidden="true"
+      >
+      </div>
+
+      <%!-- Main container --%>
+      <div
+        id="backpex-main"
+        data-suppress-transition
+        class={
+          [
+            "flex min-h-screen flex-col",
+            # First paint reflects the server-persisted state; the hook then
+            # takes over at runtime via the higher-specificity data-shift classes.
+            @has_sidebar && @sidebar_open && "lg:ml-[var(--sidebar-width,16rem)]",
+            "data-[shift=on]:ml-[var(--sidebar-width,16rem)] data-[shift=off]:ml-0",
+            "motion-safe:transition-[margin-left] motion-safe:duration-300 motion-safe:ease-in-out",
+            "data-[suppress-transition]:transition-none"
+          ]
+        }
+      >
+        <%!-- Background --%>
+        <div class="bg-base-200 fixed inset-0 -z-10 h-full w-full"></div>
+
+        <%!-- Topbar --%>
+        <.topbar class={build_slot_class(@topbar)}>
+          <%!-- aria-expanded reflects the server-persisted desktop state; the
+                hook corrects it for the mobile drawer (and on resize) once
+                mounted. --%>
+          <button
+            :if={@has_sidebar}
+            type="button"
+            id="backpex-sidebar-toggle"
+            class="btn btn-square btn-ghost mr-2"
+            aria-label={Backpex.__("Toggle sidebar", @live_resource)}
+            aria-expanded={to_string(@sidebar_open)}
+            aria-controls="backpex-sidebar"
+          >
+            <%= if @sidebar_toggle_icon == [] do %>
+              <.icon name="hero-bars-3-solid" class="size-6" />
+            <% else %>
+              {render_slot(@sidebar_toggle_icon)}
+            <% end %>
+          </button>
+          {render_slot(@topbar)}
+        </.topbar>
+
+        <%!-- Main content --%>
+        <main class="flex-1">
+          <div class={["mx-auto mt-5 px-4 sm:px-6 md:px-8", !@fluid && "max-w-7xl"]}>
+            {render_slot(@inner_block)}
+          </div>
+          {render_slot(@footer)}
+          <.footer :if={@footer == []} />
+        </main>
       </div>
     </div>
     """
   end
 
   defp build_slot_class(slot), do: Enum.map(slot, &Map.get(&1, :class))
+
+  @doc """
+  Renders the element that wires up preference persistence.
+
+  **Required for preferences to persist.** Every preference write — the theme
+  selector, sidebar state, sidebar sections, and any `push_event` from a
+  LiveResource — is sent by the `BackpexPreferences` JS hook, and this element
+  is where the hook learns the endpoint to POST to. Without it on the page,
+  writes are dropped with a console warning: the UI still updates optimistically,
+  so nothing looks broken until the next reload reverts it.
+
+  `app_shell/1` renders this for you. Render it yourself, once per page, only if
+  you build a layout without `app_shell/1`:
+
+      <.preferences_root socket={@socket} preferences_manifest={@preferences_manifest} />
+
+  ## Examples
+
+      <Backpex.HTML.Layout.preferences_root
+        socket={@socket}
+        preferences_manifest={@preferences_manifest}
+        preferences_path={~p"/tenants/\#{@tenant.id}/backpex_preferences"}
+      />
+  """
+  @doc type: :component
+
+  attr :socket, :any, required: true, doc: "the socket"
+
+  attr :preferences_manifest, :map,
+    default: nil,
+    doc: """
+    adapter-route manifest assigned by `Backpex.InitAssigns`. Pass `@preferences_manifest` so the
+    browser can preserve session-wide values while isolating values from narrower adapter scopes.
+    """
+
+  attr :preferences_path, :string,
+    default: nil,
+    doc:
+      "explicit preference endpoint path; required when the route contains dynamic segments or the router has multiple preference routes"
+
+  def preferences_root(assigns) do
+    ~H"""
+    <div
+      id="backpex-preferences"
+      phx-hook="BackpexPreferencesHook"
+      data-preferences-path={@preferences_path || Router.preferences_path(@socket)}
+      data-preferences-manifest={encode_preferences_manifest(@preferences_manifest)}
+      class="hidden"
+    >
+    </div>
+    """
+  end
+
+  defp encode_preferences_manifest(nil), do: nil
+  defp encode_preferences_manifest(manifest), do: Phoenix.json_library().encode!(manifest)
 
   @doc """
   Renders a topbar.
@@ -115,7 +246,12 @@ defmodule Backpex.HTML.Layout do
 
   def topbar(assigns) do
     ~H"""
-    <header class={["border-base-300 bg-base-100 text-base-content flex h-16 w-full items-center border-b px-4", @class]}>
+    <header class={[
+      "sticky top-0 z-20",
+      "border-base-300 bg-base-100 text-base-content",
+      "flex h-16 w-full items-center border-b px-4",
+      @class
+    ]}>
       {render_slot(@inner_block)}
     </header>
     """
@@ -263,7 +399,7 @@ defmodule Backpex.HTML.Layout do
   defp version, do: Application.spec(:backpex, :vsn) |> to_string()
 
   @doc """
-  Renders the topbar branding.
+  Renders the sidebar branding. Belongs in the `:sidebar_branding` slot of `app_shell/1`.
   """
   @doc type: :component
 
@@ -273,16 +409,16 @@ defmodule Backpex.HTML.Layout do
 
   slot :logo, doc: "the logo of the branding"
 
-  def topbar_branding(assigns) do
+  def sidebar_branding(assigns) do
     ~H"""
-    <div class={"#{@class} text-base-content flex shrink-0 flex-grow items-center space-x-2"}>
+    <div class={["flex h-14 shrink-0 items-center gap-2 px-4", @class]}>
       <%= if @logo === [] do %>
-        <.backpex_logo class="w-8" />
+        <.backpex_logo class="w-6" />
       <% else %>
         {render_slot(@logo)}
       <% end %>
       <%= unless @hide_title do %>
-        <p class="font-semibold">{@title}</p>
+        <span class="text-base-content font-semibold">{@title}</span>
       <% end %>
     </div>
     """
@@ -293,9 +429,9 @@ defmodule Backpex.HTML.Layout do
   """
   @doc type: :component
 
-  attr :socket, :any, required: true
   attr :class, :string, default: nil
   attr :label, :string, default: "Theme"
+  attr :current_theme, :string, default: nil, doc: "the currently selected theme"
 
   attr :themes, :list,
     doc: "A list of tuples with {theme_label, theme_name} format",
@@ -303,7 +439,7 @@ defmodule Backpex.HTML.Layout do
 
   def theme_selector(assigns) do
     ~H"""
-    <.dropdown id="backpex-theme-selector" phx-hook="BackpexThemeSelector" class={["dropdown-end", @class]}>
+    <.dropdown id="backpex-theme-selector" class={["dropdown-end", @class]}>
       <:trigger aria_label={@label}>
         <%!-- Desktop Icon --%>
         <div class="btn btn-ghost hidden md:flex">
@@ -316,7 +452,7 @@ defmodule Backpex.HTML.Layout do
         </div>
       </:trigger>
       <:menu class="w-48 max-h-96 overflow-y-scroll">
-        <form id="backpex-theme-selector-form" data-cookie-path={Router.cookie_path(@socket)}>
+        <form id="backpex-theme-selector-form" phx-hook="BackpexThemeSelector">
           <ul>
             <li :for={{label, theme_name} <- @themes} class="w-full">
               <label class="has-checked:bg-neutral has-checked:text-neutral-content">
@@ -326,6 +462,7 @@ defmodule Backpex.HTML.Layout do
                   class="theme-controller hidden"
                   phx-click={JS.dispatch("backpex:theme-change")}
                   value={theme_name}
+                  checked={@current_theme == theme_name}
                 />
                 {label}
               </label>
@@ -462,20 +599,50 @@ defmodule Backpex.HTML.Layout do
   attr :class, :string, default: nil, doc: "additional class that will be added to the component"
 
   attr :id, :string,
-    default: "section",
+    required: true,
     doc:
-      "The id for this section. It will be used to save and load the opening state of this section from local storage."
+      "A unique id for this section. Used as the final segment of the `global.sidebar_section.<id>` preference key, in the browser hook's attribute selector, and to wire aria-controls. Use only ASCII letters, digits, underscores, and hyphens (`[A-Za-z0-9_-]+`); dots/colons alter key parsing and quotes/backslashes are unsafe in the selector."
 
-  slot :inner_block
+  attr :sidebar_section_states, :map,
+    default: %{},
+    doc:
+      "map of section states, as assigned by `Backpex.InitAssigns`. Pass `@sidebar_section_states` explicitly — this is a function component, so an omitted attr does *not* inherit the surrounding assign, it defaults to `%{}` and every section renders open. Unknown section ids default to open."
+
+  slot :inner_block,
+    doc:
+      "section entries rendered with `sidebar_item/1` or nested `sidebar_section/1`; custom leaf elements must include `data-sidebar-item` so non-empty sections are visible"
+
   slot :label, required: true, doc: "label to be displayed on the section."
 
   def sidebar_section(assigns) do
+    open = Map.get(assigns.sidebar_section_states, assigns.id, true)
+
+    assigns =
+      assigns
+      |> assign(:open, open)
+      |> assign(:content_id, "sidebar-section-#{assigns.id}-content")
+
     ~H"""
-    <li data-section-id={@id} class={["hidden", @class]}>
-      <span data-menu-dropdown-toggle class="menu-dropdown-toggle menu-dropdown-show">
+    <li
+      data-section-id={@id}
+      data-section-open={to_string(@open)}
+      class={["not-has-[[data-sidebar-item]]:hidden", @class]}
+    >
+      <button
+        type="button"
+        data-menu-dropdown-toggle
+        class={["menu-dropdown-toggle", @open && "menu-dropdown-show"]}
+        aria-expanded={to_string(@open)}
+        aria-controls={@content_id}
+      >
         {render_slot(@label)}
-      </span>
-      <ul data-menu-dropdown-content class="menu-dropdown menu-dropdown-show">
+      </button>
+      <ul
+        id={@content_id}
+        data-menu-dropdown-content
+        class="menu-dropdown menu-dropdown-show"
+        style={if(!@open, do: "display: none;")}
+      >
         {render_slot(@inner_block)}
       </ul>
     </li>
@@ -509,7 +676,7 @@ defmodule Backpex.HTML.Layout do
       |> assign(:extra, assigns_to_attributes(assigns))
 
     ~H"""
-    <li>
+    <li data-sidebar-item>
       <.link class={[@class, @active && "bg-neutral text-neutral-content"]} {@extra}>
         {render_slot(@inner_block)}
       </.link>

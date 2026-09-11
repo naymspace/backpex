@@ -1,6 +1,12 @@
-<Backpex.HTML.Layout.app_shell fluid={@fluid?} live_resource={@live_resource}>
+<Backpex.HTML.Layout.app_shell
+  socket={@socket}
+  fluid={@fluid?}
+  live_resource={@live_resource}
+  sidebar_open={@sidebar_open}
+  preferences_manifest={@preferences_manifest}
+>
   <:topbar>
-    <Backpex.HTML.Layout.topbar_branding />
+    <div class="flex-1"></div>
 
     <Backpex.HTML.Layout.topbar_dropdown>
       <:label>
@@ -16,6 +22,9 @@
       </li>
     </Backpex.HTML.Layout.topbar_dropdown>
   </:topbar>
+  <:sidebar_branding>
+    <Backpex.HTML.Layout.sidebar_branding />
+  </:sidebar_branding>
   <:sidebar>
     <!-- Example Sidebar Item -->
     <!-- <Backpex.HTML.Layout.sidebar_item current_url={@current_url} navigate={"/admin/users"}>

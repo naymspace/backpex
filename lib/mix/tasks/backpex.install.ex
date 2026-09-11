@@ -65,7 +65,7 @@ if Code.ensure_loaded?(Igniter) and Code.ensure_loaded?(IgniterJs) do
 
     @default_app_css_path Path.join(["assets", "css", "app.css"])
     @hooks "...BackpexHooks"
-    @imports "import { Hooks as BackpexHooks } from 'backpex'"
+    @imports "import { Hooks as BackpexHooks, backpexParams } from 'backpex'"
     @daisyui_version "daisyui@5"
 
     @impl Igniter.Mix.Task
@@ -137,7 +137,19 @@ if Code.ensure_loaded?(Igniter) and Code.ensure_loaded?(IgniterJs) do
       with {:ok, content} <- IgniterJs.Helpers.read_and_validate_file(app_js_path),
            {:ok, _fun, content} <- Parser.insert_imports(content, @imports, :content),
            {:ok, _fun, content} <- Parser.extend_hook_object(content, @hooks, :content) do
-        Igniter.create_new_file(igniter, app_js_path, content, on_exists: :overwrite)
+        igniter
+        |> Igniter.create_new_file(app_js_path, content, on_exists: :overwrite)
+        |> Igniter.add_notice("""
+        Wrap your LiveSocket connect params with backpexParams in #{app_js_path}:
+
+            const liveSocket = new LiveSocket('/live', Socket, {
+              params: backpexParams({ _csrf_token: csrfToken }),
+              hooks: { ...BackpexHooks }
+            })
+
+        Without it, preferences written after the websocket connects (hidden
+        columns, hidden metrics) reappear on the next live navigation.
+        """)
       else
         {:error, _fun, error} -> Mix.raise("Failed to modify app file: #{error}")
         {:error, error} -> Mix.raise("Could not read app file: #{error}")

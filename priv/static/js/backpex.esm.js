@@ -11,6 +11,9 @@ __export(hooks_exports, {
   BackpexCurrencyInput: () => currency_input_default,
   BackpexDragHover: () => drag_hover_default,
   BackpexDropdown: () => dropdown_default,
+  BackpexPreferences: () => BackpexPreferences,
+  BackpexPreferencesHook: () => preferences_default,
+  BackpexSidebar: () => sidebar_default,
   BackpexSidebarSections: () => sidebar_sections_default,
   BackpexStickyActions: () => sticky_actions_default,
   BackpexThemeSelector: () => theme_selector_default,
@@ -142,57 +145,734 @@ var dropdown_default = {
   }
 };
 
+// js/hooks/_preferences.js
+var SESSION_PREFIX = "backpex.prefs.";
+var COOKIE_NAME = "backpex_prefs";
+var COOKIE_MAX_AGE = 300;
+var COOKIE_MAX_BYTES = 3072;
+var KEEPALIVE_MAX_BYTES = 60 * 1024;
+var WIRE_VERSION = 1;
+var HOOK_ELEMENT_ID = "backpex-preferences";
+function hookElement() {
+  return document.getElementById(HOOK_ELEMENT_ID);
+}
+function currentEndpointPath() {
+  return hookElement()?.dataset?.preferencesPath || null;
+}
+function currentManifestRaw() {
+  return hookElement()?.dataset?.preferencesManifest || null;
+}
+function currentManifest() {
+  const raw = currentManifestRaw();
+  if (!raw) return null;
+  try {
+    const manifest = JSON.parse(raw);
+    if (manifest?.version !== WIRE_VERSION || !Array.isArray(manifest.routes)) return null;
+    return manifest;
+  } catch {
+    return null;
+  }
+}
+function parseKey(key) {
+  return key.includes(":") ? key.split(":") : key.split(".");
+}
+function startsWithSegments(segments, prefix) {
+  return prefix.every((segment, index) => segments[index] === segment);
+}
+function routeMatches(route, key, segments) {
+  if (route.kind === "default") return true;
+  if (route.kind === "exact") return route.pattern === key;
+  if (route.kind === "wildcard") return startsWithSegments(segments, route.segments || []);
+  return false;
+}
+function compareRank(left = [], right = []) {
+  for (let index = 0; index < Math.max(left.length, right.length); index++) {
+    const difference = (left[index] || 0) - (right[index] || 0);
+    if (difference !== 0) return difference;
+  }
+  return 0;
+}
+function routeForKey(key, manifest = currentManifest()) {
+  if (!manifest || typeof key !== "string") return null;
+  const segments = parseKey(key);
+  return manifest.routes.reduce((best, route) => {
+    if (!routeMatches(route, key, segments)) return best;
+    if (!best || compareRank(route.rank, best.rank) > 0) return route;
+    return best;
+  }, null);
+}
+function tokenForKey(key, manifest = currentManifest()) {
+  return routeForKey(key, manifest)?.token || null;
+}
+function storageKey(token, key) {
+  return token ? `${SESSION_PREFIX}${token}.${key}` : null;
+}
+function parseStorageKey(key) {
+  if (!key?.startsWith(SESSION_PREFIX)) return null;
+  const rest = key.slice(SESSION_PREFIX.length);
+  const separator = rest.indexOf(".");
+  if (separator < 1) return null;
+  return { token: rest.slice(0, separator), key: rest.slice(separator + 1) };
+}
+function serialize(value) {
+  if (typeof value === "string") return value;
+  if (typeof value === "boolean" || typeof value === "number") return String(value);
+  return JSON.stringify(value);
+}
+function deserialize(raw, fallback) {
+  if (typeof fallback === "boolean") return raw === "true";
+  if (typeof fallback === "number") {
+    const number = Number(raw);
+    return Number.isNaN(number) ? fallback : number;
+  }
+  if (typeof fallback === "string") return raw;
+  try {
+    return JSON.parse(raw);
+  } catch {
+    return fallback;
+  }
+}
+function readSession(key) {
+  const token = tokenForKey(key);
+  const keyName = storageKey(token, key);
+  if (!keyName) return null;
+  try {
+    return sessionStorage.getItem(keyName);
+  } catch {
+    return null;
+  }
+}
+function writeSession(key, value) {
+  const token = tokenForKey(key);
+  const keyName = storageKey(token, key);
+  if (!keyName) return;
+  try {
+    sessionStorage.setItem(keyName, value);
+  } catch {
+  }
+}
+function storageEntries() {
+  const entries = [];
+  try {
+    for (let index = 0; index < sessionStorage.length; index++) {
+      const storageName = sessionStorage.key(index);
+      const parsed = parseStorageKey(storageName);
+      if (!parsed) continue;
+      const raw = sessionStorage.getItem(storageName);
+      if (raw !== null) entries.push({ ...parsed, storageName, raw });
+    }
+  } catch {
+    return [];
+  }
+  return entries;
+}
+function pruneForeignMirrors() {
+  const stale = storageEntries().filter(({ key, token }) => tokenForKey(key) !== token).map(({ storageName }) => storageName);
+  try {
+    stale.forEach((storageName) => sessionStorage.removeItem(storageName));
+  } catch {
+  }
+}
+function cookieAttributes(maxAge) {
+  const secure = window.location.protocol === "https:" ? "; Secure" : "";
+  return `; path=/; max-age=${maxAge}; SameSite=Lax${secure}`;
+}
+function readEnvelope() {
+  const entry = document.cookie.split("; ").find((cookie) => cookie.startsWith(`${COOKIE_NAME}=`));
+  if (!entry) return null;
+  try {
+    const decoded = JSON.parse(decodeURIComponent(entry.slice(COOKIE_NAME.length + 1)));
+    if (decoded?.version !== WIRE_VERSION || typeof decoded.values !== "object" || Array.isArray(decoded.values)) {
+      return null;
+    }
+    return decoded;
+  } catch {
+    return null;
+  }
+}
+function validEntry(key, entry) {
+  return entry && typeof entry === "object" && !Array.isArray(entry) && typeof entry.token === "string" && entry.token === tokenForKey(key) && Object.prototype.hasOwnProperty.call(entry, "value");
+}
+function readPending() {
+  const envelope = readEnvelope();
+  if (!envelope) return {};
+  return Object.fromEntries(
+    Object.entries(envelope.values).filter(([key, entry]) => validEntry(key, entry))
+  );
+}
+function writePendingMap(values) {
+  const pending = { ...values };
+  const encode = () => encodeURIComponent(JSON.stringify({ version: WIRE_VERSION, values: pending }));
+  const oversizedKeys = Object.entries(pending).filter(([key, entry]) => {
+    const encodedEntry = encodeURIComponent(
+      JSON.stringify({ version: WIRE_VERSION, values: { [key]: entry } })
+    );
+    return encodedEntry.length > COOKIE_MAX_BYTES;
+  }).map(([key]) => key);
+  oversizedKeys.forEach((key) => delete pending[key]);
+  if (oversizedKeys.length > 0) {
+    console.warn(
+      "BackpexPreferences: pending preference write exceeds the cookie budget; the first render after a reload may be stale until the POST lands."
+    );
+  }
+  let encoded = encode();
+  while (encoded.length > COOKIE_MAX_BYTES && Object.keys(pending).length > 1) {
+    delete pending[Object.keys(pending)[0]];
+    encoded = encode();
+  }
+  if (Object.keys(pending).length === 0) {
+    document.cookie = `${COOKIE_NAME}=${cookieAttributes(0)}`;
+  } else {
+    document.cookie = `${COOKIE_NAME}=${encoded}${cookieAttributes(COOKIE_MAX_AGE)}`;
+  }
+}
+function pruneForeignPending() {
+  const envelope = readEnvelope();
+  if (!envelope) {
+    if (document.cookie.split("; ").some((cookie) => cookie.startsWith(`${COOKIE_NAME}=`))) {
+      document.cookie = `${COOKIE_NAME}=${cookieAttributes(0)}`;
+    }
+    return;
+  }
+  writePendingMap(readPending());
+}
+function markPending(key, value) {
+  const token = tokenForKey(key);
+  if (!token) return null;
+  const pending = readPending();
+  delete pending[key];
+  pending[key] = { token, value };
+  writePendingMap(pending);
+  return token;
+}
+function clearPending(key, value, token) {
+  if (!token) return;
+  const envelope = readEnvelope();
+  const entry = envelope?.values?.[key];
+  if (!entry || entry.token !== token) return;
+  if (JSON.stringify(entry.value) !== JSON.stringify(value)) return;
+  const remaining = { ...envelope.values };
+  delete remaining[key];
+  writePendingMap(remaining);
+}
+function queueIdentity(endpointPath, token, key) {
+  return JSON.stringify(token ? [token, key] : [endpointPath, key]);
+}
+function requestBody(entries) {
+  return JSON.stringify({
+    preferences: entries.map(({ key, value }) => ({ key, value }))
+  });
+}
+function byteLength(value) {
+  return new TextEncoder().encode(value).byteLength;
+}
+async function responseJSON(response) {
+  const contentType = response.headers?.get?.("content-type");
+  const mediaType = contentType?.split(";", 1)[0].trim().toLowerCase();
+  if (mediaType !== "application/json" && !mediaType?.endsWith("+json")) return null;
+  try {
+    return await response.json();
+  } catch {
+    return null;
+  }
+}
+var BackpexPreferences = {
+  endpointPath: null,
+  manifest: null,
+  scopeMarker: void 0,
+  csrfToken: null,
+  connectParamsCalled: false,
+  replayCalled: false,
+  primed: false,
+  _seq: {},
+  _queued: /* @__PURE__ */ new Map(),
+  _inFlight: null,
+  _flushScheduled: false,
+  init(endpointPath) {
+    this.csrfToken = document.querySelector("meta[name='csrf-token']")?.content;
+    return this.syncScope(endpointPath);
+  },
+  // Kept as syncScope for the existing sidebar/theme hooks. The marker now
+  // represents the adapter-route manifest only; endpoint changes are transport
+  // changes and must not invalidate otherwise-compatible state.
+  syncScope(endpointPath = currentEndpointPath()) {
+    const raw = currentManifestRaw();
+    const manifestChanged = this.scopeMarker !== raw;
+    const endpointChanged = this.endpointPath !== endpointPath;
+    this.endpointPath = endpointPath;
+    this.manifest = currentManifest();
+    if (manifestChanged) {
+      this.scopeMarker = raw;
+      pruneForeignMirrors();
+      pruneForeignPending();
+    }
+    if (manifestChanged || endpointChanged) this.reconcileQueue(endpointPath);
+    if (endpointChanged) this.replayCalled = false;
+    return manifestChanged;
+  },
+  isPending(key) {
+    return key in readPending();
+  },
+  get(key, fallback) {
+    const raw = readSession(key);
+    return raw === null ? fallback : deserialize(raw, fallback);
+  },
+  set(key, value, opts = {}) {
+    this.syncScope();
+    if (opts.mirror === "session") writeSession(key, serialize(value));
+    const seq = (this._seq[key] || 0) + 1;
+    this._seq[key] = seq;
+    this.persist(key, value, seq);
+  },
+  mirroredEntries() {
+    const entries = {};
+    for (const { key, token, raw } of storageEntries()) {
+      if (tokenForKey(key) !== token) continue;
+      let value;
+      try {
+        value = JSON.parse(raw);
+      } catch {
+        value = raw;
+      }
+      entries[key] = { token, value };
+    }
+    return entries;
+  },
+  // Runs once per full document load. The dead render has just read the
+  // authoritative stores, so only still-pending mirrored values remain newer.
+  prime() {
+    const pending = readPending();
+    const stale = storageEntries().filter(({ key, token }) => tokenForKey(key) === token && !(key in pending)).map(({ storageName }) => storageName);
+    try {
+      stale.forEach((storageName) => sessionStorage.removeItem(storageName));
+    } catch {
+    }
+  },
+  connectParams() {
+    this.connectParamsCalled = true;
+    this.syncScope();
+    if (!this.primed) {
+      this.prime();
+      this.primed = true;
+    }
+    return {
+      backpex_prefs: {
+        version: WIRE_VERSION,
+        values: { ...this.mirroredEntries(), ...readPending() }
+      }
+    };
+  },
+  replayPending() {
+    if (this.replayCalled) return;
+    this.replayCalled = true;
+    for (const [key, entry] of Object.entries(readPending())) {
+      this.persist(key, entry.value, this._seq[key]);
+    }
+  },
+  persist(key, value, seq) {
+    const endpointPath = currentEndpointPath();
+    if (!endpointPath) {
+      console.warn(
+        `BackpexPreferences: dropping the write to ${key} because there is no #${HOOK_ELEMENT_ID} element on the page to read the preferences endpoint from. Backpex.HTML.Layout.app_shell/1 renders it; a custom layout must render <.preferences_root socket={@socket} preferences_manifest={@preferences_manifest} /> itself. See the Backpex user-preferences guide.`
+      );
+      return;
+    }
+    if (!this.csrfToken) {
+      console.warn("BackpexPreferences: CSRF token not found");
+      return;
+    }
+    const token = markPending(key, value);
+    const identity = queueIdentity(endpointPath, token, key);
+    this._queued.delete(identity);
+    this._queued.set(identity, { endpointPath, identity, key, seq, token, value });
+    this.scheduleFlush();
+  },
+  reconcileQueue(endpointPath) {
+    const compatible = /* @__PURE__ */ new Map();
+    for (const entry of this._queued.values()) {
+      if (!entry.token || tokenForKey(entry.key) !== entry.token) continue;
+      const updated = {
+        ...entry,
+        endpointPath,
+        identity: queueIdentity(endpointPath, entry.token, entry.key)
+      };
+      compatible.set(updated.identity, updated);
+    }
+    this._queued = compatible;
+  },
+  scheduleFlush() {
+    if (this._flushScheduled || this._inFlight || this._queued.size === 0) return;
+    this._flushScheduled = true;
+    queueMicrotask(() => {
+      this._flushScheduled = false;
+      this.flush();
+    });
+  },
+  flush() {
+    if (this._inFlight || this._queued.size === 0) return;
+    const batch = this.nextBatch();
+    this._inFlight = batch;
+    Promise.resolve().then(() => fetch(batch.endpointPath, {
+      method: "POST",
+      keepalive: batch.keepalive,
+      headers: {
+        "Content-Type": "application/json",
+        "x-csrf-token": this.csrfToken
+      },
+      body: batch.body
+    })).then((response) => this.handleResponse(response, batch)).catch((error) => {
+      console.error("BackpexPreferences: failed to persist", error);
+    }).finally(() => {
+      this._inFlight = null;
+      this.scheduleFlush();
+    });
+  },
+  nextBatch() {
+    const first = this._queued.values().next().value;
+    const entries = [];
+    let body = null;
+    for (const entry of this._queued.values()) {
+      if (entry.endpointPath !== first.endpointPath || entry.token !== first.token) continue;
+      const nextEntries = [...entries, entry];
+      const nextBody = requestBody(nextEntries);
+      if (entries.length > 0 && byteLength(nextBody) > KEEPALIVE_MAX_BYTES) break;
+      entries.push(entry);
+      body = nextBody;
+      if (byteLength(body) > KEEPALIVE_MAX_BYTES) break;
+    }
+    entries.forEach(({ identity }) => this._queued.delete(identity));
+    return {
+      body,
+      endpointPath: first.endpointPath,
+      entries,
+      keepalive: byteLength(body) <= KEEPALIVE_MAX_BYTES
+    };
+  },
+  async handleResponse(response, batch) {
+    if (response.redirected) {
+      this.logUnconfirmedResponse(response, batch);
+      return;
+    }
+    if (response.status === 422) {
+      const body = await responseJSON(response);
+      this.handleRejectedBatch(batch, body?.error?.key);
+      return;
+    }
+    if (response.status === 200) {
+      const body = await responseJSON(response);
+      if (body?.ok === true) {
+        batch.entries.forEach((entry) => this.acknowledge(entry));
+        return;
+      }
+      if (body?.ok === false) {
+        this.handleRejectedBatch(batch, body?.error?.key);
+        return;
+      }
+    }
+    this.logUnconfirmedResponse(response, batch);
+  },
+  logUnconfirmedResponse(response, batch) {
+    const keys = batch.entries.map(({ key }) => key).join(", ");
+    const reason = response.redirected ? "redirected response" : `HTTP ${response.status}`;
+    console.error(
+      `BackpexPreferences: error persisting ${keys} (${reason}); leaving them pending`
+    );
+  },
+  handleRejectedBatch(batch, failedKey) {
+    const failedEntry = batch.entries.find(({ key }) => key === failedKey);
+    if (typeof failedKey !== "string" || !failedEntry) {
+      batch.entries.forEach((entry) => this.acknowledge(entry));
+      return;
+    }
+    const survivors = [];
+    for (const entry of batch.entries) {
+      if (entry.key === failedKey) {
+        this.acknowledge(entry);
+      } else if (this.currentEntry(entry)) {
+        const endpointPath = entry.token ? this.endpointPath : entry.endpointPath;
+        if (!endpointPath) continue;
+        const identity = queueIdentity(endpointPath, entry.token, entry.key);
+        if (!this._queued.has(identity)) {
+          survivors.push({ ...entry, endpointPath, identity });
+        }
+      }
+    }
+    this._queued = new Map([
+      ...survivors.map((entry) => [entry.identity, entry]),
+      ...this._queued
+    ]);
+  },
+  currentEntry(entry) {
+    return this._seq[entry.key] === entry.seq && tokenForKey(entry.key) === entry.token;
+  },
+  acknowledge(entry) {
+    if (this.currentEntry(entry)) clearPending(entry.key, entry.value, entry.token);
+  }
+};
+var BackpexPreferencesHook = {
+  mounted() {
+    BackpexPreferences.init(this.el.dataset.preferencesPath);
+    BackpexPreferences.replayPending();
+    this.handleEvent("backpex:set_preference", ({ key, value, mirror }) => {
+      BackpexPreferences.set(key, value, { mirror });
+    });
+    if (!BackpexPreferences.connectParamsCalled) {
+      console.warn(
+        "BackpexPreferences: LiveSocket params are not wired up. Pass `params: backpexParams({ _csrf_token: csrfToken })` to your LiveSocket so preferences survive live navigation. See the Backpex installation guide."
+      );
+    }
+  },
+  updated() {
+    BackpexPreferences.init(this.el.dataset.preferencesPath);
+    BackpexPreferences.replayPending();
+  }
+};
+function backpexParams(params = {}) {
+  return () => ({ ...params, ...BackpexPreferences.connectParams() });
+}
+var preferences_default = BackpexPreferencesHook;
+
+// js/hooks/_sidebar.js
+var sidebar_default = {
+  FOCUSABLE_SELECTOR: 'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])',
+  mounted() {
+    BackpexPreferences.syncScope();
+    this.preferenceScopeMarker = BackpexPreferences.scopeMarker;
+    this.sidebar = document.getElementById("backpex-sidebar");
+    this.overlay = document.getElementById("backpex-sidebar-overlay");
+    this.main = document.getElementById("backpex-main");
+    this.toggleBtn = document.getElementById("backpex-sidebar-toggle");
+    if (!this.sidebar || !this.toggleBtn) return;
+    this.mobileOpen = false;
+    this.desktopOpen = BackpexPreferences.get(
+      "global.sidebar_open",
+      this.el.dataset.sidebarOpen === "true"
+    );
+    this.serverOpen = this.el.dataset.sidebarOpen === "true";
+    this.previousFocus = null;
+    const breakpoint = getComputedStyle(document.documentElement).getPropertyValue("--breakpoint-lg").trim() || "64rem";
+    this.mediaQuery = window.matchMedia(`(min-width: ${breakpoint})`);
+    this.applyState();
+    this.releaseTransitions();
+    this._onToggleClick = () => this.handleToggle();
+    this._onOverlayClick = () => this.closeMobile();
+    this._onMediaChange = (e) => this.handleResize(e);
+    this._onKeydown = (e) => this.handleKeydown(e);
+    this.toggleBtn.addEventListener("click", this._onToggleClick);
+    this.overlay.addEventListener("click", this._onOverlayClick);
+    this.mediaQuery.addEventListener("change", this._onMediaChange);
+    document.addEventListener("keydown", this._onKeydown);
+  },
+  updated() {
+    if (!this.sidebar || !this.toggleBtn) return;
+    BackpexPreferences.syncScope();
+    const preferenceScopeMarker = BackpexPreferences.scopeMarker;
+    const scopeChanged = this.preferenceScopeMarker !== preferenceScopeMarker;
+    this.preferenceScopeMarker = preferenceScopeMarker;
+    const serverOpen = this.el.dataset.sidebarOpen === "true";
+    if (scopeChanged) {
+      this.serverOpen = serverOpen;
+      this.desktopOpen = BackpexPreferences.get("global.sidebar_open", serverOpen);
+      this.mobileOpen = false;
+      this.previousFocus = null;
+    } else if (serverOpen !== this.serverOpen) {
+      this.serverOpen = serverOpen;
+      if (!BackpexPreferences.isPending("global.sidebar_open")) this.desktopOpen = serverOpen;
+    }
+    this.applyState();
+    this.releaseTransitions();
+  },
+  destroyed() {
+    this.toggleBtn?.removeEventListener("click", this._onToggleClick);
+    this.overlay?.removeEventListener("click", this._onOverlayClick);
+    this.mediaQuery?.removeEventListener("change", this._onMediaChange);
+    document.removeEventListener("keydown", this._onKeydown);
+    this.main?.removeAttribute("inert");
+  },
+  // `data-suppress-transition` is server-rendered so the correction applyState()
+  // may have just made — the mirror disagreeing with a dead render one write
+  // behind — snaps instead of animating. Releasing it in the same style-change
+  // event that applies that correction defeats it: a transition starts from the
+  // *after-change* style, so the suppressed before-change style buys nothing and
+  // the sidebar slides for 300ms instead. Force the corrected state through a
+  // style recalculation while still suppressed, so it becomes the before-change
+  // style, then release against an unchanged value.
+  //
+  // Deliberately synchronous rather than requestAnimationFrame: rAF never fires
+  // in a background tab, which would strand the guard and leave the sidebar
+  // unable to animate for the rest of the page load.
+  releaseTransitions() {
+    if (!this.sidebar.hasAttribute("data-suppress-transition") && !this.main.hasAttribute("data-suppress-transition")) return;
+    this.sidebar.getBoundingClientRect();
+    this.main.getBoundingClientRect();
+    this.sidebar.removeAttribute("data-suppress-transition");
+    this.main.removeAttribute("data-suppress-transition");
+  },
+  isDesktop() {
+    return this.mediaQuery.matches;
+  },
+  handleToggle() {
+    if (this.isDesktop()) {
+      this.desktopOpen = !this.desktopOpen;
+      BackpexPreferences.set("global.sidebar_open", this.desktopOpen, { mirror: "session" });
+    } else {
+      if (!this.mobileOpen) this.previousFocus = document.activeElement;
+      this.mobileOpen = !this.mobileOpen;
+    }
+    this.applyState();
+    if (!this.isDesktop() && this.mobileOpen) this.focusFirstInSidebar();
+  },
+  closeMobile() {
+    const wasOpen = this.mobileOpen;
+    this.mobileOpen = false;
+    this.applyState();
+    if (wasOpen) this.restorePreviousFocus();
+  },
+  handleResize(event) {
+    if (event.matches) {
+      this.mobileOpen = false;
+      this.previousFocus = null;
+    }
+    this.applyState();
+  },
+  handleKeydown(event) {
+    if (!this.mobileOpen || this.isDesktop()) return;
+    if (event.key === "Escape") {
+      this.closeMobile();
+      return;
+    }
+    if (event.key === "Tab") this.trapTab(event);
+  },
+  trapTab(event) {
+    const focusable = this.visibleFocusable();
+    if (focusable.length === 0) {
+      event.preventDefault();
+      return;
+    }
+    const first = focusable[0];
+    const last = focusable[focusable.length - 1];
+    const active = document.activeElement;
+    if (event.shiftKey && (active === first || !this.sidebar.contains(active))) {
+      event.preventDefault();
+      last.focus();
+    } else if (!event.shiftKey && active === last) {
+      event.preventDefault();
+      first.focus();
+    }
+  },
+  // Focusable descendants that are actually rendered. Links inside a
+  // collapsed section are display:none (offsetParent === null); leaving
+  // them in would anchor the trap's first/last on an unfocusable element
+  // and let Tab escape the modal drawer. No focusable inside the sidebar
+  // is position:fixed, so a null offsetParent reliably means hidden here.
+  visibleFocusable() {
+    return Array.from(this.sidebar.querySelectorAll(this.FOCUSABLE_SELECTOR)).filter((el) => el.offsetParent !== null);
+  },
+  focusFirstInSidebar() {
+    const focusable = this.visibleFocusable()[0];
+    if (focusable) focusable.focus();
+  },
+  restorePreviousFocus() {
+    if (this.previousFocus && document.contains(this.previousFocus)) {
+      this.previousFocus.focus();
+    }
+    this.previousFocus = null;
+  },
+  applyState() {
+    const isDesktop = this.isDesktop();
+    const sidebarVisible = isDesktop ? this.desktopOpen : this.mobileOpen;
+    this.sidebar.dataset.state = sidebarVisible ? "open" : "closed";
+    this.sidebar.toggleAttribute("inert", !sidebarVisible);
+    this.main.dataset.shift = isDesktop && this.desktopOpen ? "on" : "off";
+    this.overlay.dataset.visible = !isDesktop && this.mobileOpen ? "on" : "off";
+    this.toggleBtn.setAttribute("aria-expanded", sidebarVisible.toString());
+    if (!isDesktop && this.mobileOpen) {
+      this.sidebar.setAttribute("role", "dialog");
+      this.sidebar.setAttribute("aria-modal", "true");
+    } else {
+      this.sidebar.removeAttribute("role");
+      this.sidebar.removeAttribute("aria-modal");
+    }
+    this.main.toggleAttribute("inert", !isDesktop && this.mobileOpen);
+  }
+};
+
 // js/hooks/_sidebar_sections.js
 var sidebar_sections_default = {
   mounted() {
+    BackpexPreferences.syncScope();
+    this.preferenceScopeMarker = BackpexPreferences.scopeMarker;
+    this._sectionHandlers = /* @__PURE__ */ new WeakMap();
+    this._sectionStates = {};
+    this._serverStates = {};
     this.initializeSections();
+    this.applySectionStates();
   },
   updated() {
+    BackpexPreferences.syncScope();
+    const preferenceScopeMarker = BackpexPreferences.scopeMarker;
+    if (this.preferenceScopeMarker !== preferenceScopeMarker) {
+      this.preferenceScopeMarker = preferenceScopeMarker;
+      this._sectionStates = {};
+      this._serverStates = {};
+    }
     this.initializeSections();
+    this.applySectionStates();
   },
   destroyed() {
     const sections = this.el.querySelectorAll("[data-section-id]");
     sections.forEach((section) => {
       const toggle = section.querySelector("[data-menu-dropdown-toggle]");
-      toggle.removeEventListener("click", this.handleToggle.bind(this));
-    });
-  },
-  hasContent(element) {
-    if (!element || element.children.length === 0) {
-      return false;
-    }
-    for (const child of element.children) {
-      const childContent = child.querySelector("[data-menu-dropdown-content]");
-      if (childContent) {
-        if (this.hasContent(childContent)) {
-          return true;
-        }
-      } else {
-        return true;
+      const handler = toggle && this._sectionHandlers.get(toggle);
+      if (handler) {
+        toggle.removeEventListener("click", handler);
+        this._sectionHandlers.delete(toggle);
       }
-    }
-    return false;
+    });
   },
   initializeSections() {
     const sections = this.el.querySelectorAll("[data-section-id]");
     sections.forEach((section) => {
-      const sectionId = section.dataset.sectionId;
       const toggle = section.querySelector("[data-menu-dropdown-toggle]");
       const content = section.querySelector("[data-menu-dropdown-content]");
-      if (!this.hasContent(content)) {
-        content.style.display = "none";
-        return;
+      if (!toggle || !content) return;
+      const id = section.dataset.sectionId;
+      const key = `global.sidebar_section.${id}`;
+      const serverOpen = section.dataset.sectionOpen === "true";
+      if (!(id in this._sectionStates)) {
+        this._sectionStates[id] = BackpexPreferences.get(key, serverOpen);
+        this._serverStates[id] = serverOpen;
+      } else if (this._serverStates[id] !== serverOpen) {
+        this._serverStates[id] = serverOpen;
+        if (!BackpexPreferences.isPending(key)) this._sectionStates[id] = serverOpen;
       }
-      const isOpen = localStorage.getItem(`sidebar-section-${sectionId}`) === "true";
-      if (!isOpen) {
-        toggle.classList.remove("menu-dropdown-show");
-        content.style.display = "none";
-      }
-      section.classList.remove("hidden");
-      toggle.addEventListener("click", this.handleToggle.bind(this));
+      const previous = this._sectionHandlers.get(toggle);
+      if (previous) toggle.removeEventListener("click", previous);
+      const handler = (e) => this.handleSectionToggle(e);
+      this._sectionHandlers.set(toggle, handler);
+      toggle.addEventListener("click", handler);
     });
   },
-  handleToggle(event) {
+  // Re-apply the authoritative client-side open/closed state to the DOM.
+  // Called from updated() to overwrite whatever the server just rendered from
+  // a potentially-stale session snapshot after a live_redirect.
+  //
+  // Deliberately does not touch `data-section-open`: that attribute is the
+  // server's, and it is the baseline initializeSections() compares against.
+  // Writing it here would make the hook compare against its own writes.
+  applySectionStates() {
+    for (const [id, open] of Object.entries(this._sectionStates)) {
+      const section = this.el.querySelector(`[data-section-id="${id}"]`);
+      if (!section) continue;
+      const toggle = section.querySelector("[data-menu-dropdown-toggle]");
+      const content = section.querySelector("[data-menu-dropdown-content]");
+      if (!toggle || !content) continue;
+      toggle.classList.toggle("menu-dropdown-show", open);
+      toggle.setAttribute("aria-expanded", String(open));
+      content.style.display = open ? "" : "none";
+    }
+  },
+  handleSectionToggle(event) {
     const section = event.currentTarget.closest("[data-section-id]");
     const sectionId = section.dataset.sectionId;
     const toggle = section.querySelector("[data-menu-dropdown-toggle]");
@@ -200,7 +880,13 @@ var sidebar_sections_default = {
     toggle.classList.toggle("menu-dropdown-show");
     content.style.display = content.style.display === "none" ? "block" : "none";
     const isNowOpen = toggle.classList.contains("menu-dropdown-show");
-    localStorage.setItem(`sidebar-section-${sectionId}`, isNowOpen);
+    toggle.setAttribute("aria-expanded", isNowOpen.toString());
+    this._sectionStates[sectionId] = isNowOpen;
+    BackpexPreferences.set(
+      `global.sidebar_section.${sectionId}`,
+      isNowOpen,
+      { mirror: "session" }
+    );
   }
 };
 
@@ -231,50 +917,39 @@ var sticky_actions_default = {
 // js/hooks/_theme_selector.js
 var theme_selector_default = {
   mounted() {
-    const form = document.querySelector("#backpex-theme-selector-form");
-    const storedTheme = window.localStorage.getItem("backpexTheme");
-    if (storedTheme != null) {
-      const activeThemeRadio = form.querySelector(
-        `input[name='theme-selector'][value='${storedTheme}']`
-      );
-      activeThemeRadio.checked = true;
-    }
-    window.addEventListener("backpex:theme-change", this.handleThemeChange.bind(this));
+    BackpexPreferences.syncScope();
+    this.preferenceScopeMarker = BackpexPreferences.scopeMarker;
+    this.boundHandleThemeChange = this.handleThemeChange.bind(this);
+    this.el.addEventListener("backpex:theme-change", this.boundHandleThemeChange);
+    this.applyRenderedTheme();
   },
-  // Event listener that handles the theme changes and store
-  // the selected theme in the session and also in localStorage
-  async handleThemeChange() {
-    const form = document.querySelector("#backpex-theme-selector-form");
-    const csrfToken = document.querySelector("meta[name='csrf-token']").getAttribute("content");
-    const cookiePath = form.dataset.cookiePath;
-    const selectedTheme = form.querySelector(
+  updated() {
+    BackpexPreferences.syncScope();
+    const preferenceScopeMarker = BackpexPreferences.scopeMarker;
+    if (this.preferenceScopeMarker !== preferenceScopeMarker) {
+      this.preferenceScopeMarker = preferenceScopeMarker;
+      this.applyRenderedTheme();
+    }
+  },
+  applyRenderedTheme() {
+    const selectedTheme = this.el.querySelector('input[name="theme-selector"]:checked');
+    if (!selectedTheme) return;
+    const theme = BackpexPreferences.get("global.theme", selectedTheme.value);
+    const mirroredTheme = Array.from(this.el.querySelectorAll('input[name="theme-selector"]')).find((input) => input.value === theme);
+    if (mirroredTheme) mirroredTheme.checked = true;
+    document.documentElement.setAttribute("data-theme", theme);
+  },
+  handleThemeChange() {
+    const selectedTheme = this.el.querySelector(
       'input[name="theme-selector"]:checked'
     );
     if (selectedTheme) {
-      window.localStorage.setItem("backpexTheme", selectedTheme.value);
-      document.documentElement.setAttribute(
-        "data-theme",
-        selectedTheme.value
-      );
-      await fetch(cookiePath, {
-        body: `select_theme=${selectedTheme.value}`,
-        method: "POST",
-        headers: {
-          "Content-type": "application/x-www-form-urlencoded",
-          "x-csrf-token": csrfToken
-        }
-      });
-    }
-  },
-  // Call this from your app.js as soon as possible to minimize flashes with the old theme in some situations.
-  setStoredTheme() {
-    const storedTheme = window.localStorage.getItem("backpexTheme");
-    if (storedTheme != null) {
-      document.documentElement.setAttribute("data-theme", storedTheme);
+      document.documentElement.setAttribute("data-theme", selectedTheme.value);
+      BackpexPreferences.set("global.theme", selectedTheme.value, { mirror: "session" });
     }
   },
   destroyed() {
-    window.removeEventListener("backpex:theme-change", this.handleThemeChange.bind(this));
+    this.el.removeEventListener("backpex:theme-change", this.boundHandleThemeChange);
   }
 };
 
@@ -3592,6 +4267,8 @@ var currency_input_default = {
   }
 };
 export {
-  hooks_exports as Hooks
+  BackpexPreferences,
+  hooks_exports as Hooks,
+  backpexParams
 };
 //# sourceMappingURL=backpex.esm.js.map

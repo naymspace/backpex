@@ -5,7 +5,8 @@ defmodule DemoWeb.ProductLive do
       repo: Demo.Repo,
       update_changeset: &Demo.Product.changeset/3,
       create_changeset: &Demo.Product.changeset/3
-    ]
+    ],
+    persist: [:order, :filters, :columns, :metrics]
 
   import Ecto.Query, warn: false
 
@@ -72,7 +73,12 @@ defmodule DemoWeb.ProductLive do
       manufacturer: %{
         module: Backpex.Fields.URL,
         label: "Manufacturer URL",
-        orderable: false
+        orderable: false,
+        anchor_text: fn assigns ->
+          host = URI.parse(assigns.value).host
+          name = String.replace(host, ~r/\.(com|org|net|io)$/, "")
+          "Visit #{name}"
+        end
       },
       quantity: %{
         module: Backpex.Fields.Number,
@@ -87,7 +93,7 @@ defmodule DemoWeb.ProductLive do
         end,
         render: fn assigns ->
           ~H"""
-          <p>{Number.Delimit.number_to_delimited(@value, precision: 0, delimiter: ".")}</p>
+          <p>{DemoWeb.NumberFormat.to_delimited(@value)}</p>
           """
         end
       },
