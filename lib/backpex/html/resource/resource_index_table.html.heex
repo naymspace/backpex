@@ -33,7 +33,7 @@
   </thead>
   <tbody>
     <tr
-      :for={{item, index} <- Enum.with_index(@items)}
+      :for={{item, index, selectable?} <- index_rows(assigns)}
       id={"row-item-#{LiveResource.primary_value(item, @live_resource)}"}
       class={index_row_class(assigns, item, selected?(@selected_items, item), index)}
       phx-hook="BackpexStickyActions"
@@ -47,12 +47,12 @@
           type="checkbox"
           class="checkbox checkbox-sm"
           checked={selected?(@selected_items, item)}
-          aria-label={
-            Backpex.__(
-              {"Select item with id: %{id}", %{id: LiveResource.primary_value(item, @live_resource)}},
-              @live_resource
-            )
+          disabled={not selectable?}
+          title={
+            if not selectable?,
+              do: Backpex.__("No action is available for this item.", @live_resource)
           }
+          aria-label={select_item_label(assigns, item, selectable?)}
         />
       </td>
       <td :for={{name, field_options} <- @fields} :if={active?(@active_fields, name)} class="text-base-content/75">
@@ -67,7 +67,7 @@
       ]}>
         <div class={["flex items-center justify-end space-x-2"]}>
           <%= for {key, action} <- filter_item_actions(@item_actions, :row),
-                  @live_resource.can?(assigns, key, item) do %>
+                  Authorization.can?(@live_resource, assigns, key, item) do %>
             <%= if Backpex.ItemAction.has_link?(action) do %>
               <.link
                 id={"item-action-#{key}-#{LiveResource.primary_value(item, @live_resource)}"}

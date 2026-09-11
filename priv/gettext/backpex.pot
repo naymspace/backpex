@@ -124,6 +124,10 @@ msgid "Hang in there while we get back on track..."
 msgstr ""
 
 #, elixir-autogen, elixir-format
+msgid "Item with id %{id} cannot be selected: no action is available for it"
+msgstr ""
+
+#, elixir-autogen, elixir-format
 msgid "Items %{from} to %{to}"
 msgstr ""
 
@@ -149,6 +153,10 @@ msgstr ""
 
 #, elixir-autogen, elixir-format
 msgid "No %{resources} found"
+msgstr ""
+
+#, elixir-autogen, elixir-format
+msgid "No action is available for this item."
 msgstr ""
 
 #, elixir-autogen, elixir-format
@@ -181,6 +189,10 @@ msgstr ""
 
 #, elixir-autogen, elixir-format
 msgid "Select all items"
+msgstr ""
+
+#, elixir-autogen, elixir-format
+msgid "Select at least one item to use this action."
 msgstr ""
 
 #, elixir-autogen, elixir-format
@@ -265,4 +277,8 @@ msgstr ""
 
 #, elixir-autogen, elixir-format
 msgid "We can't find the internet!"
+msgstr ""
+
+#, elixir-autogen, elixir-format
+msgid "Your selection contains items you may not apply this action to."
 msgstr ""

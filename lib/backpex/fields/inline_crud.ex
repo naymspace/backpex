@@ -92,6 +92,7 @@ defmodule Backpex.Fields.InlineCRUD do
   """
   use Backpex.Field, config_schema: @config_schema
 
+  alias Backpex.Authorization
   alias Backpex.Router
 
   require Backpex
@@ -261,7 +262,7 @@ defmodule Backpex.Fields.InlineCRUD do
   defp get_link(assigns, row) do
     live_resource = Map.get(assigns.field_options, :live_resource)
 
-    if live_resource && live_resource.can?(assigns, :show, row) do
+    if live_resource && Authorization.can?(live_resource, assigns, :show, row) do
       Router.get_path(assigns.socket, live_resource, assigns.params, :show, row)
     end
   end

@@ -4,6 +4,7 @@ defmodule Backpex.LiveResource.Form do
 
   import Phoenix.Component
 
+  alias Backpex.Authorization
   alias Backpex.LiveResource
   alias Backpex.Resource
 
@@ -94,13 +95,13 @@ defmodule Backpex.LiveResource.Form do
   end
 
   defp can?(socket, live_resource, :new = live_action) do
-    if not live_resource.can?(socket.assigns, live_action, nil), do: raise(Backpex.ForbiddenError)
+    Authorization.authorize!(live_resource, socket.assigns, live_action, nil)
 
     socket
   end
 
   defp can?(socket, live_resource, :edit = live_action) do
-    if not live_resource.can?(socket.assigns, live_action, socket.assigns.item), do: raise(Backpex.ForbiddenError)
+    Authorization.authorize!(live_resource, socket.assigns, live_action, socket.assigns.item)
 
     socket
   end

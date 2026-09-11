@@ -171,6 +171,26 @@ defmodule Backpex.LiveResource do
   @doc """
   The function that can be used to restrict access to certain actions. It will be called before performing
   an action and aborts when the function returns `false`.
+
+  ## Enforcement
+
+  Backpex enforces this callback centrally through `Backpex.Authorization`. It is evaluated both as a
+  preflight check (to hide or disable controls) and as a hard gate immediately before an action runs:
+
+  * `Backpex.Resource.insert/6` authorizes `:new` with a `nil` item.
+  * `Backpex.Resource.update/6` authorizes `:edit` with the item.
+  * `Backpex.Resource.delete_all/4` authorizes `:delete` per item.
+  * `Backpex.Resource.update_all/5` authorizes `:edit` per item.
+  * Item actions authorize their action key per item, resource actions authorize their key with a `nil` item.
+
+  The default action can be overridden per call with the `:authorization_action` option, and skipped
+  entirely with `authorize?: false` for system writes.
+
+  Enforcement is strict: a single unauthorized item in a selection raises `Backpex.ForbiddenError`
+  instead of silently dropping that item.
+
+  Read operations (`:index`, `:show`) are enforced in the view layer only. `Backpex.Resource.list/4`,
+  `Backpex.Resource.get/4` and `Backpex.Resource.count/4` do not call this callback.
   """
   @callback can?(assigns :: map(), action :: atom(), item :: map() | nil) :: boolean()
 
@@ -465,7 +485,7 @@ defmodule Backpex.LiveResource do
           </.main_title>
           <div class="flex items-center space-x-2">
             <%= for {key, action} <- Backpex.HTML.Resource.filter_item_actions(@item_actions, :show),
-                    @live_resource.can?(assigns, key, @item) do %>
+                    Backpex.Authorization.can?(@live_resource, assigns, key, @item) do %>
               <%= if Backpex.ItemAction.has_link?(action) do %>
                 <.link
                   id={"item-action-#{key}"}
@@ -1032,4 +1052,25 @@ defmodule Backpex.LiveResource do
   end
 
   defp safe_return_to?(_path), do: false
+
+  # Resolves a client-supplied action key (from an event payload or the URL) against a keyword list
+  # of registered item or resource actions.
+  #
+  # Returns `{key, action}` for the matching registration and raises `Backpex.NoResultsError` when
+  # the key is not registered.
+  #
+  # The key is matched by comparing binaries rather than by `String.to_existing_atom/1`: a forged
+  # key must produce the same 404 as an unknown one, not an `ArgumentError` that depends on which
+  # atoms happen to exist in the running system.
+  #
+  # This parses an HTTP event, it is not LiveResource configuration API — hence `@doc false`.
+  @doc false
+  def fetch_action!(actions, key) when is_list(actions) and is_binary(key) do
+    case Enum.find(actions, fn {registered_key, _action} -> Atom.to_string(registered_key) == key end) do
+      nil -> raise Backpex.NoResultsError
+      registration -> registration
+    end
+  end
+
+  def fetch_action!(_actions, _key), do: raise(Backpex.NoResultsError)
 end

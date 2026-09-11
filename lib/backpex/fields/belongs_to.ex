@@ -62,6 +62,7 @@ defmodule Backpex.Fields.BelongsTo do
   """
   use Backpex.Field, config_schema: @config_schema
   import Ecto.Query
+  alias Backpex.Authorization
   alias Backpex.Router
 
   @impl Phoenix.LiveComponent
@@ -238,7 +239,7 @@ defmodule Backpex.Fields.BelongsTo do
     live_resource = Map.get(field_options, :live_resource)
 
     link =
-      if live_resource && live_resource.can?(assigns, :show, value) do
+      if live_resource && Authorization.can?(live_resource, assigns, :show, value) do
         Router.get_path(socket, live_resource, params, :show, value)
       end
 

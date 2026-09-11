@@ -81,6 +81,7 @@ defmodule Backpex.Fields.HasMany do
   import Ecto.Query
 
   alias Backpex.Adapters.Ecto, as: EctoAdapter
+  alias Backpex.Authorization
   alias Backpex.HTML.Form
   alias Backpex.Router
 
@@ -456,7 +457,7 @@ defmodule Backpex.Fields.HasMany do
     } = assigns
 
     link =
-      if link_assocs and field_options.live_resource.can?(assigns, :show, item) do
+      if link_assocs and Authorization.can?(field_options.live_resource, assigns, :show, item) do
         Router.get_path(socket, Map.get(field_options, :live_resource), params, :show, item)
       end
 

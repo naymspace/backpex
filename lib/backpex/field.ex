@@ -424,10 +424,9 @@ defmodule Backpex.Field do
   def handle_index_editable(socket, value, change) do
     %{assigns: %{item: item, fields: fields, live_resource: live_resource} = assigns} = socket
 
-    if not live_resource.can?(assigns, :edit, item) do
-      raise Backpex.ForbiddenError
-    end
-
+    # No `can?/3` check here: `Backpex.Resource.update/6` enforces `:edit` with the same assigns and
+    # item, before the changeset runs. Checking here as well would evaluate user code twice per
+    # inline edit for no added protection.
     opts = [
       after_save_fun: fn item ->
         live_resource.on_item_updated(socket, item)
