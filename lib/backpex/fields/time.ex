@@ -1,4 +1,5 @@
 # credo:disable-for-this-file Credo.Check.Design.DuplicatedCode
+# quokka:skip-module-directive-reordering
 defmodule Backpex.Fields.Time do
   @config_schema [
     format: [
@@ -105,7 +106,13 @@ defmodule Backpex.Fields.Time do
 
     ~H"""
     <div>
-      <.form for={@form} phx-change="update-field" phx-submit="update-field" phx-target={@myself}>
+      <.form
+        for={@form}
+        id={"index-form-#{@name}-#{LiveResource.primary_value(@item, @live_resource)}"}
+        phx-change="update-field"
+        phx-submit="update-field"
+        phx-target={@myself}
+      >
         <BackpexForm.input
           id={"index-form-input-#{@name}-#{LiveResource.primary_value(@item, @live_resource)}"}
           type="time"

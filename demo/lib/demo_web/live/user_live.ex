@@ -8,9 +8,12 @@ defmodule DemoWeb.UserLive do
       create_changeset: &Demo.User.changeset/3,
       item_query: &__MODULE__.item_query/3
     ],
-    init_order: &__MODULE__.init_order/1
+    init_order: &__MODULE__.init_order/1,
+    persist: [:order, :filters, :columns, :metrics]
 
   import Ecto.Query, warn: false
+
+  alias Backpex.Metrics.Value
 
   @impl Backpex.LiveResource
   def layout(_assigns), do: {DemoWeb.Layouts, :admin}
@@ -213,7 +216,7 @@ defmodule DemoWeb.UserLive do
   def metrics do
     [
       min_age: %{
-        module: Backpex.Metrics.Value,
+        module: Value,
         label: "Min age",
         class: "w-full lg:w-1/3",
         select: dynamic([u], min(u.age)),
@@ -222,7 +225,7 @@ defmodule DemoWeb.UserLive do
         end
       },
       max_age: %{
-        module: Backpex.Metrics.Value,
+        module: Value,
         label: "Max age",
         class: "w-full lg:w-1/3",
         select: dynamic([u], max(u.age)),

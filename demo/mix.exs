@@ -13,6 +13,7 @@ defmodule Demo.MixProject do
       deps: deps(),
       aliases: aliases(),
       gettext: gettext(),
+      hex: [cooldown: "3d"],
       listeners: [Phoenix.CodeReloader]
     ]
   end
@@ -41,35 +42,35 @@ defmodule Demo.MixProject do
       {:mix_audit, "~> 2.0", only: [:dev, :test], runtime: false},
       {:lazy_html, "~> 0.1.3", only: :test},
       {:ex_machina, "~> 2.3"},
-      {:faker, "~> 0.18"},
-      {:phoenix_test, "~> 0.10.0", only: :test, runtime: false},
-      {:phoenix_test_playwright, "~> 0.13.0", only: :test, runtime: false},
-      {:a11y_audit, "~> 0.3.0", only: :test},
-      {:live_debugger, "~> 0.8", only: :dev},
+      {:faker, "~> 1.2", hex: :fakerer},
+      {:phoenix_test, "~> 0.12.0", only: :test, runtime: false},
+      {:phoenix_test_playwright, "~> 0.16.0", only: :test, runtime: false},
+      {:a11y_audit, "~> 0.5.0", only: :test},
+      {:live_debugger, "~> 1.0", only: :dev},
       {:quokka, "~> 2.9", only: [:dev, :test], runtime: false},
-      {:tidewave, "~> 0.5", only: [:dev]},
+      {:tidewave, "~> 0.9", only: [:dev]},
 
       # core
-      {:dns_cluster, "~> 0.2.0"},
+      {:dns_cluster, "~> 0.3.0"},
       {:telemetry_poller, "~> 1.0"},
       {:telemetry_metrics, "~> 1.0"},
       {:gettext, "~> 1.0"},
-      {:sentry, "~> 12.0"},
-      {:circular_buffer, "~> 1.0.0"},
+      {:sentry, "~> 13.0"},
+      {:circular_buffer, "~> 1.1.0"},
 
       # phoenix
       {:bandit, "~> 1.0"},
       {:phoenix, "~> 1.8.0"},
       {:phoenix_pubsub, "~> 2.0"},
       {:phoenix_live_view, "~> 1.1"},
-      {:phoenix_live_dashboard, "~> 0.8"},
+      {:phoenix_live_dashboard, "~> 0.9"},
       {:phoenix_live_reload, "~> 1.2", only: :dev},
 
       # application
       {:backpex, path: "../."},
       {:phoenix_ecto, "~> 4.0"},
-      {:igniter, "~> 0.7"},
-      {:igniter_js, "~> 0.4"},
+      {:igniter, "~> 0.8"},
+      {:igniter_js, "~> 0.5"},
       {:ecto_sql, "~> 3.1"},
       {:postgrex, ">= 0.0.0"},
       {:ecto_psql_extras, "~> 0.8"},
@@ -79,7 +80,7 @@ defmodule Demo.MixProject do
 
       # assets
       {:esbuild, "~> 0.9", runtime: Mix.env() == :dev},
-      {:tailwind, "~> 0.4.0", runtime: Mix.env() == :dev},
+      {:tailwind, "~> 0.5.0", runtime: Mix.env() == :dev},
       {:heroicons, github: "tailwindlabs/heroicons", tag: "v2.2.0", sparse: "optimized", app: false, compile: false}
     ]
   end

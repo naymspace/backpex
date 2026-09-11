@@ -49,12 +49,12 @@ defmodule Backpex.Filters.Boolean do
 
   defmacro __using__(_opts) do
     quote do
+      @behaviour Backpex.Filters.Boolean
+
       use BackpexWeb, :filter
       use Backpex.Filter
 
       alias Backpex.Filters.Boolean, as: BooleanFilter
-
-      @behaviour Backpex.Filters.Boolean
 
       @impl Backpex.Filter
       def type(_assigns), do: {:array, :string}

@@ -1,4 +1,11 @@
+alias_usage_defaults = Credo.Check.Design.AliasUsage.param_defaults()
+
 overwrite_checks = [
+  {Credo.Check.Design.AliasUsage,
+   excluded_namespaces: alias_usage_defaults[:excluded_namespaces] ++ ["Backpex.Fields"],
+   excluded_lastnames: alias_usage_defaults[:excluded_lastnames] ++ ["Type"],
+   if_nested_deeper_than: 2,
+   if_called_more_often_than: 1},
   {Credo.Check.Design.TagTODO, false},
   {Credo.Check.Readability.AliasAs, false},
   {Credo.Check.Readability.OnePipePerLine, false},

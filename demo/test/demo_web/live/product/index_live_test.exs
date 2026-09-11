@@ -2,8 +2,8 @@ defmodule DemoWeb.Live.Product.IndexLiveTest do
   use DemoWeb.ConnCase, async: false
 
   import Demo.EctoFactory
-  import Phoenix.LiveViewTest
   import Demo.Support.LiveResourceTests
+  import Phoenix.LiveViewTest
 
   describe "products live resource index" do
     test "is rendered", %{conn: conn} do
@@ -53,6 +53,20 @@ defmodule DemoWeb.Live.Product.IndexLiveTest do
       test_delete_button_disabled_enabled(conn, ~p"/admin/products", products)
       test_show_action_redirect(conn, ~p"/admin/products", products)
       test_edit_action_redirect(conn, ~p"/admin/products", products)
+    end
+
+    test "manufacturer URL renders anchor_text instead of raw URL", %{conn: conn} do
+      insert(:product, %{
+        name: "Widget",
+        quantity: 1,
+        manufacturer: "https://example.com",
+        price: Money.new(1000, :USD)
+      })
+
+      conn
+      |> visit(~p"/admin/products")
+      |> assert_has("a[href='https://example.com']", text: "Visit example", exact: true)
+      |> refute_has("a", text: "https://example.com", exact: true)
     end
   end
 end

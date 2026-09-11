@@ -4,13 +4,17 @@ defmodule DemoWeb.Endpoint do
   # The session will be stored in the cookie and signed,
   # this means its contents can be read but not tampered with.
   # Set :encryption_salt if you would also like to encrypt it.
+  alias Phoenix.Ecto.CheckRepoStatus
+  alias Phoenix.LiveDashboard.RequestLogger
+  alias Phoenix.LiveView.Socket
+
   @session_options [
     store: :cookie,
     key: "_demo_key",
     signing_salt: "szYoVHQC"
   ]
 
-  socket "/live", Phoenix.LiveView.Socket,
+  socket "/live", Socket,
     websocket: [
       connect_info: [:peer_data, :uri, :user_agent, session: @session_options]
     ]
@@ -35,10 +39,10 @@ defmodule DemoWeb.Endpoint do
     socket "/phoenix/live_reload/socket", Phoenix.LiveReloader.Socket
     plug Phoenix.LiveReloader
     plug Phoenix.CodeReloader
-    plug Phoenix.Ecto.CheckRepoStatus, otp_app: :demo
+    plug CheckRepoStatus, otp_app: :demo
   end
 
-  plug Phoenix.LiveDashboard.RequestLogger,
+  plug RequestLogger,
     param_key: "request_logger",
     cookie_key: "request_logger"
 

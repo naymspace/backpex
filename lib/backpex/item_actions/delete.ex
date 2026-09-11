@@ -7,8 +7,8 @@ defmodule Backpex.ItemActions.Delete do
 
   alias Backpex.Resource
 
-  require Logger
   require Backpex
+  require Logger
 
   @impl Backpex.ItemAction
   def icon(assigns, _item) do

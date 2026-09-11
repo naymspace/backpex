@@ -4,9 +4,13 @@ defmodule Backpex.FormComponent do
   """
   use BackpexWeb, :html
   use Phoenix.LiveComponent
-  alias Backpex.Fields.Upload
+
+  alias Backpex.Field
+  alias Backpex.ItemAction
+  alias Backpex.LiveResource
   alias Backpex.Resource
   alias Backpex.ResourceAction
+  alias Phoenix.Component
 
   require Backpex
 
@@ -71,7 +75,7 @@ defmodule Backpex.FormComponent do
 
   defp assign_form(socket) do
     changeset = socket.assigns.changeset
-    form = Phoenix.Component.to_form(changeset, as: :change)
+    form = Component.to_form(changeset, as: :change)
 
     assign(socket, :form, form)
   end
@@ -97,7 +101,7 @@ defmodule Backpex.FormComponent do
       |> changeset_function.(change, metadata)
       |> Map.put(:action, :validate)
 
-    form = Phoenix.Component.to_form(changeset, as: :change)
+    form = Component.to_form(changeset, as: :change)
 
     send(self(), {:update_changeset, changeset})
 
@@ -121,7 +125,7 @@ defmodule Backpex.FormComponent do
     opts = [target: target, assocs: assocs]
     changeset = Resource.change(item, change, fields, socket.assigns, live_resource, opts)
 
-    form = Phoenix.Component.to_form(changeset, as: :change)
+    form = Component.to_form(changeset, as: :change)
 
     send(self(), {:update_changeset, changeset})
 
@@ -158,7 +162,13 @@ defmodule Backpex.FormComponent do
       |> Map.get(:removed_uploads, [])
       |> Keyword.update(upload_key, [file_key], fn existing -> [file_key | existing] end)
 
-    files = Upload.existing_file_paths(field, socket.assigns.item, Keyword.get(removed_uploads, upload_key, []))
+    files =
+      Backpex.Fields.Upload.existing_file_paths(
+        field,
+        socket.assigns.item,
+        Keyword.get(removed_uploads, upload_key, [])
+      )
+
     uploaded_files = Keyword.put(socket.assigns[:uploaded_files], upload_key, files)
 
     socket
@@ -236,7 +246,7 @@ defmodule Backpex.FormComponent do
         |> noreply()
 
       {:error, changeset} when is_struct(changeset) ->
-        form = Phoenix.Component.to_form(changeset, as: :change)
+        form = Component.to_form(changeset, as: :change)
 
         send(self(), {:update_changeset, changeset})
 
@@ -283,7 +293,7 @@ defmodule Backpex.FormComponent do
         |> noreply()
 
       {:error, changeset} when is_struct(changeset) ->
-        form = Phoenix.Component.to_form(changeset, as: :change)
+        form = Component.to_form(changeset, as: :change)
 
         send(self(), {:update_changeset, changeset})
 
@@ -324,7 +334,7 @@ defmodule Backpex.FormComponent do
       |> noreply()
     else
       {:error, changeset} ->
-        form = Phoenix.Component.to_form(changeset, as: :change)
+        form = Component.to_form(changeset, as: :change)
 
         send(self(), {:update_changeset, changeset})
 
@@ -360,7 +370,7 @@ defmodule Backpex.FormComponent do
     params = drop_readonly_changes(params, fields, assigns)
 
     result =
-      if Backpex.ItemAction.has_form?(action_to_confirm) do
+      if ItemAction.has_form?(action_to_confirm) do
         changeset_function = fn item, changes, metadata ->
           action_to_confirm.module.changeset(item, changes, metadata)
         end
@@ -386,7 +396,7 @@ defmodule Backpex.FormComponent do
       |> noreply()
     else
       {:error, changeset} ->
-        form = Phoenix.Component.to_form(changeset, as: :change)
+        form = Component.to_form(changeset, as: :change)
 
         socket
         |> assign(:show_form_errors, true)
@@ -406,7 +416,7 @@ defmodule Backpex.FormComponent do
   end
 
   defp drop_readonly_changes(change, fields, assigns) do
-    Backpex.Field.drop_readonly_changes(change, fields, assigns)
+    Field.drop_readonly_changes(change, fields, assigns)
   end
 
   defp drop_unused_changes(change) do
@@ -417,7 +427,7 @@ defmodule Backpex.FormComponent do
   end
 
   defp return_to_path("continue", live_resource, _socket, %{current_url: url}, :new, item) do
-    primary_value = Backpex.LiveResource.primary_value(item, live_resource)
+    primary_value = LiveResource.primary_value(item, live_resource)
 
     url
     |> URI.parse()

@@ -69,7 +69,7 @@ defmodule Backpex.LiveResource.Form do
   end
 
   defp assign_return_to(socket, params) do
-    case Map.get(params, "return_to") do
+    case LiveResource.return_to_param(params) do
       nil -> socket
       return_to -> assign(socket, :return_to, return_to)
     end

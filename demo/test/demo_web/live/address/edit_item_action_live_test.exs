@@ -2,8 +2,8 @@ defmodule DemoWeb.Live.Address.EditItemActionLiveTest do
   use DemoWeb.ConnCase, async: false
 
   import Demo.EctoFactory
-  import Phoenix.LiveViewTest
   import Demo.Support.LiveResourceTests
+  import Phoenix.LiveViewTest
 
   describe "edit item action on index view" do
     test "redirects to index view", %{conn: conn} do

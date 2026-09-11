@@ -8,6 +8,8 @@ defmodule Backpex.ResourceAction do
   > In addition it will implement the `c:base_schema/1` function in order to generate a schemaless changeset by default.
   '''
 
+  alias Phoenix.LiveView.Socket
+
   @doc """
   The title of the resource action. It will be part of the page header and slide over title.
   """
@@ -64,8 +66,8 @@ defmodule Backpex.ResourceAction do
 
   You have to use `Phoenix.LiveView.put_flash/3` along with the socket to show a success or error message.
   """
-  @callback handle(socket :: Phoenix.LiveView.Socket.t(), data :: map()) ::
-              {:ok, Phoenix.LiveView.Socket.t()} | {:error, Ecto.Changeset.t()}
+  @callback handle(socket :: Socket.t(), data :: map()) ::
+              {:ok, Socket.t()} | {:error, Ecto.Changeset.t()}
 
   @doc """
   Defines `Backpex.ResourceAction` behaviour.

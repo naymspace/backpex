@@ -2,8 +2,8 @@ defmodule DemoWeb.Live.Address.DeleteItemActionLiveTest do
   use DemoWeb.ConnCase, async: false
 
   import Demo.EctoFactory
-  import Phoenix.LiveViewTest
   import Demo.Support.LiveResourceTests
+  import Phoenix.LiveViewTest
 
   describe "delete item action on index view" do
     test "deletes item successfully", %{conn: conn} do

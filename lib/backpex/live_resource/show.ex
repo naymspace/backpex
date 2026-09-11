@@ -65,7 +65,7 @@ defmodule Backpex.LiveResource.Show do
 
     socket
     |> assign(:item, item)
-    |> assign(:return_to, Router.get_path(socket, live_resource, params, :show, item))
+    |> assign(:return_to, return_to(socket, Router.get_path(socket, live_resource, params, :show, item)))
   end
 
   defp assign_item_actions(socket) do
@@ -92,7 +92,7 @@ defmodule Backpex.LiveResource.Show do
     socket
     |> assign(:selected_items, [item])
     |> Backpex.ItemAction.assign_action_changeset(action)
-    |> assign(:return_to, index_path)
+    |> assign(:return_to, return_to(socket, index_path))
     |> assign(:action_to_confirm, Map.put(action, :key, key))
     |> noreply()
   end
@@ -104,9 +104,16 @@ defmodule Backpex.LiveResource.Show do
     Backpex.ItemAction.handle_item_action(socket, action, key, [item], fn socket ->
       socket
       |> assign(action_to_confirm: nil)
-      |> maybe_navigate(index_path)
+      |> maybe_navigate(return_to(socket, index_path))
       |> noreply()
     end)
+  end
+
+  # Honors a `?return_to=` query param (validated against open redirects) so a
+  # link into the show view can override where item actions navigate afterwards.
+  # Falls back to the given default path when the param is absent or unsafe.
+  defp return_to(socket, default) do
+    Backpex.LiveResource.return_to_param(socket.assigns.params) || default
   end
 
   defp maybe_navigate(%{redirected: nil} = socket, path) do

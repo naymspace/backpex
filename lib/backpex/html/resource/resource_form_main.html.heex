@@ -3,6 +3,6 @@
     module={Backpex.FormComponent}
     id={:edit}
     live_resource={@live_resource}
-    {Map.drop(assigns, [:socket, :flash])}
+    {Map.drop(assigns, lv_reserved_assigns())}
   />
 </.main_container>

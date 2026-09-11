@@ -1,6 +1,6 @@
 {
   "name": "backpex",
-  "version": "0.14.0",
+  "version": "0.18.0",
   "license": "MIT",
   "type": "module",
   "main": "./priv/static/js/backpex.cjs.js",
@@ -25,13 +25,17 @@
     "assets/js/**"
   ],
   "scripts": {
-    "format:standard": "standard assets/js --fix",
-    "lint:standard": "standard assets/js"
+    "format:standard": "standard assets/js test/js --fix",
+    "lint:standard": "standard assets/js test/js",
+    "test:js": "bun test test/js"
   },
   "standard": {
     "globals": [
       "localStorage",
-      "IntersectionObserver"
+      "sessionStorage",
+      "IntersectionObserver",
+      "requestAnimationFrame",
+      "getComputedStyle"
     ]
   },
   "devDependencies": {

@@ -10,7 +10,8 @@
     "github>pehbehbeh/renovate-config//customManagers/hexTailwind",
     ":reviewer(Flo0807)",
     "helpers:pinGitHubActionDigestsToSemver",
-    "security:minimumReleaseAgeNpm"
+    "security:minimumReleaseAgeNpm",
+    "local>naymspace/backpex//.github/renovate/minimumReleaseAgeHex"
   ],
   "additionalBranchPrefix": "{{packageFileDir}}-",
   "pinDigests": false,
@@ -29,6 +30,7 @@
     "minimumReleaseAge": "14 days"
   },
   "internalChecksFilter": "strict",
+  "constraints": { "erlang": "^27" },
   "packageRules": [
     {
       "description": "Set Mix versioning strategy to update-lockfile",

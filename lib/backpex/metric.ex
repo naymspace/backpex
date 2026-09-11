@@ -7,10 +7,12 @@ defmodule Backpex.Metric do
   implementing this behaviour.
   """
 
+  alias Phoenix.LiveView.Rendered
+
   @doc """
   Used to render the metric as a heex template on the index views.
   """
-  @callback render(assigns :: map()) :: %Phoenix.LiveView.Rendered{}
+  @callback render(assigns :: map()) :: %Rendered{}
   @callback query(query :: Ecto.Queryable.t(), select :: any(), repo :: Ecto.Repo.t()) ::
               Ecto.Schema.t() | term() | nil
   @callback format(data :: any(), format :: any()) :: term()

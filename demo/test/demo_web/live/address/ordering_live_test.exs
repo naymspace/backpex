@@ -5,18 +5,25 @@ defmodule DemoWeb.Live.Address.OrderingLiveTest do
   import Phoenix.LiveViewTest
 
   # Addresses use default init_order: %{by: :id, direction: :asc}
+  # Addresses have binary_id (random UUID) primary keys, so ascending id order is
+  # unrelated to insertion order and has to be derived from the inserted records.
 
   describe "default ordering" do
     test "orders by id ascending by default", %{conn: conn} do
-      insert(:address, street: "First Street")
-      insert(:address, street: "Second Street")
-      insert(:address, street: "Third Street")
+      addresses = [
+        insert(:address, street: "First Street"),
+        insert(:address, street: "Second Street"),
+        insert(:address, street: "Third Street")
+      ]
+
+      [first, second, third] = Enum.sort_by(addresses, & &1.id)
 
       conn
       |> visit(~p"/admin/addresses")
       |> assert_has("table tbody tr", count: 3)
-      |> assert_has("table tbody tr:first-child td", text: "First Street")
-      |> assert_has("table tbody tr:last-child td", text: "Third Street")
+      |> assert_has("table tbody tr:first-child td", text: first.street)
+      |> assert_has("table tbody tr:nth-child(2) td", text: second.street)
+      |> assert_has("table tbody tr:last-child td", text: third.street)
     end
   end
 
@@ -66,17 +73,22 @@ defmodule DemoWeb.Live.Address.OrderingLiveTest do
 
   describe "invalid ordering params" do
     test "falls back to default order_by for invalid order_by field", %{conn: conn} do
-      insert(:address, street: "First Street")
-      insert(:address, street: "Second Street")
-      insert(:address, street: "Third Street")
+      addresses = [
+        insert(:address, street: "First Street"),
+        insert(:address, street: "Second Street"),
+        insert(:address, street: "Third Street")
+      ]
+
+      [first, second, third] = Enum.sort_by(addresses, & &1.id)
 
       params = %{"order_by" => "nonexistent_field", "order_direction" => "asc"}
 
       conn
       |> visit(~p"/admin/addresses?#{params}")
       |> assert_has("table tbody tr", count: 3)
-      |> assert_has("table tbody tr:first-child td", text: "First Street")
-      |> assert_has("table tbody tr:last-child td", text: "Third Street")
+      |> assert_has("table tbody tr:first-child td", text: first.street)
+      |> assert_has("table tbody tr:nth-child(2) td", text: second.street)
+      |> assert_has("table tbody tr:last-child td", text: third.street)
     end
 
     test "falls back to default direction for invalid order_direction", %{conn: conn} do

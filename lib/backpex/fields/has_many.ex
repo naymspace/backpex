@@ -1,3 +1,4 @@
+# quokka:skip-module-directive-reordering
 defmodule Backpex.Fields.HasMany do
   @config_schema [
     display_field: [
@@ -155,13 +156,7 @@ defmodule Backpex.Fields.HasMany do
           >
             <div class="flex h-full w-full flex-wrap items-center gap-1 px-2">
               <p :if={@selected == []} class="p-0.5 text-sm">{@prompt}</p>
-              <.badge
-                :for={{label, value} <- @selected}
-                live_resource={@live_resource}
-                label={label}
-                value={value}
-                name={@name}
-              />
+              <.badge :for={{label, value} <- @selected} label={label} value={value} name={@name} />
             </div>
           </:trigger>
           <:menu class="w-full overflow-y-auto">
@@ -301,7 +296,6 @@ defmodule Backpex.Fields.HasMany do
     """
   end
 
-  attr :live_resource, :atom, required: true
   attr :name, :string, required: true
   attr :label, :string, required: true
   attr :value, :string, required: true
@@ -313,7 +307,7 @@ defmodule Backpex.Fields.HasMany do
       <label
         class="flex cursor-pointer items-center pr-2"
         for={"has-many-#{@name}-checkbox-value-#{@value}"}
-        aria-label={Backpex.__({"Unselect %{label}", %{label: @label}}, @live_resource)}
+        aria-hidden="true"
       >
         <Backpex.HTML.CoreComponents.icon name="hero-x-mark" class="size-4 scale-105 hover:scale-110" />
       </label>

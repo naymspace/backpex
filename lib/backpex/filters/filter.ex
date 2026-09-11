@@ -38,10 +38,13 @@ defmodule Backpex.Filter do
 
   """
 
+  alias Phoenix.LiveView.Rendered
+  alias Phoenix.LiveView.Socket
+
   @doc """
   Defines whether the filter can be used or not.
   """
-  @callback can?(Phoenix.LiveView.Socket.assigns()) :: boolean()
+  @callback can?(Socket.assigns()) :: boolean()
 
   @doc """
   If no label is defined on the filter map, this value is used as the filter label.
@@ -120,12 +123,12 @@ defmodule Backpex.Filter do
   @doc """
   Renders the filters selected value(s).
   """
-  @callback render(Phoenix.LiveView.Socket.assigns()) :: Phoenix.LiveView.Rendered.t()
+  @callback render(Socket.assigns()) :: Rendered.t()
 
   @doc """
   Renders the filters options form.
   """
-  @callback render_form(Phoenix.LiveView.Socket.assigns()) :: Phoenix.LiveView.Rendered.t()
+  @callback render_form(Socket.assigns()) :: Rendered.t()
 
   @optional_callbacks label: 0
 

@@ -219,6 +219,38 @@ defmodule Backpex.Adapters.EctoTest do
       assert expr_str =~ "fragment"
       assert expr_str =~ "UPPER("
     end
+
+    test "applies order by a column that is not a declared field" do
+      base_query = from(TestUser, as: ^EctoAdapter.name_by_schema(TestUser))
+
+      # :id is not among the declared fields, which is the case for the default
+      # init_order of %{by: :id, direction: :asc} on virtually every live resource.
+      fields = [
+        {:name, %{module: Backpex.Fields.Text, queryable: TestUser}}
+      ]
+
+      criteria = [
+        order: %{by: :id, direction: :asc, schema: TestUser, field_name: nil}
+      ]
+
+      query = EctoAdapter.apply_criteria(base_query, criteria, fields)
+
+      assert %{order_bys: [%{expr: order_expr}]} = query
+      assert [{:asc_nulls_first, order_expression}] = order_expr
+      assert Macro.to_string(order_expression) =~ "id"
+    end
+
+    test "raises when the order criteria is malformed instead of silently dropping the order" do
+      base_query = from(TestUser, as: ^EctoAdapter.name_by_schema(TestUser))
+
+      criteria = [
+        order: %{by: :id, direction: :asc}
+      ]
+
+      assert_raise ArgumentError, ~r/expected order criteria to be a map/, fn ->
+        EctoAdapter.apply_criteria(base_query, criteria, [])
+      end
+    end
   end
 
   describe "apply_criteria/3 pagination" do

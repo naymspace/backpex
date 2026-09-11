@@ -30,12 +30,12 @@ defmodule Demo.Product do
     product
     |> cast(attrs, @required_fields ++ @optional_fields)
     |> cast_assoc(:suppliers,
-      with: &Demo.Supplier.changeset/2,
+      with: &Supplier.changeset/2,
       sort_param: :suppliers_order,
       drop_param: :suppliers_delete
     )
     |> cast_assoc(:short_links,
-      with: &Demo.ShortLink.changeset/2,
+      with: &ShortLink.changeset/2,
       sort_param: :short_links_order,
       drop_param: :short_links_delete
     )

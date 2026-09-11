@@ -356,6 +356,57 @@ defmodule DemoWeb.Live.Post.FilterLiveTest do
     end
   end
 
+  describe "filters_changed preservation across confirmed item actions" do
+    test "delete item action preserves cleared default filter", %{conn: conn} do
+      # Insert without tags to avoid the posts_tags FK preventing the delete.
+      insert(:post, title: "Published Post", published: true, tags: [])
+      draft_to_keep = insert(:post, title: "Draft to Keep", published: false, tags: [])
+      draft_to_delete = insert(:post, title: "Draft to Delete", published: false, tags: [])
+
+      session =
+        conn
+        |> visit(~p"/admin/posts")
+        |> assert_has("table tbody tr", count: 1)
+        |> assert_has("td", text: "Published Post")
+        |> refute_has("td", text: "Draft to Keep")
+        |> unwrap(fn view ->
+          view
+          |> element("button[phx-click='clear-filter'][phx-value-field='published'][aria-label]")
+          |> render_click()
+        end)
+        |> assert_has("table tbody tr", count: 3)
+        |> assert_has("td", text: "Draft to Keep")
+        |> unwrap(fn view ->
+          view
+          |> element("button[aria-label='Delete'][phx-value-item-id='#{draft_to_delete.id}']")
+          |> render_click()
+        end)
+        |> unwrap(fn view ->
+          view
+          |> form("#resource-form")
+          |> render_submit()
+        end)
+
+      # After the confirmed delete the form component runs `push_navigate(return_to)`,
+      # which remounts the index. Without the fix the URL would lose `filters_changed`,
+      # so `maybe_redirect_to_default_filters/1` would re-apply `filters[published]=published`
+      # and the remaining draft post would disappear from the table.
+      session
+      |> assert_path(~p"/admin/posts",
+        query_params: %{
+          "filters_changed" => "true",
+          "order_by" => "id",
+          "order_direction" => "asc",
+          "per_page" => "15",
+          "page" => "1"
+        }
+      )
+      |> assert_has("td", text: "Published Post")
+      |> assert_has("td", text: draft_to_keep.title)
+      |> refute_has("td", text: draft_to_delete.title)
+    end
+  end
+
   describe "filter badges" do
     test "shows badge for active category filter", %{conn: conn} do
       category = insert(:category, name: "Technology")

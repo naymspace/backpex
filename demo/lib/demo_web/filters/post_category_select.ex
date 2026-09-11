@@ -5,6 +5,7 @@ defmodule DemoWeb.Filters.PostCategorySelect do
 
   use Backpex.Filters.Select
 
+  alias Backpex.Filters.Select
   alias Demo.Category
   alias Demo.Post
   alias Demo.Repo
@@ -12,10 +13,10 @@ defmodule DemoWeb.Filters.PostCategorySelect do
   @impl Backpex.Filter
   def label, do: "Category"
 
-  @impl Backpex.Filters.Select
+  @impl Select
   def prompt, do: "Select category ..."
 
-  @impl Backpex.Filters.Select
+  @impl Select
   def options(_assigns) do
     query =
       from p in Post,

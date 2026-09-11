@@ -36,7 +36,7 @@ defmodule Backpex.HTML.ItemAction do
           id={:item_action_modal}
           live_resource={@live_resource}
           action_type={:item}
-          {Map.drop(assigns, [:socket, :flash, :fields])}
+          {Map.drop(assigns, [:fields | Backpex.HTML.Resource.lv_reserved_assigns()])}
         />
       </div>
     </Layout.modal>

@@ -1,3 +1,4 @@
+# quokka:skip-module-directive-reordering
 defmodule Backpex.Fields.Select do
   @config_schema [
     options: [
@@ -102,7 +103,14 @@ defmodule Backpex.Fields.Select do
 
     ~H"""
     <div>
-      <.form for={@form} class="relative" phx-change="update-field" phx-submit="update-field" phx-target={@myself}>
+      <.form
+        for={@form}
+        id={"index-form-#{@name}-#{LiveResource.primary_value(@item, @live_resource)}"}
+        class="relative"
+        phx-change="update-field"
+        phx-submit="update-field"
+        phx-target={@myself}
+      >
         <BackpexForm.input
           id={"index-form-input-#{@name}-#{LiveResource.primary_value(@item, @live_resource)}"}
           type="select"

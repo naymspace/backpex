@@ -37,12 +37,12 @@ defmodule Backpex.Filters.MultiSelect do
 
   defmacro __using__(_opts) do
     quote do
+      @behaviour Backpex.Filters.Select
+
       use BackpexWeb, :filter
       use Backpex.Filter
 
       alias Backpex.Filters.MultiSelect, as: MultiSelectFilter
-
-      @behaviour Backpex.Filters.Select
 
       @impl Backpex.Filter
       def type(_assigns), do: {:array, :string}
@@ -108,7 +108,7 @@ defmodule Backpex.Filters.MultiSelect do
       |> assign(:trigger_text, trigger_text)
 
     ~H"""
-    <.dropdown id={"multi-select-#{@form.id}"} class="mt-2 w-full">
+    <.dropdown id={"multi-select-#{@form[@field].id}"} class="mt-2 w-full">
       <:trigger
         aria_label={@trigger_text}
         class={[
