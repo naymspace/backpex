@@ -17,7 +17,7 @@ jobs:
       - uses: erlef/setup-beam@54075bcc5e249e4758d363f27d099f55d843f124 # v1.24.1
         id: beam
         with:
-          otp-version: "28"
+          otp-version: "29.0.6"
           elixir-version: "main"
 
       - name: Setup bun
