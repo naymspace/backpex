@@ -38,6 +38,8 @@ In the above example, we only return the `show` item action. This way we replace
 
 An item action is a module that uses the `Backpex.ItemAction` module. To get started, you can use the `BackpexWeb` module and provide the `:item_action` option. This will import the necessary functions and macros to define an item action.
 
+If the item action needs your application's Gettext backend, components, or verified routes, you can additionally `use MyAppWeb, :html`. Both `use` orders are supported.
+
 In the following example, we define an item action to navigate to the show view of a user.
 
 ```elixir
