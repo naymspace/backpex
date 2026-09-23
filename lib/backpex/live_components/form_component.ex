@@ -18,7 +18,6 @@ defmodule Backpex.FormComponent do
     socket
     |> assign(assigns)
     |> assign_new(:action_type, fn -> nil end)
-    |> assign_new(:continue_label, fn -> nil end)
     |> assign_new(:show_form_errors, fn -> false end)
     |> update_assigns()
     |> assign_form()
@@ -31,7 +30,6 @@ defmodule Backpex.FormComponent do
 
     socket
     |> assign_new(:fields, fn -> action_to_confirm.module.fields() end)
-    |> assign(:save_label, action_to_confirm.module.confirm_label(socket.assigns))
   end
 
   # resource action
@@ -40,7 +38,7 @@ defmodule Backpex.FormComponent do
 
     socket
     |> assign_new(:fields, fn -> resource_action.module.fields() end)
-    |> assign(:save_label, ResourceAction.name(resource_action, :label))
+    |> assign(:form_actions, save: %{label: ResourceAction.name(resource_action, :label)})
     |> maybe_assign_uploads()
   end
 
@@ -61,16 +59,17 @@ defmodule Backpex.FormComponent do
   end
 
   defp apply_action(socket, action) when action in [:edit, :new] do
-    socket
-    |> assign(:save_label, Backpex.__("Save", socket.assigns.live_resource))
-    |> maybe_assign_continue_label()
+    live_resource = socket.assigns.live_resource
+
+    assign(socket, :form_actions, live_resource.form_actions(socket.assigns, default_form_actions(live_resource)))
   end
 
-  defp maybe_assign_continue_label(socket) do
-    case socket.assigns.live_resource.config(:save_and_continue_button?) do
-      true -> assign(socket, :continue_label, Backpex.__("Save & Continue editing", socket.assigns.live_resource))
-      false -> socket
-    end
+  defp default_form_actions(live_resource) do
+    save = [save: %{label: Backpex.__("Save", live_resource)}]
+
+    if live_resource.config(:save_and_continue_button?),
+      do: [{:continue, %{label: Backpex.__("Save & Continue editing", live_resource), soft: true}} | save],
+      else: save
   end
 
   defp assign_form(socket) do
@@ -192,7 +191,7 @@ defmodule Backpex.FormComponent do
       |> drop_readonly_changes(fields, assigns)
       |> drop_unused_changes()
 
-    handle_save(socket, live_action, change, save_type)
+    handle_save(socket, live_action, change, form_action(socket, save_type))
   end
 
   def handle_event("save", %{"action-key" => key}, socket) do
@@ -213,9 +212,16 @@ defmodule Backpex.FormComponent do
     |> noreply()
   end
 
-  defp handle_save(socket, key, params, save_type \\ "save")
+  # Only keys of the rendered form actions count; anything else from the client is ignored.
+  defp form_action(%{assigns: %{form_actions: form_actions}}, save_type) do
+    form_actions |> Keyword.keys() |> Enum.find(&(Atom.to_string(&1) == save_type))
+  end
 
-  defp handle_save(socket, :new, params, save_type) do
+  defp form_action(_socket, _save_type), do: nil
+
+  defp handle_save(socket, key, params, form_action \\ :save)
+
+  defp handle_save(socket, :new, params, form_action) do
     %{assigns: %{live_resource: live_resource, fields: fields, item: item, live_action: live_action} = assigns} = socket
 
     opts = [
@@ -230,7 +236,7 @@ defmodule Backpex.FormComponent do
 
     case Resource.insert(item, params, fields, socket.assigns, live_resource, opts) do
       {:ok, item} ->
-        return_to = return_to_path(save_type, live_resource, socket, socket.assigns, live_action, item)
+        return_to = return_to_path(form_action, live_resource, socket, socket.assigns, live_action, item)
 
         socket
         |> assign(:show_form_errors, false)
@@ -257,7 +263,7 @@ defmodule Backpex.FormComponent do
     end
   end
 
-  defp handle_save(socket, :edit, params, save_type) do
+  defp handle_save(socket, :edit, params, form_action) do
     %{
       live_resource: live_resource,
       item: item,
@@ -277,7 +283,7 @@ defmodule Backpex.FormComponent do
 
     case Resource.update(item, params, fields, socket.assigns, live_resource, opts) do
       {:ok, item} ->
-        return_to = return_to_path(save_type, live_resource, socket, socket.assigns, live_action, item)
+        return_to = return_to_path(form_action, live_resource, socket, socket.assigns, live_action, item)
 
         info_msg =
           Backpex.__(
@@ -304,7 +310,7 @@ defmodule Backpex.FormComponent do
     end
   end
 
-  defp handle_save(socket, :resource_action, params, _save_type) do
+  defp handle_save(socket, :resource_action, params, _form_action) do
     %{
       assigns:
         %{
@@ -426,7 +432,7 @@ defmodule Backpex.FormComponent do
     end)
   end
 
-  defp return_to_path("continue", live_resource, _socket, %{current_url: url}, :new, item) do
+  defp return_to_path(:continue, live_resource, _socket, %{current_url: url}, :new, item) do
     primary_value = LiveResource.primary_value(item, live_resource)
 
     url
@@ -436,16 +442,12 @@ defmodule Backpex.FormComponent do
     |> Kernel.<>("/#{primary_value}/edit")
   end
 
-  defp return_to_path("continue", _live_resource, _socket, %{current_url: url}, :edit, _item) do
+  defp return_to_path(:continue, _live_resource, _socket, %{current_url: url}, :edit, _item) do
     URI.parse(url).path
   end
 
-  defp return_to_path("save", live_resource, socket, assigns, live_action, item) do
-    live_resource.return_to(socket, assigns, live_action, :save, item)
-  end
-
-  defp return_to_path(_save_type, live_resource, socket, assigns, live_action, item) do
-    live_resource.return_to(socket, assigns, live_action, nil, item)
+  defp return_to_path(form_action, live_resource, socket, assigns, live_action, item) do
+    live_resource.return_to(socket, assigns, live_action, form_action, item)
   end
 
   defp put_upload_change(change, socket, action) do

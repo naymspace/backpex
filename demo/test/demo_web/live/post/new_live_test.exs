@@ -13,6 +13,8 @@ defmodule DemoWeb.Live.Post.NewLiveTest do
       |> assert_has("label", text: "Title")
       |> assert_has("label", text: "Body")
       |> assert_has("label", text: "Published")
+      |> assert_has("#form-action-continue", text: "Save & Continue editing")
+      |> refute_has("#form-action-show")
     end
 
     test "creates post with title and body", %{conn: conn} do
