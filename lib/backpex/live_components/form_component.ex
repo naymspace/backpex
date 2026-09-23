@@ -330,7 +330,7 @@ defmodule Backpex.FormComponent do
 
       socket
       |> assign(:show_form_errors, false)
-      |> push_navigate(to: return_to)
+      |> maybe_navigate(return_to)
       |> noreply()
     else
       {:error, changeset} ->
@@ -392,7 +392,7 @@ defmodule Backpex.FormComponent do
       |> assign(:show_form_errors, false)
       |> assign(:selected_items, [])
       |> assign(:select_all, false)
-      |> push_navigate(to: return_to)
+      |> maybe_navigate(return_to)
       |> noreply()
     else
       {:error, changeset} ->
@@ -414,6 +414,11 @@ defmodule Backpex.FormComponent do
         """
     end
   end
+
+  # A handler that navigated itself decides where the user lands; navigating
+  # again would crash the socket with "socket already prepared to redirect".
+  defp maybe_navigate(%{redirected: nil} = socket, path), do: push_navigate(socket, to: path)
+  defp maybe_navigate(socket, _path), do: socket
 
   defp drop_readonly_changes(change, fields, assigns) do
     Field.drop_readonly_changes(change, fields, assigns)
