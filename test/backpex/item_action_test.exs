@@ -1,7 +1,9 @@
 defmodule Backpex.ItemActionTest do
-  use ExUnit.Case, async: true
+  # Unloads a module, so it must not run alongside tests that use it.
+  use ExUnit.Case, async: false
 
   alias Backpex.ItemAction
+  alias Backpex.ItemActions.Delete
   alias Backpex.Test.LiveResources.AllowAll
   alias Backpex.Test.LiveResources.NoAdmins
   alias Phoenix.LiveView.Socket
@@ -189,6 +191,17 @@ defmodule Backpex.ItemActionTest do
       assert_raise ArgumentError, ~r/Invalid return value/, fn ->
         ItemAction.handle_item_action(socket, %{module: BadReturnAction}, :delete, [%{id: 1}], &after_handle/1)
       end
+    end
+  end
+
+  describe "has_confirm_modal?/1" do
+    test "detects confirm/1 on a module that is not loaded yet" do
+      :code.purge(Delete)
+      :code.delete(Delete)
+      :code.purge(Delete)
+      refute :code.is_loaded(Delete)
+
+      assert ItemAction.has_confirm_modal?(%{module: Delete})
     end
   end
 end
