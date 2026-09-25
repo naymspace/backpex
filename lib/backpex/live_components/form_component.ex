@@ -7,6 +7,7 @@ defmodule Backpex.FormComponent do
 
   alias Backpex.Authorization
   alias Backpex.Field
+  alias Backpex.Fields.Upload
   alias Backpex.ItemAction
   alias Backpex.LiveResource
   alias Backpex.Resource
@@ -149,33 +150,27 @@ defmodule Backpex.FormComponent do
   end
 
   def handle_event("cancel-existing-entry", %{"ref" => file_key, "id" => upload_key}, socket) do
-    upload_key = String.to_existing_atom(upload_key)
+    %{assigns: assigns} = socket
 
-    field =
-      socket.assigns.fields
-      |> Enum.find(fn {_name, field_options} ->
-        Map.has_key?(field_options, :upload_key) and Map.get(field_options, :upload_key) == upload_key
-      end)
+    # Both params are client-controlled and `file_key` ends up in the user's `remove_uploads/3`,
+    # which typically deletes it from disk. Only a file the item currently has, on an upload field
+    # the user may edit, may be marked as removed. Anything else is a no-op.
+    with {_name, %{upload_key: upload_key} = field_options} = field <- find_upload_field(assigns.fields, upload_key),
+         false <- Field.readonly?(field_options, assigns),
+         removed_files = Keyword.get(assigns.removed_uploads, upload_key, []),
+         true <- file_key in Upload.list_existing_files(field, assigns.item, removed_files) do
+      removed_uploads = Keyword.put(assigns.removed_uploads, upload_key, [file_key | removed_files])
+      files = Upload.existing_file_paths(field, assigns.item, [file_key | removed_files])
+      uploaded_files = Keyword.put(assigns.uploaded_files, upload_key, files)
 
-    removed_uploads =
-      socket.assigns
-      |> Map.get(:removed_uploads, [])
-      |> Keyword.update(upload_key, [file_key], fn existing -> [file_key | existing] end)
-
-    files =
-      Backpex.Fields.Upload.existing_file_paths(
-        field,
-        socket.assigns.item,
-        Keyword.get(removed_uploads, upload_key, [])
-      )
-
-    uploaded_files = Keyword.put(socket.assigns[:uploaded_files], upload_key, files)
-
-    socket
-    |> assign(:removed_uploads, removed_uploads)
-    |> assign(:uploaded_files, uploaded_files)
-    |> push_event("cancel-existing-entry:#{upload_key}", %{})
-    |> noreply()
+      socket
+      |> assign(:removed_uploads, removed_uploads)
+      |> assign(:uploaded_files, uploaded_files)
+      |> push_event("cancel-existing-entry:#{upload_key}", %{})
+      |> noreply()
+    else
+      _invalid -> noreply(socket)
+    end
   end
 
   # The action to run is taken from `action_to_confirm`, which the view assigned when the modal was
@@ -444,6 +439,17 @@ defmodule Backpex.FormComponent do
   # again would crash the socket with "socket already prepared to redirect".
   defp maybe_navigate(%{redirected: nil} = socket, path), do: push_navigate(socket, to: path)
   defp maybe_navigate(socket, _path), do: socket
+
+  # Matches binaries rather than using `String.to_existing_atom/1`, so an unknown key is a plain miss
+  # instead of an `ArgumentError`.
+  defp find_upload_field(fields, upload_key) when is_binary(upload_key) do
+    Enum.find(fields, fn
+      {_name, %{upload_key: key}} when is_atom(key) -> Atom.to_string(key) == upload_key
+      _field -> false
+    end)
+  end
+
+  defp find_upload_field(_fields, _upload_key), do: nil
 
   defp drop_readonly_changes(change, fields, assigns) do
     Field.drop_readonly_changes(change, fields, assigns)
