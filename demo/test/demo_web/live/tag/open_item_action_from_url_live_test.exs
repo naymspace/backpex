@@ -16,7 +16,7 @@ defmodule DemoWeb.Live.Tag.OpenItemActionFromUrlLiveTest do
         |> form("#resource-form", change: %{name: "Elixir Copy"})
         |> render_submit()
       end)
-      |> assert_has("td", text: "Elixir Copy", exact: true)
+      |> assert_has("dd", text: "Elixir Copy", exact: true)
     end
 
     test "ignores an unknown action", %{conn: conn} do
