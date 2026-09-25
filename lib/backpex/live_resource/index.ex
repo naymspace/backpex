@@ -73,20 +73,13 @@ defmodule Backpex.LiveResource.Index do
   end
 
   def handle_info({"backpex:deleted", item}, socket) do
-    %{items: items, live_resource: live_resource} = socket.assigns
-
-    primary_value = LiveResource.primary_value(item, live_resource)
-
-    socket =
-      case find_item_by_primary_value(items, primary_value, live_resource) do
-        nil -> socket
-        _item -> refresh_items(socket)
-      end
+    primary_value = LiveResource.primary_value(item, socket.assigns.live_resource)
 
     # Drop the row from the selection whether or not it was on this page: a deleted item left in
     # `selected_items` inflates the confirm dialog's count and then raises `Backpex.NoResultsError`
     # at the execution gate.
     socket
+    |> refresh_items_after_removal(primary_value)
     |> drop_selected_item(primary_value)
     |> noreply()
   end
@@ -470,7 +463,7 @@ defmodule Backpex.LiveResource.Index do
         # deletion rather than putting `nil` into `items` or `selected_items`, where it would reach
         # the user's `can?/3` on the next render.
         socket
-        |> refresh_items()
+        |> refresh_items_after_removal(primary_value)
         |> drop_selected_item(primary_value)
 
       {:ok, updated_item} ->
@@ -479,6 +472,24 @@ defmodule Backpex.LiveResource.Index do
         socket
         |> assign(:items, replace.(socket.assigns.items))
         |> assign(:selected_items, replace.(socket.assigns.selected_items))
+    end
+  end
+
+  # A row on this page always needs a refresh. For any other row, a broadcast cannot tell whether
+  # the record was ever in this view's scope: with a scoped item query most of them never were, and
+  # a full refresh for each would re-run the list and metrics queries for nothing. Recount instead,
+  # and refresh only when the count moved — the row was on another page, so the total, the metrics
+  # and possibly the rows on this page have shifted.
+  defp refresh_items_after_removal(socket, primary_value) do
+    %{items: items, live_resource: live_resource, item_count: item_count} = socket.assigns
+
+    if find_item_by_primary_value(items, primary_value, live_resource) do
+      refresh_items(socket)
+    else
+      case count_items(socket) do
+        ^item_count -> socket
+        new_count -> refresh_items(socket, new_count)
+      end
     end
   end
 
@@ -791,8 +802,8 @@ defmodule Backpex.LiveResource.Index do
     LiveView.push_navigate(socket, to: to)
   end
 
-  defp refresh_items(socket) do
-    %{live_resource: live_resource, params: params, query_options: query_options, fields: fields} = socket.assigns
+  defp count_items(socket) do
+    %{live_resource: live_resource, params: params, fields: fields} = socket.assigns
 
     schema = live_resource.adapter_config(:schema)
     filters = LiveResource.active_filters(socket.assigns)
@@ -807,6 +818,12 @@ defmodule Backpex.LiveResource.Index do
     ]
 
     {:ok, item_count} = Resource.count(count_criteria, fields, socket.assigns, live_resource)
+    item_count
+  end
+
+  defp refresh_items(socket, item_count \\ nil) do
+    item_count = item_count || count_items(socket)
+    %{query_options: query_options} = socket.assigns
     %{page: page, per_page: per_page} = query_options
     total_pages = LiveResource.calculate_total_pages(item_count, per_page)
     new_query_options = Map.put(query_options, :page, PaginationValidation.clamp_page(page, total_pages))

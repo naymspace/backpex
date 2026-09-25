@@ -273,6 +273,67 @@ defmodule DemoWeb.Live.AuthorizationEnforcementTest do
                "button[phx-value-action-key='user_soft_delete'][title='Select at least one item to use this action.']"
              )
     end
+
+    test "an out-of-scope update for a row this page never showed does not reload the list", %{
+      user: user,
+      view: view
+    } do
+      out_of_scope = insert(:user, %{deleted_at: DateTime.utc_now(:second)})
+      # Changed without a broadcast, so the new name only shows up if the view re-runs its list query.
+      user |> Ecto.Changeset.change(username: "renamed_unannounced") |> Repo.update!()
+
+      send(view.pid, {"backpex:updated", out_of_scope})
+      html = render(view)
+
+      refute html =~ "renamed_unannounced"
+      assert html =~ user.username
+    end
+  end
+
+  defp row_count(html) do
+    html
+    |> LazyHTML.from_document()
+    |> LazyHTML.query("table tbody tr")
+    |> Enum.count()
+  end
+
+  describe "a row on another page that goes away" do
+    # Users show 15 per page, so page 2 holds the last 5 of these. Once one of the first 15 is
+    # gone, page 2 must shrink to 4 rows.
+    setup %{conn: conn} do
+      users = insert_list(20, :user)
+
+      {:ok, view, html} = live(conn, ~p"/admin/users?page=2")
+      assert html =~ "(20 total)"
+      assert row_count(html) == 5
+
+      off_page_user = Enum.find(users, &(not (html =~ "select-input-#{&1.id}")))
+
+      %{view: view, off_page_user: off_page_user}
+    end
+
+    test "updates the total and shifts the rows when it leaves the item query's scope", %{
+      view: view,
+      off_page_user: off_page_user
+    } do
+      off_page_user |> Ecto.Changeset.change(deleted_at: DateTime.utc_now(:second)) |> Repo.update!()
+
+      send(view.pid, {"backpex:updated", off_page_user})
+      html = render(view)
+
+      assert html =~ "(19 total)"
+      assert row_count(html) == 4
+    end
+
+    test "updates the total and shifts the rows when it is deleted", %{view: view, off_page_user: off_page_user} do
+      Repo.delete!(off_page_user)
+
+      send(view.pid, {"backpex:deleted", off_page_user})
+      html = render(view)
+
+      assert html =~ "(19 total)"
+      assert row_count(html) == 4
+    end
   end
 
   describe "the selection is re-read before the submit gate" do
