@@ -54,11 +54,25 @@ defmodule Backpex.Authorization do
 
   Pass `nil` as `item` for actions that are not bound to a specific item (`:index`, `:new`, resource
   actions).
+
+  Only `true` allows. `false` and `nil` deny, and any other return value raises an `ArgumentError`:
+  a policy result such as `{:error, :unauthorized}` is truthy and must never pass as permission.
   """
   @spec can?(module(), map(), atom(), map() | nil) :: boolean()
   def can?(live_resource, assigns, action, item)
       when is_atom(live_resource) and is_map(assigns) and not is_struct(assigns) and is_atom(action) do
-    live_resource.can?(assigns, action, item)
+    case live_resource.can?(assigns, action, item) do
+      true ->
+        true
+
+      denied when denied in [false, nil] ->
+        false
+
+      other ->
+        raise ArgumentError,
+              "expected #{inspect(live_resource)}.can?/3 to return a boolean for #{inspect(action)}, " <>
+                "got: #{inspect(other)}"
+    end
   end
 
   @doc """

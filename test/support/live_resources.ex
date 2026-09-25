@@ -124,6 +124,15 @@ defmodule Backpex.Test.LiveResources do
     def pubsub, do: [server: PubSub, topic: "backpex_test"]
   end
 
+  defmodule ReturnsAssigned do
+    @moduledoc "Returns `assigns.can_result` as is, so tests can hand the gates a non-boolean answer."
+    def config(:adapter), do: StubAdapter
+    def config(:primary_key), do: :id
+    def fields, do: []
+    def can?(assigns, _action, _item), do: assigns.can_result
+    def pubsub, do: [server: PubSub, topic: "backpex_test"]
+  end
+
   defmodule Recording do
     @moduledoc "Authorizes everything and reports each check as `{:can?, action, item}`."
     def config(:adapter), do: StubAdapter

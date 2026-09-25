@@ -191,6 +191,9 @@ defmodule Backpex.LiveResource do
 
   Read operations (`:index`, `:show`) are enforced in the view layer only. `Backpex.Resource.list/4`,
   `Backpex.Resource.get/4` and `Backpex.Resource.count/4` do not call this callback.
+
+  Return a boolean. Only `true` allows; `false` and `nil` deny, and any other value raises an
+  `ArgumentError` instead of passing as truthy.
   """
   @callback can?(assigns :: map(), action :: atom(), item :: map() | nil) :: boolean()
 

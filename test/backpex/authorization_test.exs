@@ -6,6 +6,7 @@ defmodule Backpex.AuthorizationTest do
   alias Backpex.Test.LiveResources.DenyAll
   alias Backpex.Test.LiveResources.KeyAware
   alias Backpex.Test.LiveResources.Recording
+  alias Backpex.Test.LiveResources.ReturnsAssigned
   alias Phoenix.LiveView.Socket
 
   @assigns %{live_resource: AllowAll}
@@ -26,6 +27,20 @@ defmodule Backpex.AuthorizationTest do
     test "supports a nil item" do
       refute Authorization.can?(KeyAware, @assigns, :new, nil)
       assert Authorization.can?(KeyAware, @assigns, :edit, nil)
+    end
+
+    test "treats nil as a denial" do
+      refute Authorization.can?(ReturnsAssigned, %{can_result: nil}, :edit, %{id: 1})
+    end
+
+    test "raises on any other non-boolean instead of treating it as truthy" do
+      # A policy library answering `{:error, :unauthorized}` is truthy. Letting it through would turn
+      # every gate into an allow.
+      for result <- [{:error, :unauthorized}, :ok, %{}] do
+        assert_raise ArgumentError, ~r/to return a boolean for :edit/, fn ->
+          Authorization.can?(ReturnsAssigned, %{can_result: result}, :edit, %{id: 1})
+        end
+      end
     end
 
     test "refuses a socket where assigns are expected" do
@@ -66,6 +81,12 @@ defmodule Backpex.AuthorizationTest do
 
     test "does not treat a nil item as a missing record" do
       assert :ok = Authorization.authorize!(AllowAll, @assigns, :new, nil)
+    end
+
+    test "never lets a truthy non-boolean pass the gate" do
+      assert_raise ArgumentError, fn ->
+        Authorization.authorize!(ReturnsAssigned, %{can_result: {:error, :unauthorized}}, :edit, %{id: 1})
+      end
     end
   end
 
