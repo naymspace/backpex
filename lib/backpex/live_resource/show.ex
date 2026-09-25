@@ -21,8 +21,10 @@ defmodule Backpex.LiveResource.Show do
     |> ok()
   end
 
-  def handle_params(_params, _url, socket) do
-    noreply(socket)
+  def handle_params(params, _url, socket) do
+    socket
+    |> maybe_open_item_action(params["item_action"])
+    |> noreply()
   end
 
   def handle_info({"backpex:updated", _item}, socket) do
@@ -79,11 +81,35 @@ defmodule Backpex.LiveResource.Show do
     item = socket.assigns.item
 
     if Backpex.ItemAction.has_confirm_modal?(action) do
-      open_action_confirm_modal(socket, action, key)
+      socket
+      |> open_action_confirm_modal(action, key)
+      |> noreply()
     else
       handle_item_action(socket, action, key, item)
     end
   end
+
+  # `?item_action=<key>` opens the confirmation dialog of an item action, so a link (for
+  # example from a notification or another form) can lead straight to it. Only actions
+  # shown on this view, allowed for the item and asking for confirmation qualify —
+  # visiting a URL must never run an action by itself.
+  defp maybe_open_item_action(%{assigns: %{action_to_confirm: %{}}} = socket, _key), do: socket
+
+  defp maybe_open_item_action(socket, key) when is_binary(key) do
+    %{item_actions: item_actions, item: item, live_resource: live_resource} = socket.assigns
+    show_actions = Backpex.HTML.Resource.filter_item_actions(item_actions, :show)
+
+    with {action_key, action} <-
+           Enum.find(show_actions, fn {action_key, _action} -> Atom.to_string(action_key) == key end),
+         true <- Backpex.ItemAction.has_confirm_modal?(action),
+         true <- live_resource.can?(socket.assigns, action_key, item) do
+      open_action_confirm_modal(socket, action, action_key)
+    else
+      _not_openable -> socket
+    end
+  end
+
+  defp maybe_open_item_action(socket, _key), do: socket
 
   defp open_action_confirm_modal(socket, action, key) do
     %{item: item, live_resource: live_resource, params: params} = socket.assigns
@@ -94,7 +120,6 @@ defmodule Backpex.LiveResource.Show do
     |> Backpex.ItemAction.assign_action_changeset(action)
     |> assign(:return_to, return_to(socket, index_path))
     |> assign(:action_to_confirm, Map.put(action, :key, key))
-    |> noreply()
   end
 
   defp handle_item_action(socket, action, key, item) do

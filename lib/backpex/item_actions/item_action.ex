@@ -221,7 +221,7 @@ defmodule Backpex.ItemAction do
   def has_confirm_modal?(item_action) do
     module = Map.fetch!(item_action, :module)
 
-    function_exported?(module, :confirm, 1)
+    Code.ensure_loaded?(module) and function_exported?(module, :confirm, 1)
   end
 
   @doc """

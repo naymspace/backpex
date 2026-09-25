@@ -108,6 +108,20 @@ By default an item action is triggered immediately when the user clicks on the c
 
 You might want to use the `c:Backpex.ItemAction.cancel_label/1` (defaults to "Cancel") and `c:Backpex.ItemAction.confirm_label/1` (defaults to "Apply") functions to set the labels of the buttons in the dialog.
 
+## Opening an Item Action from a Link
+
+A link to the show view can open the confirmation dialog of an item action directly by adding
+the `item_action` query parameter with the key of the action:
+
+```elixir
+~p"/admin/users/#{user}/show?item_action=soft_delete"
+```
+
+This is useful to lead from a notification, an email or another form straight to an action.
+The dialog only opens for actions that are shown on the show view, allowed by
+`c:Backpex.LiveResource.can?/3` for the item and have a confirmation dialog — visiting a URL
+never runs an action by itself. Unknown or unavailable keys are ignored.
+
 ## Navigation After an Item Action
 
 After an item action with a confirmation dialog or a form, Backpex navigates to the index view
