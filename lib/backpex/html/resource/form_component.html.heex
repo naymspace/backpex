@@ -66,23 +66,19 @@
             </button>
           </.link>
           <button
-            :if={@continue_label}
+            :for={{key, action} <- @form_actions}
+            id={"form-action-#{key}"}
             type="submit"
             name="save-type"
-            value="continue"
-            class={["btn btn-soft", if(form_errors?(@show_form_errors, f), do: "btn-error", else: "btn-primary")]}
-            phx-disable-with={@continue_label <> "..."}
+            value={key}
+            class={[
+              "btn",
+              action[:soft] && "btn-soft",
+              if(form_errors?(@show_form_errors, f), do: "btn-error", else: "btn-primary")
+            ]}
+            phx-disable-with={action.label <> "..."}
           >
-            {@continue_label}
-          </button>
-          <button
-            type="submit"
-            name="save-type"
-            value="save"
-            class={["btn", if(form_errors?(@show_form_errors, f), do: "btn-error", else: "btn-primary")]}
-            phx-disable-with={@save_label <> "..."}
-          >
-            {@save_label}
+            {action.label}
           </button>
         <% end %>
       </:actions>

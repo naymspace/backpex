@@ -31,6 +31,22 @@ defmodule DemoWeb.Live.Post.EditLiveTest do
       |> assert_has("p", text: "New Title", exact: true)
     end
 
+    test "a custom form action saves and leads where return_to says", %{conn: conn} do
+      post = insert(:post, %{title: "Old Title"})
+
+      conn
+      |> visit(~p"/admin/posts/#{post.id}/edit")
+      |> assert_has("#form-action-show", text: "Save & Show")
+      |> unwrap(fn view ->
+        view
+        |> form("#resource-form", change: %{title: "New Title"})
+        |> put_submitter("button[value=show]")
+        |> render_submit()
+      end)
+      |> assert_path(~p"/admin/posts/#{post.id}/show")
+      |> assert_has("dd", text: "New Title")
+    end
+
     test "editing with invalid data shows error", %{conn: conn} do
       post = insert(:post, %{title: "Original Title"})
 

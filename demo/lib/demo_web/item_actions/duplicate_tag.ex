@@ -63,8 +63,12 @@ defmodule DemoWeb.ItemActions.DuplicateTag do
 
     socket =
       case result do
-        {:ok, _created} ->
-          put_flash(socket, :info, "Item has been duplicated.")
+        {:ok, created} ->
+          %{live_resource: live_resource, params: params} = socket.assigns
+
+          socket
+          |> put_flash(:info, "Item has been duplicated.")
+          |> push_navigate(to: Router.get_path(socket, live_resource, params, :show, created))
 
         _error ->
           put_flash(socket, :error, "Error while duplicating item.")

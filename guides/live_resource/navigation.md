@@ -36,6 +36,35 @@ When working with forms (in `:new` or  `:edit` live actions), the following form
 
 For all other live actions, the form_action will be `nil`.
 
+## Custom Form Actions
+
+The buttons of the `:new` and `:edit` forms come from the
+[form_actions/2](Backpex.LiveResource.html#c:form_actions/2) callback. It receives the assigns,
+including the item being edited, and the default actions (`:save` and, with
+`save_and_continue_button?: true`, `:continue`). Each action is a map with a `:label` and an
+optional `soft: true` for a less prominent button.
+
+Every action saves the form. The key of the clicked button arrives as `form_action` in
+`return_to/5`, so a button can decide where the user goes next:
+
+```elixir
+# in your resource configuration file
+@impl Backpex.LiveResource
+def form_actions(%{live_action: :edit}, default_actions) do
+  [{:show, %{label: "Save & Show", soft: true}} | default_actions]
+end
+
+def form_actions(_assigns, default_actions), do: default_actions
+
+@impl Backpex.LiveResource
+def return_to(socket, assigns, :edit, :show, item) do
+  Router.get_path(socket, assigns.live_resource, assigns.params, :show, item)
+end
+```
+
+Clauses of `return_to/5` you do not define fall back to the default destination. `:continue`
+keeps its built-in behavior and stays on the form.
+
 ## Overriding the destination per link (`return_to`)
 
 Sometimes the destination depends on where the user came from rather than on the
