@@ -108,6 +108,25 @@ By default an item action is triggered immediately when the user clicks on the c
 
 You might want to use the `c:Backpex.ItemAction.cancel_label/1` (defaults to "Cancel") and `c:Backpex.ItemAction.confirm_label/1` (defaults to "Apply") functions to set the labels of the buttons in the dialog.
 
+## Navigation After an Item Action
+
+After an item action with a confirmation dialog or a form, Backpex navigates to the index view
+(or to the path given in a `?return_to=` query parameter). If your `c:Backpex.ItemAction.handle/3`
+navigates itself, for example to the show view of a record the action created, Backpex keeps that
+navigation instead:
+
+```elixir
+@impl Backpex.ItemAction
+def handle(socket, _items, data) do
+  {:ok, copy} = MyApp.Tags.duplicate(data)
+  path = Router.get_path(socket, socket.assigns.live_resource, socket.assigns.params, :show, copy)
+
+  {:ok, Phoenix.LiveView.push_navigate(socket, to: path)}
+end
+```
+
+The same applies to resource actions.
+
 ## Item Actions with Forms
 
 If you want to create an item action that requires user input, you can define a form for the item action. This is done by implementing the `c:Backpex.ItemAction.fields/0` callback.

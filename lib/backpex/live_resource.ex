@@ -261,6 +261,32 @@ defmodule Backpex.LiveResource do
               Socket.t()
 
   @doc """
+  The submit buttons of the `:new` and `:edit` forms.
+
+  Receives the assigns (including the `item` being edited) and the default actions — `:save` and,
+  if `save_and_continue_button?` is enabled, `:continue` — and returns a keyword list of actions.
+  Each action is a map with a `:label` and an optional `:soft` flag for a less prominent button.
+  The buttons render in the given order.
+
+  Every action saves the form. The key of the clicked button is passed as `form_action` to
+  `c:return_to/5`, so each button can lead somewhere else. `:continue` keeps its built-in
+  behavior and stays on the form.
+
+  ## Example
+
+      @impl Backpex.LiveResource
+      def form_actions(%{item: %{status: :draft}}, _default_actions) do
+        [
+          save: %{label: "Save as draft", soft: true},
+          publish: %{label: "Publish…"}
+        ]
+      end
+
+      def form_actions(_assigns, default_actions), do: default_actions
+  """
+  @callback form_actions(assigns :: map(), default_actions :: keyword()) :: keyword()
+
+  @doc """
   This function navigates to the specified path when an item has been created or updated. Defaults to the previous resource path (index or show).
   """
   @callback return_to(
@@ -368,6 +394,9 @@ defmodule Backpex.LiveResource do
       @impl Backpex.LiveResource
       def item_actions(default_actions), do: default_actions
 
+      @impl Backpex.LiveResource
+      def form_actions(_assigns, default_actions), do: default_actions
+
       defoverridable can?: 3,
                      fields: 0,
                      filters: 0,
@@ -375,6 +404,7 @@ defmodule Backpex.LiveResource do
                      layout: 1,
                      resource_actions: 0,
                      item_actions: 1,
+                     form_actions: 2,
                      index_row_class: 4
 
       live_resource = __MODULE__

@@ -15,7 +15,7 @@ defmodule Demo.User do
     field :full_name, :string, virtual: true
     field :age, :integer
     field :role, Ecto.Enum, values: [:user, :admin]
-    field :permissions, {:array, :string}
+    field :permissions, {:array, :string}, default: []
     field :avatar, :string
     field :deleted_at, :utc_datetime
 

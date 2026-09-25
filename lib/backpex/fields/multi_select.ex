@@ -158,10 +158,11 @@ defmodule Backpex.Fields.MultiSelect do
     <div id={@name}>
       <Layout.field_container>
         <:label :if={not @hide_label} align={Backpex.Field.align_label(@field_options, assigns)}>
-          <Layout.input_label as="span" text={@field_options[:label]} />
+          <Layout.input_label id={"#{@form[@name].id}-label"} as="span" text={@field_options[:label]} />
         </:label>
         <Form.multi_select
           field={@form[@name]}
+          readonly={@readonly}
           prompt={@prompt}
           not_found_text={@not_found_text}
           options={@options}
@@ -174,7 +175,7 @@ defmodule Backpex.Fields.MultiSelect do
           search_event="search"
           live_resource={@live_resource}
           help_text={Backpex.Field.help_text(@field_options, assigns)}
-          aria_labelledby={Map.get(assigns, :aria_labelledby)}
+          aria_labelledby={Map.get(assigns, :aria_labelledby) || "#{@form[@name].id}-label"}
         />
       </Layout.field_container>
     </div>
