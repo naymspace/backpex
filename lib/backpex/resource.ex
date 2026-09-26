@@ -6,7 +6,43 @@ defmodule Backpex.Resource do
   >
   > This module is still under heavy development and will change as we progress with the `Backpex.Adapter`
   > implementation in the coming releases. Keep this in mind when using this module directly.
+
+  ## Authorization
+
+  All mutations in this module are authorized through `Backpex.Authorization` before anything else
+  happens — before the changeset is built and before `c:Backpex.Field.before_changeset/6` runs. An
+  unauthorized call raises `Backpex.ForbiddenError` and never reaches the adapter.
+
+  Each mutation has a default authorization action:
+
+  | function | action | item passed to `c:Backpex.LiveResource.can?/3` |
+  | --- | --- | --- |
+  | `insert/6` | `:new` | `nil` |
+  | `update/6` | `:edit` | the item |
+  | `update_all/5` | `:edit` | each item |
+  | `delete_all/4` | `:delete` | each item |
+
+  Two options control this on every mutation:
+
+  * `:authorization_action` (atom) — authorize against this action instead of the default. It must
+    be a non-nil atom; anything else raises `ArgumentError` rather than being handed to a
+    permissive catch-all `can?/3` clause.
+  * `:authorize?` (boolean, default `true`) — set to `false` to skip the check entirely. This is the
+    escape hatch for system or cascade writes that are not a user-initiated action on that resource,
+    for example nullifying foreign keys on another resource.
+
+  Both options are consumed here and never reach `change/6`.
+
+  For lists (`update_all/5`, `delete_all/4`) the check is strict: a single unauthorized item makes
+  the whole call raise. A `nil` entry (a stale or forged item id) raises `Backpex.NoResultsError`.
+  An empty list passes without calling the adapter's authorization.
+
+  Reads (`list/4`, `get/4`, `get!/4`, `count/4`) are **not** authorized here. `:index` and `:show`
+  remain enforced in the view layer — filtering rows after pagination would corrupt counts and
+  select-all.
   """
+
+  alias Backpex.Authorization
 
   @doc """
   Returns a list of items by given criteria.
@@ -64,15 +100,62 @@ defmodule Backpex.Resource do
   end
 
   @doc """
+  Re-reads a list of items from the data layer, keeping the order of the given list.
+
+  Each item is fetched by its primary value through `get/4`, so the LiveResource's
+  [`item_query/3`](item-query.html) applies. An item that no longer exists — or that has left the
+  query's scope — comes back as `nil` instead of being dropped, which keeps the result positionally
+  aligned with the input and lets `Backpex.Authorization.authorize_all!/4` turn it into a
+  `Backpex.NoResultsError`. A `nil` in the input stays `nil`.
+
+  This is what makes the item action execution gates authorize the *current* record rather than the
+  snapshot that was cached when the row was selected. See `Backpex.ItemAction.authorize_fresh!/3`.
+
+  Like every other read in this module, this is **not** authorized.
+
+  ## Parameters
+
+  * `items` (list): The items to re-read.
+  * `fields` (list): The **resource** fields — they decide which associations are preloaded. Do not
+    pass an item action's form fields here.
+  * `assigns` (map): The current assigns of the socket.
+  * `live_resource` (module): The `Backpex.LiveResource` module.
+  """
+  def reload(items, fields, assigns, live_resource) when is_list(items) do
+    Enum.map(items, fn
+      nil ->
+        nil
+
+      item ->
+        primary_value = Backpex.LiveResource.primary_value(item, live_resource)
+
+        case get(primary_value, fields, assigns, live_resource) do
+          {:ok, reloaded_item} -> reloaded_item
+          {:error, _error} -> nil
+        end
+    end)
+  end
+
+  @doc """
   Deletes multiple items.
   Additionally broadcasts the corresponding event for each deleted item.
+
+  Authorizes `:delete` for every item before touching the adapter. See the "Authorization" section
+  in the module documentation.
 
   ## Parameters
 
   * `items` (list): A list of structs, each representing an entity to be deleted. The list must contain items that have an `id` field.
+  * `assigns` (map): The current assigns of the socket. Passed to `c:Backpex.LiveResource.can?/3`.
   * `live_resource` (module): The `Backpex.LiveResource` module.
+  * `opts` (keyword list): A list of options:
+    * `:authorization_action` (optional, default `:delete`): The action to authorize against.
+    * `:authorize?` (optional, default `true`): Set to `false` to skip authorization.
   """
-  def delete_all(items, live_resource) do
+  def delete_all(items, assigns, live_resource, opts \\ [])
+      when is_list(items) and is_map(assigns) and not is_struct(assigns) and is_atom(live_resource) do
+    _opts = authorize_items!(items, assigns, live_resource, opts, :delete)
+
     adapter = live_resource.config(:adapter)
 
     adapter.delete_all(items, live_resource)
@@ -86,26 +169,50 @@ defmodule Backpex.Resource do
   @doc """
   Inserts a new item into a repository with specific parameters and options. It takes a repo module, a changeset function, an item, parameters for the changeset function, and additional options.
 
+  Authorizes `:new` with a `nil` item before the changeset is built. See the "Authorization" section
+  in the module documentation.
+
   ## Parameters
 
   * `item` (struct): The Ecto schema struct.
   * `attrs` (map): A map of parameters that will be passed to the `changeset_function`.
-  * TODO: docs
+  * `fields` (list): The fields for this insert.
+  * `assigns` (map): The current assigns of the socket. Passed to `c:Backpex.LiveResource.can?/3` and to the changeset function.
+  * `live_resource` (module): The `Backpex.LiveResource` module.
+  * `opts` (keyword list): A list of options:
+    * `:authorization_action` (optional, default `:new`): The action to authorize against.
+    * `:authorize?` (optional, default `true`): Set to `false` to skip authorization.
+    * `:after_save_fun` (optional): A function called with the inserted item, returning `{:ok, item}`.
+    * All remaining options are passed to `change/6`.
   """
-  def insert(item, attrs, fields, assigns, live_resource, opts) do
+  def insert(item, attrs, fields, assigns, live_resource, opts \\ []) do
+    opts = authorize_item!(nil, assigns, live_resource, opts, :new)
+
     persist_item(item, attrs, fields, assigns, live_resource, opts, :insert, "created")
   end
 
   @doc """
   Handles the update of an existing item with specific parameters and options. It takes a repo module, a changeset function, an item, parameters for the changeset function, and additional options.
 
+  Authorizes `:edit` with the given item before the changeset is built. See the "Authorization"
+  section in the module documentation.
+
   ## Parameters
 
   * `item` (struct): The Ecto schema struct.
   * `attrs` (map): A map of parameters that will be passed to the `changeset_function`.
-  * TODO: docs
+  * `fields` (list): The fields for this update.
+  * `assigns` (map): The current assigns of the socket. Passed to `c:Backpex.LiveResource.can?/3` and to the changeset function.
+  * `live_resource` (module): The `Backpex.LiveResource` module.
+  * `opts` (keyword list): A list of options:
+    * `:authorization_action` (optional, default `:edit`): The action to authorize against.
+    * `:authorize?` (optional, default `true`): Set to `false` to skip authorization.
+    * `:after_save_fun` (optional): A function called with the updated item, returning `{:ok, item}`.
+    * All remaining options are passed to `change/6`.
   """
   def update(item, attrs, fields, assigns, live_resource, opts \\ []) do
+    opts = authorize_item!(item, assigns, live_resource, opts, :edit)
+
     persist_item(item, attrs, fields, assigns, live_resource, opts, :update, "updated")
   end
 
@@ -127,14 +234,25 @@ defmodule Backpex.Resource do
   Updates multiple items from a given repository and schema.
   Additionally broadcasts the corresponding event, when PubSub config is given.
 
+  Authorizes `:edit` for every item before touching the adapter. See the "Authorization" section in
+  the module documentation.
+
   ## Parameters
 
   * `items` (list): A list of structs, each representing an entity to be updated.
   * `updates` (list): A list of updates passed to Ecto `update_all` function.
-  * `event_name` (string, default: `updated`): The name to be used when broadcasting the event.
+  * `assigns` (map): The current assigns of the socket. Passed to `c:Backpex.LiveResource.can?/3`.
   * `live_resource` (module): The `Backpex.LiveResource` module.
+  * `opts` (keyword list): A list of options:
+    * `:event_name` (optional, default `"updated"`): The name to be used when broadcasting the event.
+    * `:authorization_action` (optional, default `:edit`): The action to authorize against.
+    * `:authorize?` (optional, default `true`): Set to `false` to skip authorization.
   """
-  def update_all(items, updates, event_name \\ "updated", live_resource) do
+  def update_all(items, updates, assigns, live_resource, opts \\ [])
+      when is_list(items) and is_map(assigns) and not is_struct(assigns) and is_atom(live_resource) do
+    opts = authorize_items!(items, assigns, live_resource, opts, :edit)
+
+    event_name = Keyword.get(opts, :event_name, "updated")
     adapter = live_resource.config(:adapter)
 
     case adapter.update_all(items, updates, live_resource) do
@@ -145,6 +263,44 @@ defmodule Backpex.Resource do
       _error ->
         :error
     end
+  end
+
+  # Pops the authorization options and runs the gate for a single item. Returns the remaining opts,
+  # so `:authorization_action` and `:authorize?` never reach `change/6`.
+  defp authorize_item!(item, assigns, live_resource, opts, default_action) do
+    {authorize?, authorization_action, opts} = pop_authorization_opts(opts, default_action)
+
+    if authorize?, do: Authorization.authorize!(live_resource, assigns, authorization_action, item)
+
+    opts
+  end
+
+  # Same as `authorize_item!/5`, but strict over a list of items.
+  defp authorize_items!(items, assigns, live_resource, opts, default_action) do
+    {authorize?, authorization_action, opts} = pop_authorization_opts(opts, default_action)
+
+    if authorize?, do: Authorization.authorize_all!(live_resource, assigns, authorization_action, items)
+
+    opts
+  end
+
+  defp pop_authorization_opts(opts, default_action) do
+    {authorize?, opts} = Keyword.pop(opts, :authorize?, true)
+    {authorization_action, opts} = Keyword.pop(opts, :authorization_action, default_action)
+
+    if !is_boolean(authorize?) do
+      raise ArgumentError, "expected :authorize? to be a boolean, got: #{inspect(authorize?)}"
+    end
+
+    # `Keyword.pop/3` returns an explicitly passed `nil` rather than the default, and `nil` is an
+    # atom — so an unvalidated `authorization_action: nil` would reach `can?(assigns, nil, item)`,
+    # where a permissive catch-all clause silently authorizes the mutation. Refuse it here.
+    if is_nil(authorization_action) or not is_atom(authorization_action) do
+      raise ArgumentError,
+            "expected :authorization_action to be a non-nil atom, got: #{inspect(authorization_action)}"
+    end
+
+    {authorize?, authorization_action, opts}
   end
 
   @doc """
