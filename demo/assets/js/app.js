@@ -13,7 +13,11 @@ import { Hooks as BackpexHooks, backpexParams } from '#backpex'
  */
 const sentryMetaTag = document.querySelector('meta[name="sentry-dsn"]')
 if (sentryMetaTag !== null) {
-  Sentry.init({ dsn: sentryMetaTag.getAttribute('content') })
+  Sentry.init({
+    dsn: sentryMetaTag.getAttribute('content'),
+    // keep the v10 default of not inferring the user's IP address
+    dataCollection: { userInfo: false }
+  })
 }
 
 /**
