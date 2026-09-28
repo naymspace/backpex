@@ -145,7 +145,7 @@ defmodule Backpex.Field do
         ]
       end
   """
-  import Phoenix.Component, only: [assign: 3]
+  import Phoenix.Component, only: [assign: 2, assign: 3]
 
   alias Phoenix.LiveView.Rendered
   alias Phoenix.LiveView.Socket
@@ -164,6 +164,20 @@ defmodule Backpex.Field do
   Used to render form on index to support index editable.
   """
   @callback render_index_form(assigns :: map()) :: %Rendered{}
+
+  @doc """
+  Assigns data to the index forms of all rows at once.
+
+  Receives the sockets of all instances of the field whose index form (`c:render_index_form/1`) is updated together,
+  e.g. one socket per row of the index table, and has to return them in the same order. Use it to load data the index
+  forms need, such as select options, with a constant number of queries instead of one query per row in
+  `c:render_index_form/1`.
+
+  The sockets already contain the assigns of the field, including the ones assigned by
+  `c:Phoenix.LiveComponent.update/2` if the field defines it. Also see the
+  [index edit](/guides/fields/index-edit.md#loading-data-for-all-rows-at-once) guide.
+  """
+  @callback assign_index_forms(sockets :: [Socket.t()]) :: [Socket.t()]
 
   @doc """
   The field to be displayed on index views. In most cases this is the name / key configured in the corresponding field definition.
@@ -222,7 +236,7 @@ defmodule Backpex.Field do
             ) ::
               Ecto.Query.dynamic_expr()
 
-  @optional_callbacks render_index_form: 1
+  @optional_callbacks render_index_form: 1, assign_index_forms: 1
 
   @doc """
   Returns the default config schema.
@@ -267,9 +281,19 @@ defmodule Backpex.Field do
     end
   end
 
-  defmacro __before_compile__(_env) do
+  defmacro __before_compile__(env) do
+    update_many =
+      if Module.defines?(env.module, {:assign_index_forms, 1}) and not Module.defines?(env.module, {:update_many, 1}) do
+        quote do
+          @impl Phoenix.LiveComponent
+          def update_many(assigns_sockets), do: Backpex.Field.update_many(__MODULE__, assigns_sockets)
+        end
+      end
+
     quote generated: true do
       import Ecto.Query
+
+      unquote(update_many)
 
       @impl Phoenix.LiveComponent
       def render(%{type: :index} = assigns) do
@@ -333,6 +357,56 @@ defmodule Backpex.Field do
     do: index_editable.(assigns)
 
   def index_editable_enabled?(_field_options, _assigns, default), do: default
+
+  @doc """
+  Updates all instances of a field at once and passes the sockets of all index forms to `c:assign_index_forms/1`.
+
+  Fields implementing `c:assign_index_forms/1` get a `c:Phoenix.LiveComponent.update_many/1` callback that delegates to
+  this function. It first applies the field's `c:Phoenix.LiveComponent.update/2` callback, if defined, to every socket.
+  Fields defining `c:Phoenix.LiveComponent.update_many/1` themselves have to call this function to keep
+  `c:assign_index_forms/1` working.
+  """
+  def update_many(module, assigns_sockets) do
+    sockets = Enum.map(assigns_sockets, fn {assigns, socket} -> update_socket(module, assigns, socket) end)
+
+    case Enum.filter(sockets, &index_form?/1) do
+      [] -> sockets
+      index_forms -> put_index_forms(sockets, assign_index_forms(module, index_forms))
+    end
+  end
+
+  defp update_socket(module, assigns, socket) do
+    if function_exported?(module, :update, 2) do
+      {:ok, socket} = module.update(assigns, socket)
+      socket
+    else
+      assign(socket, assigns)
+    end
+  end
+
+  defp index_form?(%Socket{assigns: %{type: :index, field_options: field_options} = assigns}),
+    do: index_editable_enabled?(field_options, assigns)
+
+  defp index_form?(_socket), do: false
+
+  defp assign_index_forms(module, index_forms) do
+    updated_index_forms = module.assign_index_forms(index_forms)
+
+    if length(updated_index_forms) != length(index_forms) do
+      raise ArgumentError, "#{inspect(module)}.assign_index_forms/1 must return one socket per given socket"
+    end
+
+    updated_index_forms
+  end
+
+  defp put_index_forms(sockets, index_forms) do
+    {sockets, []} =
+      Enum.map_reduce(sockets, index_forms, fn socket, remaining ->
+        if index_form?(socket), do: {hd(remaining), tl(remaining)}, else: {socket, remaining}
+      end)
+
+    sockets
+  end
 
   @doc """
   Defines placeholder value.

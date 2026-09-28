@@ -117,19 +117,11 @@ defmodule Backpex.Fields.BelongsTo do
 
   @impl Backpex.Field
   def render_form(assigns) do
-    %{
-      field_options: field_options,
-      queryable: queryable,
-      owner_key: owner_key,
-      display_field_form: display_field_form
-    } = assigns
-
-    repo = assigns.live_resource.adapter_config(:repo)
-    options = get_options(repo, queryable, field_options, display_field_form, assigns)
+    %{field_options: field_options, owner_key: owner_key} = assigns
 
     assigns =
       assigns
-      |> assign(:options, options)
+      |> assign(:options, assigns |> options_query() |> load_options())
       |> assign(:owner_key, owner_key)
       |> assign_prompt(field_options)
 
@@ -158,10 +150,18 @@ defmodule Backpex.Fields.BelongsTo do
   end
 
   @impl Backpex.Field
+  def assign_index_forms(sockets) do
+    options_queries = Enum.map(sockets, &options_query(&1.assigns))
+    options_by_query = options_queries |> Enum.uniq() |> Map.new(&{&1, load_options(&1)})
+
+    Enum.zip_with(sockets, options_queries, fn socket, options_query ->
+      assign(socket, :index_form_options, Map.fetch!(options_by_query, options_query))
+    end)
+  end
+
+  @impl Backpex.Field
   def render_index_form(assigns) do
-    %{field_options: field_options, queryable: queryable, display_field_form: display_field_form} = assigns
-    repo = assigns.live_resource.adapter_config(:repo)
-    options = get_options(repo, queryable, field_options, display_field_form, assigns)
+    options = Map.get_lazy(assigns, :index_form_options, fn -> assigns |> options_query() |> load_options() end)
     form = to_form(%{"value" => assigns.value}, as: :index_form)
 
     assigns =
@@ -226,10 +226,19 @@ defmodule Backpex.Fields.BelongsTo do
     Map.get(field_options, :display_field_form, display_field)
   end
 
-  defp get_options(repo, queryable, field_options, display_field, assigns) do
-    queryable
-    |> from()
-    |> maybe_options_query(field_options, assigns)
+  defp options_query(assigns) do
+    %{live_resource: live_resource, queryable: queryable, field_options: field_options} = assigns
+
+    query =
+      queryable
+      |> from()
+      |> maybe_options_query(field_options, assigns)
+
+    {live_resource.adapter_config(:repo), query, assigns.display_field_form}
+  end
+
+  defp load_options({repo, query, display_field}) do
+    query
     |> repo.all()
     |> Enum.map(&{Map.get(&1, display_field), Map.get(&1, :id)})
   end
