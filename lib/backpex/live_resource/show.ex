@@ -4,6 +4,8 @@ defmodule Backpex.LiveResource.Show do
 
   import Phoenix.Component
 
+  alias Backpex.Authorization
+  alias Backpex.ItemAction
   alias Backpex.Resource
   alias Backpex.Router
 
@@ -21,8 +23,10 @@ defmodule Backpex.LiveResource.Show do
     |> ok()
   end
 
-  def handle_params(_params, _url, socket) do
-    noreply(socket)
+  def handle_params(params, _url, socket) do
+    socket
+    |> maybe_open_item_action(params["item_action"])
+    |> noreply()
   end
 
   def handle_info({"backpex:updated", _item}, socket) do
@@ -61,7 +65,7 @@ defmodule Backpex.LiveResource.Show do
     primary_value = URI.decode(backpex_id)
     item = Resource.get!(primary_value, fields, socket.assigns, live_resource)
 
-    if not live_resource.can?(socket.assigns, :show, item), do: raise(Backpex.ForbiddenError)
+    Authorization.authorize!(live_resource, socket.assigns, :show, item)
 
     socket
     |> assign(:item, item)
@@ -69,21 +73,40 @@ defmodule Backpex.LiveResource.Show do
   end
 
   defp assign_item_actions(socket) do
-    item_actions = Backpex.ItemAction.default_actions() |> socket.assigns.live_resource.item_actions()
+    item_actions = ItemAction.default_actions() |> socket.assigns.live_resource.item_actions()
     assign(socket, :item_actions, item_actions)
   end
 
   defp maybe_handle_item_action(socket, key) do
-    key = String.to_existing_atom(key)
-    action = socket.assigns.item_actions[key]
     item = socket.assigns.item
 
-    if Backpex.ItemAction.has_confirm_modal?(action) do
-      open_action_confirm_modal(socket, action, key)
-    else
-      handle_item_action(socket, action, key, item)
+    case ItemAction.resolve_item_action!(socket, key, [item]) do
+      {:confirm, key, action} -> socket |> open_action_confirm_modal(action, key) |> noreply()
+      {:dispatch, key, action} -> handle_item_action(socket, action, key, item)
     end
   end
+
+  # `?item_action=<key>` opens the confirmation dialog of an item action, so a link (for
+  # example from a notification or another form) can lead straight to it. Only actions
+  # shown on this view, allowed for the item and asking for confirmation qualify —
+  # visiting a URL must never run an action by itself.
+  defp maybe_open_item_action(%{assigns: %{action_to_confirm: %{}}} = socket, _key), do: socket
+
+  defp maybe_open_item_action(socket, key) when is_binary(key) do
+    %{item_actions: item_actions, item: item, live_resource: live_resource} = socket.assigns
+    show_actions = Backpex.HTML.Resource.filter_item_actions(item_actions, :show)
+
+    with {action_key, action} <-
+           Enum.find(show_actions, fn {action_key, _action} -> Atom.to_string(action_key) == key end),
+         true <- ItemAction.has_confirm_modal?(action),
+         true <- Authorization.can?(live_resource, socket.assigns, action_key, item) do
+      open_action_confirm_modal(socket, action, action_key)
+    else
+      _not_openable -> socket
+    end
+  end
+
+  defp maybe_open_item_action(socket, _key), do: socket
 
   defp open_action_confirm_modal(socket, action, key) do
     %{item: item, live_resource: live_resource, params: params} = socket.assigns
@@ -91,17 +114,16 @@ defmodule Backpex.LiveResource.Show do
 
     socket
     |> assign(:selected_items, [item])
-    |> Backpex.ItemAction.assign_action_changeset(action)
+    |> ItemAction.assign_action_changeset(action)
     |> assign(:return_to, return_to(socket, index_path))
     |> assign(:action_to_confirm, Map.put(action, :key, key))
-    |> noreply()
   end
 
   defp handle_item_action(socket, action, key, item) do
     %{live_resource: live_resource, params: params} = socket.assigns
     index_path = Router.get_path(socket, live_resource, params, :index)
 
-    Backpex.ItemAction.handle_item_action(socket, action, key, [item], fn socket ->
+    ItemAction.handle_item_action(socket, action, key, [item], fn socket ->
       socket
       |> assign(action_to_confirm: nil)
       |> maybe_navigate(return_to(socket, index_path))

@@ -81,6 +81,7 @@ defmodule Backpex.Fields.HasMany do
   import Ecto.Query
 
   alias Backpex.Adapters.Ecto, as: EctoAdapter
+  alias Backpex.Authorization
   alias Backpex.HTML.Form
   alias Backpex.Router
 
@@ -142,25 +143,29 @@ defmodule Backpex.Fields.HasMany do
     <div id={"has-many-#{@name}"}>
       <Layout.field_container>
         <:label :if={not @hide_label} align={Backpex.Field.align_label(@field_options, assigns)}>
-          <Layout.input_label as="span" text={@field_options[:label]} />
+          <Layout.input_label id={"#{@form[@name].id}-label"} as="span" text={@field_options[:label]} />
         </:label>
 
-        <Backpex.HTML.CoreComponents.dropdown id={"has-many-dropdown-#{@name}"} class="w-full">
+        <Backpex.HTML.CoreComponents.dropdown id={"has-many-dropdown-#{@name}"} class="w-full" readonly={@readonly}>
           <:trigger
             class={[
-              "input block h-fit w-full p-2",
-              @errors == [] && "bg-transparent",
-              @errors != [] && "input-error bg-error/10"
+              "block h-fit w-full p-2",
+              not @readonly && "input",
+              not @readonly && @errors == [] && "bg-transparent",
+              not @readonly && @errors != [] && "input-error bg-error/10",
+              @readonly && "rounded-field border-(length:--border) border min-h-10",
+              Backpex.HTML.Form.readonly_input_class(@readonly),
+              @readonly && @errors != [] && "border-error bg-error/10"
             ]}
-            aria_labelledby={Map.get(assigns, :aria_labelledby)}
+            aria_labelledby={Map.get(assigns, :aria_labelledby) || "#{@form[@name].id}-label"}
           >
             <div class="flex h-full w-full flex-wrap items-center gap-1 px-2">
               <p :if={@selected == []} class="p-0.5 text-sm">{@prompt}</p>
               <.badge
                 :for={{label, value} <- @selected}
-                live_resource={@live_resource}
                 label={label}
                 value={value}
+                readonly={@readonly}
                 name={@name}
               />
             </div>
@@ -302,10 +307,16 @@ defmodule Backpex.Fields.HasMany do
     """
   end
 
-  attr :live_resource, :atom, required: true
+  attr :readonly, :boolean, default: false
   attr :name, :string, required: true
   attr :label, :string, required: true
   attr :value, :string, required: true
+
+  defp badge(%{readonly: true} = assigns) do
+    ~H"""
+    <span class="badge badge-sm badge-soft">{@label}</span>
+    """
+  end
 
   defp badge(assigns) do
     ~H"""
@@ -314,7 +325,7 @@ defmodule Backpex.Fields.HasMany do
       <label
         class="flex cursor-pointer items-center pr-2"
         for={"has-many-#{@name}-checkbox-value-#{@value}"}
-        aria-label={Backpex.__({"Unselect %{label}", %{label: @label}}, @live_resource)}
+        aria-hidden="true"
       >
         <Backpex.HTML.CoreComponents.icon name="hero-x-mark" class="size-4 scale-105 hover:scale-110" />
       </label>
@@ -463,7 +474,7 @@ defmodule Backpex.Fields.HasMany do
     } = assigns
 
     link =
-      if link_assocs and field_options.live_resource.can?(assigns, :show, item) do
+      if link_assocs and Authorization.can?(field_options.live_resource, assigns, :show, item) do
         Router.get_path(socket, Map.get(field_options, :live_resource), params, :show, item)
       end
 

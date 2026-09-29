@@ -5,7 +5,9 @@ defmodule Backpex.FormComponent do
   use BackpexWeb, :html
   use Phoenix.LiveComponent
 
+  alias Backpex.Authorization
   alias Backpex.Field
+  alias Backpex.Fields.Upload
   alias Backpex.ItemAction
   alias Backpex.LiveResource
   alias Backpex.Resource
@@ -18,7 +20,6 @@ defmodule Backpex.FormComponent do
     socket
     |> assign(assigns)
     |> assign_new(:action_type, fn -> nil end)
-    |> assign_new(:continue_label, fn -> nil end)
     |> assign_new(:show_form_errors, fn -> false end)
     |> update_assigns()
     |> assign_form()
@@ -31,7 +32,6 @@ defmodule Backpex.FormComponent do
 
     socket
     |> assign_new(:fields, fn -> action_to_confirm.module.fields() end)
-    |> assign(:save_label, action_to_confirm.module.confirm_label(socket.assigns))
   end
 
   # resource action
@@ -40,7 +40,7 @@ defmodule Backpex.FormComponent do
 
     socket
     |> assign_new(:fields, fn -> resource_action.module.fields() end)
-    |> assign(:save_label, ResourceAction.name(resource_action, :label))
+    |> assign(:form_actions, save: %{label: ResourceAction.name(resource_action, :label)})
     |> maybe_assign_uploads()
   end
 
@@ -61,16 +61,17 @@ defmodule Backpex.FormComponent do
   end
 
   defp apply_action(socket, action) when action in [:edit, :new] do
-    socket
-    |> assign(:save_label, Backpex.__("Save", socket.assigns.live_resource))
-    |> maybe_assign_continue_label()
+    live_resource = socket.assigns.live_resource
+
+    assign(socket, :form_actions, live_resource.form_actions(socket.assigns, default_form_actions(live_resource)))
   end
 
-  defp maybe_assign_continue_label(socket) do
-    case socket.assigns.live_resource.config(:save_and_continue_button?) do
-      true -> assign(socket, :continue_label, Backpex.__("Save & Continue editing", socket.assigns.live_resource))
-      false -> socket
-    end
+  defp default_form_actions(live_resource) do
+    save = [save: %{label: Backpex.__("Save", live_resource)}]
+
+    if live_resource.config(:save_and_continue_button?),
+      do: [{:continue, %{label: Backpex.__("Save & Continue editing", live_resource), soft: true}} | save],
+      else: save
   end
 
   defp assign_form(socket) do
@@ -149,38 +150,33 @@ defmodule Backpex.FormComponent do
   end
 
   def handle_event("cancel-existing-entry", %{"ref" => file_key, "id" => upload_key}, socket) do
-    upload_key = String.to_existing_atom(upload_key)
+    %{assigns: assigns} = socket
 
-    field =
-      socket.assigns.fields
-      |> Enum.find(fn {_name, field_options} ->
-        Map.has_key?(field_options, :upload_key) and Map.get(field_options, :upload_key) == upload_key
-      end)
+    # Both params are client-controlled and `file_key` ends up in the user's `remove_uploads/3`,
+    # which typically deletes it from disk. Only a file the item currently has, on an upload field
+    # the user may edit, may be marked as removed. Anything else is a no-op.
+    with {_name, %{upload_key: upload_key} = field_options} = field <- find_upload_field(assigns.fields, upload_key),
+         false <- Field.readonly?(field_options, assigns),
+         removed_files = Keyword.get(assigns.removed_uploads, upload_key, []),
+         true <- file_key in Upload.list_existing_files(field, assigns.item, removed_files) do
+      removed_uploads = Keyword.put(assigns.removed_uploads, upload_key, [file_key | removed_files])
+      files = Upload.existing_file_paths(field, assigns.item, [file_key | removed_files])
+      uploaded_files = Keyword.put(assigns.uploaded_files, upload_key, files)
 
-    removed_uploads =
-      socket.assigns
-      |> Map.get(:removed_uploads, [])
-      |> Keyword.update(upload_key, [file_key], fn existing -> [file_key | existing] end)
-
-    files =
-      Backpex.Fields.Upload.existing_file_paths(
-        field,
-        socket.assigns.item,
-        Keyword.get(removed_uploads, upload_key, [])
-      )
-
-    uploaded_files = Keyword.put(socket.assigns[:uploaded_files], upload_key, files)
-
-    socket
-    |> assign(:removed_uploads, removed_uploads)
-    |> assign(:uploaded_files, uploaded_files)
-    |> push_event("cancel-existing-entry:#{upload_key}", %{})
-    |> noreply()
+      socket
+      |> assign(:removed_uploads, removed_uploads)
+      |> assign(:uploaded_files, uploaded_files)
+      |> push_event("cancel-existing-entry:#{upload_key}", %{})
+      |> noreply()
+    else
+      _invalid -> noreply(socket)
+    end
   end
 
-  def handle_event("save", %{"action-key" => key, "change" => change}, %{assigns: %{action_type: :item}} = socket) do
-    key = String.to_existing_atom(key)
-    handle_form_item_action(socket, key, change)
+  # The action to run is taken from `action_to_confirm`, which the view assigned when the modal was
+  # opened. A client-supplied action key must never decide which module executes.
+  def handle_event("save", %{"change" => change}, %{assigns: %{action_type: :item}} = socket) do
+    handle_form_item_action(socket, change)
   end
 
   def handle_event("save", %{"change" => change, "save-type" => save_type}, socket) do
@@ -192,12 +188,11 @@ defmodule Backpex.FormComponent do
       |> drop_readonly_changes(fields, assigns)
       |> drop_unused_changes()
 
-    handle_save(socket, live_action, change, save_type)
+    handle_save(socket, live_action, change, form_action(socket, save_type))
   end
 
-  def handle_event("save", %{"action-key" => key}, socket) do
-    key = String.to_existing_atom(key)
-    handle_form_item_action(socket, key, %{})
+  def handle_event("save", _params, %{assigns: %{action_type: :item}} = socket) do
+    handle_form_item_action(socket, %{})
   end
 
   def handle_event("save", _params, socket) do
@@ -213,9 +208,16 @@ defmodule Backpex.FormComponent do
     |> noreply()
   end
 
-  defp handle_save(socket, key, params, save_type \\ "save")
+  # Only keys of the rendered form actions count; anything else from the client is ignored.
+  defp form_action(%{assigns: %{form_actions: form_actions}}, save_type) do
+    form_actions |> Keyword.keys() |> Enum.find(&(Atom.to_string(&1) == save_type))
+  end
 
-  defp handle_save(socket, :new, params, save_type) do
+  defp form_action(_socket, _save_type), do: nil
+
+  defp handle_save(socket, key, params, form_action \\ :save)
+
+  defp handle_save(socket, :new, params, form_action) do
     %{assigns: %{live_resource: live_resource, fields: fields, item: item, live_action: live_action} = assigns} = socket
 
     opts = [
@@ -230,7 +232,7 @@ defmodule Backpex.FormComponent do
 
     case Resource.insert(item, params, fields, socket.assigns, live_resource, opts) do
       {:ok, item} ->
-        return_to = return_to_path(save_type, live_resource, socket, socket.assigns, live_action, item)
+        return_to = return_to_path(form_action, live_resource, socket, socket.assigns, live_action, item)
 
         socket
         |> assign(:show_form_errors, false)
@@ -257,7 +259,7 @@ defmodule Backpex.FormComponent do
     end
   end
 
-  defp handle_save(socket, :edit, params, save_type) do
+  defp handle_save(socket, :edit, params, form_action) do
     %{
       live_resource: live_resource,
       item: item,
@@ -277,7 +279,7 @@ defmodule Backpex.FormComponent do
 
     case Resource.update(item, params, fields, socket.assigns, live_resource, opts) do
       {:ok, item} ->
-        return_to = return_to_path(save_type, live_resource, socket, socket.assigns, live_action, item)
+        return_to = return_to_path(form_action, live_resource, socket, socket.assigns, live_action, item)
 
         info_msg =
           Backpex.__(
@@ -304,7 +306,7 @@ defmodule Backpex.FormComponent do
     end
   end
 
-  defp handle_save(socket, :resource_action, params, _save_type) do
+  defp handle_save(socket, :resource_action, params, _form_action) do
     %{
       assigns:
         %{
@@ -315,6 +317,10 @@ defmodule Backpex.FormComponent do
           return_to: return_to
         } = assigns
     } = socket
+
+    # The gate at mount only covers opening the modal. Re-check on submit so a permission revoked
+    # while the form was open cannot be used.
+    Authorization.authorize!(live_resource, assigns, assigns.resource_action_id, nil)
 
     assocs = Map.get(assigns, :assocs, [])
     params = drop_readonly_changes(params, fields, assigns)
@@ -330,7 +336,7 @@ defmodule Backpex.FormComponent do
 
       socket
       |> assign(:show_form_errors, false)
-      |> push_navigate(to: return_to)
+      |> maybe_navigate(return_to)
       |> noreply()
     else
       {:error, changeset} ->
@@ -355,30 +361,50 @@ defmodule Backpex.FormComponent do
     end
   end
 
-  defp handle_form_item_action(socket, action_key, params) do
-    %{
-      assigns:
-        %{
-          live_resource: live_resource,
-          fields: fields,
-          selected_items: selected_items,
-          action_to_confirm: action_to_confirm,
-          return_to: return_to
-        } = assigns
-    } = socket
+  defp handle_form_item_action(socket, params) do
+    %{assigns: %{selected_items: selected_items, action_to_confirm: action, return_to: return_to}} = socket
+
+    action_key = action.key
+
+    # Authoritative gate, before any changeset work. The rows in `selected_items` are the snapshot
+    # taken when they were selected and the modal may have been open for a long time, so the
+    # selection is re-read from the data layer first and it is the *fresh* records that get
+    # authorized and dispatched. A permission revoked, a record changed out from under the modal,
+    # a row deleted, or the selection widened while the modal was open — all of them are caught
+    # here. See `Backpex.ItemAction.authorize_fresh!/3` for the residual window this leaves.
+    selected_items = ItemAction.authorize_fresh!(socket, action_key, selected_items)
+
+    if selected_items == [] do
+      close_item_action(socket, return_to)
+    else
+      socket
+      |> assign(:selected_items, selected_items)
+      |> run_form_item_action(action, action_key, selected_items, return_to, params)
+    end
+  end
+
+  # The selection is done with either way: whether the action ran or there was nothing to run it
+  # on, the modal closes, the selection is dropped and we return to where we came from.
+  defp close_item_action(socket, return_to) do
+    socket
+    |> assign(:show_form_errors, false)
+    |> assign(:selected_items, [])
+    |> assign(:select_all, false)
+    |> maybe_navigate(return_to)
+    |> noreply()
+  end
+
+  defp run_form_item_action(socket, action, action_key, selected_items, return_to, params) do
+    %{assigns: %{fields: fields} = assigns} = socket
 
     params = drop_readonly_changes(params, fields, assigns)
 
     result =
-      if ItemAction.has_form?(action_to_confirm) do
-        changeset_function = fn item, changes, metadata ->
-          action_to_confirm.module.changeset(item, changes, metadata)
-        end
-
+      if ItemAction.has_form?(action) do
         metadata = Resource.build_changeset_metadata(assigns)
 
         assigns.action_item
-        |> changeset_function.(params, metadata)
+        |> action.module.changeset(params, metadata)
         |> Map.put(:action, :insert)
         |> Ecto.Changeset.apply_action(:insert)
       else
@@ -386,14 +412,8 @@ defmodule Backpex.FormComponent do
       end
 
     with {:ok, data} <- result,
-         selected_items = Enum.filter(selected_items, &live_resource.can?(socket.assigns, action_key, &1)),
-         {:ok, socket} <- action_to_confirm.module.handle(socket, selected_items, data) do
-      socket
-      |> assign(:show_form_errors, false)
-      |> assign(:selected_items, [])
-      |> assign(:select_all, false)
-      |> push_navigate(to: return_to)
-      |> noreply()
+         {:ok, socket} <- ItemAction.dispatch(socket, action, action_key, selected_items, data) do
+      close_item_action(socket, return_to)
     else
       {:error, changeset} ->
         form = Component.to_form(changeset, as: :change)
@@ -405,7 +425,7 @@ defmodule Backpex.FormComponent do
 
       unexpected_return ->
         raise ArgumentError, """
-        Invalid return value from #{inspect(action_to_confirm.module)}.handle/2.
+        Invalid return value from #{inspect(action.module)}.handle/2.
 
         Expected: {:ok, socket} or {:error, changeset}
         Got: #{inspect(unexpected_return)}
@@ -414,6 +434,22 @@ defmodule Backpex.FormComponent do
         """
     end
   end
+
+  # A handler that navigated itself decides where the user lands; navigating
+  # again would crash the socket with "socket already prepared to redirect".
+  defp maybe_navigate(%{redirected: nil} = socket, path), do: push_navigate(socket, to: path)
+  defp maybe_navigate(socket, _path), do: socket
+
+  # Matches binaries rather than using `String.to_existing_atom/1`, so an unknown key is a plain miss
+  # instead of an `ArgumentError`.
+  defp find_upload_field(fields, upload_key) when is_binary(upload_key) do
+    Enum.find(fields, fn
+      {_name, %{upload_key: key}} when is_atom(key) -> Atom.to_string(key) == upload_key
+      _field -> false
+    end)
+  end
+
+  defp find_upload_field(_fields, _upload_key), do: nil
 
   defp drop_readonly_changes(change, fields, assigns) do
     Field.drop_readonly_changes(change, fields, assigns)
@@ -426,7 +462,7 @@ defmodule Backpex.FormComponent do
     end)
   end
 
-  defp return_to_path("continue", live_resource, _socket, %{current_url: url}, :new, item) do
+  defp return_to_path(:continue, live_resource, _socket, %{current_url: url}, :new, item) do
     primary_value = LiveResource.primary_value(item, live_resource)
 
     url
@@ -436,16 +472,12 @@ defmodule Backpex.FormComponent do
     |> Kernel.<>("/#{primary_value}/edit")
   end
 
-  defp return_to_path("continue", _live_resource, _socket, %{current_url: url}, :edit, _item) do
+  defp return_to_path(:continue, _live_resource, _socket, %{current_url: url}, :edit, _item) do
     URI.parse(url).path
   end
 
-  defp return_to_path("save", live_resource, socket, assigns, live_action, item) do
-    live_resource.return_to(socket, assigns, live_action, :save, item)
-  end
-
-  defp return_to_path(_save_type, live_resource, socket, assigns, live_action, item) do
-    live_resource.return_to(socket, assigns, live_action, nil, item)
+  defp return_to_path(form_action, live_resource, socket, assigns, live_action, item) do
+    live_resource.return_to(socket, assigns, live_action, form_action, item)
   end
 
   defp put_upload_change(change, socket, action) do

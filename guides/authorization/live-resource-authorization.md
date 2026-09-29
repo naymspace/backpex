@@ -51,3 +51,96 @@ The `can?` callback receives the following parameters:
 ## Return value
 
 The `can?` callback must return a boolean value. If the return value is `true`, the action is allowed. If the return value is `false`, the action is denied.
+
+## Enforcement
+
+Backpex enforces `can?/3` centrally, through `Backpex.Authorization`. You do not need to repeat the check in your own actions.
+
+There are two kinds of checks, and both run:
+
+- **Preflight** — decides whether a control is rendered or disabled. A user never sees a button for something they may not do.
+- **Gate** — runs immediately before something happens and raises `Backpex.ForbiddenError` when it fails. This is what makes a forged or stale event safe.
+
+> #### What a denial looks like {: .info}
+>
+> `Backpex.ForbiddenError` and `Backpex.NoResultsError` carry a `plug_status` of 403 and 404, but Phoenix LiveView only maps that to an HTTP status while a view **mounts** — the dead render. Raised from an event handler on a connected socket (which is where the item and resource action gates live), the LiveView process crashes and the client reloads the page. The user gets no error page and no flash message.
+>
+> That is the intended outcome: the point of a gate is that the write does not happen. Do not rely on it to communicate anything — a user should never reach a gate through the UI in the first place, because the preflight checks already hid or disabled the control.
+
+### Where the gates are
+
+| what happens | action checked | item |
+| --- | --- | --- |
+| `:index` / `:show` view mounts | `:index` / `:show` | the item, for `:show` |
+| `:new` / `:edit` form mounts | `:new` / `:edit` | the item, for `:edit` |
+| `Backpex.Resource.insert/6` | `:new` | `nil` |
+| `Backpex.Resource.update/6` | `:edit` | the item |
+| `Backpex.Resource.update_all/5` | `:edit` | each item |
+| `Backpex.Resource.delete_all/4` | `:delete` | each item |
+| item action without a confirm modal, before `handle/3` runs | the action key | each selected item, **re-read** |
+| item action with a confirm modal, on open | the action key | each selected item, as rendered |
+| item action with a confirm modal, on submit | the action key | each selected item, **re-read** |
+| resource action, on open and on submit | the action key | `nil` |
+
+The `Backpex.Resource` gates run **before** the changeset is built and before `c:Backpex.Field.before_changeset/6` is called, so your own code never executes for an unauthorized request.
+
+Each gesture runs exactly one gate per step, so `can?/3` is not evaluated more times than there are decisions to make. A modal flow has two steps on purpose: the second check catches a permission revoked, or a selection widened, while the modal was open.
+
+### Item action gates re-read the selection
+
+A selection is a snapshot. Rows are cached in `selected_items` when they are selected, and a confirmation modal can stay open indefinitely. Authorizing that snapshot would mean checking values that may no longer be true, while the write that follows addresses the row by its primary key — so a record another actor changed in the meantime would be mutated under a permission it no longer has.
+
+Backpex therefore re-reads every selected item by its primary key immediately before the authoritative gate, checks `can?/3` against the **re-read** records, and passes those same records to `c:Backpex.ItemAction.handle/3`. Both execution paths do this: the direct dispatch of a confirm-less action, and the submit of a confirmation modal. The re-read goes through the adapter, so [`item_query/3`](item-query.html) applies — a row that was deleted, or that has left the query's scope, comes back as `nil` and raises `Backpex.NoResultsError`.
+
+The check when the modal *opens* is deliberately not re-read: it only decides whether the dialog appears, and the submit gate is the one that authorizes the write.
+
+> #### A re-read is not a lock {: .warning}
+>
+> A window remains between the re-read and whatever `c:Backpex.ItemAction.handle/3` writes. Backpex does not open a transaction or lock the rows here — `handle/3` owns the write and decides what isolation it needs. An action that requires strict atomicity has to re-read and lock inside its own `handle/3`, for example in an `c:Ecto.Repo.transaction/2` with a `lock: "FOR UPDATE"` query.
+
+### Strict semantics
+
+Checks over a selection are strict: a single unauthorized item raises, and nothing runs. Backpex does not silently drop items from a selection.
+
+A `nil` item — a stale or forged id — raises `Backpex.NoResultsError` and never reaches your `can?/3`, so you do not need clauses for it.
+
+Because a mixed selection would raise, the bulk action button is disabled whenever the selection is empty or contains any unauthorized item. A row that is authorized for none of the bulk actions cannot be selected at all — its checkbox is disabled, so a user cannot build a selection that has no usable action.
+
+### What `handle/3` may assume
+
+The items handed to `c:Backpex.ItemAction.handle/3` are the records Backpex just re-read, and they have already been authorized under that action's key. Writing exactly those items back is the same decision the gate just made, so pass `authorize?: false` rather than paying for a second evaluation of your `can?/3`:
+
+```elixir
+Backpex.Resource.delete_all(items, socket.assigns, socket.assigns.live_resource, authorize?: false)
+```
+
+The guarantee covers only those items under that key. Writes to *other* items or to another resource keep the default gate.
+
+### Overriding the action and the escape hatch
+
+Every `Backpex.Resource` mutation accepts two options:
+
+- `:authorization_action` — authorize against this action instead of the default. It must be a non-nil atom. Item actions can pass `socket.assigns.item_action_key`, so an action registered under a custom key is authorized under that key. Backpex sets that assign just before calling `c:Backpex.ItemAction.handle/3` and clears it again when the call returns, so it is meaningful for exactly one dispatch.
+- `authorize?: false` — skip the check. Use this for a write the gate already covered (see above), and for system or cascade writes that are not a user-initiated action on the resource being written, for example nullifying a foreign key on another resource.
+
+```elixir
+Backpex.Resource.update_all(item.posts, [set: [user_id: nil]], socket.assigns, MyAppWeb.PostLive,
+  event_name: "updated",
+  authorize?: false
+)
+```
+
+### Reads are not gated in `Backpex.Resource`
+
+`Backpex.Resource.list/4`, `get/4`, `count/4` and `reload/4` do not call `can?/3`. Row-level read filtering belongs in [`item_query/3`](item-query.html) — dropping rows after pagination would corrupt item counts and select-all. `:index` and `:show` are enforced when the view mounts. `reload/4` is the read the item action gates use before they authorize; it is the gate that follows it, not the read, that raises.
+
+### Calling the checks yourself
+
+If you build your own UI on top of Backpex, use `Backpex.Authorization` rather than calling `can?/3` directly:
+
+```elixir
+Backpex.Authorization.can?(live_resource, assigns, :edit, item)
+Backpex.Authorization.can_all?(live_resource, assigns, :delete, items)
+Backpex.Authorization.authorize!(live_resource, assigns, :edit, item)
+Backpex.Authorization.authorize_all!(live_resource, assigns, :delete, items)
+```

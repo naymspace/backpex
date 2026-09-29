@@ -14,6 +14,7 @@ defmodule DemoWeb.PostLive do
 
   alias Backpex.LiveResource
   alias Backpex.Metrics.Value
+  alias Backpex.Router
   alias DemoWeb.CategoryLive
   alias DemoWeb.Filters.DateTimeRange
   alias DemoWeb.Filters.PostCategorySelect
@@ -202,6 +203,19 @@ defmodule DemoWeb.PostLive do
         only: [:index, :show]
       }
     ]
+  end
+
+  # Editing an existing post offers a third button that saves and opens the post.
+  @impl LiveResource
+  def form_actions(%{live_action: :edit}, default_actions) do
+    [{:show, %{label: "Save & Show", soft: true}} | default_actions]
+  end
+
+  def form_actions(_assigns, default_actions), do: default_actions
+
+  @impl LiveResource
+  def return_to(socket, assigns, :edit, :show, item) do
+    Router.get_path(socket, assigns.live_resource, assigns.params, :show, item)
   end
 
   @impl LiveResource

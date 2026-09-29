@@ -22,15 +22,15 @@
     "gettext": "mix gettext.extract --merge"
   },
   "devDependencies": {
-    "@sentry/browser": "10.69.0",
-    "playwright": "1.62.1",
-    "postcss": "8.5.26",
+    "@sentry/browser": "11.0.0",
+    "playwright": "1.63.0",
+    "postcss": "8.5.28",
     "standard": "17.1.2",
-    "stylelint": "17.14.1",
+    "stylelint": "17.15.0",
     "stylelint-config-standard": "40.0.0",
     "topbar": "3.0.1"
   },
   "dependencies": {
-    "daisyui": "5.7.16"
+    "daisyui": "5.7.46"
   }
 }
