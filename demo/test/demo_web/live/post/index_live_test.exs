@@ -17,6 +17,29 @@ defmodule DemoWeb.Live.Post.IndexLiveTest do
       |> assert_has("table tbody tr", count: 3)
     end
 
+    test "does not update the fields when an assign outside of the table changes", %{conn: conn} do
+      insert_list(3, :post, published: true)
+
+      {:error, {:live_redirect, %{to: path}}} = live(conn, ~p"/admin/posts")
+      {:ok, view, _html} = live(conn, path)
+
+      test_pid = self()
+      handler_id = {__MODULE__, make_ref()}
+
+      :telemetry.attach(
+        handler_id,
+        [:phoenix, :live_component, :update, :start],
+        fn _event, _measurements, %{component: component}, _config -> send(test_pid, {:updated, component}) end,
+        nil
+      )
+
+      on_exit(fn -> :telemetry.detach(handler_id) end)
+
+      render_click(view, "toggle_metrics", %{})
+
+      refute_received {:updated, _component}
+    end
+
     test "renders posts with title", %{conn: conn} do
       post = insert(:post, %{title: "Test Post Title", published: true})
 

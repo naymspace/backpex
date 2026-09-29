@@ -43,6 +43,13 @@ defmodule Backpex.HTML.Resource do
   attr :items, :list, default: [], doc: "items that will be displayed in the table"
   attr :active_fields, :list, required: true, doc: "list of active fields"
   attr :selected_items, :list, required: true, doc: "list of selected items"
+  attr :select_all, :boolean, default: false, doc: "whether all items are selected"
+  attr :item_actions, :list, default: [], doc: "list of item actions"
+  attr :field_index_assigns, :map, default: %{}, doc: "assigns of each field loaded for all items"
+
+  attr :backpex_context, :map,
+    required: true,
+    doc: "assigns passed to callbacks, see the `:context_assigns` option of `Backpex.LiveResource`"
 
   def resource_index_table(assigns)
 
@@ -99,18 +106,25 @@ defmodule Backpex.HTML.Resource do
   attr :name, :string, required: true, doc: "name / key of the item field"
   attr :item, :map, required: true, doc: "the item which provides the value to be rendered"
   attr :fields, :list, required: true, doc: "list of all fields provided by the resource configuration"
+  attr :live_resource, :atom, doc: "module of the live resource"
+  attr :field_index_assigns, :map, doc: "assigns of each field loaded for all items"
+
+  attr :backpex_context, :map,
+    doc: "assigns passed to callbacks, see the `:context_assigns` option of `Backpex.LiveResource`"
 
   def resource_field(assigns) do
     %{name: name, item: item, live_resource: live_resource, fields: fields} = assigns
+    context = Map.get(assigns, :backpex_context) || assigns
 
     {_name, field_options} = field = Enum.find(fields, fn {field_name, _field_options} -> field_name == name end)
 
     readonly =
-      not Authorization.can?(live_resource, assigns, :edit, item) or
-        Backpex.Field.readonly?(field_options, assigns)
+      not Authorization.can?(live_resource, context, :edit, item) or
+        Backpex.Field.readonly?(field_options, context)
 
     assigns =
       assigns
+      |> field_component_assigns(context)
       |> assign(assigns |> Map.get(:field_index_assigns, %{}) |> Map.get(name, %{}))
       |> assign(:field, field)
       |> assign(:field_options, field_options)
@@ -128,6 +142,15 @@ defmodule Backpex.HTML.Resource do
     />
     """
   end
+
+  defp field_component_assigns(%{backpex_context: %{}} = assigns, context) do
+    context
+    |> Map.drop(lv_reserved_assigns())
+    |> Map.merge(Map.take(assigns, [:name, :item, :fields]))
+    |> Map.put(:__changed__, nil)
+  end
+
+  defp field_component_assigns(assigns, _context), do: assigns
 
   @doc """
   Renders an inlined field.
@@ -1014,10 +1037,10 @@ defmodule Backpex.HTML.Resource do
 
   # `{item, index, selectable?}` per row, so the table computes the selectable state once instead of
   # once per attribute that needs it.
-  defp index_rows(assigns) do
-    assigns.items
+  defp index_rows(items, context) do
+    items
     |> Enum.with_index()
-    |> Enum.map(fn {item, index} -> {item, index, item_selectable?(assigns, item)} end)
+    |> Enum.map(fn {item, index} -> {item, index, item_selectable?(context, item)} end)
   end
 
   @doc """
@@ -1064,7 +1087,13 @@ defmodule Backpex.HTML.Resource do
   attr :socket, :any, required: true
   attr :live_resource, :atom, required: true, doc: "live resource module"
   attr :params, :map, required: true, doc: "query params"
-  attr :singular_name, :string, required: true, doc: "singular name of the resource"
+  attr :singular_name, :string, default: nil, doc: "singular name of the resource"
+  attr :query_options, :map, default: %{}, doc: "query options"
+  attr :create_button_label, :string, required: true, doc: "label of the create button"
+
+  attr :backpex_context, :map,
+    default: nil,
+    doc: "assigns passed to callbacks, see the `:context_assigns` option of `Backpex.LiveResource`"
 
   def empty_state(assigns) do
     plural_name = assigns.live_resource.plural_name()
@@ -1074,7 +1103,10 @@ defmodule Backpex.HTML.Resource do
       |> assign(:search_active?, get_in(assigns, [:query_options, :search]) not in [nil, ""])
       |> assign(:filter_active?, get_in(assigns, [:query_options, :filters]) != %{})
       |> assign(:title, Backpex.__({"No %{resources} found", %{resources: plural_name}}, assigns.live_resource))
-      |> assign(:create_allowed, Authorization.can?(assigns.live_resource, assigns, :new, nil))
+      |> assign(
+        :create_allowed,
+        Authorization.can?(assigns.live_resource, assigns[:backpex_context] || assigns, :new, nil)
+      )
 
     ~H"""
     <div class="flex justify-center py-16">
@@ -1132,7 +1164,7 @@ defmodule Backpex.HTML.Resource do
     default: [],
     doc: "list of all resource actions provided by the resource configuration"
 
-  attr :singular_name, :string, required: true, doc: "singular name of the resource"
+  attr :singular_name, :string, default: nil, doc: "singular name of the resource"
 
   attr :orderable_fields, :list, default: [], doc: "list of orderable fields."
   attr :items, :list, default: [], doc: "items that will be displayed in the table"
@@ -1141,7 +1173,47 @@ defmodule Backpex.HTML.Resource do
     default: [],
     doc: "list of fields to be displayed in the table on index view"
 
+  attr :item_count, :integer, required: true, doc: "amount of items matching the current query"
+  attr :filters_changed, :boolean, default: false, doc: "whether the filters differ from their defaults"
+  attr :per_page_options, :list, required: true, doc: "options of the page size select"
+  attr :create_button_label, :string, required: true, doc: "label of the create button in the empty state"
+  attr :active_fields, :list, required: true, doc: "list of active fields"
+  attr :selected_items, :list, required: true, doc: "list of selected items"
+  attr :select_all, :boolean, default: false, doc: "whether all items are selected"
+  attr :item_actions, :list, default: [], doc: "list of item actions"
+  attr :field_index_assigns, :map, default: %{}, doc: "assigns of each field loaded for all items"
+
+  attr :backpex_context, :map,
+    required: true,
+    doc: "assigns passed to callbacks, see the `:context_assigns` option of `Backpex.LiveResource`"
+
   def resource_index_main(assigns)
+
+  @doc false
+  def resource_index_main_slot(assigns) do
+    ~H"""
+    <.resource_index_main
+      socket={@socket}
+      live_resource={@live_resource}
+      params={@params}
+      query_options={@query_options}
+      total_pages={@total_pages}
+      item_count={@item_count}
+      filters_changed={@filters_changed}
+      per_page_options={@per_page_options}
+      create_button_label={@create_button_label}
+      fields={@fields}
+      orderable_fields={@orderable_fields}
+      items={@items}
+      active_fields={@active_fields}
+      selected_items={@selected_items}
+      select_all={@select_all}
+      item_actions={@item_actions}
+      field_index_assigns={@field_index_assigns}
+      backpex_context={@backpex_context}
+    />
+    """
+  end
 
   def resource_form_main(assigns)
 
