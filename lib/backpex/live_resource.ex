@@ -92,6 +92,17 @@ defmodule Backpex.LiveResource do
       },
       default: nil
     ],
+    context_assigns: [
+      doc: """
+      The assigns that callbacks receive while the index table is rendered, e.g. `c:can?/3`,
+      `c:index_row_class/4`, item action callbacks and the functions and callbacks of fields. `:all` passes every
+      assign. A list of keys is added to the assigns Backpex always passes (`:live_resource`, `:live_action`,
+      `:params`, `:fields`, `:item_actions` and a `:socket` for building routes). With a list, LiveView only
+      re-renders the table when one of these assigns changes, instead of on every change of the LiveView.
+      """,
+      type: {:or, [{:in, [:all]}, {:list, :atom}]},
+      default: :all
+    ],
     fluid?: [
       doc: "If the layout fills out the entire width.",
       type: :boolean,
@@ -423,11 +434,33 @@ defmodule Backpex.LiveResource do
 
           insert_on_mount_hooks(@resource_opts[:on_mount])
 
-          def mount(params, session, socket), do: @action_module.mount(params, session, socket, unquote(live_resource))
-          def handle_params(params, url, socket), do: @action_module.handle_params(params, url, socket)
-          def render(assigns), do: @action_module.render(assigns)
-          def handle_info(msg, socket), do: @action_module.handle_info(msg, socket)
-          def handle_event(event, params, socket), do: @action_module.handle_event(event, params, socket)
+          def mount(params, session, socket) do
+            params
+            |> @action_module.mount(session, socket, unquote(live_resource))
+            |> maybe_put_context()
+          end
+
+          def handle_params(params, url, socket) do
+            params
+            |> @action_module.handle_params(url, socket)
+            |> maybe_put_context()
+          end
+
+          def render(assigns), do: assigns |> maybe_put_context() |> @action_module.render()
+
+          def handle_info(msg, socket), do: msg |> @action_module.handle_info(socket) |> maybe_put_context()
+
+          def handle_event(event, params, socket) do
+            event
+            |> @action_module.handle_event(params, socket)
+            |> maybe_put_context()
+          end
+
+          if action == :Index do
+            defp maybe_put_context(result), do: LiveResource.put_context(result)
+          else
+            defp maybe_put_context(result), do: result
+          end
         end
       end
     end
@@ -503,11 +536,7 @@ defmodule Backpex.LiveResource do
       end
 
       @impl Backpex.LiveResource
-      def render_resource_slot(var!(assigns), :index, :main) do
-        ~H"""
-        <.resource_index_main {assigns} />
-        """
-      end
+      def render_resource_slot(assigns, :index, :main), do: Backpex.HTML.Resource.resource_index_main_slot(assigns)
 
       @impl Backpex.LiveResource
       def render_resource_slot(var!(assigns), :show, :page_title) do
@@ -655,6 +684,52 @@ defmodule Backpex.LiveResource do
   end
 
   def default_attrs(_live_action, _fields, _assigns), do: %{}
+
+  @context_assigns [:live_resource, :live_action, :params, :fields, :item_actions]
+
+  @doc """
+  Returns the assigns that callbacks receive while the index table is rendered. See the `:context_assigns` option.
+  """
+  def context(%{live_resource: live_resource} = assigns) do
+    case live_resource.config(:context_assigns) do
+      :all ->
+        Map.drop(assigns, [:__changed__, :backpex_context])
+
+      keys ->
+        assigns
+        |> Map.take(@context_assigns ++ keys)
+        |> Map.put(:socket, routing_socket(assigns))
+    end
+  end
+
+  def context(assigns), do: Map.drop(assigns, [:__changed__, :backpex_context])
+
+  # The socket in the assigns of a render carries all assigns, so it would change the context on every render.
+  # Building routes only needs the router and endpoint.
+  defp routing_socket(%{socket: %Socket{} = socket}),
+    do: %Socket{endpoint: socket.endpoint, router: socket.router, view: socket.view, host_uri: socket.host_uri}
+
+  defp routing_socket(_assigns), do: nil
+
+  @doc false
+  def put_context({:ok, socket}), do: {:ok, put_context(socket)}
+  def put_context({:ok, socket, opts}), do: {:ok, put_context(socket), opts}
+  def put_context({:noreply, socket}), do: {:noreply, put_context(socket)}
+  def put_context({:reply, reply, socket}), do: {:reply, reply, put_context(socket)}
+
+  # With `:all`, the context changes on every render anyway. Keeping it out of the socket also keeps the socket
+  # it contains from nesting the previous context.
+  def put_context(%Socket{assigns: %{live_resource: live_resource} = assigns} = socket) do
+    case live_resource.config(:context_assigns) do
+      :all -> socket
+      _keys -> Phoenix.Component.assign(socket, :backpex_context, context(Map.put(assigns, :socket, socket)))
+    end
+  end
+
+  def put_context(%Socket{} = socket), do: socket
+
+  def put_context(assigns) when is_map(assigns),
+    do: Phoenix.Component.assign(assigns, :backpex_context, context(assigns))
 
   def primary_value(item, live_resource) do
     Map.get(item, live_resource.config(:primary_key))

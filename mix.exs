@@ -159,6 +159,7 @@ defmodule Backpex.MixProject do
       "guides/live_resource/listen-to-pubsub-events.md",
       "guides/live_resource/additional-classes-for-index-table-rows.md",
       "guides/live_resource/user-preferences.md",
+      "guides/live_resource/context-assigns.md",
 
       # Fields
       "guides/fields/what-is-a-field.md",
