@@ -150,18 +150,44 @@ defmodule Backpex.Fields.BelongsTo do
   end
 
   @impl Backpex.Field
-  def assign_index_forms(sockets) do
-    options_queries = Enum.map(sockets, &options_query(&1.assigns))
-    options_by_query = options_queries |> Enum.uniq() |> Map.new(&{&1, load_options(&1)})
+  def index_assigns({name, field_options} = field, items, assigns) do
+    if Backpex.Field.index_editable_enabled?(field_options, assigns) do
+      %{live_resource: live_resource} = assigns
+      %{queryable: queryable} = live_resource.adapter_config(:schema).__schema__(:association, name)
 
-    Enum.zip_with(sockets, options_queries, fn socket, options_query ->
-      assign(socket, :index_form_options, Map.fetch!(options_by_query, options_query))
-    end)
+      field_assigns =
+        Map.merge(assigns, %{
+          name: name,
+          field: field,
+          field_options: field_options,
+          queryable: queryable,
+          display_field_form: display_field_form(field, display_field(field))
+        })
+
+      options_queries =
+        Map.new(items, fn item ->
+          item_assigns = Map.merge(field_assigns, %{item: item, value: Map.get(item, name)})
+          {LiveResource.primary_value(item, live_resource), options_query(item_assigns)}
+        end)
+
+      options_by_query = options_queries |> Map.values() |> Enum.uniq() |> Map.new(&{&1, load_options(&1)})
+
+      %{index_form_options: Map.new(options_queries, fn {key, query} -> {key, Map.fetch!(options_by_query, query)} end)}
+    else
+      %{}
+    end
   end
 
   @impl Backpex.Field
   def render_index_form(assigns) do
-    options = Map.get_lazy(assigns, :index_form_options, fn -> assigns |> options_query() |> load_options() end)
+    primary_value = LiveResource.primary_value(assigns.item, assigns.live_resource)
+
+    options =
+      case assigns do
+        %{index_form_options: %{^primary_value => options}} -> options
+        _assigns -> assigns |> options_query() |> load_options()
+      end
+
     form = to_form(%{"value" => assigns.value}, as: :index_form)
 
     assigns =

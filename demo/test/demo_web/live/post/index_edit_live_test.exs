@@ -2,6 +2,7 @@ defmodule DemoWeb.Live.Post.IndexEditLiveTest do
   use DemoWeb.ConnCase, async: false
 
   import Demo.EctoFactory
+  import Ecto.Query
   import Phoenix.LiveViewTest
 
   describe "author index form" do
@@ -30,6 +31,33 @@ defmodule DemoWeb.Live.Post.IndexEditLiveTest do
       many_rows_queries = count_users_queries(fn -> assert_rendered_rows(conn, path, 8) end)
 
       assert many_rows_queries == few_rows_queries
+    end
+
+    test "passes the item of each row to the options query" do
+      [post, other_post] = insert_list(2, :post, published: true)
+
+      field_options = %{
+        module: Backpex.Fields.BelongsTo,
+        label: "Author",
+        display_field: :username,
+        index_editable: true,
+        options_query: fn query, assigns -> where(query, [user], user.id == ^assigns.item.user_id) end
+      }
+
+      assigns = %{live_resource: DemoWeb.PostLive, live_action: :index}
+
+      assert %{index_form_options: options} =
+               Backpex.Fields.BelongsTo.index_assigns({:user, field_options}, [post, other_post], assigns)
+
+      assert options[post.id] == [{post.user.username, post.user_id}]
+      assert options[other_post.id] == [{other_post.user.username, other_post.user_id}]
+    end
+
+    test "does not load the options again when rendering without item changes", %{conn: conn} do
+      insert_list(3, :post, published: true)
+      {:ok, view, _html} = live(conn, index_path(conn))
+
+      assert count_users_queries(fn -> render_click(view, "toggle-item-selection") end) == 0
     end
   end
 

@@ -110,6 +110,7 @@ defmodule Backpex.HTML.Resource do
 
     assigns =
       assigns
+      |> assign(assigns |> Map.get(:field_index_assigns, %{}) |> Map.get(name, %{}))
       |> assign(:field, field)
       |> assign(:field_options, field_options)
       |> assign(:value, Map.get(item, name))
