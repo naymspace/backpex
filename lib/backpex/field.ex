@@ -166,6 +166,19 @@ defmodule Backpex.Field do
   @callback render_index_form(assigns :: map()) :: %Rendered{}
 
   @doc """
+  Returns assigns for the field on the index view, loaded once for all items of the page.
+
+  Backpex calls it whenever the items of the index view change (e.g. when loading a page, filtering or on item
+  events) and merges the returned map into the assigns of the field in every row. It receives the field, the items of
+  the page and the assigns of the index view. Use it to load data the field needs, such as the select options of
+  `c:render_index_form/1`, with a constant number of queries instead of one query per row and render. Data that differs
+  per row can be returned keyed by the item, e.g. by its primary value.
+
+  Also see the [index edit](/guides/fields/index-edit.md#loading-data-for-all-rows-at-once) guide.
+  """
+  @callback index_assigns(field :: tuple(), items :: list(), assigns :: map()) :: map()
+
+  @doc """
   The field to be displayed on index views. In most cases this is the name / key configured in the corresponding field definition.
   In fields with associations this value often differs from the name / key. The function will receive the field definition.
   """
@@ -222,7 +235,7 @@ defmodule Backpex.Field do
             ) ::
               Ecto.Query.dynamic_expr()
 
-  @optional_callbacks render_index_form: 1
+  @optional_callbacks render_index_form: 1, index_assigns: 3
 
   @doc """
   Returns the default config schema.

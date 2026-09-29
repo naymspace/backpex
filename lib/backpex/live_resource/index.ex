@@ -471,6 +471,7 @@ defmodule Backpex.LiveResource.Index do
 
         socket
         |> assign(:items, replace.(socket.assigns.items))
+        |> assign_field_index_assigns()
         |> assign(:selected_items, replace.(socket.assigns.selected_items))
     end
   end
@@ -890,6 +891,20 @@ defmodule Backpex.LiveResource.Index do
       |> LiveResource.build_criteria()
       |> Resource.list(fields, assigns, live_resource)
 
-    assign(socket, :items, items)
+    socket
+    |> assign(:items, items)
+    |> assign_field_index_assigns()
+  end
+
+  defp assign_field_index_assigns(socket) do
+    %{fields: fields, items: items} = socket.assigns
+
+    field_index_assigns =
+      for {name, %{module: module}} = field <- fields,
+          Code.ensure_loaded?(module) and function_exported?(module, :index_assigns, 3),
+          into: %{},
+          do: {name, module.index_assigns(field, items, socket.assigns)}
+
+    assign(socket, :field_index_assigns, field_index_assigns)
   end
 end

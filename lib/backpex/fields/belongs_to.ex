@@ -118,19 +118,11 @@ defmodule Backpex.Fields.BelongsTo do
 
   @impl Backpex.Field
   def render_form(assigns) do
-    %{
-      field_options: field_options,
-      queryable: queryable,
-      owner_key: owner_key,
-      display_field_form: display_field_form
-    } = assigns
-
-    repo = assigns.live_resource.adapter_config(:repo)
-    options = get_options(repo, queryable, field_options, display_field_form, assigns)
+    %{field_options: field_options, owner_key: owner_key} = assigns
 
     assigns =
       assigns
-      |> assign(:options, options)
+      |> assign(:options, assigns |> options_query() |> load_options())
       |> assign(:owner_key, owner_key)
       |> assign_prompt(field_options)
 
@@ -159,10 +151,44 @@ defmodule Backpex.Fields.BelongsTo do
   end
 
   @impl Backpex.Field
+  def index_assigns({name, field_options} = field, items, assigns) do
+    if Backpex.Field.index_editable_enabled?(field_options, assigns) do
+      %{live_resource: live_resource} = assigns
+      %{queryable: queryable} = live_resource.adapter_config(:schema).__schema__(:association, name)
+
+      field_assigns =
+        Map.merge(assigns, %{
+          name: name,
+          field: field,
+          field_options: field_options,
+          queryable: queryable,
+          display_field_form: display_field_form(field, display_field(field))
+        })
+
+      options_queries =
+        Map.new(items, fn item ->
+          item_assigns = Map.merge(field_assigns, %{item: item, value: Map.get(item, name)})
+          {LiveResource.primary_value(item, live_resource), options_query(item_assigns)}
+        end)
+
+      options_by_query = options_queries |> Map.values() |> Enum.uniq() |> Map.new(&{&1, load_options(&1)})
+
+      %{index_form_options: Map.new(options_queries, fn {key, query} -> {key, Map.fetch!(options_by_query, query)} end)}
+    else
+      %{}
+    end
+  end
+
+  @impl Backpex.Field
   def render_index_form(assigns) do
-    %{field_options: field_options, queryable: queryable, display_field_form: display_field_form} = assigns
-    repo = assigns.live_resource.adapter_config(:repo)
-    options = get_options(repo, queryable, field_options, display_field_form, assigns)
+    primary_value = LiveResource.primary_value(assigns.item, assigns.live_resource)
+
+    options =
+      case assigns do
+        %{index_form_options: %{^primary_value => options}} -> options
+        _assigns -> assigns |> options_query() |> load_options()
+      end
+
     form = to_form(%{"value" => assigns.value}, as: :index_form)
 
     assigns =
@@ -227,10 +253,19 @@ defmodule Backpex.Fields.BelongsTo do
     Map.get(field_options, :display_field_form, display_field)
   end
 
-  defp get_options(repo, queryable, field_options, display_field, assigns) do
-    queryable
-    |> from()
-    |> maybe_options_query(field_options, assigns)
+  defp options_query(assigns) do
+    %{live_resource: live_resource, queryable: queryable, field_options: field_options} = assigns
+
+    query =
+      queryable
+      |> from()
+      |> maybe_options_query(field_options, assigns)
+
+    {live_resource.adapter_config(:repo), query, assigns.display_field_form}
+  end
+
+  defp load_options({repo, query, display_field}) do
+    query
     |> repo.all()
     |> Enum.map(&{Map.get(&1, display_field), Map.get(&1, :id)})
   end
