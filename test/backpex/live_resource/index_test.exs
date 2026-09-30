@@ -121,6 +121,35 @@ defmodule Backpex.LiveResource.IndexTest do
     end
   end
 
+  defmodule VisibleFilter do
+    @moduledoc false
+    def can?(assigns), do: Map.get(assigns, :show_filter, false)
+  end
+
+  defmodule FilterLive do
+    @moduledoc false
+    def filters(_assigns), do: [published: %{module: VisibleFilter}]
+  end
+
+  describe "assign_active_filters/1" do
+    test "evaluates the filters with the assigns of the render" do
+      assigns = %{__changed__: %{}, live_resource: FilterLive, filters: [], show_filter: true}
+
+      assert %{filters: [published: %{module: VisibleFilter}], __changed__: changed} =
+               Index.assign_active_filters(assigns)
+
+      assert Map.has_key?(changed, :filters)
+    end
+
+    test "keeps the filters unchanged when they are the same" do
+      filters = [published: %{module: VisibleFilter}]
+      assigns = %{__changed__: %{}, live_resource: FilterLive, filters: filters, show_filter: true}
+
+      assert %{filters: ^filters, __changed__: changed} = Index.assign_active_filters(assigns)
+      refute Map.has_key?(changed, :filters)
+    end
+  end
+
   defp params(field, item_id, value),
     do: %{"index_edit" => %{"field" => field, "item" => item_id}, "index_form" => %{"value" => value}}
 

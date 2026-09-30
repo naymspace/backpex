@@ -58,8 +58,18 @@ defmodule Backpex.LiveResource.Index do
   end
 
   def render(assigns) do
-    Backpex.HTML.Resource.resource_index(assigns)
+    assigns
+    |> assign_active_filters()
+    |> Backpex.HTML.Resource.resource_index()
   end
+
+  # `c:Backpex.LiveResource.filters/1` and the `can?/1` of filters may read any assign, so the shown filters are
+  # evaluated on every render. They are only marked as changed when they differ.
+  @doc false
+  def assign_active_filters(%{filters: _filters} = assigns),
+    do: assign(assigns, :filters, LiveResource.active_filters(assigns))
+
+  def assign_active_filters(assigns), do: assigns
 
   def handle_info({"backpex:created", _item}, socket) do
     socket
