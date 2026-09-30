@@ -174,4 +174,27 @@ defmodule Backpex.HTML.FormTest do
       refute Enum.empty?(remove)
     end
   end
+
+  defmodule FormLive do
+    @moduledoc false
+    def config(:primary_key), do: :id
+  end
+
+  describe "index_form/1" do
+    test "sends the inline edit to the LiveView without recovering it after a reconnect" do
+      html =
+        render_component(&BackpexForm.index_form/1,
+          form: to_form(%{"value" => "Title"}, as: :index_form),
+          name: :title,
+          item: %{id: 1},
+          live_resource: FormLive,
+          inner_block: []
+        )
+
+      assert html =~ ~s(id="index-form-title-1")
+      assert html =~ ~s(phx-change="index-edit")
+      assert html =~ ~s(phx-auto-recover="ignore")
+      assert html =~ ~s(<input type="hidden" name="index_edit[item]" value="1">)
+    end
+  end
 end

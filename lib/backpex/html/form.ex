@@ -369,6 +369,9 @@ defmodule Backpex.HTML.Form do
   The index view saves the value of the form with all of its assigns if the field implements
   `c:Backpex.Field.index_editable_change/3`. Assign the form with `Backpex.Field.assign_index_form/1` and render its
   input for `@form[:value]` inside.
+
+  The form sends an `"index-edit"` event to the LiveView. LiveView does not recover it after a reconnect, as that
+  would save the value of every index form again.
   """
   @doc type: :component
 
@@ -389,6 +392,7 @@ defmodule Backpex.HTML.Form do
       id={"index-form-#{@name}-#{@primary_value}"}
       phx-change="index-edit"
       phx-submit="index-edit"
+      phx-auto-recover="ignore"
       {@rest}
     >
       <input type="hidden" name="index_edit[field]" value={@name} />
