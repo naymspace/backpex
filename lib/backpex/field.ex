@@ -472,12 +472,14 @@ defmodule Backpex.Field do
   field component. With a list of `:context_assigns`, these only include the listed assigns, see the
   `:context_assigns` option of `Backpex.LiveResource`.
 
-  The change is not saved if the field is not index editable or readonly.
+  The change is not saved if the field is not index editable or readonly, or while a resource action is open, as the
+  adapter would use the changeset of the resource action.
   """
   def handle_index_editable(socket, value, change) do
     %{assigns: %{field_options: field_options} = assigns} = socket
 
-    if index_editable_enabled?(field_options, assigns) && !readonly?(field_options, assigns) do
+    if assigns.live_action == :index && index_editable_enabled?(field_options, assigns) &&
+         !readonly?(field_options, assigns) do
       save_index_editable(socket, value, change)
     else
       {:noreply, socket}

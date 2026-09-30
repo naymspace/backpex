@@ -151,6 +151,15 @@ defmodule Backpex.FieldTest do
       assert socket.assigns.form.params == %{"value" => "After"}
     end
 
+    test "saves nothing while a resource action is open" do
+      socket = field_socket(%{id: 1, title: "Before"})
+      socket = %{socket | assigns: %{socket.assigns | live_action: :resource_action}}
+
+      assert {:noreply, ^socket} = Field.handle_index_editable(socket, "After", %{title: "After"})
+
+      refute_received {:adapter, :update, _item, _change}
+    end
+
     test "saves nothing for a field that is not index editable or readonly" do
       item = %{id: 1, title: "Before", locked: true}
 
