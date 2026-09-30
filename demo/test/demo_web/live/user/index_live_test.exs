@@ -26,6 +26,21 @@ defmodule DemoWeb.Live.User.IndexLiveTest do
       |> assert_has("input[value='#{user.username}']")
     end
 
+    test "marks an inline edit as invalid when the change is not saved", %{conn: conn} do
+      user = insert(:user, %{username: "testuser123"})
+      {:ok, view, _html} = live(conn, ~p"/admin/users")
+
+      view
+      |> form("#index-form-username-#{user.id}", index_form: %{value: ""})
+      |> render_change()
+
+      # The index LiveView saves the change after the event of the field component.
+      render(view)
+
+      assert Demo.Repo.get!(Demo.User, user.id).username == "testuser123"
+      assert has_element?(view, "#index-form-input-username-#{user.id}.input-error")
+    end
+
     test "search finds users by username", %{conn: conn} do
       insert(:user, %{username: "alice_wonderland"})
       insert(:user, %{username: "bob_builder"})

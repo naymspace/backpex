@@ -102,6 +102,27 @@ defmodule Backpex.LiveResource.Index do
     |> noreply()
   end
 
+  def handle_info({:backpex_index_editable, %{component: component, item: item, change: change}}, socket) do
+    %{assigns: %{fields: fields, live_resource: live_resource} = assigns} = socket
+
+    # No `can?/3` check here: `Backpex.Resource.update/6` enforces `:edit` with the same assigns and
+    # item, before the changeset runs. Checking here as well would evaluate user code twice per
+    # inline edit for no added protection.
+    opts = [
+      after_save_fun: fn item ->
+        live_resource.on_item_updated(socket, item)
+
+        {:ok, item}
+      end
+    ]
+
+    valid = match?({:ok, _item}, Resource.update(item, change, fields, assigns, live_resource, opts))
+
+    LiveView.send_update(component, backpex_index_editable: %{valid: valid})
+
+    noreply(socket)
+  end
+
   def handle_info(_event, socket) do
     noreply(socket)
   end
