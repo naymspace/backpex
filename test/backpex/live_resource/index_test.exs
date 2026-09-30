@@ -7,6 +7,8 @@ defmodule Backpex.LiveResource.IndexTest do
 
   defmodule FailingAdapter do
     @moduledoc false
+    defdelegate get(primary_value, fields, assigns, live_resource), to: StubAdapter
+
     def change(item, attrs, _fields, _assigns, _live_resource, _opts), do: {:changeset, item, attrs}
 
     def update({:changeset, item, attrs}, _live_resource) do
@@ -39,6 +41,14 @@ defmodule Backpex.LiveResource.IndexTest do
     def can?(_assigns, _action, _item), do: true
   end
 
+  defmodule DenyEditLive do
+    @moduledoc false
+    def config(:adapter), do: StubAdapter
+    def config(:primary_key), do: :id
+    def can?(_assigns, :edit, _item), do: false
+    def can?(_assigns, _action, _item), do: true
+  end
+
   defmodule LegacyField do
     @moduledoc false
     def render_index_form(_assigns), do: nil
@@ -63,14 +73,14 @@ defmodule Backpex.LiveResource.IndexTest do
   end
 
   describe "handle_event/3 with an inline edit" do
-    test "saves the change with all assigns of the LiveView and the item and shows the saved item" do
-      item = %{id: 1, title: "Before"}
-      saved_item = %{id: 1, title: "After"}
+    test "saves the change to the current item with all assigns of the LiveView and shows the saved item" do
+      listed_item = %{id: 1, title: "Listed"}
+      item = %{id: 1, title: "Current"}
       other_edit = {{:title, 2}, %{value: "", valid: false}}
 
       socket =
-        socket(InlineEditLive, item, %{
-          stub_records: %{1 => saved_item},
+        socket(InlineEditLive, listed_item, %{
+          stub_records: %{1 => item},
           index_edits: Map.new([{{:title, 1}, %{value: "", valid: false}}, other_edit])
         })
 
@@ -79,7 +89,7 @@ defmodule Backpex.LiveResource.IndexTest do
       assert_received {:can?, :edit, %{current_user: :user, name: :title, item: ^item}}
       assert_received {:adapter, :update, ^item, %{title: "After"}}
       assert_received {:on_item_updated, %Socket{}, ^item}
-      assert socket.assigns.items == [saved_item]
+      assert socket.assigns.items == [item]
       assert socket.assigns.index_edits == Map.new([other_edit])
     end
 
@@ -113,7 +123,7 @@ defmodule Backpex.LiveResource.IndexTest do
 
     test "saves nil for a form without a value" do
       item = %{id: 1, title: "Before"}
-      socket = socket(InlineEditLive, item, %{stub_records: %{1 => %{item | title: nil}}})
+      socket = socket(InlineEditLive, item, %{stub_records: %{1 => item}})
       params = "title" |> params("1", nil) |> Map.delete("index_form")
 
       assert {:noreply, _socket} = Index.handle_event("index-edit", params, socket)
@@ -138,9 +148,41 @@ defmodule Backpex.LiveResource.IndexTest do
       refute_received {:adapter, :update, _item, _change}
     end
 
+    test "evaluates readonly with the current item" do
+      socket = socket(InlineEditLive, %{id: 1, note: "Before"}, %{stub_records: %{1 => %{id: 1, locked: true}}})
+
+      assert {:noreply, ^socket} = Index.handle_event("index-edit", params("note", "1", "After"), socket)
+
+      refute_received {:adapter, :update, _item, _change}
+    end
+
+    test "saves nothing for an item the user may not edit" do
+      socket = socket(DenyEditLive, %{id: 1, title: "Before"})
+
+      assert {:noreply, ^socket} = Index.handle_event("index-edit", params("title", "1", "After"), socket)
+
+      refute_received {:adapter, :update, _item, _change}
+    end
+
+    test "saves nothing for an item that no longer exists" do
+      socket = socket(InlineEditLive, %{id: 1, title: "Before"}, %{stub_records: %{}})
+
+      assert {:noreply, ^socket} = Index.handle_event("index-edit", params("title", "1", "After"), socket)
+
+      refute_received {:adapter, :update, _item, _change}
+    end
+
+    test "saves nothing while a resource action is open" do
+      socket = socket(InlineEditLive, %{id: 1, title: "Before"}, %{live_action: :resource_action})
+
+      assert {:noreply, ^socket} = Index.handle_event("index-edit", params("title", "1", "After"), socket)
+
+      refute_received {:adapter, :update, _item, _change}
+    end
+
     test "saves a field whose readonly function returns nil" do
       item = %{id: 1, note: "Before"}
-      socket = socket(InlineEditLive, item, %{stub_records: %{1 => %{id: 1, note: "After"}}})
+      socket = socket(InlineEditLive, item)
 
       assert {:noreply, _socket} = Index.handle_event("index-edit", params("note", "1", "After"), socket)
 
@@ -149,7 +191,7 @@ defmodule Backpex.LiveResource.IndexTest do
 
     test "saves a field whose index_editable function returns a truthy value" do
       item = %{id: 1, flag: false, flaggable: true}
-      socket = socket(InlineEditLive, item, %{stub_records: %{1 => %{item | flag: true}}})
+      socket = socket(InlineEditLive, item)
 
       assert {:noreply, _socket} = Index.handle_event("index-edit", params("flag", "1", "true"), socket)
       assert_received {:adapter, :update, ^item, %{flag: "true"}}
@@ -205,7 +247,8 @@ defmodule Backpex.LiveResource.IndexTest do
             items: [item],
             selected_items: [],
             index_edits: %{},
-            current_user: :user
+            current_user: :user,
+            stub_records: %{item.id => item}
           },
           assigns
         )
