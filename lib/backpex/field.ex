@@ -471,8 +471,20 @@ defmodule Backpex.Field do
   saved by the index view instead, with all of its assigns. This function saves the change with the assigns of the
   field component. With a list of `:context_assigns`, these only include the listed assigns, see the
   `:context_assigns` option of `Backpex.LiveResource`.
+
+  The change is not saved if the field is not index editable or readonly.
   """
   def handle_index_editable(socket, value, change) do
+    %{assigns: %{field_options: field_options} = assigns} = socket
+
+    if index_editable_enabled?(field_options, assigns) && !readonly?(field_options, assigns) do
+      save_index_editable(socket, value, change)
+    else
+      {:noreply, socket}
+    end
+  end
+
+  defp save_index_editable(socket, value, change) do
     %{assigns: %{item: item, fields: fields, live_resource: live_resource} = assigns} = socket
 
     # No `can?/3` check here: `Backpex.Resource.update/6` enforces `:edit` with the same assigns and

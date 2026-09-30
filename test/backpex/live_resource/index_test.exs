@@ -48,10 +48,14 @@ defmodule Backpex.LiveResource.IndexTest do
     title: %{module: Backpex.Fields.Text, label: "Title", index_editable: true},
     body: %{module: Backpex.Fields.Text, label: "Body"},
     legacy: %{module: LegacyField, label: "Legacy", index_editable: true},
-    flag: %{module: Backpex.Fields.Boolean, label: "Flag", index_editable: &__MODULE__.flaggable/1}
+    flag: %{module: Backpex.Fields.Boolean, label: "Flag", index_editable: &__MODULE__.flaggable/1},
+    code: %{module: Backpex.Fields.Text, label: "Code", index_editable: true, readonly: true},
+    note: %{module: Backpex.Fields.Text, label: "Note", index_editable: true, readonly: &__MODULE__.locked/1}
   ]
 
   def flaggable(%{item: item}), do: if(Map.get(item, :flaggable), do: :yes)
+
+  def locked(%{item: item}), do: Map.get(item, :locked)
 
   setup do
     start_supervised!({Phoenix.PubSub, name: __MODULE__.PubSub})
@@ -123,6 +127,24 @@ defmodule Backpex.LiveResource.IndexTest do
       assert {:noreply, ^socket} = Index.handle_event("index-edit", %{"index_edit" => %{"field" => "title"}}, socket)
 
       refute_received {:adapter, :update, _item, _change}
+    end
+
+    test "saves nothing for a readonly field" do
+      socket = socket(InlineEditLive, %{id: 1, title: "Before", locked: true})
+
+      assert {:noreply, ^socket} = Index.handle_event("index-edit", params("code", "1", "After"), socket)
+      assert {:noreply, ^socket} = Index.handle_event("index-edit", params("note", "1", "After"), socket)
+
+      refute_received {:adapter, :update, _item, _change}
+    end
+
+    test "saves a field whose readonly function returns nil" do
+      item = %{id: 1, note: "Before"}
+      socket = socket(InlineEditLive, item, %{stub_records: %{1 => %{id: 1, note: "After"}}})
+
+      assert {:noreply, _socket} = Index.handle_event("index-edit", params("note", "1", "After"), socket)
+
+      assert_received {:adapter, :update, ^item, %{note: "After"}}
     end
 
     test "saves a field whose index_editable function returns a truthy value" do
