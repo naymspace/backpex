@@ -56,10 +56,16 @@ defmodule Backpex.LiveResource.IndexTest do
     def render_index_form(_assigns), do: nil
   end
 
+  defmodule RefusingField do
+    @moduledoc false
+    def index_editable_change(_field, _value, _assigns), do: :error
+  end
+
   @fields [
     title: %{module: Backpex.Fields.Text, label: "Title", index_editable: true},
     body: %{module: Backpex.Fields.Text, label: "Body"},
     legacy: %{module: LegacyField, label: "Legacy", index_editable: true},
+    refusing: %{module: RefusingField, label: "Refusing", index_editable: true},
     flag: %{module: Backpex.Fields.Boolean, label: "Flag", index_editable: &__MODULE__.flaggable/1},
     code: %{module: Backpex.Fields.Text, label: "Code", index_editable: true, readonly: true},
     note: %{module: Backpex.Fields.Text, label: "Note", index_editable: true, readonly: &__MODULE__.locked/1}
@@ -143,6 +149,12 @@ defmodule Backpex.LiveResource.IndexTest do
 
       assert capture_log(fn -> assert_not_saved(socket, "legacy") end) =~
                "LegacyField does not implement Backpex.Field.index_editable_change/3"
+    end
+
+    test "marks the edit of a field whose index_editable_change/3 refuses the value as invalid" do
+      socket = socket(InlineEditLive, %{id: 1, refusing: "Before"})
+
+      assert_not_saved(socket, "refusing")
     end
 
     test "marks the edit of a readonly field as invalid" do

@@ -67,7 +67,7 @@ end
 def index_editable_change({name, _field_options}, value, _assigns), do: %{name => value}
 ```
 
-`Backpex.Fields.BelongsTo` saves the foreign key instead, and a field could trim the value before saving it:
+`Backpex.Fields.BelongsTo` saves the foreign key instead, and only of an option of its select. Return `:error` to refuse a value, which the index view then marks as invalid. A field could also trim the value before saving it:
 
 ```elixir
 @impl Backpex.Field

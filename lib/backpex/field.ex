@@ -184,9 +184,9 @@ defmodule Backpex.Field do
   The index view only saves inline edits of fields that implement this callback. It calls it when an index form
   rendered with `Backpex.HTML.Form.index_form/1` changes. It receives the field, the value and the assigns of the index
   view. Validate or normalize the value here, as the index view saves the returned change with the update changeset of
-  the LiveResource.
+  the LiveResource. Return `:error` to refuse the value, which the index view then marks as invalid.
   """
-  @callback index_editable_change(field :: tuple(), value :: any(), assigns :: map()) :: map()
+  @callback index_editable_change(field :: tuple(), value :: any(), assigns :: map()) :: map() | :error
 
   @doc """
   The field to be displayed on index views. In most cases this is the name / key configured in the corresponding field definition.
