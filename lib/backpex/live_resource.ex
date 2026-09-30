@@ -536,17 +536,17 @@ defmodule Backpex.LiveResource do
           </.main_title>
           <div class="flex items-center space-x-2">
             <%= for {key, action} <- Backpex.HTML.Resource.filter_item_actions(@item_actions, :show),
-                    Backpex.Authorization.can?(@live_resource, @backpex_context, key, @item) do %>
+                    Backpex.Authorization.can?(@live_resource, @backpex_view_context, key, @item) do %>
               <%= if Backpex.ItemAction.has_link?(action) do %>
                 <.link
                   id={"item-action-#{key}"}
-                  navigate={action.module.link(@backpex_context, @item)}
-                  aria-label={action.module.label(@backpex_context, @item)}
+                  navigate={action.module.link(@backpex_view_context, @item)}
+                  aria-label={action.module.label(@backpex_view_context, @item)}
                   phx-hook="BackpexTooltip"
-                  data-tooltip={action.module.label(@backpex_context, @item)}
+                  data-tooltip={action.module.label(@backpex_view_context, @item)}
                   class="cursor-pointer leading-none"
                 >
-                  {action.module.icon(@backpex_context, @item)}
+                  {action.module.icon(@backpex_view_context, @item)}
                 </.link>
               <% else %>
                 <button
@@ -554,12 +554,12 @@ defmodule Backpex.LiveResource do
                   type="button"
                   phx-click="item-action"
                   phx-value-action-key={key}
-                  aria-label={action.module.label(@backpex_context, @item)}
+                  aria-label={action.module.label(@backpex_view_context, @item)}
                   phx-hook="BackpexTooltip"
-                  data-tooltip={action.module.label(@backpex_context, @item)}
+                  data-tooltip={action.module.label(@backpex_view_context, @item)}
                   class="cursor-pointer leading-none"
                 >
-                  {action.module.icon(@backpex_context, @item)}
+                  {action.module.icon(@backpex_view_context, @item)}
                 </button>
               <% end %>
             <% end %>
@@ -679,7 +679,7 @@ defmodule Backpex.LiveResource do
   def context(%{live_resource: live_resource} = assigns) do
     case live_resource.config(:context_assigns) do
       :all ->
-        Map.drop(assigns, [:__changed__, :backpex_context])
+        Map.drop(assigns, [:__changed__, :backpex_view_context])
 
       keys ->
         assigns
@@ -688,7 +688,7 @@ defmodule Backpex.LiveResource do
     end
   end
 
-  def context(assigns), do: Map.drop(assigns, [:__changed__, :backpex_context])
+  def context(assigns), do: Map.drop(assigns, [:__changed__, :backpex_view_context])
 
   # The socket in the assigns of a render carries all assigns, so it would change the context on every render.
   # Building routes only needs the router and endpoint.
@@ -708,14 +708,14 @@ defmodule Backpex.LiveResource do
   def put_context(%Socket{assigns: %{live_resource: live_resource} = assigns} = socket) do
     case live_resource.config(:context_assigns) do
       :all -> socket
-      _keys -> Phoenix.Component.assign(socket, :backpex_context, context(Map.put(assigns, :socket, socket)))
+      _keys -> Phoenix.Component.assign(socket, :backpex_view_context, context(Map.put(assigns, :socket, socket)))
     end
   end
 
   def put_context(%Socket{} = socket), do: socket
 
   def put_context(assigns) when is_map(assigns),
-    do: Phoenix.Component.assign(assigns, :backpex_context, context(assigns))
+    do: Phoenix.Component.assign(assigns, :backpex_view_context, context(assigns))
 
   def primary_value(item, live_resource) do
     Map.get(item, live_resource.config(:primary_key))

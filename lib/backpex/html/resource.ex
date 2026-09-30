@@ -57,10 +57,10 @@ defmodule Backpex.HTML.Resource do
   attr :field_index_assigns, :map, default: %{}, doc: "assigns of each field loaded for all items"
 
   attr :backpex_context, :map,
-    required: true,
+    default: nil,
     doc: "assigns passed to callbacks, see the `:context_assigns` option of `Backpex.LiveResource`"
 
-  def resource_index_table(assigns)
+  def resource_index_table(assigns), do: assigns |> assign_context() |> resource_index_table_template()
 
   @doc """
   Renders a link to change the order direction for a given column.
@@ -159,7 +159,7 @@ defmodule Backpex.HTML.Resource do
     |> Map.put(:__changed__, nil)
   end
 
-  defp field_component_assigns(assigns, _context), do: assigns
+  defp field_component_assigns(assigns, _context), do: Map.delete(assigns, :backpex_view_context)
 
   @doc """
   Renders an inlined field.
@@ -1235,10 +1235,10 @@ defmodule Backpex.HTML.Resource do
   attr :field_index_assigns, :map, default: %{}, doc: "assigns of each field loaded for all items"
 
   attr :backpex_context, :map,
-    required: true,
+    default: nil,
     doc: "assigns passed to callbacks, see the `:context_assigns` option of `Backpex.LiveResource`"
 
-  def resource_index_main(assigns)
+  def resource_index_main(assigns), do: assigns |> assign_context() |> resource_index_main_template()
 
   @doc false
   def resource_index_main_slot(assigns) do
@@ -1261,7 +1261,7 @@ defmodule Backpex.HTML.Resource do
       select_all={@select_all}
       item_actions={@item_actions}
       field_index_assigns={@field_index_assigns}
-      backpex_context={@backpex_context}
+      backpex_context={@backpex_view_context}
     />
     """
   end
@@ -1278,7 +1278,7 @@ defmodule Backpex.HTML.Resource do
       create_button_label={@create_button_label}
       item_actions={@item_actions}
       selected_items={@selected_items}
-      backpex_context={@backpex_context}
+      backpex_context={@backpex_view_context}
     />
     """
   end
@@ -1296,7 +1296,7 @@ defmodule Backpex.HTML.Resource do
       filter_form={@filter_form}
       metrics={@metrics}
       metric_visibility={@metric_visibility}
-      backpex_context={@backpex_context}
+      backpex_context={@backpex_view_context}
     />
     """
   end
@@ -1308,9 +1308,12 @@ defmodule Backpex.HTML.Resource do
     """
   end
 
-  # Components that apps call with `{assigns}` receive the assigns themselves instead of a context.
+  # Components called with `{assigns}` don't receive a `backpex_context` and pass their own assigns to callbacks, as
+  # the caller may have changed assigns like `live_resource` or `fields`.
   defp assign_context(%{backpex_context: %{}} = assigns), do: assigns
-  defp assign_context(assigns), do: assign(assigns, :backpex_context, Map.delete(assigns, :__changed__))
+
+  defp assign_context(assigns),
+    do: assign(assigns, :backpex_context, Map.drop(assigns, [:__changed__, :backpex_view_context]))
 
   def resource_form_main(assigns)
 
@@ -1327,10 +1330,10 @@ defmodule Backpex.HTML.Resource do
   attr :panels, :list, default: [], doc: "list of panels as `{name, label}`"
 
   attr :backpex_context, :map,
-    required: true,
+    default: nil,
     doc: "assigns passed to callbacks, see the `:context_assigns` option of `Backpex.LiveResource`"
 
-  def resource_show_main(assigns)
+  def resource_show_main(assigns), do: assigns |> assign_context() |> resource_show_main_template()
 
   @doc false
   def resource_show_main_slot(assigns) do
@@ -1342,7 +1345,7 @@ defmodule Backpex.HTML.Resource do
       item={@item}
       fields={@fields}
       panels={@panels}
-      backpex_context={@backpex_context}
+      backpex_context={@backpex_view_context}
     />
     """
   end
