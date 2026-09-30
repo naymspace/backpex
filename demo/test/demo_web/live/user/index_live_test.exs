@@ -34,9 +34,6 @@ defmodule DemoWeb.Live.User.IndexLiveTest do
       |> form("#index-form-username-#{user.id}", index_form: %{value: ""})
       |> render_change()
 
-      # The index LiveView saves the change after the event of the field component.
-      render(view)
-
       assert Demo.Repo.get!(Demo.User, user.id).username == "testuser123"
       assert has_element?(view, "#index-form-input-username-#{user.id}.input-error")
     end
