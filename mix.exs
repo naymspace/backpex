@@ -57,7 +57,7 @@ defmodule Backpex.MixProject do
       {:phoenix, ">= 1.7.6 and < 1.9.0"},
       {:phoenix_html, "~> 4.1"},
       {:phoenix_html_helpers, "~> 1.0"},
-      {:phoenix_live_view, "~> 1.0"},
+      {:phoenix_live_view, "~> 1.1"},
 
       # adapters
       {:ecto, "~> 3.6"},
