@@ -142,6 +142,18 @@ defmodule Backpex.HTML.ResourceTest do
       assert_received {:can?, %{name: :title, item: ^item, current_user: :user}}
     end
 
+    test "passes the reserved assigns of the context to can?/3", %{fields: fields} do
+      render_component(&Resource.resource_field/1,
+        name: :title,
+        item: %{id: 1, title: "Title", locked: false},
+        fields: fields,
+        live_resource: ShowPanelLive,
+        backpex_context: %{live_action: :index, item: nil, socket: :socket, flash: %{"info" => "Saved"}}
+      )
+
+      assert_received {:can?, %{socket: :socket, flash: %{"info" => "Saved"}}}
+    end
+
     test "evaluates readonly with the row item when called without a context", %{fields: fields} do
       html =
         render_component(&Resource.resource_field/1,

@@ -131,7 +131,8 @@ defmodule Backpex.HTML.Resource do
 
     component_assigns = field_component_assigns(assigns, context)
 
-    # Like the readonly function, `can?/3` receives the name and the item of the field.
+    # Like the readonly function, `can?/3` receives the name and the item of the field. Both receive the reserved
+    # assigns of the context, like `:socket`, which are only dropped for the field component.
     readonly =
       not Authorization.can?(live_resource, component_assigns, :edit, item) or
         Backpex.Field.readonly?(field_options, component_assigns)
@@ -158,7 +159,6 @@ defmodule Backpex.HTML.Resource do
 
   defp field_component_assigns(%{backpex_context: %{}} = assigns, context) do
     context
-    |> Map.drop(lv_reserved_assigns())
     |> Map.merge(Map.take(assigns, [:name, :item, :fields, :index_edit]))
     |> Map.put(:__changed__, nil)
   end
