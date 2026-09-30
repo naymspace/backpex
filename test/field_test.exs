@@ -3,7 +3,8 @@ defmodule Backpex.FieldTest do
 
   alias Backpex.Field
   alias Backpex.Fields.Text
-  alias Phoenix.LiveComponent.CID
+  alias Backpex.FieldTest.PubSub
+  alias Backpex.LiveResource
   alias Phoenix.LiveView.Socket
 
   # Simulates a LiveResource fields/0 callback structure
@@ -67,58 +68,64 @@ defmodule Backpex.FieldTest do
     end
   end
 
-  defmodule StrictUpdateField do
+  defmodule InlineEditLive do
     @moduledoc false
-    use Backpex.Field
+    def config(:adapter), do: Backpex.Test.StubAdapter
+    def pubsub, do: [server: PubSub, topic: "field_test"]
 
-    @impl Phoenix.LiveComponent
-    def update(%{name: name} = assigns, socket), do: {:ok, socket |> assign(assigns) |> assign(:updated, name)}
-
-    @impl Backpex.Field
-    def render_value(assigns), do: ~H""
-
-    @impl Backpex.Field
-    def render_form(assigns), do: ~H""
-  end
-
-  describe "update/2 of a field" do
-    test "assigns the result of an inline edit without calling the update/2 of the field" do
-      socket = %Socket{assigns: %{__changed__: %{}, valid: true}}
-
-      assert {:ok, socket} = StrictUpdateField.update(%{valid: false, backpex_index_editable: true}, socket)
-      assert socket.assigns.valid == false
-      refute Map.has_key?(socket.assigns, :updated)
+    def can?(assigns, action, _item) do
+      send(self(), {:can?, action, assigns})
+      true
     end
 
-    test "passes all other assigns to the update/2 of the field" do
-      socket = %Socket{assigns: %{__changed__: %{}}}
-
-      assert {:ok, socket} = StrictUpdateField.update(%{name: :title}, socket)
-      assert socket.assigns.updated == :title
-
-      assert {:ok, socket} =
-               StrictUpdateField.update(%{name: :title, valid: false, backpex_index_editable: true}, socket)
-
-      assert socket.assigns.updated == :title
-    end
-
-    test "is not defined for a field without update/2, so LiveView assigns all assigns" do
-      Code.ensure_loaded!(Text)
-
-      refute function_exported?(Text, :update, 2)
+    def on_item_updated(socket, item) do
+      send(self(), {:on_item_updated, socket, item})
+      socket
     end
   end
 
   describe "handle_index_editable/3" do
-    test "keeps the value in the form and leaves saving the change to the index LiveView" do
-      component = %CID{cid: 1}
+    setup do
+      start_supervised!({Phoenix.PubSub, name: PubSub})
+      :ok
+    end
+
+    test "saves the change with the rendered assigns of the LiveView and the item of the field" do
       item = %{id: 1, title: "Before"}
-      socket = %Socket{assigns: %{__changed__: %{}, myself: component, item: item}}
+      socket = field_socket(item)
+
+      LiveResource.put_rendered_assigns(%{
+        __changed__: %{},
+        live_resource: InlineEditLive,
+        item: nil,
+        current_user: :user
+      })
 
       assert {:noreply, socket} = Field.handle_index_editable(socket, "After", %{title: "After"})
 
+      assert_received {:can?, :edit, %{current_user: :user, item: ^item}}
+      assert_received {:adapter, :update, ^item, %{title: "After"}}
+      assert_received {:on_item_updated, %Socket{assigns: %{name: :title}}, ^item}
+      assert socket.assigns.valid
       assert socket.assigns.form.params == %{"value" => "After"}
-      assert_received {:backpex_index_editable, %{component: ^component, item: ^item, change: %{title: "After"}}}
     end
+
+    test "saves the change with the assigns of the field outside of a LiveView of the LiveResource" do
+      item = %{id: 1, title: "Before"}
+      socket = field_socket(item)
+
+      LiveResource.put_rendered_assigns(%{live_resource: UpstreamPrices, current_user: :user})
+
+      assert {:noreply, socket} = Field.handle_index_editable(socket, "After", %{title: "After"})
+
+      assert_received {:can?, :edit, %{name: :title, item: ^item} = assigns}
+      refute Map.has_key?(assigns, :current_user)
+      assert_received {:adapter, :update, ^item, %{title: "After"}}
+      assert socket.assigns.valid
+    end
+  end
+
+  defp field_socket(item) do
+    %Socket{assigns: %{__changed__: %{}, name: :title, item: item, fields: [], live_resource: InlineEditLive}}
   end
 end

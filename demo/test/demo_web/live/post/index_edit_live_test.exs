@@ -71,9 +71,6 @@ defmodule DemoWeb.Live.Post.IndexEditLiveTest do
       |> form("#index-form-user-#{post.id}", index_form: %{value: other_user.id})
       |> render_change()
 
-      # The index LiveView saves the change after the event of the field component.
-      render(view)
-
       assert Demo.Repo.get!(Demo.Post, post.id).user_id == other_user.id
       assert view |> element("#index-form-user-#{post.id} option[selected]") |> render() =~ ~s(value="#{other_user.id}")
     end

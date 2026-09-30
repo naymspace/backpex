@@ -74,6 +74,15 @@ defmodule Backpex.LiveResourceTest do
     end
   end
 
+  describe "put_rendered_assigns/1" do
+    test "keeps the rendered assigns without the change tracking ones for the process" do
+      assigns = %{__changed__: %{}, backpex_view_context: %{}, live_resource: AllContextLive, current_user: :user}
+
+      assert LiveResource.put_rendered_assigns(assigns) == assigns
+      assert LiveResource.rendered_assigns() == %{live_resource: AllContextLive, current_user: :user}
+    end
+  end
+
   describe "build_criteria/1" do
     test "builds an order criteria the adapter applies when ordering by a column that is not a declared field" do
       # :id is the default init_order column, but a primary key is virtually never

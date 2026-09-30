@@ -448,7 +448,8 @@ defmodule Backpex.LiveResource do
             |> maybe_put_context()
           end
 
-          def render(assigns), do: assigns |> maybe_put_context() |> @action_module.render()
+          def render(assigns),
+            do: assigns |> maybe_put_rendered_assigns() |> maybe_put_context() |> @action_module.render()
 
           def handle_info(msg, socket), do: msg |> @action_module.handle_info(socket) |> maybe_put_context()
 
@@ -462,6 +463,12 @@ defmodule Backpex.LiveResource do
             defp maybe_put_context(result), do: LiveResource.put_context(result)
           else
             defp maybe_put_context(result), do: result
+          end
+
+          if action == :Index do
+            defp maybe_put_rendered_assigns(assigns), do: LiveResource.put_rendered_assigns(assigns)
+          else
+            defp maybe_put_rendered_assigns(assigns), do: assigns
           end
         end
       end
@@ -717,6 +724,20 @@ defmodule Backpex.LiveResource do
 
   def put_context(assigns) when is_map(assigns),
     do: Phoenix.Component.assign(assigns, :backpex_view_context, context(assigns))
+
+  @rendered_assigns_key {__MODULE__, :rendered_assigns}
+
+  # Field components only receive the context assigns, but saving an inline edit needs all assigns of the LiveView.
+  # Components handle their events in the process of their LiveView, after it rendered its latest assigns.
+  @doc false
+  def put_rendered_assigns(assigns) do
+    Process.put(@rendered_assigns_key, Map.drop(assigns, [:__changed__, :backpex_view_context]))
+
+    assigns
+  end
+
+  @doc false
+  def rendered_assigns, do: Process.get(@rendered_assigns_key)
 
   def primary_value(item, live_resource) do
     Map.get(item, live_resource.config(:primary_key))
