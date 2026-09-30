@@ -27,6 +27,7 @@ defmodule Backpex.LiveResource.Index do
       |> assign(:panels, live_resource.panels())
       |> assign(:fluid?, live_resource.config(:fluid?))
       |> assign(:fields, live_resource.fields(socket.assigns.live_action, socket.assigns))
+      |> assign(:index_edits, %{})
       |> assign(
         :create_button_label,
         Backpex.__({"New %{resource}", %{resource: live_resource.singular_name()}}, live_resource)
@@ -125,6 +126,14 @@ defmodule Backpex.LiveResource.Index do
       |> Map.new()
 
     apply_filter_change(socket, filters)
+  end
+
+  def handle_event("index-edit", %{"index_edit" => edit, "index_form" => %{"value" => value}}, socket) do
+    %{"field" => field, "item" => item_id} = edit
+
+    socket
+    |> save_index_edit(field, item_id, value)
+    |> noreply()
   end
 
   def handle_event("item-action", %{"action-key" => key, "item-id" => item_id}, socket) do
@@ -448,6 +457,40 @@ defmodule Backpex.LiveResource.Index do
     end
   end
 
+  # Saves an inline edit of the index view with all assigns, like the edit form. The field and item come from the
+  # client, so only an index editable field of an item on this page can be saved. An edit that is not saved keeps its
+  # value and is marked as invalid until the item is saved or reloaded.
+  defp save_index_edit(socket, field_name, item_id, value) do
+    %{live_resource: live_resource, fields: fields, items: items} = socket.assigns
+
+    with {name, field_options} = field <- Enum.find(fields, &(to_string(elem(&1, 0)) == field_name)),
+         %{} = item <- Enum.find(items, &(to_string(LiveResource.primary_value(&1, live_resource)) == item_id)),
+         assigns = Map.put(socket.assigns, :item, item),
+         true <- Backpex.Field.index_editable_enabled?(field_options, assigns) do
+      change = field_options.module.index_editable_change(field, value, assigns)
+      key = {name, LiveResource.primary_value(item, live_resource)}
+
+      # No `can?/3` check here: `Backpex.Resource.update/6` enforces `:edit` with the same assigns and item.
+      opts = [
+        after_save_fun: fn item ->
+          live_resource.on_item_updated(socket, item)
+
+          {:ok, item}
+        end
+      ]
+
+      case Resource.update(item, change, fields, assigns, live_resource, opts) do
+        {:ok, updated_item} ->
+          update_item(socket, updated_item)
+
+        _error ->
+          assign(socket, :index_edits, Map.put(socket.assigns.index_edits, key, %{value: value, valid: false}))
+      end
+    else
+      _not_editable -> socket
+    end
+  end
+
   # The selection caches whole records, so a row that changed elsewhere has to be replaced there
   # too — otherwise the confirm dialog and every preflight `can?/3` keep describing the old values.
   # This is a UI nicety only: `Backpex.ItemAction.authorize_fresh!/3` re-reads the selection before
@@ -471,9 +514,19 @@ defmodule Backpex.LiveResource.Index do
 
         socket
         |> assign(:items, replace.(socket.assigns.items))
+        |> drop_index_edits(primary_value)
         |> assign_field_index_assigns()
         |> assign(:selected_items, replace.(socket.assigns.selected_items))
     end
+  end
+
+  defp drop_index_edits(socket, primary_value) do
+    index_edits =
+      Map.reject(socket.assigns.index_edits, fn {{_name, edit_primary_value}, _edit} ->
+        edit_primary_value == primary_value
+      end)
+
+    assign(socket, :index_edits, index_edits)
   end
 
   # A row on this page always needs a refresh. For any other row, a broadcast cannot tell whether
@@ -893,6 +946,7 @@ defmodule Backpex.LiveResource.Index do
 
     socket
     |> assign(:items, items)
+    |> assign(:index_edits, %{})
     |> assign_field_index_assigns()
   end
 

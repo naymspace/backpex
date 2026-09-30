@@ -64,6 +64,7 @@
             fields={@fields}
             live_resource={@live_resource}
             field_index_assigns={@field_index_assigns}
+            index_edit={Map.get(@index_edits, {name, LiveResource.primary_value(item, @live_resource)})}
             backpex_context={@backpex_context}
           />
         </div>

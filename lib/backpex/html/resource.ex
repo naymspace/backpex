@@ -55,6 +55,7 @@ defmodule Backpex.HTML.Resource do
   attr :select_all, :boolean, default: false, doc: "whether all items are selected"
   attr :item_actions, :list, default: [], doc: "list of item actions"
   attr :field_index_assigns, :map, default: %{}, doc: "assigns of each field loaded for all items"
+  attr :index_edits, :map, default: %{}, doc: "inline edits of the index view that could not be saved"
 
   attr :backpex_context, :map,
     default: nil,
@@ -117,6 +118,7 @@ defmodule Backpex.HTML.Resource do
   attr :fields, :list, required: true, doc: "list of all fields provided by the resource configuration"
   attr :live_resource, :atom, doc: "module of the live resource"
   attr :field_index_assigns, :map, doc: "assigns of each field loaded for all items"
+  attr :index_edit, :map, default: nil, doc: "inline edit of the field that the index view could not save"
 
   attr :backpex_context, :map,
     doc: "assigns passed to callbacks, see the `:context_assigns` option of `Backpex.LiveResource`"
@@ -155,7 +157,7 @@ defmodule Backpex.HTML.Resource do
   defp field_component_assigns(%{backpex_context: %{}} = assigns, context) do
     context
     |> Map.drop(lv_reserved_assigns())
-    |> Map.merge(Map.take(assigns, [:name, :item, :fields]))
+    |> Map.merge(Map.take(assigns, [:name, :item, :fields, :index_edit]))
     |> Map.put(:__changed__, nil)
   end
 
@@ -1233,6 +1235,7 @@ defmodule Backpex.HTML.Resource do
   attr :select_all, :boolean, default: false, doc: "whether all items are selected"
   attr :item_actions, :list, default: [], doc: "list of item actions"
   attr :field_index_assigns, :map, default: %{}, doc: "assigns of each field loaded for all items"
+  attr :index_edits, :map, default: %{}, doc: "inline edits of the index view that could not be saved"
 
   attr :backpex_context, :map,
     default: nil,
@@ -1261,6 +1264,7 @@ defmodule Backpex.HTML.Resource do
       select_all={@select_all}
       item_actions={@item_actions}
       field_index_assigns={@field_index_assigns}
+      index_edits={@index_edits}
       backpex_context={@backpex_view_context}
     />
     """

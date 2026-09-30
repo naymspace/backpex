@@ -35,6 +35,40 @@ The example above will enable index editable for the `name` text field.
 
 You can add index editable support to your custom fields by defining the [render_index_form/1](Backpex.Field.html#c:render_index_form/1) function and enabling index editable for your field.
 
+Render the form with `Backpex.HTML.Form.index_form/1` and assign it with `Backpex.Field.assign_index_form/1`. The index view saves the value with all of its assigns, like the edit form, so the changeset, `c:Backpex.LiveResource.can?/3` and `c:Backpex.LiveResource.on_item_updated/2` receive the same assigns whatever the `:context_assigns` option of the LiveResource is. When the value cannot be saved, `assign_index_form/1` keeps it in the form and assigns `@valid` as `false`.
+
+```elixir
+@impl Backpex.Field
+def render_index_form(assigns) do
+  assigns = Backpex.Field.assign_index_form(assigns)
+
+  ~H"""
+  <div>
+    <Backpex.HTML.Form.index_form form={@form} name={@name} item={@item} live_resource={@live_resource}>
+      <Backpex.HTML.Form.input
+        type="text"
+        field={@form[:value]}
+        input_class={["input input-sm", !@valid && "input-error"]}
+        phx-debounce="100"
+        readonly={@readonly}
+        hide_errors
+        aria-label={@field_options[:label]}
+      />
+    </Backpex.HTML.Form.index_form>
+  </div>
+  """
+end
+```
+
+By default, the value is saved to the field of the same name. Implement [index_editable_change/3](Backpex.Field.html#c:index_editable_change/3) to save it differently. `Backpex.Fields.BelongsTo` does this to save the foreign key, and a field could trim the value before saving it:
+
+```elixir
+@impl Backpex.Field
+def index_editable_change({name, _field_options}, value, _assigns), do: %{name => String.trim(value)}
+```
+
+Index forms that send their own event to the field component with `phx-target={@myself}` and save it with `Backpex.Field.handle_index_editable/3` keep working. They save with the assigns of the field component, which only include the listed assigns when `:context_assigns` is a list.
+
 ## Loading data for all rows at once
 
 Backpex renders the index form of every row as its own live component. If `render_index_form/1` loads data, for

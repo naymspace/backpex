@@ -61,23 +61,11 @@ defmodule Backpex.Fields.Number do
 
   @impl Backpex.Field
   def render_index_form(assigns) do
-    form = to_form(%{"value" => assigns.value}, as: :index_form)
-
-    assigns =
-      assigns
-      |> assign_new(:form, fn -> form end)
-      |> assign_new(:valid, fn -> true end)
+    assigns = Backpex.Field.assign_index_form(assigns)
 
     ~H"""
     <div>
-      <.form
-        for={@form}
-        id={"index-form-#{@name}-#{LiveResource.primary_value(@item, @live_resource)}"}
-        class="relative"
-        phx-change="update-field"
-        phx-submit="update-field"
-        phx-target={@myself}
-      >
+      <BackpexForm.index_form form={@form} name={@name} item={@item} live_resource={@live_resource} class="relative">
         <BackpexForm.input
           id={"index-form-input-#{@name}-#{LiveResource.primary_value(@item, @live_resource)}"}
           type="number"
@@ -89,7 +77,7 @@ defmodule Backpex.Fields.Number do
           hide_errors
           aria-label={@field_options[:label]}
         />
-      </.form>
+      </BackpexForm.index_form>
     </div>
     """
   end

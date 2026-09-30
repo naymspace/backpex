@@ -179,6 +179,14 @@ defmodule Backpex.Field do
   @callback index_assigns(field :: tuple(), items :: list(), assigns :: map()) :: map()
 
   @doc """
+  Returns the change that saves the `value` of an inline edit on the index view, e.g. `%{title: "New title"}`.
+
+  Defaults to the name of the field and the value. The index view calls it when an index form rendered with
+  `Backpex.HTML.Form.index_form/1` changes. It receives the field, the value and the assigns of the index view.
+  """
+  @callback index_editable_change(field :: tuple(), value :: any(), assigns :: map()) :: map()
+
+  @doc """
   The field to be displayed on index views. In most cases this is the name / key configured in the corresponding field definition.
   In fields with associations this value often differs from the name / key. The function will receive the field definition.
   """
@@ -303,6 +311,9 @@ defmodule Backpex.Field do
           nil -> apply(__MODULE__, :render_form, [assigns])
         end
       end
+
+      @impl Backpex.Field
+      def index_editable_change({name, _field_options} = _field, value, _assigns), do: %{name => value}
 
       @impl Backpex.Field
       def display_field({name, _field_options} = _field), do: name
@@ -437,14 +448,32 @@ defmodule Backpex.Field do
   end
 
   @doc """
-  Handles index editable.
+  Assigns the `:form` and `:valid` assigns of an index form.
 
-  Saves the `change` to the item of the field component. Inside a Backpex LiveView, the changeset,
-  `c:Backpex.LiveResource.can?/3` and `c:Backpex.LiveResource.on_item_updated/2` receive all assigns of the LiveView
-  and the item, like in the edit form, whatever the `:context_assigns` option of the LiveResource is.
+  The form holds the value of the item, or the value of an inline edit the index view could not save, which is then
+  also marked as invalid. Call it in `c:render_index_form/1` before rendering `Backpex.HTML.Form.index_form/1`.
+  """
+  def assign_index_form(assigns) do
+    {value, valid} =
+      case Map.get(assigns, :index_edit) do
+        %{value: value, valid: valid} -> {value, valid}
+        _index_edit -> {assigns.value, true}
+      end
+
+    assigns
+    |> assign(:form, Phoenix.Component.to_form(%{"value" => value}, as: :index_form))
+    |> assign(:valid, valid)
+  end
+
+  @doc """
+  Handles index editable in the field component.
+
+  Index forms rendered with `Backpex.HTML.Form.index_form/1` are saved by the index view instead, with all of its
+  assigns. This function saves the change with the assigns of the field component. With a list of `:context_assigns`,
+  these only include the listed assigns, see the `:context_assigns` option of `Backpex.LiveResource`.
   """
   def handle_index_editable(socket, value, change) do
-    %{assigns: %{item: item, fields: fields, live_resource: live_resource}} = socket
+    %{assigns: %{item: item, fields: fields, live_resource: live_resource} = assigns} = socket
 
     # No `can?/3` check here: `Backpex.Resource.update/6` enforces `:edit` with the same assigns and
     # item, before the changeset runs. Checking here as well would evaluate user code twice per
@@ -457,23 +486,19 @@ defmodule Backpex.Field do
       end
     ]
 
-    assigns = index_editable_assigns(socket.assigns)
     result = Backpex.Resource.update(item, change, fields, assigns, live_resource, opts)
+
+    valid =
+      case result do
+        {:ok, _item} -> true
+        _error -> false
+      end
 
     socket =
       socket
-      |> assign(:valid, match?({:ok, _item}, result))
+      |> assign(:valid, valid)
       |> assign(:form, Phoenix.Component.to_form(%{"value" => value}, as: :index_form))
 
     {:noreply, socket}
-  end
-
-  # The field component only receives the assigns of the `:context_assigns` option, so saving uses the assigns of the
-  # LiveView that rendered it.
-  defp index_editable_assigns(%{live_resource: live_resource, item: item} = assigns) do
-    case Backpex.LiveResource.rendered_assigns() do
-      %{live_resource: ^live_resource} = view_assigns -> Map.put(view_assigns, :item, item)
-      _view_assigns -> assigns
-    end
   end
 end
