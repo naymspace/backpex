@@ -1367,6 +1367,8 @@ defmodule Backpex.HTML.Resource do
     doc: "assigns passed to callbacks, see the `:context_assigns` option of `Backpex.LiveResource`"
 
   def show_panel(assigns) do
+    assigns = assign_context(assigns)
+
     ~H"""
     <div class={@class}>
       <p :if={@label != nil} class="text-lg font-semibold">
