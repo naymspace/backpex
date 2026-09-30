@@ -18,7 +18,7 @@ defmodule DemoWeb.Live.Post.IndexLiveTest do
     end
 
     test "does not update the fields when an assign outside of the table changes", %{conn: conn} do
-      insert_list(3, :post, published: true)
+      [post | _posts] = insert_list(3, :post, published: true)
 
       {:error, {:live_redirect, %{to: path}}} = live(conn, ~p"/admin/posts")
       {:ok, view, _html} = live(conn, path)
@@ -38,6 +38,13 @@ defmodule DemoWeb.Live.Post.IndexLiveTest do
       render_click(view, "toggle_metrics", %{})
 
       refute_received {:updated, _component}
+
+      # The fields are updated when their item changes, so the handler above does receive updates.
+      post = post |> Ecto.Changeset.change(title: "Changed title") |> Demo.Repo.update!()
+      send(view.pid, {"backpex:updated", post})
+      render(view)
+
+      assert_received {:updated, _component}
     end
 
     test "the edit item action leads back to the current index and show view", %{conn: conn} do
