@@ -129,13 +129,14 @@ defmodule Backpex.HTML.Resource do
 
     {_name, field_options} = field = Enum.find(fields, fn {field_name, _field_options} -> field_name == name end)
 
+    component_assigns = field_component_assigns(assigns, context)
+
     readonly =
       not Authorization.can?(live_resource, context, :edit, item) or
-        Backpex.Field.readonly?(field_options, context)
+        Backpex.Field.readonly?(field_options, component_assigns)
 
     assigns =
-      assigns
-      |> field_component_assigns(context)
+      component_assigns
       |> assign(assigns |> Map.get(:field_index_assigns, %{}) |> Map.get(name, %{}))
       |> assign(:field, field)
       |> assign(:field_options, field_options)
