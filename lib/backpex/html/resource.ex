@@ -1317,8 +1317,7 @@ defmodule Backpex.HTML.Resource do
   # the caller may have changed assigns like `live_resource` or `fields`.
   defp assign_context(%{backpex_context: %{}} = assigns), do: assigns
 
-  defp assign_context(assigns),
-    do: assign(assigns, :backpex_context, Map.drop(assigns, [:__changed__, :backpex_view_context]))
+  defp assign_context(assigns), do: assign(assigns, :backpex_context, LiveResource.untracked(assigns))
 
   def resource_form_main(assigns)
 
