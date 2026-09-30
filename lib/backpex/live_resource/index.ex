@@ -138,13 +138,20 @@ defmodule Backpex.LiveResource.Index do
     apply_filter_change(socket, filters)
   end
 
-  def handle_event("index-edit", %{"index_edit" => edit, "index_form" => %{"value" => value}}, socket) do
-    %{"field" => field, "item" => item_id} = edit
+  def handle_event("index-edit", %{"index_edit" => %{"field" => field, "item" => item_id}} = params, socket) do
+    # A form without a value, e.g. a multiple select with no selected option, sends no `index_form` params.
+    value =
+      case params do
+        %{"index_form" => %{"value" => value}} -> value
+        _params -> nil
+      end
 
     socket
     |> save_index_edit(field, item_id, value)
     |> noreply()
   end
+
+  def handle_event("index-edit", _params, socket), do: noreply(socket)
 
   def handle_event("item-action", %{"action-key" => key, "item-id" => item_id}, socket) do
     %{items: items, live_resource: live_resource} = socket.assigns
