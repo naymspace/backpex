@@ -61,6 +61,24 @@ defmodule DemoWeb.Live.Post.IndexEditLiveTest do
     end
   end
 
+  describe "inline edit" do
+    test "saves the change and shows the updated item", %{conn: conn} do
+      post = insert(:post, published: true)
+      other_user = insert(:user)
+      {:ok, view, _html} = live(conn, index_path(conn))
+
+      view
+      |> form("#index-form-user-#{post.id}", index_form: %{value: other_user.id})
+      |> render_change()
+
+      # The index LiveView saves the change after the event of the field component.
+      render(view)
+
+      assert Demo.Repo.get!(Demo.Post, post.id).user_id == other_user.id
+      assert view |> element("#index-form-user-#{post.id} option[selected]") |> render() =~ ~s(value="#{other_user.id}")
+    end
+  end
+
   defp index_path(conn) do
     case live(conn, ~p"/admin/posts") do
       {:error, {:live_redirect, %{to: to}}} -> to

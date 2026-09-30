@@ -280,8 +280,25 @@ defmodule Backpex.Field do
     end
   end
 
-  defmacro __before_compile__(_env) do
+  defmacro __before_compile__(env) do
+    # The index LiveView reports the result of an inline edit with only this assign, which the `update/2` of a field
+    # expecting all of its assigns cannot handle.
+    {overridable, update} =
+      if Module.defines?(env.module, {:update, 2}) do
+        {quote(do: defoverridable(update: 2)), quote(do: super(assigns, socket))}
+      else
+        {nil, quote(do: {:ok, Phoenix.Component.assign(socket, assigns)})}
+      end
+
     quote generated: true do
+      unquote(overridable)
+
+      @impl Phoenix.LiveComponent
+      def update(%{backpex_index_editable: %{valid: valid}}, socket),
+        do: {:ok, Phoenix.Component.assign(socket, :valid, valid)}
+
+      def update(assigns, socket), do: unquote(update)
+
       import Ecto.Query
 
       @impl Phoenix.LiveComponent
@@ -438,34 +455,16 @@ defmodule Backpex.Field do
 
   @doc """
   Handles index editable.
+
+  Saves the `change` to the item of the field component in the index LiveView, so the changeset,
+  `c:Backpex.LiveResource.can?/3` and `c:Backpex.LiveResource.on_item_updated/2` receive all of its
+  assigns, like in the edit form. Assigns `:valid` on the field component once the save is done.
   """
   def handle_index_editable(socket, value, change) do
-    %{assigns: %{item: item, fields: fields, live_resource: live_resource} = assigns} = socket
+    %{assigns: %{item: item, myself: myself}} = socket
 
-    # No `can?/3` check here: `Backpex.Resource.update/6` enforces `:edit` with the same assigns and
-    # item, before the changeset runs. Checking here as well would evaluate user code twice per
-    # inline edit for no added protection.
-    opts = [
-      after_save_fun: fn item ->
-        live_resource.on_item_updated(socket, item)
+    send(self(), {:backpex_index_editable, %{component: myself, item: item, change: change}})
 
-        {:ok, item}
-      end
-    ]
-
-    result = Backpex.Resource.update(item, change, fields, assigns, live_resource, opts)
-
-    valid =
-      case result do
-        {:ok, _item} -> true
-        _error -> false
-      end
-
-    socket =
-      socket
-      |> assign(:valid, valid)
-      |> assign(:form, Phoenix.Component.to_form(%{"value" => value}, as: :index_form))
-
-    {:noreply, socket}
+    {:noreply, assign(socket, :form, Phoenix.Component.to_form(%{"value" => value}, as: :index_form))}
   end
 end
