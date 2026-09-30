@@ -1,6 +1,8 @@
 defmodule Backpex.FieldTest do
   use ExUnit.Case, async: true
 
+  import Phoenix.LiveViewTest, only: [render_component: 2]
+
   alias Backpex.Field
   alias Backpex.Fields.Text
   alias Backpex.FieldTest.PubSub
@@ -70,6 +72,7 @@ defmodule Backpex.FieldTest do
   defmodule InlineEditLive do
     @moduledoc false
     def config(:adapter), do: Backpex.Test.StubAdapter
+    def config(:primary_key), do: :id
     def pubsub, do: [server: PubSub, topic: "field_test"]
 
     def can?(assigns, action, _item) do
@@ -162,6 +165,26 @@ defmodule Backpex.FieldTest do
       end
 
       refute_received {:adapter, :update, _item, _change}
+    end
+  end
+
+  describe "Backpex.Fields.Boolean.render_index_form/1" do
+    test "disables the toggle of a readonly field, as browsers ignore readonly on checkboxes" do
+      html =
+        render_component(Backpex.Fields.Boolean,
+          id: "flag",
+          type: :index,
+          name: :flag,
+          item: %{id: 1, flag: false},
+          live_resource: InlineEditLive,
+          live_action: :index,
+          field_options: %{label: "Flag", index_editable: true},
+          value: false,
+          readonly: true
+        )
+
+      assert [checkbox] = Regex.run(~r/<input[^>]*type="checkbox"[^>]*>/, html)
+      assert checkbox =~ "disabled"
     end
   end
 
