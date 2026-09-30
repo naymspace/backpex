@@ -128,6 +128,20 @@ defmodule Backpex.HTML.ResourceTest do
       end
     end
 
+    test "passes the name and the row item of the field to can?/3 when called with a context", %{fields: fields} do
+      item = %{id: 1, title: "Title", locked: false}
+
+      render_component(&Resource.resource_field/1,
+        name: :title,
+        item: item,
+        fields: fields,
+        live_resource: ShowPanelLive,
+        backpex_context: %{live_action: :index, item: nil, current_user: :user}
+      )
+
+      assert_received {:can?, %{name: :title, item: ^item, current_user: :user}}
+    end
+
     test "evaluates readonly with the row item when called without a context", %{fields: fields} do
       html =
         render_component(&Resource.resource_field/1,
