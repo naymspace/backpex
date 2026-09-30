@@ -472,26 +472,27 @@ defmodule Backpex.Field do
   field component. With a list of `:context_assigns`, these only include the listed assigns, see the
   `:context_assigns` option of `Backpex.LiveResource`.
 
-  The change is not saved if the field is not index editable or readonly, or while a resource action is open, as the
-  adapter would use the changeset of the resource action.
+  The change is not saved if the field is not index editable or readonly, if the user may not edit the item, or while
+  a resource action is open, as the adapter would use the changeset of the resource action. The value is then kept in
+  the form and marked as invalid.
   """
   def handle_index_editable(socket, value, change) do
-    %{assigns: %{field_options: field_options} = assigns} = socket
+    %{assigns: %{field_options: field_options, item: item, live_resource: live_resource} = assigns} = socket
 
-    if assigns.live_action == :index && index_editable_enabled?(field_options, assigns) &&
-         !readonly?(field_options, assigns) do
+    # A component rendered outside of a LiveResource, e.g. by `Backpex.HTML.Resource.resource_index_table/1` in a
+    # LiveView of your own, may have no `:live_action`. `Backpex.Resource.update/6` enforces `:edit` as well, but would
+    # raise.
+    if Map.get(assigns, :live_action, :index) == :index && index_editable_enabled?(field_options, assigns) &&
+         !readonly?(field_options, assigns) && Backpex.Authorization.can?(live_resource, assigns, :edit, item) do
       save_index_editable(socket, value, change)
     else
-      {:noreply, socket}
+      {:noreply, assign_index_editable_result(socket, value, false)}
     end
   end
 
   defp save_index_editable(socket, value, change) do
     %{assigns: %{item: item, fields: fields, live_resource: live_resource} = assigns} = socket
 
-    # No `can?/3` check here: `Backpex.Resource.update/6` enforces `:edit` with the same assigns and
-    # item, before the changeset runs. Checking here as well would evaluate user code twice per
-    # inline edit for no added protection.
     opts = [
       after_save_fun: fn item ->
         live_resource.on_item_updated(socket, item)
@@ -508,11 +509,12 @@ defmodule Backpex.Field do
         _error -> false
       end
 
-    socket =
-      socket
-      |> assign(:valid, valid)
-      |> assign(:form, Phoenix.Component.to_form(%{"value" => value}, as: :index_form))
+    {:noreply, assign_index_editable_result(socket, value, valid)}
+  end
 
-    {:noreply, socket}
+  defp assign_index_editable_result(socket, value, valid) do
+    socket
+    |> assign(:valid, valid)
+    |> assign(:form, Phoenix.Component.to_form(%{"value" => value}, as: :index_form))
   end
 end
