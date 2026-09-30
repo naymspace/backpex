@@ -475,10 +475,10 @@ defmodule Backpex.LiveResource.Index do
   end
 
   # Saves an inline edit of the index view with all assigns, like the edit form, and the name and item of the field,
-  # like the field component. The field and item come from the client, so only an index editable field that implements
-  # `c:Backpex.Field.index_editable_change/3` of an item on this page can be saved. Other fields save their inline
-  # edits themselves, e.g. with `Backpex.Field.handle_index_editable/3`. An edit that is not saved keeps its value and
-  # is marked as invalid until the item is saved or reloaded.
+  # like the field component. The field and item come from the client, so only an index editable field that is not
+  # readonly and implements `c:Backpex.Field.index_editable_change/3` of an item on this page can be saved. Other
+  # fields save their inline edits themselves, e.g. with `Backpex.Field.handle_index_editable/3`. An edit that is not
+  # saved keeps its value and is marked as invalid until the item is saved or reloaded.
   defp save_index_edit(socket, field_name, item_id, value) do
     %{live_resource: live_resource, fields: fields, items: items} = socket.assigns
 
@@ -486,7 +486,8 @@ defmodule Backpex.LiveResource.Index do
          true <- saves_index_edits?(field_options.module),
          %{} = item <- Enum.find(items, &(to_string(LiveResource.primary_value(&1, live_resource)) == item_id)),
          assigns = Map.merge(socket.assigns, %{name: name, item: item}),
-         true <- Backpex.Field.index_editable_enabled?(field_options, assigns) not in [false, nil] do
+         true <- Backpex.Field.index_editable_enabled?(field_options, assigns) not in [false, nil],
+         true <- !Backpex.Field.readonly?(field_options, assigns) do
       change = field_options.module.index_editable_change(field, value, assigns)
       key = {name, LiveResource.primary_value(item, live_resource)}
 

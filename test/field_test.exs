@@ -147,9 +147,35 @@ defmodule Backpex.FieldTest do
       assert socket.assigns.valid
       assert socket.assigns.form.params == %{"value" => "After"}
     end
+
+    test "saves nothing for a field that is not index editable or readonly" do
+      item = %{id: 1, title: "Before", locked: true}
+
+      for field_options <- [
+            %{index_editable: false},
+            %{index_editable: true, readonly: true},
+            %{index_editable: true, readonly: &Map.get(&1.item, :locked)}
+          ] do
+        socket = field_socket(item, field_options)
+
+        assert {:noreply, ^socket} = Field.handle_index_editable(socket, "After", %{title: "After"})
+      end
+
+      refute_received {:adapter, :update, _item, _change}
+    end
   end
 
-  defp field_socket(item) do
-    %Socket{assigns: %{__changed__: %{}, name: :title, item: item, fields: [], live_resource: InlineEditLive}}
+  defp field_socket(item, field_options \\ %{index_editable: true}) do
+    %Socket{
+      assigns: %{
+        __changed__: %{},
+        name: :title,
+        item: item,
+        fields: [],
+        field_options: field_options,
+        live_action: :index,
+        live_resource: InlineEditLive
+      }
+    }
   end
 end
