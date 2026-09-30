@@ -119,22 +119,11 @@ defmodule Backpex.Fields.DateTime do
 
   @impl Backpex.Field
   def render_index_form(assigns) do
-    form = to_form(%{"value" => assigns.value}, as: :index_form)
-
-    assigns =
-      assigns
-      |> assign(:valid, Map.get(assigns, :valid, true))
-      |> assign_new(:form, fn -> form end)
+    assigns = Backpex.Field.assign_index_form(assigns)
 
     ~H"""
     <div>
-      <.form
-        for={@form}
-        id={"index-form-#{@name}-#{LiveResource.primary_value(@item, @live_resource)}"}
-        phx-change="update-field"
-        phx-submit="update-field"
-        phx-target={@myself}
-      >
+      <BackpexForm.index_form form={@form} name={@name} item={@item} live_resource={@live_resource}>
         <BackpexForm.input
           id={"index-form-input-#{@name}-#{LiveResource.primary_value(@item, @live_resource)}"}
           type="datetime-local"
@@ -145,7 +134,7 @@ defmodule Backpex.Fields.DateTime do
           hide_errors
           aria-label={@field_options[:label]}
         />
-      </.form>
+      </BackpexForm.index_form>
     </div>
     """
   end

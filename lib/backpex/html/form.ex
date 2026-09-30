@@ -6,6 +6,7 @@ defmodule Backpex.HTML.Form do
 
   import Backpex.HTML.CoreComponents
 
+  alias Backpex.LiveResource
   alias Phoenix.HTML.Form
   alias Phoenix.HTML.FormField
 
@@ -359,6 +360,40 @@ defmodule Backpex.HTML.Form do
     <p id={@id} class={["text-base-content/60", @class]}>
       {render_slot(@inner_block)}
     </p>
+    """
+  end
+
+  @doc """
+  Renders the form of an inline edit on the index view.
+
+  The index view saves the value of the form with all of its assigns, see `c:Backpex.Field.index_editable_change/3`.
+  Assign the form with `Backpex.Field.assign_index_form/1` and render its input for `@form[:value]` inside.
+  """
+  @doc type: :component
+
+  attr :form, :any, required: true, doc: "form assigned by `Backpex.Field.assign_index_form/1`"
+  attr :name, :atom, required: true, doc: "name / key of the item field"
+  attr :item, :map, required: true, doc: "the item that is edited"
+  attr :live_resource, :atom, required: true, doc: "module of the live resource"
+  attr :rest, :global
+
+  slot :inner_block, required: true
+
+  def index_form(assigns) do
+    assigns = assign(assigns, :primary_value, LiveResource.primary_value(assigns.item, assigns.live_resource))
+
+    ~H"""
+    <.form
+      for={@form}
+      id={"index-form-#{@name}-#{@primary_value}"}
+      phx-change="index-edit"
+      phx-submit="index-edit"
+      {@rest}
+    >
+      <input type="hidden" name="index_edit[field]" value={@name} />
+      <input type="hidden" name="index_edit[item]" value={@primary_value} />
+      {render_slot(@inner_block)}
+    </.form>
     """
   end
 
