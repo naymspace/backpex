@@ -19,13 +19,13 @@ defmodule Backpex.HTML.Resource do
   embed_templates("resource/*")
 
   @doc false
-  def resource_index(assigns), do: layout_with_content(assigns, &resource_index_content/1)
+  def resource_index(assigns), do: layout_with_content(assigns, &_resource_index_content/1)
 
   @doc false
-  def resource_show(assigns), do: layout_with_content(assigns, &resource_show_content/1)
+  def resource_show(assigns), do: layout_with_content(assigns, &_resource_show_content/1)
 
   @doc false
-  def resource_form(assigns), do: layout_with_content(assigns, &resource_form_content/1)
+  def resource_form(assigns), do: layout_with_content(assigns, &_resource_form_content/1)
 
   @doc """
   Returns the list of assigns that `Phoenix.LiveView` reserves and that must be dropped
@@ -61,7 +61,7 @@ defmodule Backpex.HTML.Resource do
     default: nil,
     doc: "assigns passed to callbacks, see the `:context_assigns` option of `Backpex.LiveResource`"
 
-  def resource_index_table(assigns), do: assigns |> assign_context() |> resource_index_table_template()
+  def resource_index_table(assigns), do: assigns |> assign_context() |> _resource_index_table_template()
 
   @doc """
   Renders a link to change the order direction for a given column.
@@ -1243,7 +1243,7 @@ defmodule Backpex.HTML.Resource do
     default: nil,
     doc: "assigns passed to callbacks, see the `:context_assigns` option of `Backpex.LiveResource`"
 
-  def resource_index_main(assigns), do: assigns |> assign_context() |> resource_index_main_template()
+  def resource_index_main(assigns), do: assigns |> assign_context() |> _resource_index_main_template()
 
   @doc false
   def resource_index_main_slot(assigns) do
@@ -1338,7 +1338,7 @@ defmodule Backpex.HTML.Resource do
     default: nil,
     doc: "assigns passed to callbacks, see the `:context_assigns` option of `Backpex.LiveResource`"
 
-  def resource_show_main(assigns), do: assigns |> assign_context() |> resource_show_main_template()
+  def resource_show_main(assigns), do: assigns |> assign_context() |> _resource_show_main_template()
 
   @doc false
   def resource_show_main_slot(assigns) do
