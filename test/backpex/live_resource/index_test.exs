@@ -39,11 +39,11 @@ defmodule Backpex.LiveResource.IndexTest do
                  socket
                )
 
-      assert_received {:can?, :edit, %{current_user: :user}}
+      assert_received {:can?, :edit, %{current_user: :user, item: ^item}}
       assert_received {:adapter, :change, _opts}
       assert_received {:adapter, :update, ^item, %{title: "After"}}
       assert_received {:on_item_updated, ^socket, ^item}
-      assert_received {:phoenix, :send_update, {^component, %{backpex_index_editable: %{valid: true}}}}
+      assert_received {:phoenix, :send_update, {^component, %{valid: true, backpex_index_editable: true}}}
     end
 
     test "raises and saves nothing when the item may not be edited" do

@@ -14,6 +14,15 @@ defmodule DemoWeb.Live.User.EditLiveTest do
       |> assert_has("form#resource-form")
     end
 
+    test "renders the addresses with their pivot fields", %{conn: conn} do
+      user = insert(:user, users_addresses: [%Demo.UsersAddresses{address: build(:address), type: :billing}])
+
+      conn
+      |> visit(~p"/admin/users/#{user.id}/edit")
+      |> assert_has("form#resource-form")
+      |> assert_has("td", text: "Billing")
+    end
+
     test "pre-populates form with existing user data", %{conn: conn} do
       user = insert(:user, %{username: "existinguser", first_name: "Existing", last_name: "User", age: 42})
 
