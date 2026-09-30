@@ -35,7 +35,7 @@ The example above will enable index editable for the `name` text field.
 
 You can add index editable support to your custom fields by defining the [render_index_form/1](Backpex.Field.html#c:render_index_form/1) function and enabling index editable for your field.
 
-Render the form with `Backpex.HTML.Form.index_form/1` and assign it with `Backpex.Field.assign_index_form/1`. The index view saves the value with all of its assigns, like the edit form, so the changeset, `c:Backpex.LiveResource.can?/3` and `c:Backpex.LiveResource.on_item_updated/2` receive the same assigns whatever the `:context_assigns` option of the LiveResource is. When the value cannot be saved, `assign_index_form/1` keeps it in the form and assigns `@valid` as `false`.
+Render the form with `Backpex.HTML.Form.index_form/1`, assign it with `Backpex.Field.assign_index_form/1` and implement [index_editable_change/3](Backpex.Field.html#c:index_editable_change/3). The index view only saves the edits of fields that implement this callback. It saves the value with all of its assigns, like the edit form, so the changeset, `c:Backpex.LiveResource.can?/3` and `c:Backpex.LiveResource.on_item_updated/2` receive the same assigns whatever the `:context_assigns` option of the LiveResource is. When the value cannot be saved, `assign_index_form/1` keeps it in the form and assigns `@valid` as `false`.
 
 ```elixir
 @impl Backpex.Field
@@ -60,7 +60,14 @@ def render_index_form(assigns) do
 end
 ```
 
-By default, the value is saved to the field of the same name. Implement [index_editable_change/3](Backpex.Field.html#c:index_editable_change/3) to save it differently. `Backpex.Fields.BelongsTo` does this to save the foreign key, and a field could trim the value before saving it:
+`index_editable_change/3` returns the change to save. Most fields save the value to the field of the same name:
+
+```elixir
+@impl Backpex.Field
+def index_editable_change({name, _field_options}, value, _assigns), do: %{name => value}
+```
+
+`Backpex.Fields.BelongsTo` saves the foreign key instead, and a field could trim the value before saving it:
 
 ```elixir
 @impl Backpex.Field

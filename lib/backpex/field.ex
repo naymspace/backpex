@@ -181,8 +181,10 @@ defmodule Backpex.Field do
   @doc """
   Returns the change that saves the `value` of an inline edit on the index view, e.g. `%{title: "New title"}`.
 
-  Defaults to the name of the field and the value. The index view calls it when an index form rendered with
-  `Backpex.HTML.Form.index_form/1` changes. It receives the field, the value and the assigns of the index view.
+  The index view only saves inline edits of fields that implement this callback. It calls it when an index form
+  rendered with `Backpex.HTML.Form.index_form/1` changes. It receives the field, the value and the assigns of the index
+  view. Validate or normalize the value here, as the index view saves the returned change with the update changeset of
+  the LiveResource.
   """
   @callback index_editable_change(field :: tuple(), value :: any(), assigns :: map()) :: map()
 
@@ -243,7 +245,7 @@ defmodule Backpex.Field do
             ) ::
               Ecto.Query.dynamic_expr()
 
-  @optional_callbacks render_index_form: 1, index_assigns: 3
+  @optional_callbacks render_index_form: 1, index_assigns: 3, index_editable_change: 3
 
   @doc """
   Returns the default config schema.
@@ -311,9 +313,6 @@ defmodule Backpex.Field do
           nil -> apply(__MODULE__, :render_form, [assigns])
         end
       end
-
-      @impl Backpex.Field
-      def index_editable_change({name, _field_options} = _field, value, _assigns), do: %{name => value}
 
       @impl Backpex.Field
       def display_field({name, _field_options} = _field), do: name
@@ -468,9 +467,10 @@ defmodule Backpex.Field do
   @doc """
   Handles index editable in the field component.
 
-  Index forms rendered with `Backpex.HTML.Form.index_form/1` are saved by the index view instead, with all of its
-  assigns. This function saves the change with the assigns of the field component. With a list of `:context_assigns`,
-  these only include the listed assigns, see the `:context_assigns` option of `Backpex.LiveResource`.
+  Index forms rendered with `Backpex.HTML.Form.index_form/1` of fields that implement `c:index_editable_change/3` are
+  saved by the index view instead, with all of its assigns. This function saves the change with the assigns of the
+  field component. With a list of `:context_assigns`, these only include the listed assigns, see the
+  `:context_assigns` option of `Backpex.LiveResource`.
   """
   def handle_index_editable(socket, value, change) do
     %{assigns: %{item: item, fields: fields, live_resource: live_resource} = assigns} = socket
