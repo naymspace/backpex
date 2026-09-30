@@ -676,20 +676,31 @@ defmodule Backpex.LiveResource do
   @doc """
   Returns the assigns that callbacks receive while the index and show views are rendered. See the
   `:context_assigns` option.
+
+  The context has no change tracking, like the assigns of a component rendered with `__changed__: nil`, so callbacks
+  can still call `Phoenix.Component.assign/3` on it.
   """
   def context(%{live_resource: live_resource} = assigns) do
     case live_resource.config(:context_assigns) do
       :all ->
-        Map.drop(assigns, [:__changed__, :backpex_view_context])
+        untracked(assigns)
 
       keys ->
         assigns
         |> Map.take(@context_assigns ++ keys)
         |> Map.put(:socket, routing_socket(assigns))
+        |> Map.put(:__changed__, nil)
     end
   end
 
-  def context(assigns), do: Map.drop(assigns, [:__changed__, :backpex_view_context])
+  def context(assigns), do: untracked(assigns)
+
+  @doc false
+  def untracked(assigns) do
+    assigns
+    |> Map.drop([:__changed__, :backpex_view_context])
+    |> Map.put(:__changed__, nil)
+  end
 
   # The socket in the assigns of a render carries all assigns, so it would change the context on every render.
   # Building routes only needs the router and endpoint.

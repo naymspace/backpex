@@ -42,7 +42,12 @@ defmodule Backpex.LiveResourceTest do
         current_user: :user
       }
 
-      assert LiveResource.context(assigns) == %{live_resource: AllContextLive, items: [], current_user: :user}
+      assert LiveResource.context(assigns) == %{
+               __changed__: nil,
+               live_resource: AllContextLive,
+               items: [],
+               current_user: :user
+             }
     end
 
     test "passes the configured assigns, the ones Backpex needs and a socket for building routes" do
@@ -62,6 +67,7 @@ defmodule Backpex.LiveResourceTest do
       }
 
       assert LiveResource.context(assigns) == %{
+               __changed__: nil,
                live_resource: ListContextLive,
                live_action: :index,
                params: %{},
@@ -71,6 +77,14 @@ defmodule Backpex.LiveResourceTest do
                current_user: :user,
                socket: %Socket{endpoint: :endpoint, router: :router}
              }
+    end
+
+    test "can be assigned to by callbacks" do
+      for live_resource <- [AllContextLive, ListContextLive] do
+        context = LiveResource.context(%{__changed__: %{}, live_resource: live_resource, current_user: :user})
+
+        assert %{published: true} = Phoenix.Component.assign(context, :published, true)
+      end
     end
   end
 

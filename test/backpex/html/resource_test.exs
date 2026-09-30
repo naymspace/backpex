@@ -141,6 +141,70 @@ defmodule Backpex.HTML.ResourceTest do
     end
   end
 
+  defmodule AssignIconAction do
+    @moduledoc false
+    use Phoenix.Component
+
+    def icon(assigns, item) do
+      assigns = assign(assigns, :label, "icon-#{item.id}")
+
+      ~H"""
+      <span id="assign-icon">{@label}</span>
+      """
+    end
+
+    def label(_assigns, _item), do: "Assign icon"
+  end
+
+  defmodule TableLive do
+    @moduledoc false
+    def config(:primary_key), do: :id
+    def config(:context_assigns), do: [:current_user]
+    def translate({msg, _opts}), do: msg
+    def can?(_assigns, _action, _item), do: true
+    def index_row_class(_assigns, _item, _selected, _index), do: nil
+  end
+
+  describe "resource_index_table/1" do
+    for {description, context} <- [
+          {"without a context", nil},
+          {"with a context", %{__changed__: %{}, live_resource: TableLive, live_action: :index, current_user: :user}}
+        ] do
+      test "lets callbacks of item actions assign to their assigns #{description}" do
+        context = unquote(Macro.escape(context))
+
+        html =
+          render_component(
+            &Resource.resource_index_table/1,
+            Map.merge(
+              %{
+                socket: nil,
+                live_resource: TableLive,
+                live_action: :index,
+                params: %{},
+                query_options: %{},
+                fields: [],
+                orderable_fields: [],
+                items: [%{id: 1}],
+                active_fields: [],
+                selected_items: [],
+                item_actions: [assign_icon: %{module: AssignIconAction, only: [:row]}]
+              },
+              if(context, do: %{backpex_context: context_with_actions(context)}, else: %{})
+            )
+          )
+
+        assert html =~ ~s(<span id="assign-icon">icon-1</span>)
+      end
+    end
+  end
+
+  defp context_with_actions(assigns) do
+    assigns
+    |> Map.merge(%{params: %{}, item_actions: [assign_icon: %{module: AssignIconAction, only: [:row]}]})
+    |> Backpex.LiveResource.context()
+  end
+
   describe "lv_reserved_assigns/0" do
     test "includes every assign reserved by Phoenix.LiveView" do
       reserved = Resource.lv_reserved_assigns()
