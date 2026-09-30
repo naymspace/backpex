@@ -116,9 +116,12 @@ defmodule Backpex.LiveResource.Index do
       end
     ]
 
+    # Like in the edit form, the assigns carry the item being edited.
+    assigns = Map.put(assigns, :item, item)
+
     valid = match?({:ok, _item}, Resource.update(item, change, fields, assigns, live_resource, opts))
 
-    LiveView.send_update(component, backpex_index_editable: %{valid: valid})
+    LiveView.send_update(component, valid: valid, backpex_index_editable: true)
 
     noreply(socket)
   end

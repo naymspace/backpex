@@ -281,23 +281,24 @@ defmodule Backpex.Field do
   end
 
   defmacro __before_compile__(env) do
-    # The index LiveView reports the result of an inline edit with only this assign, which the `update/2` of a field
-    # expecting all of its assigns cannot handle.
-    {overridable, update} =
+    # The index LiveView reports the result of an inline edit with only `:valid` and this marker, which the `update/2`
+    # of a field expecting all of its assigns cannot handle. Fields without `update/2` keep the default of LiveView,
+    # which assigns `:valid`.
+    update =
       if Module.defines?(env.module, {:update, 2}) do
-        {quote(do: defoverridable(update: 2)), quote(do: super(assigns, socket))}
-      else
-        {nil, quote(do: {:ok, Phoenix.Component.assign(socket, assigns)})}
+        quote do
+          defoverridable update: 2
+
+          @impl Phoenix.LiveComponent
+          def update(%{backpex_index_editable: true, valid: valid} = assigns, socket) when map_size(assigns) == 2,
+            do: {:ok, Phoenix.Component.assign(socket, :valid, valid)}
+
+          def update(assigns, socket), do: super(assigns, socket)
+        end
       end
 
     quote generated: true do
-      unquote(overridable)
-
-      @impl Phoenix.LiveComponent
-      def update(%{backpex_index_editable: %{valid: valid}}, socket),
-        do: {:ok, Phoenix.Component.assign(socket, :valid, valid)}
-
-      def update(assigns, socket), do: unquote(update)
+      unquote(update)
 
       import Ecto.Query
 

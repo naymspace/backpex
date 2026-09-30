@@ -85,22 +85,27 @@ defmodule Backpex.FieldTest do
     test "assigns the result of an inline edit without calling the update/2 of the field" do
       socket = %Socket{assigns: %{__changed__: %{}, valid: true}}
 
-      assert {:ok, socket} = StrictUpdateField.update(%{backpex_index_editable: %{valid: false}}, socket)
+      assert {:ok, socket} = StrictUpdateField.update(%{valid: false, backpex_index_editable: true}, socket)
       assert socket.assigns.valid == false
       refute Map.has_key?(socket.assigns, :updated)
-
-      assert {:ok, socket} = Text.update(%{backpex_index_editable: %{valid: false}}, socket)
-      assert socket.assigns.valid == false
     end
 
-    test "passes all other assigns to the update/2 of the field or assigns them" do
+    test "passes all other assigns to the update/2 of the field" do
       socket = %Socket{assigns: %{__changed__: %{}}}
 
       assert {:ok, socket} = StrictUpdateField.update(%{name: :title}, socket)
       assert socket.assigns.updated == :title
 
-      assert {:ok, socket} = Text.update(%{name: :title}, socket)
-      assert socket.assigns.name == :title
+      assert {:ok, socket} =
+               StrictUpdateField.update(%{name: :title, valid: false, backpex_index_editable: true}, socket)
+
+      assert socket.assigns.updated == :title
+    end
+
+    test "is not defined for a field without update/2, so LiveView assigns all assigns" do
+      Code.ensure_loaded!(Text)
+
+      refute function_exported?(Text, :update, 2)
     end
   end
 
