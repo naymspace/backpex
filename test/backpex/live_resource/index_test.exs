@@ -72,7 +72,7 @@ defmodule Backpex.LiveResource.IndexTest do
 
       assert {:noreply, socket} = Index.handle_event("index-edit", params("title", "1", "After"), socket)
 
-      assert_received {:can?, :edit, %{current_user: :user, item: ^item}}
+      assert_received {:can?, :edit, %{current_user: :user, name: :title, item: ^item}}
       assert_received {:adapter, :update, ^item, %{title: "After"}}
       assert_received {:on_item_updated, %Socket{}, ^item}
       assert socket.assigns.items == [saved_item]
@@ -104,6 +104,19 @@ defmodule Backpex.LiveResource.IndexTest do
 
       assert {:noreply, ^socket} = Index.handle_event("index-edit", params("legacy", "1", "After"), socket)
 
+      refute_received {:adapter, :update, _item, _change}
+    end
+
+    test "saves a field whose index_editable function returns a truthy value" do
+      item = %{id: 1, flag: false, flaggable: true}
+      socket = socket(InlineEditLive, item, %{stub_records: %{1 => %{item | flag: true}}})
+
+      assert {:noreply, _socket} = Index.handle_event("index-edit", params("flag", "1", "true"), socket)
+      assert_received {:adapter, :update, ^item, %{flag: "true"}}
+
+      socket = socket(InlineEditLive, %{item | flaggable: false})
+
+      assert {:noreply, ^socket} = Index.handle_event("index-edit", params("flag", "1", "true"), socket)
       refute_received {:adapter, :update, _item, _change}
     end
   end
