@@ -6,6 +6,7 @@ defmodule Backpex.FieldTest do
   alias Backpex.Field
   alias Backpex.Fields.Text
   alias Backpex.FieldTest.PubSub
+  alias Backpex.Test.StubAdapter
   alias Phoenix.LiveView.Socket
 
   # Simulates a LiveResource fields/0 callback structure
@@ -71,7 +72,7 @@ defmodule Backpex.FieldTest do
 
   defmodule InlineEditLive do
     @moduledoc false
-    def config(:adapter), do: Backpex.Test.StubAdapter
+    def config(:adapter), do: StubAdapter
     def config(:primary_key), do: :id
     def pubsub, do: [server: PubSub, topic: "field_test"]
 
@@ -84,6 +85,13 @@ defmodule Backpex.FieldTest do
       send(self(), {:on_item_updated, socket, item})
       socket
     end
+  end
+
+  defmodule DenyEditLive do
+    @moduledoc false
+    def config(:adapter), do: StubAdapter
+    def config(:primary_key), do: :id
+    def can?(_assigns, _action, _item), do: false
   end
 
   defmodule Author do
@@ -151,13 +159,22 @@ defmodule Backpex.FieldTest do
       assert socket.assigns.form.params == %{"value" => "After"}
     end
 
+    test "saves the change of a field component without a live action" do
+      item = %{id: 1, title: "Before"}
+      socket = field_socket(item)
+      socket = %{socket | assigns: Map.delete(socket.assigns, :live_action)}
+
+      assert {:noreply, socket} = Field.handle_index_editable(socket, "After", %{title: "After"})
+
+      assert_received {:adapter, :update, ^item, %{title: "After"}}
+      assert socket.assigns.valid
+    end
+
     test "saves nothing while a resource action is open" do
       socket = field_socket(%{id: 1, title: "Before"})
       socket = %{socket | assigns: %{socket.assigns | live_action: :resource_action}}
 
-      assert {:noreply, ^socket} = Field.handle_index_editable(socket, "After", %{title: "After"})
-
-      refute_received {:adapter, :update, _item, _change}
+      assert_not_saved(socket)
     end
 
     test "saves nothing for a field that is not index editable or readonly" do
@@ -168,12 +185,15 @@ defmodule Backpex.FieldTest do
             %{index_editable: true, readonly: true},
             %{index_editable: true, readonly: &Map.get(&1.item, :locked)}
           ] do
-        socket = field_socket(item, field_options)
-
-        assert {:noreply, ^socket} = Field.handle_index_editable(socket, "After", %{title: "After"})
+        assert_not_saved(field_socket(item, field_options))
       end
+    end
 
-      refute_received {:adapter, :update, _item, _change}
+    test "saves nothing for an item the user may not edit" do
+      socket = field_socket(%{id: 1, title: "Before"})
+      socket = %{socket | assigns: %{socket.assigns | live_resource: DenyEditLive}}
+
+      assert_not_saved(socket)
     end
   end
 
@@ -195,6 +215,14 @@ defmodule Backpex.FieldTest do
       assert [checkbox] = Regex.run(~r/<input[^>]*type="checkbox"[^>]*>/, html)
       assert checkbox =~ "disabled"
     end
+  end
+
+  defp assert_not_saved(socket) do
+    assert {:noreply, socket} = Field.handle_index_editable(socket, "After", %{title: "After"})
+
+    refute socket.assigns.valid
+    assert socket.assigns.form.params == %{"value" => "After"}
+    refute_received {:adapter, :update, _item, _change}
   end
 
   defp field_socket(item, field_options \\ %{index_editable: true}) do
