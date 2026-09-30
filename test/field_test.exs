@@ -103,7 +103,7 @@ defmodule Backpex.FieldTest do
   end
 
   describe "index_editable_change/3" do
-    test "saves the value to the field of the same name by default" do
+    test "saves the value of a built-in field to the field of the same name" do
       assert Text.index_editable_change({:title, %{}}, "After", %{}) == %{title: "After"}
     end
 

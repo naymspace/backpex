@@ -82,10 +82,8 @@ defmodule Backpex.Fields.Number do
     """
   end
 
-  @impl Phoenix.LiveComponent
-  def handle_event("update-field", %{"index_form" => %{"value" => value}}, socket) do
-    Backpex.Field.handle_index_editable(socket, value, Map.put(%{}, socket.assigns.name, value))
-  end
+  @impl Backpex.Field
+  def index_editable_change({name, _field_options}, value, _assigns), do: %{name => value}
 
   @impl Backpex.Field
   def search_condition(schema_name, field_name, search_string) do

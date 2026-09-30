@@ -366,8 +366,9 @@ defmodule Backpex.HTML.Form do
   @doc """
   Renders the form of an inline edit on the index view.
 
-  The index view saves the value of the form with all of its assigns, see `c:Backpex.Field.index_editable_change/3`.
-  Assign the form with `Backpex.Field.assign_index_form/1` and render its input for `@form[:value]` inside.
+  The index view saves the value of the form with all of its assigns if the field implements
+  `c:Backpex.Field.index_editable_change/3`. Assign the form with `Backpex.Field.assign_index_form/1` and render its
+  input for `@form[:value]` inside.
   """
   @doc type: :component
 
