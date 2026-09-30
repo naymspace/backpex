@@ -6,7 +6,7 @@ By default, Backpex passes all assigns. LiveView cannot know which of them these
 
 ## Configure LiveResource
 
-Set the `context_assigns` option to the assigns your callbacks need in addition to the ones Backpex always passes (`:live_resource`, `:live_action`, `:params`, `:fields`, `:item_actions`, `:return_to`, the `:item` of the show view, which is `nil` on the index view, and a `:socket` for building routes):
+Set the `context_assigns` option to the assigns your callbacks need in addition to the ones Backpex always passes (`:live_resource`, `:live_action`, `:params`, `:fields`, `:item_actions`, `:return_to`, the `:item` of the show view, which is `nil` on the index view or the `base_schema` of a resource action while one is open, and a `:socket` for building routes):
 
 ```elixir
 # in your LiveResource module
