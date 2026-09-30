@@ -100,7 +100,8 @@ defmodule Backpex.LiveResource do
       assigns. `:all` passes every assign. A list of keys is added to the assigns Backpex always passes
       (`:live_resource`, `:live_action`, `:params`, `:fields`, `:item_actions`, `:return_to`, the `:item` of the show
       view, which is `nil` on the index view or the `base_schema` of a resource action while one is open, and a
-      `:socket` for building routes).
+      `:socket` for building routes). The functions and callbacks of fields on the index view receive the item of their
+      row as `:item` instead.
       With a list, LiveView only re-renders the parts using these callbacks when one of these assigns changes, instead
       of on every change of the LiveView. See the [Context Assigns](live_resource/context-assigns.md) guide.
       """,
