@@ -131,8 +131,9 @@ defmodule Backpex.HTML.Resource do
 
     component_assigns = field_component_assigns(assigns, context)
 
+    # Like the readonly function, `can?/3` receives the name and the item of the field.
     readonly =
-      not Authorization.can?(live_resource, context, :edit, item) or
+      not Authorization.can?(live_resource, component_assigns, :edit, item) or
         Backpex.Field.readonly?(field_options, component_assigns)
 
     assigns =
