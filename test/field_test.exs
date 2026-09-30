@@ -4,6 +4,7 @@ defmodule Backpex.FieldTest do
   import Phoenix.LiveViewTest, only: [render_component: 2]
 
   alias Backpex.Field
+  alias Backpex.Fields.BelongsTo
   alias Backpex.Fields.Text
   alias Backpex.FieldTest.PubSub
   alias Backpex.Test.StubAdapter
@@ -108,9 +109,19 @@ defmodule Backpex.FieldTest do
     schema("articles", do: belongs_to(:author, Author))
   end
 
+  defmodule OptionsRepo do
+    @moduledoc false
+    # Only the author with the id 1 is an option.
+    def exists?(query) do
+      send(self(), {:exists?, query})
+      Enum.any?(query.wheres, &match?([{1, _type}], &1.params))
+    end
+  end
+
   defmodule ArticleLive do
     @moduledoc false
     def adapter_config(:schema), do: Article
+    def adapter_config(:repo), do: OptionsRepo
   end
 
   describe "index_editable_change/3" do
@@ -118,9 +129,30 @@ defmodule Backpex.FieldTest do
       assert Text.index_editable_change({:title, %{}}, "After", %{}) == %{title: "After"}
     end
 
-    test "saves the value of a belongs to field to its foreign key" do
-      assert Backpex.Fields.BelongsTo.index_editable_change({:author, %{}}, "1", %{live_resource: ArticleLive}) ==
-               %{author_id: "1"}
+    test "saves an option of a belongs to field to its foreign key" do
+      options_query = fn query, assigns -> send(self(), {:options_query, assigns}) && query end
+      field = {:author, %{options_query: options_query}}
+      assigns = %{live_resource: ArticleLive, field_options: %{options_query: options_query}, current_user: :user}
+
+      assert BelongsTo.index_editable_change(field, "1", assigns) == %{author_id: "1"}
+      assert_received {:options_query, %{current_user: :user}}
+      assert_received {:exists?, _query}
+    end
+
+    test "refuses a value of a belongs to field that is not an option" do
+      field = {:author, %{}}
+      assigns = %{live_resource: ArticleLive, field_options: %{}}
+
+      assert BelongsTo.index_editable_change(field, "2", assigns) == :error
+      assert BelongsTo.index_editable_change(field, "invalid", assigns) == :error
+      assert BelongsTo.index_editable_change(field, %{"id" => "1"}, assigns) == :error
+    end
+
+    test "saves no option of a belongs to field" do
+      assigns = %{live_resource: ArticleLive, field_options: %{}}
+
+      assert BelongsTo.index_editable_change({:author, %{}}, "", assigns) == %{author_id: ""}
+      refute_received {:exists?, _query}
     end
   end
 

@@ -519,9 +519,8 @@ defmodule Backpex.LiveResource.Index do
          true <- Backpex.Field.index_editable_enabled?(field_options, assigns) not in [false, nil],
          true <- !Backpex.Field.readonly?(field_options, assigns),
          # `Backpex.Resource.update/6` enforces `:edit` as well, but would raise.
-         true <- Authorization.can?(live_resource, assigns, :edit, item) do
-      change = field_options.module.index_editable_change(field, value, assigns)
-
+         true <- Authorization.can?(live_resource, assigns, :edit, item),
+         %{} = change <- field_options.module.index_editable_change(field, value, assigns) do
       opts = [
         after_save_fun: fn item ->
           live_resource.on_item_updated(socket, item)
