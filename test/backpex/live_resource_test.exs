@@ -34,7 +34,13 @@ defmodule Backpex.LiveResourceTest do
 
   describe "context/1" do
     test "passes all assigns except the change tracking ones by default" do
-      assigns = %{__changed__: %{}, backpex_context: %{}, live_resource: AllContextLive, items: [], current_user: :user}
+      assigns = %{
+        __changed__: %{},
+        backpex_view_context: %{},
+        live_resource: AllContextLive,
+        items: [],
+        current_user: :user
+      }
 
       assert LiveResource.context(assigns) == %{live_resource: AllContextLive, items: [], current_user: :user}
     end
