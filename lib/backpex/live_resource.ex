@@ -95,8 +95,9 @@ defmodule Backpex.LiveResource do
     context_assigns: [
       doc: """
       The assigns that callbacks receive while the index and show views are rendered, e.g. `c:can?/3`,
-      `c:index_row_class/4`, `c:filters/1`, the callbacks of item actions and filters, and the functions and callbacks
-      of fields. `:all` passes every assign. A list of keys is added to the assigns Backpex always passes
+      `c:index_row_class/4`, the callbacks of item actions, the `render/1` and `render_form/1` callbacks of filters, and
+      the functions and callbacks of fields. `c:filters/1` and the `can?/1` callback of filters always receive all
+      assigns. `:all` passes every assign. A list of keys is added to the assigns Backpex always passes
       (`:live_resource`, `:live_action`, `:params`, `:fields`, `:item_actions`, `:return_to` and a `:socket` for building
       routes).
       With a list, LiveView only re-renders the parts using these callbacks when one of these assigns changes, instead
