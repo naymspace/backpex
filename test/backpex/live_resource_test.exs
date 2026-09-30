@@ -61,6 +61,7 @@ defmodule Backpex.LiveResourceTest do
         fields: [],
         item_actions: [],
         return_to: "/posts",
+        item: %{id: 1},
         items: [],
         current_user: :user,
         socket: socket
@@ -74,6 +75,7 @@ defmodule Backpex.LiveResourceTest do
                fields: [],
                item_actions: [],
                return_to: "/posts",
+               item: %{id: 1},
                current_user: :user,
                socket: %Socket{endpoint: :endpoint, router: :router}
              }
