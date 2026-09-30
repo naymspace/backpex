@@ -40,6 +40,18 @@ defmodule DemoWeb.Live.Post.IndexLiveTest do
       refute_received {:updated, _component}
     end
 
+    test "the edit item action leads back to the current index and show view", %{conn: conn} do
+      post = insert(:post, published: true)
+
+      conn
+      |> visit(~p"/admin/posts?#{%{"page" => "1", "per_page" => "50"}}")
+      |> assert_has("a#item-action-edit-#{post.id}[href*='return_to='][href*='per_page%3D50']")
+
+      conn
+      |> visit(~p"/admin/posts/#{post.id}/show")
+      |> assert_has("a#item-action-edit[href*='return_to=%2Fadmin%2Fposts%2F#{post.id}%2Fshow']")
+    end
+
     test "renders posts with title", %{conn: conn} do
       post = insert(:post, %{title: "Test Post Title", published: true})
 
