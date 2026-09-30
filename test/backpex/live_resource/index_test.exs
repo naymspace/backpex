@@ -107,6 +107,24 @@ defmodule Backpex.LiveResource.IndexTest do
       refute_received {:adapter, :update, _item, _change}
     end
 
+    test "saves nil for a form without a value" do
+      item = %{id: 1, title: "Before"}
+      socket = socket(InlineEditLive, item, %{stub_records: %{1 => %{item | title: nil}}})
+      params = "title" |> params("1", nil) |> Map.delete("index_form")
+
+      assert {:noreply, _socket} = Index.handle_event("index-edit", params, socket)
+      assert_received {:adapter, :update, ^item, %{title: nil}}
+    end
+
+    test "ignores an inline edit without a field or an item" do
+      socket = socket(InlineEditLive, %{id: 1, title: "Before"})
+
+      assert {:noreply, ^socket} = Index.handle_event("index-edit", %{"index_form" => %{"value" => "After"}}, socket)
+      assert {:noreply, ^socket} = Index.handle_event("index-edit", %{"index_edit" => %{"field" => "title"}}, socket)
+
+      refute_received {:adapter, :update, _item, _change}
+    end
+
     test "saves a field whose index_editable function returns a truthy value" do
       item = %{id: 1, flag: false, flaggable: true}
       socket = socket(InlineEditLive, item, %{stub_records: %{1 => %{item | flag: true}}})
