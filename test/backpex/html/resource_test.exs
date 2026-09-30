@@ -90,6 +90,57 @@ defmodule Backpex.HTML.ResourceTest do
     end
   end
 
+  defmodule ReadonlyField do
+    @moduledoc false
+    use Phoenix.LiveComponent
+
+    def render(assigns) do
+      ~H"""
+      <span id="readonly">{to_string(@readonly)}</span>
+      """
+    end
+  end
+
+  describe "resource_field/1" do
+    setup do
+      readonly = fn %{item: item} -> item.locked end
+
+      %{fields: [title: %{module: ReadonlyField, label: "Title", readonly: readonly}]}
+    end
+
+    for {description, context} <- [
+          {"without an item", %{live_action: :index, item: nil}},
+          {"with a list of context assigns", %{live_action: :index}}
+        ] do
+      test "evaluates readonly with the row item when called with a context #{description}", %{fields: fields} do
+        for locked <- [true, false] do
+          html =
+            render_component(&Resource.resource_field/1,
+              name: :title,
+              item: %{id: 1, title: "Title", locked: locked},
+              fields: fields,
+              live_resource: ShowPanelLive,
+              backpex_context: unquote(Macro.escape(context))
+            )
+
+          assert html =~ ~s(<span id="readonly">#{locked}</span>)
+        end
+      end
+    end
+
+    test "evaluates readonly with the row item when called without a context", %{fields: fields} do
+      html =
+        render_component(&Resource.resource_field/1,
+          name: :title,
+          item: %{id: 1, title: "Title", locked: true},
+          fields: fields,
+          live_resource: ShowPanelLive
+        )
+
+      assert html =~ ~s(<span id="readonly">true</span>)
+    end
+  end
+
   describe "lv_reserved_assigns/0" do
     test "includes every assign reserved by Phoenix.LiveView" do
       reserved = Resource.lv_reserved_assigns()
