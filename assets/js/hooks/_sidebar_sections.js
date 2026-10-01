@@ -1,5 +1,7 @@
 import { BackpexPreferences } from './_preferences'
 
+const SCROLL_STORAGE_KEY = 'backpex.sidebar_scroll_top'
+
 /**
  * Handles sidebar section expand/collapse and persists each section's
  * open/closed state via BackpexPreferences.
@@ -17,6 +19,10 @@ import { BackpexPreferences } from './_preferences'
  * `data-section-open` is SERVER-OWNED: this hook reads it as the baseline for
  * that comparison and never writes it. The visual and a11y state it applies
  * lives in `menu-dropdown-show`, `aria-expanded` and the content's display.
+ *
+ * The hook also keeps the menu's scroll position: live_redirect replaces the
+ * whole LiveView container, so the scrollable menu would otherwise start at
+ * the top again after every navigation.
  */
 export default {
   mounted () {
@@ -33,6 +39,9 @@ export default {
     this._serverStates = {}
     this.initializeSections()
     this.applySectionStates()
+    // After the section states, because collapsed sections change how far
+    // the menu can scroll.
+    this.restoreScrollPosition()
   },
 
   updated () {
@@ -50,6 +59,8 @@ export default {
   },
 
   destroyed () {
+    this.menu?.removeEventListener('scroll', this._onScroll)
+
     const sections = this.el.querySelectorAll('[data-section-id]')
     sections.forEach((section) => {
       const toggle = section.querySelector('[data-menu-dropdown-toggle]')
@@ -123,6 +134,17 @@ export default {
     }
   },
 
+  restoreScrollPosition () {
+    this.menu = this.el.querySelector('#backpex-sidebar-menu')
+    if (!this.menu) return
+
+    const scrollTop = Number(readSession(SCROLL_STORAGE_KEY))
+    if (scrollTop > 0) this.menu.scrollTop = scrollTop
+
+    this._onScroll = () => writeSession(SCROLL_STORAGE_KEY, String(this.menu.scrollTop))
+    this.menu.addEventListener('scroll', this._onScroll, { passive: true })
+  },
+
   handleSectionToggle (event) {
     const section = event.currentTarget.closest('[data-section-id]')
     const sectionId = section.dataset.sectionId
@@ -145,5 +167,21 @@ export default {
       isNowOpen,
       { mirror: 'session' }
     )
+  }
+}
+
+function readSession (key) {
+  try {
+    return sessionStorage.getItem(key)
+  } catch {
+    return null
+  }
+}
+
+function writeSession (key, value) {
+  try {
+    sessionStorage.setItem(key, value)
+  } catch {
+    // sessionStorage is best effort; losing the scroll position is harmless.
   }
 }
