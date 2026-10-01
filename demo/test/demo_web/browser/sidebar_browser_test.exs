@@ -144,6 +144,38 @@ defmodule DemoWeb.Browser.SidebarBrowserTest do
     end
   end
 
+  describe "sidebar scroll position across navigation" do
+    # A short viewport makes the menu scrollable. The links are clicked
+    # programmatically because a Playwright click scrolls its target into view.
+    @tag browser_context_opts: [viewport: %{width: 1280, height: 250}]
+    test "menu keeps its scroll position after live_redirect and reload", %{conn: conn} do
+      conn
+      |> visit(~p"/admin/posts")
+      |> assert_has("body .phx-connected")
+      |> evaluate(
+        """
+        new Promise((resolve) => {
+          const menu = document.querySelector('#backpex-sidebar-menu')
+          menu.addEventListener('scroll', () => resolve(menu.scrollTop), { once: true })
+          menu.scrollTop = 100
+        })
+        """,
+        fn scroll_top -> assert scroll_top == 100 end
+      )
+      |> evaluate(~s|document.querySelector('a[href="/admin/invoices"]').click()|)
+      |> assert_path("/admin/invoices")
+      |> assert_has("body .phx-connected")
+      |> evaluate(~s|document.querySelector('#backpex-sidebar-menu').scrollTop|, fn scroll_top ->
+        assert scroll_top == 100
+      end)
+      |> visit(~p"/admin/posts")
+      |> assert_has("body .phx-connected")
+      |> evaluate(~s|document.querySelector('#backpex-sidebar-menu').scrollTop|, fn scroll_top ->
+        assert scroll_top == 100
+      end)
+    end
+  end
+
   describe "empty sidebar sections" do
     test "CSS hides empty nested sections and reveals them when an item appears", %{conn: conn} do
       conn

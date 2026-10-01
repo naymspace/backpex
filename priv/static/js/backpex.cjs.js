@@ -819,6 +819,7 @@ var sidebar_default = {
 };
 
 // js/hooks/_sidebar_sections.js
+var SCROLL_STORAGE_KEY = "backpex.sidebar_scroll_top";
 var sidebar_sections_default = {
   mounted() {
     BackpexPreferences.syncScope();
@@ -828,6 +829,7 @@ var sidebar_sections_default = {
     this._serverStates = {};
     this.initializeSections();
     this.applySectionStates();
+    this.restoreScrollPosition();
   },
   updated() {
     BackpexPreferences.syncScope();
@@ -841,6 +843,7 @@ var sidebar_sections_default = {
     this.applySectionStates();
   },
   destroyed() {
+    this.menu?.removeEventListener("scroll", this._onScroll);
     const sections = this.el.querySelectorAll("[data-section-id]");
     sections.forEach((section) => {
       const toggle = section.querySelector("[data-menu-dropdown-toggle]");
@@ -893,6 +896,14 @@ var sidebar_sections_default = {
       content.style.display = open ? "" : "none";
     }
   },
+  restoreScrollPosition() {
+    this.menu = this.el.querySelector("#backpex-sidebar-menu");
+    if (!this.menu) return;
+    const scrollTop = Number(readSession2(SCROLL_STORAGE_KEY));
+    if (scrollTop > 0) this.menu.scrollTop = scrollTop;
+    this._onScroll = () => writeSession2(SCROLL_STORAGE_KEY, String(this.menu.scrollTop));
+    this.menu.addEventListener("scroll", this._onScroll, { passive: true });
+  },
   handleSectionToggle(event) {
     const section = event.currentTarget.closest("[data-section-id]");
     const sectionId = section.dataset.sectionId;
@@ -910,6 +921,19 @@ var sidebar_sections_default = {
     );
   }
 };
+function readSession2(key) {
+  try {
+    return sessionStorage.getItem(key);
+  } catch {
+    return null;
+  }
+}
+function writeSession2(key, value) {
+  try {
+    sessionStorage.setItem(key, value);
+  } catch {
+  }
+}
 
 // js/hooks/_sticky_actions.js
 var sticky_actions_default = {

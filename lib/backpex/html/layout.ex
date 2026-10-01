@@ -107,7 +107,7 @@ defmodule Backpex.HTML.Layout do
         aria-label={Backpex.__("Main navigation", @live_resource)}
       >
         {render_slot(@sidebar_branding)}
-        <div class="menu w-full flex-1 overflow-y-auto px-2 py-2">
+        <div id="backpex-sidebar-menu" class="menu w-full flex-1 overflow-y-auto px-2 py-2">
           <ul class="w-full">
             {render_slot(@sidebar)}
           </ul>
