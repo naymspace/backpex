@@ -6,6 +6,7 @@ defmodule Backpex.LiveResourceTest do
   alias Backpex.Adapters.Ecto, as: EctoAdapter
   alias Backpex.ItemActions.Delete
   alias Backpex.LiveResource
+  alias Phoenix.LiveView.Socket
 
   defmodule TestPost do
     use Ecto.Schema
@@ -19,6 +20,72 @@ defmodule Backpex.LiveResourceTest do
   defmodule TestPostLive do
     @moduledoc false
     def adapter_config(:schema), do: Backpex.LiveResourceTest.TestPost
+  end
+
+  defmodule AllContextLive do
+    @moduledoc false
+    def config(:context_assigns), do: :all
+  end
+
+  defmodule ListContextLive do
+    @moduledoc false
+    def config(:context_assigns), do: [:current_user]
+  end
+
+  describe "context/1" do
+    test "passes all assigns except the change tracking ones by default" do
+      assigns = %{
+        __changed__: %{},
+        backpex_view_context: %{},
+        live_resource: AllContextLive,
+        items: [],
+        current_user: :user
+      }
+
+      assert LiveResource.context(assigns) == %{
+               __changed__: nil,
+               live_resource: AllContextLive,
+               items: [],
+               current_user: :user
+             }
+    end
+
+    test "passes the configured assigns, the ones Backpex needs and a socket for building routes" do
+      socket = %Socket{endpoint: :endpoint, router: :router, assigns: %{items: []}}
+
+      assigns = %{
+        __changed__: %{},
+        live_resource: ListContextLive,
+        live_action: :index,
+        params: %{},
+        fields: [],
+        item_actions: [],
+        return_to: "/posts",
+        items: [],
+        current_user: :user,
+        socket: socket
+      }
+
+      assert LiveResource.context(assigns) == %{
+               __changed__: nil,
+               live_resource: ListContextLive,
+               live_action: :index,
+               params: %{},
+               fields: [],
+               item_actions: [],
+               return_to: "/posts",
+               current_user: :user,
+               socket: %Socket{endpoint: :endpoint, router: :router}
+             }
+    end
+
+    test "can be assigned to by callbacks" do
+      for live_resource <- [AllContextLive, ListContextLive] do
+        context = LiveResource.context(%{__changed__: %{}, live_resource: live_resource, current_user: :user})
+
+        assert %{published: true} = Phoenix.Component.assign(context, :published, true)
+      end
+    end
   end
 
   describe "build_criteria/1" do
@@ -115,7 +182,7 @@ defmodule Backpex.LiveResourceTest do
     test "toggle_column is a no-op for a field the resource does not know" do
       # `field` arrives in a client-controlled event payload; an unknown name
       # must not crash the LiveView.
-      socket = %Phoenix.LiveView.Socket{
+      socket = %Socket{
         assigns: %{__changed__: %{}, active_fields: [{:title, %{active: true}}]}
       }
 

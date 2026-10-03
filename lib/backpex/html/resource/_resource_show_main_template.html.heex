@@ -1,0 +1,21 @@
+<.main_container>
+  <.show_panel
+    panel_fields={visible_fields_by_panel(@fields, :default, @backpex_context)}
+    item={@item}
+    fields={@fields}
+    live_resource={@live_resource}
+    backpex_context={@backpex_context}
+  />
+
+  <.show_panel
+    :for={{name, label} <- @panels}
+    :if={visible_fields_by_panel(@fields, name, @backpex_context) != []}
+    panel_fields={visible_fields_by_panel(@fields, name, @backpex_context)}
+    label={label}
+    class="mt-4"
+    item={@item}
+    fields={@fields}
+    live_resource={@live_resource}
+    backpex_context={@backpex_context}
+  />
+</.main_container>

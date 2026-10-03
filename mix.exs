@@ -57,7 +57,7 @@ defmodule Backpex.MixProject do
       {:phoenix, ">= 1.7.6 and < 1.9.0"},
       {:phoenix_html, "~> 4.1"},
       {:phoenix_html_helpers, "~> 1.0"},
-      {:phoenix_live_view, "~> 1.0"},
+      {:phoenix_live_view, "~> 1.1"},
 
       # adapters
       {:ecto, "~> 3.6"},
@@ -159,6 +159,7 @@ defmodule Backpex.MixProject do
       "guides/live_resource/listen-to-pubsub-events.md",
       "guides/live_resource/additional-classes-for-index-table-rows.md",
       "guides/live_resource/user-preferences.md",
+      "guides/live_resource/context-assigns.md",
 
       # Fields
       "guides/fields/what-is-a-field.md",
@@ -198,6 +199,7 @@ defmodule Backpex.MixProject do
       "guides/translations/translations.md",
 
       # Upgrade Guides
+      "guides/upgrading/v0.22.md",
       "guides/upgrading/v0.21.md",
       "guides/upgrading/v0.20.md",
       "guides/upgrading/v0.19.md",
