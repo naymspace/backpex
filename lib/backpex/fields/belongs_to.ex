@@ -221,10 +221,32 @@ defmodule Backpex.Fields.BelongsTo do
   end
 
   @impl Backpex.Field
-  def index_editable_change({name, _field_options}, value, assigns) do
-    %{owner_key: owner_key} = assigns.live_resource.adapter_config(:schema).__schema__(:association, name)
+  def index_editable_change({name, _field_options} = field, value, assigns) do
+    association = assigns.live_resource.adapter_config(:schema).__schema__(:association, name)
 
-    %{owner_key => value}
+    if option?(field, association.queryable, value, assigns), do: %{association.owner_key => value}, else: :error
+  end
+
+  # The value comes from the client, so only an option of the select, or no option, is saved.
+  defp option?(_field, _queryable, value, _assigns) when value in [nil, ""], do: true
+
+  defp option?(field, queryable, value, assigns) do
+    type = queryable.__schema__(:type, :id)
+
+    case Ecto.Type.cast(type, value) do
+      {:ok, id} ->
+        {repo, query, _display_field} =
+          assigns
+          |> Map.merge(%{queryable: queryable, display_field_form: display_field_form(field, display_field(field))})
+          |> options_query()
+
+        query
+        |> where([option], option.id == ^id)
+        |> repo.exists?()
+
+      _error ->
+        false
+    end
   end
 
   @impl Backpex.Field
