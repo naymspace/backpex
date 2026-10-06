@@ -7,6 +7,7 @@ defmodule DocTest do
   doctest Backpex.ResourceAction
   doctest Backpex.Resource
   doctest Backpex.Router
+  doctest Backpex.Field
   doctest Backpex.Fields.Upload
   doctest Backpex.HTML
   doctest Backpex.HTML.Layout

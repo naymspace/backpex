@@ -2,9 +2,8 @@
 defmodule Backpex.Fields.Upload do
   @config_schema [
     upload_key: [
-      doc: "Required identifier for the upload field (the name of the upload).",
-      type: :atom,
-      required: true
+      doc: "The name of the upload. Defaults to the name of the field.",
+      type: :atom
     ],
     accept: [
       doc: "List of filetypes that will be accepted or `:any`.",
@@ -631,7 +630,7 @@ defmodule Backpex.Fields.Upload do
 
   @impl Backpex.Field
   def render_form(assigns) do
-    upload_key = assigns.field_options.upload_key
+    upload_key = Backpex.Field.upload_key({assigns.name, assigns.field_options})
     uploads_allowed = not is_nil(assigns.lv_uploads[upload_key])
     translate_error_fun = Map.get(assigns.field_options, :translate_error, &Function.identity/1)
 
@@ -767,17 +766,18 @@ defmodule Backpex.Fields.Upload do
 
   @impl Backpex.Field
   def assign_uploads({_name, field_options} = field, socket) do
-    field_files = {field_options.upload_key, existing_file_paths(field, socket.assigns.item, [])}
+    upload_key = Backpex.Field.upload_key(field)
+    field_files = {upload_key, existing_file_paths(field, socket.assigns.item, [])}
 
     max_entries = field_options.max_entries
     max_file_size = Map.get(field_options, :max_file_size, 8_000_000)
 
-    if get_in(socket.assigns, [:uploads, field_options.upload_key]) do
+    if get_in(socket.assigns, [:uploads, upload_key]) do
       socket
     else
       socket
       |> assign_uploaded_files(field_files)
-      |> allow_field_uploads(field_options, max_entries, max_file_size)
+      |> allow_field_uploads(upload_key, field_options, max_entries, max_file_size)
     end
   end
 
@@ -786,10 +786,10 @@ defmodule Backpex.Fields.Upload do
     assign(socket, :uploaded_files, [field_files | uploaded_files])
   end
 
-  defp allow_field_uploads(socket, _field_options, 0, _max_file_size), do: socket
+  defp allow_field_uploads(socket, _upload_key, _field_options, 0, _max_file_size), do: socket
 
-  defp allow_field_uploads(socket, %{external: presign_upload} = field_options, max_entries, max_file_size) do
-    Phoenix.LiveView.allow_upload(socket, field_options.upload_key,
+  defp allow_field_uploads(socket, upload_key, %{external: presign_upload} = field_options, max_entries, max_file_size) do
+    Phoenix.LiveView.allow_upload(socket, upload_key,
       accept: field_options.accept,
       max_entries: max_entries,
       max_file_size: max_file_size,
@@ -797,8 +797,8 @@ defmodule Backpex.Fields.Upload do
     )
   end
 
-  defp allow_field_uploads(socket, field_options, max_entries, max_file_size) do
-    Phoenix.LiveView.allow_upload(socket, field_options.upload_key,
+  defp allow_field_uploads(socket, upload_key, field_options, max_entries, max_file_size) do
+    Phoenix.LiveView.allow_upload(socket, upload_key,
       accept: field_options.accept,
       max_entries: max_entries,
       max_file_size: max_file_size

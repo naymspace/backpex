@@ -87,8 +87,8 @@ end
 
 ## Custom upload fields
 
-An upload field is a field with an `:upload_key` option. Besides `c:Backpex.Field.assign_uploads/2`, it implements four
-callbacks that the form component calls on the field's module:
+An upload field is a field whose module implements the upload callbacks. Besides `c:Backpex.Field.assign_uploads/2`, it
+implements four callbacks that the form component calls on the field's module:
 
 - `c:Backpex.Field.list_existing_files/2` returns the files the item has.
 - `c:Backpex.Field.put_upload_change/7` puts the files into the params of the changeset.
