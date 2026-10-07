@@ -69,7 +69,7 @@ defmodule Backpex.Fields.Boolean do
           input_class={["toggle toggle-sm", @valid && "toggle-primary", !@valid && "toggle-error"]}
           phx-debounce={Backpex.Field.debounce(@field_options, assigns)}
           phx-throttle={Backpex.Field.throttle(@field_options, assigns)}
-          readonly={@readonly}
+          disabled={@readonly}
           hide_errors
           aria-label={@field_options[:label]}
         />

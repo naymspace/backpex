@@ -18,6 +18,7 @@ defmodule Backpex.LiveResource.Index do
   alias Phoenix.LiveView
 
   require Backpex
+  require Logger
 
   def mount(params, session, socket, live_resource) do
     socket =
@@ -474,23 +475,52 @@ defmodule Backpex.LiveResource.Index do
     end
   end
 
-  # Saves an inline edit of the index view with all assigns, like the edit form, and the name and item of the field,
-  # like the field component. The field and item come from the client, so only an index editable field that implements
-  # `c:Backpex.Field.index_editable_change/3` of an item on this page can be saved. Other fields save their inline
-  # edits themselves, e.g. with `Backpex.Field.handle_index_editable/3`. An edit that is not saved keeps its value and
-  # is marked as invalid until the item is saved or reloaded.
+  # Saves an inline edit of the index view with all assigns, like the edit form, and the field, its options, its value
+  # and the name and item of the field, like the field component. The field and item come from the client, so only an
+  # index editable field that is not readonly and implements `c:Backpex.Field.index_editable_change/3` of an item on
+  # this page that the user may edit can be saved, and only while no resource action is open, as the adapter would use
+  # its changeset. Other fields save their inline edits themselves, e.g. with `Backpex.Field.handle_index_editable/3`.
+  # The item is read again, so the checks and the changeset see its current values. An edit that is not saved keeps its
+  # value and is marked as invalid until the item is saved or reloaded.
   defp save_index_edit(socket, field_name, item_id, value) do
     %{live_resource: live_resource, fields: fields, items: items} = socket.assigns
 
-    with {name, field_options} = field <- Enum.find(fields, &(to_string(elem(&1, 0)) == field_name)),
-         true <- saves_index_edits?(field_options.module),
-         %{} = item <- Enum.find(items, &(to_string(LiveResource.primary_value(&1, live_resource)) == item_id)),
-         assigns = Map.merge(socket.assigns, %{name: name, item: item}),
-         true <- Backpex.Field.index_editable_enabled?(field_options, assigns) not in [false, nil] do
-      change = field_options.module.index_editable_change(field, value, assigns)
-      key = {name, LiveResource.primary_value(item, live_resource)}
+    with {name, _field_options} = field <- Enum.find(fields, &(to_string(elem(&1, 0)) == field_name)),
+         %{} = listed_item <- Enum.find(items, &(to_string(LiveResource.primary_value(&1, live_resource)) == item_id)) do
+      primary_value = LiveResource.primary_value(listed_item, live_resource)
 
-      # No `can?/3` check here: `Backpex.Resource.update/6` enforces `:edit` with the same assigns and item.
+      case save_listed_index_edit(socket, field, primary_value, value) do
+        {:ok, updated_item} ->
+          update_item(socket, updated_item)
+
+        :error ->
+          index_edits = Map.put(socket.assigns.index_edits, {name, primary_value}, %{value: value, valid: false})
+          assign(socket, :index_edits, index_edits)
+      end
+    else
+      _not_listed -> socket
+    end
+  end
+
+  defp save_listed_index_edit(socket, {name, field_options} = field, primary_value, value) do
+    %{live_resource: live_resource, live_action: live_action, fields: fields} = socket.assigns
+
+    with :index <- live_action,
+         true <- saves_index_edits?(field_options.module, name),
+         {:ok, %{} = item} <- Resource.get(primary_value, fields, socket.assigns, live_resource),
+         field_assigns = %{
+           field: field,
+           field_options: field_options,
+           name: name,
+           item: item,
+           value: Map.get(item, name)
+         },
+         assigns = Map.merge(socket.assigns, field_assigns),
+         true <- Backpex.Field.index_editable_enabled?(field_options, assigns) not in [false, nil],
+         true <- !Backpex.Field.readonly?(field_options, assigns),
+         # `Backpex.Resource.update/6` enforces `:edit` as well, but would raise.
+         true <- Authorization.can?(live_resource, assigns, :edit, item),
+         %{} = change <- field_options.module.index_editable_change(field, value, assigns) do
       opts = [
         after_save_fun: fn item ->
           live_resource.on_item_updated(socket, item)
@@ -500,19 +530,26 @@ defmodule Backpex.LiveResource.Index do
       ]
 
       case Resource.update(item, change, fields, assigns, live_resource, opts) do
-        {:ok, updated_item} ->
-          update_item(socket, updated_item)
-
-        _error ->
-          assign(socket, :index_edits, Map.put(socket.assigns.index_edits, key, %{value: value, valid: false}))
+        {:ok, updated_item} -> {:ok, updated_item}
+        _error -> :error
       end
     else
-      _not_editable -> socket
+      _not_saved -> :error
     end
   end
 
-  defp saves_index_edits?(module),
-    do: Code.ensure_loaded?(module) and function_exported?(module, :index_editable_change, 3)
+  defp saves_index_edits?(module, name) do
+    saves? = Code.ensure_loaded?(module) and function_exported?(module, :index_editable_change, 3)
+
+    if not saves? do
+      Logger.warning(
+        "The index view does not save the inline edit of #{inspect(name)}, as #{inspect(module)} does not implement " <>
+          "Backpex.Field.index_editable_change/3. Implement it or send the edit to the field component instead."
+      )
+    end
+
+    saves?
+  end
 
   # The selection caches whole records, so a row that changed elsewhere has to be replaced there
   # too — otherwise the confirm dialog and every preflight `can?/3` keep describing the old values.
