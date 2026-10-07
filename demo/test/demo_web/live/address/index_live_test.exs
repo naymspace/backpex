@@ -35,6 +35,23 @@ defmodule DemoWeb.Live.Address.IndexLiveTest do
       |> assert_has("tr", text: "Munich")
     end
 
+    test "search for items by country label", %{conn: conn} do
+      insert(:address, %{city: "Berlin", country: :de})
+      insert(:address, %{city: "Vienna", country: :at})
+
+      conn
+      |> visit(~p"/admin/addresses")
+      |> assert_has(".table tbody tr", count: 2)
+      |> unwrap(fn view ->
+        view
+        |> form("#index-search-form", index_search: %{value: "austr"})
+        |> render_change()
+      end)
+      |> assert_has("table tbody tr", count: 1)
+      |> refute_has("tr", text: "Berlin")
+      |> assert_has("tr", text: "Vienna")
+    end
+
     test "basic functionality", %{conn: conn} do
       addresses = insert_list(3, :address)
 

@@ -17,6 +17,22 @@ defmodule Backpex.Adapters.EctoTest do
     end
   end
 
+  defmodule TestLengthField do
+    @moduledoc false
+    use Backpex.Field
+
+    @impl Backpex.Field
+    def render_value(assigns), do: assigns
+
+    @impl Backpex.Field
+    def render_form(assigns), do: assigns
+
+    @impl Backpex.Field
+    def order_expression(schema_name, field_name, _field, _assigns) do
+      dynamic([{^schema_name, schema_name}], fragment("length(?)", schema_name |> field(^field_name)))
+    end
+  end
+
   defmodule TestFilter do
     @moduledoc false
     @behaviour Backpex.Filter
@@ -138,6 +154,32 @@ defmodule Backpex.Adapters.EctoTest do
     end
   end
 
+  describe "apply_search/5 with a select field" do
+    test "searches the option labels resolved with the given assigns" do
+      base_query = from(TestUser, as: ^EctoAdapter.name_by_schema(TestUser))
+
+      searchable_fields = [
+        {:title,
+         %{
+           module: Backpex.Fields.Select,
+           queryable: TestUser,
+           options: fn assigns -> [{assigns.admin_label, "admin"}, {"User", "user"}] end
+         }}
+      ]
+
+      query =
+        EctoAdapter.apply_search(base_query, TestUser, nil, {"istrat", searchable_fields}, %{
+          admin_label: "Administrator"
+        })
+
+      assert [%{expr: ilike_expr, params: params}] = query.wheres
+      assert match?({:ilike, _, _}, ilike_expr)
+      assert Macro.to_string(ilike_expr) =~ "array_position"
+
+      assert [["Administrator", "User"], ["admin", "user"], "%istrat%"] = Enum.map(params, &elem(&1, 0))
+    end
+  end
+
   describe "apply_search/4 (with full text search configured)" do
     test "returns original query on empty search string" do
       base_query = from(TestUser)
@@ -238,6 +280,68 @@ defmodule Backpex.Adapters.EctoTest do
       assert %{order_bys: [%{expr: order_expr}]} = query
       assert [{:asc_nulls_first, order_expression}] = order_expr
       assert Macro.to_string(order_expression) =~ "id"
+    end
+
+    test "orders a select field by its option labels" do
+      base_query = from(TestUser, as: ^EctoAdapter.name_by_schema(TestUser))
+
+      fields = [
+        {:title,
+         %{
+           module: Backpex.Fields.Select,
+           queryable: TestUser,
+           options: %{"Europe" => [Germany: "de", Austria: "at"], "North America" => [USA: :us]}
+         }}
+      ]
+
+      criteria = [
+        order: %{by: :title, direction: :asc, schema: TestUser, field_name: :title}
+      ]
+
+      query = EctoAdapter.apply_criteria(base_query, criteria, fields)
+
+      assert %{order_bys: [%{expr: [{:asc_nulls_first, order_expression}], params: params}]} = query
+      assert Macro.to_string(order_expression) =~ "array_position"
+      assert [["Germany", "Austria", "USA"], ["de", "at", "us"]] = Enum.map(params, &elem(&1, 0))
+    end
+
+    test "resolves select options with the given assigns" do
+      base_query = from(TestUser, as: ^EctoAdapter.name_by_schema(TestUser))
+
+      fields = [
+        {:title,
+         %{
+           module: Backpex.Fields.Select,
+           queryable: TestUser,
+           options: fn assigns -> [{assigns.admin_label, "admin"}] end
+         }}
+      ]
+
+      criteria = [
+        order: %{by: :title, direction: :desc, schema: TestUser, field_name: :title}
+      ]
+
+      query = EctoAdapter.apply_criteria(base_query, criteria, fields, %{admin_label: "Administrator"})
+
+      assert %{order_bys: [%{expr: [{:desc_nulls_last, _order_expression}], params: params}]} = query
+      assert [["Administrator"], ["admin"]] = Enum.map(params, &elem(&1, 0))
+    end
+
+    test "uses the order expression of the field module" do
+      base_query = from(TestUser, as: ^EctoAdapter.name_by_schema(TestUser))
+
+      fields = [
+        {:title, %{module: TestLengthField, queryable: TestUser}}
+      ]
+
+      criteria = [
+        order: %{by: :title, direction: :asc, schema: TestUser, field_name: :title}
+      ]
+
+      query = EctoAdapter.apply_criteria(base_query, criteria, fields)
+
+      assert %{order_bys: [%{expr: [{:asc_nulls_first, order_expression}]}]} = query
+      assert Macro.to_string(order_expression) =~ "length("
     end
 
     test "raises when the order criteria is malformed instead of silently dropping the order" do

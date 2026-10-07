@@ -245,6 +245,44 @@ defmodule Backpex.Field do
             ) ::
               Ecto.Query.dynamic_expr()
 
+  @doc """
+  Defines the search condition like `c:search_condition/3`, but additionally receives the field definition and the
+  assigns of the index view. Use it if the condition depends on the field configuration or on runtime data, e.g. to
+  search the translated labels of a select field instead of the stored values.
+
+  Defaults to calling `c:search_condition/3`.
+  """
+  @callback search_condition(
+              schema_name :: atom(),
+              field_name :: atom(),
+              search_string :: binary(),
+              field :: tuple(),
+              assigns :: map()
+            ) ::
+              Ecto.Query.dynamic_expr()
+
+  @doc """
+  Defines the expression the index view is ordered by when the user orders by this field. Defaults to the column of the
+  field. The function has to return a query wrapped into a `Ecto.Query.dynamic/2` which is then passed into an
+  `Ecto.Query.order_by/3`.
+
+  ## Example
+
+  Order by the length of a text instead of the text itself.
+
+      dynamic(
+        [{^schema_name, schema_name}],
+        fragment("length(?)", schema_name |> field(^field_name))
+      )
+  """
+  @callback order_expression(
+              schema_name :: atom(),
+              field_name :: atom(),
+              field :: tuple(),
+              assigns :: map()
+            ) ::
+              Ecto.Query.dynamic_expr()
+
   @optional_callbacks render_index_form: 1, index_assigns: 3, index_editable_change: 3
 
   @doc """
@@ -332,6 +370,16 @@ defmodule Backpex.Field do
           [{^schema_name, schema_name}],
           schema_name |> field(^field_name) |> ilike(^search_string)
         )
+      end
+
+      @impl Backpex.Field
+      def search_condition(schema_name, field_name, search_string, _field, _assigns) do
+        search_condition(schema_name, field_name, search_string)
+      end
+
+      @impl Backpex.Field
+      def order_expression(schema_name, field_name, _field, _assigns) do
+        dynamic([{^schema_name, schema_name}], schema_name |> field(^field_name))
       end
 
       @impl Backpex.Field
