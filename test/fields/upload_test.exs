@@ -39,6 +39,23 @@ defmodule Backpex.Fields.UploadTest do
     end
   end
 
+  describe "upload_key/1" do
+    test "is the name of a field that implements the upload callbacks" do
+      assert Field.upload_key({:images, %{module: Upload}}) == :images
+      assert Field.upload_key({:images, %{module: NamedFilesUpload}}) == :images
+    end
+
+    test "is the upload_key option when given" do
+      assert Field.upload_key({:images, %{module: Upload, upload_key: :pictures}}) == :pictures
+      assert Field.upload_key({:images, %{module: OptionsUpload, upload_key: :pictures}}) == :pictures
+    end
+
+    test "is nil for a field without upload callbacks and upload_key" do
+      assert Field.upload_key({:images, %{module: OptionsUpload}}) == nil
+      assert Field.upload_key({:title, %{module: Backpex.Fields.Text}}) == nil
+    end
+  end
+
   describe "list_existing_files/3" do
     test "calls the list_existing_files option of Backpex.Fields.Upload" do
       field = {:images, %{module: Upload, list_existing_files: fn item -> item.images end}}
