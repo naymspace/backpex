@@ -2,15 +2,37 @@
   <div class="relative">
     <div class="bg-base-100 rounded-box mb-4 overflow-hidden shadow-sm">
       <div class="overflow-x-auto">
-        <%= if assigns.item_count > 0 do %>
+        <%= if @item_count > 0 do %>
           <.toggle_columns
             active_fields={@active_fields}
             live_resource={@live_resource}
             class="absolute top-2 right-6 z-20 flex justify-end pt-1 font-medium normal-case"
           />
-          <.resource_index_table {assigns} />
+          <.resource_index_table
+            socket={@socket}
+            live_resource={@live_resource}
+            params={@params}
+            query_options={@query_options}
+            fields={@fields}
+            orderable_fields={@orderable_fields}
+            items={@items}
+            active_fields={@active_fields}
+            selected_items={@selected_items}
+            select_all={@select_all}
+            item_actions={@item_actions}
+            field_index_assigns={@field_index_assigns}
+            index_edits={@index_edits}
+            backpex_context={@backpex_context}
+          />
         <% else %>
-          <.empty_state {assigns} />
+          <.empty_state
+            socket={@socket}
+            live_resource={@live_resource}
+            params={@params}
+            query_options={@query_options}
+            create_button_label={@create_button_label}
+            backpex_context={@backpex_context}
+          />
         <% end %>
       </div>
     </div>

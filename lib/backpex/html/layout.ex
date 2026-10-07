@@ -23,6 +23,25 @@ defmodule Backpex.HTML.Layout do
   end
 
   @doc """
+  Renders the given content inside the layout of the live resource.
+
+  Unlike `<.layout {assigns}>`, this keeps the change tracking of the given assigns, so the layout only re-renders
+  the parts that depend on changed assigns.
+  """
+  def layout_with_content(assigns, content) do
+    # The layout is called as a function rather than with `<.layout {assigns}>`, because spreading `assigns` in HEEx
+    # marks all assigns of the layout as changed. Without HEEx, the inner block has to be built in the shape HEEx
+    # compiles slots to. It is always marked as changed, because the function is new on every render; the content
+    # still receives the original assigns and keeps their change tracking.
+    inner_block = [%{__slot__: :inner_block, inner_block: fn _changed, _argument -> content.(assigns) end}]
+    changed = if assigns.__changed__, do: Map.put(assigns.__changed__, :inner_block, true)
+
+    assigns
+    |> Map.merge(%{inner_block: inner_block, __changed__: changed})
+    |> layout()
+  end
+
+  @doc """
   Renders an app shell representing the base of your layout.
   """
   @doc type: :component

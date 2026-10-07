@@ -11,7 +11,7 @@
         />
       </th>
       <th :for={{name, %{label: label} = field_options} <- @fields} :if={active?(@active_fields, name)} class="h-12">
-        <div class={["text-xs font-medium", align(field_options), index_column_class(assigns, field_options)]}>
+        <div class={["text-xs font-medium", align(field_options), index_column_class(@backpex_context, field_options)]}>
           <%= if Enum.member?(@orderable_fields, name) do %>
             <.order_link
               live_resource={@live_resource}
@@ -33,9 +33,10 @@
   </thead>
   <tbody>
     <tr
-      :for={{item, index, selectable?} <- index_rows(assigns)}
+      :for={{item, index, selectable?} <- index_rows(@items, @backpex_context)}
+      :key={LiveResource.primary_value(item, @live_resource)}
       id={"row-item-#{LiveResource.primary_value(item, @live_resource)}"}
-      class={index_row_class(assigns, item, selected?(@selected_items, item), index)}
+      class={index_row_class(@backpex_context, item, selected?(@selected_items, item), index)}
       phx-hook="BackpexStickyActions"
     >
       <td :if={Enum.any?(filter_item_actions(@item_actions, :index))} class="relative">
@@ -52,31 +53,39 @@
             if not selectable?,
               do: Backpex.__("No action is available for this item.", @live_resource)
           }
-          aria-label={select_item_label(assigns, item, selectable?)}
+          aria-label={select_item_label(@backpex_context, item, selectable?)}
         />
       </td>
       <td :for={{name, field_options} <- @fields} :if={active?(@active_fields, name)} class="text-base-content/75">
-        <div class={[align(field_options), index_column_class(assigns, field_options)]}>
-          <.resource_field name={name} item={item} {assigns} />
+        <div class={[align(field_options), index_column_class(@backpex_context, field_options)]}>
+          <.resource_field
+            name={name}
+            item={item}
+            fields={@fields}
+            live_resource={@live_resource}
+            field_index_assigns={@field_index_assigns}
+            index_edit={Map.get(@index_edits, {name, LiveResource.primary_value(item, @live_resource)})}
+            backpex_context={@backpex_context}
+          />
         </div>
       </td>
       <td class={[
-        index_row_class(assigns, item, selected?(@selected_items, item), index),
+        index_row_class(@backpex_context, item, selected?(@selected_items, item), index),
         sticky_col_class(),
         "text-base-content/75 z-10 w-0 px-6"
       ]}>
         <div class={["flex items-center justify-end space-x-2"]}>
           <%= for {key, action} <- filter_item_actions(@item_actions, :row),
-                  Authorization.can?(@live_resource, assigns, key, item) do %>
+                  Authorization.can?(@live_resource, @backpex_context, key, item) do %>
             <%= if Backpex.ItemAction.has_link?(action) do %>
               <.link
                 id={"item-action-#{key}-#{LiveResource.primary_value(item, @live_resource)}"}
-                navigate={action.module.link(assigns, item)}
-                aria-label={action.module.label(assigns, item)}
+                navigate={action.module.link(@backpex_context, item)}
+                aria-label={action.module.label(@backpex_context, item)}
                 phx-hook="BackpexTooltip"
-                data-tooltip={action.module.label(assigns, item)}
+                data-tooltip={action.module.label(@backpex_context, item)}
               >
-                {action.module.icon(assigns, item)}
+                {action.module.icon(@backpex_context, item)}
               </.link>
             <% else %>
               <button
@@ -85,11 +94,11 @@
                 phx-click="item-action"
                 phx-value-action-key={key}
                 phx-value-item-id={LiveResource.primary_value(item, @live_resource)}
-                aria-label={action.module.label(assigns, item)}
+                aria-label={action.module.label(@backpex_context, item)}
                 phx-hook="BackpexTooltip"
-                data-tooltip={action.module.label(assigns, item)}
+                data-tooltip={action.module.label(@backpex_context, item)}
               >
-                {action.module.icon(assigns, item)}
+                {action.module.icon(@backpex_context, item)}
               </button>
             <% end %>
           <% end %>

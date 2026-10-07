@@ -189,32 +189,22 @@ defmodule Backpex.Fields.BelongsTo do
         _assigns -> assigns |> options_query() |> load_options()
       end
 
-    form = to_form(%{"value" => assigns.value}, as: :index_form)
-
     assigns =
       assigns
       |> assign(:options, options)
-      |> assign_new(:form, fn -> form end)
-      |> assign_new(:valid, fn -> true end)
+      |> Backpex.Field.assign_index_form()
       |> assign_prompt(assigns.field_options)
 
     ~H"""
     <div>
-      <.form
-        for={@form}
-        id={"index-form-#{@name}-#{LiveResource.primary_value(@item, @live_resource)}"}
-        class="relative"
-        phx-change="update-field"
-        phx-submit="update-field"
-        phx-target={@myself}
-      >
+      <BackpexForm.index_form form={@form} name={@name} item={@item} live_resource={@live_resource} class="relative">
         <BackpexForm.input
           id={"index-form-input-#{@name}-#{LiveResource.primary_value(@item, @live_resource)}"}
           type="select"
           field={@form[:value]}
           options={@options}
           prompt={@prompt}
-          value={@value && Map.get(@value, :id)}
+          value={if @valid, do: @value && Map.get(@value, :id), else: @form[:value].value}
           input_class={[
             "select select-sm",
             @valid && "not-hover:select-ghost",
@@ -225,14 +215,16 @@ defmodule Backpex.Fields.BelongsTo do
           hide_errors
           aria-label={@field_options[:label]}
         />
-      </.form>
+      </BackpexForm.index_form>
     </div>
     """
   end
 
-  @impl Phoenix.LiveComponent
-  def handle_event("update-field", %{"index_form" => %{"value" => value}}, socket) do
-    Backpex.Field.handle_index_editable(socket, value, Map.put(%{}, socket.assigns.owner_key, value))
+  @impl Backpex.Field
+  def index_editable_change({name, _field_options}, value, assigns) do
+    %{owner_key: owner_key} = assigns.live_resource.adapter_config(:schema).__schema__(:association, name)
+
+    %{owner_key => value}
   end
 
   @impl Backpex.Field

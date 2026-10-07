@@ -17,6 +17,48 @@ defmodule DemoWeb.Live.Post.IndexLiveTest do
       |> assert_has("table tbody tr", count: 3)
     end
 
+    test "does not update the fields when an assign outside of the table changes", %{conn: conn} do
+      [post | _posts] = insert_list(3, :post, published: true)
+
+      {:error, {:live_redirect, %{to: path}}} = live(conn, ~p"/admin/posts")
+      {:ok, view, _html} = live(conn, path)
+
+      test_pid = self()
+      handler_id = {__MODULE__, make_ref()}
+
+      :telemetry.attach(
+        handler_id,
+        [:phoenix, :live_component, :update, :start],
+        fn _event, _measurements, %{component: component}, _config -> send(test_pid, {:updated, component}) end,
+        nil
+      )
+
+      on_exit(fn -> :telemetry.detach(handler_id) end)
+
+      render_click(view, "toggle_metrics", %{})
+
+      refute_received {:updated, _component}
+
+      # The fields are updated when their item changes, so the handler above does receive updates.
+      post = post |> Ecto.Changeset.change(title: "Changed title") |> Demo.Repo.update!()
+      send(view.pid, {"backpex:updated", post})
+      render(view)
+
+      assert_received {:updated, _component}
+    end
+
+    test "the edit item action leads back to the current index and show view", %{conn: conn} do
+      post = insert(:post, published: true)
+
+      conn
+      |> visit(~p"/admin/posts?#{%{"page" => "1", "per_page" => "50"}}")
+      |> assert_has("a#item-action-edit-#{post.id}[href*='return_to='][href*='per_page%3D50']")
+
+      conn
+      |> visit(~p"/admin/posts/#{post.id}/show")
+      |> assert_has("a#item-action-edit[href*='return_to=%2Fadmin%2Fposts%2F#{post.id}%2Fshow']")
+    end
+
     test "renders posts with title", %{conn: conn} do
       post = insert(:post, %{title: "Test Post Title", published: true})
 
