@@ -22,7 +22,7 @@ Check `mix.exs` for the Backpex dependency:
 
 ## Upgrade Guides Location
 
-All upgrade guides are at `guides/upgrading/` in the Backpex repository (also available on HexDocs). Read these files directly to get the exact migration steps:
+All upgrade guides are at `guides/upgrading/` in the Backpex repository (also available on HexDocs). They are not bundled with this plugin, so fetch them from GitHub, e.g. `https://raw.githubusercontent.com/naymspace/backpex/develop/guides/upgrading/v0.18.md`, to get the exact migration steps:
 
 | Version | File |
 |---------|------|
