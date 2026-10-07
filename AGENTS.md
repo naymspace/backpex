@@ -183,12 +183,18 @@ If the command is related to Backpex it has to be executed on the host system:
 mix format
 ```
 
+### Environment
+
+- Dev settings live in `compose.yml`, test settings in the `config_env() == :test` block at the end of `demo/config/runtime.exs`. A developer's optional `.env` only holds host ports and personal settings; never read it. Without it, host ports are random.
+- In a worktree, never start or stop containers of another checkout; run `docker compose` only from the current directory. Start the demo with `docker compose up -d`; tests and `mix` commands need no ports. `docker compose port app 4000` shows the demo's host port. Without a `compose.override.yml`, the browser console shows errors for the LiveDebugger assets on port 4007. If absolute URLs or LiveDebugger must work, write one with free ports (check with `lsof -iTCP:<port> -sTCP:LISTEN`), as in CONTRIBUTING.md, and print the URL.
+- The Tidewave MCP server in `.mcp.json` runs `mix tidewave.proxy` inside the current checkout's app container. Its tools take a `port` argument: always pass `4000`, the demo's port inside the container, never the host port. The server only connects if the app container was running when the session started. If the Tidewave tools are missing, start the demo with `docker compose up -d` and ask the user to reconnect `tidewave` via `/mcp`.
+
 ### Quality Assurance
 
 1. **Run linters**: Use linters when you are done with all changes and fix any pending issues
   - Run `docker compose exec -T app bun run lint` to lint the demo application
   - Run `mix lint` to lint Backpex
-2. **Manual testing**: Use Chrome DevTools MCP to test your changes at http://localhost:4000
+2. **Manual testing**: Use Chrome DevTools MCP to test your changes at the demo's URL (`docker compose port app 4000`)
   - Test in multiple browser viewports (mobile, tablet, desktop)
   - Verify all interactive elements work correctly
   - Check for console errors or warnings
