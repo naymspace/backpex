@@ -9,7 +9,7 @@
   "plugins": [
     {
       "name": "backpex",
-      "source": "./",
+      "source": "./plugin",
       "description": "Skills and agents for building with Backpex — the Phoenix LiveView admin panel",
       "version": "0.1.0",
       "homepage": "https://github.com/naymspace/backpex",
