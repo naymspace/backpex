@@ -816,11 +816,38 @@ defmodule Backpex.Fields.Upload do
 
   @doc """
   Lists existing files based on item and list of removed files.
-  """
-  def list_existing_files({_field_name, field_options} = _field, item, removed_files) do
-    %{list_existing_files: list_existing_files} = field_options
 
-    list_existing_files.(item) -- removed_files
+  The files come from `c:Backpex.Field.list_existing_files/2` of the field's module, so this works for custom upload
+  fields too.
+  """
+  def list_existing_files(field, item, removed_files) do
+    Backpex.Field.upload_module(field).list_existing_files(field, item) -- removed_files
+  end
+
+  @impl Backpex.Field
+  def list_existing_files({_name, field_options} = _field, item), do: field_options.list_existing_files.(item)
+
+  @impl Backpex.Field
+  def put_upload_change(
+        {_name, field_options} = _field,
+        socket,
+        params,
+        item,
+        uploaded_entries,
+        removed_entries,
+        action
+      ) do
+    field_options.put_upload_change.(socket, params, item, uploaded_entries, removed_entries, action)
+  end
+
+  @impl Backpex.Field
+  def consume_upload({_name, field_options} = _field, socket, item, meta, entry) do
+    field_options.consume_upload.(socket, item, meta, entry)
+  end
+
+  @impl Backpex.Field
+  def remove_uploads({_name, field_options} = _field, socket, item, removed_entries) do
+    field_options.remove_uploads.(socket, item, removed_entries)
   end
 
   @doc """

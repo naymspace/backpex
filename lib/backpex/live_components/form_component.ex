@@ -152,7 +152,7 @@ defmodule Backpex.FormComponent do
   def handle_event("cancel-existing-entry", %{"ref" => file_key, "id" => upload_key}, socket) do
     %{assigns: assigns} = socket
 
-    # Both params are client-controlled and `file_key` ends up in the user's `remove_uploads/3`,
+    # Both params are client-controlled and `file_key` ends up in the field's `remove_uploads/4`,
     # which typically deletes it from disk. Only a file the item currently has, on an upload field
     # the user may edit, may be marked as removed. Anything else is a no-op.
     with {_name, %{upload_key: upload_key} = field_options} = field <- find_upload_field(assigns.fields, upload_key),
@@ -482,13 +482,20 @@ defmodule Backpex.FormComponent do
 
   defp put_upload_change(change, socket, action) do
     Enum.reduce(socket.assigns.fields, change, fn
-      {name, %{upload_key: upload_key} = field_options} = _field, acc ->
-        %{put_upload_change: put_upload_change} = field_options
-
+      {name, %{upload_key: upload_key}} = field, acc ->
         uploaded_entries = uploaded_entries(socket, upload_key)
         removed_entries = Keyword.get(socket.assigns.removed_uploads, upload_key, [])
 
-        change = put_upload_change.(socket, acc, socket.assigns.item, uploaded_entries, removed_entries, action)
+        change =
+          Field.upload_module(field).put_upload_change(
+            field,
+            socket,
+            acc,
+            socket.assigns.item,
+            uploaded_entries,
+            removed_entries,
+            action
+          )
 
         upload_used_input_data = Map.get(change, "#{to_string(name)}_used_input")
         used_input? = upload_used_input_data != "false"
@@ -509,23 +516,23 @@ defmodule Backpex.FormComponent do
   end
 
   defp handle_uploads(%{assigns: %{uploads: _uploads}} = socket, item) do
-    for {_name, %{upload_key: upload_key} = field_options} = _field <- socket.assigns.fields,
+    for {_name, %{upload_key: upload_key}} = field <- socket.assigns.fields,
         Map.has_key?(socket.assigns.uploads, upload_key) do
-      consume_and_remove_uploads(socket, item, upload_key, field_options)
+      consume_and_remove_uploads(socket, item, field)
     end
   end
 
   defp handle_uploads(_socket, _item), do: :ok
 
-  defp consume_and_remove_uploads(socket, item, upload_key, field_options) do
-    %{consume_upload: consume_upload, remove_uploads: remove_uploads} = field_options
+  defp consume_and_remove_uploads(socket, item, {_name, %{upload_key: upload_key}} = field) do
+    module = Field.upload_module(field)
 
     consume_uploaded_entries(socket, upload_key, fn meta, entry ->
-      consume_upload.(socket, item, meta, entry)
+      module.consume_upload(field, socket, item, meta, entry)
     end)
 
     removed_entries = Keyword.get(socket.assigns.removed_uploads, upload_key, [])
-    remove_uploads.(socket, item, removed_entries)
+    module.remove_uploads(field, socket, item, removed_entries)
   end
 
   def render(assigns) do
