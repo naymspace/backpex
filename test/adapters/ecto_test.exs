@@ -180,6 +180,30 @@ defmodule Backpex.Adapters.EctoTest do
     end
   end
 
+  describe "apply_search/5 with a field of multiple options" do
+    test "searches the joined labels of a multi select field" do
+      base_query = from(TestUser, as: ^EctoAdapter.name_by_schema(TestUser))
+
+      searchable_fields = [
+        {:title,
+         %{
+           module: Backpex.Fields.MultiSelect,
+           queryable: TestUser,
+           options: fn assigns -> [{"Team", [{assigns.alex_label, "alex"}, {"Bob", "bob"}]}] end
+         }}
+      ]
+
+      query =
+        EctoAdapter.apply_search(base_query, TestUser, nil, {"lex", searchable_fields}, %{alex_label: "Alex"})
+
+      assert [%{expr: ilike_expr, params: params}] = query.wheres
+      assert match?({:ilike, _, _}, ilike_expr)
+      assert Macro.to_string(ilike_expr) =~ "array_to_string"
+
+      assert [["Alex", "Bob"], ["Alex", "Bob"], ["alex", "bob"], "%lex%"] = Enum.map(params, &elem(&1, 0))
+    end
+  end
+
   describe "apply_search/4 (with full text search configured)" do
     test "returns original query on empty search string" do
       base_query = from(TestUser)
@@ -325,6 +349,25 @@ defmodule Backpex.Adapters.EctoTest do
 
       assert %{order_bys: [%{expr: [{:desc_nulls_last, _order_expression}], params: params}]} = query
       assert [["Administrator"], ["admin"]] = Enum.map(params, &elem(&1, 0))
+    end
+
+    test "orders a checkgroup field by the joined labels of its options" do
+      base_query = from(TestUser, as: ^EctoAdapter.name_by_schema(TestUser))
+
+      fields = [
+        {:title,
+         %{module: Backpex.Fields.Checkgroup, queryable: TestUser, options: [{"Admin", "admin"}, {"User", :user}]}}
+      ]
+
+      criteria = [
+        order: %{by: :title, direction: :asc, schema: TestUser, field_name: :title}
+      ]
+
+      query = EctoAdapter.apply_criteria(base_query, criteria, fields)
+
+      assert %{order_bys: [%{expr: [{:asc_nulls_first, order_expression}], params: params}]} = query
+      assert Macro.to_string(order_expression) =~ "array_to_string"
+      assert [["Admin", "User"], ["Admin", "User"], ["admin", "user"]] = Enum.map(params, &elem(&1, 0))
     end
 
     test "uses the order expression of the field module" do

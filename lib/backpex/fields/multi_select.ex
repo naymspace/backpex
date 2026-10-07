@@ -23,8 +23,6 @@ defmodule Backpex.Fields.MultiSelect do
   @moduledoc """
   A field for handling a multi select with predefined options.
 
-  This field can not be searchable.
-
   ## Field-specific options
 
   See `Backpex.Field` for general field options.
@@ -42,8 +40,19 @@ defmodule Backpex.Fields.MultiSelect do
             options: fn _assigns -> [{"Alex", "user_id_alex"}, {"Bob", "user_id_bob"}] end
           },
         ]
+
+  ## Ordering and searching
+
+  The index view orders and searches this field by the labels of the selected options, in the order of the options and
+  joined with `", "`, instead of the stored values. A search matches a row if this text contains the search term.
+  Values without an option are left out, like when rendering the field.
+
+  If you translate the labels in an `options` function, they are ordered and searched in the locale of the current
+  user. See `Backpex.Fields.Select` for which assigns the function receives when ordering or searching.
   """
   use Backpex.Field, config_schema: @config_schema
+  import Ecto.Query
+  alias Backpex.Fields.OptionLabels
   alias Backpex.HTML.Form
   require Backpex
 
@@ -253,6 +262,18 @@ defmodule Backpex.Fields.MultiSelect do
     label
     |> String.downcase()
     |> String.contains?(search_input_downcase)
+  end
+
+  @impl Backpex.Field
+  def search_condition(schema_name, field_name, search_string, field, assigns) do
+    labels = OptionLabels.labels_expression(schema_name, field_name, OptionLabels.options(field, assigns))
+
+    dynamic(ilike(^labels, ^search_string))
+  end
+
+  @impl Backpex.Field
+  def order_expression(schema_name, field_name, field, assigns) do
+    OptionLabels.labels_expression(schema_name, field_name, OptionLabels.options(field, assigns))
   end
 
   defp prompt(assigns, field_options) do

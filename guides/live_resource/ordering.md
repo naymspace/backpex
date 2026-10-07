@@ -72,7 +72,7 @@ Invalid URL parameters won't crash the application. Instead, they are silently r
 
 ## Ordering Select Fields
 
-`Backpex.Fields.Select` fields are ordered by the labels of their options instead of the stored values. If you translate the labels in an `options` function, the index view is ordered by the labels in the locale of the current user. See `Backpex.Fields.Select` for details.
+`Backpex.Fields.Select` fields are ordered by the labels of their options instead of the stored values. `Backpex.Fields.MultiSelect` and `Backpex.Fields.Checkgroup` fields are ordered by the labels of their selected options, in the order of the options and joined with `", "`. If you translate the labels in an `options` function, the index view is ordered by the labels in the locale of the current user. See `Backpex.Fields.Select` for details.
 
 ## Custom Order Expressions
 

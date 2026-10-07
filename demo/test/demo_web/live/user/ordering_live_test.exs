@@ -24,6 +24,23 @@ defmodule DemoWeb.Live.User.OrderingLiveTest do
   end
 
   describe "ordering via URL params" do
+    test "orders by the labels of the permissions instead of the stored values", %{conn: conn} do
+      # Stored values sort as {edit_posts} before {manage_users, create_posts}; the labels as
+      # "Create Posts, Manage Users" before "Edit Posts".
+      insert(:user, first_name: "Edit", last_name: "Only", permissions: ["edit_posts"])
+      insert(:user, first_name: "Manage", last_name: "Create", permissions: ["manage_users", "create_posts"])
+      insert(:user, first_name: "No", last_name: "Permissions", permissions: [])
+
+      params = %{"order_by" => "permissions", "order_direction" => "asc"}
+
+      conn
+      |> visit(~p"/admin/users?#{params}")
+      |> assert_has("table tbody tr", count: 3)
+      |> assert_has("table tbody tr:nth-child(1) td", text: "No Permissions")
+      |> assert_has("table tbody tr:nth-child(2) td", text: "Manage Create")
+      |> assert_has("table tbody tr:nth-child(3) td", text: "Edit Only")
+    end
+
     test "orders by username descending", %{conn: conn} do
       insert(:user, username: "alice", first_name: "Alice", last_name: "A")
       insert(:user, username: "bob", first_name: "Bob", last_name: "B")
