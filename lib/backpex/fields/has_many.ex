@@ -108,9 +108,7 @@ defmodule Backpex.Fields.HasMany do
       field_options[:not_found_text] || Backpex.__("No options found", socket.assigns.live_resource)
     end)
     |> assign_new(:search_input, fn -> "" end)
-    |> assign_new(:offset, fn -> 0 end)
-    |> assign_new(:options_count, fn -> count_options(assigns) end)
-    |> assign_initial_options()
+    |> maybe_assign_options()
     |> assign_selected()
     |> assign_form_errors()
   end
@@ -412,7 +410,7 @@ defmodule Backpex.Fields.HasMany do
       # in the changes. Otherwise it would not work if the item already contains all items ("select all") or
       # none items ("deselect all").
       Map.has_key?(attrs, field_name_string <> "_select_all") ->
-        [%{} | repo.all(schema)]
+        [%{} | schema |> maybe_options_query(field_options, assigns) |> repo.all()]
 
       Map.has_key?(attrs, field_name_string <> "_deselect_all") ->
         [%{}]
@@ -481,9 +479,30 @@ defmodule Backpex.Fields.HasMany do
     assign(assigns, :link, link)
   end
 
-  defp assign_initial_options(%{assigns: %{options: _options}} = socket), do: socket
+  # The options query may depend on other assigns, e.g. a value of the form. The options are loaded again whenever the
+  # resulting query changes.
+  defp maybe_assign_options(socket) do
+    query = options_base_query(socket.assigns)
 
-  defp assign_initial_options(socket), do: assign_options(socket)
+    if Map.get(socket.assigns, :options_base_query) == query do
+      socket
+    else
+      socket = assign(socket, options_base_query: query, offset: 0)
+
+      socket
+      |> assign(:options_count, count_options(socket.assigns))
+      |> assign_options()
+    end
+  end
+
+  defp options_base_query(assigns) do
+    %{field_options: field_options, name: name} = assigns
+    schema = assigns.live_resource.adapter_config(:schema)
+    %{queryable: queryable} = schema.__schema__(:association, name)
+
+    from(queryable, as: ^EctoAdapter.name_by_schema(queryable))
+    |> maybe_options_query(field_options, assigns)
+  end
 
   defp assign_options(socket, other_options \\ []) do
     %{assigns: %{field_options: field_options, search_input: search_input, offset: offset} = assigns} = socket
@@ -500,18 +519,11 @@ defmodule Backpex.Fields.HasMany do
   end
 
   defp options(assigns, opts) do
-    %{field: field, field_options: field_options, name: name} = assigns
+    %{field: field, field_options: field_options, options_base_query: query} = assigns
     repo = assigns.live_resource.adapter_config(:repo)
-    schema = assigns.live_resource.adapter_config(:schema)
-    %{queryable: queryable} = schema.__schema__(:association, name)
 
-    display_field = display_field(field)
-
-    schema_name = EctoAdapter.name_by_schema(queryable)
-
-    from(queryable, as: ^schema_name)
-    |> maybe_options_query(field_options, assigns)
-    |> maybe_search_query(schema_name, field_options, display_field, Keyword.get(opts, :search))
+    query
+    |> maybe_search_query(query.from.as, field_options, display_field(field), Keyword.get(opts, :search))
     |> maybe_offset_query(Keyword.get(opts, :offset))
     |> maybe_limit_query(Keyword.get(opts, :limit))
     |> repo.all()
@@ -547,17 +559,11 @@ defmodule Backpex.Fields.HasMany do
   end
 
   defp count_options(assigns, opts \\ []) do
-    %{field: field, field_options: field_options, name: name} = assigns
+    %{field: field, field_options: field_options, options_base_query: query} = assigns
     repo = assigns.live_resource.adapter_config(:repo)
-    schema = assigns.live_resource.adapter_config(:schema)
-    display_field = display_field(field)
 
-    %{queryable: queryable} = schema.__schema__(:association, name)
-    schema_name = EctoAdapter.name_by_schema(queryable)
-
-    from(queryable, as: ^schema_name)
-    |> maybe_options_query(field_options, assigns)
-    |> maybe_search_query(schema_name, field_options, display_field, Keyword.get(opts, :search))
+    query
+    |> maybe_search_query(query.from.as, field_options, display_field(field), Keyword.get(opts, :search))
     |> subquery()
     |> repo.aggregate(:count)
   end
@@ -571,17 +577,16 @@ defmodule Backpex.Fields.HasMany do
     selected_ids = extract_selected_ids(socket.assigns.form[socket.assigns.name].value, primary_key)
     selected_items = fetch_selected_items(socket, selected_ids)
 
+    # Items that are no longer options, e.g. because a value the options query depends on changed, are deselected.
     socket
     |> assign(:selected, selected_items)
-    |> assign(:selected_ids, selected_ids)
+    |> assign(:selected_ids, Enum.map(selected_items, fn {_label, id} -> id end))
     |> assign(:all_selected, length(selected_items) == socket.assigns.options_count)
   end
 
   defp fetch_selected_items(socket, selected_ids) do
-    schema = socket.assigns.live_resource.adapter_config(:schema)
-    %{queryable: queryable} = schema.__schema__(:association, socket.assigns.name)
     {from_options, to_fetch} = separate_selected_items(selected_ids, socket.assigns.options)
-    from_db = fetch_from_db(to_fetch, queryable, socket)
+    from_db = fetch_from_db(to_fetch, socket)
 
     from_options ++ from_db
   end
@@ -597,14 +602,13 @@ defmodule Backpex.Fields.HasMany do
     end)
   end
 
-  defp fetch_from_db([], _queryable, _socket), do: []
+  defp fetch_from_db([], _socket), do: []
 
-  defp fetch_from_db(ids_to_fetch, queryable, socket) do
+  defp fetch_from_db(ids_to_fetch, socket) do
     repo = socket.assigns.live_resource.adapter_config(:repo)
 
-    queryable
+    socket.assigns.options_base_query
     |> where([x], x.id in ^ids_to_fetch)
-    |> maybe_options_query(socket.assigns.field_options, socket.assigns)
     |> repo.all()
     |> Enum.map(fn item ->
       {Map.get(item, display_field_form(socket.assigns.field)), item.id}
