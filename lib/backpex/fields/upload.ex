@@ -820,8 +820,8 @@ defmodule Backpex.Fields.Upload do
   The files come from `c:Backpex.Field.list_existing_files/2` of the field's module, so this works for custom upload
   fields too.
   """
-  def list_existing_files({_field_name, field_options} = field, item, removed_files) do
-    field_options.module.list_existing_files(field, item) -- removed_files
+  def list_existing_files(field, item, removed_files) do
+    Backpex.Field.upload_module(field).list_existing_files(field, item) -- removed_files
   end
 
   @impl Backpex.Field

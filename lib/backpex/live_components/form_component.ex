@@ -482,12 +482,12 @@ defmodule Backpex.FormComponent do
 
   defp put_upload_change(change, socket, action) do
     Enum.reduce(socket.assigns.fields, change, fn
-      {name, %{upload_key: upload_key} = field_options} = field, acc ->
+      {name, %{upload_key: upload_key}} = field, acc ->
         uploaded_entries = uploaded_entries(socket, upload_key)
         removed_entries = Keyword.get(socket.assigns.removed_uploads, upload_key, [])
 
         change =
-          field_options.module.put_upload_change(
+          Field.upload_module(field).put_upload_change(
             field,
             socket,
             acc,
@@ -524,7 +524,9 @@ defmodule Backpex.FormComponent do
 
   defp handle_uploads(_socket, _item), do: :ok
 
-  defp consume_and_remove_uploads(socket, item, {_name, %{module: module, upload_key: upload_key}} = field) do
+  defp consume_and_remove_uploads(socket, item, {_name, %{upload_key: upload_key}} = field) do
+    module = Field.upload_module(field)
+
     consume_uploaded_entries(socket, upload_key, fn meta, entry ->
       module.consume_upload(field, socket, item, meta, entry)
     end)

@@ -101,3 +101,7 @@ work out what it needs from the field, such as the column to read the files from
 
 To reuse the upload UI, delegate rendering and `assign_uploads/2` to `Backpex.Fields.Upload`. Its `render_form/1` and
 `render_value/1` list the existing files through your `list_existing_files/2`.
+
+A custom upload field that doesn't implement the callbacks keeps working: the form component then calls them on
+`Backpex.Fields.Upload`, which reads the `:list_existing_files`, `:put_upload_change`, `:consume_upload` and
+`:remove_uploads` functions from the field options. See `Backpex.Field.upload_module/1`.

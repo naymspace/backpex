@@ -444,6 +444,31 @@ defmodule Backpex.Field do
   def readonly?(_field_options, _assigns), do: false
 
   @doc """
+  Returns the module that implements the upload callbacks of an upload field.
+
+  This is the module of the field when it implements `c:consume_upload/5` and the other upload callbacks, otherwise
+  `Backpex.Fields.Upload`, which calls the `:list_existing_files`, `:put_upload_change`, `:consume_upload` and
+  `:remove_uploads` functions of the field options. So a custom field that only defines an `:upload_key` and these
+  options, as before the callbacks existed, keeps working.
+
+  ## Examples
+
+      iex> Backpex.Field.upload_module({:avatar, %{module: Backpex.Fields.Upload}})
+      Backpex.Fields.Upload
+      iex> Backpex.Field.upload_module({:avatar, %{module: Backpex.Fields.Text}})
+      Backpex.Fields.Upload
+  """
+  @spec upload_module(tuple()) :: module()
+  def upload_module({_name, %{module: module}} = _field) do
+    if upload_callbacks?(module), do: module, else: Backpex.Fields.Upload
+  end
+
+  @doc false
+  def upload_callbacks?(module) do
+    Code.ensure_loaded?(module) and function_exported?(module, :consume_upload, 5)
+  end
+
+  @doc """
   Drops readonly field changes from the given change map.
 
   Takes a map of string-keyed form params, a keyword list of field definitions,
