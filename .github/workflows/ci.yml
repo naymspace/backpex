@@ -12,6 +12,14 @@ on:
   merge_group:
     types: [checks_requested]
 
+# Cancel superseded runs of a pull request. Other events get a unique group, so they are never cancelled or queued.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event_name == 'pull_request' && github.event.pull_request.number || github.run_id }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
 env:
   REGISTRY: ghcr.io
   IMAGE_NAME_RUNTIME: ${{ github.repository }}/runtime
@@ -20,6 +28,7 @@ jobs:
   test:
     name: "Test backpex"
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     strategy:
       matrix:
         include:
@@ -42,6 +51,10 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
+      - name: Set runner image
+        # Part of the cache keys, so caches don't carry over to a new Ubuntu version behind ubuntu-latest
+        run: echo "RUNNER_IMAGE=$ImageOS" >> "$GITHUB_ENV"
+
       - uses: erlef/setup-beam@54075bcc5e249e4758d363f27d099f55d843f124 # v1.24.1
         with:
           otp-version: ${{ matrix.otp }}
@@ -61,8 +74,8 @@ jobs:
           path: |
             deps
             _build
-          key: ${{ runner.os }}-${{ matrix.elixir }}-${{ matrix.otp }}-build-deps-mixlockhash-${{ env.MIX_LOCK_HASH }}
-          restore-keys: ${{ runner.os }}-${{ matrix.elixir }}-${{ matrix.otp }}-build-deps-
+          key: ${{ runner.os }}-${{ env.RUNNER_IMAGE }}-${{ matrix.elixir }}-${{ matrix.otp }}-build-deps-mixlockhash-${{ env.MIX_LOCK_HASH }}
+          restore-keys: ${{ runner.os }}-${{ env.RUNNER_IMAGE }}-${{ matrix.elixir }}-${{ matrix.otp }}-build-deps-
 
       - name: Install dependencies
         if: steps.restore-cache.outputs.cache-hit != 'true'
@@ -128,6 +141,8 @@ jobs:
     if: github.event_name == 'release'
     name: "Publish package on hex.pm"
     runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment: hex
 
     steps:
       - name: Checkout code
@@ -153,6 +168,7 @@ jobs:
   test-demo:
     name: "Test (Demo)"
     runs-on: ubuntu-latest
+    timeout-minutes: 20
 
     services:
       postgres:
@@ -170,6 +186,10 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Set runner image
+        # Part of the cache keys, so caches don't carry over to a new Ubuntu version behind ubuntu-latest
+        run: echo "RUNNER_IMAGE=$ImageOS" >> "$GITHUB_ENV"
 
       - name: Setup beam
         uses: erlef/setup-beam@54075bcc5e249e4758d363f27d099f55d843f124 # v1.24.1
@@ -199,8 +219,8 @@ jobs:
           path: |
             demo/deps
             demo/_build
-          key: ${{ runner.os }}-${{ env.ELIXIR_VERSION }}-${{ env.OTP_VERSION }}-build-deps-demo-mixlockhash-${{ env.MIX_LOCK_HASH }}
-          restore-keys: ${{ runner.os }}-${{ env.ELIXIR_VERSION }}-${{ env.OTP_VERSION }}-build-deps-demo-
+          key: ${{ runner.os }}-${{ env.RUNNER_IMAGE }}-${{ env.ELIXIR_VERSION }}-${{ env.OTP_VERSION }}-build-deps-demo-mixlockhash-${{ env.MIX_LOCK_HASH }}
+          restore-keys: ${{ runner.os }}-${{ env.RUNNER_IMAGE }}-${{ env.ELIXIR_VERSION }}-${{ env.OTP_VERSION }}-build-deps-demo-
 
       - name: Install dependencies
         if: steps.restore-cache.outputs.cache-hit != 'true'
@@ -286,9 +306,9 @@ jobs:
         id: playwright-cache
         with:
           path: ~/.cache/ms-playwright
-          key: ${{ runner.os }}-playwright-${{ hashFiles('demo/bun.lock') }}
+          key: ${{ runner.os }}-${{ env.RUNNER_IMAGE }}-playwright-${{ hashFiles('demo/bun.lock') }}
           restore-keys: |
-            ${{ runner.os }}-playwright-
+            ${{ runner.os }}-${{ env.RUNNER_IMAGE }}-playwright-
 
       - name: Install playwright
         if: steps.playwright-cache.outputs.cache-hit != 'true'
@@ -309,13 +329,13 @@ jobs:
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: playwright-traces
-          path: tmp/
+          path: demo/tmp/
           retention-days: 7
 
   build-runtime:
     name: "Build and push image (Demo)"
     runs-on: ubuntu-latest
-    needs: [test, test-demo]
+    timeout-minutes: 20
     env:
       PUSH_IMAGE: ${{ github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop') }}
 
