@@ -5,19 +5,23 @@ services:
       target: builder
       args:
         MIX_ENV: dev
-    env_file: demo/.env
+    env_file:
+      - path: .env
+        required: false
     environment:
-      - STARTUP_COMMAND_1=mix do deps.get + ecto.create + ecto.migrate
-      - STARTUP_COMMAND_2=bun install --frozen-lockfile
-      - STARTUP_COMMAND_3=bun x playwright install chromium --with-deps
-      - STARTUP_COMMAND_4=mix assets.setup
-      - STARTUP_COMMAND_5=cd .. && mix deps.get && bun install --frozen-lockfile && cd demo
+      STARTUP_COMMAND_1: mix do deps.get + ecto.create + ecto.migrate
+      STARTUP_COMMAND_2: bun install --frozen-lockfile
+      STARTUP_COMMAND_3: bun x playwright install chromium --with-deps
+      STARTUP_COMMAND_4: mix assets.setup
+      STARTUP_COMMAND_5: cd .. && mix deps.get && bun install --frozen-lockfile && cd demo
+      SECRET_KEY_BASE: np5uHqUApBqAqesURR/sUlc0HJadx/4eBidnQ/w1bH/L1EiCdNlw1id9M/TrziRq
+      LIVE_VIEW_SIGNING_SALT: eYlXHghV/uji6ZNUhq+fb63bNVcps7CC
     volumes:
       - .:/opt/app
       - playwright-cache:/root/.cache/ms-playwright
     ports:
-      - 4000:4000
-      - 4007:4007
+      - ${APP_HOST_PORT:-0}:4000
+      - ${LIVE_DEBUGGER_HOST_PORT:-0}:4007
     depends_on:
       postgres:
         condition: service_healthy
@@ -26,7 +30,7 @@ services:
     environment:
       - POSTGRES_PASSWORD=postgres
     ports:
-      - 54321:5432
+      - ${POSTGRES_HOST_PORT:-0}:5432
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres"]
       interval: 5s
@@ -35,3 +39,4 @@ services:
 
 volumes:
   playwright-cache:
+    name: backpex-playwright-cache
