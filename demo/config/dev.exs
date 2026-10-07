@@ -21,7 +21,6 @@ config :demo, DemoWeb.Endpoint,
       ~r"lib/backpex/(fields|html)/.*(ex)$"
     ]
   ],
-  force_ssl: [hsts: true],
   http: [port: 4000],
   reloadable_apps: [:demo, :backpex]
 
