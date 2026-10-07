@@ -11,7 +11,7 @@
       "name": "backpex",
       "source": "./plugin",
       "description": "Skills and agents for building with Backpex — the Phoenix LiveView admin panel",
-      "version": "0.1.0",
+      "version": "0.1.1",
       "homepage": "https://github.com/naymspace/backpex",
       "keywords": ["elixir", "phoenix", "liveview", "admin", "backpex"]
     }
