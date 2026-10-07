@@ -92,6 +92,7 @@ defmodule Demo.MixProject do
       "ecto.seed": ["run priv/repo/seeds.exs"],
       "ecto.reset": ["ecto.rollback --all", "ecto.setup"],
       test: ["ecto.create --quiet", "ecto.migrate --quiet", "test --warnings-as-errors"],
+      "phx.server": ["esbuild backpex", "phx.server"],
       "assets.setup": ["tailwind.install --if-missing", "esbuild.install --if-missing"],
       "assets.build": ["tailwind default", "esbuild backpex", "esbuild default"],
       "assets.deploy": [
