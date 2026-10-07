@@ -32,22 +32,36 @@ After forking the repository, you need to clone it to your local machine. You ca
 
 ## Setting up your development environment
 
-You first need to create a `.env` file in the `demo` directory of the project with the following content:
-
-```bash
-SECRET_KEY_BASE=<SECRET_KEY_BASE>
-LIVE_VIEW_SIGNING_SALT=<LIVE_VIEW_SIGNING_SALT>
-```
-
-For development purposes you can copy the values from the `demo/.env.example` file.
-
-You can then start the development environment by running the following command in the root directory of the project:
+You can start the development environment by running the following command in the root directory of the project:
 
 ```bash
 docker compose up
 ```
 
-Backpex comes with a demo application that you can use to test the features of the project. The command will start a PostgreSQL database and the demo application on [http://localhost:4000](http://localhost:4000).
+Backpex comes with a demo application that you can use to test the features of the project. The command will start a PostgreSQL database and the demo application. `compose.yml` holds all settings for development, test settings live in the `config_env() == :test` block at the end of `demo/config/runtime.exs`.
+
+Host ports are random unless you set them, so several checkouts (e.g. git worktrees) can run side by side. `docker compose port app 4000` shows the port Docker picked. To always use [http://localhost:4000](http://localhost:4000), create a `.env` file in the root directory of the project:
+
+```bash
+APP_HOST_PORT=4000
+LIVE_DEBUGGER_HOST_PORT=4007
+POSTGRES_HOST_PORT=54321
+```
+
+The `.env` file is optional and also the place for personal settings such as `PLUG_EDITOR`.
+
+Without fixed ports, absolute URLs and LiveDebugger still point to ports 4000 and 4007, so the browser console shows errors for the LiveDebugger assets. A further checkout that needs them can add a `compose.override.yml` (ignored by git) with free ports:
+
+```yaml
+services:
+  app:
+    ports:
+      - 4100:4000
+      - 4107:4007
+    environment:
+      URL_PORT: 4100
+      LIVE_DEBUGGER_URL: http://localhost:4107
+```
 
 To insert some demo data into the database, you can run the following command:
 

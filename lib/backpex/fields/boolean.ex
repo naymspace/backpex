@@ -57,23 +57,11 @@ defmodule Backpex.Fields.Boolean do
 
   @impl Backpex.Field
   def render_index_form(assigns) do
-    form = to_form(%{"value" => assigns.value}, as: :index_form)
-
-    assigns =
-      assigns
-      |> assign_new(:form, fn -> form end)
-      |> assign_new(:valid, fn -> true end)
+    assigns = Backpex.Field.assign_index_form(assigns)
 
     ~H"""
     <div>
-      <.form
-        for={@form}
-        id={"index-form-#{@name}-#{LiveResource.primary_value(@item, @live_resource)}"}
-        class="relative"
-        phx-change="update-field"
-        phx-submit="update-field"
-        phx-target={@myself}
-      >
+      <BackpexForm.index_form form={@form} name={@name} item={@item} live_resource={@live_resource} class="relative">
         <BackpexForm.input
           id={"index-form-input-#{@name}-#{LiveResource.primary_value(@item, @live_resource)}"}
           type="toggle"
@@ -81,17 +69,15 @@ defmodule Backpex.Fields.Boolean do
           input_class={["toggle toggle-sm", @valid && "toggle-primary", !@valid && "toggle-error"]}
           phx-debounce={Backpex.Field.debounce(@field_options, assigns)}
           phx-throttle={Backpex.Field.throttle(@field_options, assigns)}
-          readonly={@readonly}
+          disabled={@readonly}
           hide_errors
           aria-label={@field_options[:label]}
         />
-      </.form>
+      </BackpexForm.index_form>
     </div>
     """
   end
 
-  @impl Phoenix.LiveComponent
-  def handle_event("update-field", %{"index_form" => %{"value" => value}}, socket) do
-    Backpex.Field.handle_index_editable(socket, value, Map.put(%{}, socket.assigns.name, value))
-  end
+  @impl Backpex.Field
+  def index_editable_change({name, _field_options}, value, _assigns), do: %{name => value}
 end

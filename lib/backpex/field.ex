@@ -179,6 +179,16 @@ defmodule Backpex.Field do
   @callback index_assigns(field :: tuple(), items :: list(), assigns :: map()) :: map()
 
   @doc """
+  Returns the change that saves the `value` of an inline edit on the index view, e.g. `%{title: "New title"}`.
+
+  The index view only saves inline edits of fields that implement this callback. It calls it when an index form
+  rendered with `Backpex.HTML.Form.index_form/1` changes. It receives the field, the value and the assigns of the index
+  view. Validate or normalize the value here, as the index view saves the returned change with the update changeset of
+  the LiveResource. Return `:error` to refuse the value, which the index view then marks as invalid.
+  """
+  @callback index_editable_change(field :: tuple(), value :: any(), assigns :: map()) :: map() | :error
+
+  @doc """
   The field to be displayed on index views. In most cases this is the name / key configured in the corresponding field definition.
   In fields with associations this value often differs from the name / key. The function will receive the field definition.
   """
@@ -235,7 +245,61 @@ defmodule Backpex.Field do
             ) ::
               Ecto.Query.dynamic_expr()
 
-  @optional_callbacks render_index_form: 1, index_assigns: 3
+  @doc """
+  Returns the files of the item as a list of strings.
+
+  Upload fields (see `upload_key/1`) implement it, together with `c:put_upload_change/7`,
+  `c:consume_upload/5` and `c:remove_uploads/4`. The form component calls them on the module of the field and passes
+  the field, so a custom upload field can implement them once and work out what it needs from the field, such as the
+  column to read the files from, instead of taking a function per field as an option. `Backpex.Fields.Upload`
+  implements them by calling the functions given in its options.
+  """
+  @callback list_existing_files(field :: tuple(), item :: struct() | map()) :: [String.t()]
+
+  @doc """
+  Puts the files of an upload field into the params that are passed to the changeset function.
+
+  The form component calls it on every change (`action` is `:validate`) and before saving (`action` is `:insert`).
+  `uploaded_entries` is the tuple of completed and in progress entries from `Phoenix.LiveView.uploaded_entries/2`,
+  `removed_entries` the files the user removed during an edit. See `c:list_existing_files/2`.
+  """
+  @callback put_upload_change(
+              field :: tuple(),
+              socket :: Socket.t(),
+              params :: map(),
+              item :: struct() | map(),
+              uploaded_entries :: {list(), list()},
+              removed_entries :: [String.t()],
+              action :: :validate | :insert
+            ) :: map()
+
+  @doc """
+  Consumes an uploaded entry after the item has been saved.
+
+  The form component calls it for every entry as the callback of `Phoenix.LiveView.consume_uploaded_entries/3`, with
+  the saved item. See `c:list_existing_files/2`.
+  """
+  @callback consume_upload(
+              field :: tuple(),
+              socket :: Socket.t(),
+              item :: struct(),
+              meta :: map(),
+              entry :: Phoenix.LiveView.UploadEntry.t()
+            ) :: {:ok, term()} | {:postpone, term()}
+
+  @doc """
+  Removes the files the user removed during an edit, after the item has been saved. See `c:list_existing_files/2`.
+  """
+  @callback remove_uploads(field :: tuple(), socket :: Socket.t(), item :: struct(), removed_entries :: [String.t()]) ::
+              term()
+
+  @optional_callbacks render_index_form: 1,
+                      index_assigns: 3,
+                      index_editable_change: 3,
+                      list_existing_files: 2,
+                      put_upload_change: 7,
+                      consume_upload: 5,
+                      remove_uploads: 4
 
   @doc """
   Returns the default config schema.
@@ -380,6 +444,60 @@ defmodule Backpex.Field do
   def readonly?(_field_options, _assigns), do: false
 
   @doc """
+  Returns the module that implements the upload callbacks of an upload field.
+
+  This is the module of the field when it implements `c:consume_upload/5` and the other upload callbacks, otherwise
+  `Backpex.Fields.Upload`, which calls the `:list_existing_files`, `:put_upload_change`, `:consume_upload` and
+  `:remove_uploads` functions of the field options. So a custom field that only defines an `:upload_key` and these
+  options, as before the callbacks existed, keeps working.
+
+  ## Examples
+
+      iex> Backpex.Field.upload_module({:avatar, %{module: Backpex.Fields.Upload}})
+      Backpex.Fields.Upload
+      iex> Backpex.Field.upload_module({:avatar, %{module: Backpex.Fields.Text}})
+      Backpex.Fields.Upload
+  """
+  @spec upload_module(tuple()) :: module()
+  def upload_module({_name, %{module: module}} = _field) do
+    if upload_callbacks?(module), do: module, else: Backpex.Fields.Upload
+  end
+
+  @doc false
+  def upload_callbacks?(module) do
+    Code.ensure_loaded?(module) and function_exported?(module, :consume_upload, 5)
+  end
+
+  @doc """
+  Returns the name of the upload of an upload field, or `nil` for any other field.
+
+  An upload field is a field with an `:upload_key` option, which names its upload, or a field whose module implements
+  the upload callbacks, such as `c:consume_upload/5`. The upload of such a field is named after the field when the
+  option isn't given.
+
+  ## Examples
+
+      iex> Backpex.Field.upload_key({:avatar, %{module: Backpex.Fields.Upload}})
+      :avatar
+      iex> Backpex.Field.upload_key({:avatar, %{module: Backpex.Fields.Upload, upload_key: :picture}})
+      :picture
+      iex> Backpex.Field.upload_key({:avatar, %{module: Backpex.Fields.Text, upload_key: :picture}})
+      :picture
+      iex> Backpex.Field.upload_key({:title, %{module: Backpex.Fields.Text}})
+      nil
+  """
+  @spec upload_key(tuple()) :: atom() | nil
+  def upload_key({name, %{module: module} = field_options}) do
+    cond do
+      key = Map.get(field_options, :upload_key) -> key
+      upload_callbacks?(module) -> name
+      true -> nil
+    end
+  end
+
+  def upload_key(_field), do: nil
+
+  @doc """
   Drops readonly field changes from the given change map.
 
   Takes a map of string-keyed form params, a keyword list of field definitions,
@@ -437,14 +555,52 @@ defmodule Backpex.Field do
   end
 
   @doc """
-  Handles index editable.
+  Assigns the `:form` and `:valid` assigns of an index form.
+
+  The form holds the value of the item, or the value of an inline edit the index view could not save, which is then
+  also marked as invalid. Call it in `c:render_index_form/1` before rendering `Backpex.HTML.Form.index_form/1`.
+  """
+  def assign_index_form(assigns) do
+    {value, valid} =
+      case Map.get(assigns, :index_edit) do
+        %{value: value, valid: valid} -> {value, valid}
+        _index_edit -> {assigns.value, true}
+      end
+
+    assigns
+    |> assign(:form, Phoenix.Component.to_form(%{"value" => value}, as: :index_form))
+    |> assign(:valid, valid)
+  end
+
+  @doc """
+  Handles index editable in the field component.
+
+  Index forms rendered with `Backpex.HTML.Form.index_form/1` of fields that implement `c:index_editable_change/3` are
+  saved by the index view instead, with all of its assigns. This function saves the change with the assigns of the
+  field component. With a list of `:context_assigns`, these only include the listed assigns, see the
+  `:context_assigns` option of `Backpex.LiveResource`.
+
+  The change is not saved if the field is not index editable or readonly, if the user may not edit the item, or while
+  a resource action is open, as the adapter would use the changeset of the resource action. The value is then kept in
+  the form and marked as invalid.
   """
   def handle_index_editable(socket, value, change) do
+    %{assigns: %{field_options: field_options, item: item, live_resource: live_resource} = assigns} = socket
+
+    # A component rendered outside of a LiveResource, e.g. by `Backpex.HTML.Resource.resource_index_table/1` in a
+    # LiveView of your own, may have no `:live_action`. `Backpex.Resource.update/6` enforces `:edit` as well, but would
+    # raise.
+    if Map.get(assigns, :live_action, :index) == :index && index_editable_enabled?(field_options, assigns) &&
+         !readonly?(field_options, assigns) && Backpex.Authorization.can?(live_resource, assigns, :edit, item) do
+      save_index_editable(socket, value, change)
+    else
+      {:noreply, assign_index_editable_result(socket, value, false)}
+    end
+  end
+
+  defp save_index_editable(socket, value, change) do
     %{assigns: %{item: item, fields: fields, live_resource: live_resource} = assigns} = socket
 
-    # No `can?/3` check here: `Backpex.Resource.update/6` enforces `:edit` with the same assigns and
-    # item, before the changeset runs. Checking here as well would evaluate user code twice per
-    # inline edit for no added protection.
     opts = [
       after_save_fun: fn item ->
         live_resource.on_item_updated(socket, item)
@@ -461,11 +617,12 @@ defmodule Backpex.Field do
         _error -> false
       end
 
-    socket =
-      socket
-      |> assign(:valid, valid)
-      |> assign(:form, Phoenix.Component.to_form(%{"value" => value}, as: :index_form))
+    {:noreply, assign_index_editable_result(socket, value, valid)}
+  end
 
-    {:noreply, socket}
+  defp assign_index_editable_result(socket, value, valid) do
+    socket
+    |> assign(:valid, valid)
+    |> assign(:form, Phoenix.Component.to_form(%{"value" => value}, as: :index_form))
   end
 end

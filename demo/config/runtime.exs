@@ -2,6 +2,10 @@ import Config
 import String, only: [to_integer: 1, to_atom: 1, to_existing_atom: 1]
 import System, only: [get_env: 1, get_env: 2, fetch_env!: 1]
 
+secret = fn name, bytes ->
+  if config_env() == :test, do: bytes |> :crypto.strong_rand_bytes() |> Base.encode64(), else: fetch_env!(name)
+end
+
 config :demo, Demo.Repo,
   hostname: get_env("DB_HOSTNAME", "postgres"),
   username: get_env("DB_USERNAME", "postgres"),
@@ -24,9 +28,9 @@ config :demo, DemoWeb.Endpoint,
     host: get_env("HOST", "localhost"),
     port: get_env("URL_PORT", "4000")
   ],
-  secret_key_base: fetch_env!("SECRET_KEY_BASE"),
+  secret_key_base: secret.("SECRET_KEY_BASE", 64),
   live_view: [
-    signing_salt: fetch_env!("LIVE_VIEW_SIGNING_SALT")
+    signing_salt: secret.("LIVE_VIEW_SIGNING_SALT", 24)
   ]
 
 config :demo,
@@ -38,3 +42,13 @@ config :logger, level: get_env("LOGGER_LEVEL", "debug") |> to_atom()
 config :sentry,
   dsn: get_env("SENTRY_DSN"),
   environment_name: get_env("SENTRY_ENV", "local")
+
+if config_env() == :test do
+  config :demo, Demo.Repo, database: "test"
+
+  config :demo, DemoWeb.Endpoint,
+    http: [port: 4002],
+    url: [port: 4002]
+
+  config :logger, level: :warning
+end

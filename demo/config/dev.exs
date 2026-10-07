@@ -21,14 +21,13 @@ config :demo, DemoWeb.Endpoint,
       ~r"lib/backpex/(fields|html)/.*(ex)$"
     ]
   ],
-  force_ssl: [hsts: true],
   http: [port: 4000],
   reloadable_apps: [:demo, :backpex]
 
 config :live_debugger,
   ip: {0, 0, 0, 0},
   port: 4007,
-  external_url: "http://localhost:4007"
+  external_url: System.get_env("LIVE_DEBUGGER_URL", "http://localhost:4007")
 
 config :logger, :default_formatter, format: "[$level] $message\n"
 
