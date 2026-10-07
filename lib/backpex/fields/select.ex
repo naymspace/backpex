@@ -58,7 +58,8 @@ defmodule Backpex.Fields.Select do
 
   > #### Info {: .info}
   >
-  > The assigns of the index view do not contain an `item`. Do not access it in the `options` function of a field
+  > When ordering or searching, the `:item` of the assigns is `nil`, or the `base_schema` of a resource action while
+  > one is open, instead of the item of a row. Do not read the fields of the item in the `options` function of a field
   > that is orderable or searchable.
   """
   use Backpex.Field, config_schema: @config_schema
