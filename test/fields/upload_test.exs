@@ -3,6 +3,7 @@ defmodule Backpex.Fields.UploadTest do
 
   alias Backpex.Field
   alias Backpex.Fields.Upload
+  alias Phoenix.LiveView.UploadConfig
 
   # An upload field that works out its files from the field instead of taking a function per field.
   defmodule NamedFilesUpload do
@@ -35,6 +36,23 @@ defmodule Backpex.Fields.UploadTest do
 
     test "is Backpex.Fields.Upload for a field that takes the upload functions as options" do
       assert Field.upload_module({:images, %{module: OptionsUpload, upload_key: :images}}) == Upload
+    end
+  end
+
+  describe "upload_key/1" do
+    test "is the name of a field that implements the upload callbacks" do
+      assert Field.upload_key({:images, %{module: Upload}}) == :images
+      assert Field.upload_key({:images, %{module: NamedFilesUpload}}) == :images
+    end
+
+    test "is the upload_key option when given" do
+      assert Field.upload_key({:images, %{module: Upload, upload_key: :pictures}}) == :pictures
+      assert Field.upload_key({:images, %{module: OptionsUpload, upload_key: :pictures}}) == :pictures
+    end
+
+    test "is nil for a field without upload callbacks and upload_key" do
+      assert Field.upload_key({:images, %{module: OptionsUpload}}) == nil
+      assert Field.upload_key({:title, %{module: Backpex.Fields.Text}}) == nil
     end
   end
 
@@ -116,6 +134,35 @@ defmodule Backpex.Fields.UploadTest do
     test "remove_uploads/4 calls the option", %{field: field, item: item} do
       assert Upload.remove_uploads(field, :socket, item, ["old.png"]) == :ok
       assert_received {:remove_uploads, :socket, ^item, ["old.png"]}
+    end
+  end
+
+  describe "assign_uploads/2" do
+    setup do
+      field_options = %{
+        module: Upload,
+        accept: :any,
+        max_entries: 1,
+        list_existing_files: fn item -> item.images end
+      }
+
+      socket = Phoenix.Component.assign(%Phoenix.LiveView.Socket{}, :item, %{images: ["old.png"]})
+
+      %{field_options: field_options, socket: socket}
+    end
+
+    test "names the upload after the field without an upload_key", %{field_options: field_options, socket: socket} do
+      socket = Upload.assign_uploads({:images, field_options}, socket)
+
+      assert %UploadConfig{name: :images} = socket.assigns.uploads.images
+      assert socket.assigns.uploaded_files == [images: [{"old.png", "old.png"}]]
+    end
+
+    test "names the upload after its upload_key", %{field_options: field_options, socket: socket} do
+      socket = Upload.assign_uploads({:images, Map.put(field_options, :upload_key, :pictures)}, socket)
+
+      assert %UploadConfig{name: :pictures} = socket.assigns.uploads.pictures
+      refute Map.has_key?(socket.assigns.uploads, :images)
     end
   end
 end

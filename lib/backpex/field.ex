@@ -248,7 +248,7 @@ defmodule Backpex.Field do
   @doc """
   Returns the files of the item as a list of strings.
 
-  Upload fields (fields with an `:upload_key` option) implement it, together with `c:put_upload_change/7`,
+  Upload fields (see `upload_key/1`) implement it, together with `c:put_upload_change/7`,
   `c:consume_upload/5` and `c:remove_uploads/4`. The form component calls them on the module of the field and passes
   the field, so a custom upload field can implement them once and work out what it needs from the field, such as the
   column to read the files from, instead of taking a function per field as an option. `Backpex.Fields.Upload`
@@ -467,6 +467,35 @@ defmodule Backpex.Field do
   def upload_callbacks?(module) do
     Code.ensure_loaded?(module) and function_exported?(module, :consume_upload, 5)
   end
+
+  @doc """
+  Returns the name of the upload of an upload field, or `nil` for any other field.
+
+  An upload field is a field with an `:upload_key` option, which names its upload, or a field whose module implements
+  the upload callbacks, such as `c:consume_upload/5`. The upload of such a field is named after the field when the
+  option isn't given.
+
+  ## Examples
+
+      iex> Backpex.Field.upload_key({:avatar, %{module: Backpex.Fields.Upload}})
+      :avatar
+      iex> Backpex.Field.upload_key({:avatar, %{module: Backpex.Fields.Upload, upload_key: :picture}})
+      :picture
+      iex> Backpex.Field.upload_key({:avatar, %{module: Backpex.Fields.Text, upload_key: :picture}})
+      :picture
+      iex> Backpex.Field.upload_key({:title, %{module: Backpex.Fields.Text}})
+      nil
+  """
+  @spec upload_key(tuple()) :: atom() | nil
+  def upload_key({name, %{module: module} = field_options}) do
+    cond do
+      key = Map.get(field_options, :upload_key) -> key
+      upload_callbacks?(module) -> name
+      true -> nil
+    end
+  end
+
+  def upload_key(_field), do: nil
 
   @doc """
   Drops readonly field changes from the given change map.
