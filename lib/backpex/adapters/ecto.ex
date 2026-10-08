@@ -255,6 +255,8 @@ defmodule Backpex.Adapters.Ecto do
   defp order_direction(:asc, :last), do: :asc_nulls_last
   defp order_direction(:desc, :first), do: :desc_nulls_first
   defp order_direction(:desc, :last), do: :desc_nulls_last
+  defp order_direction(:asc, :smallest), do: :asc_nulls_first
+  defp order_direction(:desc, :smallest), do: :desc_nulls_last
 
   @doc """
   Deletes multiple items.

@@ -79,6 +79,8 @@ The option accepts:
 - `:default` - The database default (`ORDER BY published_at ASC` or `DESC`)
 - `:first` - `NULL` values first in both directions (`NULLS FIRST`)
 - `:last` - `NULL` values last in both directions (`NULLS LAST`)
+- `:smallest` - `NULL` values count as the smallest value, so they come first in ascending (`ASC NULLS FIRST`) and last
+  in descending order (`DESC NULLS LAST`). This was the behaviour before v0.23.
 
 Ordering by the LiveResource's `primary_key` always uses the database default, because a primary key is never `NULL`.
 This includes the default `init_order`.
@@ -101,8 +103,8 @@ This includes the default `init_order`.
 > create index(:posts, ["published_at DESC NULLS FIRST"])
 > ```
 >
-> `order_nulls: :first` needs the second index for ascending and the third for descending order. `:last` needs the same
-> two the other way round.
+> `order_nulls: :smallest` needs only the second index, `:default` only the first. `:first` needs the second index for
+> ascending and the third for descending order, `:last` the same two the other way round.
 
 ## URL Parameters
 

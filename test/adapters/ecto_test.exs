@@ -185,7 +185,9 @@ defmodule Backpex.Adapters.EctoTest do
         {:first, :asc, :asc_nulls_first},
         {:first, :desc, :desc_nulls_first},
         {:last, :asc, :asc_nulls_last},
-        {:last, :desc, :desc_nulls_last}
+        {:last, :desc, :desc_nulls_last},
+        {:smallest, :asc, :asc_nulls_first},
+        {:smallest, :desc, :desc_nulls_last}
       ]
 
       for {nulls, direction, expected_direction} <- expected do

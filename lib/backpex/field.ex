@@ -65,10 +65,11 @@ defmodule Backpex.Field do
     order_nulls: [
       doc: """
       Where `NULL` values are placed when the index view is ordered by this field: `:default` (database default),
-      `:first` (`NULLS FIRST`) or `:last` (`NULLS LAST`). Overrides the `:order_nulls` option of the LiveResource. See
-      the [Ordering](/guides/live_resource/ordering.md) guide.
+      `:first` (`NULLS FIRST`), `:last` (`NULLS LAST`) or `:smallest` (`ASC NULLS FIRST` and `DESC NULLS LAST`).
+      Overrides the `:order_nulls` option of the LiveResource. See the [Ordering](/guides/live_resource/ordering.md)
+      guide.
       """,
-      type: {:in, [:default, :first, :last]}
+      type: {:in, [:default, :first, :last, :smallest]}
     ],
     visible: [
       doc:

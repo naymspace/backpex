@@ -100,13 +100,15 @@ defmodule Backpex.LiveResource do
         last in ascending and first in descending order.
       - `:first` places `NULL` values first in both directions (`NULLS FIRST`).
       - `:last` places `NULL` values last in both directions (`NULLS LAST`).
+      - `:smallest` treats `NULL` as smaller than any value: first in ascending (`ASC NULLS FIRST`) and last in
+        descending order (`DESC NULLS LAST`). This was the behaviour before v0.23.
 
       Fields can override this with their own `:order_nulls` option. Ordering by the `primary_key` always uses the
-      database default, since a primary key is never `NULL`. `:first` and `:last` need a matching index (e.g.
+      database default, since a primary key is never `NULL`. `:first`, `:last` and `:smallest` need a matching index (e.g.
       `create index(:posts, ["published_at NULLS FIRST"])`), otherwise the database sorts the whole table on every
       page load. See the [Ordering](live_resource/ordering.md) guide.
       """,
-      type: {:in, [:default, :first, :last]},
+      type: {:in, [:default, :first, :last, :smallest]},
       default: :default
     ],
     context_assigns: [
