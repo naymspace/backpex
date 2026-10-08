@@ -2,9 +2,8 @@
 defmodule Backpex.Fields.Upload do
   @config_schema [
     upload_key: [
-      doc: "Required identifier for the upload field (the name of the upload).",
-      type: :atom,
-      required: true
+      doc: "The name of the upload. Defaults to the name of the field.",
+      type: :atom
     ],
     accept: [
       doc: "List of filetypes that will be accepted or `:any`.",
@@ -631,7 +630,7 @@ defmodule Backpex.Fields.Upload do
 
   @impl Backpex.Field
   def render_form(assigns) do
-    upload_key = assigns.field_options.upload_key
+    upload_key = Backpex.Field.upload_key({assigns.name, assigns.field_options})
     uploads_allowed = not is_nil(assigns.lv_uploads[upload_key])
     translate_error_fun = Map.get(assigns.field_options, :translate_error, &Function.identity/1)
 
@@ -767,17 +766,18 @@ defmodule Backpex.Fields.Upload do
 
   @impl Backpex.Field
   def assign_uploads({_name, field_options} = field, socket) do
-    field_files = {field_options.upload_key, existing_file_paths(field, socket.assigns.item, [])}
+    upload_key = Backpex.Field.upload_key(field)
+    field_files = {upload_key, existing_file_paths(field, socket.assigns.item, [])}
 
     max_entries = field_options.max_entries
     max_file_size = Map.get(field_options, :max_file_size, 8_000_000)
 
-    if get_in(socket.assigns, [:uploads, field_options.upload_key]) do
+    if get_in(socket.assigns, [:uploads, upload_key]) do
       socket
     else
       socket
       |> assign_uploaded_files(field_files)
-      |> allow_field_uploads(field_options, max_entries, max_file_size)
+      |> allow_field_uploads(upload_key, field_options, max_entries, max_file_size)
     end
   end
 
@@ -786,10 +786,10 @@ defmodule Backpex.Fields.Upload do
     assign(socket, :uploaded_files, [field_files | uploaded_files])
   end
 
-  defp allow_field_uploads(socket, _field_options, 0, _max_file_size), do: socket
+  defp allow_field_uploads(socket, _upload_key, _field_options, 0, _max_file_size), do: socket
 
-  defp allow_field_uploads(socket, %{external: presign_upload} = field_options, max_entries, max_file_size) do
-    Phoenix.LiveView.allow_upload(socket, field_options.upload_key,
+  defp allow_field_uploads(socket, upload_key, %{external: presign_upload} = field_options, max_entries, max_file_size) do
+    Phoenix.LiveView.allow_upload(socket, upload_key,
       accept: field_options.accept,
       max_entries: max_entries,
       max_file_size: max_file_size,
@@ -797,8 +797,8 @@ defmodule Backpex.Fields.Upload do
     )
   end
 
-  defp allow_field_uploads(socket, field_options, max_entries, max_file_size) do
-    Phoenix.LiveView.allow_upload(socket, field_options.upload_key,
+  defp allow_field_uploads(socket, upload_key, field_options, max_entries, max_file_size) do
+    Phoenix.LiveView.allow_upload(socket, upload_key,
       accept: field_options.accept,
       max_entries: max_entries,
       max_file_size: max_file_size
@@ -816,11 +816,38 @@ defmodule Backpex.Fields.Upload do
 
   @doc """
   Lists existing files based on item and list of removed files.
-  """
-  def list_existing_files({_field_name, field_options} = _field, item, removed_files) do
-    %{list_existing_files: list_existing_files} = field_options
 
-    list_existing_files.(item) -- removed_files
+  The files come from `c:Backpex.Field.list_existing_files/2` of the field's module, so this works for custom upload
+  fields too.
+  """
+  def list_existing_files(field, item, removed_files) do
+    Backpex.Field.upload_module(field).list_existing_files(field, item) -- removed_files
+  end
+
+  @impl Backpex.Field
+  def list_existing_files({_name, field_options} = _field, item), do: field_options.list_existing_files.(item)
+
+  @impl Backpex.Field
+  def put_upload_change(
+        {_name, field_options} = _field,
+        socket,
+        params,
+        item,
+        uploaded_entries,
+        removed_entries,
+        action
+      ) do
+    field_options.put_upload_change.(socket, params, item, uploaded_entries, removed_entries, action)
+  end
+
+  @impl Backpex.Field
+  def consume_upload({_name, field_options} = _field, socket, item, meta, entry) do
+    field_options.consume_upload.(socket, item, meta, entry)
+  end
+
+  @impl Backpex.Field
+  def remove_uploads({_name, field_options} = _field, socket, item, removed_entries) do
+    field_options.remove_uploads.(socket, item, removed_entries)
   end
 
   @doc """

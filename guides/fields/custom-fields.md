@@ -84,3 +84,28 @@ def render_value(assigns) do
     # ...
 end
 ```
+
+## Custom upload fields
+
+An upload field is a field whose module implements the upload callbacks, or a field with an `:upload_key` option.
+Besides `c:Backpex.Field.assign_uploads/2`, it implements four callbacks that the form component calls on the field's
+module:
+
+- `c:Backpex.Field.list_existing_files/2` returns the files the item has.
+- `c:Backpex.Field.put_upload_change/7` puts the files into the params of the changeset.
+- `c:Backpex.Field.consume_upload/5` consumes each uploaded entry after the item has been saved.
+- `c:Backpex.Field.remove_uploads/4` removes the files the user removed during an edit.
+
+`Backpex.Fields.Upload` implements them by calling the functions you pass as options. A custom upload field gets the
+field (`{name, field_options}`) as the first argument, so it can implement them once for every field it's used for and
+work out what it needs from the field, such as the column to read the files from.
+
+To reuse the upload UI, delegate rendering and `assign_uploads/2` to `Backpex.Fields.Upload`. Its `render_form/1` and
+`render_value/1` list the existing files through your `list_existing_files/2`.
+
+The upload is named after the field, unless the field has an `:upload_key` option (see `Backpex.Field.upload_key/1`).
+
+A custom upload field that doesn't implement the callbacks keeps working, as long as it has an `:upload_key` option:
+the form component then calls them on `Backpex.Fields.Upload`, which reads the `:list_existing_files`,
+`:put_upload_change`, `:consume_upload` and `:remove_uploads` functions from the field options. See
+`Backpex.Field.upload_module/1`.

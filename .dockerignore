@@ -1,0 +1,27 @@
+# Git
+.git
+
+# Secrets and local settings
+**/.env
+**/.env.*
+compose.override.yml
+
+# Build artifacts and dependencies
+_build
+deps
+node_modules
+cover
+doc
+tmp
+demo/_build
+demo/deps
+demo/node_modules
+demo/cover
+demo/doc
+demo/tmp
+**/erl_crash.dump
+
+# Editors and tools
+**/.DS_Store
+**/.elixir_ls
+**/.expert
