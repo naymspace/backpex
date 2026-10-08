@@ -8,18 +8,36 @@ defmodule Backpex.LiveResourceTest do
   alias Backpex.LiveResource
   alias Phoenix.LiveView.Socket
 
+  defmodule TestAuthor do
+    use Ecto.Schema
+
+    schema "authors" do
+      field :name, :string
+    end
+  end
+
   defmodule TestPost do
     use Ecto.Schema
 
     @primary_key {:id, :binary_id, autogenerate: true}
     schema "posts" do
       field :title, :string
+      belongs_to :author, TestAuthor
     end
   end
 
   defmodule TestPostLive do
     @moduledoc false
     def adapter_config(:schema), do: Backpex.LiveResourceTest.TestPost
+    def config(:primary_key), do: :id
+    def config(:order_nulls), do: :default
+  end
+
+  defmodule NullsFirstPostLive do
+    @moduledoc false
+    def adapter_config(:schema), do: Backpex.LiveResourceTest.TestPost
+    def config(:primary_key), do: :id
+    def config(:order_nulls), do: :first
   end
 
   defmodule AllContextLive do
@@ -91,6 +109,20 @@ defmodule Backpex.LiveResourceTest do
   end
 
   describe "build_criteria/1" do
+    defp order_criteria(live_resource, fields, order_by, init_order \\ %{by: :id, direction: :asc}) do
+      assigns = %{
+        live_resource: live_resource,
+        filters: [],
+        fields: fields,
+        init_order: init_order,
+        query_options: %{order_by: order_by, order_direction: :desc, page: 1, per_page: 15}
+      }
+
+      assigns
+      |> LiveResource.build_criteria()
+      |> Keyword.fetch!(:order)
+    end
+
     test "builds an order criteria the adapter applies when ordering by a column that is not a declared field" do
       # :id is the default init_order column, but a primary key is virtually never
       # declared as a field. The order criteria must still reach the query.
@@ -111,8 +143,44 @@ defmodule Backpex.LiveResourceTest do
         |> from(as: ^EctoAdapter.name_by_schema(TestPost))
         |> EctoAdapter.apply_criteria(criteria, fields)
 
-      assert %{order_bys: [%{expr: [{:asc_nulls_first, order_expression}]}]} = query
+      assert %{order_bys: [%{expr: [{:asc, order_expression}]}]} = query
       assert Macro.to_string(order_expression) =~ "id"
+    end
+
+    test "orders by the primary key without NULLS FIRST/LAST" do
+      fields = [{:id, %{module: Backpex.Fields.Text, order_nulls: :last}}, {:title, %{module: Backpex.Fields.Text}}]
+
+      assert %{by: :id, nulls: :default} = order_criteria(NullsFirstPostLive, fields, :id)
+      assert %{by: :id, field_name: nil, nulls: :default} = order_criteria(NullsFirstPostLive, fields, :unknown)
+    end
+
+    test "uses the order_nulls option of the live resource" do
+      fields = [{:title, %{module: Backpex.Fields.Text}}]
+
+      assert %{by: :title, nulls: :default} = order_criteria(TestPostLive, fields, :title)
+      assert %{by: :title, nulls: :first} = order_criteria(NullsFirstPostLive, fields, :title)
+
+      init_order = %{by: :title, direction: :asc}
+      assert %{by: :title, field_name: nil, nulls: :first} = order_criteria(NullsFirstPostLive, [], :title, init_order)
+    end
+
+    test "prefers the order_nulls option of the field" do
+      fields = [{:title, %{module: Backpex.Fields.Text, order_nulls: :last}}]
+
+      assert %{by: :title, nulls: :last} = order_criteria(NullsFirstPostLive, fields, :title)
+    end
+
+    test "applies order_nulls to a field with a select expression named like the primary key" do
+      select = dynamic([testpost: p], fragment("upper(?)", p.title))
+      fields = [{:id, %{module: Backpex.Fields.Text, select: select}}]
+
+      assert %{by: :id, nulls: :first} = order_criteria(NullsFirstPostLive, fields, :id)
+    end
+
+    test "applies order_nulls to the primary key of an association" do
+      fields = [{:author, %{module: Backpex.Fields.BelongsTo, queryable: TestAuthor, display_field: :id}}]
+
+      assert %{by: :id, schema: TestAuthor, nulls: :first} = order_criteria(NullsFirstPostLive, fields, :author)
     end
   end
 

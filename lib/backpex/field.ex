@@ -62,6 +62,15 @@ defmodule Backpex.Field do
       doc: "Define wether this field should be orderable on the index view.",
       type: :boolean
     ],
+    order_nulls: [
+      doc: """
+      Where `NULL` values are placed when the index view is ordered by this field: `:default` (database default),
+      `:first` (`NULLS FIRST`), `:last` (`NULLS LAST`) or `:smallest` (`ASC NULLS FIRST` and `DESC NULLS LAST`).
+      Overrides the `:order_nulls` option of the LiveResource. See the [Ordering](/guides/live_resource/ordering.md)
+      guide.
+      """,
+      type: {:in, [:default, :first, :last, :smallest]}
+    ],
     visible: [
       doc:
         "Function to change the visibility of a field for all views except index. Receives the assigns and has to return a boolean.",

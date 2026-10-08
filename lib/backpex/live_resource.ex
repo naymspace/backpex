@@ -92,6 +92,25 @@ defmodule Backpex.LiveResource do
       },
       default: nil
     ],
+    order_nulls: [
+      doc: """
+      Where `NULL` values are placed when the index view is ordered by a column.
+
+      - `:default` uses the database default. PostgreSQL treats `NULL` as larger than any value, so `NULL` values come
+        last in ascending and first in descending order.
+      - `:first` places `NULL` values first in both directions (`NULLS FIRST`).
+      - `:last` places `NULL` values last in both directions (`NULLS LAST`).
+      - `:smallest` treats `NULL` as smaller than any value: first in ascending (`ASC NULLS FIRST`) and last in
+        descending order (`DESC NULLS LAST`). This was the behaviour before v0.23.
+
+      Fields can override this with their own `:order_nulls` option. Ordering by the `primary_key` always uses the
+      database default, since a primary key is never `NULL`. `:first`, `:last` and `:smallest` need a matching index (e.g.
+      `create index(:posts, ["published_at NULLS FIRST"])`), otherwise the database sorts the whole table on every
+      page load. See the [Ordering](live_resource/ordering.md) guide.
+      """,
+      type: {:in, [:default, :first, :last, :smallest]},
+      default: :default
+    ],
     context_assigns: [
       doc: """
       The assigns that callbacks receive while the index and show views are rendered, e.g. `c:can?/3`,
@@ -917,16 +936,27 @@ defmodule Backpex.LiveResource do
       if orderable?(field) do
         {field_name, field_options} = field
 
-        %{
+        order = %{
           by: field_options.module.display_field(field),
           schema: field_options.module.schema(field, schema),
           direction: query_options.order_direction,
           field_name: field_name
         }
+
+        primary_key? =
+          order.schema == schema and not Map.has_key?(field_options, :select) and
+            not Map.has_key?(field_options, :custom_alias) and order.by == live_resource.config(:primary_key)
+
+        Map.put(order, :nulls, order_nulls(live_resource, field_options, primary_key?))
       else
-        init_order
-        |> resolve_init_order(assigns)
-        |> Map.merge(%{schema: schema, field_name: nil})
+        init_order = resolve_init_order(init_order, assigns)
+        primary_key? = init_order.by == live_resource.config(:primary_key)
+
+        Map.merge(init_order, %{
+          schema: schema,
+          field_name: nil,
+          nulls: order_nulls(live_resource, %{}, primary_key?)
+        })
       end
 
     [
@@ -936,6 +966,13 @@ defmodule Backpex.LiveResource do
       filter_values: filter_values,
       filter_configs: filters
     ]
+  end
+
+  # A primary key is never NULL, so NULLS FIRST/LAST would only keep the database from using the primary key index.
+  defp order_nulls(_live_resource, _field_options, true = _primary_key?), do: :default
+
+  defp order_nulls(live_resource, field_options, false = _primary_key?) do
+    Map.get(field_options, :order_nulls) || live_resource.config(:order_nulls) || :default
   end
 
   @doc """
