@@ -202,11 +202,10 @@ defmodule Backpex.FormComponent do
     handle_save(socket, socket.assigns.live_action, change)
   end
 
-  def handle_event(msg, params, socket) do
-    Enum.reduce(socket.assigns.fields, socket, fn el, acc ->
-      el.module.handle_form_event(el, msg, params, acc)
-    end)
-    |> noreply()
+  # Fields are live components that handle their own events. Anything else that reaches the form,
+  # such as an unknown event or an upload event without its params, is ignored.
+  def handle_event(_event, _params, socket) do
+    noreply(socket)
   end
 
   # Only keys of the rendered form actions count; anything else from the client is ignored.
