@@ -101,7 +101,7 @@ defmodule Backpex.Field do
     ],
     select: [
       doc: """
-      Define a dynamic select query expression for this field.
+      Define a dynamic select query expression for this field. Only used by `Backpex.Adapters.Ecto`.
 
       ### Example
 
@@ -204,8 +204,11 @@ defmodule Backpex.Field do
   @callback display_field(field :: tuple()) :: atom()
 
   @doc """
-  The schema to be used in queries. In most cases this is the schema defined in the resource configuration.
-  In fields with associations this is the schema of the corresponding relation. The function will receive the field definition and the schema defined in the resource configuration.
+  The schema to be used in queries. Only `Backpex.Adapters.Ecto` calls this callback.
+
+  Without it, the adapter uses the schema of the association for association fields (see `c:association?/1`) and the
+  schema of the resource for any other field. The function will receive the field definition and the schema defined in
+  the resource configuration.
   """
   @callback schema(field :: tuple(), schema :: atom()) :: atom()
 
@@ -223,6 +226,8 @@ defmodule Backpex.Field do
   @doc """
   This function is called before the changeset function is called. This allows fields to modify the changeset.
   The `Backpex.Fields.HasMany` uses this callback to put the linked associations into the changeset.
+
+  `Backpex.Adapters.Ecto` calls this callback and passes its repo.
   """
   @callback before_changeset(
               changeset :: Socket.t(),
@@ -234,17 +239,19 @@ defmodule Backpex.Field do
             ) :: Ecto.Changeset.t()
 
   @doc """
-  Defines the search condition. Defaults to an ilike condition with text comparison. The function has to return a query wrapped into a `Ecto.Query.dynamic/2` which is then passed into a `Ecto.Query.where/3`.
+  Defines the search condition. Only `Backpex.Adapters.Ecto` calls this callback. The function has to return a query
+  wrapped into a `Ecto.Query.dynamic/2` which is then passed into a `Ecto.Query.where/3`.
+
+  Without it, the adapter compares the column to the search string with `ilike`, and casts columns that are not
+  strings to text first.
 
   ## Example
 
-  Imagine the underlying database type of the field is an integer. Before text comparison in an ilike condition you have to cast the integer to text.
-
-  The function could return the following query to make the field searchable.
+  The function could return the following query to search the value of the field from its first character on.
 
       dynamic(
         [{^schema_name, schema_name}],
-        ilike(fragment("CAST(? AS TEXT)", schema_name |> field(^field_name)), ^search_string)
+        ilike(schema_name |> field(^field_name), ^String.trim_leading(search_string, "%"))
       )
   """
   @callback search_condition(
@@ -303,6 +310,8 @@ defmodule Backpex.Field do
               term()
 
   @optional_callbacks render_index_form: 1,
+                      schema: 2,
+                      search_condition: 3,
                       index_assigns: 3,
                       index_editable_change: 3,
                       list_existing_files: 2,
@@ -355,8 +364,6 @@ defmodule Backpex.Field do
 
   defmacro __before_compile__(_env) do
     quote generated: true do
-      import Ecto.Query
-
       @impl Phoenix.LiveComponent
       def render(%{type: :index} = assigns) do
         if Backpex.Field.index_editable_enabled?(assigns.field_options, assigns) do
@@ -381,21 +388,10 @@ defmodule Backpex.Field do
       def display_field({name, _field_options} = _field), do: name
 
       @impl Backpex.Field
-      def schema(_field, schema), do: schema
-
-      @impl Backpex.Field
       def association?(_field), do: false
 
       @impl Backpex.Field
       def assign_uploads(_field, socket), do: socket
-
-      @impl Backpex.Field
-      def search_condition(schema_name, field_name, search_string) do
-        dynamic(
-          [{^schema_name, schema_name}],
-          schema_name |> field(^field_name) |> ilike(^search_string)
-        )
-      end
 
       @impl Backpex.Field
       def before_changeset(changeset, _attrs, _metadata, _repo, _field, _assigns), do: changeset

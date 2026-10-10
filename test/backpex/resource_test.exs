@@ -232,6 +232,13 @@ defmodule Backpex.ResourceTest do
       assert_received {"backpex:deleted", ^item}
     end
 
+    test "returns the error of the adapter without broadcasting", %{assigns: assigns} do
+      assert Resource.delete_all([%{id: 1, referenced?: true}], assigns, AllowAll) == {:error, :foreign_key_violation}
+
+      refute_received {"deleted", _item}
+      refute_received {"backpex:deleted", _item}
+    end
+
     test "does not answer the pre-0.21 delete_all/2 signature" do
       # The arguments go through a variable so the compiler's type checker does not flag the
       # intentionally wrong call — what is under test is the runtime behavior.
@@ -332,6 +339,25 @@ defmodule Backpex.ResourceTest do
       assert_raise FunctionClauseError, fn ->
         apply(Resource, :update_all, args)
       end
+    end
+  end
+
+  describe "list_options_by_key/4" do
+    defmodule OptionsAdapter do
+      @moduledoc false
+      def list_options(field, criteria, assigns, _live_resource), do: {:ok, [{field, criteria, assigns.key}]}
+    end
+
+    defmodule OptionsLive do
+      @moduledoc false
+      def config(:adapter), do: OptionsAdapter
+    end
+
+    test "calls list_options/4 for every key if the adapter has no list_options_by_key/4" do
+      assigns_by_key = %{a: %{key: :a}, b: %{key: :b}}
+
+      assert Resource.list_options_by_key(:field, [limit: 1], assigns_by_key, OptionsLive) ==
+               {:ok, %{a: [{:field, [limit: 1], :a}], b: [{:field, [limit: 1], :b}]}}
     end
   end
 end

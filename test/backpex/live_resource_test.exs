@@ -29,6 +29,7 @@ defmodule Backpex.LiveResourceTest do
   defmodule TestPostLive do
     @moduledoc false
     def adapter_config(:schema), do: Backpex.LiveResourceTest.TestPost
+    def config(:adapter), do: Backpex.Adapters.Ecto
     def config(:primary_key), do: :id
     def config(:order_nulls), do: :default
   end
@@ -108,6 +109,18 @@ defmodule Backpex.LiveResourceTest do
     end
   end
 
+  describe "default_attrs/3" do
+    test "puts the default of a field for a single associated item under the key the association is based on" do
+      fields = [
+        author: %{module: Backpex.Fields.BelongsTo, display_field: :name, default: fn _assigns -> 1 end},
+        title: %{module: Backpex.Fields.Text, default: fn assigns -> assigns.title end}
+      ]
+
+      assert LiveResource.default_attrs(:new, fields, %{live_resource: TestPostLive, title: "Title"}) ==
+               %{author_id: 1, title: "Title"}
+    end
+  end
+
   describe "build_criteria/1" do
     defp order_criteria(live_resource, fields, order_by, init_order \\ %{by: :id, direction: :asc}) do
       assigns = %{
@@ -141,7 +154,7 @@ defmodule Backpex.LiveResourceTest do
       query =
         TestPost
         |> from(as: ^EctoAdapter.name_by_schema(TestPost))
-        |> EctoAdapter.apply_criteria(criteria, fields)
+        |> EctoAdapter.apply_criteria(criteria, fields, TestPost)
 
       assert %{order_bys: [%{expr: [{:asc, order_expression}]}]} = query
       assert Macro.to_string(order_expression) =~ "id"
@@ -178,9 +191,9 @@ defmodule Backpex.LiveResourceTest do
     end
 
     test "applies order_nulls to the primary key of an association" do
-      fields = [{:author, %{module: Backpex.Fields.BelongsTo, queryable: TestAuthor, display_field: :id}}]
+      fields = [{:author, %{module: Backpex.Fields.BelongsTo, display_field: :id}}]
 
-      assert %{by: :id, schema: TestAuthor, nulls: :first} = order_criteria(NullsFirstPostLive, fields, :author)
+      assert %{by: :id, field_name: :author, nulls: :first} = order_criteria(NullsFirstPostLive, fields, :author)
     end
   end
 

@@ -4,7 +4,6 @@ defmodule Backpex.LiveResource.Index do
 
   import Phoenix.Component
 
-  alias Backpex.Adapters.Ecto, as: EctoAdapter
   alias Backpex.Authorization
   alias Backpex.FilterValidation
   alias Backpex.ItemAction
@@ -105,7 +104,7 @@ defmodule Backpex.LiveResource.Index do
 
   # credo:disable-for-this-file Credo.Check.Design.DuplicatedCode
   def handle_info({:put_assoc, {key, value} = _assoc}, socket) do
-    changeset = Ecto.Changeset.put_assoc(socket.assigns.changeset, key, value)
+    changeset = Resource.put_assoc(socket.assigns.changeset, key, value, socket.assigns.live_resource)
     assocs = Map.get(socket.assigns, :assocs, []) |> Keyword.put(key, value)
 
     socket
@@ -686,7 +685,7 @@ defmodule Backpex.LiveResource.Index do
     |> assign(:item, item)
     |> apply_index()
     |> assign(:changeset_function, changeset_function)
-    |> assign_changeset(changeset_function, item, action.module.fields(), :resource_action)
+    |> LiveResource.assign_changeset(changeset_function, item, action.module.fields(), :resource_action)
   end
 
   defp apply_index(socket) do
@@ -708,7 +707,6 @@ defmodule Backpex.LiveResource.Index do
     init_order = maybe_override_init_order(resource_default_order, params, persisted.order, orderable_fields)
 
     filters = LiveResource.active_filters(socket.assigns)
-    schema = live_resource.adapter_config(:schema)
 
     # Build filter changeset from URL params and extract valid values
     raw_filter_params =
@@ -731,7 +729,7 @@ defmodule Backpex.LiveResource.Index do
       )
 
     count_criteria = [
-      search: LiveResource.search_options(params, fields, schema),
+      search: LiveResource.search_options(params, fields),
       filter_values: filter_values,
       filter_configs: filters
     ]
@@ -862,14 +860,6 @@ defmodule Backpex.LiveResource.Index do
     assign(socket, :return_to, Router.get_path(socket, live_resource, params, :index, return_to_options))
   end
 
-  # TODO: move to common module
-  defp assign_changeset(socket, changeset_function, item, fields, live_action) do
-    metadata = Resource.build_changeset_metadata(socket.assigns)
-    changeset = changeset_function.(item, LiveResource.default_attrs(live_action, fields, socket.assigns), metadata)
-
-    assign(socket, :changeset, changeset)
-  end
-
   defp maybe_put_search(query_options, %{"search" => search} = _params) when is_nil(search) or search == "",
     do: query_options
 
@@ -919,14 +909,13 @@ defmodule Backpex.LiveResource.Index do
   defp count_items(socket) do
     %{live_resource: live_resource, params: params, fields: fields} = socket.assigns
 
-    schema = live_resource.adapter_config(:schema)
     filters = LiveResource.active_filters(socket.assigns)
 
     # Use the already-validated filter_values from assigns
     filter_values = Map.get(socket.assigns, :filter_values, %{})
 
     count_criteria = [
-      search: LiveResource.search_options(params, fields, schema),
+      search: LiveResource.search_options(params, fields),
       filter_values: filter_values,
       filter_configs: filters
     ]
@@ -958,8 +947,6 @@ defmodule Backpex.LiveResource.Index do
       fields: fields
     } = socket.assigns
 
-    repo = live_resource.adapter_config(:repo)
-    schema = live_resource.adapter_config(:schema)
     filters = LiveResource.active_filters(socket.assigns)
 
     # Use the already-validated filter_values from assigns
@@ -969,21 +956,14 @@ defmodule Backpex.LiveResource.Index do
       socket.assigns.live_resource.metrics()
       |> Enum.map(fn {key, metric} ->
         criteria = [
-          search: LiveResource.search_options(query_options, fields, schema),
+          search: LiveResource.search_options(query_options, fields),
           filter_values: filter_values,
           filter_configs: filters
         ]
 
-        query = EctoAdapter.list_query(criteria, fields, socket.assigns, live_resource)
-
         case Backpex.Metric.metrics_visible?(metric_visibility, live_resource) do
           true ->
-            data =
-              query
-              |> Ecto.Query.exclude(:select)
-              |> Ecto.Query.exclude(:preload)
-              |> Ecto.Query.exclude(:group_by)
-              |> metric.module.query(metric.select, repo)
+            {:ok, data} = Resource.metric(metric, criteria, fields, socket.assigns, live_resource)
 
             {key, Map.put(metric, :data, data)}
 

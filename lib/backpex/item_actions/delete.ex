@@ -47,22 +47,29 @@ defmodule Backpex.ItemActions.Delete do
     # Backpex only calls `handle/3` once `Backpex.ItemAction.authorize_fresh!/3` has re-read these
     # items and authorized exactly them under exactly this action's key — `items` *is* that re-read
     # list. Re-checking here would run the user's `can?/3` a second time for the same decision.
-    {:ok, deleted_items} = Resource.delete_all(items, socket.assigns, live_resource, authorize?: false)
+    case Resource.delete_all(items, socket.assigns, live_resource, authorize?: false) do
+      {:ok, deleted_items} ->
+        Enum.each(deleted_items, fn deleted_item -> live_resource.on_item_deleted(socket, deleted_item) end)
 
-    Enum.each(deleted_items, fn deleted_item -> live_resource.on_item_deleted(socket, deleted_item) end)
+        socket
+        |> clear_flash()
+        |> put_flash(:info, success_message(socket.assigns, deleted_items))
+        |> ok()
+
+      {:error, error} ->
+        put_error_flash(socket, error, items)
+    end
+  rescue
+    error -> put_error_flash(socket, error, items)
+  end
+
+  defp put_error_flash(socket, error, items) do
+    Logger.error("An error occurred while deleting the resource: #{inspect(error)}")
 
     socket
     |> clear_flash()
-    |> put_flash(:info, success_message(socket.assigns, deleted_items))
+    |> put_flash(:error, error_message(socket.assigns, error, items))
     |> ok()
-  rescue
-    error ->
-      Logger.error("An error occurred while deleting the resource: #{inspect(error)}")
-
-      socket
-      |> clear_flash()
-      |> put_flash(:error, error_message(socket.assigns, error, items))
-      |> ok()
   end
 
   defp success_message(assigns, [_item]) do
@@ -80,19 +87,11 @@ defmodule Backpex.ItemActions.Delete do
     )
   end
 
-  defp error_message(assigns, %Postgrex.Error{postgres: %{code: :foreign_key_violation}}, [_item] = items) do
+  defp error_message(assigns, :foreign_key_violation, [_item] = items) do
     "#{error_message(assigns, :error, items)} #{Backpex.__("The item is used elsewhere.", assigns.live_resource)}"
   end
 
-  defp error_message(assigns, %Ecto.ConstraintError{type: :foreign_key}, [_item] = items) do
-    "#{error_message(assigns, :error, items)} #{Backpex.__("The item is used elsewhere.", assigns.live_resource)}"
-  end
-
-  defp error_message(assigns, %Postgrex.Error{postgres: %{code: :foreign_key_violation}}, items) do
-    "#{error_message(assigns, :error, items)} #{Backpex.__("The items are used elsewhere.", assigns.live_resource)}"
-  end
-
-  defp error_message(assigns, %Ecto.ConstraintError{type: :foreign_key}, items) do
+  defp error_message(assigns, :foreign_key_violation, items) do
     "#{error_message(assigns, :error, items)} #{Backpex.__("The items are used elsewhere.", assigns.live_resource)}"
   end
 

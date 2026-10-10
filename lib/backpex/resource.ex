@@ -72,6 +72,72 @@ defmodule Backpex.Resource do
   end
 
   @doc """
+  Returns the data of the given metric for the items matching the given criteria. Takes the same criteria as
+  `count/4`.
+  """
+  def metric(metric, criteria, fields, assigns, live_resource) do
+    adapter = live_resource.config(:adapter)
+
+    adapter.metric(metric, criteria, fields, assigns, live_resource)
+  end
+
+  @doc """
+  Returns a new item that has not been saved yet.
+  """
+  def new_item(assigns, live_resource) do
+    adapter = live_resource.config(:adapter)
+
+    adapter.new_item(assigns, live_resource)
+  end
+
+  @doc """
+  Returns the association `name` of the resource, or `nil` if there is no such association. See
+  `c:Backpex.Adapter.association/2`.
+  """
+  def association(name, live_resource) do
+    adapter = live_resource.config(:adapter)
+
+    adapter.association(name, live_resource)
+  end
+
+  @doc """
+  Returns the items that can be selected as the value of an association field. See
+  `c:Backpex.Adapter.list_options/4` for the criteria.
+  """
+  def list_options(field, criteria, assigns, live_resource) do
+    adapter = live_resource.config(:adapter)
+
+    adapter.list_options(field, criteria, assigns, live_resource)
+  end
+
+  @doc """
+  Same as `list_options/4` for many assigns at once. Takes a map of keys to assigns and returns a map of the same keys
+  to the items. See `c:Backpex.Adapter.list_options_by_key/4`.
+  """
+  def list_options_by_key(field, criteria, assigns_by_key, live_resource) do
+    adapter = live_resource.config(:adapter)
+
+    if Code.ensure_loaded?(adapter) and function_exported?(adapter, :list_options_by_key, 4) do
+      adapter.list_options_by_key(field, criteria, assigns_by_key, live_resource)
+    else
+      {:ok,
+       Map.new(assigns_by_key, fn {key, assigns} ->
+         {:ok, items} = adapter.list_options(field, criteria, assigns, live_resource)
+         {key, items}
+       end)}
+    end
+  end
+
+  @doc """
+  Returns the number of items `list_options/4` returns for the given criteria, ignoring `:offset` and `:limit`.
+  """
+  def count_options(field, criteria, assigns, live_resource) do
+    adapter = live_resource.config(:adapter)
+
+    adapter.count_options(field, criteria, assigns, live_resource)
+  end
+
+  @doc """
   Gets a database record with the given `fields` by the given  `primary_value`.
 
   Returns `{:ok, nil}` if no result was found.
@@ -140,6 +206,8 @@ defmodule Backpex.Resource do
   Deletes multiple items.
   Additionally broadcasts the corresponding event for each deleted item.
 
+  Returns `{:error, :foreign_key_violation}` if an item can't be deleted because other data still references it.
+
   Authorizes `:delete` for every item before touching the adapter. See the "Authorization" section
   in the module documentation.
 
@@ -158,12 +226,17 @@ defmodule Backpex.Resource do
 
     adapter = live_resource.config(:adapter)
 
-    adapter.delete_all(items, live_resource)
-    |> tap(fn {:ok, delete_items} ->
-      Enum.each(delete_items, fn deleted_item ->
-        broadcast({:ok, deleted_item}, "deleted", live_resource)
-      end)
-    end)
+    case adapter.delete_all(items, live_resource) do
+      {:ok, deleted_items} = result ->
+        Enum.each(deleted_items, fn deleted_item ->
+          broadcast({:ok, deleted_item}, "deleted", live_resource)
+        end)
+
+        result
+
+      error ->
+        error
+    end
   end
 
   @doc """
@@ -323,6 +396,15 @@ defmodule Backpex.Resource do
     adapter = live_resource.config(:adapter)
 
     adapter.change(item, attrs, fields, assigns, live_resource, opts)
+  end
+
+  @doc """
+  Puts the associated items `value` into the association `name` of the changeset.
+  """
+  def put_assoc(changeset, name, value, live_resource) do
+    adapter = live_resource.config(:adapter)
+
+    adapter.put_assoc(changeset, name, value, live_resource)
   end
 
   @doc """

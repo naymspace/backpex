@@ -38,10 +38,14 @@ defmodule Backpex.Test.StubAdapter do
     {:ok, item}
   end
 
+  @doc """
+  Deletes nothing, but reports `{:error, :foreign_key_violation}` like a database would if an item has
+  `referenced?: true`.
+  """
   def delete_all(items, _live_resource) do
     send(self(), {:adapter, :delete_all, items})
 
-    {:ok, items}
+    if Enum.any?(items, &Map.get(&1, :referenced?)), do: {:error, :foreign_key_violation}, else: {:ok, items}
   end
 
   def update_all(items, updates, _live_resource) do

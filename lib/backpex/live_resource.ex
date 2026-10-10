@@ -664,17 +664,9 @@ defmodule Backpex.LiveResource do
   end
 
   def default_attrs(:new, fields, assigns) do
-    schema = assigns.live_resource.adapter_config(:schema)
-
     Enum.reduce(fields, %{}, fn
-      {name, %{default: default} = field_options} = field, attrs ->
-        if field_options.module.association?(field) && schema.__schema__(:association, name).cardinality == :one do
-          owner_key = schema.__schema__(:association, name).owner_key
-
-          Map.put(attrs, owner_key, default.(assigns))
-        else
-          Map.put(attrs, name, default.(assigns))
-        end
+      {_name, %{default: default} = field_options} = field, attrs ->
+        Map.put(attrs, default_attr_key(field, field_options, assigns.live_resource), default.(assigns))
 
       _field, attrs ->
         attrs
@@ -692,6 +684,16 @@ defmodule Backpex.LiveResource do
   end
 
   def default_attrs(_live_action, _fields, _assigns), do: %{}
+
+  # The default of a field for a single associated item is the value of the key the association is based on.
+  defp default_attr_key({name, _options} = field, field_options, live_resource) do
+    with true <- field_options.module.association?(field),
+         %{cardinality: :one, owner_key: owner_key} <- Resource.association(name, live_resource) do
+      owner_key
+    else
+      _other -> name
+    end
+  end
 
   @context_assigns [:live_resource, :live_action, :params, :fields, :item_actions, :return_to, :item]
 
@@ -882,20 +884,16 @@ defmodule Backpex.LiveResource do
   defp can_view_field?(_field_options, _assigns), do: true
 
   @doc """
-  Returns all search options.
+  Returns all search options: the search string and the searchable fields.
   """
-  def search_options(params, fields, schema) do
+  def search_options(params, fields) do
     {
       Map.get(
         params,
         "search",
         Map.get(params, :search, "")
       ),
-      fields
-      |> Keyword.filter(fn {_name, field_options} -> Map.get(field_options, :searchable, false) end)
-      |> Enum.map(fn {name, field_options} = field ->
-        {name, Map.put(field_options, :queryable, field_options.module.schema(field, schema))}
-      end)
+      Keyword.filter(fields, fn {_name, field_options} -> Map.get(field_options, :searchable, false) end)
     }
   end
 
@@ -928,8 +926,6 @@ defmodule Backpex.LiveResource do
     # Get validated filter values from assigns, falling back to empty map
     filter_values = Map.get(assigns, :filter_values, %{})
 
-    schema = live_resource.adapter_config(:schema)
-
     field = Enum.find(fields, fn {name, _field_options} -> name == query_options.order_by end)
 
     order =
@@ -938,13 +934,12 @@ defmodule Backpex.LiveResource do
 
         order = %{
           by: field_options.module.display_field(field),
-          schema: field_options.module.schema(field, schema),
           direction: query_options.order_direction,
           field_name: field_name
         }
 
         primary_key? =
-          order.schema == schema and not Map.has_key?(field_options, :select) and
+          not field_options.module.association?(field) and not Map.has_key?(field_options, :select) and
             not Map.has_key?(field_options, :custom_alias) and order.by == live_resource.config(:primary_key)
 
         Map.put(order, :nulls, order_nulls(live_resource, field_options, primary_key?))
@@ -953,7 +948,6 @@ defmodule Backpex.LiveResource do
         primary_key? = init_order.by == live_resource.config(:primary_key)
 
         Map.merge(init_order, %{
-          schema: schema,
           field_name: nil,
           nulls: order_nulls(live_resource, %{}, primary_key?)
         })
@@ -962,7 +956,7 @@ defmodule Backpex.LiveResource do
     [
       order: order,
       pagination: %{page: query_options.page, size: query_options.per_page},
-      search: search_options(query_options, fields, schema),
+      search: search_options(query_options, fields),
       filter_values: filter_values,
       filter_configs: filters
     ]
