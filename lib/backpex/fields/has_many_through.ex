@@ -110,18 +110,31 @@ defmodule Backpex.Fields.HasManyThrough do
 
   defp apply_action(socket, _type), do: socket
 
-  defp assign_options(%{assigns: %{options: _options, items: _items}} = socket), do: socket
-
+  # The options query may depend on other assigns, e.g. a value of the form. The options are loaded again whenever the
+  # resulting query changes.
   defp assign_options(socket) do
     %{field_options: field_options, association: association} = socket.assigns
+
+    query =
+      from(association.child.queryable)
+      |> maybe_options_query(field_options, socket.assigns)
+
+    if Map.get(socket.assigns, :options_base_query) == query do
+      socket
+    else
+      socket
+      |> assign(:options_base_query, query)
+      |> load_options()
+    end
+  end
+
+  defp load_options(socket) do
+    %{field_options: field_options, options_base_query: query} = socket.assigns
     repo = socket.assigns.live_resource.adapter_config(:repo)
 
     display_field = Map.get(field_options, :display_field_form, Map.get(field_options, :display_field))
 
-    all_items =
-      from(association.child.queryable)
-      |> maybe_options_query(field_options, socket.assigns)
-      |> repo.all()
+    all_items = repo.all(query)
 
     options = Enum.map(all_items, &{Map.get(&1, display_field), Map.get(&1, :id)})
 
