@@ -209,7 +209,6 @@ defmodule Backpex.HTML.Resource do
   attr :name, :string, required: true, doc: "name / key of the item field"
   attr :form, :map, required: true, doc: "form that will be used by the form field"
   attr :hide_label, :boolean, default: false, doc: "whether to hide the label (left column)"
-  attr :repo, :any, required: false, doc: "ecto repo"
   attr :uploads, :map, required: false, default: %{}, doc: "map that contains upload information"
   attr :fields, :list, required: true, doc: "list of all fields provided by the resource configuration"
 

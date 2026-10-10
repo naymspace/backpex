@@ -25,7 +25,6 @@ defmodule Backpex.Fields.Number do
   #{NimbleOptions.docs(@config_schema)}
   """
   use Backpex.Field, config_schema: @config_schema
-  import Ecto.Query
 
   @impl Backpex.Field
   def render_value(assigns) do
@@ -84,12 +83,4 @@ defmodule Backpex.Fields.Number do
 
   @impl Backpex.Field
   def index_editable_change({name, _field_options}, value, _assigns), do: %{name => value}
-
-  @impl Backpex.Field
-  def search_condition(schema_name, field_name, search_string) do
-    dynamic(
-      [{^schema_name, schema_name}],
-      ilike(fragment("CAST(? AS TEXT)", schema_name |> field(^field_name)), ^search_string)
-    )
-  end
 end
