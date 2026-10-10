@@ -64,6 +64,7 @@ defmodule Backpex.Fields.Select do
   """
   use Backpex.Field, config_schema: @config_schema
   import Ecto.Query
+  alias Backpex.Fields.OptionLabels
 
   @impl Backpex.Field
   def render_value(assigns) do
@@ -151,68 +152,26 @@ defmodule Backpex.Fields.Select do
 
   @impl Backpex.Field
   def search_condition(schema_name, field_name, search_string, field, assigns) do
-    label = label_expression(schema_name, field_name, field, assigns)
+    label = OptionLabels.label_expression(schema_name, field_name, OptionLabels.options(field, assigns))
 
     dynamic(ilike(^label, ^search_string))
   end
 
   @impl Backpex.Field
   def order_expression(schema_name, field_name, field, assigns) do
-    label_expression(schema_name, field_name, field, assigns)
-  end
-
-  # Maps the stored value to the label of its option, so that searching and ordering match what the user sees, e.g.
-  # translated labels. Values without an option fall back to the stored value, like in `render_value/1`.
-  defp label_expression(schema_name, field_name, {_name, field_options}, assigns) do
-    {labels, values} =
-      assigns
-      |> Map.put(:field_options, field_options)
-      |> get_options()
-      |> flatten_options()
-      |> Enum.map(fn {label, value} -> {to_string(label), to_string(value)} end)
-      |> Enum.unzip()
-
-    dynamic(
-      [{^schema_name, schema_name}],
-      fragment(
-        "coalesce((?::text[])[array_position(?::text[], ?::text)], ?::text)",
-        ^labels,
-        ^values,
-        schema_name |> field(^field_name),
-        schema_name |> field(^field_name)
-      )
-    )
+    OptionLabels.label_expression(schema_name, field_name, OptionLabels.options(field, assigns))
   end
 
   defp get_label(value, options) do
     option =
       options
-      |> flatten_options()
+      |> OptionLabels.flatten()
       |> Enum.find(fn {_label, option_value} -> value?(option_value, value) end)
 
     case option do
       nil -> value
       {label, _value} -> label
     end
-  end
-
-  defp flatten_options(options) do
-    options
-    |> Enum.map(fn
-      {_label, value} = option ->
-        case value do
-          value when is_list(value) or is_map(value) -> value
-          _value -> option
-        end
-
-      option ->
-        option
-    end)
-    |> List.flatten()
-    |> Enum.map(fn
-      {label, value} -> {label, value}
-      value -> {value, value}
-    end)
   end
 
   defp value?(value, to_compare), do: to_string(value) == to_string(to_compare)
