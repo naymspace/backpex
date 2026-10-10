@@ -410,9 +410,9 @@ defmodule Backpex.Fields.HasMany do
     cond do
       # It is important add empty maps when selecting or deselecting all items to force the list to be always present
       # in the changes. Otherwise it would not work if the item already contains all items ("select all") or
-      # none items ("deselect all").
+      # none items ("deselect all"). "Select all" selects the options, so the options query applies, as for the ids.
       Map.has_key?(attrs, field_name_string <> "_select_all") ->
-        [%{} | repo.all(schema)]
+        [%{} | schema |> maybe_options_query(field_options, assigns) |> repo.all()]
 
       Map.has_key?(attrs, field_name_string <> "_deselect_all") ->
         [%{}]
