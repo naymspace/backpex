@@ -114,7 +114,7 @@ defmodule Backpex.Filter do
   @callback validate(value :: any(), assigns :: map()) :: {:ok, any()} | {:error, keyword()}
 
   @doc """
-  The filter query that is executed if an option was selected.
+  The filter query that is executed if an option was selected. Only `Backpex.Adapters.Ecto` calls this callback.
 
   The `value` parameter contains the already-validated and casted value from the changeset.
   """

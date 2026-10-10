@@ -13,6 +13,11 @@ defmodule Backpex.Metric do
   Used to render the metric as a heex template on the index views.
   """
   @callback render(assigns :: map()) :: %Rendered{}
+
+  @doc """
+  Queries the data of the metric. Only `Backpex.Adapters.Ecto` calls this callback, with the query of the items on the
+  index view, the `:select` option of the metric and its repo.
+  """
   @callback query(query :: Ecto.Queryable.t(), select :: any(), repo :: Ecto.Repo.t()) ::
               Ecto.Schema.t() | term() | nil
   @callback format(data :: any(), format :: any()) :: term()
