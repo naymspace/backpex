@@ -128,23 +128,25 @@ defmodule Backpex.Adapters.Ecto do
     |> maybe_join(associations)
     |> maybe_preload(associations, fields)
     |> maybe_merge_dynamic_fields(fields)
-    |> apply_search(schema, full_text_search, criteria[:search])
+    |> apply_search(schema, full_text_search, criteria[:search], assigns)
     |> apply_filters(criteria[:filter_values], criteria[:filter_configs], assigns)
-    |> apply_criteria(criteria, fields)
+    |> apply_criteria(criteria, fields, assigns)
   end
 
-  def apply_search(query, _schema, nil, {_search_string, []}), do: query
+  def apply_search(query, schema, full_text_search, search, assigns \\ %{})
 
-  def apply_search(query, _schema, nil, {"", _searchable_fields}), do: query
+  def apply_search(query, _schema, nil, {_search_string, []}, _assigns), do: query
 
-  def apply_search(query, _schema, nil, {search_string, searchable_fields}) do
+  def apply_search(query, _schema, nil, {"", _searchable_fields}, _assigns), do: query
+
+  def apply_search(query, _schema, nil, {search_string, searchable_fields}, assigns) do
     search_string = "%#{search_string}%"
 
-    conditions = search_conditions(searchable_fields, search_string)
+    conditions = search_conditions(searchable_fields, search_string, assigns)
     where(query, ^conditions)
   end
 
-  def apply_search(query, schema, full_text_search, {search_string, _searchable_fields}) do
+  def apply_search(query, schema, full_text_search, {search_string, _searchable_fields}, _assigns) do
     case search_string do
       "" ->
         query
@@ -160,23 +162,26 @@ defmodule Backpex.Adapters.Ecto do
     end
   end
 
-  defp search_conditions([field], search_string) do
-    search_condition(field, search_string)
+  defp search_conditions([field], search_string, assigns) do
+    search_condition(field, search_string, assigns)
   end
 
-  defp search_conditions([field | searchable_fields], search_string) do
-    dynamic(^search_condition(field, search_string) or ^search_conditions(searchable_fields, search_string))
+  defp search_conditions([field | searchable_fields], search_string, assigns) do
+    dynamic(
+      ^search_condition(field, search_string, assigns) or
+        ^search_conditions(searchable_fields, search_string, assigns)
+    )
   end
 
-  defp search_condition({_name, %{select: select} = _field_options}, search_string) do
+  defp search_condition({_name, %{select: select} = _field_options}, search_string, _assigns) do
     dynamic(ilike(^select, ^search_string))
   end
 
-  defp search_condition({name, %{queryable: queryable} = field_options}, search_string) do
+  defp search_condition({name, %{queryable: queryable} = field_options} = field, search_string, assigns) do
     field_name = Map.get(field_options, :display_field, name)
     schema_name = Map.get(field_options, :custom_alias, name_by_schema(queryable))
 
-    dynamic(^field_options.module.search_condition(schema_name, field_name, search_string))
+    dynamic(^field_options.module.search_condition(schema_name, field_name, search_string, field, assigns))
   end
 
   @doc """
@@ -198,12 +203,14 @@ defmodule Backpex.Adapters.Ecto do
 
   def apply_filters(query, _filter_values, _filter_configs, _assigns), do: query
 
-  def apply_criteria(query, [], _fields), do: query
+  def apply_criteria(query, criteria, fields, assigns \\ %{})
 
-  def apply_criteria(query, criteria, fields) do
+  def apply_criteria(query, [], _fields, _assigns), do: query
+
+  def apply_criteria(query, criteria, fields, assigns) do
     Enum.reduce(criteria, query, fn
       {:order, order}, query ->
-        apply_order(query, order, fields)
+        apply_order(query, order, fields, assigns)
 
       {:limit, limit}, query ->
         query
@@ -219,7 +226,7 @@ defmodule Backpex.Adapters.Ecto do
     end)
   end
 
-  defp apply_order(query, %{by: by, direction: direction, schema: schema} = order, fields) do
+  defp apply_order(query, %{by: by, direction: direction, schema: schema} = order, fields, assigns) do
     field_name = Map.get(order, :field_name)
     schema_name = get_custom_alias(fields, field_name, name_by_schema(schema))
 
@@ -237,6 +244,10 @@ defmodule Backpex.Adapters.Ecto do
         query
         |> order_by([{^schema_name, schema_name}], ^[{direction, select}])
 
+      {_name, %{module: module} = _field_options} ->
+        query
+        |> order_by(^[{direction, module.order_expression(schema_name, by, field, assigns)}])
+
       _field ->
         query
         |> order_by([{^schema_name, schema_name}], [
@@ -245,7 +256,7 @@ defmodule Backpex.Adapters.Ecto do
     end
   end
 
-  defp apply_order(_query, order, _fields) do
+  defp apply_order(_query, order, _fields, _assigns) do
     raise ArgumentError,
           "expected order criteria to be a map with the keys :by, :direction and :schema, got: #{inspect(order)}"
   end

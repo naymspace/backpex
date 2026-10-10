@@ -41,8 +41,29 @@ defmodule Backpex.Fields.Select do
           }
         ]
       end
+
+  ## Ordering and searching
+
+  The index view orders and searches select fields by the labels of their options instead of the stored values, so
+  the results match what the user sees. Values without an option are ordered and searched by the stored value.
+
+  To translate the labels, pass a function as `options`. Backpex calls it with the assigns of the index view when
+  ordering or searching, so the labels are translated into the locale of the current user:
+
+      role: %{
+        module: Backpex.Fields.Select,
+        label: "Role",
+        options: fn _assigns -> [{gettext("Admin"), "admin"}, {gettext("User"), "user"}] end
+      }
+
+  > #### Info {: .info}
+  >
+  > When ordering or searching, the `:item` of the assigns is `nil`, or the `base_schema` of a resource action while
+  > one is open, instead of the item of a row. Do not read the fields of the item in the `options` function of a field
+  > that is orderable or searchable.
   """
   use Backpex.Field, config_schema: @config_schema
+  import Ecto.Query
 
   @impl Backpex.Field
   def render_value(assigns) do
@@ -128,28 +149,72 @@ defmodule Backpex.Fields.Select do
   @impl Backpex.Field
   def index_editable_change({name, _field_options}, value, _assigns), do: %{name => value}
 
+  @impl Backpex.Field
+  def search_condition(schema_name, field_name, search_string, field, assigns) do
+    label = label_expression(schema_name, field_name, field, assigns)
+
+    dynamic(ilike(^label, ^search_string))
+  end
+
+  @impl Backpex.Field
+  def order_expression(schema_name, field_name, field, assigns) do
+    label_expression(schema_name, field_name, field, assigns)
+  end
+
+  # Maps the stored value to the label of its option, so that searching and ordering match what the user sees, e.g.
+  # translated labels. Values without an option fall back to the stored value, like in `render_value/1`.
+  defp label_expression(schema_name, field_name, {_name, field_options}, assigns) do
+    {labels, values} =
+      assigns
+      |> Map.put(:field_options, field_options)
+      |> get_options()
+      |> flatten_options()
+      |> Enum.map(fn {label, value} -> {to_string(label), to_string(value)} end)
+      |> Enum.unzip()
+
+    dynamic(
+      [{^schema_name, schema_name}],
+      fragment(
+        "coalesce((?::text[])[array_position(?::text[], ?::text)], ?::text)",
+        ^labels,
+        ^values,
+        schema_name |> field(^field_name),
+        schema_name |> field(^field_name)
+      )
+    )
+  end
+
   defp get_label(value, options) do
-    options =
-      Enum.map(options, fn
-        {_label, value} = option ->
-          case value do
-            value when is_list(value) or is_map(value) -> value
-            _value -> option
-          end
+    option =
+      options
+      |> flatten_options()
+      |> Enum.find(fn {_label, option_value} -> value?(option_value, value) end)
 
-        option ->
-          option
-      end)
-      |> List.flatten()
-
-    case Enum.find(options, fn option -> value?(option, value) end) do
+    case option do
       nil -> value
       {label, _value} -> label
-      label -> label
     end
   end
 
-  defp value?({_label, value}, to_compare), do: to_string(value) == to_string(to_compare)
+  defp flatten_options(options) do
+    options
+    |> Enum.map(fn
+      {_label, value} = option ->
+        case value do
+          value when is_list(value) or is_map(value) -> value
+          _value -> option
+        end
+
+      option ->
+        option
+    end)
+    |> List.flatten()
+    |> Enum.map(fn
+      {label, value} -> {label, value}
+      value -> {value, value}
+    end)
+  end
+
   defp value?(value, to_compare), do: to_string(value) == to_string(to_compare)
 
   defp assign_prompt(assigns, field_options) do
