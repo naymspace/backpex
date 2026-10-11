@@ -135,18 +135,27 @@ defmodule MyAppWeb.Filters.PostCustom do
 end
 ```
 
-### Ecto-only filters
+### Ecto-only conditions
 
-If a filter needs more than a condition (a fragment, a join), implement `Backpex.Adapters.Ecto.Filter` instead of `condition/3`. The filter then only works with `Backpex.Adapters.Ecto`.
+If a filter needs more than the conditions above (a fragment of SQL), return an `Ecto.Query.dynamic/2` expression from `condition/3`. The filter then only works with `Backpex.Adapters.Ecto`.
 
 ```elixir
-@behaviour Backpex.Adapters.Ecto.Filter
-
 import Ecto.Query
 
-@impl Backpex.Adapters.Ecto.Filter
-def query(query, field, value, _assigns) do
-  where(query, [x], fragment("lower(?)", field(x, ^field)) == ^value)
+@impl Backpex.Filter
+def condition(field, value, _assigns) do
+  dynamic([x], fragment("lower(?)", field(x, ^field)) == ^value)
+end
+```
+
+A filter never joins, selects distinct items or otherwise changes the query; the adapter owns joins, order and pagination. To filter by an association (e.g. posts with one of the selected tags), use a subquery:
+
+```elixir
+@impl Backpex.Filter
+def condition(_field, tag_ids, _assigns) do
+  tagged_posts = from(p in MyApp.Post, join: t in assoc(p, :tags), where: t.id in ^tag_ids, select: p.id)
+
+  dynamic([post], post.id in subquery(tagged_posts))
 end
 ```
 

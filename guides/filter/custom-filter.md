@@ -187,26 +187,37 @@ defmodule MyApp.Filters.QuantityFilter do
 end
 ```
 
-## Filters Specific to Ecto
+## Conditions Specific to Ecto
 
-If a filter needs more than a condition, e.g. a fragment of SQL or a join, it can implement `c:Backpex.Adapters.Ecto.Filter.query/4` instead. The Ecto adapter calls it with the query of the items. Such a filter only works with `Backpex.Adapters.Ecto`.
+`Backpex.Adapters.Ecto` also takes `Ecto.Query.dynamic/2` expressions as conditions, e.g. for a fragment of SQL. Such a filter only works with the Ecto adapter.
 
 ```elixir
 defmodule MyApp.Filters.EventStatusSelect do
   use Backpex.Filters.Select
 
-  @behaviour Backpex.Adapters.Ecto.Filter
-
   import Ecto.Query
 
   # ...the callbacks of `Backpex.Filters.Select`
 
-  @impl Backpex.Adapters.Ecto.Filter
-  def query(query, field, value, _assigns) do
-    where(query, [event], fragment("lower(?)", field(event, ^field)) == ^value)
+  @impl Backpex.Filter
+  def condition(field, value, _assigns) do
+    dynamic([event], fragment("lower(?)", field(event, ^field)) == ^value)
   end
 end
 ```
+
+A filter can't change the query itself, e.g. join a table or select distinct items, as the adapter decides how to join, order and paginate the items. To keep the items with an associated item that matches, use a subquery. This filter keeps the posts with one of the selected tags:
+
+```elixir
+@impl Backpex.Filter
+def condition(_field, tag_ids, _assigns) do
+  tagged_posts = from(p in Post, join: t in assoc(p, :tags), where: t.id in ^tag_ids, select: p.id)
+
+  dynamic([post], post.id in subquery(tagged_posts))
+end
+```
+
+Unlike a join, the subquery doesn't return a post twice when it has two of the tags, so the filter needs no `distinct`, which would change the order of the items.
 
 ## Validation Behavior
 
