@@ -16,8 +16,13 @@ defmodule Backpex.Metric do
     * `:where` - an optional condition that limits the items, e.g. `{:==, :published, true}`. See
       `t:Backpex.Filter.condition/0`.
 
-  `Backpex.Adapters.Ecto` also takes a `:select` expression instead of an aggregate, and calls
-  `c:Backpex.Adapters.Ecto.Metric.query/3` if the metric module implements it.
+  `Backpex.Adapters.Ecto` also takes a `:select` expression instead of an aggregate.
+
+  ## Data of your own
+
+  A metric module that gets its data in another way, e.g. from a function of your context module, implements `c:data/2`.
+  Backpex then calls it instead of the adapter. It receives the assigns of the index view, so it can read the values of
+  the active filters from `:filter_values`.
   """
 
   alias Phoenix.LiveView.Rendered
@@ -33,6 +38,17 @@ defmodule Backpex.Metric do
   @callback render(assigns :: map()) :: %Rendered{}
 
   @callback format(data :: any(), format :: any()) :: term()
+
+  @doc """
+  Returns the data of the metric. Implement it to get the data in another way than with the `:aggregate` the adapter
+  computes, see the [Data of your own](#module-data-of-your-own) section.
+
+  Receives the metric and the assigns of the index view, which hold the validated values of the active filters under
+  `:filter_values`.
+  """
+  @callback data(metric :: map(), assigns :: map()) :: term()
+
+  @optional_callbacks data: 2
 
   @doc """
   Determine if metrics are visible for given live_resource.

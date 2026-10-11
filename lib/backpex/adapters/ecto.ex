@@ -78,14 +78,15 @@ defmodule Backpex.Adapters.Ecto do
 
   It builds and runs all queries of a LiveResource. It turns the conditions of filters (see
   `t:Backpex.Filter.condition/0`) into `where` clauses, and the aggregates of metrics (see `Backpex.Metric`) into
-  aggregate functions. Conditions can also be `Ecto.Query.dynamic/2` expressions.
+  aggregate functions. Conditions can also be `Ecto.Query.dynamic/2` expressions, e.g. for a fragment of SQL or a
+  subquery.
 
   These options and callbacks take Ecto queries, so only this adapter understands them:
 
     * the field options below and the `adapter_config` option `:item_query`
     * the `:options_query` option of association fields, which receives an `Ecto.Query`
     * the `:select` option of metrics, an `Ecto.Query.dynamic/2` expression to select instead of an aggregate
-    * the callbacks of `Backpex.Adapters.Ecto.Field`, `Backpex.Adapters.Ecto.Filter` and `Backpex.Adapters.Ecto.Metric`
+    * the callbacks of `Backpex.Adapters.Ecto.Field`
 
   ## Search
 
@@ -160,30 +161,21 @@ defmodule Backpex.Adapters.Ecto do
   Returns the data of a metric for the items matching the given criteria.
 
   Computes the `:aggregate` of the metric, or selects its `:select` expression, for the items that also match its
-  `:where` condition. A metric module that implements `c:Backpex.Adapters.Ecto.Metric.query/3` queries the data itself.
+  `:where` condition.
   """
   @impl Backpex.Adapter
   def metric(metric, criteria, fields, assigns, live_resource) do
     repo = live_resource.adapter_config(:repo)
 
-    query =
-      criteria
-      |> list_query(fields, assigns, live_resource)
-      |> exclude(:select)
-      |> exclude(:preload)
-      |> exclude(:group_by)
-
-    data =
-      if callback?(metric.module, :query, 3) do
-        metric.module.query(query, metric, repo)
-      else
-        query
-        |> maybe_where(Map.get(metric, :where))
-        |> select(^metric_select(metric))
-        |> repo.one()
-      end
-
-    {:ok, data}
+    criteria
+    |> list_query(fields, assigns, live_resource)
+    |> exclude(:select)
+    |> exclude(:preload)
+    |> exclude(:group_by)
+    |> maybe_where(Map.get(metric, :where))
+    |> select(^metric_select(metric))
+    |> repo.one()
+    |> then(fn data -> {:ok, data} end)
   end
 
   defp metric_select(%{select: select}), do: select
@@ -462,28 +454,19 @@ defmodule Backpex.Adapters.Ecto do
 
   Receives a map of validated filter values and the filter configurations keyword list.
   For each filter value, looks up the corresponding filter config and applies the condition the filter returns for the
-  already-validated and casted value, see `c:Backpex.Filter.condition/3`. A filter that implements
-  `c:Backpex.Adapters.Ecto.Filter.query/4` applies itself to the query instead.
+  already-validated and casted value, see `c:Backpex.Filter.condition/3`.
   """
   def apply_filters(query, filter_values, filter_configs, assigns)
       when is_map(filter_values) and is_list(filter_configs) do
     Enum.reduce(filter_values, query, fn {field, value}, acc ->
       case Keyword.get(filter_configs, field) do
         nil -> acc
-        %{module: module} -> apply_filter(acc, module, field, value, assigns)
+        %{module: module} -> maybe_where(acc, module.condition(field, value, assigns))
       end
     end)
   end
 
   def apply_filters(query, _filter_values, _filter_configs, _assigns), do: query
-
-  defp apply_filter(query, module, field, value, assigns) do
-    if callback?(module, :query, 4) do
-      module.query(query, field, value, assigns)
-    else
-      maybe_where(query, module.condition(field, value, assigns))
-    end
-  end
 
   defp maybe_where(query, nil = _condition), do: query
   defp maybe_where(query, condition), do: where(query, ^condition_dynamic(condition))

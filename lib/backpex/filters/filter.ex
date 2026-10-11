@@ -23,9 +23,17 @@ defmodule Backpex.Filter do
   `field` is the name of a field of the resource, e.g. of a column of its `Ecto.Schema`. The adapter casts each value to
   the type of the field.
 
-  An adapter may also take conditions of its own: `Backpex.Adapters.Ecto` takes `Ecto.Query.dynamic/2` expressions. A
-  filter that needs more than a condition can implement `c:Backpex.Adapters.Ecto.Filter.query/4` instead. Such filters
-  only work with that adapter.
+  An adapter may also take conditions of its own: `Backpex.Adapters.Ecto` takes `Ecto.Query.dynamic/2` expressions, e.g.
+  for a fragment of SQL or a subquery. Such filters only work with that adapter.
+
+  A filter can't change the query itself, e.g. join a table or select distinct items, as the adapter decides how to
+  join, order and paginate the items. To keep the items with an associated item that matches, use a subquery:
+
+      def condition(_field, tag_ids, _assigns) do
+        tagged_posts = from(p in Post, join: t in assoc(p, :tags), where: t.id in ^tag_ids, select: p.id)
+
+        dynamic([post], post.id in subquery(tagged_posts))
+      end
 
   ## Implementing a Custom Filter
 
@@ -192,7 +200,8 @@ defmodule Backpex.Filter do
       @impl Backpex.Filter
       def condition(_field, _value, _assigns) do
         raise """
-        You must implement the condition/3 callback in your filter module.
+        You must implement the condition/3 callback in your filter module. Filters no longer build queries with
+        query/4, see the guide on upgrading to v0.23.
 
         Example:
 

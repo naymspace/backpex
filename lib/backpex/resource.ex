@@ -74,11 +74,17 @@ defmodule Backpex.Resource do
   @doc """
   Returns the data of the given metric for the items matching the given criteria. Takes the same criteria as
   `count/4`.
-  """
-  def metric(metric, criteria, fields, assigns, live_resource) do
-    adapter = live_resource.config(:adapter)
 
-    adapter.metric(metric, criteria, fields, assigns, live_resource)
+  Calls `c:Backpex.Metric.data/2` if the module of the metric implements it, and the adapter otherwise.
+  """
+  def metric(%{module: module} = metric, criteria, fields, assigns, live_resource) do
+    if Code.ensure_loaded?(module) and function_exported?(module, :data, 2) do
+      {:ok, module.data(metric, assigns)}
+    else
+      adapter = live_resource.config(:adapter)
+
+      adapter.metric(metric, criteria, fields, assigns, live_resource)
+    end
   end
 
   @doc """

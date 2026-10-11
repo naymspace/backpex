@@ -4,7 +4,6 @@ defmodule Backpex.Adapters.EctoTest do
   import Ecto.Query
 
   alias Backpex.Adapters.Ecto, as: EctoAdapter
-  alias Backpex.Filters.Select
   alias Backpex.Metrics.Value
 
   defmodule TestUser do
@@ -645,33 +644,44 @@ defmodule Backpex.Adapters.EctoTest do
                    end
     end
 
-    test "calls the query function of a filter that implements Backpex.Adapters.Ecto.Filter" do
-      defmodule QueryFilter do
-        @moduledoc false
-        @behaviour Backpex.Adapters.Ecto.Filter
+    test "keeps the items with an associated item through a subquery condition" do
+      tagged_posts = from(p in TestPost, join: pt in assoc(p, :post_tags), where: pt.tag_id in ^[1, 2], select: p.id)
 
-        use Select
+      query =
+        TestPost
+        |> from(as: :testpost)
+        |> EctoAdapter.apply_filters(
+          %{tags: dynamic([post], post.id in subquery(tagged_posts))},
+          [tags: %{module: ConditionFilter}],
+          %{}
+        )
+
+      assert %{joins: [], distinct: nil, wheres: [where]} = query
+      assert %{expr: {:in, _meta, [_id, {:subquery, 0}]}, subqueries: [%Ecto.SubQuery{}]} = where
+    end
+
+    test "ignores a query function of the filter" do
+      defmodule FilterWithQuery do
+        @moduledoc false
+        use Backpex.Filter
 
         @impl Backpex.Filter
-        def label, do: "Name"
+        def condition(field, value, _assigns), do: {:==, field, value}
 
-        @impl Select
-        def prompt, do: "Select name ..."
+        def query(query, _field, _value, _assigns), do: where(query, [user], user.id == 0)
 
-        @impl Select
-        def options(_assigns), do: [{"Ann", "ann"}]
+        @impl Backpex.Filter
+        def render(assigns), do: assigns
 
-        @impl Backpex.Adapters.Ecto.Filter
-        def query(query, field, value, _assigns) do
-          where(query, [user], fragment("lower(?)", field(user, ^field)) == ^value)
-        end
+        @impl Backpex.Filter
+        def render_form(assigns), do: assigns
       end
 
       base_query = from(TestUser, as: ^EctoAdapter.name_by_schema(TestUser))
-      query = EctoAdapter.apply_filters(base_query, %{name: "ann"}, [name: %{module: QueryFilter}], %{})
+      query = EctoAdapter.apply_filters(base_query, %{name: "Ann"}, [name: %{module: FilterWithQuery}], %{})
 
-      assert [%{expr: expr, params: [{"ann", _type}]}] = query.wheres
-      assert Macro.to_string(expr) =~ "fragment"
+      assert [%{expr: expr, params: [{"Ann", _type}]}] = query.wheres
+      assert Macro.to_string(expr) == "&0.name() == ^0"
     end
 
     defp filter_query(condition) do
@@ -875,22 +885,6 @@ defmodule Backpex.Adapters.EctoTest do
       assert_raise ArgumentError, ~r/expected an aggregate such as :count or {:sum, :field}, got: :sum/, fn ->
         metric(%{module: Value, aggregate: :sum})
       end
-    end
-
-    test "calls the query function of a metric module that implements Backpex.Adapters.Ecto.Metric" do
-      defmodule QueryMetric do
-        @moduledoc false
-        @behaviour Backpex.Adapters.Ecto.Metric
-
-        @impl Backpex.Adapters.Ecto.Metric
-        def query(query, metric, repo), do: {query, metric, repo}
-      end
-
-      metric = %{module: QueryMetric, aggregate: :count}
-
-      assert {:ok, {query, ^metric, FakeRepo}} = metric(metric)
-      assert %{select: nil, preloads: [], group_bys: [], joins: [%{as: :testuser}], wheres: [_search]} = query
-      refute_received {:repo, :one, _query}
     end
 
     defp metric(metric) do

@@ -11,7 +11,7 @@ defmodule Backpex.Adapter do
   association fields receives the query of the adapter.
 
   Options and callbacks that only one adapter understands belong to it, e.g. the `:select` option of fields and
-  `Backpex.Adapters.Ecto.Filter` belong to `Backpex.Adapters.Ecto`. An adapter adds options to fields with
+  `Backpex.Adapters.Ecto.Field` belong to `Backpex.Adapters.Ecto`. An adapter adds options to fields with
   `c:field_config_schema/0`.
 
   ## `use Backpex.Adapter`
@@ -86,7 +86,8 @@ defmodule Backpex.Adapter do
   Returns the data of a metric, such as the sum of a column, for the items matching the given criteria.
 
   Receives the same criteria as `c:count/4`. Computes the `:aggregate` of the metric over the items that also match its
-  `:where` condition, see `Backpex.Metric`.
+  `:where` condition, see `Backpex.Metric`. Backpex doesn't call it for a metric whose module implements
+  `c:Backpex.Metric.data/2`.
   """
   @callback metric(
               metric :: map(),

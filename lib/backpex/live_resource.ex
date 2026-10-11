@@ -922,6 +922,12 @@ defmodule Backpex.LiveResource do
   def orderable?(field) when is_nil(field), do: false
   def orderable?({_name, field_options}), do: Map.get(field_options, :orderable, true)
 
+  @doc """
+  Builds the criteria of the index view from its assigns: the order, the page, the search and the active filters.
+
+  `Backpex.Resource.list/4` takes them. Without `:pagination`, e.g. for an export, they select all items of the current
+  search and filters in the current order.
+  """
   def build_criteria(assigns) do
     %{
       live_resource: live_resource,
