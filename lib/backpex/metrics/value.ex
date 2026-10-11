@@ -1,20 +1,23 @@
 defmodule Backpex.Metrics.Value do
   @moduledoc """
-  Value metrics display only a single value. This value is generated from the current index query by applying the given
-  aggregate function. The selected value is processed by the specified formatting function and output in the frontend.
+  Value metrics display only a single value. This value is computed from the items of the current index view with the
+  given aggregate. The value is processed by the specified formatting function and output in the frontend.
 
   ## Options
 
     * `:module` - Defines the module to handle the metric.
     * `:label` - Label text to define a headline for the metric.
-    * `:select` - Dynamic query expression defining the column to select. This is usually an aggregate function.
-    * `:format` - Optional format function to post-process the selected value from the database to display in frontend.
+    * `:aggregate` - The aggregate to compute, e.g. `{:sum, :quantity}`. See `t:Backpex.Metric.aggregate/0`.
+    * `:where` - Optional condition that limits the items, see `t:Backpex.Filter.condition/0`.
+    * `:select` - Only for `Backpex.Adapters.Ecto`: a dynamic query expression to select instead of an aggregate,
+      usually an aggregate function.
+    * `:format` - Optional format function to post-process the value to display in frontend.
     * `:class` - Optional extra css classes to be passed to the metric box.
 
   ## Example
 
-  In the following example we have a live resource `products` with a value `quantity`. We use the `select` option here
-  to pass an aggregate function that adds up the `quantity` value of all products currently active in the index view.
+  In the following example we have a live resource `products` with a value `quantity`. We use the `aggregate` option here
+  to add up the `quantity` value of all products currently active in the index view.
 
       @impl Backpex.LiveResource
       def metrics do
@@ -23,7 +26,7 @@ defmodule Backpex.Metrics.Value do
             module: Backpex.Metrics.Value,
             label: "In Stock",
             class: "w-1/3",
-            select: dynamic([i], sum(i.quantity)),
+            aggregate: {:sum, :quantity},
             format: fn value ->
               Integer.to_string(value) <> " Products"
             end
@@ -58,16 +61,6 @@ defmodule Backpex.Metrics.Value do
       </div>
     </div>
     """
-  end
-
-  @doc """
-  Performs database select to query the value of the metric
-  """
-  @impl Backpex.Metric
-  def query(query, select, repo) do
-    query
-    |> select(^select)
-    |> repo.one()
   end
 
   @doc """

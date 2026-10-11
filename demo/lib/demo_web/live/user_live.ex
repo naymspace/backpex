@@ -219,7 +219,7 @@ defmodule DemoWeb.UserLive do
         module: Value,
         label: "Min age",
         class: "w-full lg:w-1/3",
-        select: dynamic([u], min(u.age)),
+        aggregate: {:min, :age},
         format: fn value ->
           Integer.to_string(value) <> " years"
         end
@@ -228,7 +228,7 @@ defmodule DemoWeb.UserLive do
         module: Value,
         label: "Max age",
         class: "w-full lg:w-1/3",
-        select: dynamic([u], max(u.age)),
+        aggregate: {:max, :age},
         format: fn value ->
           Integer.to_string(value) <> " years"
         end

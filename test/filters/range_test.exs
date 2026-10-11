@@ -1,195 +1,83 @@
 defmodule Backpex.Filters.RangeTest do
   use ExUnit.Case, async: true
 
-  import Ecto.Query
-
   alias Backpex.Filters.Range, as: RangeFilter
 
   doctest RangeFilter
 
-  defmodule TestItem do
-    use Ecto.Schema
+  defmodule LikeRange do
+    use Backpex.Filters.Range
 
-    @primary_key {:id, :id, autogenerate: false}
-    schema "items" do
-      field :price, :decimal
-      field :quantity, :integer
-      field :created_at, :date
-      field :updated_at, :utc_datetime
+    @impl Backpex.Filters.Range
+    def type, do: :number
+
+    @impl Backpex.Filter
+    def label, do: "Likes"
+  end
+
+  describe "condition/4 with :number type" do
+    test "returns nil when both start and end are empty" do
+      assert RangeFilter.condition(:number, :price, %{"start" => "", "end" => ""}, %{}) == nil
+    end
+
+    test "keeps the items from the start when only start is provided" do
+      assert RangeFilter.condition(:number, :price, %{"start" => "10", "end" => ""}, %{}) == {:>=, :price, 10}
+    end
+
+    test "keeps the items up to the end when only end is provided" do
+      assert RangeFilter.condition(:number, :price, %{"start" => "", "end" => "100"}, %{}) == {:<=, :price, 100}
+    end
+
+    test "keeps the items between start and end when both are provided" do
+      assert RangeFilter.condition(:number, :price, %{"start" => "10", "end" => "99.5"}, %{}) ==
+               {:and, [{:>=, :price, 10}, {:<=, :price, 99.5}]}
+    end
+
+    test "returns nil for a value without start and end" do
+      assert RangeFilter.condition(:number, :price, %{}, %{}) == nil
     end
   end
 
-  describe "query/5 with :number type" do
-    test "returns original query when both start and end are empty" do
-      base_query = from(TestItem)
-
-      query = RangeFilter.query(base_query, :number, :price, %{"start" => "", "end" => ""}, %{})
-
-      assert query == base_query
+  describe "condition/4 with :date type" do
+    test "returns nil when both start and end are empty" do
+      assert RangeFilter.condition(:date, :created_at, %{"start" => "", "end" => ""}, %{}) == nil
     end
 
-    test "applies >= condition when only start is provided" do
-      base_query = from(TestItem)
-
-      query = RangeFilter.query(base_query, :number, :price, %{"start" => "10", "end" => ""}, %{})
-
-      assert [%{expr: where_expr}] = query.wheres
-      assert match?({:>=, _, _}, where_expr)
+    test "keeps the items from a valid start date" do
+      assert RangeFilter.condition(:date, :created_at, %{"start" => "2024-01-01", "end" => ""}, %{}) ==
+               {:>=, :created_at, "2024-01-01"}
     end
 
-    test "applies <= condition when only end is provided" do
-      base_query = from(TestItem)
-
-      query = RangeFilter.query(base_query, :number, :price, %{"start" => "", "end" => "100"}, %{})
-
-      assert [%{expr: where_expr}] = query.wheres
-      assert match?({:<=, _, _}, where_expr)
+    test "keeps the items up to a valid end date" do
+      assert RangeFilter.condition(:date, :created_at, %{"start" => "", "end" => "2024-12-31"}, %{}) ==
+               {:<=, :created_at, "2024-12-31"}
     end
 
-    test "applies between condition when both start and end are provided" do
-      base_query = from(TestItem)
+    test "returns nil for an invalid date format" do
+      value = %{"start" => "not-a-date", "end" => "also-not-a-date"}
 
-      query = RangeFilter.query(base_query, :number, :price, %{"start" => "10", "end" => "100"}, %{})
-
-      assert [%{expr: where_expr}] = query.wheres
-      # Should be an AND of >= and <=
-      assert match?({:and, _, _}, where_expr)
+      assert RangeFilter.condition(:date, :created_at, value, %{}) == nil
     end
   end
 
-  describe "query/5 with :date type" do
-    test "returns original query when both start and end are empty" do
-      base_query = from(TestItem)
-
-      query = RangeFilter.query(base_query, :date, :created_at, %{"start" => "", "end" => ""}, %{})
-
-      assert query == base_query
+  describe "condition/4 with :datetime type" do
+    test "returns nil when both start and end are empty" do
+      assert RangeFilter.condition(:datetime, :updated_at, %{"start" => "", "end" => ""}, %{}) == nil
     end
 
-    test "applies >= condition for valid start date" do
-      base_query = from(TestItem)
-
-      query =
-        RangeFilter.query(base_query, :date, :created_at, %{"start" => "2024-01-01", "end" => ""}, %{})
-
-      assert [%{expr: where_expr}] = query.wheres
-      assert match?({:>=, _, _}, where_expr)
+    test "keeps the items from the start of the start date" do
+      assert RangeFilter.condition(:datetime, :updated_at, %{"start" => "2024-01-01", "end" => ""}, %{}) ==
+               {:>=, :updated_at, "2024-01-01T00:00:00+00:00"}
     end
 
-    test "applies <= condition for valid end date" do
-      base_query = from(TestItem)
-
-      query =
-        RangeFilter.query(base_query, :date, :created_at, %{"start" => "", "end" => "2024-12-31"}, %{})
-
-      assert [%{expr: where_expr}] = query.wheres
-      assert match?({:<=, _, _}, where_expr)
-    end
-
-    test "returns original query for invalid date format" do
-      base_query = from(TestItem)
-
-      query =
-        RangeFilter.query(
-          base_query,
-          :date,
-          :created_at,
-          %{"start" => "not-a-date", "end" => "also-not-a-date"},
-          %{}
-        )
-
-      assert query == base_query
+    test "keeps the items up to the end of the end date" do
+      assert RangeFilter.condition(:datetime, :updated_at, %{"start" => "", "end" => "2024-12-31"}, %{}) ==
+               {:<=, :updated_at, "2024-12-31T23:59:59+00:00"}
     end
   end
 
-  describe "query/5 with :datetime type" do
-    test "returns original query when both start and end are empty" do
-      base_query = from(TestItem)
-
-      query =
-        RangeFilter.query(base_query, :datetime, :updated_at, %{"start" => "", "end" => ""}, %{})
-
-      assert query == base_query
-    end
-
-    test "applies >= condition with T00:00:00 for start date" do
-      base_query = from(TestItem)
-
-      query =
-        RangeFilter.query(
-          base_query,
-          :datetime,
-          :updated_at,
-          %{"start" => "2024-01-01", "end" => ""},
-          %{}
-        )
-
-      assert [%{expr: where_expr, params: params}] = query.wheres
-      assert match?({:>=, _, _}, where_expr)
-
-      # The datetime should have T00:00:00+00:00 appended
-      assert Enum.any?(params, fn {val, _type} ->
-               String.contains?(to_string(val), "T00:00:00")
-             end)
-    end
-
-    test "applies <= condition with T23:59:59 for end date" do
-      base_query = from(TestItem)
-
-      query =
-        RangeFilter.query(
-          base_query,
-          :datetime,
-          :updated_at,
-          %{"start" => "", "end" => "2024-12-31"},
-          %{}
-        )
-
-      assert [%{expr: where_expr, params: params}] = query.wheres
-      assert match?({:<=, _, _}, where_expr)
-
-      # The datetime should have T23:59:59+00:00 appended
-      assert Enum.any?(params, fn {val, _type} ->
-               String.contains?(to_string(val), "T23:59:59")
-             end)
-    end
-  end
-
-  describe "do_query/3" do
-    test "returns original query when both values are nil" do
-      base_query = from(TestItem)
-
-      query = RangeFilter.do_query({nil, nil}, base_query, :price)
-
-      assert query == base_query
-    end
-
-    test "applies >= condition when only start is provided" do
-      base_query = from(TestItem)
-
-      query = RangeFilter.do_query({10, nil}, base_query, :price)
-
-      assert [%{expr: where_expr}] = query.wheres
-      assert match?({:>=, _, _}, where_expr)
-    end
-
-    test "applies <= condition when only end is provided" do
-      base_query = from(TestItem)
-
-      query = RangeFilter.do_query({nil, 100}, base_query, :price)
-
-      assert [%{expr: where_expr}] = query.wheres
-      assert match?({:<=, _, _}, where_expr)
-    end
-
-    test "applies between condition when both are provided" do
-      base_query = from(TestItem)
-
-      query = RangeFilter.do_query({10, 100}, base_query, :price)
-
-      assert [%{expr: where_expr}] = query.wheres
-      assert match?({:and, _, _}, where_expr)
-    end
+  test "is the condition of a filter module, with its type" do
+    assert LikeRange.condition(:likes, %{"start" => "5", "end" => ""}, %{}) == {:>=, :likes, 5}
   end
 
   describe "changeset/3 with :number type" do

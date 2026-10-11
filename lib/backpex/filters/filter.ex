@@ -8,13 +8,32 @@ defmodule Backpex.Filter do
   before being applied to queries. Each filter module can implement the `changeset/3` callback
   to apply custom validations, or rely on the default implementation which uses `type/1`.
 
+  ## Conditions
+
+  A filter doesn't query the items itself. Its `c:condition/3` callback describes the items the filter keeps, and the
+  adapter of the LiveResource turns this condition into a query. A condition is one of:
+
+    * `{:==, field, value}`, `{:!=, field, value}`, `{:<, field, value}`, `{:<=, field, value}`, `{:>, field, value}`
+      or `{:>=, field, value}` - compares a field of the items to a value.
+    * `{:in, field, values}` - keeps the items whose field has one of the values.
+    * `{:is_nil, field}` - keeps the items whose field is `nil`. Use it instead of comparing a field to `nil`.
+    * `{:not, condition}` - keeps the items the condition doesn't keep.
+    * `{:and, conditions}` and `{:or, conditions}` - combine a list of conditions.
+
+  `field` is the name of a field of the resource, e.g. of a column of its `Ecto.Schema`. The adapter casts each value to
+  the type of the field.
+
+  An adapter may also take conditions of its own: `Backpex.Adapters.Ecto` takes `Ecto.Query.dynamic/2` expressions. A
+  filter that needs more than a condition can implement `c:Backpex.Adapters.Ecto.Filter.query/4` instead. Such filters
+  only work with that adapter.
+
   ## Implementing a Custom Filter
 
   When implementing a custom filter, you should:
 
   1. Implement `type/1` to return the Ecto type for your filter's value
   2. Optionally implement `changeset/3` for custom validations
-  3. Implement `query/4` which receives the already-validated and casted values
+  3. Implement `condition/3` which receives the already-validated and casted values
 
   ## Example
 
@@ -31,15 +50,25 @@ defmodule Backpex.Filter do
         end
 
         @impl Backpex.Filter
-        def query(query, field, value, _assigns) do
-          Ecto.Query.where(query, [x], field(x, ^field) == ^value)
-        end
+        def condition(field, value, _assigns), do: {:>=, field, value}
       end
 
   """
 
   alias Phoenix.LiveView.Rendered
   alias Phoenix.LiveView.Socket
+
+  @typedoc """
+  A condition on the fields of the items, see the [Conditions](#module-conditions) section. A struct stands for a
+  condition of the adapter, such as an `Ecto.Query.dynamic/2` expression.
+  """
+  @type condition ::
+          {:== | :!= | :< | :<= | :> | :>=, atom(), term()}
+          | {:in, atom(), list()}
+          | {:is_nil, atom()}
+          | {:not, condition()}
+          | {:and | :or, [condition()]}
+          | struct()
 
   @doc """
   Defines whether the filter can be used or not.
@@ -114,11 +143,12 @@ defmodule Backpex.Filter do
   @callback validate(value :: any(), assigns :: map()) :: {:ok, any()} | {:error, keyword()}
 
   @doc """
-  The filter query that is executed if an option was selected. Only `Backpex.Adapters.Ecto` calls this callback.
+  Returns the condition of the items the filter keeps, see the [Conditions](#module-conditions) section, or `nil` to
+  keep all items.
 
   The `value` parameter contains the already-validated and casted value from the changeset.
   """
-  @callback query(Ecto.Query.t(), any(), any(), assigns :: map()) :: Ecto.Query.t()
+  @callback condition(field :: atom(), value :: any(), assigns :: map()) :: condition() | nil
 
   @doc """
   Renders the filters selected value(s).
@@ -160,20 +190,18 @@ defmodule Backpex.Filter do
       end
 
       @impl Backpex.Filter
-      def query(_query, _attribute, _value, _assigns) do
+      def condition(_field, _value, _assigns) do
         raise """
-        You must implement the query/4 callback in your filter module.
+        You must implement the condition/3 callback in your filter module.
 
         Example:
 
             @impl Backpex.Filter
-            def query(query, attribute, value, _assigns) do
-              Ecto.Query.where(query, [x], field(x, ^attribute) == ^value)
-            end
+            def condition(field, value, _assigns), do: {:==, field, value}
         """
       end
 
-      defoverridable can?: 1, type: 1, changeset: 3, validate: 2, query: 4
+      defoverridable can?: 1, type: 1, changeset: 3, validate: 2, condition: 3
     end
   end
 end

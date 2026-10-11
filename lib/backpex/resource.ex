@@ -10,7 +10,7 @@ defmodule Backpex.Resource do
   ## Authorization
 
   All mutations in this module are authorized through `Backpex.Authorization` before anything else
-  happens — before the changeset is built and before `c:Backpex.Field.before_changeset/6` runs. An
+  happens — before the changeset is built and before `c:Backpex.Field.before_changeset/5` runs. An
   unauthorized call raises `Backpex.ForbiddenError` and never reaches the adapter.
 
   Each mutation has a default authorization action:
@@ -378,7 +378,7 @@ defmodule Backpex.Resource do
 
   @doc """
   Applies a change to a given item by calling the specified changeset function.
-  In addition, puts the given assocs into the function and calls the `c:Backpex.Field.before_changeset/6` callback for each field.
+  In addition, puts the given assocs into the function and calls the `c:Backpex.Field.before_changeset/5` callback for each field.
 
   ## Parameters
 

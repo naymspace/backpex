@@ -49,18 +49,55 @@ defmodule Backpex.Adapters.Ecto do
     ]
   ]
 
+  @field_config_schema [
+    select: [
+      doc: """
+      A dynamic query expression that selects the value of the field.
+
+      ### Example
+
+          full_name: %{
+            module: Backpex.Fields.Text,
+            label: "Full Name",
+            select: dynamic([user: u], fragment("concat(?, ' ', ?)", u.first_name, u.last_name)),
+          }
+      """,
+      type: {:struct, Ecto.Query.DynamicExpr}
+    ],
+    custom_alias: [
+      doc: """
+      The name of the binding of the association of the field in queries. Also see the
+      [custom alias](/guides/fields/custom-alias.md) guide.
+      """,
+      type: :atom
+    ]
+  ]
+
   @moduledoc """
   The `Backpex.Adapter` to connect your `Backpex.LiveResource` to an `Ecto.Schema`.
 
-  It builds and runs all queries of a LiveResource, directly or through the options and callbacks that take Ecto
-  queries. Only this adapter calls them: the `:select` option of fields, the `:options_query` option of association
-  fields, `c:Backpex.Field.search_condition/3`, `c:Backpex.Field.before_changeset/6`, `c:Backpex.Filter.query/4` and
-  `c:Backpex.Metric.query/3`.
+  It builds and runs all queries of a LiveResource. It turns the conditions of filters (see
+  `t:Backpex.Filter.condition/0`) into `where` clauses, and the aggregates of metrics (see `Backpex.Metric`) into
+  aggregate functions. Conditions can also be `Ecto.Query.dynamic/2` expressions.
+
+  These options and callbacks take Ecto queries, so only this adapter understands them:
+
+    * the field options below and the `adapter_config` option `:item_query`
+    * the `:options_query` option of association fields, which receives an `Ecto.Query`
+    * the `:select` option of metrics, an `Ecto.Query.dynamic/2` expression to select instead of an aggregate
+    * the callbacks of `Backpex.Adapters.Ecto.Field`, `Backpex.Adapters.Ecto.Filter` and `Backpex.Adapters.Ecto.Metric`
 
   ## Search
 
   Searchable fields are compared to the search string with `ilike`. Columns that are not strings, such as numbers or
-  dates, are cast to text first. A field can build its own condition with `c:Backpex.Field.search_condition/3`.
+  dates, are cast to text first. A field can build its own condition with
+  `c:Backpex.Adapters.Ecto.Field.search_condition/3`.
+
+  ## Field options
+
+  This adapter adds these options to all fields:
+
+  #{NimbleOptions.docs(@field_config_schema)}
 
   ## `adapter_config`
 
@@ -71,7 +108,7 @@ defmodule Backpex.Adapters.Ecto do
   > The `Backpex.Adapters.Ecto` is still under development and may change in future updates.
   """
 
-  use Backpex.Adapter, config_schema: @config_schema
+  use Backpex.Adapter, config_schema: @config_schema, field_config_schema: @field_config_schema
   import Ecto.Query
 
   @doc false
@@ -120,20 +157,52 @@ defmodule Backpex.Adapters.Ecto do
   end
 
   @doc """
-  Returns the data of a metric for the items matching the given criteria by calling the `c:Backpex.Metric.query/3`
-  callback of the metric.
+  Returns the data of a metric for the items matching the given criteria.
+
+  Computes the `:aggregate` of the metric, or selects its `:select` expression, for the items that also match its
+  `:where` condition. A metric module that implements `c:Backpex.Adapters.Ecto.Metric.query/3` queries the data itself.
   """
   @impl Backpex.Adapter
   def metric(metric, criteria, fields, assigns, live_resource) do
     repo = live_resource.adapter_config(:repo)
 
-    criteria
-    |> list_query(fields, assigns, live_resource)
-    |> exclude(:select)
-    |> exclude(:preload)
-    |> exclude(:group_by)
-    |> metric.module.query(Map.get(metric, :select), repo)
-    |> then(fn data -> {:ok, data} end)
+    query =
+      criteria
+      |> list_query(fields, assigns, live_resource)
+      |> exclude(:select)
+      |> exclude(:preload)
+      |> exclude(:group_by)
+
+    data =
+      if callback?(metric.module, :query, 3) do
+        metric.module.query(query, metric, repo)
+      else
+        query
+        |> maybe_where(Map.get(metric, :where))
+        |> select(^metric_select(metric))
+        |> repo.one()
+      end
+
+    {:ok, data}
+  end
+
+  defp metric_select(%{select: select}), do: select
+  defp metric_select(%{aggregate: aggregate}), do: aggregate_dynamic(aggregate)
+
+  defp metric_select(metric) do
+    raise ArgumentError, "expected the metric to have an :aggregate option, got: #{inspect(metric)}"
+  end
+
+  # An aggregate, see `t:Backpex.Metric.aggregate/0`.
+  defp aggregate_dynamic(:count), do: dynamic(count())
+  defp aggregate_dynamic({:count, field}) when is_atom(field), do: dynamic([item], count(field(item, ^field)))
+  defp aggregate_dynamic({:sum, field}) when is_atom(field), do: dynamic([item], sum(field(item, ^field)))
+  defp aggregate_dynamic({:avg, field}) when is_atom(field), do: dynamic([item], avg(field(item, ^field)))
+  defp aggregate_dynamic({:min, field}) when is_atom(field), do: dynamic([item], min(field(item, ^field)))
+  defp aggregate_dynamic({:max, field}) when is_atom(field), do: dynamic([item], max(field(item, ^field)))
+
+  defp aggregate_dynamic(aggregate) do
+    raise ArgumentError, "expected an aggregate such as :count or {:sum, :field}, got: #{inspect(aggregate)}"
   end
 
   @doc """
@@ -392,20 +461,67 @@ defmodule Backpex.Adapters.Ecto do
   Applies validated filters to the query.
 
   Receives a map of validated filter values and the filter configurations keyword list.
-  For each filter value, looks up the corresponding filter config and invokes
-  the filter's query/4 callback with the already-validated and casted value.
+  For each filter value, looks up the corresponding filter config and applies the condition the filter returns for the
+  already-validated and casted value, see `c:Backpex.Filter.condition/3`. A filter that implements
+  `c:Backpex.Adapters.Ecto.Filter.query/4` applies itself to the query instead.
   """
   def apply_filters(query, filter_values, filter_configs, assigns)
       when is_map(filter_values) and is_list(filter_configs) do
     Enum.reduce(filter_values, query, fn {field, value}, acc ->
       case Keyword.get(filter_configs, field) do
         nil -> acc
-        filter_config -> filter_config.module.query(acc, field, value, assigns)
+        %{module: module} -> apply_filter(acc, module, field, value, assigns)
       end
     end)
   end
 
   def apply_filters(query, _filter_values, _filter_configs, _assigns), do: query
+
+  defp apply_filter(query, module, field, value, assigns) do
+    if callback?(module, :query, 4) do
+      module.query(query, field, value, assigns)
+    else
+      maybe_where(query, module.condition(field, value, assigns))
+    end
+  end
+
+  defp maybe_where(query, nil = _condition), do: query
+  defp maybe_where(query, condition), do: where(query, ^condition_dynamic(condition))
+
+  # A condition, see `t:Backpex.Filter.condition/0`. Its fields are fields of the schema, the first binding.
+  defp condition_dynamic(%Ecto.Query.DynamicExpr{} = condition), do: condition
+
+  defp condition_dynamic({operator, field, value}) when operator in [:==, :!=, :<, :<=, :>, :>=] and is_atom(field) do
+    case operator do
+      :== -> dynamic([item], field(item, ^field) == ^value)
+      :!= -> dynamic([item], field(item, ^field) != ^value)
+      :< -> dynamic([item], field(item, ^field) < ^value)
+      :<= -> dynamic([item], field(item, ^field) <= ^value)
+      :> -> dynamic([item], field(item, ^field) > ^value)
+      :>= -> dynamic([item], field(item, ^field) >= ^value)
+    end
+  end
+
+  defp condition_dynamic({:in, field, values}) when is_atom(field) and is_list(values) do
+    dynamic([item], field(item, ^field) in ^values)
+  end
+
+  defp condition_dynamic({:is_nil, field}) when is_atom(field), do: dynamic([item], is_nil(field(item, ^field)))
+  defp condition_dynamic({:not, condition}), do: dynamic(not (^condition_dynamic(condition)))
+  defp condition_dynamic({:and, []}), do: dynamic(true)
+  defp condition_dynamic({:or, []}), do: dynamic(false)
+
+  defp condition_dynamic({:and, [condition | conditions]}) do
+    Enum.reduce(conditions, condition_dynamic(condition), &dynamic(^&2 and ^condition_dynamic(&1)))
+  end
+
+  defp condition_dynamic({:or, [condition | conditions]}) do
+    Enum.reduce(conditions, condition_dynamic(condition), &dynamic(^&2 or ^condition_dynamic(&1)))
+  end
+
+  defp condition_dynamic(condition) do
+    raise ArgumentError, "expected a condition such as {:==, :field, value}, got: #{inspect(condition)}"
+  end
 
   def apply_criteria(query, [], _fields, _schema), do: query
 
@@ -431,8 +547,7 @@ defmodule Backpex.Adapters.Ecto do
   defp apply_order(query, %{by: by, direction: direction} = order, fields, schema) do
     field_name = Map.get(order, :field_name)
     schema_name = binding_name(fields, field_name, schema)
-
-    direction = order_direction(direction, Map.get(order, :nulls, :default))
+    nulls = Map.get(order, :nulls, :default)
 
     field =
       Enum.find(fields, fn
@@ -444,9 +559,13 @@ defmodule Backpex.Adapters.Ecto do
     case field do
       {_name, %{select: select} = _field_options} ->
         query
-        |> order_by([{^schema_name, schema_name}], ^[{direction, select}])
+        |> order_by([{^schema_name, schema_name}], ^[{order_direction(direction, nulls), select}])
 
       _field ->
+        # A primary key is never NULL, so NULLS FIRST/LAST would only keep the database from using its index.
+        nulls = if primary_key?(schema, schema_name, by), do: :default, else: nulls
+        direction = order_direction(direction, nulls)
+
         query
         |> order_by([{^schema_name, schema_name}], [
           {^direction, field(schema_name, ^by)}
@@ -457,6 +576,10 @@ defmodule Backpex.Adapters.Ecto do
   defp apply_order(_query, order, _fields, _schema) do
     raise ArgumentError,
           "expected order criteria to be a map with the keys :by and :direction, got: #{inspect(order)}"
+  end
+
+  defp primary_key?(schema, schema_name, column) do
+    schema_name == name_by_schema(schema) and column in schema.__schema__(:primary_key)
   end
 
   defp order_direction(direction, :default) when direction in [:asc, :desc], do: direction
@@ -537,7 +660,6 @@ defmodule Backpex.Adapters.Ecto do
   """
   @impl Backpex.Adapter
   def change(item, attrs, fields, assigns, live_resource, opts) do
-    repo = live_resource.adapter_config(:repo)
     assocs = Keyword.get(opts, :assocs, [])
     target = Keyword.get(opts, :target)
     action = Keyword.get(opts, :action, :validate)
@@ -546,7 +668,7 @@ defmodule Backpex.Adapters.Ecto do
 
     item
     |> Ecto.Changeset.change()
-    |> before_changesets(attrs, metadata, repo, fields, assigns)
+    |> before_changesets(attrs, metadata, fields, assigns)
     |> put_assocs(assocs)
     |> changeset_function.(attrs, metadata)
     |> Map.put(:action, action)
@@ -558,9 +680,9 @@ defmodule Backpex.Adapters.Ecto do
   defp get_changeset_function(:index, live_resource, _assigns), do: live_resource.adapter_config(:update_changeset)
   defp get_changeset_function(:resource_action, _live_resource, assigns), do: assigns.changeset_function
 
-  defp before_changesets(changeset, attrs, metadata, repo, fields, assigns) do
+  defp before_changesets(changeset, attrs, metadata, fields, assigns) do
     Enum.reduce(fields, changeset, fn {_name, field_options} = field, acc ->
-      field_options.module.before_changeset(acc, attrs, metadata, repo, field, assigns)
+      field_options.module.before_changeset(acc, attrs, metadata, field, assigns)
     end)
   end
 

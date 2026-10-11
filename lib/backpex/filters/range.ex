@@ -16,13 +16,13 @@ defmodule Backpex.Filters.Range do
 
   > #### Information {: .info}
   >
-  > Note that the query function is already implemented via `Backpex.Filters.Range`.
+  > Note that the condition is already implemented via `Backpex.Filters.Range`.
 
   > #### `use Backpex.Filters.Range` {: .info}
   >
   > When you `use Backpex.Filters.Range`, the `Backpex.Filters.Range` module will set `@behavior Backpex.Filters.Range`.
   > In addition it will add a `render` and `render_form` function in order to display the corresponding filter.
-  > It will also implement the `Backpex.Filter.query` function to define a range query.
+  > It will also implement the `c:Backpex.Filter.condition/3` callback to keep the items whose field is within the range.
   """
   use BackpexWeb, :filter
 
@@ -51,8 +51,8 @@ defmodule Backpex.Filters.Range do
       end
 
       @impl Backpex.Filter
-      def query(query, attribute, params, assigns) do
-        RangeFilter.query(query, type(), attribute, params, assigns)
+      def condition(field, value, assigns) do
+        RangeFilter.condition(type(), field, value, assigns)
       end
 
       @impl Backpex.Filter
@@ -67,7 +67,7 @@ defmodule Backpex.Filters.Range do
         Backpex.Filters.Range.render_form(assigns)
       end
 
-      defoverridable type: 1, changeset: 3, query: 4, render: 1, render_form: 1
+      defoverridable type: 1, changeset: 3, condition: 3, render: 1, render_form: 1
     end
   end
 
@@ -217,28 +217,32 @@ defmodule Backpex.Filters.Range do
     compare_values(:date, start_date, end_date)
   end
 
-  def query(query, type, attribute, %{"start" => start_at, "end" => end_at}, _assigns) do
-    maybe_parse_range(type, start_at, end_at)
-    |> do_query(query, attribute)
+  @doc """
+  Returns the condition that keeps the items whose field is within the range, or `nil` if the range has no valid
+  boundary. See `maybe_parse_range/3` for how the boundaries are parsed.
+
+  ## Examples
+
+      iex> Backpex.Filters.Range.condition(:number, :likes, %{"start" => "10", "end" => ""}, %{})
+      {:>=, :likes, 10}
+      iex> Backpex.Filters.Range.condition(:number, :likes, %{"start" => "", "end" => "100"}, %{})
+      {:<=, :likes, 100}
+      iex> Backpex.Filters.Range.condition(:date, :begins_at, %{"start" => "2024-01-01", "end" => "2024-12-31"}, %{})
+      {:and, [{:>=, :begins_at, "2024-01-01"}, {:<=, :begins_at, "2024-12-31"}]}
+      iex> Backpex.Filters.Range.condition(:number, :likes, %{"start" => "", "end" => ""}, %{})
+      nil
+
+  """
+  def condition(type, field, %{"start" => start_at, "end" => end_at}, _assigns) do
+    case maybe_parse_range(type, start_at, end_at) do
+      {nil, nil} -> nil
+      {start_at, nil} -> {:>=, field, start_at}
+      {nil, end_at} -> {:<=, field, end_at}
+      {start_at, end_at} -> {:and, [{:>=, field, start_at}, {:<=, field, end_at}]}
+    end
   end
 
-  def query(query, _type, _attribute, _params, _assigns) do
-    query
-  end
-
-  def do_query({nil, nil}, query, _attribute), do: query
-
-  def do_query({start_at, nil}, query, attribute) do
-    where(query, [x], field(x, ^attribute) >= ^start_at)
-  end
-
-  def do_query({nil, end_at}, query, attribute) do
-    where(query, [x], field(x, ^attribute) <= ^end_at)
-  end
-
-  def do_query({start_at, end_at}, query, attribute) do
-    where(query, [x], field(x, ^attribute) >= ^start_at and field(x, ^attribute) <= ^end_at)
-  end
+  def condition(_type, _field, _value, _assigns), do: nil
 
   @doc """
   Parses both start and end values for a range filter.
