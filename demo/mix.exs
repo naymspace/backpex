@@ -55,7 +55,7 @@ defmodule Demo.MixProject do
       {:telemetry_poller, "~> 1.0"},
       {:telemetry_metrics, "~> 1.0"},
       {:gettext, "~> 1.0"},
-      {:sentry, "~> 13.0"},
+      {:sentry, "~> 14.0"},
       {:circular_buffer, "~> 1.1.0"},
 
       # phoenix
