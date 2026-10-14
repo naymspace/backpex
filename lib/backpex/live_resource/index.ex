@@ -958,34 +958,24 @@ defmodule Backpex.LiveResource.Index do
       fields: fields
     } = socket.assigns
 
-    repo = live_resource.adapter_config(:repo)
     schema = live_resource.adapter_config(:schema)
     filters = LiveResource.active_filters(socket.assigns)
 
     # Use the already-validated filter_values from assigns
     filter_values = Map.get(socket.assigns, :filter_values, %{})
 
+    criteria = [
+      search: LiveResource.search_options(query_options, fields, schema),
+      filter_values: filter_values,
+      filter_configs: filters
+    ]
+
     metrics =
       socket.assigns.live_resource.metrics()
       |> Enum.map(fn {key, metric} ->
-        criteria = [
-          search: LiveResource.search_options(query_options, fields, schema),
-          filter_values: filter_values,
-          filter_configs: filters
-        ]
-
-        query = EctoAdapter.list_query(criteria, fields, socket.assigns, live_resource)
-
         case Backpex.Metric.metrics_visible?(metric_visibility, live_resource) do
           true ->
-            data =
-              query
-              |> Ecto.Query.exclude(:select)
-              |> Ecto.Query.exclude(:preload)
-              |> Ecto.Query.exclude(:group_by)
-              |> metric.module.query(metric.select, repo)
-
-            {key, Map.put(metric, :data, data)}
+            {key, Map.put(metric, :data, metric_data(metric, criteria, socket.assigns))}
 
           _visible ->
             {key, metric}
@@ -994,6 +984,22 @@ defmodule Backpex.LiveResource.Index do
 
     socket
     |> assign(metrics: metrics)
+  end
+
+  defp metric_data(%{module: module} = metric, criteria, assigns) do
+    if Code.ensure_loaded?(module) and function_exported?(module, :data, 2) do
+      module.data(metric, assigns)
+    else
+      %{live_resource: live_resource, fields: fields} = assigns
+      repo = live_resource.adapter_config(:repo)
+
+      criteria
+      |> EctoAdapter.list_query(fields, assigns, live_resource)
+      |> Ecto.Query.exclude(:select)
+      |> Ecto.Query.exclude(:preload)
+      |> Ecto.Query.exclude(:group_by)
+      |> module.query(metric.select, repo)
+    end
   end
 
   defp assign_items(socket) do
