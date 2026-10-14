@@ -355,11 +355,18 @@ defmodule Backpex.Adapters.Ecto do
     if callback?(field_options.module, :search_condition, 3) do
       dynamic(^field_options.module.search_condition(schema_name, field_name, search_string))
     else
-      default_search_condition(queryable, schema_name, field_name, search_string)
+      field_options
+      |> column_queryable(queryable, schema)
+      |> default_search_condition(schema_name, field_name, search_string)
     end
   end
 
-  # PostgreSQL only supports `ilike` on text, so other columns are cast to text.
+  # The schema of the resource doesn't describe the columns of a custom alias, e.g. of a join in the `item_query`.
+  defp column_queryable(%{custom_alias: _custom_alias}, schema, schema), do: nil
+  defp column_queryable(_field_options, queryable, _schema), do: queryable
+
+  # PostgreSQL only supports `ilike` on text, so other columns are cast to text. A column of unknown type is cast as
+  # well, as casting a text column to text changes nothing.
   defp default_search_condition(queryable, schema_name, field_name, search_string) do
     if string_field?(queryable, field_name) do
       dynamic([{^schema_name, schema_name}], ilike(field(schema_name, ^field_name), ^search_string))
@@ -371,10 +378,11 @@ defmodule Backpex.Adapters.Ecto do
     end
   end
 
-  # A column that is not part of the schema, e.g. of a join in the `item_query`, is compared as it is.
+  defp string_field?(nil = _queryable, _field_name), do: false
+
   defp string_field?(queryable, field_name) do
     case queryable.__schema__(:type, field_name) do
-      nil -> true
+      nil -> false
       type -> Ecto.Type.type(type) == :string
     end
   end

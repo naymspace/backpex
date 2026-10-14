@@ -202,6 +202,24 @@ defmodule Backpex.Adapters.EctoTest do
       assert [raw: "CAST(", expr: _column, raw: " AS TEXT)"] = parts
     end
 
+    test "casts a column of unknown type to text" do
+      base_query =
+        TestUser
+        |> from(as: ^EctoAdapter.name_by_schema(TestUser))
+        |> join(:left, [testuser: u], t in "totals", as: :totals, on: t.user_id == u.id)
+
+      # `age` of the custom alias may have another type than `age` of the resource, `total` is no column of it.
+      for field <- [
+            {:age, %{module: Backpex.Fields.Text, custom_alias: :totals}},
+            {:total, %{module: Backpex.Fields.Text}}
+          ] do
+        query = EctoAdapter.apply_search(base_query, TestUser, nil, {"42", [field]})
+
+        assert [%{expr: {:ilike, _meta, [{:fragment, _fragment_meta, parts}, _search]}}] = query.wheres
+        assert [raw: "CAST(", expr: _column, raw: " AS TEXT)"] = parts
+      end
+    end
+
     test "uses the search condition of the field module" do
       defmodule ExactSearchField do
         @moduledoc false
