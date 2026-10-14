@@ -78,12 +78,23 @@ defmodule Backpex.Resource do
   Calls `c:Backpex.Metric.data/2` if the module of the metric implements it, and the adapter otherwise.
   """
   def metric(%{module: module} = metric, criteria, fields, assigns, live_resource) do
-    if Code.ensure_loaded?(module) and function_exported?(module, :data, 2) do
-      {:ok, module.data(metric, assigns)}
-    else
-      adapter = live_resource.config(:adapter)
+    Code.ensure_loaded(module)
 
-      adapter.metric(metric, criteria, fields, assigns, live_resource)
+    cond do
+      function_exported?(module, :data, 2) ->
+        {:ok, module.data(metric, assigns)}
+
+      # Backpex no longer calls `query/3`, so the adapter would compute other data than the metric did.
+      function_exported?(module, :query, 3) ->
+        raise ArgumentError, """
+        #{inspect(module)} implements query/3, but metrics no longer query their data. Implement \
+        Backpex.Metric.data/2 instead, see the guide on upgrading to v0.23.
+        """
+
+      true ->
+        adapter = live_resource.config(:adapter)
+
+        adapter.metric(metric, criteria, fields, assigns, live_resource)
     end
   end
 

@@ -394,6 +394,19 @@ defmodule Backpex.ResourceTest do
                {:ok, {:data, "Balance", %{year: 2026}}}
     end
 
+    test "raises for a metric module that still implements query/3" do
+      defmodule QueryMetric do
+        @moduledoc false
+        def query(query, _select, _repo), do: query
+      end
+
+      metric = %{module: QueryMetric, label: "Balance"}
+
+      assert_raise ArgumentError, ~r/implements query\/3, but metrics no longer query their data/, fn ->
+        Resource.metric(metric, [search: {"", []}], [], %{}, MetricLive)
+      end
+    end
+
     test "lets the adapter compute the metric otherwise" do
       metric = %{module: Backpex.Metrics.Value, label: "Total", aggregate: :count}
 

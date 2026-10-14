@@ -660,30 +660,6 @@ defmodule Backpex.Adapters.EctoTest do
       assert %{expr: {:in, _meta, [_id, {:subquery, 0}]}, subqueries: [%Ecto.SubQuery{}]} = where
     end
 
-    test "ignores a query function of the filter" do
-      defmodule FilterWithQuery do
-        @moduledoc false
-        use Backpex.Filter
-
-        @impl Backpex.Filter
-        def condition(field, value, _assigns), do: {:==, field, value}
-
-        def query(query, _field, _value, _assigns), do: where(query, [user], user.id == 0)
-
-        @impl Backpex.Filter
-        def render(assigns), do: assigns
-
-        @impl Backpex.Filter
-        def render_form(assigns), do: assigns
-      end
-
-      base_query = from(TestUser, as: ^EctoAdapter.name_by_schema(TestUser))
-      query = EctoAdapter.apply_filters(base_query, %{name: "Ann"}, [name: %{module: FilterWithQuery}], %{})
-
-      assert [%{expr: expr, params: [{"Ann", _type}]}] = query.wheres
-      assert Macro.to_string(expr) == "&0.name() == ^0"
-    end
-
     defp filter_query(condition) do
       TestUser
       |> from(as: ^EctoAdapter.name_by_schema(TestUser))

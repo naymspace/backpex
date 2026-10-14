@@ -346,7 +346,17 @@ defmodule Backpex.Field do
     end
   end
 
-  defmacro __before_compile__(_env) do
+  defmacro __before_compile__(env) do
+    # Backpex no longer calls `before_changeset/6`, so a field that still defines it would silently lose its changes.
+    if Module.defines?(env.module, {:before_changeset, 6}, :def) do
+      raise CompileError,
+        file: env.file,
+        description: """
+        #{inspect(env.module)} defines before_changeset/6, but the callback no longer receives the repo. Implement \
+        before_changeset/5 instead, see the guide on upgrading to v0.23.
+        """
+    end
+
     quote generated: true do
       @impl Phoenix.LiveComponent
       def render(%{type: :index} = assigns) do

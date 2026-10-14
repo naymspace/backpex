@@ -211,6 +211,21 @@ defmodule Backpex.Filter do
       end
 
       defoverridable can?: 1, type: 1, changeset: 3, validate: 2, condition: 3
+
+      @before_compile Backpex.Filter
+    end
+  end
+
+  # Backpex no longer calls `query/4`, so a filter that still defines it would raise when it is applied, or silently
+  # apply the default condition of a built-in filter.
+  defmacro __before_compile__(env) do
+    if Module.defines?(env.module, {:query, 4}, :def) do
+      raise CompileError,
+        file: env.file,
+        description: """
+        #{inspect(env.module)} defines query/4, but filters no longer build queries. Return a condition from \
+        condition/3 instead, see the guide on upgrading to v0.23.
+        """
     end
   end
 end
