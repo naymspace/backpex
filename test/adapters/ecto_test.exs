@@ -571,6 +571,20 @@ defmodule Backpex.Adapters.EctoTest do
       assert_received {:repo, :all, %{wheres: [%{params: [{[1, 2], _type}]}]}}
     end
 
+    test "limits the ids after the options query, even if it ignores or widens the query it receives" do
+      for options_query <- [
+            fn _query, _assigns -> from(u in TestUser, where: u.age > 18) end,
+            fn query, _assigns -> or_where(query, [u], u.age > 18) end
+          ] do
+        field = {:user, %{module: Backpex.Fields.BelongsTo, display_field: :name, options_query: options_query}}
+
+        EctoAdapter.list_options(field, [ids: ["1"]], %{}, PostLive)
+
+        assert_received {:repo, :all, %{wheres: wheres}}
+        assert %{op: :and, params: [{[1], _type}]} = List.last(wheres)
+      end
+    end
+
     test "searches the display field on a named binding, then skips and limits the items" do
       EctoAdapter.list_options(@user_field, [search: "ann", offset: 10, limit: 5], %{}, PostLive)
 

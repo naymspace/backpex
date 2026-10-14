@@ -224,10 +224,11 @@ defmodule Backpex.Adapters.Ecto do
   defp options_query({_name, field_options} = field, criteria, assigns, live_resource) do
     queryable = association_queryable(live_resource.adapter_config(:schema), field)
 
+    # The ids are limited after the options query, so they also hold if it ignores or widens the query it receives.
     queryable
     |> options_base_query(criteria[:search])
-    |> maybe_where_ids(queryable, Keyword.fetch(criteria, :ids))
     |> maybe_options_query(field_options, assigns)
+    |> maybe_where_ids(queryable, Keyword.fetch(criteria, :ids))
     |> maybe_search_options(field, queryable, criteria[:search])
     |> maybe_offset(criteria[:offset])
     |> maybe_limit(criteria[:limit])
