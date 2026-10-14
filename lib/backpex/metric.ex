@@ -23,6 +23,9 @@ defmodule Backpex.Metric do
   A metric module that gets its data in another way, e.g. from a function of your context module, implements `c:data/2`.
   Backpex then calls it instead of the adapter. It receives the assigns of the index view, so it can read the values of
   the active filters from `:filter_values`.
+
+  As the adapter doesn't query the data, neither the search, the filters nor the `item_query` of `Backpex.Adapters.Ecto`
+  limit it. `c:data/2` has to limit the data itself, e.g. to the items the current user may see.
   """
 
   alias Phoenix.LiveView.Rendered

@@ -17,11 +17,15 @@ defmodule Backpex.Filter do
       or `{:>=, field, value}` - compares a field of the items to a value.
     * `{:in, field, values}` - keeps the items whose field has one of the values.
     * `{:is_nil, field}` - keeps the items whose field is `nil`. Use it instead of comparing a field to `nil`.
-    * `{:not, condition}` - keeps the items the condition doesn't keep.
+    * `{:not, condition}` - negates the condition.
     * `{:and, conditions}` and `{:or, conditions}` - combine a list of conditions.
 
   `field` is the name of a field of the resource, e.g. of a column of its `Ecto.Schema`. The adapter casts each value to
   the type of the field.
+
+  As in SQL, an item whose field is `nil` is kept neither by a comparison of this field nor by its negation, e.g.
+  `{:not, {:==, :status, "done"}}` doesn't keep items without a status. To keep them, add
+  `{:or, [condition, {:is_nil, field}]}`.
 
   An adapter may also take conditions of its own: `Backpex.Adapters.Ecto` takes `Ecto.Query.dynamic/2` expressions, e.g.
   for a fragment of SQL or a subquery. Such filters only work with that adapter.
