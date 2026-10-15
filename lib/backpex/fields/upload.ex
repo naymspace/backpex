@@ -725,6 +725,7 @@ defmodule Backpex.Fields.Upload do
                   phx-value-id={@upload_key}
                   phx-target="#form-component"
                   class="cursor-pointer"
+                  aria-label={Backpex.__({"Cancel %{name}", %{name: Map.get(entry, :client_name)}}, @live_resource)}
                 >
                   &times;
                 </button>
@@ -746,6 +747,7 @@ defmodule Backpex.Fields.Upload do
                   phx-value-id={@upload_key}
                   phx-target="#form-component"
                   class="cursor-pointer"
+                  aria-label={Backpex.__({"Remove %{name}", %{name: label}}, @live_resource)}
                 >
                   &times;
                 </button>
