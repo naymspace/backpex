@@ -65,9 +65,9 @@ defmodule DemoWeb.Live.Product.NewLiveTest do
     |> render_submit(%{change: %{price: "12.34"}})
   end
 
-  defp assert_save_refused(html, view) do
-    assert html =~ "remove the files that can&#39;t be uploaded"
-    assert Process.alive?(view.pid)
+  defp assert_save_refused(_html, view) do
+    # The field renders its errors in the section next to its drop target.
+    assert has_element?(view, "#images-drop-target + section > p", "remove the files that can't be uploaded")
     assert Repo.all(Product) == []
   end
 end

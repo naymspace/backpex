@@ -17,9 +17,10 @@ defmodule DemoWeb.Live.User.UploadResourceActionLiveTest do
         |> form("#resource-form", change: %{description: "Notes"})
         |> render_submit(%{"save-type" => "save"})
 
-      assert html =~ "remove the files that can&#39;t be uploaded"
+      # The action requires a file, so without the check the save is refused as blank and nothing crashes.
+      assert has_element?(view, "#upload-drop-target + section > p", "can't be blank")
+      assert has_element?(view, "#upload-drop-target + section > p", "remove the files that can't be uploaded")
       refute html =~ "File was uploaded successfully."
-      assert Process.alive?(view.pid)
     end
   end
 end

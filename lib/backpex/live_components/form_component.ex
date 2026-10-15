@@ -217,7 +217,8 @@ defmodule Backpex.FormComponent do
 
   # The browser doesn't submit a form while an upload has refused files, but a save event can
   # still arrive. Saving then would drop the refused files and crash when consuming the entries
-  # that aren't done, after the item was saved.
+  # that aren't done, after the item was saved. Entries that aren't done are refused as well: the
+  # browser waits for them, but consuming them would raise.
   defp save(socket, live_action, params, form_action) do
     case refused_upload_fields(socket) do
       [] -> handle_save(socket, live_action, params, form_action)
@@ -237,6 +238,7 @@ defmodule Backpex.FormComponent do
   defp refuse_save(socket, params, names) do
     %{live_resource: live_resource, fields: fields, item: item} = assigns = socket.assigns
 
+    # Through `Backpex.__`, so the text is in `backpex.pot` with the field's other upload texts.
     message = Backpex.__("remove the files that can't be uploaded", live_resource)
     changeset = Resource.change(item, params, fields, assigns, live_resource, assocs: Map.get(assigns, :assocs, []))
     changeset = Enum.reduce(names, changeset, &Ecto.Changeset.add_error(&2, &1, message))

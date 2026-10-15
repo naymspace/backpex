@@ -100,11 +100,13 @@ defmodule DemoWeb.Live.Product.EditLiveTest do
 
       upload_images(view, [%{name: "notes.txt", content: "notes", type: "text/plain"}])
 
-      # Without a submitter, the event has no save type.
+      # Without a submitter, the event has no save type. That clause ignores the form params.
       view
-      |> form("#resource-form", change: %{name: "New Widget"})
+      |> form("#resource-form")
       |> render_submit()
-      |> assert_save_refused(view, product)
+
+      assert has_element?(view, "#images-drop-target + section > p", "remove the files that can't be uploaded")
+      assert %Product{images: ["old.jpg"]} = Repo.get!(Product, product.id)
     end
   end
 
@@ -116,9 +118,9 @@ defmodule DemoWeb.Live.Product.EditLiveTest do
     for %{name: name} <- files, do: render_upload(input, name)
   end
 
-  defp assert_save_refused(html, view, product) do
-    assert html =~ "remove the files that can&#39;t be uploaded"
-    assert Process.alive?(view.pid)
+  defp assert_save_refused(_html, view, product) do
+    # The field renders its errors in the section next to its drop target.
+    assert has_element?(view, "#images-drop-target + section > p", "remove the files that can't be uploaded")
     assert %Product{name: "Widget", images: ["old.jpg"]} = Repo.get!(Product, product.id)
   end
 end
