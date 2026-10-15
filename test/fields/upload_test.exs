@@ -250,6 +250,18 @@ defmodule Backpex.Fields.UploadTest do
 
       assert html =~ "upload could not be started"
     end
+
+    test "lists the stored files before the new entries", %{upload: upload} do
+      entries =
+        for {ref, name} <- [{"0", "new-1.png"}, {"1", "new-2.png"}] do
+          %UploadEntry{ref: ref, upload_ref: upload.ref, upload_config: :images, client_name: name}
+        end
+
+      uploaded_files = [{"old-1.png", "old-1.png"}, {"old-2.png", "old-2.png"}]
+      html = render_upload_form(%{}, %{upload | entries: entries}, uploaded_files)
+
+      assert html =~ ~r/old-1\.png.*old-2\.png.*new-1\.png.*new-2\.png/s
+    end
   end
 
   defp upload_with_errors(upload, errors) do
@@ -258,13 +270,13 @@ defmodule Backpex.Fields.UploadTest do
     %{upload | entries: [entry], errors: errors}
   end
 
-  defp render_upload_form(field_options, upload) do
+  defp render_upload_form(field_options, upload, uploaded_files \\ []) do
     render_component(&Upload.render_form/1,
       name: :images,
       field_options: Map.merge(%{module: Upload, label: "Images"}, field_options),
       form: Phoenix.Component.to_form(%{}, as: :change),
       lv_uploads: %{images: upload},
-      uploaded_files: [images: []],
+      uploaded_files: [images: uploaded_files],
       live_resource: UntranslatedLive,
       readonly: false,
       type: :form
