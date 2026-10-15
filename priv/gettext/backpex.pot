@@ -176,6 +176,10 @@ msgid "Previous Page"
 msgstr ""
 
 #, elixir-autogen, elixir-format
+msgid "remove the files that can't be uploaded"
+msgstr ""
+
+#, elixir-autogen, elixir-format
 msgid "Save"
 msgstr ""
 
