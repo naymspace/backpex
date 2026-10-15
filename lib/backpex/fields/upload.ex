@@ -658,6 +658,11 @@ defmodule Backpex.Fields.Upload do
       |> assign(:errors, errors)
       |> assign(:form_errors, form_errors)
 
+    field = {assigns.name, assigns.field_options}
+    upload_error_module = upload_error_module(assigns.field_options)
+    upload_error = &upload_error_module.upload_error(field, &1, assigns.upload, assigns)
+    assigns = assign(assigns, :upload_error, upload_error)
+
     ~H"""
     <div>
       <Layout.field_container>
@@ -725,7 +730,7 @@ defmodule Backpex.Fields.Upload do
                 </button>
                 <progress :if={entry.progress > 0} class="progress ml-4 w-32" value={entry.progress} max="100"></progress>
                 <p :for={err <- upload_errors(@upload, entry)} class="text-xs italic text-red-500">
-                  {error_to_string(err, @live_resource)}
+                  {@upload_error.(err)}
                 </p>
               </div>
             <% end %>
@@ -750,7 +755,7 @@ defmodule Backpex.Fields.Upload do
 
           <%= if @uploads_allowed do %>
             <p :for={err <- upload_errors(@upload)} class="text-xs italic text-red-500">
-              {error_to_string(err, @live_resource)}
+              {@upload_error.(err)}
             </p>
           <% end %>
           <BackpexForm.error :for={msg <- @form_errors}>{msg}</BackpexForm.error>
@@ -871,7 +876,32 @@ defmodule Backpex.Fields.Upload do
   def label_from_file(%{file_label: file_label} = _field_options, file), do: file_label.(file)
   def label_from_file(_field_options, file), do: file
 
-  defp error_to_string(:too_large, live_resource), do: Backpex.__("too large", live_resource)
-  defp error_to_string(:too_many_files, live_resource), do: Backpex.__("too many files", live_resource)
-  defp error_to_string(:not_accepted, live_resource), do: Backpex.__("unacceptable file type", live_resource)
+  @doc """
+  Returns Backpex's text for an upload error. A custom upload field can call it for the errors it doesn't handle itself.
+  See `c:Backpex.Field.upload_error/4`.
+  """
+  @impl Backpex.Field
+  def upload_error(_field, :too_large, _upload, assigns), do: Backpex.__("too large", assigns.live_resource)
+  def upload_error(_field, :too_many_files, _upload, assigns), do: Backpex.__("too many files", assigns.live_resource)
+
+  def upload_error(_field, :not_accepted, _upload, assigns),
+    do: Backpex.__("unacceptable file type", assigns.live_resource)
+
+  def upload_error(_field, :external_client_failure, _upload, assigns),
+    do: Backpex.__("upload failed", assigns.live_resource)
+
+  def upload_error(_field, {:writer_failure, _reason}, _upload, assigns),
+    do: Backpex.__("upload failed", assigns.live_resource)
+
+  def upload_error(_field, {:external_metadata_failure, _meta}, _upload, assigns),
+    do: Backpex.__("upload could not be started", assigns.live_resource)
+
+  def upload_error(_field, _error, _upload, assigns),
+    do: Backpex.__("file could not be uploaded", assigns.live_resource)
+
+  # The module whose `upload_error/4` gives the texts: the field's own module, when it implements the callback, so a
+  # custom field that delegates `render_form/1` here can give its own texts.
+  defp upload_error_module(%{module: module}) do
+    if Code.ensure_loaded?(module) and function_exported?(module, :upload_error, 4), do: module, else: __MODULE__
+  end
 end

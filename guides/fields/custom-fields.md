@@ -101,7 +101,9 @@ field (`{name, field_options}`) as the first argument, so it can implement them 
 work out what it needs from the field, such as the column to read the files from.
 
 To reuse the upload UI, delegate rendering and `assign_uploads/2` to `Backpex.Fields.Upload`. Its `render_form/1` and
-`render_value/1` list the existing files through your `list_existing_files/2`.
+`render_value/1` list the existing files through your `list_existing_files/2`. Its `render_form/1` shows the upload
+errors with the texts of your `c:Backpex.Field.upload_error/4`, if your module implements it, and with its own texts
+otherwise.
 
 The upload is named after the field, unless the field has an `:upload_key` option (see `Backpex.Field.upload_key/1`).
 

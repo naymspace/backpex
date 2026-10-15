@@ -112,6 +112,10 @@ msgid "Error in relation with index %{index}"
 msgstr ""
 
 #, elixir-autogen, elixir-format
+msgid "file could not be uploaded"
+msgstr ""
+
+#, elixir-autogen, elixir-format
 msgid "Filters"
 msgstr ""
 
@@ -273,6 +277,14 @@ msgstr ""
 
 #, elixir-autogen, elixir-format
 msgid "Upload a file"
+msgstr ""
+
+#, elixir-autogen, elixir-format
+msgid "upload could not be started"
+msgstr ""
+
+#, elixir-autogen, elixir-format
+msgid "upload failed"
 msgstr ""
 
 #, elixir-autogen, elixir-format
