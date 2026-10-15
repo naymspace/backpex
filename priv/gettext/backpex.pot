@@ -116,6 +116,10 @@ msgid "Error in relation with index %{index}"
 msgstr ""
 
 #, elixir-autogen, elixir-format
+msgid "file could not be stored"
+msgstr ""
+
+#, elixir-autogen, elixir-format
 msgid "file could not be uploaded"
 msgstr ""
 

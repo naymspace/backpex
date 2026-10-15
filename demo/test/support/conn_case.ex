@@ -34,4 +34,28 @@ defmodule DemoWeb.ConnCase do
     Demo.DataCase.setup_sandbox(tags)
     {:ok, conn: Phoenix.ConnTest.build_conn()}
   end
+
+  @doc """
+  Makes the upload fields of the demo store their files in a temporary directory, which is removed after the test.
+
+  It sets an application env, so the test module has to use `async: false`.
+  """
+  def store_uploads_in_tmp_dir(_context) do
+    root = Path.join(System.tmp_dir!(), "demo-uploads-#{System.unique_integer([:positive])}")
+
+    for dir <- ["uploads/product/images", "uploads/user/avatar"] do
+      root
+      |> Path.join(dir)
+      |> File.mkdir_p!()
+    end
+
+    Application.put_env(:demo, :upload_root, root)
+
+    ExUnit.Callbacks.on_exit(fn ->
+      Application.delete_env(:demo, :upload_root)
+      File.rm_rf!(root)
+    end)
+
+    %{upload_root: root}
+  end
 end

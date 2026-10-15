@@ -88,13 +88,22 @@ end
 ## Custom upload fields
 
 An upload field is a field whose module implements the upload callbacks, or a field with an `:upload_key` option.
-Besides `c:Backpex.Field.assign_uploads/2`, it implements four callbacks that the form component calls on the field's
-module:
+Besides `c:Backpex.Field.assign_uploads/2`, it implements four callbacks, and optionally a fifth, that the form
+component calls on the field's module:
 
 - `c:Backpex.Field.list_existing_files/2` returns the files the item has.
 - `c:Backpex.Field.put_upload_change/7` puts the files into the params of the changeset.
-- `c:Backpex.Field.consume_upload/5` consumes each uploaded entry after the item has been saved.
-- `c:Backpex.Field.remove_uploads/4` removes the files the user removed during an edit.
+- `c:Backpex.Field.consume_upload/5` stores each uploaded entry before the item is saved. It returns
+  `{:error, reason}` when it can't store a file, and Backpex then doesn't save the item.
+- `c:Backpex.Field.remove_uploads/4` removes the files the user removed during an edit, after the item has been saved.
+- `c:Backpex.Field.discard_uploads/4` (optional) deletes the files `consume_upload/5` stored when the item can't be
+  saved afterwards. Without it, these files stay. Direct uploads (`external`) aren't passed to it.
+
+The form component calls them in this order: it builds the changeset and stops if it's invalid, stores the files one by
+one and stops at the first that can't be stored, saves the item, then removes the files the user removed. If the save
+fails, it discards the stored files instead, and the next save calls `consume_upload/5` again for the same entries. So
+`consume_upload/5` gets the item without its changes (on create, the new empty item with an `id` of `nil`), and the
+file name has to be known in `put_upload_change/7` already.
 
 `Backpex.Fields.Upload` implements them by calling the functions you pass as options. A custom upload field gets the
 field (`{name, field_options}`) as the first argument, so it can implement them once for every field it's used for and
@@ -109,5 +118,5 @@ The upload is named after the field, unless the field has an `:upload_key` optio
 
 A custom upload field that doesn't implement the callbacks keeps working, as long as it has an `:upload_key` option:
 the form component then calls them on `Backpex.Fields.Upload`, which reads the `:list_existing_files`,
-`:put_upload_change`, `:consume_upload` and `:remove_uploads` functions from the field options. See
+`:put_upload_change`, `:consume_upload`, `:remove_uploads` and `:discard_uploads` functions from the field options. See
 `Backpex.Field.upload_module/1`.

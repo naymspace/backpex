@@ -15,6 +15,7 @@ defmodule Backpex.FormComponent do
   alias Phoenix.Component
 
   require Backpex
+  require Logger
 
   def update(assigns, socket) do
     socket
@@ -242,14 +243,8 @@ defmodule Backpex.FormComponent do
     message = Backpex.__("remove the files that can't be uploaded", live_resource)
     changeset = Resource.change(item, params, fields, assigns, live_resource, assocs: Map.get(assigns, :assocs, []))
     changeset = Enum.reduce(names, changeset, &Ecto.Changeset.add_error(&2, &1, message))
-    form = Component.to_form(changeset, as: :change)
 
-    send(self(), {:update_changeset, changeset})
-
-    socket
-    |> assign(:show_form_errors, true)
-    |> assign(:form, form)
-    |> noreply()
+    show_errors(socket, changeset)
   end
 
   defp handle_save(socket, :new, params, form_action) do
@@ -258,14 +253,21 @@ defmodule Backpex.FormComponent do
     opts = [
       assocs: Map.get(assigns, :assocs, []),
       after_save_fun: fn item ->
-        handle_uploads(socket, item)
+        remove_uploads(socket, item)
         live_resource.on_item_created(socket, item)
 
         {:ok, item}
       end
     ]
 
-    case Resource.insert(item, params, fields, socket.assigns, live_resource, opts) do
+    before_store = fn ->
+      Authorization.authorize!(live_resource, assigns, :new, nil)
+      build_changeset(socket, params, :insert)
+    end
+
+    save_item = fn -> Resource.insert(item, params, fields, assigns, live_resource, opts) end
+
+    case save_with_uploads(socket, item, before_store, save_item) do
       {:ok, item} ->
         return_to = return_to_path(form_action, live_resource, socket, socket.assigns, live_action, item)
 
@@ -283,14 +285,7 @@ defmodule Backpex.FormComponent do
         |> noreply()
 
       {:error, changeset} when is_struct(changeset) ->
-        form = Component.to_form(changeset, as: :change)
-
-        send(self(), {:update_changeset, changeset})
-
-        socket
-        |> assign(:show_form_errors, true)
-        |> assign(:form, form)
-        |> noreply()
+        show_errors(socket, changeset)
     end
   end
 
@@ -305,14 +300,21 @@ defmodule Backpex.FormComponent do
     opts = [
       assocs: Map.get(socket.assigns, :assocs, []),
       after_save_fun: fn item ->
-        handle_uploads(socket, item)
+        remove_uploads(socket, item)
         live_resource.on_item_updated(socket, item)
 
         {:ok, item}
       end
     ]
 
-    case Resource.update(item, params, fields, socket.assigns, live_resource, opts) do
+    before_store = fn ->
+      Authorization.authorize!(live_resource, socket.assigns, :edit, item)
+      build_changeset(socket, params, :update)
+    end
+
+    save_item = fn -> Resource.update(item, params, fields, socket.assigns, live_resource, opts) end
+
+    case save_with_uploads(socket, item, before_store, save_item) do
       {:ok, item} ->
         return_to = return_to_path(form_action, live_resource, socket, socket.assigns, live_action, item)
 
@@ -330,14 +332,7 @@ defmodule Backpex.FormComponent do
         |> noreply()
 
       {:error, changeset} when is_struct(changeset) ->
-        form = Component.to_form(changeset, as: :change)
-
-        send(self(), {:update_changeset, changeset})
-
-        socket
-        |> assign(:show_form_errors, true)
-        |> assign(:form, form)
-        |> noreply()
+        show_errors(socket, changeset)
     end
   end
 
@@ -359,15 +354,13 @@ defmodule Backpex.FormComponent do
 
     assocs = Map.get(assigns, :assocs, [])
     params = drop_readonly_changes(params, fields, assigns)
+    changeset = Resource.change(item, params, fields, assigns, live_resource, assocs: assocs)
 
-    result =
-      item
-      |> Resource.change(params, fields, assigns, live_resource, assocs: assocs)
-      |> Ecto.Changeset.apply_action(:insert)
-
-    with {:ok, data} <- result,
-         {:ok, socket} <- resource_action.module.handle(socket, data) do
-      handle_uploads(socket, data)
+    # The files are stored with the data of the form as the item, as the resource action has no saved item.
+    with {:ok, data} <- Ecto.Changeset.apply_action(changeset, :insert),
+         run_action = fn -> resource_action.module.handle(socket, data) end,
+         {:ok, socket} <- save_with_uploads(socket, data, fn -> changeset end, run_action) do
+      remove_uploads(socket, data)
 
       socket
       |> assign(:show_form_errors, false)
@@ -375,14 +368,7 @@ defmodule Backpex.FormComponent do
       |> noreply()
     else
       {:error, changeset} ->
-        form = Component.to_form(changeset, as: :change)
-
-        send(self(), {:update_changeset, changeset})
-
-        socket
-        |> assign(:show_form_errors, true)
-        |> assign(:form, form)
-        |> noreply()
+        show_errors(socket, changeset)
 
       unexpected_return ->
         raise ArgumentError, """
@@ -549,26 +535,188 @@ defmodule Backpex.FormComponent do
     end
   end
 
-  defp handle_uploads(%{assigns: %{uploads: _uploads}} = socket, item) do
-    for field <- socket.assigns.fields,
-        upload_key = Field.upload_key(field),
-        Map.has_key?(socket.assigns.uploads, upload_key) do
-      consume_and_remove_uploads(socket, item, field, upload_key)
+  defp build_changeset(socket, params, action) do
+    %{live_resource: live_resource, fields: fields, item: item} = assigns = socket.assigns
+
+    Resource.change(item, params, fields, assigns, live_resource, assocs: Map.get(assigns, :assocs, []), action: action)
+  end
+
+  defp show_errors(socket, changeset) do
+    form = Component.to_form(changeset, as: :change)
+
+    send(self(), {:update_changeset, changeset})
+
+    socket
+    |> assign(:show_form_errors, true)
+    |> assign(:form, form)
+    |> noreply()
+  end
+
+  # Stores the uploaded files before the item is saved, so a saved item never references a file that wasn't stored:
+  #
+  #   1. `before_store` authorizes the save and builds the changeset. If it isn't valid, nothing is stored.
+  #   2. The entries are stored one by one with `consume_upload/5` and postponed, so LiveView keeps them until the save
+  #      is done. The first file that can't be stored refuses the save: the files stored before it are discarded, and
+  #      the entries after it aren't stored at all.
+  #   3. The item is saved. If that fails, the stored files are discarded and the entries are kept for the next save.
+  #   4. After a successful save, the entries are dropped. The files the user removed are deleted in `after_save_fun`.
+  #
+  # The authorization in step 1 is repeated in `Backpex.Resource`, but it has to run before anything is stored. An
+  # exception between storing and saving (a database error, say) leaves stored files that nothing references. That's the
+  # accepted worst case, and there's no rescue around `save_item`, because `after_save_fun` runs inside it.
+  defp save_with_uploads(socket, item, before_store, save_item) do
+    case uploads_to_store(socket) do
+      [] -> save_item.()
+      uploads -> store_and_save(socket, item, before_store.(), uploads, save_item)
     end
   end
 
-  defp handle_uploads(_socket, _item), do: :ok
+  defp uploads_to_store(%{assigns: %{uploads: uploads, fields: fields}}) do
+    for field <- fields,
+        upload_key = Field.upload_key(field),
+        upload = uploads[upload_key],
+        upload.entries != [],
+        do: {field, upload}
+  end
 
-  defp consume_and_remove_uploads(socket, item, field, upload_key) do
+  defp uploads_to_store(_socket), do: []
+
+  defp store_and_save(_socket, _item, %{valid?: false} = changeset, _uploads, _save_item), do: {:error, changeset}
+
+  defp store_and_save(socket, item, changeset, uploads, save_item) do
+    case store_uploads(socket, item, uploads) do
+      {:ok, stored} ->
+        save_and_discard(socket, item, stored, uploads, save_item)
+
+      {:error, {name, _field_options}, stored} ->
+        discard_uploads(socket, item, stored)
+
+        message = Backpex.__("file could not be stored", socket.assigns.live_resource)
+        {:error, Ecto.Changeset.add_error(changeset, name, message)}
+    end
+  end
+
+  defp save_and_discard(socket, item, stored, uploads, save_item) do
+    case save_item.() do
+      {:ok, _result} = ok ->
+        drop_uploads(socket, uploads)
+        ok
+
+      error ->
+        discard_uploads(socket, item, stored)
+        error
+    end
+  end
+
+  # Returns `{:ok, stored}` or, at the first file that can't be stored, `{:error, field, stored}`. `stored` lists the
+  # stored values per field, for `discard_uploads/4`. Direct uploads (`external`) are left out: the browser uploaded
+  # them before the save, and their entries stay in the form, so the next save uses the same objects again.
+  defp store_uploads(socket, item, uploads) do
+    Enum.reduce_while(uploads, {:ok, []}, fn {field, upload}, {:ok, stored} ->
+      case store_field_uploads(socket, item, field, upload) do
+        {:ok, values} -> {:cont, {:ok, put_stored(stored, field, upload, values)}}
+        {:error, values} -> {:halt, {:error, field, put_stored(stored, field, upload, values)}}
+      end
+    end)
+  end
+
+  defp store_field_uploads(socket, item, field, upload) do
+    result =
+      Enum.reduce_while(upload.entries, {:ok, []}, fn entry, {:ok, values} ->
+        case consume_uploaded_entry(socket, entry, &{:postpone, store_upload(socket, item, field, &1, entry)}) do
+          {:ok, value} -> {:cont, {:ok, [value | values]}}
+          :error -> {:halt, {:error, values}}
+        end
+      end)
+
+    case result do
+      {:ok, values} -> {:ok, Enum.reverse(values)}
+      {:error, values} -> {:error, Enum.reverse(values)}
+    end
+  end
+
+  defp put_stored(stored, _field, _upload, []), do: stored
+  defp put_stored(stored, _field, %{external: external}, _values) when external != false, do: stored
+  defp put_stored(stored, field, _upload, values), do: [{field, values} | stored]
+
+  # `{:error, reason}`, `{:postpone, _}` and an exception mean the file wasn't stored. Any other value counts as stored,
+  # as it did for LiveView, with a warning.
+  defp store_upload(socket, item, {name, _field_options} = field, meta, entry) do
+    case Field.upload_module(field).consume_upload(field, socket, item, meta, entry) do
+      {:ok, value} ->
+        {:ok, value}
+
+      {:error, reason} ->
+        Logger.error("Upload field #{inspect(name)} could not store a file: #{inspect(reason)}")
+        :error
+
+      {:postpone, value} ->
+        Logger.error("Upload field #{inspect(name)} did not store a file, consume_upload returned #{inspect(value)}")
+        :error
+
+      value ->
+        Logger.warning(
+          "Upload field #{inspect(name)} returned #{inspect(value)} from consume_upload, expected {:ok, value} or " <>
+            "{:error, reason}. The file counts as stored."
+        )
+
+        {:ok, value}
+    end
+  catch
+    # Required: on an exception, LiveView's upload channel consumes the entry and deletes its temporary file, so the
+    # next save would have no file to store. Caught here, the entry stays postponed.
+    kind, reason ->
+      Logger.error(
+        "Upload field #{inspect(name)} could not store a file: " <> Exception.format(kind, reason, __STACKTRACE__)
+      )
+
+      :error
+  end
+
+  defp drop_uploads(socket, uploads) do
+    for {_field, upload} <- uploads do
+      consume_uploaded_entries(socket, upload.name, fn _meta, _entry -> {:ok, nil} end)
+    end
+  end
+
+  # Deletes the files stored before a save that failed. A field without `discard_uploads/4` keeps them.
+  defp discard_uploads(socket, item, stored) do
+    for {field, values} <- stored, do: discard_field_uploads(socket, item, field, values)
+  end
+
+  defp discard_field_uploads(socket, item, {name, _field_options} = field, values) do
     module = Field.upload_module(field)
 
-    consume_uploaded_entries(socket, upload_key, fn meta, entry ->
-      module.consume_upload(field, socket, item, meta, entry)
-    end)
-
-    removed_entries = Keyword.get(socket.assigns.removed_uploads, upload_key, [])
-    module.remove_uploads(field, socket, item, removed_entries)
+    if function_exported?(module, :discard_uploads, 4) do
+      module.discard_uploads(field, socket, item, values)
+    else
+      log_kept_uploads(name, values)
+    end
+  catch
+    kind, reason ->
+      Logger.error(
+        "Upload field #{inspect(name)} could not discard its stored files: " <>
+          Exception.format(kind, reason, __STACKTRACE__)
+      )
   end
+
+  defp log_kept_uploads(name, values) do
+    Logger.warning(
+      "Upload field #{inspect(name)} has no discard_uploads/4 and keeps the files it stored before the save failed: " <>
+        inspect(values, limit: 10)
+    )
+  end
+
+  defp remove_uploads(%{assigns: %{uploads: uploads}} = socket, item) do
+    for field <- socket.assigns.fields,
+        upload_key = Field.upload_key(field),
+        Map.has_key?(uploads, upload_key) do
+      removed_entries = Keyword.get(socket.assigns.removed_uploads, upload_key, [])
+      Field.upload_module(field).remove_uploads(field, socket, item, removed_entries)
+    end
+  end
+
+  defp remove_uploads(_socket, _item), do: :ok
 
   def render(assigns) do
     Backpex.HTML.Resource.form_component(assigns)

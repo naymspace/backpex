@@ -110,6 +110,78 @@ defmodule DemoWeb.Live.Product.EditLiveTest do
     end
   end
 
+  describe "replacing a file" do
+    setup :store_uploads_in_tmp_dir
+    setup %{upload_root: root}, do: %{images_dir: Path.join(root, "uploads/product/images")}
+
+    setup %{images_dir: images_dir} do
+      images_dir
+      |> Path.join("old.jpg")
+      |> File.write!("old")
+
+      product = insert(:product, name: "Widget", images: ["old.jpg"], suppliers: [], short_links: [])
+
+      %{product: product}
+    end
+
+    test "stores the new file and removes the old one", %{conn: conn, product: product, images_dir: images_dir} do
+      {:ok, view, _html} = live(conn, ~p"/admin/products/#{product.id}/edit")
+
+      replace_image(view)
+      submit_form(view)
+
+      assert %Product{images: [file]} = Repo.get!(Product, product.id)
+      assert File.ls!(images_dir) == [file]
+    end
+
+    @tag :capture_log
+    test "keeps the old file when the new one can't be stored", %{
+      conn: conn,
+      product: product,
+      upload_root: root,
+      images_dir: images_dir
+    } do
+      {:ok, view, _html} = live(conn, ~p"/admin/products/#{product.id}/edit")
+
+      replace_image(view)
+
+      # A file in place of the upload directory makes every write fail. The directory with the old file is set aside.
+      File.rename!(root, root <> ".kept")
+      File.write!(root, "")
+
+      submit_form(view)
+
+      assert has_element?(view, "#images-drop-target + section > p", "file could not be stored")
+      assert %Product{name: "Widget", images: ["old.jpg"]} = Repo.get!(Product, product.id)
+
+      File.rm!(root)
+      File.rename!(root <> ".kept", root)
+
+      assert File.ls!(images_dir) == ["old.jpg"]
+
+      # The entry is still in the form, so saving again stores it and removes the old file.
+      submit_form(view)
+
+      assert %Product{name: "New Widget", images: [file]} = Repo.get!(Product, product.id)
+      assert File.ls!(images_dir) == [file]
+    end
+  end
+
+  defp replace_image(view) do
+    view
+    |> element("button[phx-click=cancel-existing-entry][phx-value-ref='old.jpg']")
+    |> render_click()
+
+    upload_images(view, [image("new.jpg", 100)])
+  end
+
+  defp submit_form(view) do
+    view
+    |> form("#resource-form", change: %{name: "New Widget"})
+    |> put_submitter("button[value=save]")
+    |> render_submit()
+  end
+
   defp image(name, size), do: %{name: name, content: :binary.copy("a", size), type: "image/jpeg"}
 
   defp upload_images(view, files) do

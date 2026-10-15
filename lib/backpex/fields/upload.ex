@@ -54,14 +54,19 @@ defmodule Backpex.Fields.Upload do
     consume_upload: [
       doc: """
       Required function to consume file uploads.
-      A function to consume uploads. It is called after the item has been saved and is used to copy the files to a
-      specific destination. Backpex will use this function as a callback for `consume_uploaded_entries`. See
+      A function to consume uploads. It is called before the item is saved and is used to copy the files to a specific
+      destination. Backpex will use this function as a callback for `consume_uploaded_entry`. See
       https://hexdocs.pm/phoenix_live_view/uploads.html#consume-uploaded-entries for more details.
+
+      Return `{:ok, value}` when the file is stored and `{:error, reason}` when it can't be stored. Backpex then doesn't
+      save the item and shows an error at the field. If the item can't be saved after the files were stored, Backpex
+      passes the values to `discard_uploads`, and the next save calls `consume_upload` again for the same entries. See
+      `c:Backpex.Field.consume_upload/5`.
 
       **Parameters**
 
       * `:socket` - The socket.
-      * `:item` (struct) - The saved item (with its changes).
+      * `:item` (struct) - The item without its changes. On create this is the new, empty item, so `item.id` is `nil`.
       * `:meta` - The upload meta.
       * `:entry` - The upload entry.
 
@@ -69,13 +74,12 @@ defmodule Backpex.Fields.Upload do
 
           defp consume_upload(_socket, _item, %{path: path} = _meta, entry) do
             file_name = ...
-            file_url = ...
             static_dir = ...
             dest = Path.join([:code.priv_dir(:demo), "static", static_dir, file_name])
 
-            File.cp!(path, dest)
-
-            {:ok, file_url}
+            with :ok <- File.cp(path, dest) do
+              {:ok, file_name}
+            end
           end
       """,
       type: {:fun, 4},
@@ -140,6 +144,29 @@ defmodule Backpex.Fields.Upload do
       """,
       type: {:fun, 3},
       required: true
+    ],
+    discard_uploads: [
+      doc: """
+      A function that deletes the files `consume_upload` stored, when the item can't be saved afterwards, for example
+      because of a constraint error. Without it, these files stay and Backpex logs a warning. It isn't called for direct
+      uploads (`external`): the browser uploaded those objects before the save, and the next save uses them again.
+
+      **Parameters**
+
+      * `:socket` - The socket.
+      * `:item` (struct) - The item that `consume_upload` got.
+      * `stored` (list) - The values `consume_upload` returned in `{:ok, value}` for the stored files of this field.
+
+      **Example**
+
+          defp discard_uploads(_socket, _item, stored) do
+            for file_name <- stored do
+              File.rm(Path.join([:code.priv_dir(:demo), "static", upload_dir(), file_name]))
+            end
+          end
+      """,
+      type: {:fun, 3},
+      required: false
     ],
     external: [
       doc: """
@@ -251,6 +278,7 @@ defmodule Backpex.Fields.Upload do
               put_upload_change: &put_upload_change/6,
               consume_upload: &consume_upload/4,
               remove_uploads: &remove_uploads/3,
+              discard_uploads: &discard_uploads/3,
               list_existing_files: &list_existing_files/1,
               render: fn
                 %{value: value} = assigns when value == "" or is_nil(value) ->
@@ -297,15 +325,22 @@ defmodule Backpex.Fields.Upload do
           file_name = file_name(entry)
           dest = Path.join([:code.priv_dir(:demo), "static", upload_dir(), file_name])
 
-          File.cp!(path, dest)
-
-          {:ok, file_url(file_name)}
+          with :ok <- File.cp(path, dest) do
+            {:ok, file_name}
+          end
         end
 
         defp remove_uploads(_socket, _item, removed_entries) do
           for file <- removed_entries do
             path = Path.join([:code.priv_dir(:demo), "static", upload_dir(), file])
             File.rm!(path)
+          end
+        end
+
+        defp discard_uploads(_socket, _item, stored) do
+          for file <- stored do
+            path = Path.join([:code.priv_dir(:demo), "static", upload_dir(), file])
+            File.rm(path)
           end
         end
 
@@ -368,6 +403,7 @@ defmodule Backpex.Fields.Upload do
               put_upload_change: &put_upload_change/6,
               consume_upload: &consume_upload/4,
               remove_uploads: &remove_uploads/3,
+              discard_uploads: &discard_uploads/3,
               list_existing_files: &list_existing_files/1,
               render: fn
                 %{value: value} = assigns when is_list(value) ->
@@ -411,15 +447,22 @@ defmodule Backpex.Fields.Upload do
           file_name = file_name(entry)
           dest = Path.join([:code.priv_dir(:demo), "static", upload_dir(), file_name])
 
-          File.cp!(path, dest)
-
-          {:ok, file_url(file_name)}
+          with :ok <- File.cp(path, dest) do
+            {:ok, file_name}
+          end
         end
 
         defp remove_uploads(_socket, _item, removed_entries) do
           for file <- removed_entries do
             path = Path.join([:code.priv_dir(:demo), "static", upload_dir(), file])
             File.rm!(path)
+          end
+        end
+
+        defp discard_uploads(_socket, _item, stored) do
+          for file <- stored do
+            path = Path.join([:code.priv_dir(:demo), "static", upload_dir(), file])
+            File.rm(path)
           end
         end
 
@@ -558,8 +601,8 @@ defmodule Backpex.Fields.Upload do
           end
         end
 
-        defp consume_upload(_socket, _item, _meta, _entry) do
-          {:ok, :external}
+        defp consume_upload(_socket, _item, %{key: key} = _meta, _entry) do
+          {:ok, key}
         end
 
         defp remove_uploads(_socket, _item, removed_entries) do
@@ -610,6 +653,7 @@ defmodule Backpex.Fields.Upload do
   use Backpex.Field, config_schema: @config_schema
   alias Backpex.HTML.Form, as: BackpexForm
   require Backpex
+  require Logger
 
   @impl Backpex.Field
   def render_value(assigns) do
@@ -855,6 +899,18 @@ defmodule Backpex.Fields.Upload do
   @impl Backpex.Field
   def remove_uploads({_name, field_options} = _field, socket, item, removed_entries) do
     field_options.remove_uploads.(socket, item, removed_entries)
+  end
+
+  @impl Backpex.Field
+  def discard_uploads({_name, %{discard_uploads: discard_uploads}} = _field, socket, item, stored) do
+    discard_uploads.(socket, item, stored)
+  end
+
+  def discard_uploads({name, _field_options} = _field, _socket, _item, stored) do
+    Logger.warning(
+      "Upload field #{inspect(name)} has no discard_uploads option and keeps the files it stored before the save " <>
+        "failed: " <> inspect(stored, limit: 10)
+    )
   end
 
   @doc """
