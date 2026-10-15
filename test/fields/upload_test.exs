@@ -25,6 +25,8 @@ defmodule Backpex.Fields.UploadTest do
 
     def upload_error(_field, {:external_metadata_failure, %{reason: reason}}, _upload, _assigns),
       do: "refused: #{reason}"
+
+    def upload_error(field, error, upload, assigns), do: Upload.upload_error(field, error, upload, assigns)
   end
 
   # A LiveResource that returns Backpex's texts untranslated.
@@ -234,6 +236,19 @@ defmodule Backpex.Fields.UploadTest do
 
       assert html =~ "at most 2 images"
       refute html =~ "too many files"
+
+      html = render_upload_form(field_options, upload_with_errors(upload, [{"0", :too_large}]))
+
+      assert html =~ "too large"
+    end
+
+    test "shows Backpex's texts for a field module without upload_error/4", %{upload: upload} do
+      field_options = %{module: NamedFilesUpload, upload_key: :images}
+      error = {:external_metadata_failure, %{reason: :quota}}
+
+      html = render_upload_form(field_options, upload_with_errors(upload, [{"0", error}]))
+
+      assert html =~ "upload could not be started"
     end
   end
 

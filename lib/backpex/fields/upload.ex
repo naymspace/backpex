@@ -876,6 +876,10 @@ defmodule Backpex.Fields.Upload do
   def label_from_file(%{file_label: file_label} = _field_options, file), do: file_label.(file)
   def label_from_file(_field_options, file), do: file
 
+  @doc """
+  Returns Backpex's text for an upload error. A custom upload field can call it for the errors it doesn't handle itself.
+  See `c:Backpex.Field.upload_error/4`.
+  """
   @impl Backpex.Field
   def upload_error(_field, :too_large, _upload, assigns), do: Backpex.__("too large", assigns.live_resource)
   def upload_error(_field, :too_many_files, _upload, assigns), do: Backpex.__("too many files", assigns.live_resource)
@@ -900,6 +904,4 @@ defmodule Backpex.Fields.Upload do
   defp upload_error_module(%{module: module}) do
     if Code.ensure_loaded?(module) and function_exported?(module, :upload_error, 4), do: module, else: __MODULE__
   end
-
-  defp upload_error_module(_field_options), do: __MODULE__
 end

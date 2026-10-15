@@ -313,7 +313,8 @@ defmodule Backpex.Field do
 
   `Backpex.Fields.Upload` implements it with texts of its own and calls it on the module of the field, so a custom
   upload field that delegates `c:render_form/1` to `Backpex.Fields.Upload` can give its own texts. A field without
-  this callback gets the texts of `Backpex.Fields.Upload`.
+  this callback gets the texts of `Backpex.Fields.Upload`. The callback gets every error, so delegate the errors your
+  field doesn't handle to `Backpex.Fields.Upload.upload_error/4`, as in the example.
 
   ## Example
 
