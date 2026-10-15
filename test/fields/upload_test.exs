@@ -1,9 +1,36 @@
 defmodule Backpex.Fields.UploadTest do
   use ExUnit.Case, async: true
 
+  import Phoenix.LiveViewTest, only: [render_component: 2]
+
   alias Backpex.Field
   alias Backpex.Fields.Upload
+  alias Phoenix.LiveView.Socket
   alias Phoenix.LiveView.UploadConfig
+  alias Phoenix.LiveView.UploadEntry
+
+  # An upload field that delegates rendering to `Backpex.Fields.Upload` and gives texts of its own for upload errors.
+  defmodule ErrorTextsUpload do
+    use Backpex.Field, config_schema: Upload.config_schema()
+
+    @impl Backpex.Field
+    def render_value(assigns), do: Upload.render_value(assigns)
+
+    @impl Backpex.Field
+    def render_form(assigns), do: Upload.render_form(assigns)
+
+    @impl Backpex.Field
+    def upload_error({name, _field_options}, :too_many_files, upload, _assigns),
+      do: "at most #{upload.max_entries} #{name}"
+
+    def upload_error(_field, {:external_metadata_failure, %{reason: reason}}, _upload, _assigns),
+      do: "refused: #{reason}"
+  end
+
+  # A LiveResource that returns Backpex's texts untranslated.
+  defmodule UntranslatedLive do
+    def translate({msg, _opts}), do: msg
+  end
 
   # An upload field that works out its files from the field instead of taking a function per field.
   defmodule NamedFilesUpload do
@@ -146,7 +173,7 @@ defmodule Backpex.Fields.UploadTest do
         list_existing_files: fn item -> item.images end
       }
 
-      socket = Phoenix.Component.assign(%Phoenix.LiveView.Socket{}, :item, %{images: ["old.png"]})
+      socket = Phoenix.Component.assign(%Socket{}, :item, %{images: ["old.png"]})
 
       %{field_options: field_options, socket: socket}
     end
@@ -164,5 +191,68 @@ defmodule Backpex.Fields.UploadTest do
       assert %UploadConfig{name: :pictures} = socket.assigns.uploads.pictures
       refute Map.has_key?(socket.assigns.uploads, :images)
     end
+  end
+
+  describe "render_form/1" do
+    setup do
+      socket = Phoenix.LiveView.allow_upload(%Socket{}, :images, accept: :any, max_entries: 2)
+
+      %{upload: socket.assigns.uploads.images}
+    end
+
+    test "shows Backpex's text for each upload error", %{upload: upload} do
+      for {error, text} <- [
+            {:too_large, "too large"},
+            {:not_accepted, "unacceptable file type"},
+            {:external_client_failure, "upload failed"},
+            {{:external_metadata_failure, %{reason: :presign_failed}}, "upload could not be started"},
+            {{:writer_failure, :enospc}, "upload failed"},
+            {:unknown_error, "file could not be uploaded"}
+          ] do
+        html = render_upload_form(%{}, upload_with_errors(upload, [{"0", error}]))
+
+        assert html =~ text, "expected #{inspect(text)} for #{inspect(error)}"
+      end
+    end
+
+    test "shows Backpex's text for an error of the whole upload", %{upload: upload} do
+      html = render_upload_form(%{}, upload_with_errors(upload, [{upload.ref, :too_many_files}]))
+
+      assert html =~ "too many files"
+    end
+
+    test "shows the texts of the field module's upload_error/4", %{upload: upload} do
+      field_options = %{module: ErrorTextsUpload, upload_key: :images}
+      error = {:external_metadata_failure, %{reason: :quota}}
+
+      html = render_upload_form(field_options, upload_with_errors(upload, [{"0", error}]))
+
+      assert html =~ "refused: quota"
+      refute html =~ "upload could not be started"
+
+      html = render_upload_form(field_options, upload_with_errors(upload, [{upload.ref, :too_many_files}]))
+
+      assert html =~ "at most 2 images"
+      refute html =~ "too many files"
+    end
+  end
+
+  defp upload_with_errors(upload, errors) do
+    entry = %UploadEntry{ref: "0", upload_ref: upload.ref, upload_config: :images, client_name: "photo.png"}
+
+    %{upload | entries: [entry], errors: errors}
+  end
+
+  defp render_upload_form(field_options, upload) do
+    render_component(&Upload.render_form/1,
+      name: :images,
+      field_options: Map.merge(%{module: Upload, label: "Images"}, field_options),
+      form: Phoenix.Component.to_form(%{}, as: :change),
+      lv_uploads: %{images: upload},
+      uploaded_files: [images: []],
+      live_resource: UntranslatedLive,
+      readonly: false,
+      type: :form
+    )
   end
 end
