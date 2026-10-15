@@ -126,7 +126,7 @@ defmodule Backpex.Fields.Upload do
       **Parameters**
 
       * `:socket` - The socket.
-      * `:item` (struct) - The item without its changes.
+      * `:item` (struct) - The saved item (with its changes).
       * `removed_entries` (list) - A list of removed uploads during edit. The list only contains files that existed before the edit.
 
       **Example**
