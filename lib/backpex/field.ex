@@ -297,7 +297,10 @@ defmodule Backpex.Field do
             ) :: {:ok, term()} | {:postpone, term()}
 
   @doc """
-  Removes the files the user removed during an edit, after the item has been saved. See `c:list_existing_files/2`.
+  Removes the files the user removed during an edit, after the item has been saved.
+
+  The form component calls it with the saved item, so the item already has the changes of the edit. See
+  `c:list_existing_files/2`.
   """
   @callback remove_uploads(field :: tuple(), socket :: Socket.t(), item :: struct(), removed_entries :: [String.t()]) ::
               term()
