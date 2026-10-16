@@ -103,8 +103,8 @@ defmodule Backpex.LiveResource do
       - `:smallest` treats `NULL` as smaller than any value: first in ascending (`ASC NULLS FIRST`) and last in
         descending order (`DESC NULLS LAST`). This was the behaviour before v0.23.
 
-      Fields can override this with their own `:order_nulls` option. Ordering by the `primary_key` always uses the
-      database default, since a primary key is never `NULL`. `:first`, `:last` and `:smallest` need a matching index (e.g.
+      Fields can override this with their own `:order_nulls` option. `Backpex.Adapters.Ecto` always orders a primary
+      key column of the schema by the database default, since a primary key is never `NULL`. `:first`, `:last` and `:smallest` need a matching index (e.g.
       `create index(:posts, ["published_at NULLS FIRST"])`), otherwise the database sorts the whole table on every
       page load. See the [Ordering](live_resource/ordering.md) guide.
       """,
