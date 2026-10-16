@@ -294,16 +294,30 @@ defmodule Backpex.Fields.HasMany do
 
     assigns =
       assigns
+      |> assign(:hidden_input_id, "has-many-#{assigns.name}-toggle-all")
       |> assign(:hidden_input_name, hidden_input_name)
       |> assign(:button_text, button_text)
 
+    # The button checks the hidden checkbox, so the change reaches the form like any other input change.
     ~H"""
-    <label class={@class}>
-      <input type="checkbox" class="hidden" name={@hidden_input_name} value="" tabindex="-1" aria-hidden="true" />
-      <div role="button" class="text-primary cursor-pointer text-sm underline">
+    <div class={@class}>
+      <input
+        id={@hidden_input_id}
+        type="checkbox"
+        class="hidden"
+        name={@hidden_input_name}
+        value=""
+        tabindex="-1"
+        aria-hidden="true"
+      />
+      <button
+        type="button"
+        phx-click={JS.dispatch("click", to: "##{@hidden_input_id}")}
+        class="text-primary block cursor-pointer text-sm underline"
+      >
         {@button_text}
-      </div>
-    </label>
+      </button>
+    </div>
     """
   end
 
