@@ -44,6 +44,8 @@ defmodule Backpex.Adapter do
       end
 
       def field_config_schema, do: @field_config_schema
+
+      defoverridable field_config_schema: 0
     end
   end
 
