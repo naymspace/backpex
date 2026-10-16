@@ -119,11 +119,10 @@ defmodule Backpex.LiveResource.Index do
   end
 
   def handle_event("change-filter", params, socket) do
-    query_options = socket.assigns.query_options
-
     # Merge new filter values with existing ones
     filters =
-      Map.get(query_options, :filters, %{})
+      socket.assigns
+      |> current_filter_params()
       |> Map.merge(params["filters"] || %{})
       # Filter out empty values
       |> Enum.reject(fn
@@ -207,7 +206,6 @@ defmodule Backpex.LiveResource.Index do
   end
 
   def handle_event("filter-preset-selected", %{"field" => field, "preset-index" => preset_index} = _params, socket) do
-    query_options = socket.assigns.query_options
     preset_index = String.to_integer(preset_index)
     field_atom = String.to_existing_atom(field)
 
@@ -218,7 +216,8 @@ defmodule Backpex.LiveResource.Index do
       |> Map.get(:values)
 
     filters =
-      Map.get(query_options, :filters, %{})
+      socket.assigns
+      |> current_filter_params()
       |> Map.put(field, get_preset_values.())
 
     apply_filter_change(socket, filters)
@@ -275,8 +274,8 @@ defmodule Backpex.LiveResource.Index do
 
   def handle_event("clear-filter", %{"field" => field}, socket) do
     filters =
-      socket.assigns.query_options
-      |> Map.get(:filters, %{})
+      socket.assigns
+      |> current_filter_params()
       |> Map.delete(field)
 
     apply_filter_change(socket, filters)
@@ -461,6 +460,23 @@ defmodule Backpex.LiveResource.Index do
     |> assign(filters_changed: true)
     |> LiveView.push_patch(to: to)
     |> noreply()
+  end
+
+  # The filter params of the current URL or persisted filters without values that failed to cast to their filter's
+  # type, so a filter change neither carries nor persists them again.
+  defp current_filter_params(assigns) do
+    uncastable =
+      case assigns do
+        %{filter_form: %{source: %Ecto.Changeset{} = changeset}} ->
+          changeset |> FilterValidation.cast_error_fields() |> Enum.map(&Atom.to_string/1)
+
+        _assigns ->
+          []
+      end
+
+    assigns.query_options
+    |> Map.get(:filters, %{})
+    |> Map.drop(uncastable)
   end
 
   defp maybe_push_filters(socket, live_resource, filters) do

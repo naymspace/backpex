@@ -19,6 +19,10 @@ defmodule Backpex.HTML.ResourceTest do
 
     def label, do: "Marker"
 
+    def type(_assigns), do: :string
+
+    def changeset(changeset, _field, _assigns), do: changeset
+
     def render_form(assigns) do
       ~H"""
       <span id="marker">{@marker}</span>
@@ -95,27 +99,60 @@ defmodule Backpex.HTML.ResourceTest do
     def type, do: :number
   end
 
+  defmodule SelectFilter do
+    @moduledoc false
+    use Backpex.Filters.Select
+
+    @impl Backpex.Filter
+    def label, do: "Category"
+
+    @impl Select
+    def prompt, do: "Select category ..."
+
+    @impl Select
+    def options(_assigns), do: [{"Tech", "tech"}, {"News", "news"}]
+  end
+
   describe "resource_filters/1 with filter values from the URL or persisted filters" do
     @filters [
       published: %{module: BooleanFilter},
       user_id: %{module: MultiSelectFilter},
-      likes: %{module: RangeFilter}
+      likes: %{module: RangeFilter},
+      category: %{module: SelectFilter}
     ]
 
-    defp render_filters(raw_filters) do
+    @wrong_shapes [
+      %{"published" => "published"},
+      %{"user_id" => "a"},
+      %{"likes" => "abc"},
+      %{"likes" => ["abc"]},
+      %{"likes" => %{"start" => %{"a" => "b"}, "end" => ""}},
+      %{"likes" => %{"start" => "", "end" => ["a"]}},
+      %{"category" => ["tech"]},
+      %{"published" => "published", "user_id" => "a", "likes" => "abc", "category" => ["tech"]}
+    ]
+
+    defp render_filters(raw_filters, opts \\ []) do
       changeset = Backpex.FilterValidation.build_changeset(raw_filters, @filters, %{})
+
+      form_assigns =
+        if Keyword.get(opts, :filter_form, true),
+          do: [filter_form: Phoenix.Component.to_form(changeset, as: :filters)],
+          else: []
 
       # The library tests have no error translator configured, so the fallback translator warns about the
       # `:type` option of cast errors.
       {html, _warnings} =
         with_io(:stderr, fn ->
-          render_component(&Resource.resource_filters/1,
-            live_resource: ContextLive,
-            search_placeholder: "Search",
-            filters: @filters,
-            query_options: %{filters: raw_filters},
-            filter_values: Backpex.FilterValidation.valid_values(changeset),
-            filter_form: Phoenix.Component.to_form(changeset, as: :filters)
+          render_component(
+            &Resource.resource_filters/1,
+            [
+              live_resource: ContextLive,
+              search_placeholder: "Search",
+              filters: @filters,
+              query_options: %{filters: raw_filters},
+              filter_values: Backpex.FilterValidation.valid_values(changeset)
+            ] ++ form_assigns
           )
         end)
 
@@ -123,14 +160,24 @@ defmodule Backpex.HTML.ResourceTest do
     end
 
     test "renders the form without values of the wrong shape and shows the cast error" do
-      for raw_filters <- [
-            %{"published" => "published"},
-            %{"user_id" => "a"},
-            %{"likes" => "abc"},
-            %{"likes" => ["abc"]},
-            %{"published" => "published", "user_id" => "a", "likes" => "abc"}
-          ] do
+      for raw_filters <- @wrong_shapes do
         html = render_filters(raw_filters)
+
+        assert html =~ ~s(id="filter-form")
+        assert html =~ ~s(<p class="text-error)
+        refute html =~ "checked"
+        refute html =~ "<option selected"
+
+        # The invalid value can be cleared.
+        for {field, _value} <- raw_filters do
+          assert html =~ ~s(phx-click="clear-filter" phx-value-field="#{field}")
+        end
+      end
+    end
+
+    test "renders the form without values of the wrong shape when called without a filter form" do
+      for raw_filters <- @wrong_shapes do
+        html = render_filters(raw_filters, filter_form: false)
 
         assert html =~ ~s(id="filter-form")
         assert html =~ ~s(<p class="text-error)
@@ -139,17 +186,24 @@ defmodule Backpex.HTML.ResourceTest do
     end
 
     test "keeps values of the right shape in the form" do
-      html =
-        render_filters(%{
-          "published" => ["published"],
-          "user_id" => ["a"],
-          "likes" => %{"start" => "1", "end" => "5"}
-        })
+      for opts <- [[], [filter_form: false]] do
+        html =
+          render_filters(
+            %{
+              "published" => ["published"],
+              "user_id" => ["a"],
+              "likes" => %{"start" => "1", "end" => "5"},
+              "category" => "news"
+            },
+            opts
+          )
 
-      refute html =~ ~s(<p class="text-error)
-      assert html =~ ~r/value="published"\s+checked/
-      assert html =~ "1 selected"
-      assert html =~ ~s(value="5")
+        refute html =~ ~s(<p class="text-error)
+        assert html =~ ~r/value="published"\s+checked/
+        assert html =~ "1 selected"
+        assert html =~ ~s(value="5")
+        assert html =~ ~s(<option selected value="news">)
+      end
     end
   end
 
