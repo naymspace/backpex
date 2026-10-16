@@ -472,8 +472,8 @@ defmodule Backpex.HTML.Layout do
       </:trigger>
       <:menu class="w-48 max-h-96 overflow-y-scroll">
         <form id="backpex-theme-selector-form" phx-hook="BackpexThemeSelector">
-          <ul>
-            <li :for={{label, theme_name} <- @themes} class="w-full">
+          <ul role="radiogroup" aria-label={@label}>
+            <li :for={{label, theme_name} <- @themes} role="none" class="w-full">
               <label class={[
                 "has-checked:bg-neutral has-checked:text-neutral-content",
                 "has-focus-visible:outline-2 has-focus-visible:-outline-offset-2 has-focus-visible:outline-current"

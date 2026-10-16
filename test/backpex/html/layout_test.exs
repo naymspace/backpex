@@ -114,6 +114,13 @@ defmodule Backpex.HTML.LayoutTest do
 
       assert length(radios) == 2
 
+      # The radios form one named group for assistive technology.
+      assert html =~
+               ~r/<form\s+id="backpex-theme-selector-form"[^>]*>\s*<ul\s+role="radiogroup"\s+aria-label="Theme"/
+
+      # The list items step out of the way so the radios belong to the group.
+      assert length(Regex.scan(~r/<li\s+role="none"/, html)) == 2
+
       for radio <- radios do
         assert radio =~ ~r/name="theme-selector"/
         assert radio =~ ~r/class="[^"]*\bsr-only\b[^"]*"/
