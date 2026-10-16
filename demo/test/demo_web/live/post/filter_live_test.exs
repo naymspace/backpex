@@ -214,7 +214,7 @@ defmodule DemoWeb.Live.Post.FilterLiveTest do
       |> assert_has("table tbody tr", count: 2)
       |> unwrap(fn view ->
         view
-        |> element("div[phx-click='filter-preset-selected'][phx-value-field='likes'][phx-value-preset-index='0']")
+        |> element("button[phx-click='filter-preset-selected'][phx-value-field='likes'][phx-value-preset-index='0']")
         |> render_click()
       end)
       |> assert_has("table tbody tr", count: 1)
@@ -232,7 +232,7 @@ defmodule DemoWeb.Live.Post.FilterLiveTest do
       |> assert_has("table tbody tr", count: 3)
       |> unwrap(fn view ->
         view
-        |> element("div[phx-click='filter-preset-selected'][phx-value-field='likes'][phx-value-preset-index='1']")
+        |> element("button[phx-click='filter-preset-selected'][phx-value-field='likes'][phx-value-preset-index='1']")
         |> render_click()
       end)
       |> assert_has("table tbody tr", count: 1)

@@ -118,12 +118,14 @@ defmodule Backpex.LiveResource.Index do
     noreply(socket)
   end
 
-  def handle_event("change-filter", params, socket) do
-    query_options = socket.assigns.query_options
+  # `filters` is client-controlled. A tampered value must be a no-op rather than crash the LiveView.
+  def handle_event("change-filter", %{"filters" => filters}, socket) when not is_map(filters), do: noreply(socket)
 
+  def handle_event("change-filter", params, socket) do
     # Merge new filter values with existing ones
     filters =
-      Map.get(query_options, :filters, %{})
+      socket.assigns
+      |> current_filter_params()
       |> Map.merge(params["filters"] || %{})
       # Filter out empty values
       |> Enum.reject(fn
@@ -170,10 +172,10 @@ defmodule Backpex.LiveResource.Index do
     maybe_handle_item_action(socket, key)
   end
 
+  # The value is client-controlled. It is patched into the URL as is and validated like any other URL param in
+  # `handle_params/3` (`Backpex.PaginationValidation`), so a tampered value falls back to the default.
   def handle_event("select-page-size", %{"select_per_page" => %{"value" => per_page}}, socket) do
     %{query_options: query_options, params: params} = socket.assigns
-
-    per_page = String.to_integer(per_page)
 
     to =
       Router.get_path(
@@ -189,6 +191,9 @@ defmodule Backpex.LiveResource.Index do
     |> noreply()
   end
 
+  def handle_event("select-page-size", _params, socket), do: noreply(socket)
+
+  # The search term is validated in `handle_params/3` like `select-page-size` above.
   def handle_event("index-search", %{"index_search" => %{"value" => search_input}}, socket) do
     %{query_options: query_options, params: params} = socket.assigns
 
@@ -206,23 +211,26 @@ defmodule Backpex.LiveResource.Index do
     |> noreply()
   end
 
+  def handle_event("index-search", _params, socket), do: noreply(socket)
+
   def handle_event("filter-preset-selected", %{"field" => field, "preset-index" => preset_index} = _params, socket) do
-    query_options = socket.assigns.query_options
-    preset_index = String.to_integer(preset_index)
-    field_atom = String.to_existing_atom(field)
+    # `field` and `preset-index` are client-controlled: look the preset up instead of atomizing
+    # the field, so a tampered payload is a no-op rather than a crash.
+    case find_filter_preset(socket.assigns.filters, field, preset_index) do
+      nil ->
+        noreply(socket)
 
-    get_preset_values =
-      socket.assigns
-      |> get_in([:filters, field_atom, :presets])
-      |> Enum.at(preset_index)
-      |> Map.get(:values)
+      preset ->
+        filters =
+          socket.assigns
+          |> current_filter_params()
+          |> Map.put(field, preset.values.())
 
-    filters =
-      Map.get(query_options, :filters, %{})
-      |> Map.put(field, get_preset_values.())
-
-    apply_filter_change(socket, filters)
+        apply_filter_change(socket, filters)
+    end
   end
+
+  def handle_event("filter-preset-selected", _params, socket), do: noreply(socket)
 
   def handle_event("update-selected-items", %{"id" => id}, socket) do
     %{selected_items: selected_items, live_resource: live_resource, items: items} = socket.assigns
@@ -275,8 +283,8 @@ defmodule Backpex.LiveResource.Index do
 
   def handle_event("clear-filter", %{"field" => field}, socket) do
     filters =
-      socket.assigns.query_options
-      |> Map.get(:filters, %{})
+      socket.assigns
+      |> current_filter_params()
       |> Map.delete(field)
 
     apply_filter_change(socket, filters)
@@ -444,6 +452,17 @@ defmodule Backpex.LiveResource.Index do
     end
   end
 
+  defp find_filter_preset(filters, field, preset_index) when is_binary(preset_index) do
+    with {index, ""} when index >= 0 <- Integer.parse(preset_index),
+         {_name, filter} <- Enum.find(filters, fn {name, _filter} -> Atom.to_string(name) == field end) do
+      filter |> Map.get(:presets, []) |> Enum.at(index)
+    else
+      _invalid -> nil
+    end
+  end
+
+  defp find_filter_preset(_filters, _field, _preset_index), do: nil
+
   defp apply_filter_change(socket, new_filters) do
     %{live_resource: live_resource, query_options: query_options, params: params} = socket.assigns
 
@@ -461,6 +480,23 @@ defmodule Backpex.LiveResource.Index do
     |> assign(filters_changed: true)
     |> LiveView.push_patch(to: to)
     |> noreply()
+  end
+
+  # The filter params of the current URL or persisted filters without values that failed to cast to their filter's
+  # type, so a filter change neither carries nor persists them again.
+  defp current_filter_params(assigns) do
+    uncastable =
+      case assigns do
+        %{filter_form: %{source: %Ecto.Changeset{} = changeset}} ->
+          changeset |> FilterValidation.cast_error_fields() |> Enum.map(&Atom.to_string/1)
+
+        _assigns ->
+          []
+      end
+
+    assigns.query_options
+    |> Map.get(:filters, %{})
+    |> Map.drop(uncastable)
   end
 
   defp maybe_push_filters(socket, live_resource, filters) do
@@ -721,17 +757,19 @@ defmodule Backpex.LiveResource.Index do
     filter_values = FilterValidation.valid_values(filter_changeset)
     filter_form = to_form(filter_changeset, as: :filters)
 
-    # Validate pagination and sorting params (page clamping happens after we know item_count)
+    # Validate pagination, sorting and search params (page clamping happens after we know item_count)
     query_options =
-      PaginationValidation.build(params,
+      params
+      |> PaginationValidation.build(
         per_page_default: per_page_default,
         per_page_options: per_page_options,
         orderable_fields: orderable_fields,
         init_order: init_order
       )
+      |> maybe_put_search(PaginationValidation.validate_search(params))
 
     count_criteria = [
-      search: LiveResource.search_options(params, fields, schema),
+      search: LiveResource.search_options(query_options, fields, schema),
       filter_values: filter_values,
       filter_configs: filters
     ]
@@ -743,10 +781,7 @@ defmodule Backpex.LiveResource.Index do
     page = PaginationValidation.clamp_page(query_options.page, total_pages)
     query_options = %{query_options | page: page}
 
-    query_options =
-      query_options
-      |> maybe_put_search(params)
-      |> Map.put(:filters, raw_filter_params)
+    query_options = Map.put(query_options, :filters, raw_filter_params)
 
     socket
     |> assign(:page_title, socket.assigns.live_resource.plural_name())
@@ -870,12 +905,8 @@ defmodule Backpex.LiveResource.Index do
     assign(socket, :changeset, changeset)
   end
 
-  defp maybe_put_search(query_options, %{"search" => search} = _params) when is_nil(search) or search == "",
-    do: query_options
-
-  defp maybe_put_search(query_options, %{"search" => search} = _params), do: Map.put(query_options, :search, search)
-
-  defp maybe_put_search(query_options, _params), do: query_options
+  defp maybe_put_search(query_options, ""), do: query_options
+  defp maybe_put_search(query_options, search), do: Map.put(query_options, :search, search)
 
   defp maybe_redirect_to_default_filters(%{assigns: %{filters_changed: false}} = socket) do
     %{live_resource: live_resource, query_options: query_options, filters: filters} = socket.assigns
@@ -917,7 +948,7 @@ defmodule Backpex.LiveResource.Index do
   end
 
   defp count_items(socket) do
-    %{live_resource: live_resource, params: params, fields: fields} = socket.assigns
+    %{live_resource: live_resource, query_options: query_options, fields: fields} = socket.assigns
 
     schema = live_resource.adapter_config(:schema)
     filters = LiveResource.active_filters(socket.assigns)
@@ -926,7 +957,7 @@ defmodule Backpex.LiveResource.Index do
     filter_values = Map.get(socket.assigns, :filter_values, %{})
 
     count_criteria = [
-      search: LiveResource.search_options(params, fields, schema),
+      search: LiveResource.search_options(query_options, fields, schema),
       filter_values: filter_values,
       filter_configs: filters
     ]

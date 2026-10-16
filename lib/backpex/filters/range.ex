@@ -153,14 +153,29 @@ defmodule Backpex.Filters.Range do
   `assigns.live_resource`) declares as `:integer` or `:id`, decimal values such as
   `"1.5"` are invalid. Without `assigns`, or if the type cannot be determined, any
   number is valid.
+
+  A start or end value that is neither a string, a number nor a `Date`, e.g. a nested map from the URL, is a cast
+  error: the `:map` type accepts it, but it does not have the shape of a range.
   """
   def changeset(changeset, field, range_type, assigns \\ %{}) do
     parse_type = parse_type(range_type, field, assigns)
 
     Ecto.Changeset.validate_change(changeset, field, fn _field, value ->
-      validate_range(value, parse_type, field)
+      if boundaries_castable?(value),
+        do: validate_range(value, parse_type, field),
+        else: [{field, {"is invalid", [type: :map, validation: :cast]}}]
     end)
   end
+
+  defp boundaries_castable?(value) when is_map(value) do
+    Enum.all?(["start", "end"], &boundary_castable?(Map.get(value, &1)))
+  end
+
+  defp boundaries_castable?(_value), do: true
+
+  defp boundary_castable?(value) when is_nil(value) or is_binary(value) or is_number(value), do: true
+  defp boundary_castable?(%Date{}), do: true
+  defp boundary_castable?(_value), do: false
 
   defp validate_range(nil, _type, _field), do: []
   defp validate_range(%{"start" => "", "end" => ""}, _type, _field), do: []

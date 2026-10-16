@@ -129,28 +129,25 @@ defmodule Backpex.Fields.Select do
   def index_editable_change({name, _field_options}, value, _assigns), do: %{name => value}
 
   defp get_label(value, options) do
-    options =
-      Enum.map(options, fn
-        {_label, value} = option ->
-          case value do
-            value when is_list(value) or is_map(value) -> value
-            _value -> option
-          end
-
-        option ->
-          option
-      end)
-      |> List.flatten()
-
-    case Enum.find(options, fn option -> value?(option, value) end) do
-      nil -> value
-      {label, _value} -> label
-      label -> label
-    end
+    options
+    |> flatten_options()
+    |> Enum.find_value(value, fn {label, option_value} ->
+      if to_string(option_value) == to_string(value), do: label
+    end)
   end
 
-  defp value?({_label, value}, to_compare), do: to_string(value) == to_string(to_compare)
-  defp value?(value, to_compare), do: to_string(value) == to_string(to_compare)
+  # Normalizes all option shapes supported by `Phoenix.HTML.Form.options_for_select/2`
+  # into a flat list of `{label, value}` tuples.
+  defp flatten_options(options) do
+    Enum.flat_map(options, fn
+      {:hr, nil} -> []
+      {_group_label, group} when is_list(group) or (is_map(group) and not is_struct(group)) -> flatten_options(group)
+      {label, value} -> [{label, value}]
+      option when is_list(option) -> [{Keyword.fetch!(option, :key), Keyword.fetch!(option, :value)}]
+      :hr -> []
+      option -> [{option, option}]
+    end)
+  end
 
   defp assign_prompt(assigns, field_options) do
     prompt =
