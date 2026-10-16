@@ -944,7 +944,7 @@ var theme_selector_default = {
     BackpexPreferences.syncScope();
     this.preferenceScopeMarker = BackpexPreferences.scopeMarker;
     this.boundHandleThemeChange = this.handleThemeChange.bind(this);
-    this.el.addEventListener("backpex:theme-change", this.boundHandleThemeChange);
+    this.el.addEventListener("change", this.boundHandleThemeChange);
     this.applyRenderedTheme();
   },
   updated() {
@@ -973,7 +973,7 @@ var theme_selector_default = {
     }
   },
   destroyed() {
-    this.el.removeEventListener("backpex:theme-change", this.boundHandleThemeChange);
+    this.el.removeEventListener("change", this.boundHandleThemeChange);
   }
 };
 
