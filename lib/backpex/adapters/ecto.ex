@@ -471,23 +471,38 @@ defmodule Backpex.Adapters.Ecto do
   def apply_filters(query, _filter_values, _filter_configs, _assigns), do: query
 
   defp maybe_where(query, nil = _condition), do: query
-  defp maybe_where(query, condition), do: where(query, ^condition_dynamic(condition))
+  defp maybe_where(query, condition), do: where(query, ^condition_dynamic(condition, query_schema(query)))
 
-  # A condition, see `t:Backpex.Filter.condition/0`. Its fields are fields of the schema, the first binding.
-  defp condition_dynamic(%Ecto.Query.DynamicExpr{} = condition), do: condition
-
-  defp condition_dynamic({operator, field, value}) when operator in [:==, :!=, :<, :<=, :>, :>=] and is_atom(field) do
-    case operator do
-      :== -> dynamic([item], field(item, ^field) == ^value)
-      :!= -> dynamic([item], field(item, ^field) != ^value)
-      :< -> dynamic([item], field(item, ^field) < ^value)
-      :<= -> dynamic([item], field(item, ^field) <= ^value)
-      :> -> dynamic([item], field(item, ^field) > ^value)
-      :>= -> dynamic([item], field(item, ^field) >= ^value)
+  defp query_schema(query) do
+    case Ecto.Queryable.to_query(query) do
+      %Ecto.Query{from: %{source: {_source, schema}}} -> schema
+      _query -> nil
     end
   end
 
-  defp condition_dynamic({:in, field, values} = condition) when is_atom(field) and is_list(values) do
+  @comparison_operators [:==, :!=, :<, :<=, :>, :>=]
+  @integer_range -2_147_483_648..2_147_483_647//1
+  @bigint_min -9_223_372_036_854_775_808
+  @bigint_max 9_223_372_036_854_775_807
+
+  # A condition, see `t:Backpex.Filter.condition/0`. Its fields are fields of the schema, the first binding.
+  defp condition_dynamic(%Ecto.Query.DynamicExpr{} = condition, _schema), do: condition
+
+  defp condition_dynamic({operator, field, value}, schema) when operator in @comparison_operators and is_atom(field) do
+    if integer_field?(schema, field) and number?(value) do
+      {operator, value} = integer_comparison(operator, value)
+
+      # Postgres takes the type of a parameter from the column, so a parameter beyond the range of an integer column
+      # would fail to encode. A bigint parameter compares with every integer column.
+      if value in @integer_range,
+        do: comparison_dynamic(operator, field, value),
+        else: bigint_comparison_dynamic(operator, field, value)
+    else
+      comparison_dynamic(operator, field, value)
+    end
+  end
+
+  defp condition_dynamic({:in, field, values} = condition, _schema) when is_atom(field) and is_list(values) do
     # As in SQL, `nil` would never match, and in a negated condition it would keep no items at all.
     if nil in values do
       raise ArgumentError,
@@ -498,22 +513,95 @@ defmodule Backpex.Adapters.Ecto do
     dynamic([item], field(item, ^field) in ^values)
   end
 
-  defp condition_dynamic({:is_nil, field}) when is_atom(field), do: dynamic([item], is_nil(field(item, ^field)))
-  defp condition_dynamic({:not, condition}), do: dynamic(not (^condition_dynamic(condition)))
-  defp condition_dynamic({:and, []}), do: dynamic(true)
-  defp condition_dynamic({:or, []}), do: dynamic(false)
+  defp condition_dynamic({:is_nil, field}, _schema) when is_atom(field),
+    do: dynamic([item], is_nil(field(item, ^field)))
 
-  defp condition_dynamic({:and, [condition | conditions]}) do
-    Enum.reduce(conditions, condition_dynamic(condition), &dynamic(^&2 and ^condition_dynamic(&1)))
+  defp condition_dynamic({:not, condition}, schema), do: dynamic(not (^condition_dynamic(condition, schema)))
+  defp condition_dynamic({:and, []}, _schema), do: dynamic(true)
+  defp condition_dynamic({:or, []}, _schema), do: dynamic(false)
+
+  defp condition_dynamic({:and, [condition | conditions]}, schema) do
+    Enum.reduce(conditions, condition_dynamic(condition, schema), &dynamic(^&2 and ^condition_dynamic(&1, schema)))
   end
 
-  defp condition_dynamic({:or, [condition | conditions]}) do
-    Enum.reduce(conditions, condition_dynamic(condition), &dynamic(^&2 or ^condition_dynamic(&1)))
+  defp condition_dynamic({:or, [condition | conditions]}, schema) do
+    Enum.reduce(conditions, condition_dynamic(condition, schema), &dynamic(^&2 or ^condition_dynamic(&1, schema)))
   end
 
-  defp condition_dynamic(condition) do
+  defp condition_dynamic(condition, _schema) do
     raise ArgumentError, "expected a condition such as {:==, :field, value}, got: #{inspect(condition)}"
   end
+
+  defp comparison_dynamic(operator, field, value) do
+    case operator do
+      :== -> dynamic([item], field(item, ^field) == ^value)
+      :!= -> dynamic([item], field(item, ^field) != ^value)
+      :< -> dynamic([item], field(item, ^field) < ^value)
+      :<= -> dynamic([item], field(item, ^field) <= ^value)
+      :> -> dynamic([item], field(item, ^field) > ^value)
+      :>= -> dynamic([item], field(item, ^field) >= ^value)
+    end
+  end
+
+  defp bigint_comparison_dynamic(operator, field, value) do
+    case operator do
+      :== -> dynamic([item], field(item, ^field) == type(^value, :integer))
+      :!= -> dynamic([item], field(item, ^field) != type(^value, :integer))
+      :< -> dynamic([item], field(item, ^field) < type(^value, :integer))
+      :<= -> dynamic([item], field(item, ^field) <= type(^value, :integer))
+      :> -> dynamic([item], field(item, ^field) > type(^value, :integer))
+      :>= -> dynamic([item], field(item, ^field) >= type(^value, :integer))
+    end
+  end
+
+  defp integer_field?(nil = _schema, _field), do: false
+  defp integer_field?(schema, field), do: schema.__schema__(:type, field) in [:integer, :id]
+
+  defp number?(value) when is_integer(value) or is_float(value), do: true
+  defp number?(%Decimal{} = value), do: not Decimal.inf?(value) and not Decimal.nan?(value)
+  defp number?(_value), do: false
+
+  # Turns the comparison of an integer field with a number, e.g. the bound of a range filter, into a comparison with an
+  # integer that keeps the same items and that the database can take. Casting a fraction or a number beyond the range
+  # of a bigint to the type of the field would fail instead. Like the comparison, the result doesn't keep items whose
+  # field is `nil`.
+  defp integer_comparison(operator, value) do
+    operator
+    |> round_comparison(value)
+    |> limit_comparison()
+  end
+
+  defp round_comparison(operator, value) when is_integer(value), do: {operator, value}
+
+  defp round_comparison(operator, value) do
+    case {round_number(value, :floor), round_number(value, :ceiling)} do
+      {integer, integer} -> {operator, integer}
+      {floor, ceiling} -> round_fraction_comparison(operator, floor, ceiling)
+    end
+  end
+
+  defp round_fraction_comparison(:<, _floor, ceiling), do: {:<, ceiling}
+  defp round_fraction_comparison(:<=, floor, _ceiling), do: {:<=, floor}
+  defp round_fraction_comparison(:>, floor, _ceiling), do: {:>, floor}
+  defp round_fraction_comparison(:>=, _floor, ceiling), do: {:>=, ceiling}
+  # No integer equals a fraction.
+  defp round_fraction_comparison(:==, _floor, _ceiling), do: {:>, @bigint_max}
+  defp round_fraction_comparison(:!=, _floor, _ceiling), do: {:<=, @bigint_max}
+
+  defp round_number(value, :floor) when is_float(value), do: floor(value)
+  defp round_number(value, :ceiling) when is_float(value), do: ceil(value)
+  defp round_number(%Decimal{} = value, mode), do: value |> Decimal.round(0, mode) |> Decimal.to_integer()
+
+  # Every integer in the database is within the range of a bigint.
+  defp limit_comparison({operator, value}) when value > @bigint_max do
+    if operator in [:<, :<=, :!=], do: {:<=, @bigint_max}, else: {:>, @bigint_max}
+  end
+
+  defp limit_comparison({operator, value}) when value < @bigint_min do
+    if operator in [:>, :>=, :!=], do: {:>=, @bigint_min}, else: {:<, @bigint_min}
+  end
+
+  defp limit_comparison(comparison), do: comparison
 
   def apply_criteria(query, [], _fields, _schema), do: query
 

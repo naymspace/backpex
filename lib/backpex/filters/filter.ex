@@ -22,7 +22,9 @@ defmodule Backpex.Filter do
     * `{:and, conditions}` and `{:or, conditions}` - combine a list of conditions.
 
   `field` is the name of a field of the resource, e.g. of a column of its `Ecto.Schema`. The adapter casts each value to
-  the type of the field.
+  the type of the field. `Backpex.Adapters.Ecto` compares an integer field with a fraction or with a number beyond the
+  range of a bigint as with the integer that keeps the same items, e.g. `{:>=, :likes, 2.5}` keeps the items with at
+  least 3 likes.
 
   As in SQL, an item whose field is `nil` is kept neither by a comparison of this field nor by its negation, e.g.
   `{:not, {:==, :status, "done"}}` doesn't keep items without a status. To keep them, add
