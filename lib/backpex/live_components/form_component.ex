@@ -189,7 +189,7 @@ defmodule Backpex.FormComponent do
       |> drop_readonly_changes(fields, assigns)
       |> drop_unused_changes()
 
-    handle_save(socket, live_action, change, form_action(socket, save_type))
+    save(socket, live_action, change, form_action(socket, save_type))
   end
 
   def handle_event("save", _params, %{assigns: %{action_type: :item}} = socket) do
@@ -199,7 +199,7 @@ defmodule Backpex.FormComponent do
   def handle_event("save", _params, socket) do
     change = put_upload_change(%{}, socket, :insert)
 
-    handle_save(socket, socket.assigns.live_action, change)
+    save(socket, socket.assigns.live_action, change, :save)
   end
 
   # Fields are live components that handle their own events. Anything else that reaches the form,
@@ -215,7 +215,42 @@ defmodule Backpex.FormComponent do
 
   defp form_action(_socket, _save_type), do: nil
 
-  defp handle_save(socket, key, params, form_action \\ :save)
+  # The browser doesn't submit a form while an upload has refused files, but a save event can
+  # still arrive. Saving then would drop the refused files and crash when consuming the entries
+  # that aren't done, after the item was saved. Entries that aren't done are refused as well: the
+  # browser waits for them, but consuming them would raise.
+  defp save(socket, live_action, params, form_action) do
+    case refused_upload_fields(socket) do
+      [] -> handle_save(socket, live_action, params, form_action)
+      names -> refuse_save(socket, params, names)
+    end
+  end
+
+  defp refused_upload_fields(%{assigns: %{uploads: uploads, fields: fields}}) do
+    for {name, _field_options} = field <- fields,
+        upload = uploads[Field.upload_key(field)],
+        upload.errors != [] or Enum.any?(upload.entries, &(not &1.done?)),
+        do: name
+  end
+
+  defp refused_upload_fields(_socket), do: []
+
+  defp refuse_save(socket, params, names) do
+    %{live_resource: live_resource, fields: fields, item: item} = assigns = socket.assigns
+
+    # Through `Backpex.__`, so the text is in `backpex.pot` with the field's other upload texts.
+    message = Backpex.__("remove the files that can't be uploaded", live_resource)
+    changeset = Resource.change(item, params, fields, assigns, live_resource, assocs: Map.get(assigns, :assocs, []))
+    changeset = Enum.reduce(names, changeset, &Ecto.Changeset.add_error(&2, &1, message))
+    form = Component.to_form(changeset, as: :change)
+
+    send(self(), {:update_changeset, changeset})
+
+    socket
+    |> assign(:show_form_errors, true)
+    |> assign(:form, form)
+    |> noreply()
+  end
 
   defp handle_save(socket, :new, params, form_action) do
     %{assigns: %{live_resource: live_resource, fields: fields, item: item, live_action: live_action} = assigns} = socket
