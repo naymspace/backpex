@@ -673,7 +673,7 @@ defmodule Backpex.LiveResource.Index do
     # The id comes from the URL: resolve it against the registered resource actions instead of
     # atomizing it, so an unknown action is a 404 rather than an ArgumentError.
     {id, action} =
-      LiveResource.fetch_action!(live_resource.resource_actions(), URI.decode(socket.assigns.params["backpex_id"]))
+      LiveResource.fetch_action!(live_resource.resource_actions(), socket.assigns.params["backpex_id"])
 
     Authorization.authorize!(live_resource, socket.assigns, id, nil)
 
