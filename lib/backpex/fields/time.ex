@@ -4,9 +4,10 @@ defmodule Backpex.Fields.Time do
   @config_schema [
     format: [
       doc: """
-      Format string which will be used to format the date time value or function that formats the date time.
+      Format string which will be used to format the time value or function that formats the time.
 
-      Can also be a function wich receives a `DateTime` and must return a string.
+      Can also be a function which receives a `Time` and must return a string. Empty (`nil`) values are rendered as "—"
+      and never passed to the function.
       """,
       type: {:or, [:string, {:fun, 1}]},
       default: "%I:%M %p"
@@ -51,9 +52,9 @@ defmodule Backpex.Fields.Time do
 
     value =
       cond do
+        is_nil(assigns.value) -> HTML.pretty_value(assigns.value)
         is_function(format, 1) -> format.(assigns.value)
-        assigns.value -> Calendar.strftime(assigns.value, format)
-        true -> HTML.pretty_value(assigns.value)
+        true -> Calendar.strftime(assigns.value, format)
       end
 
     assigns =
