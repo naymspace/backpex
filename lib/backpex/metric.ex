@@ -65,6 +65,20 @@ defmodule Backpex.Metric do
 
   @optional_callbacks data: 3
 
+  # Backpex no longer calls `query/3`, so the adapter would compute other data than the metric did. Modules that only
+  # declare `@behaviour Backpex.Metric` are refused when Backpex computes the metric, see `Backpex.Resource.metric/5`.
+  @doc false
+  defmacro __before_compile__(env) do
+    if Module.defines?(env.module, {:query, 3}, :def) and not Module.defines?(env.module, {:data, 3}, :def) do
+      raise CompileError,
+        file: env.file,
+        description: """
+        #{inspect(env.module)} defines query/3, but metrics no longer query their data. Implement \
+        Backpex.Metric.data/3 instead, see the guide on upgrading to v0.23.
+        """
+    end
+  end
+
   @doc """
   Determine if metrics are visible for given live_resource.
   """

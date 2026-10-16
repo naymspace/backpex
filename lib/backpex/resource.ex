@@ -85,7 +85,8 @@ defmodule Backpex.Resource do
       function_exported?(module, :data, 3) ->
         {:ok, module.data(metric, criteria, assigns)}
 
-      # Backpex no longer calls `query/3`, so the adapter would compute other data than the metric did.
+      # Backpex no longer calls `query/3`, so the adapter would compute other data than the metric did. `use BackpexWeb,
+      # :metric` refuses this at compile time, this covers modules that only declare `@behaviour Backpex.Metric`.
       function_exported?(module, :query, 3) ->
         raise ArgumentError, """
         #{inspect(module)} implements query/3, but metrics no longer query their data. Implement \

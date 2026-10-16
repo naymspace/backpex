@@ -97,6 +97,8 @@ defmodule BackpexWeb do
       @behaviour Backpex.Metric
 
       use Phoenix.Component
+
+      @before_compile Backpex.Metric
     end
   end
 
