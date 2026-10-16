@@ -302,5 +302,17 @@ defmodule Backpex.LiveResourceTest do
                  )
       end
     end
+
+    test "index-search is a no-op for a value that is not a string" do
+      # A non-string value must not be patched into the URL.
+      socket = %Socket{
+        assigns: %{__changed__: %{}, query_options: %{}, params: %{}}
+      }
+
+      assert {:noreply, ^socket} =
+               Index.handle_event("index-search", %{"index_search" => %{"value" => %{"a" => "b"}}}, socket)
+
+      assert {:noreply, ^socket} = Index.handle_event("index-search", %{}, socket)
+    end
   end
 end
