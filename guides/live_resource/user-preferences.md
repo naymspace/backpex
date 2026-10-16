@@ -447,11 +447,19 @@ config :backpex, Backpex.Preferences,
 `Set-Cookie` header. The estimate is approximate by design: it is a budget
 check, not an exact reproduction of `Plug.Session`'s encoding. The adapter
 cannot see your `Plug.Session` options, so it reserves 256 bytes for the
-signature, the cookie name and the attributes (`secure`, `max-age`/`expires`,
-`domain`, ...). That covers typical production options with room to spare; if
-yours are unusually long (a long `:key` or `:domain`, `:extra` attributes),
-lower `:max_bytes` accordingly. It errs toward over-estimating, so it refuses
-slightly before the true ceiling rather than slightly after.
+signature (or the encryption envelope, with `:encryption_salt`), the cookie
+name and the attributes (`secure`, `max-age`/`expires`, `domain`, ...). For
+typical options that is conservative, so it refuses slightly before the true
+ceiling rather than slightly after.
+
+If your options are unusually long (a long `:key` or `:domain`, `:extra`
+attributes), work out the tail your app actually sends: the length of
+`Plug.Conn.Cookies.encode(key, Map.new([value: ""] ++ cookie_opts))`, with
+the `key` and cookie options you pass to `Plug.Session`, plus 52 bytes
+for the signed value (the default), or plus about 58 instead with
+`:encryption_salt` (the value is then encrypted, not additionally signed).
+Lower `:max_bytes` by however much that tail exceeds 256. The warning threshold
+is 75% of `:max_bytes` and moves with it.
 
 ### Routing by prefix
 

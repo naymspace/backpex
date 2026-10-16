@@ -38,13 +38,26 @@ defmodule Backpex.Preferences.Adapters.Session do
 
   The estimate covers the whole session, not just Backpex's subtree. It counts
   the ~4/3 growth of Base64 and reserves 256 bytes for the rest of the header:
-  the signature (and encryption, with `:encryption_salt`), the cookie name and
-  the attributes `Plug.Session` adds (`path`, `HttpOnly`, `SameSite`,
-  `secure`, `max-age`/`expires`, `domain`). The adapter cannot see the
-  `Plug.Session` options, so this is deliberately approximate: it is a budget
-  check, not an exact reproduction of the store's encoding. If the session
-  options are unusually long (a long `:key` or `:domain`, `:extra`
-  attributes), lower `:max_bytes` accordingly. Prefer a database-backed
+  the signature (or the encryption envelope, with `:encryption_salt`), the
+  cookie name and the attributes `Plug.Session` adds (`path`, `HttpOnly`,
+  `SameSite`, `secure`, `max-age`/`expires`, `domain`). The adapter cannot see
+  the `Plug.Session` options, so this is deliberately approximate: it is a
+  budget check, not an exact reproduction of the store's encoding, and it is
+  conservative for typical options.
+
+  If your options are unusually long (a long `:key` or `:domain`, `:extra`
+  attributes), work out the tail your app actually sends:
+
+      # `key` and the cookie options (`:domain`, `:max_age`, `:secure`,
+      # `:same_site`, `:extra`, ...) as passed to `Plug.Session`
+      header = Plug.Conn.Cookies.encode(key, Map.new([value: ""] ++ cookie_opts))
+
+      # 52 for a signed cookie (the default); about 58 instead with
+      # `:encryption_salt`, where the value is encrypted, not also signed
+      tail = byte_size(header) + 52
+
+  and lower `:max_bytes` by however much `tail` exceeds 256. The warning
+  threshold is 75% of `:max_bytes` and moves with it. Prefer a database-backed
   adapter over raising `:max_bytes` when per-user data genuinely does not fit.
 
   ## Write-path limitations
@@ -111,7 +124,9 @@ defmodule Backpex.Preferences.Adapters.Session do
   # grows the payload by 4/3. Everything else in the header is a fixed tail:
   #
   #   * the signature: `"SFMyNTY."` plus a `.`-separated Base64'd HMAC adds 52
-  #     bytes; `:encryption_salt` adds about 6 more;
+  #     bytes. With `:encryption_salt` the value is encrypted instead (not
+  #     additionally signed): `"XCP."` plus a Base64'd 24-byte IV and 16-byte
+  #     tag add about 58 bytes;
   #   * the cookie name and attributes `Plug.Session` passes on: `key=`,
   #     `; path=/`, `; HttpOnly`, `; SameSite=Lax`, and when configured
   #     `; secure`, `; expires=...; max-age=...` and `; domain=...`. With a
