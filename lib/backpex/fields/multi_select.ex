@@ -208,9 +208,9 @@ defmodule Backpex.Fields.MultiSelect do
 
   @impl Phoenix.LiveComponent
   def handle_event("search", params, socket) do
-    %{assigns: %{name: name}} = socket
+    %{assigns: %{form: form, name: name}} = socket
 
-    search_input = Map.get(params, "change[#{name}]_search", "")
+    search_input = Map.get(params, form[name].name <> "_search", "")
 
     socket
     |> assign(:search_input, search_input)

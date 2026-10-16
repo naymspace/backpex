@@ -15,10 +15,10 @@ defmodule Backpex.Fields.MultiSelectTest do
     {"Editors", [{"Carol", "carol"}, {"Dave", "dave"}]}
   ]
 
-  defp mount(options, selected) do
+  defp mount(options, selected, form_name \\ :change) do
     assigns = %{
       field_options: %{module: MultiSelect, label: "Users", options: options},
-      form: Phoenix.Component.to_form(%{"users" => selected}, as: :change),
+      form: Phoenix.Component.to_form(%{"users" => selected}, as: form_name),
       hide_label: false,
       item: %{},
       live_resource: UserLive,
@@ -96,6 +96,14 @@ defmodule Backpex.Fields.MultiSelectTest do
 
         assert rendered_labels(socket) == ["Alex", "Bob", "Carol", "Dave"]
       end
+    end
+
+    test "reads the search input of the field's form" do
+      socket = mount(@options, [], "change[team]")
+
+      {:noreply, socket} = MultiSelect.handle_event("search", %{"change[team][users]_search" => "bob"}, socket)
+
+      assert rendered_labels(socket) == ["Bob"]
     end
 
     test "shows the not found text when no option matches" do

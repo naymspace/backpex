@@ -185,6 +185,18 @@ defmodule Backpex.HTML.FormTest do
 
       assert submitted_params(html)["tags"] == ["elixir", "erlang", "phoenix"]
     end
+
+    test "submits a hidden selected value of several option groups once" do
+      assigns =
+        base_assigns(
+          options: [{"Ecto", "ecto"}],
+          selected: [{"Elixir", "elixir"}, {"Elixir", "elixir"}]
+        )
+
+      html = render_component(&BackpexForm.multi_select/1, assigns)
+
+      assert submitted_params(html)["tags"] == ["elixir"]
+    end
   end
 
   defmodule FormLive do

@@ -404,6 +404,9 @@ defmodule Backpex.HTML.Form do
 
   @doc """
   Renders a searchable multi select.
+
+  Selected values whose options are not in `options` (e.g. because they are hidden by the search) are rendered as
+  hidden inputs, so they are still submitted with the form. Callers must not render their own inputs for them.
   """
   @doc type: :component
 
@@ -429,12 +432,14 @@ defmodule Backpex.HTML.Form do
     errors = if Phoenix.Component.used_input?(assigns.field), do: assigns.field.errors, else: []
     translate_error_fun = Map.get(assigns.field_options, :translate_error, &Function.identity/1)
     rendered_values = option_values(assigns.options)
-    hidden_selected = Enum.reject(assigns.selected, fn {_label, value} -> value in rendered_values end)
+
+    hidden_values =
+      for {_label, value} <- assigns.selected, value not in rendered_values, uniq: true, do: value
 
     assigns =
       assigns
       |> assign(:errors, translate_form_errors(errors, translate_error_fun))
-      |> assign(:hidden_selected, hidden_selected)
+      |> assign(:hidden_values, hidden_values)
 
     ~H"""
     <div>
@@ -495,7 +500,7 @@ defmodule Backpex.HTML.Form do
 
             <%!-- Hidden inputs to keep selected values that are not rendered as options (e.g. hidden by the search) --%>
             <input
-              :for={{_label, value} <- @hidden_selected}
+              :for={value <- @hidden_values}
               type="hidden"
               name={@field.name <> "[]"}
               value={value}
