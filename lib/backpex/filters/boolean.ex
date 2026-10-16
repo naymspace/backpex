@@ -44,6 +44,9 @@ defmodule Backpex.Filters.Boolean do
 
   @doc """
   The list of options for the select filter.
+
+  Each option is a map with a `label`, a `key` and a `predicate`. The key may be a string or an atom; keys are compared
+  as strings, so `predicates/1` returns a map with string keys.
   """
   @callback options(assigns :: map()) :: [map()]
 

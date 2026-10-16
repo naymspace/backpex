@@ -129,6 +129,14 @@ defmodule Backpex.Filters.BooleanTest do
       assert [%{params: []}] = query.wheres
       assert inspect(query) =~ "where: t0.featured == true"
     end
+
+    test "returns original query when no selected key has an option" do
+      base_query = from(TestItem)
+
+      query = BooleanFilter.query(base_query, test_options(), :published, ["unknown", "other"], %{})
+
+      assert query == base_query
+    end
   end
 
   describe "maybe_query/2" do
