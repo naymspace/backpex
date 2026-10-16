@@ -300,7 +300,7 @@ defmodule Backpex.Fields.HasMany do
     ~H"""
     <label class={@class}>
       <input type="checkbox" class="hidden" name={@hidden_input_name} value="" tabindex="-1" aria-hidden="true" />
-      <div role="button" class="text-primary cursor-pointer text-sm underline">
+      <div role="button" class="link text-sm">
         {@button_text}
       </div>
     </label>
@@ -342,7 +342,7 @@ defmodule Backpex.Fields.HasMany do
       type="button"
       phx-click="show-more"
       phx-target={@event_target}
-      class="text-primary mb-2 cursor-pointer text-sm underline"
+      class="link mb-2 text-sm"
     >
       {Backpex.__("Show more", @live_resource)}
     </button>
