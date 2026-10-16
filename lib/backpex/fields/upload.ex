@@ -714,6 +714,24 @@ defmodule Backpex.Fields.Upload do
 
         <section class="mt-2">
           <article>
+            <%= if @type == :form do %>
+              <div :for={{file_key, label} <- @uploaded_files} class="break-all">
+                <p class="inline">{label}</p>
+                <button
+                  :if={not @readonly}
+                  type="button"
+                  phx-click="cancel-existing-entry"
+                  phx-value-ref={file_key}
+                  phx-value-id={@upload_key}
+                  phx-target="#form-component"
+                  class="cursor-pointer"
+                  aria-label={Backpex.__({"Remove %{name}", %{name: label}}, @live_resource)}
+                >
+                  &times;
+                </button>
+              </div>
+            <% end %>
+
             <%= if @uploads_allowed do %>
               <div :for={entry <- @upload.entries} class="break-all">
                 <p class="inline">{Map.get(entry, :client_name)}</p>
@@ -733,24 +751,6 @@ defmodule Backpex.Fields.Upload do
                 <p :for={err <- upload_errors(@upload, entry)} class="text-xs italic text-red-500">
                   {@upload_error.(err)}
                 </p>
-              </div>
-            <% end %>
-
-            <%= if @type == :form do %>
-              <div :for={{file_key, label} <- @uploaded_files} class="break-all">
-                <p class="inline">{label}</p>
-                <button
-                  :if={not @readonly}
-                  type="button"
-                  phx-click="cancel-existing-entry"
-                  phx-value-ref={file_key}
-                  phx-value-id={@upload_key}
-                  phx-target="#form-component"
-                  class="cursor-pointer"
-                  aria-label={Backpex.__({"Remove %{name}", %{name: label}}, @live_resource)}
-                >
-                  &times;
-                </button>
               </div>
             <% end %>
           </article>

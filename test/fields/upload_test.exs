@@ -253,6 +253,18 @@ defmodule Backpex.Fields.UploadTest do
       assert html =~ "upload could not be started"
     end
 
+    test "lists the stored files before the new entries", %{upload: upload} do
+      entries =
+        for {ref, name} <- [{"0", "new-1.png"}, {"1", "new-2.png"}] do
+          %UploadEntry{ref: ref, upload_ref: upload.ref, upload_config: :images, client_name: name}
+        end
+
+      uploaded_files = [{"old-1.png", "old-1.png"}, {"old-2.png", "old-2.png"}]
+      html = render_upload_form(%{}, %{upload | entries: entries}, uploaded_files)
+
+      assert html =~ ~r/old-1\.png.*old-2\.png.*new-1\.png.*new-2\.png/s
+    end
+
     test "names the file in the labels of its cancel and remove buttons", %{upload: upload} do
       html = render_upload_form(%{}, upload_with_errors(upload, []), [{"uploads/abc123.png", "stored.png"}])
 
