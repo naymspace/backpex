@@ -10,6 +10,7 @@ defmodule Backpex.HTML.Resource do
   import Phoenix.LiveView.TagEngine
 
   alias Backpex.Authorization
+  alias Backpex.FilterValidation
   alias Backpex.LiveResource
   alias Backpex.ResourceAction
   alias Backpex.Router
@@ -443,7 +444,10 @@ defmodule Backpex.HTML.Resource do
   attr :live_resource, :any, default: nil, doc: "live resource module"
   attr :filters, :list, required: true, doc: "list of active filters"
   attr :filter_options, :map, required: true, doc: "raw filter options from URL params"
-  attr :filter_form, :any, default: nil, doc: "optional form backed by filter validation changeset"
+
+  attr :filter_form, :any,
+    default: nil,
+    doc: "optional form backed by filter validation changeset, built from `filter_options` when not given"
 
   attr :backpex_context, :map,
     default: nil,
@@ -451,7 +455,12 @@ defmodule Backpex.HTML.Resource do
 
   def filter_forms(assigns) do
     assigns = assign_context(assigns)
-    error_changeset = get_filter_changeset(assigns[:filter_form])
+
+    changeset =
+      get_filter_changeset(assigns[:filter_form]) ||
+        FilterValidation.build_changeset(assigns.filter_options, assigns.filters, assigns.backpex_context)
+
+    cast_error_fields = FilterValidation.cast_error_fields(changeset)
 
     assigns =
       assigns
@@ -461,9 +470,14 @@ defmodule Backpex.HTML.Resource do
         for {field, filter} <- assigns.filters do
           label = Map.get(filter, :label, filter.module.label())
           presets = Map.get(filter, :presets, [])
-          # filter_options (from URL params) is always string-keyed
-          value = Map.get(assigns.filter_options, Atom.to_string(field))
-          errors = extract_filter_errors(error_changeset, field)
+          # filter_options (from URL params or persisted filters) is always string-keyed. A value that
+          # fails to cast to the filter's type has the wrong shape for its `render_form/1`, e.g. a string
+          # where a list is expected, so the form renders without it and shows the cast error instead.
+          value =
+            if field not in cast_error_fields,
+              do: Map.get(assigns.filter_options, Atom.to_string(field))
+
+          errors = extract_filter_errors(changeset, field)
 
           %{
             field: field,
@@ -483,7 +497,7 @@ defmodule Backpex.HTML.Resource do
         live_resource={@live_resource}
         filter_name={field_data.field}
         label={field_data.label}
-        show_clear_button={field_data.value != nil}
+        show_clear_button={field_data.value != nil or field_data.errors != []}
       >
         {component(
           fn assigns -> field_data.filter.module.render_form(assigns) end,
@@ -508,8 +522,6 @@ defmodule Backpex.HTML.Resource do
   defp get_filter_changeset(%{source: %Ecto.Changeset{} = changeset}), do: changeset
   defp get_filter_changeset(_other), do: nil
 
-  defp extract_filter_errors(nil, _field), do: []
-
   defp extract_filter_errors(changeset, field) do
     changeset.errors
     |> Keyword.get_values(field)
@@ -533,7 +545,13 @@ defmodule Backpex.HTML.Resource do
       >
         <.input type="select" field={@form[:status]} options={@status_options} />
         <:presets>
-          <.filter_presets presets={[{"Active", "active"}, {"Inactive", "inactive"}]} />
+          <.filter_presets
+            filter_name={:status}
+            presets={[
+              %{label: "Active", values: fn -> "active" end},
+              %{label: "Inactive", values: fn -> "inactive" end}
+            ]}
+          />
         </:presets>
       </.filter_form_field>
   """
@@ -584,15 +602,16 @@ defmodule Backpex.HTML.Resource do
   def filter_presets(assigns) do
     ~H"""
     <div class="min-w-[80px] mt-2">
-      <div
+      <button
         :for={{preset, index} <- Enum.with_index(@presets)}
+        type="button"
         phx-click={@select_filter_preset_event}
         phx-value-field={@filter_name}
         phx-value-preset-index={index}
-        class="text-primary mb-1 cursor-pointer truncate text-xs font-medium hover:underline"
+        class="text-primary mb-1 block max-w-full cursor-pointer truncate text-left text-xs font-medium hover:underline"
       >
         {preset.label}
-      </div>
+      </button>
     </div>
     """
   end
@@ -698,14 +717,23 @@ defmodule Backpex.HTML.Resource do
   end
 
   @doc """
-  Renders pagination buttons. You are required to provide a `:page` pattern in the URL. It will be replaced
-  with the corresponding page number.
+  Renders pagination buttons. The `page_path` function receives a page number and returns the path to that page.
+  The component uses the path as is, so `page_path` must encode user input in it, for example with
+  `Plug.Conn.Query.encode/1`.
+
+  ## Example
+
+      <.pagination
+        page_path={&("/admin/posts?" <> Plug.Conn.Query.encode(%{search: @search, page: &1}))}
+        current_page={@page}
+        total_pages={@total_pages}
+      />
   """
   @doc type: :component
 
   attr :current_page, :integer, required: true, doc: "current page number"
   attr :total_pages, :integer, required: true, doc: "number of total pages"
-  attr :path, :string, required: true, doc: "path to be used for page links"
+  attr :page_path, {:fun, 1}, required: true, doc: "function that receives a page number and returns its path"
   attr :next_page_label, :string, default: "Next page"
   attr :previous_page_label, :string, default: "Previous page"
 
@@ -720,7 +748,7 @@ defmodule Backpex.HTML.Resource do
         type={type}
         number={number}
         current_page={@current_page}
-        path={@path}
+        page_path={@page_path}
         next_page_label={@next_page_label}
         previous_page_label={@previous_page_label}
       />
@@ -728,7 +756,7 @@ defmodule Backpex.HTML.Resource do
     """
   end
 
-  attr :path, :string, required: true
+  attr :page_path, {:fun, 1}, required: true
   attr :current_page, :integer, required: true
   attr :type, :atom, required: true
   attr :number, :integer, default: nil, required: false
@@ -737,7 +765,7 @@ defmodule Backpex.HTML.Resource do
   attr :previous_page_label, :string, default: "Previous page"
 
   defp pagination_item(%{type: :number} = assigns) do
-    pagination_link = get_pagination_link(assigns.path, assigns.number)
+    pagination_link = assigns.page_path.(assigns.number)
 
     assigns =
       assigns
@@ -756,7 +784,7 @@ defmodule Backpex.HTML.Resource do
   end
 
   defp pagination_item(%{type: :prev} = assigns) do
-    pagination_link = get_pagination_link(assigns.path, assigns.current_page - 1)
+    pagination_link = assigns.page_path.(assigns.current_page - 1)
 
     assigns =
       assigns
@@ -771,7 +799,7 @@ defmodule Backpex.HTML.Resource do
   end
 
   defp pagination_item(%{type: :next} = assigns) do
-    pagination_link = get_pagination_link(assigns.path, assigns.current_page + 1)
+    pagination_link = assigns.page_path.(assigns.current_page + 1)
 
     assigns =
       assigns
@@ -796,8 +824,6 @@ defmodule Backpex.HTML.Resource do
   end
 
   defp pagination_btn_class, do: ["btn btn-sm bg-base-100 hover:bg-[var(--btn-border)]"]
-
-  defp get_pagination_link(path, page), do: String.replace(path, ":page", page |> Integer.to_string())
 
   @doc """
   Creates a list of pagination items based on the current page and the total number of pages. A maximum of five pages will be displayed.

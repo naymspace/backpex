@@ -10,6 +10,10 @@ import { BackpexPreferences } from './_preferences'
  * silently dropped. Mounting on the form sidesteps the collision, lets
  * `this.el` be the form directly, and scopes the change listener to it.
  *
+ * The hook listens for `change` rather than `click`: arrow keys inside the
+ * radio group check the next radio and fire `change`, so mouse and keyboard
+ * selection take the same path.
+ *
  * Initial theme is server-rendered via the `data-theme` attribute on
  * `<html>`. Changes are persisted via BackpexPreferences with
  * `mirror: 'session'`, like every other server-rendered preference.
@@ -31,7 +35,7 @@ export default {
     // Initial theme already applied via server-rendered data-theme attribute
     // Just set up the change listener, scoped to the form element itself.
     this.boundHandleThemeChange = this.handleThemeChange.bind(this)
-    this.el.addEventListener('backpex:theme-change', this.boundHandleThemeChange)
+    this.el.addEventListener('change', this.boundHandleThemeChange)
     this.applyRenderedTheme()
   },
 
@@ -72,6 +76,6 @@ export default {
   },
 
   destroyed () {
-    this.el.removeEventListener('backpex:theme-change', this.boundHandleThemeChange)
+    this.el.removeEventListener('change', this.boundHandleThemeChange)
   }
 }

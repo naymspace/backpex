@@ -92,6 +92,10 @@ msgid "Delete"
 msgstr ""
 
 #, elixir-autogen, elixir-format
+msgid "Delete entry %{index}"
+msgstr ""
+
+#, elixir-autogen, elixir-format
 msgid "Deselect all"
 msgstr ""
 
