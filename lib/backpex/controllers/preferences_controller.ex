@@ -36,7 +36,8 @@ defmodule Backpex.PreferencesController do
   `422 {ok: false, error: %{key: _, reason: "too_large"}}` — see the size limit
   section of `Backpex.Preferences.Adapters.Session`. The refusal is the
   designed outcome, not a bug: the alternative is a `CookieOverflowError` 500
-  on this and every later request.
+  that loses the write, which the JS hook then keeps replaying as a pending
+  write on later page loads.
 
   Single-write `:unscoped` is treated as a no-op rather than an error:
   the response is `200 {ok: false, error: %{reason: "unscoped"}}` and no

@@ -428,8 +428,8 @@ data — and:
 
 A refused write surfaces to the browser as `422 {ok: false, error: %{reason:
 "too_large"}}`, and the JS hook stops carrying it. The alternative would be a
-`Plug.Conn.CookieOverflowError` — an HTTP 500 on this and every later request,
-with no way for the user to reach a page to undo it.
+`Plug.Conn.CookieOverflowError` — an HTTP 500 that loses the write, which the
+JS hook then keeps pending and replays on later page loads.
 
 The warning is the signal to route heavy prefixes (per-resource column
 visibility, saved filters, etc.) to a database-backed adapter before writes
@@ -443,9 +443,15 @@ config :backpex, Backpex.Preferences,
   ]
 ```
 
-The estimate is approximate by design: it is a budget check, not an exact
-reproduction of `Plug.Session`'s encoding. It errs toward over-estimating, so
-it refuses slightly before the true ceiling rather than slightly after.
+`:max_bytes` (default `4096`) is the budget for the session cookie's whole
+`Set-Cookie` header. The estimate is approximate by design: it is a budget
+check, not an exact reproduction of `Plug.Session`'s encoding. The adapter
+cannot see your `Plug.Session` options, so it reserves 256 bytes for the
+signature, the cookie name and the attributes (`secure`, `max-age`/`expires`,
+`domain`, ...). That covers typical production options with room to spare; if
+yours are unusually long (a long `:key` or `:domain`, `:extra` attributes),
+lower `:max_bytes` accordingly. It errs toward over-estimating, so it refuses
+slightly before the true ceiling rather than slightly after.
 
 ### Routing by prefix
 
@@ -1298,8 +1304,8 @@ Two API notes for hook authors:
 hard size limit (commonly about 4KB for the complete encoded session, not just
 Backpex's tree). Plug does not silently truncate an oversized session; the
 response write may fail with `Plug.Conn.CookieOverflowError`. The
-Session adapter warns once its own tree passes 3072 bytes, but other session
-data and encoding overhead can make failure happen earlier. Route bulky
+Session adapter warns once its estimate of the whole cookie passes 75% of
+`:max_bytes` and refuses writes past it (see "Picking an adapter"). Route bulky
 prefixes (columns, filters) onto a database adapter.
 
 **"Changes aren't saving for some scopes."** The configured adapter likely
