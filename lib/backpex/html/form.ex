@@ -428,7 +428,13 @@ defmodule Backpex.HTML.Form do
   def multi_select(assigns) do
     errors = if Phoenix.Component.used_input?(assigns.field), do: assigns.field.errors, else: []
     translate_error_fun = Map.get(assigns.field_options, :translate_error, &Function.identity/1)
-    assigns = assign(assigns, :errors, translate_form_errors(errors, translate_error_fun))
+    rendered_values = option_values(assigns.options)
+    hidden_selected = Enum.reject(assigns.selected, fn {_label, value} -> value in rendered_values end)
+
+    assigns =
+      assigns
+      |> assign(:errors, translate_form_errors(errors, translate_error_fun))
+      |> assign(:hidden_selected, hidden_selected)
 
     ~H"""
     <div>
@@ -487,6 +493,16 @@ defmodule Backpex.HTML.Form do
             <%!-- Hidden input to make sure the change is always present, even if no options are selected --%>
             <input type="hidden" name={@field.name} value="" tabindex="-1" aria-hidden="true" />
 
+            <%!-- Hidden inputs to keep selected values that are not rendered as options (e.g. hidden by the search) --%>
+            <input
+              :for={{_label, value} <- @hidden_selected}
+              type="hidden"
+              name={@field.name <> "[]"}
+              value={value}
+              tabindex="-1"
+              aria-hidden="true"
+            />
+
             <%!-- Options --%>
             <div class="mt-2 w-full">
               <.multi_select_option
@@ -509,6 +525,13 @@ defmodule Backpex.HTML.Form do
       <.help_text :if={@help_text} class="mt-1">{@help_text}</.help_text>
     </div>
     """
+  end
+
+  defp option_values(options) do
+    Enum.flat_map(options, fn
+      {_label, value} when is_list(value) or is_map(value) -> Enum.map(value, fn {_label, val} -> val end)
+      {_label, value} -> [value]
+    end)
   end
 
   attr :live_resource, :atom, required: true

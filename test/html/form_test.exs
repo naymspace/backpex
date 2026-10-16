@@ -173,6 +173,18 @@ defmodule Backpex.HTML.FormTest do
       remove = LazyHTML.query(doc, ~s(div.badge [phx-click="toggle-option"]))
       refute Enum.empty?(remove)
     end
+
+    test "submits selected values whose options are not rendered" do
+      assigns =
+        base_assigns(
+          options: [{"Group", [{"Phoenix", "phoenix"}]}, {"Ecto", "ecto"}],
+          selected: [{"Elixir", "elixir"}, {"Phoenix", "phoenix"}, {"Erlang", "erlang"}]
+        )
+
+      html = render_component(&BackpexForm.multi_select/1, assigns)
+
+      assert submitted_params(html)["tags"] == ["elixir", "erlang", "phoenix"]
+    end
   end
 
   defmodule FormLive do
