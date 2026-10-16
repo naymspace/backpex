@@ -184,6 +184,11 @@ defmodule Backpex.Fields.InlineCRUD do
 
   @impl Backpex.Field
   def render_form(assigns) do
+    assigns =
+      assigns
+      |> assign(:add_entry_id, "#{assigns.form[assigns.name].id}_add_entry")
+      |> assign(:row_count, row_count(assigns.form[assigns.name]))
+
     ~H"""
     <div>
       <Layout.field_container>
@@ -230,7 +235,7 @@ defmodule Backpex.Fields.InlineCRUD do
                   type="button"
                   name={"change[#{@name}_delete][]"}
                   value={f_nested.index}
-                  phx-click={JS.dispatch("change")}
+                  phx-click={delete_row(f_nested.index, @row_count, @add_entry_id)}
                   class="btn btn-outline btn-error"
                   aria-label={Backpex.__({"Delete entry %{index}", %{index: f_nested.index + 1}}, @live_resource)}
                 >
@@ -244,6 +249,7 @@ defmodule Backpex.Fields.InlineCRUD do
         </div>
         <input
           :if={not @readonly}
+          id={@add_entry_id}
           name={"change[#{@name}_order][]"}
           type="checkbox"
           aria-label={Backpex.__("Add entry", @live_resource)}
@@ -277,6 +283,21 @@ defmodule Backpex.Fields.InlineCRUD do
       Router.get_path(assigns.socket, live_resource, assigns.params, :show, row)
     end
   end
+
+  # The rows `inputs_for` renders for the field.
+  defp row_count(%Phoenix.HTML.FormField{form: form, field: field}) do
+    length(form.impl.to_form(form.source, form, field, []))
+  end
+
+  # Deleting a row removes its button. A following row moves into its place, so focus stays there. After the last row,
+  # move focus to the add control so it does not fall back to the page.
+  defp delete_row(index, row_count, add_entry_id) when index == row_count - 1 do
+    "change"
+    |> JS.dispatch()
+    |> JS.focus(to: "##{add_entry_id}")
+  end
+
+  defp delete_row(_index, _row_count, _add_entry_id), do: JS.dispatch("change")
 
   defp child_field_class(%{class: class} = _child_field_options, assigns) when is_function(class), do: class.(assigns)
   defp child_field_class(%{class: class} = _child_field_options, _assigns) when is_binary(class), do: class

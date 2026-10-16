@@ -15,12 +15,23 @@ defmodule Backpex.Fields.InlineCRUDTest do
     end
   end
 
+  defmodule Supplier do
+    @moduledoc false
+    use Ecto.Schema
+
+    schema "suppliers" do
+      field :url, :string
+      field :product_id, :integer
+    end
+  end
+
   defmodule Product do
     @moduledoc false
     use Ecto.Schema
 
     schema "products" do
       embeds_many :links, Link, on_replace: :delete
+      has_many :suppliers, Supplier, on_replace: :delete
     end
   end
 
@@ -32,16 +43,22 @@ defmodule Backpex.Fields.InlineCRUDTest do
     end
   end
 
-  defp render_form(overrides \\ []) do
-    product = %Product{links: [%Link{id: "a", url: "https://a.example"}, %Link{id: "b", url: "https://b.example"}]}
-    form = product |> Ecto.Changeset.change() |> to_form(as: :change)
+  defp product do
+    %Product{
+      links: [%Link{id: "a", url: "https://a.example"}, %Link{id: "b", url: "https://b.example"}],
+      suppliers: [%Supplier{id: 1, url: "https://a.example"}, %Supplier{id: 2, url: "https://b.example"}]
+    }
+  end
+
+  defp render_form(name, overrides \\ []) do
+    form = product() |> Ecto.Changeset.change() |> to_form(as: :change)
 
     assigns =
       Keyword.merge(
         [
           form: form,
-          name: :links,
-          field_options: %{label: "Links"},
+          name: name,
+          field_options: %{label: "Rows"},
           child_fields: [],
           readonly: false,
           live_resource: UntranslatedLive,
@@ -54,28 +71,49 @@ defmodule Backpex.Fields.InlineCRUDTest do
     |> LazyHTML.from_fragment()
   end
 
-  describe "render_form/1" do
-    test "renders a focusable, labelled delete button per row that drops the row" do
-      buttons = LazyHTML.query(render_form(), "button[name='change[links_delete][]']")
+  for name <- [:links, :suppliers] do
+    describe "render_form/1 for #{name}" do
+      @name name
 
-      assert Enum.count(buttons) == 2
-      assert LazyHTML.attribute(buttons, "type") == ["button", "button"]
-      assert LazyHTML.attribute(buttons, "value") == ["0", "1"]
-      assert LazyHTML.attribute(buttons, "aria-label") == ["Delete entry 1", "Delete entry 2"]
-      assert LazyHTML.attribute(buttons, "tabindex") == []
+      test "renders a focusable, labelled delete button per row that drops the row" do
+        buttons = @name |> render_form() |> LazyHTML.query("button[name='change[#{@name}_delete][]']")
 
-      for click <- LazyHTML.attribute(buttons, "phx-click") do
-        assert click =~ ~s("dispatch")
-        assert click =~ ~s("change")
+        assert Enum.count(buttons) == 2
+        assert LazyHTML.attribute(buttons, "type") == ["button", "button"]
+        assert LazyHTML.attribute(buttons, "value") == ["0", "1"]
+        assert LazyHTML.attribute(buttons, "aria-label") == ["Delete entry 1", "Delete entry 2"]
+        assert LazyHTML.attribute(buttons, "tabindex") == []
+
+        for click <- LazyHTML.attribute(buttons, "phx-click") do
+          assert click =~ ~s(["dispatch",{"event":"change"}])
+        end
       end
-    end
 
-    test "does not render the delete control as a hidden checkbox" do
-      assert render_form() |> LazyHTML.query("input[type=checkbox][name='change[links_delete][]']") |> Enum.empty?()
-    end
+      test "moves focus to the add control only when the last row is deleted" do
+        html = render_form(@name)
 
-    test "renders no delete buttons when readonly" do
-      assert render_form(readonly: true) |> LazyHTML.query("button[name='change[links_delete][]']") |> Enum.empty?()
+        [add_entry_id] =
+          html |> LazyHTML.query("input[name='change[#{@name}_order][]'][type=checkbox]") |> LazyHTML.attribute("id")
+
+        [first_click, last_click] =
+          html |> LazyHTML.query("button[name='change[#{@name}_delete][]']") |> LazyHTML.attribute("phx-click")
+
+        assert add_entry_id == "change_#{@name}_add_entry"
+        refute first_click =~ "focus"
+        assert last_click =~ ~s(["focus",{"to":"##{add_entry_id}"}])
+      end
+
+      test "does not render the delete control as a hidden checkbox" do
+        assert render_form(@name)
+               |> LazyHTML.query("input[type=checkbox][name='change[#{@name}_delete][]']")
+               |> Enum.empty?()
+      end
+
+      test "renders no delete buttons when readonly" do
+        assert render_form(@name, readonly: true)
+               |> LazyHTML.query("button[name='change[#{@name}_delete][]']")
+               |> Enum.empty?()
+      end
     end
   end
 end
