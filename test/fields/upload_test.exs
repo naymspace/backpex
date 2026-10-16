@@ -168,6 +168,33 @@ defmodule Backpex.Fields.UploadTest do
     end
   end
 
+  describe "validate_config!/2" do
+    setup do
+      options = [
+        module: Upload,
+        label: "Images",
+        list_existing_files: fn item -> item.images end,
+        put_upload_change: fn _socket, params, _item, _uploaded_entries, _removed_entries, _action -> params end,
+        consume_upload: fn _socket, _item, _meta, _entry -> {:ok, "new.png"} end,
+        remove_uploads: fn _socket, _item, _removed_entries -> :ok end
+      ]
+
+      %{options: options}
+    end
+
+    test "accepts a positive max_entries", %{options: options} do
+      validated = Upload.validate_config!({:images, Keyword.put(options, :max_entries, 1)}, UntranslatedLive)
+
+      assert validated[:max_entries] == 1
+    end
+
+    test "rejects max_entries: 0", %{options: options} do
+      assert_raise RuntimeError, ~r/field "images".*invalid value for :max_entries option/s, fn ->
+        Upload.validate_config!({:images, Keyword.put(options, :max_entries, 0)}, UntranslatedLive)
+      end
+    end
+  end
+
   describe "assign_uploads/2" do
     setup do
       field_options = %{
@@ -194,6 +221,32 @@ defmodule Backpex.Fields.UploadTest do
 
       assert %UploadConfig{name: :pictures} = socket.assigns.uploads.pictures
       refute Map.has_key?(socket.assigns.uploads, :images)
+    end
+
+    test "assigns the field's files once on every update", %{field_options: field_options, socket: socket} do
+      field = {:images, field_options}
+      socket = Upload.assign_uploads(field, Upload.assign_uploads(field, socket))
+
+      assert socket.assigns.uploaded_files == [images: [{"old.png", "old.png"}]]
+    end
+
+    test "gives render_form/1 what it needs", %{field_options: field_options, socket: socket} do
+      socket = Upload.assign_uploads({:images, field_options}, socket)
+
+      html =
+        render_component(&Upload.render_form/1,
+          name: :images,
+          field_options: Map.put(field_options, :label, "Images"),
+          form: Phoenix.Component.to_form(%{}, as: :change),
+          lv_uploads: socket.assigns.uploads,
+          uploaded_files: socket.assigns.uploaded_files,
+          live_resource: UntranslatedLive,
+          readonly: false,
+          type: :form
+        )
+
+      assert html =~ ~s(for="#{socket.assigns.uploads.images.ref}")
+      assert html =~ "old.png"
     end
   end
 
