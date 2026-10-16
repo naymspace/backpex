@@ -249,4 +249,28 @@ defmodule Backpex.HTML.ResourceTest do
       assert result == %{foo: 1, bar: 2}
     end
   end
+
+  describe "pagination/1 accessibility" do
+    setup do
+      html = render_component(&Resource.pagination/1, current_page: 2, total_pages: 10, path: "/admin/posts?page=:page")
+
+      %{doc: LazyHTML.from_fragment(html)}
+    end
+
+    test "renders the placeholder as non-interactive and hidden from assistive technology", %{doc: doc} do
+      assert doc |> LazyHTML.query("button") |> Enum.empty?()
+
+      [placeholder] = doc |> LazyHTML.query(".join-item:not(a)") |> Enum.to_list()
+      assert LazyHTML.text(placeholder) =~ "..."
+      assert LazyHTML.attribute(placeholder, "aria-hidden") == ["true"]
+      assert LazyHTML.attribute(placeholder, "aria-disable") == []
+    end
+
+    test "marks only the current page link with aria-current", %{doc: doc} do
+      current = LazyHTML.query(doc, ~s(a[aria-current="page"]))
+
+      assert LazyHTML.text(current) =~ "2"
+      assert doc |> LazyHTML.query("a[aria-current]") |> Enum.count() == 1
+    end
+  end
 end
