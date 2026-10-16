@@ -55,6 +55,27 @@ defmodule Backpex.FormComponentTest do
 
       assert FormComponent.handle_event("cancel-entry", %{"ref" => "0", "id" => "avatar"}, socket) == {:noreply, socket}
     end
+
+    test "ignores an entry of a field that is readonly by a function", %{socket: socket} do
+      socket = Phoenix.Component.update(socket, :fields, &put_in(&1, [:avatar, :readonly], fn _assigns -> true end))
+
+      assert FormComponent.handle_event("cancel-entry", %{"ref" => "0", "id" => "avatar"}, socket) == {:noreply, socket}
+    end
+
+    test "ignores params that are not binaries", %{socket: socket} do
+      assert FormComponent.handle_event("cancel-entry", %{"ref" => "0", "id" => 1}, socket) == {:noreply, socket}
+      assert FormComponent.handle_event("cancel-entry", %{"ref" => 0, "id" => "avatar"}, socket) == {:noreply, socket}
+    end
+
+    test "matches the upload key, not the field name", %{socket: socket} do
+      fields = [photo: %{module: Backpex.Fields.Upload, label: "Photo", upload_key: :avatar}]
+      socket = Phoenix.Component.assign(socket, :fields, fields)
+
+      assert FormComponent.handle_event("cancel-entry", %{"ref" => "0", "id" => "photo"}, socket) == {:noreply, socket}
+
+      assert {:noreply, socket} = FormComponent.handle_event("cancel-entry", %{"ref" => "0", "id" => "avatar"}, socket)
+      assert socket.assigns.uploads.avatar.entries == []
+    end
   end
 
   # Registers a client entry the way the LiveView channel does when the user picks a file.
