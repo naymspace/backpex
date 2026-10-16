@@ -143,10 +143,23 @@ defmodule Backpex.FormComponent do
   end
 
   def handle_event("cancel-entry", %{"ref" => ref, "id" => upload_key}, socket) do
-    socket
-    |> cancel_upload(String.to_existing_atom(upload_key), ref)
-    |> push_event("cancel-entry:#{upload_key}", %{})
-    |> noreply()
+    %{assigns: assigns} = socket
+
+    # Both params are client-controlled, and the entry may already be gone, e.g. when a newly picked
+    # file replaced it for an upload with `max_entries: 1`. `cancel_upload/3` raises for an unknown
+    # upload or ref, so only a pending entry of an upload field the user may edit is cancelled.
+    with {_name, field_options} = field <- find_upload_field(assigns.fields, upload_key),
+         upload_key = Field.upload_key(field),
+         false <- Field.readonly?(field_options, assigns),
+         %{entries: entries} <- get_in(assigns, [:uploads, upload_key]),
+         true <- Enum.any?(entries, &(&1.ref == ref)) do
+      socket
+      |> cancel_upload(upload_key, ref)
+      |> push_event("cancel-entry:#{upload_key}", %{})
+      |> noreply()
+    else
+      _invalid -> noreply(socket)
+    end
   end
 
   def handle_event("cancel-existing-entry", %{"ref" => file_key, "id" => upload_key}, socket) do
