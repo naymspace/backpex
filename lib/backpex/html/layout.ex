@@ -474,12 +474,15 @@ defmodule Backpex.HTML.Layout do
         <form id="backpex-theme-selector-form" phx-hook="BackpexThemeSelector">
           <ul>
             <li :for={{label, theme_name} <- @themes} class="w-full">
-              <label class="has-checked:bg-neutral has-checked:text-neutral-content">
+              <label class={[
+                "has-checked:bg-neutral has-checked:text-neutral-content",
+                "has-focus-visible:outline-2 has-focus-visible:-outline-offset-2 has-focus-visible:outline-current"
+              ]}>
+                <%!-- Visually hidden, but focusable: Tab reaches the group and arrow keys switch themes --%>
                 <input
                   type="radio"
                   name="theme-selector"
-                  class="theme-controller hidden"
-                  phx-click={JS.dispatch("backpex:theme-change")}
+                  class="theme-controller sr-only"
                   value={theme_name}
                   checked={@current_theme == theme_name}
                 />

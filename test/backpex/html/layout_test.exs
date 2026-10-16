@@ -98,6 +98,35 @@ defmodule Backpex.HTML.LayoutTest do
       assert length(Regex.scan(~r/phx-hook="BackpexDropdown"/, html)) == 1
       assert length(Regex.scan(~r/phx-hook="BackpexThemeSelector"/, html)) == 1
     end
+
+    test "keeps the theme radios keyboard focusable" do
+      # Regression: the radios carried Tailwind's `hidden` (display: none),
+      # which removed them from the tab order and the accessibility tree, so
+      # keyboard and screen reader users could not pick a theme.
+      html =
+        render_component(&Layout.theme_selector/1,
+          current_theme: "dark",
+          label: "Theme",
+          themes: [{"Light", "light"}, {"Dark", "dark"}]
+        )
+
+      radios = Regex.scan(~r/<input[^>]*type="radio"[^>]*>/, html) |> List.flatten()
+
+      assert length(radios) == 2
+
+      for radio <- radios do
+        assert radio =~ ~r/name="theme-selector"/
+        assert radio =~ ~r/class="[^"]*\bsr-only\b[^"]*"/
+        refute radio =~ ~r/class="[^"]*\bhidden\b[^"]*"/
+        refute radio =~ ~r/tabindex="-1"/
+      end
+
+      assert Enum.any?(radios, &(&1 =~ ~r/value="dark"/ and &1 =~ ~r/\schecked/))
+
+      # The visually hidden radio is wrapped by its label, which shows the
+      # keyboard focus instead.
+      assert html =~ ~r/<label[^>]*class="[^"]*has-focus-visible:outline[^"]*"[^>]*>\s*<input[^>]*value="light"/
+    end
   end
 
   describe "preferences_root/1" do
