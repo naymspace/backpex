@@ -84,6 +84,21 @@ defmodule DemoWeb.Live.Post.IndexLiveTest do
       |> refute_has("tr", text: "Beta Post")
     end
 
+    test "ignores a search param that is not a string", %{conn: conn} do
+      insert(:post, %{title: "Alpha Post", published: true})
+      insert(:post, %{title: "Beta Post", published: true})
+
+      # `search[a]=b` decodes to a map, which used to raise in the dead render (HTTP 500).
+      path = ~p"/admin/posts?#{%{"search" => %{"a" => "b"}, "filters" => %{"published" => ["published"]}}}"
+
+      assert conn |> get(path) |> html_response(200)
+
+      conn
+      |> visit(path)
+      |> assert_has("table tbody tr", count: 2)
+      |> assert_has("#index-search-form input[value='']")
+    end
+
     test "metrics display total_likes value", %{conn: conn} do
       insert(:post, %{likes: 100, published: true})
       insert(:post, %{likes: 200, published: true})

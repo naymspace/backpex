@@ -170,26 +170,35 @@ defmodule Backpex.LiveResource.Index do
     maybe_handle_item_action(socket, key)
   end
 
-  def handle_event("select-page-size", %{"select_per_page" => %{"value" => per_page}}, socket) do
+  def handle_event("select-page-size", %{"select_per_page" => %{"value" => per_page}}, socket)
+      when is_binary(per_page) do
     %{query_options: query_options, params: params} = socket.assigns
 
-    per_page = String.to_integer(per_page)
+    # `per_page` is client-controlled. A tampered value must be a no-op rather than crash the LiveView.
+    case Integer.parse(per_page) do
+      {per_page, ""} ->
+        to =
+          Router.get_path(
+            socket,
+            socket.assigns.live_resource,
+            params,
+            :index,
+            Map.put(query_options, :per_page, per_page)
+          )
 
-    to =
-      Router.get_path(
-        socket,
-        socket.assigns.live_resource,
-        params,
-        :index,
-        Map.put(query_options, :per_page, per_page)
-      )
+        socket
+        |> LiveView.push_patch(to: to, replace: true)
+        |> noreply()
 
-    socket
-    |> LiveView.push_patch(to: to, replace: true)
-    |> noreply()
+      _invalid ->
+        noreply(socket)
+    end
   end
 
-  def handle_event("index-search", %{"index_search" => %{"value" => search_input}}, socket) do
+  def handle_event("select-page-size", _params, socket), do: noreply(socket)
+
+  def handle_event("index-search", %{"index_search" => %{"value" => search_input}}, socket)
+      when is_binary(search_input) do
     %{query_options: query_options, params: params} = socket.assigns
 
     to =
@@ -205,6 +214,8 @@ defmodule Backpex.LiveResource.Index do
     |> LiveView.push_patch(to: to, replace: true)
     |> noreply()
   end
+
+  def handle_event("index-search", _params, socket), do: noreply(socket)
 
   def handle_event("filter-preset-selected", %{"field" => field, "preset-index" => preset_index} = _params, socket) do
     query_options = socket.assigns.query_options
@@ -870,10 +881,8 @@ defmodule Backpex.LiveResource.Index do
     assign(socket, :changeset, changeset)
   end
 
-  defp maybe_put_search(query_options, %{"search" => search} = _params) when is_nil(search) or search == "",
-    do: query_options
-
-  defp maybe_put_search(query_options, %{"search" => search} = _params), do: Map.put(query_options, :search, search)
+  defp maybe_put_search(query_options, %{"search" => search} = _params) when is_binary(search) and search != "",
+    do: Map.put(query_options, :search, search)
 
   defp maybe_put_search(query_options, _params), do: query_options
 

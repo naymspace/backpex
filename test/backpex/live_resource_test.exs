@@ -6,6 +6,7 @@ defmodule Backpex.LiveResourceTest do
   alias Backpex.Adapters.Ecto, as: EctoAdapter
   alias Backpex.ItemActions.Delete
   alias Backpex.LiveResource
+  alias Backpex.LiveResource.Index
   alias Phoenix.LiveView.Socket
 
   defmodule TestAuthor do
@@ -248,6 +249,31 @@ defmodule Backpex.LiveResourceTest do
     end
   end
 
+  describe "search_options/3" do
+    @searchable_fields [{:title, %{module: Backpex.Fields.Text, searchable: true}}]
+
+    test "keeps a string search term" do
+      assert {"hello", [{:title, %{queryable: TestPost}}]} =
+               LiveResource.search_options(%{"search" => "hello"}, @searchable_fields, TestPost)
+
+      assert {"hello", _fields} = LiveResource.search_options(%{search: "hello"}, @searchable_fields, TestPost)
+      assert {"", _fields} = LiveResource.search_options(%{}, @searchable_fields, TestPost)
+    end
+
+    test "treats a search term that is not a string as an empty search" do
+      # `?search[a]=b` decodes to a map; it used to reach the adapter and raise in the dead render.
+      params = Plug.Conn.Query.decode("search[a]=b")
+
+      assert {"", _fields} = search = LiveResource.search_options(params, @searchable_fields, TestPost)
+      assert {"", _fields} = LiveResource.search_options(%{"search" => ["a"]}, @searchable_fields, TestPost)
+      assert {"", _fields} = LiveResource.search_options(%{"search" => nil}, @searchable_fields, TestPost)
+
+      base_query = from(TestPost, as: ^EctoAdapter.name_by_schema(TestPost))
+      assert EctoAdapter.apply_search(base_query, TestPost, nil, search) == base_query
+      assert EctoAdapter.apply_search(base_query, TestPost, :title, search) == base_query
+    end
+  end
+
   describe "Index.handle_event/3" do
     test "toggle_column is a no-op for a field the resource does not know" do
       # `field` arrives in a client-controlled event payload; an unknown name
@@ -257,7 +283,24 @@ defmodule Backpex.LiveResourceTest do
       }
 
       assert {:noreply, ^socket} =
-               Backpex.LiveResource.Index.handle_event("toggle_column", %{"field" => "bogus"}, socket)
+               Index.handle_event("toggle_column", %{"field" => "bogus"}, socket)
+    end
+
+    test "select-page-size is a no-op for a value that is not an integer" do
+      # `value` arrives in a client-controlled event payload; a tampered value
+      # must not crash the LiveView.
+      socket = %Socket{
+        assigns: %{__changed__: %{}, query_options: %{per_page: 15}, params: %{}}
+      }
+
+      for value <- ["abc", "15abc", "", %{"a" => "b"}] do
+        assert {:noreply, ^socket} =
+                 Index.handle_event(
+                   "select-page-size",
+                   %{"select_per_page" => %{"value" => value}},
+                   socket
+                 )
+      end
     end
   end
 end

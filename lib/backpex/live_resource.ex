@@ -883,14 +883,15 @@ defmodule Backpex.LiveResource do
 
   @doc """
   Returns all search options.
+
+  The search term comes from the URL, so a value that is not a string (e.g. `?search[a]=b`) is
+  treated as an empty search.
   """
   def search_options(params, fields, schema) do
     {
-      Map.get(
-        params,
-        "search",
-        Map.get(params, :search, "")
-      ),
+      params
+      |> Map.get("search", Map.get(params, :search, ""))
+      |> normalize_search(),
       fields
       |> Keyword.filter(fn {_name, field_options} -> Map.get(field_options, :searchable, false) end)
       |> Enum.map(fn {name, field_options} = field ->
@@ -898,6 +899,9 @@ defmodule Backpex.LiveResource do
       end)
     }
   end
+
+  defp normalize_search(search) when is_binary(search), do: search
+  defp normalize_search(_search), do: ""
 
   @doc """
   Checks whether a field is orderable or not.
