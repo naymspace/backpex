@@ -82,7 +82,7 @@ There are two kinds of checks, and both run:
 | item action with a confirm modal, on submit | the action key | each selected item, **re-read** |
 | resource action, on open and on submit | the action key | `nil` |
 
-The `Backpex.Resource` gates run **before** the changeset is built and before `c:Backpex.Field.before_changeset/6` is called, so your own code never executes for an unauthorized request.
+The `Backpex.Resource` gates run **before** the changeset is built and before `c:Backpex.Field.before_changeset/5` is called, so your own code never executes for an unauthorized request.
 
 Each gesture runs exactly one gate per step, so `can?/3` is not evaluated more times than there are decisions to make. A modal flow has two steps on purpose: the second check catches a permission revoked, or a selection widened, while the modal was open.
 

@@ -6,9 +6,21 @@ defmodule Backpex.Adapter do
   calls no repo and doesn't inspect schemas. LiveResources read and write data only through the callbacks of this
   behaviour, mostly via `Backpex.Resource`. Forms still use changesets.
 
-  Options and callbacks that take Ecto queries belong to `Backpex.Adapters.Ecto`, and only that adapter calls them: the
-  `:select` option of fields, the `:options_query` option of association fields, `c:Backpex.Field.search_condition/3`,
-  `c:Backpex.Field.before_changeset/6`, `c:Backpex.Filter.query/4` and `c:Backpex.Metric.query/3`.
+  Filters and metrics describe the data they need, and the adapter turns that into queries: filters return conditions
+  (see `t:Backpex.Filter.condition/0`), metrics name an aggregate (see `Backpex.Metric`). The `:options_query` option of
+  association fields receives the query of the adapter.
+
+  Options and callbacks that only one adapter understands belong to it, e.g. the `:select` option of fields and
+  `Backpex.Adapters.Ecto.Field` belong to `Backpex.Adapters.Ecto`. An adapter adds options to fields with
+  `c:field_config_schema/0`.
+
+  ## `use Backpex.Adapter`
+
+  When you `use Backpex.Adapter`, it declares this behaviour and accepts these options:
+
+    * `:config_schema` - the `NimbleOptions` schema of the `adapter_config` option of a LiveResource.
+    * `:field_config_schema` - the `NimbleOptions` schema of the options the adapter adds to fields, returned by
+      `c:field_config_schema/0`.
 
   > ### Work in progress {: .warning}
   >
@@ -23,14 +35,25 @@ defmodule Backpex.Adapter do
   defmacro __using__(opts) do
     quote bind_quoted: [opts: opts] do
       @config_schema opts[:config_schema] || []
+      @field_config_schema opts[:field_config_schema] || []
 
       @behaviour Backpex.Adapter
 
       def validate_config!(config) do
         NimbleOptions.validate!(config, @config_schema)
       end
+
+      def field_config_schema, do: @field_config_schema
+
+      defoverridable field_config_schema: 0
     end
   end
+
+  @doc """
+  Returns the `NimbleOptions` schema of the options the adapter adds to every field, e.g. `:select` of
+  `Backpex.Adapters.Ecto`. Backpex validates the options of fields against it, together with the options of the field.
+  """
+  @callback field_config_schema() :: keyword()
 
   @doc """
   Gets a database record with the given primary key value.
@@ -46,7 +69,8 @@ defmodule Backpex.Adapter do
   The criteria may contain:
 
     * `:search` - a tuple of the search string and the searchable fields.
-    * `:filter_values` and `:filter_configs` - the validated values and the configurations of the active filters.
+    * `:filter_values` and `:filter_configs` - the validated values and the configurations of the active filters. Keep
+      the items that match the condition of every filter, see `c:Backpex.Filter.condition/3`.
     * `:order` - a map with the keys `:by` (the column to order by), `:direction` (`:asc` or `:desc`), `:field_name`
       (the name of the field that is ordered by, or `nil`) and `:nulls` (`:default`, `:first`, `:last` or `:smallest`).
     * `:pagination` - a map with the keys `:page` and `:size`.
@@ -63,7 +87,10 @@ defmodule Backpex.Adapter do
   @doc """
   Returns the data of a metric, such as the sum of a column, for the items matching the given criteria.
 
-  Receives the same criteria as `c:count/4`.
+  Receives the same criteria as `c:count/4`. Computes the `:aggregate` of the metric over the items that also match its
+  `:where` condition, see `Backpex.Metric`. The data covers all matching items, so ignore `:order`, `:pagination` and
+  `:limit`. Backpex doesn't call it for a metric whose module implements
+  `c:Backpex.Metric.data/3`.
   """
   @callback metric(
               metric :: map(),
@@ -171,5 +198,5 @@ defmodule Backpex.Adapter do
   """
   @callback delete_all(items :: list(struct()), live_resource :: module()) :: {:ok, term()} | {:error, term()}
 
-  @optional_callbacks list_options_by_key: 4
+  @optional_callbacks field_config_schema: 0, list_options_by_key: 4
 end

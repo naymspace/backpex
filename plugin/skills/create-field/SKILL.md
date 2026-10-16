@@ -54,8 +54,8 @@ You are an expert at creating fields for Backpex, a Phoenix LiveView admin panel
 | `render_form` | `fn assigns -> HEEx` | Override form rendering |
 | `help_text` | string or `fn assigns -> string` | Text below form input |
 | `default` | `fn assigns -> value` | Default value for new items |
-| `select` | `dynamic(...)` | Ecto dynamic expression for computed/virtual fields |
-| `custom_alias` | atom | Custom alias for the field in queries |
+| `select` | `dynamic(...)` | Ecto dynamic expression for computed/virtual fields (added by `Backpex.Adapters.Ecto`) |
+| `custom_alias` | atom | Custom alias for the association binding in queries (added by `Backpex.Adapters.Ecto`) |
 | `translate_error` | `fn {msg, meta} -> {msg, meta}` | Custom error message formatting |
 
 ## Creating a Custom Field
@@ -78,11 +78,16 @@ These are provided by `use Backpex.Field` and can be overridden as needed:
 ```elixir
 @callback render_index_form(assigns)  # For index_editable support (only truly optional callback)
 @callback display_field(field)         # Default: returns field name
-@callback schema(field, schema)        # Default: returns the schema
 @callback association?(field)          # Default: false
 @callback assign_uploads(field, socket) # Default: returns socket unchanged
-@callback before_changeset(changeset, attrs, metadata, repo, field, assigns) # 6-arity
-@callback search_condition(schema_name :: binary(), field_name :: binary(), search_string :: binary()) # Default: ilike
+@callback before_changeset(changeset, attrs, metadata, field, assigns) # 5-arity
+```
+
+Ecto-specific callbacks live in `Backpex.Adapters.Ecto.Field` (add `@behaviour Backpex.Adapters.Ecto.Field`):
+
+```elixir
+@callback schema(field, schema)        # Optional: schema of the column the field shows
+@callback search_condition(schema_name :: atom(), field_name :: atom(), search_string :: String.t()) # Optional, default: ilike
 ```
 
 ### Key Assigns Available in Templates

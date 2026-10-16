@@ -7,10 +7,6 @@ defmodule Backpex.AdapterBoundaryTest do
 
   @adapter_paths ["lib/backpex/adapters/", "lib/backpex/preferences/adapters/"]
 
-  # The query callbacks of filters and metrics belong to `Backpex.Adapters.Ecto`, which calls them with an Ecto query
-  # and its repo. `BackpexWeb` imports `Ecto.Query` for them.
-  @query_callback_paths ["lib/backpex_web.ex", "lib/backpex/filters/", "lib/backpex/metrics/"]
-
   @template_violation ~r/\b(adapter_config|__schema__|__struct__)\b|\bEcto\.(?!Changeset)|\bPostgrex\b|\bBackpex\.Adapters\.|\brepo\./
 
   test "only adapters build queries, call a repo or inspect schemas" do
@@ -63,8 +59,6 @@ defmodule Backpex.AdapterBoundaryTest do
                "19: inspects a schema with __struct__",
                "20: mentions adapter_config in a template"
              ]
-
-    assert violations("import Ecto.Query\nrepo.one(query)", "lib/backpex/metrics/sum.ex") == []
   end
 
   defp violations(source, path) do
@@ -74,14 +68,12 @@ defmodule Backpex.AdapterBoundaryTest do
       |> Enum.with_index(1)
       |> Enum.flat_map(fn {line_source, line} -> template_violations(line_source, path, line) end)
     else
-      exceptions = if String.starts_with?(path, @query_callback_paths), do: [:query, :repo], else: []
-
       source
       |> Code.string_to_quoted!(file: path)
       |> Macro.prewalk([], fn
         # Module attributes hold docs and typespecs.
         {:@, _meta, _args}, violations -> {nil, violations}
-        node, violations -> {node, node_violations(node, path, exceptions) ++ violations}
+        node, violations -> {node, node_violations(node) ++ violations}
       end)
       |> elem(1)
       |> Enum.sort_by(fn {line, _message} -> line end)
@@ -89,45 +81,42 @@ defmodule Backpex.AdapterBoundaryTest do
     end
   end
 
-  defp node_violations({:sigil_H, meta, [{:<<>>, _meta, [template]}, _modifiers]}, _path, _exceptions)
-       when is_binary(template) do
+  defp node_violations({:sigil_H, meta, [{:<<>>, _meta, [template]}, _modifiers]}) when is_binary(template) do
     template
     |> template_violations(nil, meta[:line])
     |> Enum.map(&{meta[:line], &1})
   end
 
-  defp node_violations({directive, meta, [{:__aliases__, _meta, parts} | _rest]}, _path, exceptions)
+  defp node_violations({directive, meta, [{:__aliases__, _meta, parts} | _rest]})
        when directive in [:import, :alias, :require, :use] do
-    module_violations(parts, meta, exceptions)
+    module_violations(parts, meta)
   end
 
-  defp node_violations({:%, meta, [{:__aliases__, _meta, parts}, _fields]}, _path, exceptions) do
-    module_violations(parts, meta, exceptions)
+  defp node_violations({:%, meta, [{:__aliases__, _meta, parts}, _fields]}) do
+    module_violations(parts, meta)
   end
 
-  defp node_violations({{:., meta, [receiver, function]}, _call_meta, _args}, _path, exceptions)
-       when is_atom(function) do
+  defp node_violations({{:., meta, [receiver, function]}, _call_meta, _args}) when is_atom(function) do
     cond do
       function in [:__schema__, :__struct__] -> [{meta[:line], "inspects a schema with #{function}"}]
       function == :adapter_config -> [{meta[:line], "reads the adapter config"}]
-      repo?(receiver) and :repo not in exceptions -> [{meta[:line], "calls a repo"}]
-      match?({:__aliases__, _meta, _parts}, receiver) -> module_violations(elem(receiver, 2), meta, exceptions)
+      repo?(receiver) -> [{meta[:line], "calls a repo"}]
+      match?({:__aliases__, _meta, _parts}, receiver) -> module_violations(elem(receiver, 2), meta)
       true -> []
     end
   end
 
-  defp node_violations(_node, _path, _exceptions), do: []
+  defp node_violations(_node), do: []
 
-  defp module_violations(parts, meta, exceptions) do
-    if forbidden_module?(parts, exceptions), do: [{meta[:line], "uses #{Enum.join(parts, ".")}"}], else: []
+  defp module_violations(parts, meta) do
+    if forbidden_module?(parts), do: [{meta[:line], "uses #{Enum.join(parts, ".")}"}], else: []
   end
 
-  defp forbidden_module?([:Ecto, :Changeset | _rest], _exceptions), do: false
-  defp forbidden_module?([:Ecto, :Query | _rest], exceptions), do: :query not in exceptions
-  defp forbidden_module?([:Ecto | _rest], _exceptions), do: true
-  defp forbidden_module?([:Postgrex | _rest], _exceptions), do: true
-  defp forbidden_module?([:Backpex, :Adapters | _rest], _exceptions), do: true
-  defp forbidden_module?(_parts, _exceptions), do: false
+  defp forbidden_module?([:Ecto, :Changeset | _rest]), do: false
+  defp forbidden_module?([:Ecto | _rest]), do: true
+  defp forbidden_module?([:Postgrex | _rest]), do: true
+  defp forbidden_module?([:Backpex, :Adapters | _rest]), do: true
+  defp forbidden_module?(_parts), do: false
 
   defp repo?({:repo, _meta, context}) when is_atom(context), do: true
   defp repo?({:__aliases__, _meta, parts}), do: List.last(parts) == :Repo

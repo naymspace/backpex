@@ -5,6 +5,8 @@ defmodule DemoWeb.Filters.PostUserMultiSelect do
 
   use Backpex.Filters.MultiSelect
 
+  import Ecto.Query
+
   alias Backpex.Filters.Select
   alias Demo.Post
   alias Demo.Repo

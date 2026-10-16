@@ -1,13 +1,11 @@
 defmodule Backpex.Filters.Boolean do
   @moduledoc """
   The boolean filter renders one checkbox per given option, hence multiple options can apply at the same time.
-  Instead of implementing a `query` callback, you need to define predicates for each option leveraging [`Ecto.Query.dynamic/2`](https://hexdocs.pm/ecto/Ecto.Query.html#dynamic/2).
+  Instead of implementing a `condition/3` callback, you need to define a predicate for each option. A predicate is a
+  condition, see `t:Backpex.Filter.condition/0`.
 
-  > #### Warning {: .warning}
-  >
-  > Note that only query elements will work as a predicate that also work in an [`Ecto.Query.where/3`](https://hexdocs.pm/ecto/Ecto.Query.html#where/3).
-
-  If none is selected, the filter does not change the query. If multiple options are selected they are logically reduced via `orWhere`.
+  If none is selected, the filter keeps all items. If multiple options are selected, it keeps the items that match any
+  of their predicates.
 
   See the following example for an implementation of a boolean filter for a published field.
 
@@ -18,17 +16,17 @@ defmodule Backpex.Filters.Boolean do
         def label, do: "Published?"
 
         @impl Backpex.Filters.Boolean
-        def options do
+        def options(_assigns) do
           [
             %{
               label: "Published",
               key: "published",
-              predicate: dynamic([x], x.published)
+              predicate: {:==, :published, true}
             },
             %{
               label: "Not published",
               key: "not_published",
-              predicate: dynamic([x], not x.published)
+              predicate: {:==, :published, false}
             }
           ]
         end
@@ -38,7 +36,7 @@ defmodule Backpex.Filters.Boolean do
   >
   > When you `use Backpex.Filters.Boolean`, the `Backpex.Filters.Boolean` module will set `@behavior Backpex.Filters.Boolean`.
   > In addition it will add a `render` and `render_form` function in order to display the corresponding filter.
-  > It will also implement the `Backpex.Filter.query` function to define a boolean query.
+  > It will also implement the `c:Backpex.Filter.condition/3` callback to combine the predicates of the selected options.
   """
   use BackpexWeb, :filter
 
@@ -65,8 +63,10 @@ defmodule Backpex.Filters.Boolean do
       end
 
       @impl Backpex.Filter
-      def query(query, attribute, value, assigns) do
-        BooleanFilter.query(query, options(assigns), attribute, value, assigns)
+      def condition(field, value, assigns) do
+        assigns
+        |> options()
+        |> BooleanFilter.condition(field, value, assigns)
       end
 
       @impl Backpex.Filter
@@ -81,7 +81,7 @@ defmodule Backpex.Filters.Boolean do
         BooleanFilter.render_form(assigns)
       end
 
-      defoverridable type: 1, changeset: 3, query: 4, render: 1, render_form: 1
+      defoverridable type: 1, changeset: 3, condition: 3, render: 1, render_form: 1
     end
   end
 
@@ -153,21 +153,33 @@ defmodule Backpex.Filters.Boolean do
       else: [{field, "contains invalid options"}]
   end
 
-  def query(query, _options, _attribute, [], _assigns), do: query
+  @doc """
+  Returns the condition for the keys of the selected options: the predicate of a single option, the predicates of
+  several options combined with `:or`, or `nil` if no option is selected.
 
-  def query(query, options, _attribute, value, _assigns) do
-    Enum.reduce(value, nil, fn
-      v, nil ->
-        Map.get(predicates(options), v)
+  ## Examples
 
-      v, p ->
-        dynamic(^p or ^Map.get(predicates(options), v))
-    end)
-    |> maybe_query(query)
+      iex> options = [
+      ...>   %{label: "Published", key: "published", predicate: {:==, :published, true}},
+      ...>   %{label: "Featured", key: "featured", predicate: {:==, :featured, true}}
+      ...> ]
+      iex> Backpex.Filters.Boolean.condition(options, :status, [], %{})
+      nil
+      iex> Backpex.Filters.Boolean.condition(options, :status, ["published"], %{})
+      {:==, :published, true}
+      iex> Backpex.Filters.Boolean.condition(options, :status, ["published", "featured"], %{})
+      {:or, [{:==, :published, true}, {:==, :featured, true}]}
+
+  """
+  def condition(_options, _field, [], _assigns), do: nil
+
+  def condition(options, _field, [key], _assigns), do: options |> predicates() |> Map.get(to_string(key))
+
+  def condition(options, _field, keys, _assigns) do
+    predicates = predicates(options)
+
+    {:or, Enum.map(keys, &Map.get(predicates, to_string(&1)))}
   end
-
-  def maybe_query(nil, query), do: query
-  def maybe_query(predicates, query), do: where(query, ^predicates)
 
   @doc """
   Converts a list of option values to their corresponding labels.
@@ -231,18 +243,17 @@ defmodule Backpex.Filters.Boolean do
   end
 
   @doc """
-  Transforms options list into a map of keys to predicates.
+  Transforms options list into a map of keys to predicates. The keys are strings, as the selected keys of the filter
+  are, even if the options have atom keys.
 
   ## Examples
 
-      iex> import Ecto.Query
       iex> options = [
-      ...>   %{label: "Published", key: "published", predicate: dynamic([x], x.published == true)},
-      ...>   %{label: "Featured", key: "featured", predicate: dynamic([x], x.featured == true)}
+      ...>   %{label: "Published", key: "published", predicate: {:==, :published, true}},
+      ...>   %{label: "Featured", key: "featured", predicate: {:==, :featured, true}}
       ...> ]
-      iex> result = Backpex.Filters.Boolean.predicates(options)
-      iex> is_map(result) and Map.has_key?(result, "published") and Map.has_key?(result, "featured")
-      true
+      iex> Backpex.Filters.Boolean.predicates(options)
+      %{"featured" => {:==, :featured, true}, "published" => {:==, :published, true}}
 
       iex> Backpex.Filters.Boolean.predicates([])
       %{}
@@ -250,6 +261,6 @@ defmodule Backpex.Filters.Boolean do
   """
   def predicates(options) do
     options
-    |> Map.new(fn %{predicate: p, key: k} -> {k, p} end)
+    |> Map.new(fn %{predicate: p, key: k} -> {to_string(k), p} end)
   end
 end

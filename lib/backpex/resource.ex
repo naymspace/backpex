@@ -10,7 +10,7 @@ defmodule Backpex.Resource do
   ## Authorization
 
   All mutations in this module are authorized through `Backpex.Authorization` before anything else
-  happens — before the changeset is built and before `c:Backpex.Field.before_changeset/6` runs. An
+  happens — before the changeset is built and before `c:Backpex.Field.before_changeset/5` runs. An
   unauthorized call raises `Backpex.ForbiddenError` and never reaches the adapter.
 
   Each mutation has a default authorization action:
@@ -74,11 +74,30 @@ defmodule Backpex.Resource do
   @doc """
   Returns the data of the given metric for the items matching the given criteria. Takes the same criteria as
   `count/4`.
-  """
-  def metric(metric, criteria, fields, assigns, live_resource) do
-    adapter = live_resource.config(:adapter)
 
-    adapter.metric(metric, criteria, fields, assigns, live_resource)
+  Calls `c:Backpex.Metric.data/3` with the criteria if the module of the metric implements it, and the adapter
+  otherwise.
+  """
+  def metric(%{module: module} = metric, criteria, fields, assigns, live_resource) do
+    Code.ensure_loaded(module)
+
+    cond do
+      function_exported?(module, :data, 3) ->
+        {:ok, module.data(metric, criteria, assigns)}
+
+      # Backpex no longer calls `query/3`, so the adapter would compute other data than the metric did. `use BackpexWeb,
+      # :metric` refuses this at compile time, this covers modules that only declare `@behaviour Backpex.Metric`.
+      function_exported?(module, :query, 3) ->
+        raise ArgumentError, """
+        #{inspect(module)} implements query/3, but metrics no longer query their data. Implement \
+        Backpex.Metric.data/3 instead, see the guide on upgrading to v0.23.
+        """
+
+      true ->
+        adapter = live_resource.config(:adapter)
+
+        adapter.metric(metric, criteria, fields, assigns, live_resource)
+    end
   end
 
   @doc """
@@ -378,7 +397,7 @@ defmodule Backpex.Resource do
 
   @doc """
   Applies a change to a given item by calling the specified changeset function.
-  In addition, puts the given assocs into the function and calls the `c:Backpex.Field.before_changeset/6` callback for each field.
+  In addition, puts the given assocs into the function and calls the `c:Backpex.Field.before_changeset/5` callback for each field.
 
   ## Parameters
 

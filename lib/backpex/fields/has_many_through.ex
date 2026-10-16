@@ -30,9 +30,11 @@ defmodule Backpex.Fields.HasManyThrough do
     ],
     options_query: [
       doc: """
-      Manipulates the list of available options in the select. Can be used to select additional data for the `display_field` option or to limit the available entries.",
+      Manipulates the list of available options in the select. Can be used to select additional data for the
+      `display_field` option or to limit the available entries. Receives the query of the adapter, an `Ecto.Query` for
+      `Backpex.Adapters.Ecto`, and the assigns, and returns a query.
 
-      Defaults to `fn (query, _field) -> query end` which returns all entries.
+      Defaults to `fn query, _assigns -> query end` which returns all entries.
       """,
       type: {:fun, 2}
     ]

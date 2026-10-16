@@ -18,17 +18,14 @@ defmodule Backpex.Filters.Select do
           {"Open", :open},
           {"Close", :close},
         ]
-
-        @impl Backpex.Filter
-        def query(query, attribute, value) do
-            where(query, [x], field(x, ^attribute) == ^value)
-        end
       end
 
   > #### `use Backpex.Filters.Select` {: .info}
   >
   > When you `use Backpex.Filters.Select`, the `Backpex.Filters.Select` module will set `@behavior Backpex.Filters.Select`.
   > In addition it will add a `render` and `render_form` function in order to display the corresponding filter.
+  > It will also implement the `c:Backpex.Filter.condition/3` callback to keep the items whose field equals the selected
+  > value.
   """
   use BackpexWeb, :filter
 
@@ -60,7 +57,7 @@ defmodule Backpex.Filters.Select do
       end
 
       @impl Backpex.Filter
-      defdelegate query(query, attribute, value, assigns), to: SelectFilter
+      defdelegate condition(field, value, assigns), to: SelectFilter
 
       @impl Backpex.Filter
       def render(assigns) do
@@ -78,7 +75,7 @@ defmodule Backpex.Filters.Select do
         SelectFilter.render_form(assigns)
       end
 
-      defoverridable type: 1, changeset: 3, query: 4, render: 1, render_form: 1
+      defoverridable type: 1, changeset: 3, condition: 3, render: 1, render_form: 1
     end
   end
 
@@ -154,9 +151,16 @@ defmodule Backpex.Filters.Select do
     Ecto.Changeset.validate_inclusion(changeset, field, valid_values, message: "is not a valid option")
   end
 
-  def query(query, attribute, value, _assigns) do
-    where(query, [x], field(x, ^attribute) == ^value)
-  end
+  @doc """
+  Returns the condition that keeps the items whose field equals the selected value.
+
+  ## Examples
+
+      iex> Backpex.Filters.Select.condition(:status, "open", %{})
+      {:==, :status, "open"}
+
+  """
+  def condition(field, value, _assigns), do: {:==, field, value}
 
   @doc """
   Finds the label for a given option value.

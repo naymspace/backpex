@@ -103,8 +103,8 @@ defmodule Backpex.LiveResource do
       - `:smallest` treats `NULL` as smaller than any value: first in ascending (`ASC NULLS FIRST`) and last in
         descending order (`DESC NULLS LAST`). This was the behaviour before v0.23.
 
-      Fields can override this with their own `:order_nulls` option. Ordering by the `primary_key` always uses the
-      database default, since a primary key is never `NULL`. `:first`, `:last` and `:smallest` need a matching index (e.g.
+      Fields can override this with their own `:order_nulls` option. `Backpex.Adapters.Ecto` always orders a primary
+      key column of the schema by the database default, since a primary key is never `NULL`. `:first`, `:last` and `:smallest` need a matching index (e.g.
       `create index(:posts, ["published_at NULLS FIRST"])`), otherwise the database sorts the whole table on every
       page load. See the [Ordering](live_resource/ordering.md) guide.
       """,
@@ -648,12 +648,20 @@ defmodule Backpex.LiveResource do
   end
 
   defp validated_fields(live_resource) do
+    adapter_schema = adapter_field_config_schema(live_resource.config(:adapter))
+
     live_resource.fields()
     |> Enum.map(fn {name, options} = field ->
-      options.module.validate_config!(field, live_resource)
+      options.module.validate_config!(field, live_resource, adapter_schema)
       |> Map.new()
       |> then(&{name, &1})
     end)
+  end
+
+  defp adapter_field_config_schema(adapter) do
+    if Code.ensure_loaded?(adapter) and function_exported?(adapter, :field_config_schema, 0),
+      do: adapter.field_config_schema(),
+      else: []
   end
 
   def assign_changeset(socket, changeset_function, item, fields, live_action) do
@@ -914,6 +922,12 @@ defmodule Backpex.LiveResource do
   def orderable?(field) when is_nil(field), do: false
   def orderable?({_name, field_options}), do: Map.get(field_options, :orderable, true)
 
+  @doc """
+  Builds the criteria of the index view from its assigns: the order, the page, the search and the active filters.
+
+  `Backpex.Resource.list/4` takes them. Without `:pagination`, e.g. for an export, they select all items of the current
+  search and filters in the current order.
+  """
   def build_criteria(assigns) do
     %{
       live_resource: live_resource,
@@ -932,25 +946,16 @@ defmodule Backpex.LiveResource do
       if orderable?(field) do
         {field_name, field_options} = field
 
-        order = %{
+        %{
           by: field_options.module.display_field(field),
           direction: query_options.order_direction,
-          field_name: field_name
+          field_name: field_name,
+          nulls: order_nulls(live_resource, field_options)
         }
-
-        primary_key? =
-          not field_options.module.association?(field) and not Map.has_key?(field_options, :select) and
-            not Map.has_key?(field_options, :custom_alias) and order.by == live_resource.config(:primary_key)
-
-        Map.put(order, :nulls, order_nulls(live_resource, field_options, primary_key?))
       else
-        init_order = resolve_init_order(init_order, assigns)
-        primary_key? = init_order.by == live_resource.config(:primary_key)
-
-        Map.merge(init_order, %{
-          field_name: nil,
-          nulls: order_nulls(live_resource, %{}, primary_key?)
-        })
+        init_order
+        |> resolve_init_order(assigns)
+        |> Map.merge(%{field_name: nil, nulls: order_nulls(live_resource, %{})})
       end
 
     [
@@ -962,10 +967,7 @@ defmodule Backpex.LiveResource do
     ]
   end
 
-  # A primary key is never NULL, so NULLS FIRST/LAST would only keep the database from using the primary key index.
-  defp order_nulls(_live_resource, _field_options, true = _primary_key?), do: :default
-
-  defp order_nulls(live_resource, field_options, false = _primary_key?) do
+  defp order_nulls(live_resource, field_options) do
     Map.get(field_options, :order_nulls) || live_resource.config(:order_nulls) || :default
   end
 

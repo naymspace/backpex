@@ -360,4 +360,58 @@ defmodule Backpex.ResourceTest do
                {:ok, %{a: [{:field, [limit: 1], :a}], b: [{:field, [limit: 1], :b}]}}
     end
   end
+
+  describe "metric/5" do
+    defmodule MetricAdapter do
+      @moduledoc false
+      def metric(metric, criteria, _fields, _assigns, _live_resource), do: {:ok, {:adapter, metric.label, criteria}}
+    end
+
+    defmodule MetricLive do
+      @moduledoc false
+      def config(:adapter), do: MetricAdapter
+    end
+
+    defmodule DataMetric do
+      @moduledoc false
+      @behaviour Backpex.Metric
+
+      @impl Backpex.Metric
+      def render(assigns), do: assigns
+
+      @impl Backpex.Metric
+      def format(data, _format), do: data
+
+      @impl Backpex.Metric
+      def data(metric, criteria, assigns), do: {:data, metric.label, criteria, assigns.current_user}
+    end
+
+    test "calls data/3 of the metric module with the criteria and the assigns instead of the adapter" do
+      metric = %{module: DataMetric, label: "Balance"}
+      criteria = [search: {"Ann", []}, filter_values: %{year: 2026}, filter_configs: []]
+
+      assert Resource.metric(metric, criteria, [], %{current_user: :ann}, MetricLive) ==
+               {:ok, {:data, "Balance", criteria, :ann}}
+    end
+
+    test "raises for a metric module that still implements query/3" do
+      defmodule QueryMetric do
+        @moduledoc false
+        def query(query, _select, _repo), do: query
+      end
+
+      metric = %{module: QueryMetric, label: "Balance"}
+
+      assert_raise ArgumentError, ~r/implements query\/3, but metrics no longer query their data/, fn ->
+        Resource.metric(metric, [search: {"", []}], [], %{}, MetricLive)
+      end
+    end
+
+    test "lets the adapter compute the metric otherwise" do
+      metric = %{module: Backpex.Metrics.Value, label: "Total", aggregate: :count}
+
+      assert Resource.metric(metric, [search: {"", []}], [], %{}, MetricLive) ==
+               {:ok, {:adapter, "Total", [search: {"", []}]}}
+    end
+  end
 end

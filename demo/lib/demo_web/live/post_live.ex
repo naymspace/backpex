@@ -226,7 +226,7 @@ defmodule DemoWeb.PostLive do
         module: Value,
         label: "Total likes",
         class: "lg:w-1/4",
-        select: dynamic([p], sum(p.likes)),
+        aggregate: {:sum, :likes},
         format: fn value ->
           Integer.to_string(value) <> " likes"
         end
@@ -235,7 +235,8 @@ defmodule DemoWeb.PostLive do
         module: Value,
         label: "Published Posts",
         class: "lg:w-1/4",
-        select: dynamic([p], count(fragment("CASE WHEN ? = TRUE THEN 1 ELSE NULL END", p.published))),
+        aggregate: :count,
+        where: {:==, :published, true},
         format: fn value ->
           Integer.to_string(value)
         end
