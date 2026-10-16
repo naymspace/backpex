@@ -773,7 +773,11 @@ defmodule Backpex.HTML.Resource do
       |> assign(:link, pagination_link)
 
     ~H"""
-    <.link patch={@link} class={[@btn_class, @current_page == @number && "bg-base-300", @class]}>
+    <.link
+      patch={@link}
+      class={[@btn_class, @current_page == @number && "bg-base-300", @class]}
+      aria-current={@current_page == @number && "page"}
+    >
       {Integer.to_string(@number)}
     </.link>
     """
@@ -813,9 +817,9 @@ defmodule Backpex.HTML.Resource do
     assigns = assign(assigns, :btn_class, pagination_btn_class())
 
     ~H"""
-    <button class={[@btn_class, @class]} aria-disable="true">
+    <span class={[@btn_class, "pointer-events-none", @class]} aria-hidden="true">
       ...
-    </button>
+    </span>
     """
   end
 
