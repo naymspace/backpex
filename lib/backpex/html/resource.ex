@@ -533,7 +533,13 @@ defmodule Backpex.HTML.Resource do
       >
         <.input type="select" field={@form[:status]} options={@status_options} />
         <:presets>
-          <.filter_presets presets={[{"Active", "active"}, {"Inactive", "inactive"}]} />
+          <.filter_presets
+            filter_name={:status}
+            presets={[
+              %{label: "Active", values: fn -> "active" end},
+              %{label: "Inactive", values: fn -> "inactive" end}
+            ]}
+          />
         </:presets>
       </.filter_form_field>
   """
