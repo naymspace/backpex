@@ -23,6 +23,14 @@
  *      last mousedown landed and ignores outside clicks whose mousedown was
  *      inside the dropdown.
  *
+ * The CSS-only mechanism also shows the menu whenever focus is inside the
+ * dropdown, e.g. while the trigger is focused or after closing the menu with
+ * Enter or Escape, so keyboard users would Tab through every option of a menu
+ * they did not open. While closed, the root therefore carries daisyUI's
+ * `dropdown-close` class, which hides the menu regardless of focus. The
+ * server-rendered markup omits it, so the dropdown still opens on focus before
+ * the hook mounts.
+ *
  * Document listeners only run while the dropdown is open, so pages with many
  * dropdowns don't pay an event-handler tax for closed ones.
  */
@@ -34,6 +42,7 @@ export default {
 
     this.isOpen = false
     this.mousedownInside = false
+    this.el.classList.add('dropdown-close')
 
     this.handleRootMousedown = this.handleRootMousedown.bind(this)
     this.handleTriggerKeydown = this.handleTriggerKeydown.bind(this)
@@ -57,6 +66,7 @@ export default {
     // Restore the open state across LiveView re-renders, since morphdom strips
     // classes that aren't in the server-rendered HTML.
     this.el.classList.toggle('dropdown-open', this.isOpen)
+    this.el.classList.toggle('dropdown-close', !this.isOpen)
 
     if (this.focusedBeforeUpdate && !this.el.contains(document.activeElement)) {
       const target = this.focusedBeforeUpdate.isConnected
@@ -74,6 +84,7 @@ export default {
   open () {
     if (this.isOpen) return
     this.isOpen = true
+    this.el.classList.remove('dropdown-close')
     this.el.classList.add('dropdown-open')
     this.attachDocumentListeners()
   },
@@ -82,6 +93,7 @@ export default {
     this.isOpen = false
     this.mousedownInside = false
     this.el.classList.remove('dropdown-open')
+    this.el.classList.add('dropdown-close')
     this.detachDocumentListeners()
   },
   toggle () {

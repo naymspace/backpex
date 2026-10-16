@@ -66,6 +66,7 @@ var dropdown_default = {
     if (!this.trigger) return;
     this.isOpen = false;
     this.mousedownInside = false;
+    this.el.classList.add("dropdown-close");
     this.handleRootMousedown = this.handleRootMousedown.bind(this);
     this.handleTriggerKeydown = this.handleTriggerKeydown.bind(this);
     this.handleDocumentMousedown = this.handleDocumentMousedown.bind(this);
@@ -79,6 +80,7 @@ var dropdown_default = {
   },
   updated() {
     this.el.classList.toggle("dropdown-open", this.isOpen);
+    this.el.classList.toggle("dropdown-close", !this.isOpen);
     if (this.focusedBeforeUpdate && !this.el.contains(document.activeElement)) {
       const target = this.focusedBeforeUpdate.isConnected ? this.focusedBeforeUpdate : this.focusedBeforeUpdate.id && this.el.querySelector(`#${this.focusedBeforeUpdate.id}`);
       target?.focus();
@@ -93,6 +95,7 @@ var dropdown_default = {
   open() {
     if (this.isOpen) return;
     this.isOpen = true;
+    this.el.classList.remove("dropdown-close");
     this.el.classList.add("dropdown-open");
     this.attachDocumentListeners();
   },
@@ -101,6 +104,7 @@ var dropdown_default = {
     this.isOpen = false;
     this.mousedownInside = false;
     this.el.classList.remove("dropdown-open");
+    this.el.classList.add("dropdown-close");
     this.detachDocumentListeners();
   },
   toggle() {

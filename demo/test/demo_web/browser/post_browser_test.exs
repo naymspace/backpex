@@ -68,5 +68,22 @@ defmodule DemoWeb.Browser.PostBrowserTest do
       |> evaluate("document.documentElement.dataset.theme = 'dark'")
       |> assert_a11y()
     end
+
+    test "keeps the options of the closed tags dropdown out of the tab order", %{conn: conn} do
+      insert_list(3, :tag)
+      focus_in_menu = "document.activeElement.closest('#has-many-dropdown-tags-menu') !== null"
+
+      conn
+      |> visit(~p"/admin/posts/new")
+      |> assert_has("body .phx-connected")
+      |> press("#has-many-dropdown-tags-trigger", "Tab")
+      |> evaluate(focus_in_menu, &refute/1)
+      |> press("#has-many-dropdown-tags-trigger", "Enter")
+      |> press("#has-many-dropdown-tags-trigger", "Tab")
+      |> evaluate(focus_in_menu, &assert/1)
+      |> press("#has-many-dropdown-tags-trigger", "Enter")
+      |> press("#has-many-dropdown-tags-trigger", "Tab")
+      |> evaluate(focus_in_menu, &refute/1)
+    end
   end
 end
