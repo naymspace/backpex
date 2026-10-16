@@ -36,6 +36,36 @@ defmodule DemoWeb.Live.Post.PaginationLiveTest do
     end
   end
 
+  describe "page links" do
+    for search <- ["R&D", "C# dev"] do
+      test "keep the search #{inspect(search)} when navigating to page 2", %{conn: conn} do
+        search = unquote(search)
+
+        for i <- 1..20, do: insert(:post, published: true, title: "#{search} report #{i}")
+        insert(:post, published: true, title: "Unrelated post")
+
+        params = %{"search" => search, "filters" => %{"published" => ["published"]}}
+
+        conn
+        |> visit(~p"/admin/posts?#{params}")
+        |> click_link(".join-item", "2")
+        |> assert_path(~p"/admin/posts",
+          query_params: %{
+            "search" => search,
+            "filters" => %{"published" => ["published"]},
+            "filters_changed" => "false",
+            "order_by" => "id",
+            "order_direction" => "asc",
+            "per_page" => "15",
+            "page" => "2"
+          }
+        )
+        |> assert_has("input[name='index_search[value]'][value='#{search}']")
+        |> assert_has("table tbody tr", count: 5)
+      end
+    end
+  end
+
   describe "invalid pagination params" do
     test "invalid page falls back to page 1", %{conn: conn} do
       insert_list(3, :post, published: true)

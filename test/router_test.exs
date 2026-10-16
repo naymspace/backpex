@@ -6,10 +6,28 @@ defmodule Backpex.RouterTest do
   describe "live_resources/3 macro" do
     defmodule UserLive do
       def resource_actions, do: []
+      def config(:primary_key), do: :id
     end
 
     defmodule PostLive do
       def resource_actions, do: []
+    end
+
+    defmodule MemberLive do
+      def resource_actions, do: []
+      def config(:primary_key), do: :id
+    end
+
+    defmodule MemberLive.Index do
+      def __live__, do: %{}
+    end
+
+    defmodule MemberLive.Form do
+      def __live__, do: %{}
+    end
+
+    defmodule MemberLive.Show do
+      def __live__, do: %{}
     end
 
     defmodule CommentLive do
@@ -41,6 +59,11 @@ defmodule Backpex.RouterTest do
         as: :product,
         metadata: %{section: :catalog},
         private: %{access: :admin}
+
+      # Route below a scope with a dynamic segment
+      scope "/:tenant" do
+        live_resources "/members", MemberLive
+      end
     end
 
     test "generates routes with default options" do
@@ -205,6 +228,68 @@ defmodule Backpex.RouterTest do
                  route.verb == :post and
                  route.plug == Backpex.PreferencesController
              end)
+    end
+  end
+
+  describe "get_path/5 and get_path/6 primary key round trip" do
+    alias Backpex.RouterTest.MemberLive
+    alias Backpex.RouterTest.TestRouter
+    alias Backpex.RouterTest.UserLive
+
+    @primary_keys [
+      "a b",
+      "a+b",
+      "100%",
+      "a%20b",
+      "x%41",
+      "a/b",
+      "ä",
+      "hällö / world",
+      "0b9f6f2e-5d3c-4c1a-9a8e-2f1d3c4b5a69",
+      42
+    ]
+
+    for {action, get_path} <- [show: :get_path_5, edit: :get_path_5, edit: :get_path_6], primary_key <- @primary_keys do
+      test "#{action} path from #{get_path} matches the route with backpex_id #{inspect(primary_key)}" do
+        primary_key = unquote(Macro.escape(primary_key))
+        path = build_path(UserLive, %{}, unquote(get_path), unquote(action), primary_key)
+
+        assert %{phoenix_live_view: {_view, unquote(action), _opts, _session}, path_params: path_params} =
+                 route_info(TestRouter, path)
+
+        assert path_params["backpex_id"] == to_string(primary_key)
+      end
+    end
+
+    for {action, get_path} <- [show: :get_path_5, edit: :get_path_6], tenant <- ["acme corp", "a+b", "a/b", "100%"] do
+      test "#{action} path from #{get_path} keeps the scope param #{inspect(tenant)}" do
+        tenant = unquote(tenant)
+        path = build_path(MemberLive, %{"tenant" => tenant}, unquote(get_path), unquote(action), "x y")
+
+        assert %{phoenix_live_view: {_view, unquote(action), _opts, _session}, path_params: path_params} =
+                 route_info(TestRouter, path)
+
+        assert path_params == %{"tenant" => tenant, "backpex_id" => "x y"}
+      end
+    end
+
+    defp build_path(live_resource, params, :get_path_5, action, primary_key),
+      do: Router.get_path(%{router: TestRouter}, live_resource, params, action, %{id: primary_key})
+
+    defp build_path(live_resource, params, :get_path_6, action, primary_key),
+      do: Router.get_path(%{router: TestRouter}, live_resource, params, action, %{id: primary_key}, %{})
+
+    # Matches the path the way `Phoenix.Router.call/2` and LiveView navigation do: split the path
+    # into segments and decode each segment once with `URI.decode/1`.
+    defp route_info(router, path) do
+      segments =
+        path
+        |> URI.parse()
+        |> Map.fetch!(:path)
+        |> String.split("/", trim: true)
+        |> Enum.map(&URI.decode/1)
+
+      Phoenix.Router.route_info(router, "GET", segments, nil)
     end
   end
 
