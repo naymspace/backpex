@@ -118,6 +118,9 @@ defmodule Backpex.LiveResource.Index do
     noreply(socket)
   end
 
+  # `filters` is client-controlled. A tampered value must be a no-op rather than crash the LiveView.
+  def handle_event("change-filter", %{"filters" => filters}, socket) when not is_map(filters), do: noreply(socket)
+
   def handle_event("change-filter", params, socket) do
     # Merge new filter values with existing ones
     filters =
@@ -206,22 +209,23 @@ defmodule Backpex.LiveResource.Index do
   end
 
   def handle_event("filter-preset-selected", %{"field" => field, "preset-index" => preset_index} = _params, socket) do
-    preset_index = String.to_integer(preset_index)
-    field_atom = String.to_existing_atom(field)
+    # `field` and `preset-index` are client-controlled: look the preset up instead of atomizing
+    # the field, so a tampered payload is a no-op rather than a crash.
+    case find_filter_preset(socket.assigns.filters, field, preset_index) do
+      nil ->
+        noreply(socket)
 
-    get_preset_values =
-      socket.assigns
-      |> get_in([:filters, field_atom, :presets])
-      |> Enum.at(preset_index)
-      |> Map.get(:values)
+      preset ->
+        filters =
+          socket.assigns
+          |> current_filter_params()
+          |> Map.put(field, preset.values.())
 
-    filters =
-      socket.assigns
-      |> current_filter_params()
-      |> Map.put(field, get_preset_values.())
-
-    apply_filter_change(socket, filters)
+        apply_filter_change(socket, filters)
+    end
   end
+
+  def handle_event("filter-preset-selected", _params, socket), do: noreply(socket)
 
   def handle_event("update-selected-items", %{"id" => id}, socket) do
     %{selected_items: selected_items, live_resource: live_resource, items: items} = socket.assigns
@@ -442,6 +446,17 @@ defmodule Backpex.LiveResource.Index do
       socket
     end
   end
+
+  defp find_filter_preset(filters, field, preset_index) when is_binary(preset_index) do
+    with {index, ""} when index >= 0 <- Integer.parse(preset_index),
+         {_name, filter} <- Enum.find(filters, fn {name, _filter} -> Atom.to_string(name) == field end) do
+      filter |> Map.get(:presets, []) |> Enum.at(index)
+    else
+      _invalid -> nil
+    end
+  end
+
+  defp find_filter_preset(_filters, _field, _preset_index), do: nil
 
   defp apply_filter_change(socket, new_filters) do
     %{live_resource: live_resource, query_options: query_options, params: params} = socket.assigns
