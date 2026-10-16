@@ -63,17 +63,15 @@ defmodule Backpex.Fields.HasManyTest do
   end
 
   describe "render_form/1" do
-    test "renders select all as a keyboard operable button that checks the hidden input" do
+    test "renders select all as a keyboard operable button that sends its name with a change event" do
       document = render_tags_form(all_selected: false)
 
       assert [button] = document |> LazyHTML.query("button[type=button]") |> Enum.to_list()
       assert LazyHTML.text(button) =~ "Select all"
+      assert LazyHTML.attribute(button, "name") == ["change[tags_select_all]"]
+      assert LazyHTML.attribute(button, "value") == [""]
       assert [phx_click] = LazyHTML.attribute(button, "phx-click")
-      assert phx_click =~ ~s("dispatch")
-      assert phx_click =~ ~s("to":"#has-many-tags-toggle-all")
-
-      assert ["change[tags_select_all]"] =
-               document |> LazyHTML.query("#has-many-tags-toggle-all") |> LazyHTML.attribute("name")
+      assert phx_click =~ ~s(["dispatch",{"event":"change"}])
 
       assert document |> LazyHTML.query("[role=button]:not([tabindex])") |> Enum.empty?()
     end
@@ -81,10 +79,9 @@ defmodule Backpex.Fields.HasManyTest do
     test "renders deselect all when all options are selected" do
       document = render_tags_form(all_selected: true)
 
-      assert document |> LazyHTML.query("button[type=button]") |> LazyHTML.text() =~ "Deselect all"
-
-      assert ["change[tags_deselect_all]"] =
-               document |> LazyHTML.query("#has-many-tags-toggle-all") |> LazyHTML.attribute("name")
+      assert [button] = document |> LazyHTML.query("button[type=button]") |> Enum.to_list()
+      assert LazyHTML.text(button) =~ "Deselect all"
+      assert LazyHTML.attribute(button, "name") == ["change[tags_deselect_all]"]
     end
   end
 

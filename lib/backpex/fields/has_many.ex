@@ -191,6 +191,7 @@ defmodule Backpex.Fields.HasMany do
                 :if={Enum.any?(@options)}
                 live_resource={@live_resource}
                 name={@name}
+                form={@form}
                 all_selected={@all_selected}
               />
 
@@ -282,42 +283,30 @@ defmodule Backpex.Fields.HasMany do
   attr :live_resource, :atom, required: true
   attr :all_selected, :boolean, required: true
   attr :name, :string, required: true
+  attr :form, Phoenix.HTML.Form, required: true
 
   defp toggle_all(assigns) do
-    hidden_input_name =
-      if assigns.all_selected, do: "change[#{assigns.name}_deselect_all]", else: "change[#{assigns.name}_select_all]"
-
-    button_text =
+    {param, button_text} =
       if assigns.all_selected,
-        do: Backpex.__("Deselect all", assigns.live_resource),
-        else: Backpex.__("Select all", assigns.live_resource)
+        do: {"#{assigns.name}_deselect_all", Backpex.__("Deselect all", assigns.live_resource)},
+        else: {"#{assigns.name}_select_all", Backpex.__("Select all", assigns.live_resource)}
 
     assigns =
       assigns
-      |> assign(:hidden_input_id, "has-many-#{assigns.name}-toggle-all")
-      |> assign(:hidden_input_name, hidden_input_name)
+      |> assign(:button_name, PhoenixForm.input_name(assigns.form, param))
       |> assign(:button_text, button_text)
 
-    # The button checks the hidden checkbox, so the change reaches the form like any other input change.
+    # LiveView sends the button's name with the change event it dispatches, as for any other form input.
     ~H"""
-    <div class={@class}>
-      <input
-        id={@hidden_input_id}
-        type="checkbox"
-        class="hidden"
-        name={@hidden_input_name}
-        value=""
-        tabindex="-1"
-        aria-hidden="true"
-      />
-      <button
-        type="button"
-        phx-click={JS.dispatch("click", to: "##{@hidden_input_id}")}
-        class="text-primary block cursor-pointer text-sm underline"
-      >
-        {@button_text}
-      </button>
-    </div>
+    <button
+      type="button"
+      name={@button_name}
+      value=""
+      phx-click={JS.dispatch("change")}
+      class={["text-primary block cursor-pointer text-sm underline", @class]}
+    >
+      {@button_text}
+    </button>
     """
   end
 
