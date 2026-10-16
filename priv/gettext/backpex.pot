@@ -68,6 +68,10 @@ msgid "Cancel"
 msgstr ""
 
 #, elixir-autogen, elixir-format
+msgid "Cancel %{name}"
+msgstr ""
+
+#, elixir-autogen, elixir-format
 msgid "Choose %{resource} ..."
 msgstr ""
 
@@ -173,6 +177,10 @@ msgstr ""
 
 #, elixir-autogen, elixir-format
 msgid "Previous Page"
+msgstr ""
+
+#, elixir-autogen, elixir-format
+msgid "Remove %{name}"
 msgstr ""
 
 #, elixir-autogen, elixir-format

@@ -29,9 +29,11 @@ defmodule Backpex.Fields.UploadTest do
     def upload_error(field, error, upload, assigns), do: Upload.upload_error(field, error, upload, assigns)
   end
 
-  # A LiveResource that returns Backpex's texts untranslated.
+  # A LiveResource that returns Backpex's texts untranslated, with their bindings filled in.
   defmodule UntranslatedLive do
-    def translate({msg, _opts}), do: msg
+    def translate({msg, opts}) do
+      Enum.reduce(opts, msg, fn {key, value}, msg -> String.replace(msg, "%{#{key}}", to_string(value)) end)
+    end
   end
 
   # An upload field that works out its files from the field instead of taking a function per field.
@@ -261,6 +263,14 @@ defmodule Backpex.Fields.UploadTest do
       html = render_upload_form(%{}, %{upload | entries: entries}, uploaded_files)
 
       assert html =~ ~r/old-1\.png.*old-2\.png.*new-1\.png.*new-2\.png/s
+    end
+
+    test "names the file in the labels of its cancel and remove buttons", %{upload: upload} do
+      html = render_upload_form(%{}, upload_with_errors(upload, []), [{"uploads/abc123.png", "stored.png"}])
+
+      assert html =~ ~s(aria-label="Cancel photo.png")
+      assert html =~ ~s(aria-label="Remove stored.png")
+      refute html =~ ~s(aria-label="Remove uploads/abc123.png")
     end
   end
 
