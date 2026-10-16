@@ -118,12 +118,14 @@ defmodule Backpex.LiveResource.Index do
     noreply(socket)
   end
 
-  def handle_event("change-filter", params, socket) do
-    query_options = socket.assigns.query_options
+  # `filters` is client-controlled. A tampered value must be a no-op rather than crash the LiveView.
+  def handle_event("change-filter", %{"filters" => filters}, socket) when not is_map(filters), do: noreply(socket)
 
+  def handle_event("change-filter", params, socket) do
     # Merge new filter values with existing ones
     filters =
-      Map.get(query_options, :filters, %{})
+      socket.assigns
+      |> current_filter_params()
       |> Map.merge(params["filters"] || %{})
       # Filter out empty values
       |> Enum.reject(fn
@@ -207,22 +209,23 @@ defmodule Backpex.LiveResource.Index do
   end
 
   def handle_event("filter-preset-selected", %{"field" => field, "preset-index" => preset_index} = _params, socket) do
-    query_options = socket.assigns.query_options
-    preset_index = String.to_integer(preset_index)
-    field_atom = String.to_existing_atom(field)
+    # `field` and `preset-index` are client-controlled: look the preset up instead of atomizing
+    # the field, so a tampered payload is a no-op rather than a crash.
+    case find_filter_preset(socket.assigns.filters, field, preset_index) do
+      nil ->
+        noreply(socket)
 
-    get_preset_values =
-      socket.assigns
-      |> get_in([:filters, field_atom, :presets])
-      |> Enum.at(preset_index)
-      |> Map.get(:values)
+      preset ->
+        filters =
+          socket.assigns
+          |> current_filter_params()
+          |> Map.put(field, preset.values.())
 
-    filters =
-      Map.get(query_options, :filters, %{})
-      |> Map.put(field, get_preset_values.())
-
-    apply_filter_change(socket, filters)
+        apply_filter_change(socket, filters)
+    end
   end
+
+  def handle_event("filter-preset-selected", _params, socket), do: noreply(socket)
 
   def handle_event("update-selected-items", %{"id" => id}, socket) do
     %{selected_items: selected_items, live_resource: live_resource, items: items} = socket.assigns
@@ -275,8 +278,8 @@ defmodule Backpex.LiveResource.Index do
 
   def handle_event("clear-filter", %{"field" => field}, socket) do
     filters =
-      socket.assigns.query_options
-      |> Map.get(:filters, %{})
+      socket.assigns
+      |> current_filter_params()
       |> Map.delete(field)
 
     apply_filter_change(socket, filters)
@@ -444,6 +447,17 @@ defmodule Backpex.LiveResource.Index do
     end
   end
 
+  defp find_filter_preset(filters, field, preset_index) when is_binary(preset_index) do
+    with {index, ""} when index >= 0 <- Integer.parse(preset_index),
+         {_name, filter} <- Enum.find(filters, fn {name, _filter} -> Atom.to_string(name) == field end) do
+      filter |> Map.get(:presets, []) |> Enum.at(index)
+    else
+      _invalid -> nil
+    end
+  end
+
+  defp find_filter_preset(_filters, _field, _preset_index), do: nil
+
   defp apply_filter_change(socket, new_filters) do
     %{live_resource: live_resource, query_options: query_options, params: params} = socket.assigns
 
@@ -461,6 +475,23 @@ defmodule Backpex.LiveResource.Index do
     |> assign(filters_changed: true)
     |> LiveView.push_patch(to: to)
     |> noreply()
+  end
+
+  # The filter params of the current URL or persisted filters without values that failed to cast to their filter's
+  # type, so a filter change neither carries nor persists them again.
+  defp current_filter_params(assigns) do
+    uncastable =
+      case assigns do
+        %{filter_form: %{source: %Ecto.Changeset{} = changeset}} ->
+          changeset |> FilterValidation.cast_error_fields() |> Enum.map(&Atom.to_string/1)
+
+        _assigns ->
+          []
+      end
+
+    assigns.query_options
+    |> Map.get(:filters, %{})
+    |> Map.drop(uncastable)
   end
 
   defp maybe_push_filters(socket, live_resource, filters) do
