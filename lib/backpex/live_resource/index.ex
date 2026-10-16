@@ -172,35 +172,29 @@ defmodule Backpex.LiveResource.Index do
     maybe_handle_item_action(socket, key)
   end
 
-  def handle_event("select-page-size", %{"select_per_page" => %{"value" => per_page}}, socket)
-      when is_binary(per_page) do
+  # The value is client-controlled. It is patched into the URL as is and validated like any other URL param in
+  # `handle_params/3` (`Backpex.PaginationValidation`), so a tampered value falls back to the default.
+  def handle_event("select-page-size", %{"select_per_page" => %{"value" => per_page}}, socket) do
     %{query_options: query_options, params: params} = socket.assigns
 
-    # `per_page` is client-controlled. A tampered value must be a no-op rather than crash the LiveView.
-    case Integer.parse(per_page) do
-      {per_page, ""} ->
-        to =
-          Router.get_path(
-            socket,
-            socket.assigns.live_resource,
-            params,
-            :index,
-            Map.put(query_options, :per_page, per_page)
-          )
+    to =
+      Router.get_path(
+        socket,
+        socket.assigns.live_resource,
+        params,
+        :index,
+        Map.put(query_options, :per_page, per_page)
+      )
 
-        socket
-        |> LiveView.push_patch(to: to, replace: true)
-        |> noreply()
-
-      _invalid ->
-        noreply(socket)
-    end
+    socket
+    |> LiveView.push_patch(to: to, replace: true)
+    |> noreply()
   end
 
   def handle_event("select-page-size", _params, socket), do: noreply(socket)
 
-  def handle_event("index-search", %{"index_search" => %{"value" => search_input}}, socket)
-      when is_binary(search_input) do
+  # The search term is validated in `handle_params/3` like `select-page-size` above.
+  def handle_event("index-search", %{"index_search" => %{"value" => search_input}}, socket) do
     %{query_options: query_options, params: params} = socket.assigns
 
     to =
@@ -763,17 +757,19 @@ defmodule Backpex.LiveResource.Index do
     filter_values = FilterValidation.valid_values(filter_changeset)
     filter_form = to_form(filter_changeset, as: :filters)
 
-    # Validate pagination and sorting params (page clamping happens after we know item_count)
+    # Validate pagination, sorting and search params (page clamping happens after we know item_count)
     query_options =
-      PaginationValidation.build(params,
+      params
+      |> PaginationValidation.build(
         per_page_default: per_page_default,
         per_page_options: per_page_options,
         orderable_fields: orderable_fields,
         init_order: init_order
       )
+      |> maybe_put_search(PaginationValidation.validate_search(params))
 
     count_criteria = [
-      search: LiveResource.search_options(params, fields, schema),
+      search: LiveResource.search_options(query_options, fields, schema),
       filter_values: filter_values,
       filter_configs: filters
     ]
@@ -785,10 +781,7 @@ defmodule Backpex.LiveResource.Index do
     page = PaginationValidation.clamp_page(query_options.page, total_pages)
     query_options = %{query_options | page: page}
 
-    query_options =
-      query_options
-      |> maybe_put_search(params)
-      |> Map.put(:filters, raw_filter_params)
+    query_options = Map.put(query_options, :filters, raw_filter_params)
 
     socket
     |> assign(:page_title, socket.assigns.live_resource.plural_name())
@@ -912,10 +905,8 @@ defmodule Backpex.LiveResource.Index do
     assign(socket, :changeset, changeset)
   end
 
-  defp maybe_put_search(query_options, %{"search" => search} = _params) when is_binary(search) and search != "",
-    do: Map.put(query_options, :search, search)
-
-  defp maybe_put_search(query_options, _params), do: query_options
+  defp maybe_put_search(query_options, ""), do: query_options
+  defp maybe_put_search(query_options, search), do: Map.put(query_options, :search, search)
 
   defp maybe_redirect_to_default_filters(%{assigns: %{filters_changed: false}} = socket) do
     %{live_resource: live_resource, query_options: query_options, filters: filters} = socket.assigns
@@ -957,7 +948,7 @@ defmodule Backpex.LiveResource.Index do
   end
 
   defp count_items(socket) do
-    %{live_resource: live_resource, params: params, fields: fields} = socket.assigns
+    %{live_resource: live_resource, query_options: query_options, fields: fields} = socket.assigns
 
     schema = live_resource.adapter_config(:schema)
     filters = LiveResource.active_filters(socket.assigns)
@@ -966,7 +957,7 @@ defmodule Backpex.LiveResource.Index do
     filter_values = Map.get(socket.assigns, :filter_values, %{})
 
     count_criteria = [
-      search: LiveResource.search_options(params, fields, schema),
+      search: LiveResource.search_options(query_options, fields, schema),
       filter_values: filter_values,
       filter_configs: filters
     ]

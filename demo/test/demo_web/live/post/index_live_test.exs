@@ -99,6 +99,25 @@ defmodule DemoWeb.Live.Post.IndexLiveTest do
       |> assert_has("#index-search-form input[value='']")
     end
 
+    test "falls back to the defaults for a tampered page size or search event", %{conn: conn} do
+      insert_list(20, :post, published: true)
+
+      {:ok, view, _html} = live(conn, ~p"/admin/posts?#{%{"filters" => %{"published" => ["published"]}}}")
+      default_rows = view |> render() |> rows()
+      assert default_rows in 1..19
+
+      for value <- ["abc", "15abc", %{"a" => "b"}] do
+        render_hook(view, "select-page-size", %{"select_per_page" => %{"value" => value}})
+        assert_patch(view)
+        assert view |> render() |> rows() == default_rows
+      end
+
+      render_hook(view, "index-search", %{"index_search" => %{"value" => %{"a" => "b"}}})
+      assert_patch(view)
+      assert view |> render() |> rows() == default_rows
+      assert has_element?(view, "#index-search-form input[value='']")
+    end
+
     test "metrics display total_likes value", %{conn: conn} do
       insert(:post, %{likes: 100, published: true})
       insert(:post, %{likes: 200, published: true})
@@ -209,4 +228,6 @@ defmodule DemoWeb.Live.Post.IndexLiveTest do
       end
     end
   end
+
+  defp rows(html), do: html |> LazyHTML.from_document() |> LazyHTML.query("table tbody tr") |> Enum.count()
 end

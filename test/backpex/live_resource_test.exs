@@ -259,19 +259,6 @@ defmodule Backpex.LiveResourceTest do
       assert {"hello", _fields} = LiveResource.search_options(%{search: "hello"}, @searchable_fields, TestPost)
       assert {"", _fields} = LiveResource.search_options(%{}, @searchable_fields, TestPost)
     end
-
-    test "treats a search term that is not a string as an empty search" do
-      # `?search[a]=b` decodes to a map; it used to reach the adapter and raise in the dead render.
-      params = Plug.Conn.Query.decode("search[a]=b")
-
-      assert {"", _fields} = search = LiveResource.search_options(params, @searchable_fields, TestPost)
-      assert {"", _fields} = LiveResource.search_options(%{"search" => ["a"]}, @searchable_fields, TestPost)
-      assert {"", _fields} = LiveResource.search_options(%{"search" => nil}, @searchable_fields, TestPost)
-
-      base_query = from(TestPost, as: ^EctoAdapter.name_by_schema(TestPost))
-      assert EctoAdapter.apply_search(base_query, TestPost, nil, search) == base_query
-      assert EctoAdapter.apply_search(base_query, TestPost, :title, search) == base_query
-    end
   end
 
   describe "Index.handle_event/3" do
@@ -327,33 +314,19 @@ defmodule Backpex.LiveResourceTest do
                Index.handle_event("toggle_column", %{"field" => "bogus"}, socket)
     end
 
-    test "select-page-size is a no-op for a value that is not an integer" do
-      # `value` arrives in a client-controlled event payload; a tampered value
-      # must not crash the LiveView.
-      socket = %Socket{
-        assigns: %{__changed__: %{}, query_options: %{per_page: 15}, params: %{}}
-      }
+    test "select-page-size and index-search are no-ops for a payload without a value" do
+      # The payload is client-controlled. A tampered value is validated in `handle_params/3`; a payload
+      # without one must not crash the LiveView.
+      socket = %Socket{assigns: %{__changed__: %{}, query_options: %{}, params: %{}}}
 
-      for value <- ["abc", "15abc", "", %{"a" => "b"}] do
-        assert {:noreply, ^socket} =
-                 Index.handle_event(
-                   "select-page-size",
-                   %{"select_per_page" => %{"value" => value}},
-                   socket
-                 )
+      for {event, params} <- [
+            {"select-page-size", %{}},
+            {"select-page-size", %{"select_per_page" => "15"}},
+            {"index-search", %{}},
+            {"index-search", %{"index_search" => "R&D"}}
+          ] do
+        assert {:noreply, ^socket} = Index.handle_event(event, params, socket)
       end
-    end
-
-    test "index-search is a no-op for a value that is not a string" do
-      # A non-string value must not be patched into the URL.
-      socket = %Socket{
-        assigns: %{__changed__: %{}, query_options: %{}, params: %{}}
-      }
-
-      assert {:noreply, ^socket} =
-               Index.handle_event("index-search", %{"index_search" => %{"value" => %{"a" => "b"}}}, socket)
-
-      assert {:noreply, ^socket} = Index.handle_event("index-search", %{}, socket)
     end
   end
 end
