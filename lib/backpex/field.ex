@@ -257,10 +257,10 @@ defmodule Backpex.Field do
   @doc """
   Returns the files of the item as a list of strings.
 
-  Upload fields (see `upload_key/1`) implement it, together with `c:put_upload_change/7`,
-  `c:consume_upload/5` and `c:remove_uploads/4`. The form component calls them on the module of the field and passes
-  the field, so a custom upload field can implement them once and work out what it needs from the field, such as the
-  column to read the files from, instead of taking a function per field as an option. `Backpex.Fields.Upload`
+  Upload fields (see `upload_key/1`) implement it, together with `c:put_upload_change/7`, `c:consume_upload/5`,
+  `c:remove_uploads/4` and optionally `c:discard_uploads/4`. The form component calls them on the module of the field
+  and passes the field, so a custom upload field can implement them once and work out what it needs from the field, such
+  as the column to read the files from, instead of taking a function per field as an option. `Backpex.Fields.Upload`
   implements them by calling the functions given in its options.
   """
   @callback list_existing_files(field :: tuple(), item :: struct() | map()) :: [String.t()]
@@ -283,10 +283,21 @@ defmodule Backpex.Field do
             ) :: map()
 
   @doc """
-  Consumes an uploaded entry after the item has been saved.
+  Stores an uploaded entry before the item is saved.
 
-  The form component calls it for every entry as the callback of `Phoenix.LiveView.consume_uploaded_entries/3`, with
-  the saved item. See `c:list_existing_files/2`.
+  The form component calls it for every entry with `Phoenix.LiveView.consume_uploaded_entry/3`, once the changeset is
+  valid and before it saves the item. `item` is the item without its changes, the same as in `c:put_upload_change/7`.
+  On create it's the new empty item, so `item.id` is `nil`: take the file name from the entry (for example
+  `entry.uuid`), not from the item. In a resource action, `item` is the data of the form.
+
+  Return `{:ok, value}` when the file is stored. Backpex keeps the entry until the save is done and passes the values
+  to `c:discard_uploads/4` if the save fails. Return `{:error, reason}` when the file can't be stored: Backpex then logs
+  the reason, doesn't save the item, shows an error at the field, discards the files stored before it and keeps the
+  entries, so the user can save again. A raised exception and `{:postpone, value}` count as a file that wasn't stored,
+  too. Any other value counts as stored, with a warning.
+
+  After a failed save, the next save calls it again for the same entry, so the write has to work for a file name that
+  may exist already. See `c:list_existing_files/2`.
   """
   @callback consume_upload(
               field :: tuple(),
@@ -294,7 +305,7 @@ defmodule Backpex.Field do
               item :: struct(),
               meta :: map(),
               entry :: Phoenix.LiveView.UploadEntry.t()
-            ) :: {:ok, term()} | {:postpone, term()}
+            ) :: {:ok, term()} | {:error, term()} | {:postpone, term()}
 
   @doc """
   Removes the files the user removed during an edit, after the item has been saved.
@@ -304,6 +315,22 @@ defmodule Backpex.Field do
   """
   @callback remove_uploads(field :: tuple(), socket :: Socket.t(), item :: struct(), removed_entries :: [String.t()]) ::
               term()
+
+  @doc """
+  Deletes the files that `c:consume_upload/5` stored when the item can't be saved afterwards.
+
+  The form component calls it when saving the item fails (for example on a constraint error) or when another file of
+  the form couldn't be stored. `stored` holds the values that `c:consume_upload/5` returned in `{:ok, value}` for the
+  entries of this field, `item` is the item that `c:consume_upload/5` got. The entries stay in the form, so the files
+  are stored again on the next save.
+
+  Direct uploads (`external` in `Phoenix.LiveView.allow_upload/3`) aren't passed: the browser uploaded the objects
+  before the save, and their entries stay in the form, so the next save uses the same objects again.
+
+  The callback is optional. Without it, the files stay where `c:consume_upload/5` stored them, and Backpex logs a
+  warning.
+  """
+  @callback discard_uploads(field :: tuple(), socket :: Socket.t(), item :: struct(), stored :: [term()]) :: term()
 
   @doc """
   Returns the text of an upload error, which the form shows next to the file or below the upload.
@@ -344,6 +371,7 @@ defmodule Backpex.Field do
                       put_upload_change: 7,
                       consume_upload: 5,
                       remove_uploads: 4,
+                      discard_uploads: 4,
                       upload_error: 4
 
   @doc """
@@ -492,9 +520,9 @@ defmodule Backpex.Field do
   Returns the module that implements the upload callbacks of an upload field.
 
   This is the module of the field when it implements `c:consume_upload/5` and the other upload callbacks, otherwise
-  `Backpex.Fields.Upload`, which calls the `:list_existing_files`, `:put_upload_change`, `:consume_upload` and
-  `:remove_uploads` functions of the field options. So a custom field that only defines an `:upload_key` and these
-  options, as before the callbacks existed, keeps working.
+  `Backpex.Fields.Upload`, which calls the `:list_existing_files`, `:put_upload_change`, `:consume_upload`,
+  `:remove_uploads` and `:discard_uploads` functions of the field options. So a custom field that only defines an
+  `:upload_key` and these options, as before the callbacks existed, keeps working.
 
   ## Examples
 

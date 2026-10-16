@@ -166,6 +166,23 @@ defmodule Backpex.Fields.UploadTest do
       assert Upload.remove_uploads(field, :socket, item, ["old.png"]) == :ok
       assert_received {:remove_uploads, :socket, ^item, ["old.png"]}
     end
+
+    test "discard_uploads/4 calls the option", %{field: {name, field_options}, item: item} do
+      test = self()
+      discard_uploads = fn socket, item, stored -> send(test, {:discard_uploads, socket, item, stored}) end
+      field = {name, Map.put(field_options, :discard_uploads, discard_uploads)}
+
+      Upload.discard_uploads(field, :socket, item, ["new.png"])
+
+      assert_received {:discard_uploads, :socket, ^item, ["new.png"]}
+    end
+
+    test "discard_uploads/4 logs the files it keeps without the option", %{field: field, item: item} do
+      log = ExUnit.CaptureLog.capture_log(fn -> assert Upload.discard_uploads(field, :socket, item, ["new.png"]) end)
+
+      assert log =~ ~s(Upload field :images has no discard_uploads option and keeps the files it stored)
+      assert log =~ ~s(["new.png"])
+    end
   end
 
   describe "assign_uploads/2" do

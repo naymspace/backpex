@@ -1,6 +1,7 @@
 defmodule DemoWeb.Live.Product.NewLiveTest do
   use DemoWeb.ConnCase, async: false
 
+  import Demo.EctoFactory
   import Phoenix.LiveViewTest
 
   alias Demo.Product
@@ -49,6 +50,88 @@ defmodule DemoWeb.Live.Product.NewLiveTest do
     end
   end
 
+  describe "storing the files before the product is saved" do
+    setup :store_uploads_in_tmp_dir
+    setup %{upload_root: root}, do: %{images_dir: Path.join(root, "uploads/product/images")}
+
+    test "stores the files and saves the product", %{conn: conn, images_dir: images_dir} do
+      {:ok, view, _html} = live(conn, ~p"/admin/products/new")
+
+      upload_images(view, [image("small.jpg", 100)])
+      submit_form(view)
+
+      assert [%Product{images: [file]}] = Repo.all(Product)
+      assert File.ls!(images_dir) == [file]
+    end
+
+    @tag :capture_log
+    test "refuses the save when a file can't be stored and stores it on the next save", %{
+      conn: conn,
+      upload_root: root,
+      images_dir: images_dir
+    } do
+      # A file in place of the upload directory makes every write fail.
+      File.rm_rf!(root)
+      File.write!(root, "")
+
+      {:ok, view, _html} = live(conn, ~p"/admin/products/new")
+
+      upload_images(view, [image("small.jpg", 100)])
+      submit_form(view)
+
+      assert has_element?(view, "#images-drop-target + section > p", "file could not be stored")
+      assert Repo.all(Product) == []
+
+      File.rm!(root)
+      File.mkdir_p!(images_dir)
+
+      # The entry is still in the form, so saving again stores it.
+      submit_form(view)
+
+      assert [%Product{images: [file]}] = Repo.all(Product)
+      assert File.ls!(images_dir) == [file]
+    end
+
+    test "stores nothing while the form is invalid", %{conn: conn, images_dir: images_dir} do
+      {:ok, view, _html} = live(conn, ~p"/admin/products/new")
+
+      upload_images(view, [image("small.jpg", 100)])
+
+      html =
+        view
+        |> form("#resource-form", change: %{quantity: "5", manufacturer: "https://example.com"})
+        |> put_submitter("button[value=save]")
+        |> render_submit(%{change: %{price: "12.34"}})
+
+      assert html =~ "can&#39;t be blank"
+      assert Repo.all(Product) == []
+      assert File.ls!(images_dir) == []
+    end
+
+    test "discards the stored files when the save fails and stores them again on the next save", %{
+      conn: conn,
+      images_dir: images_dir
+    } do
+      insert(:short_link, short_key: "taken")
+
+      {:ok, view, _html} = live(conn, ~p"/admin/products/new")
+
+      upload_images(view, [image("small.jpg", 100)])
+
+      # The short key passes the changeset, the unique constraint of the database refuses it.
+      html = submit_form_with_short_link(view, "taken")
+
+      assert html =~ "has already been taken"
+      assert Repo.all(Product) == []
+      assert File.ls!(images_dir) == []
+
+      submit_form_with_short_link(view, "free")
+
+      assert [%Product{images: [file]}] = Repo.all(Product)
+      assert File.ls!(images_dir) == [file]
+    end
+  end
+
   defp image(name, size), do: %{name: name, content: :binary.copy("a", size), type: "image/jpeg"}
 
   defp upload_images(view, files) do
@@ -63,6 +146,15 @@ defmodule DemoWeb.Live.Product.NewLiveTest do
     |> form("#resource-form", change: %{name: "Widget", quantity: "5", manufacturer: "https://example.com"})
     |> put_submitter("button[value=save]")
     |> render_submit(%{change: %{price: "12.34"}})
+  end
+
+  defp submit_form_with_short_link(view, short_key) do
+    short_links = %{"0" => %{short_key: short_key, url: "https://example.com"}}
+
+    view
+    |> form("#resource-form", change: %{name: "Widget", quantity: "5", manufacturer: "https://example.com"})
+    |> put_submitter("button[value=save]")
+    |> render_submit(%{change: %{price: "12.34", short_links: short_links}})
   end
 
   defp assert_save_refused(_html, view) do
