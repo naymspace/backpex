@@ -74,10 +74,12 @@ defmodule Backpex.Fields.HasManyThroughTest do
     def translate(msg), do: UntranslatedLive.translate(msg)
   end
 
+  # The invalid pivot gets no `note` param, so its input counts as unused and shows no error text. Rendering an error
+  # text would print a warning about the missing `:error_translator_function` configuration.
   describe "render_form/1" do
     test "marks the invalid relation when the rows are sorted" do
       # Zulu is attached first and valid, Alpha second and invalid; sorted by name, Alpha comes first.
-      changeset = changeset(%Parent{}, [%{child_id: 1, note: "valid"}, %{child_id: 2, note: ""}])
+      changeset = changeset(%Parent{}, [%{child_id: 1, note: "valid"}, %{child_id: 2}])
 
       html = render_form(changeset, sort_by: [:name])
 
@@ -87,7 +89,7 @@ defmodule Backpex.Fields.HasManyThroughTest do
     end
 
     test "marks the invalid relation when the rows are not sorted" do
-      changeset = changeset(%Parent{}, [%{child_id: 1, note: "valid"}, %{child_id: 2, note: ""}])
+      changeset = changeset(%Parent{}, [%{child_id: 1, note: "valid"}, %{child_id: 2}])
 
       html = render_form(changeset)
 
@@ -99,7 +101,7 @@ defmodule Backpex.Fields.HasManyThroughTest do
       pivots = [
         loaded_pivot(%Pivot{id: 10, child_id: 3, note: "detached"}),
         loaded_pivot(%Pivot{id: 11, child_id: 1, note: "valid"}),
-        loaded_pivot(%Pivot{id: 12, child_id: 2, note: "invalid"})
+        loaded_pivot(%Pivot{id: 12, child_id: 2, note: nil})
       ]
 
       [detached, valid, invalid] = pivots
@@ -111,7 +113,7 @@ defmodule Backpex.Fields.HasManyThroughTest do
         |> Changeset.put_assoc(:pivots, [
           %{Changeset.change(detached) | action: :delete},
           Pivot.changeset(valid, %{}),
-          Pivot.changeset(invalid, %{note: ""})
+          Pivot.changeset(invalid, %{})
         ])
         |> Map.put(:action, :validate)
 
@@ -124,6 +126,17 @@ defmodule Backpex.Fields.HasManyThroughTest do
 
       assert rows(html) == [{"Alpha", true}, {"Zulu", false}]
       assert html =~ ~s(aria-label="Error in relation with index 2")
+    end
+
+    test "marks no relation before the form was validated" do
+      changeset =
+        %Parent{}
+        |> changeset([%{child_id: 1, note: "valid"}, %{child_id: 2}])
+        |> Map.put(:action, nil)
+
+      html = render_form(changeset, sort_by: [:name])
+
+      assert rows(html) == [{"Alpha", false}, {"Zulu", false}]
     end
   end
 
