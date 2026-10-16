@@ -142,5 +142,41 @@ defmodule DemoWeb.Live.Post.IndexLiveTest do
       test_show_action_redirect(conn, ~p"/admin/posts", posts)
       test_edit_action_redirect(conn, ~p"/admin/posts", posts)
     end
+
+    test "ignores filter values of the wrong shape in the URL", %{conn: conn} do
+      insert(:post, %{title: "Published Post", published: true})
+      insert(:post, %{title: "Draft Post", published: false})
+
+      {:ok, _view, html} = live(conn, ~p"/admin/posts?filters[published]=published&filters[likes]=abc")
+
+      assert html =~ "Published Post"
+      assert html =~ "Draft Post"
+    end
+
+    test "ignores persisted filter values of the wrong shape until a filter changes", %{conn: conn} do
+      insert(:post, %{title: "Published Post", published: true})
+      insert(:post, %{title: "Draft Post", published: false})
+
+      session = %{
+        "backpex_preferences" => %{
+          "resource" => %{"DemoWeb.PostLive" => %{"filters" => %{"published" => "published", "likes" => "abc"}}}
+        }
+      }
+
+      conn = Plug.Test.init_test_session(conn, session)
+
+      {:ok, view, html} = live(conn, ~p"/admin/posts")
+
+      assert html =~ "Published Post"
+      assert html =~ "Draft Post"
+
+      view
+      |> form("#filter-form", filters: %{published: ["published"]})
+      |> render_change()
+
+      path = assert_patch(view)
+      refute path =~ "abc"
+      assert path =~ "filters[published][]=published"
+    end
   end
 end

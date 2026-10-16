@@ -461,8 +461,13 @@ defmodule Backpex.HTML.Resource do
         for {field, filter} <- assigns.filters do
           label = Map.get(filter, :label, filter.module.label())
           presets = Map.get(filter, :presets, [])
-          # filter_options (from URL params) is always string-keyed
-          value = Map.get(assigns.filter_options, Atom.to_string(field))
+          # filter_options (from URL params or persisted filters) is always string-keyed. A value that
+          # fails to cast to the filter's type has the wrong shape for its `render_form/1`, e.g. a string
+          # where a list is expected, so the form renders without it and shows the cast error instead.
+          value =
+            if !cast_error?(error_changeset, field),
+              do: Map.get(assigns.filter_options, Atom.to_string(field))
+
           errors = extract_filter_errors(error_changeset, field)
 
           %{
@@ -507,6 +512,14 @@ defmodule Backpex.HTML.Resource do
   defp get_filter_changeset(nil), do: nil
   defp get_filter_changeset(%{source: %Ecto.Changeset{} = changeset}), do: changeset
   defp get_filter_changeset(_other), do: nil
+
+  defp cast_error?(nil, _field), do: false
+
+  defp cast_error?(changeset, field) do
+    changeset.errors
+    |> Keyword.get_values(field)
+    |> Enum.any?(fn {_msg, opts} -> opts[:validation] == :cast end)
+  end
 
   defp extract_filter_errors(nil, _field), do: []
 

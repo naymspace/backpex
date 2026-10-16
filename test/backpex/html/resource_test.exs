@@ -1,8 +1,10 @@
 defmodule Backpex.HTML.ResourceTest do
   use ExUnit.Case, async: true
 
+  import ExUnit.CaptureIO
   import Phoenix.LiveViewTest
 
+  alias Backpex.Filters.Select
   alias Backpex.HTML.Resource
 
   defmodule ContextLive do
@@ -49,6 +51,105 @@ defmodule Backpex.HTML.ResourceTest do
         )
 
       assert html =~ ~s(<span id="marker">assigns</span>)
+    end
+  end
+
+  defmodule BooleanFilter do
+    @moduledoc false
+    use Backpex.Filters.Boolean
+
+    @impl Backpex.Filter
+    def label, do: "Published"
+
+    @impl Backpex.Filters.Boolean
+    def options(_assigns) do
+      [
+        %{label: "Published", key: "published", predicate: dynamic([x], x.published)},
+        %{label: "Not published", key: "not_published", predicate: dynamic([x], not x.published)}
+      ]
+    end
+  end
+
+  defmodule MultiSelectFilter do
+    @moduledoc false
+    use Backpex.Filters.MultiSelect
+
+    @impl Backpex.Filter
+    def label, do: "Users"
+
+    @impl Select
+    def prompt, do: "Select users ..."
+
+    @impl Select
+    def options(_assigns), do: [{"Jane", "a"}, {"John", "b"}]
+  end
+
+  defmodule RangeFilter do
+    @moduledoc false
+    use Backpex.Filters.Range
+
+    @impl Backpex.Filter
+    def label, do: "Likes"
+
+    @impl Backpex.Filters.Range
+    def type, do: :number
+  end
+
+  describe "resource_filters/1 with filter values from the URL or persisted filters" do
+    @filters [
+      published: %{module: BooleanFilter},
+      user_id: %{module: MultiSelectFilter},
+      likes: %{module: RangeFilter}
+    ]
+
+    defp render_filters(raw_filters) do
+      changeset = Backpex.FilterValidation.build_changeset(raw_filters, @filters, %{})
+
+      # The library tests have no error translator configured, so the fallback translator warns about the
+      # `:type` option of cast errors.
+      {html, _warnings} =
+        with_io(:stderr, fn ->
+          render_component(&Resource.resource_filters/1,
+            live_resource: ContextLive,
+            search_placeholder: "Search",
+            filters: @filters,
+            query_options: %{filters: raw_filters},
+            filter_values: Backpex.FilterValidation.valid_values(changeset),
+            filter_form: Phoenix.Component.to_form(changeset, as: :filters)
+          )
+        end)
+
+      html
+    end
+
+    test "renders the form without values of the wrong shape and shows the cast error" do
+      for raw_filters <- [
+            %{"published" => "published"},
+            %{"user_id" => "a"},
+            %{"likes" => "abc"},
+            %{"likes" => ["abc"]},
+            %{"published" => "published", "user_id" => "a", "likes" => "abc"}
+          ] do
+        html = render_filters(raw_filters)
+
+        assert html =~ ~s(id="filter-form")
+        assert html =~ ~s(<p class="text-error)
+        refute html =~ "checked"
+      end
+    end
+
+    test "keeps values of the right shape in the form" do
+      html =
+        render_filters(%{
+          "published" => ["published"],
+          "user_id" => ["a"],
+          "likes" => %{"start" => "1", "end" => "5"}
+        })
+
+      refute html =~ ~s(<p class="text-error)
+      assert html =~ ~r/value="published"\s+checked/
+      assert html =~ "1 selected"
+      assert html =~ ~s(value="5")
     end
   end
 
