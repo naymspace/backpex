@@ -938,7 +938,6 @@ function writeSession2(key, value) {
 // js/hooks/_sticky_actions.js
 var sticky_actions_default = {
   mounted() {
-    this.sticky = this.el.querySelector(".sticky");
     this.observer = new IntersectionObserver(
       ([entry]) => {
         this.stuck = entry.intersectionRatio < 1;
@@ -955,7 +954,7 @@ var sticky_actions_default = {
     this.observer.disconnect();
   },
   toggleStuckAttribute() {
-    this.sticky.toggleAttribute("stuck", this.stuck);
+    this.el.querySelector(".sticky")?.toggleAttribute("stuck", this.stuck === true);
   }
 };
 
