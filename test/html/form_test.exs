@@ -167,8 +167,7 @@ defmodule Backpex.HTML.FormTest do
 
       assert badge_class =~ "badge-primary"
 
-      # The remove affordance is a div with role="button" and phx-click="toggle-option"
-      # inside the badge.
+      # The remove affordance is a div with phx-click="toggle-option" inside the badge.
       assert html =~ ~s(phx-click="toggle-option")
       remove = LazyHTML.query(doc, ~s(div.badge [phx-click="toggle-option"]))
       refute Enum.empty?(remove)
@@ -196,6 +195,26 @@ defmodule Backpex.HTML.FormTest do
       html = render_component(&BackpexForm.multi_select/1, assigns)
 
       assert submitted_params(html)["tags"] == ["elixir"]
+    end
+
+    test "badge remove affordance is hidden from assistive technology" do
+      assigns = base_assigns(readonly: false, selected: [{"Elixir", "elixir"}])
+
+      html = render_component(&BackpexForm.multi_select/1, assigns)
+
+      doc = LazyHTML.from_fragment(html)
+      remove = LazyHTML.query(doc, ~s(div.badge [phx-click="toggle-option"]))
+
+      # The trigger is already a button, so the remove affordance must not be another (nested, unfocusable) button.
+      # Keyboard and screen reader users deselect via the option checkboxes in the menu.
+      assert LazyHTML.attribute(remove, "aria-hidden") == ["true"]
+      assert LazyHTML.attribute(remove, "role") == []
+      assert LazyHTML.attribute(remove, "aria-label") == []
+
+      nested_buttons =
+        LazyHTML.query(doc, ~s(#multi-select-tags-trigger [role="button"], #multi-select-tags-trigger button))
+
+      assert Enum.empty?(nested_buttons)
     end
   end
 

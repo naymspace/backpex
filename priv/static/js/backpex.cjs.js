@@ -82,24 +82,23 @@ var drag_hover_default = {
 // js/hooks/_dropdown.js
 var dropdown_default = {
   mounted() {
-    this.trigger = this.el.querySelector(`#${this.el.id}-trigger`);
-    this.menu = this.el.querySelector(`#${this.el.id}-menu`);
-    if (!this.trigger) return;
+    if (!this.triggerEl()) return;
     this.isOpen = false;
     this.mousedownInside = false;
     this.el.classList.add("dropdown-close");
     this.handleRootMousedown = this.handleRootMousedown.bind(this);
-    this.handleTriggerKeydown = this.handleTriggerKeydown.bind(this);
+    this.handleRootKeydown = this.handleRootKeydown.bind(this);
     this.handleDocumentMousedown = this.handleDocumentMousedown.bind(this);
     this.handleDocumentClick = this.handleDocumentClick.bind(this);
     this.handleDocumentKeydown = this.handleDocumentKeydown.bind(this);
     this.el.addEventListener("mousedown", this.handleRootMousedown);
-    this.trigger.addEventListener("keydown", this.handleTriggerKeydown);
+    this.el.addEventListener("keydown", this.handleRootKeydown);
   },
   beforeUpdate() {
     this.focusedBeforeUpdate = this.el.contains(document.activeElement) ? document.activeElement : null;
   },
   updated() {
+    if (!this.menuEl()) this.close();
     this.el.classList.toggle("dropdown-open", this.isOpen);
     this.el.classList.toggle("dropdown-close", !this.isOpen);
     if (this.focusedBeforeUpdate && !this.el.contains(document.activeElement)) {
@@ -111,7 +110,13 @@ var dropdown_default = {
   destroyed() {
     this.detachDocumentListeners();
     this.el.removeEventListener("mousedown", this.handleRootMousedown);
-    this.trigger?.removeEventListener("keydown", this.handleTriggerKeydown);
+    this.el.removeEventListener("keydown", this.handleRootKeydown);
+  },
+  triggerEl() {
+    return this.el.querySelector(`#${this.el.id}-trigger`);
+  },
+  menuEl() {
+    return this.el.querySelector(`#${this.el.id}-menu`);
   },
   open() {
     if (this.isOpen) return;
@@ -144,11 +149,13 @@ var dropdown_default = {
   },
   handleRootMousedown(event) {
     this.mousedownInside = true;
-    if (this.menu?.contains(event.target)) return;
+    const menu = this.menuEl();
+    if (!menu || menu.contains(event.target)) return;
     this.toggle();
   },
-  handleTriggerKeydown(event) {
+  handleRootKeydown(event) {
     if (event.key !== "Enter" && event.key !== " ") return;
+    if (!this.menuEl() || !this.triggerEl()?.contains(event.target)) return;
     event.preventDefault();
     this.toggle();
   },
@@ -166,7 +173,7 @@ var dropdown_default = {
   handleDocumentKeydown(event) {
     if (event.key !== "Escape") return;
     this.close();
-    this.trigger.focus();
+    this.triggerEl()?.focus();
   }
 };
 
@@ -942,7 +949,6 @@ function writeSession2(key, value) {
 // js/hooks/_sticky_actions.js
 var sticky_actions_default = {
   mounted() {
-    this.sticky = this.el.querySelector(".sticky");
     this.observer = new IntersectionObserver(
       ([entry]) => {
         this.stuck = entry.intersectionRatio < 1;
@@ -959,7 +965,7 @@ var sticky_actions_default = {
     this.observer.disconnect();
   },
   toggleStuckAttribute() {
-    this.sticky.toggleAttribute("stuck", this.stuck);
+    this.el.querySelector(".sticky")?.toggleAttribute("stuck", this.stuck === true);
   }
 };
 
@@ -969,7 +975,7 @@ var theme_selector_default = {
     BackpexPreferences.syncScope();
     this.preferenceScopeMarker = BackpexPreferences.scopeMarker;
     this.boundHandleThemeChange = this.handleThemeChange.bind(this);
-    this.el.addEventListener("backpex:theme-change", this.boundHandleThemeChange);
+    this.el.addEventListener("change", this.boundHandleThemeChange);
     this.applyRenderedTheme();
   },
   updated() {
@@ -998,7 +1004,7 @@ var theme_selector_default = {
     }
   },
   destroyed() {
-    this.el.removeEventListener("backpex:theme-change", this.boundHandleThemeChange);
+    this.el.removeEventListener("change", this.boundHandleThemeChange);
   }
 };
 

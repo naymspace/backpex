@@ -555,13 +555,16 @@ defmodule Backpex.HTML.Form do
     ~H"""
     <div class="badge badge-sm badge-soft badge-primary pointer-events-auto pr-0">
       {@label}
+      <%!--
+        aria-hidden on purpose: this is a mouse-only shortcut inside the trigger, which is already a button. Keyboard and
+        screen reader users deselect via the option checkboxes in the menu, so those must stay keyboard-reachable.
+      --%>
       <div
         class="flex cursor-pointer items-center pr-2"
-        role="button"
         phx-click="toggle-option"
         phx-value-id={@value}
         phx-target={@event_target}
-        aria-label={Backpex.__({"Unselect %{label}", %{label: @label}}, @live_resource)}
+        aria-hidden="true"
       >
         <.icon name="hero-x-mark" class="size-4 scale-105 hover:scale-110" />
       </div>
