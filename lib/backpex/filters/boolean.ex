@@ -156,12 +156,14 @@ defmodule Backpex.Filters.Boolean do
   def query(query, _options, _attribute, [], _assigns), do: query
 
   def query(query, options, _attribute, value, _assigns) do
-    Enum.reduce(value, nil, fn
-      v, nil ->
-        Map.get(predicates(options), v)
+    predicates = predicates(options)
 
-      v, p ->
-        dynamic(^p or ^Map.get(predicates(options), v))
+    value
+    |> Enum.map(&Map.get(predicates, to_string(&1)))
+    |> Enum.reject(&is_nil/1)
+    |> Enum.reduce(nil, fn
+      p, nil -> p
+      p, acc -> dynamic(^acc or ^p)
     end)
     |> maybe_query(query)
   end
@@ -231,7 +233,8 @@ defmodule Backpex.Filters.Boolean do
   end
 
   @doc """
-  Transforms options list into a map of keys to predicates.
+  Transforms options list into a map of keys to predicates. The keys are strings, as the selected values of the filter
+  are, even if the options have atom keys.
 
   ## Examples
 
@@ -244,12 +247,17 @@ defmodule Backpex.Filters.Boolean do
       iex> is_map(result) and Map.has_key?(result, "published") and Map.has_key?(result, "featured")
       true
 
+      iex> import Ecto.Query
+      iex> predicate = dynamic([x], x.published == true)
+      iex> Backpex.Filters.Boolean.predicates([%{label: "Published", key: :published, predicate: predicate}])
+      %{"published" => predicate}
+
       iex> Backpex.Filters.Boolean.predicates([])
       %{}
 
   """
   def predicates(options) do
     options
-    |> Map.new(fn %{predicate: p, key: k} -> {k, p} end)
+    |> Map.new(fn %{predicate: p, key: k} -> {to_string(k), p} end)
   end
 end

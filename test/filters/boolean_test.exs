@@ -38,6 +38,20 @@ defmodule Backpex.Filters.BooleanTest do
     ]
   end
 
+  defp atom_key_options do
+    [
+      %{label: "Published", key: :published, predicate: dynamic([x], x.published == true)},
+      %{label: "Featured", key: :featured, predicate: dynamic([x], x.featured == true)}
+    ]
+  end
+
+  defp mixed_key_options do
+    [
+      %{label: "Published", key: :published, predicate: dynamic([x], x.published == true)},
+      %{label: "Featured", key: "featured", predicate: dynamic([x], x.featured == true)}
+    ]
+  end
+
   describe "query/5" do
     test "returns original query when value is empty list" do
       base_query = from(TestItem)
@@ -79,6 +93,41 @@ defmodule Backpex.Filters.BooleanTest do
 
       assert [%{expr: where_expr}] = query.wheres
       assert match?({:or, _, _}, where_expr)
+    end
+
+    test "applies predicate of an option with an atom key" do
+      base_query = from(TestItem)
+
+      query = BooleanFilter.query(base_query, atom_key_options(), :published, ["published"], %{})
+
+      assert inspect(query) =~ "where: t0.published == true"
+    end
+
+    test "applies OR of predicates of options with atom keys" do
+      base_query = from(TestItem)
+
+      query = BooleanFilter.query(base_query, atom_key_options(), :published, ["published", "featured"], %{})
+
+      assert inspect(query) =~ "where: t0.published == true or t0.featured == true"
+    end
+
+    test "applies OR of predicates of options with mixed atom and string keys" do
+      base_query = from(TestItem)
+
+      query = BooleanFilter.query(base_query, mixed_key_options(), :published, ["published", "featured"], %{})
+      assert inspect(query) =~ "where: t0.published == true or t0.featured == true"
+
+      query = BooleanFilter.query(base_query, mixed_key_options(), :published, ["featured", "published"], %{})
+      assert inspect(query) =~ "where: t0.featured == true or t0.published == true"
+    end
+
+    test "ignores selected keys without an option" do
+      base_query = from(TestItem)
+
+      query = BooleanFilter.query(base_query, test_options(), :published, ["featured", "unknown"], %{})
+
+      assert [%{params: []}] = query.wheres
+      assert inspect(query) =~ "where: t0.featured == true"
     end
   end
 
