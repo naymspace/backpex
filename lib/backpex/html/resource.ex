@@ -10,6 +10,7 @@ defmodule Backpex.HTML.Resource do
   import Phoenix.LiveView.TagEngine
 
   alias Backpex.Authorization
+  alias Backpex.FilterValidation
   alias Backpex.LiveResource
   alias Backpex.ResourceAction
   alias Backpex.Router
@@ -443,7 +444,10 @@ defmodule Backpex.HTML.Resource do
   attr :live_resource, :any, default: nil, doc: "live resource module"
   attr :filters, :list, required: true, doc: "list of active filters"
   attr :filter_options, :map, required: true, doc: "raw filter options from URL params"
-  attr :filter_form, :any, default: nil, doc: "optional form backed by filter validation changeset"
+
+  attr :filter_form, :any,
+    default: nil,
+    doc: "optional form backed by filter validation changeset, built from `filter_options` when not given"
 
   attr :backpex_context, :map,
     default: nil,
@@ -451,7 +455,12 @@ defmodule Backpex.HTML.Resource do
 
   def filter_forms(assigns) do
     assigns = assign_context(assigns)
-    error_changeset = get_filter_changeset(assigns[:filter_form])
+
+    changeset =
+      get_filter_changeset(assigns[:filter_form]) ||
+        FilterValidation.build_changeset(assigns.filter_options, assigns.filters, assigns.backpex_context)
+
+    cast_error_fields = FilterValidation.cast_error_fields(changeset)
 
     assigns =
       assigns
@@ -461,9 +470,14 @@ defmodule Backpex.HTML.Resource do
         for {field, filter} <- assigns.filters do
           label = Map.get(filter, :label, filter.module.label())
           presets = Map.get(filter, :presets, [])
-          # filter_options (from URL params) is always string-keyed
-          value = Map.get(assigns.filter_options, Atom.to_string(field))
-          errors = extract_filter_errors(error_changeset, field)
+          # filter_options (from URL params or persisted filters) is always string-keyed. A value that
+          # fails to cast to the filter's type has the wrong shape for its `render_form/1`, e.g. a string
+          # where a list is expected, so the form renders without it and shows the cast error instead.
+          value =
+            if field not in cast_error_fields,
+              do: Map.get(assigns.filter_options, Atom.to_string(field))
+
+          errors = extract_filter_errors(changeset, field)
 
           %{
             field: field,
@@ -483,7 +497,7 @@ defmodule Backpex.HTML.Resource do
         live_resource={@live_resource}
         filter_name={field_data.field}
         label={field_data.label}
-        show_clear_button={field_data.value != nil}
+        show_clear_button={field_data.value != nil or field_data.errors != []}
       >
         {component(
           fn assigns -> field_data.filter.module.render_form(assigns) end,
@@ -507,8 +521,6 @@ defmodule Backpex.HTML.Resource do
   defp get_filter_changeset(nil), do: nil
   defp get_filter_changeset(%{source: %Ecto.Changeset{} = changeset}), do: changeset
   defp get_filter_changeset(_other), do: nil
-
-  defp extract_filter_errors(nil, _field), do: []
 
   defp extract_filter_errors(changeset, field) do
     changeset.errors
