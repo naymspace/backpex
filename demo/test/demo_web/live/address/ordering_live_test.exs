@@ -69,6 +69,26 @@ defmodule DemoWeb.Live.Address.OrderingLiveTest do
       |> assert_has("table tbody tr:first-child td", text: "Street A")
       |> assert_has("table tbody tr:last-child td", text: "Street C")
     end
+
+    test "orders by country label instead of stored value", %{conn: conn} do
+      # Stored values sort as at, ca, ch, de, us; the labels as Austria, Canada, Germany, Switzerland, USA.
+      insert(:address, street: "Street US", country: :us)
+      insert(:address, street: "Street CH", country: :ch)
+      insert(:address, street: "Street DE", country: :de)
+      insert(:address, street: "Street CA", country: :ca)
+      insert(:address, street: "Street AT", country: :at)
+
+      params = %{"order_by" => "country", "order_direction" => "asc"}
+
+      conn
+      |> visit(~p"/admin/addresses?#{params}")
+      |> assert_has("table tbody tr", count: 5)
+      |> assert_has("table tbody tr:nth-child(1) td", text: "Street AT")
+      |> assert_has("table tbody tr:nth-child(2) td", text: "Street CA")
+      |> assert_has("table tbody tr:nth-child(3) td", text: "Street DE")
+      |> assert_has("table tbody tr:nth-child(4) td", text: "Street CH")
+      |> assert_has("table tbody tr:nth-child(5) td", text: "Street US")
+    end
   end
 
   describe "invalid ordering params" do
