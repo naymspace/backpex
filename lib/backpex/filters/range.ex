@@ -46,8 +46,8 @@ defmodule Backpex.Filters.Range do
       def type(_assigns), do: :map
 
       @impl Backpex.Filter
-      def changeset(changeset, field, _assigns) do
-        RangeFilter.changeset(changeset, field, type())
+      def changeset(changeset, field, assigns) do
+        RangeFilter.changeset(changeset, field, type(), assigns)
       end
 
       @impl Backpex.Filter
@@ -144,11 +144,21 @@ defmodule Backpex.Filters.Range do
   Validates that:
   - Date values are valid ISO 8601 dates (for :date and :datetime types)
   - Number values are valid integers or floats (for :number type)
+  - Number values are integers if the filtered field is an integer field of the
+    LiveResource's schema (see below)
   - Start is not greater than end when both are provided
+
+  Pass the socket `assigns` to make the validation aware of the field's type: for a
+  `:number` filter on a field the schema (`adapter_config(:schema)` of
+  `assigns.live_resource`) declares as `:integer` or `:id`, decimal values such as
+  `"1.5"` are invalid. Without `assigns`, or if the type cannot be determined, any
+  number is valid.
   """
-  def changeset(changeset, field, range_type) do
+  def changeset(changeset, field, range_type, assigns \\ %{}) do
+    parse_type = parse_type(range_type, field, assigns)
+
     Ecto.Changeset.validate_change(changeset, field, fn _field, value ->
-      validate_range(value, range_type, field)
+      validate_range(value, parse_type, field)
     end)
   end
 
@@ -157,8 +167,8 @@ defmodule Backpex.Filters.Range do
   defp validate_range(%{"start" => nil, "end" => nil}, _type, _field), do: []
 
   defp validate_range(%{"start" => start_val, "end" => end_val}, type, field) do
-    start_parsed = maybe_parse(type, start_val || "")
-    end_parsed = maybe_parse(type, end_val || "", true)
+    start_parsed = parse(type, start_val || "")
+    end_parsed = parse(type, end_val || "", true)
 
     []
     |> validate_start_format(start_val, start_parsed, field)
@@ -195,8 +205,8 @@ defmodule Backpex.Filters.Range do
     end
   end
 
-  defp compare_values(:number, start_val, end_val) when start_val > end_val, do: :gt
-  defp compare_values(:number, _start_val, _end_val), do: :lte
+  defp compare_values(type, start_val, end_val) when type in [:number, :integer] and start_val > end_val, do: :gt
+  defp compare_values(type, _start_val, _end_val) when type in [:number, :integer], do: :lte
 
   defp compare_values(:date, start_val, end_val) do
     with {:ok, start_date} <- Date.from_iso8601(start_val),
@@ -217,8 +227,10 @@ defmodule Backpex.Filters.Range do
     compare_values(:date, start_date, end_date)
   end
 
-  def query(query, type, attribute, %{"start" => start_at, "end" => end_at}, _assigns) do
-    maybe_parse_range(type, start_at, end_at)
+  def query(query, type, attribute, %{"start" => start_at, "end" => end_at}, assigns) do
+    parse_type = parse_type(type, attribute, assigns)
+
+    {parse(parse_type, start_at), parse(parse_type, end_at, true)}
     |> do_query(query, attribute)
   end
 
@@ -409,6 +421,44 @@ defmodule Backpex.Filters.Range do
   end
 
   def parse_float_or_int(_other), do: nil
+
+  # A `:number` range on an integer field is parsed as `:integer`, so that decimal
+  # values are invalid instead of reaching the query, where Ecto cannot cast them.
+  defp parse_type(:number, field, assigns) do
+    if integer_field?(field, assigns), do: :integer, else: :number
+  end
+
+  defp parse_type(type, _field, _assigns), do: type
+
+  defp integer_field?(field, %{live_resource: live_resource}) when is_atom(live_resource) do
+    with true <- function_exported?(live_resource, :adapter_config, 1),
+         schema when is_atom(schema) <- live_resource.adapter_config(:schema),
+         true <- Code.ensure_loaded?(schema) and function_exported?(schema, :__schema__, 2) do
+      integer_type?(schema.__schema__(:type, field))
+    else
+      _other -> false
+    end
+  end
+
+  defp integer_field?(_field, _assigns), do: false
+
+  defp integer_type?(nil), do: false
+  defp integer_type?(type), do: Ecto.Type.type(type) in [:integer, :id]
+
+  defp parse(type, value, is_end? \\ false)
+
+  defp parse(:integer, value, _is_end?) when is_integer(value), do: value
+
+  defp parse(:integer, value, _is_end?) when is_binary(value) do
+    case Integer.parse(value) do
+      {integer, ""} -> integer
+      _other -> nil
+    end
+  end
+
+  defp parse(:integer, _value, _is_end?), do: nil
+
+  defp parse(type, value, is_end?), do: maybe_parse(type, value, is_end?)
 
   @doc """
   Checks if a string is a valid ISO 8601 date.
