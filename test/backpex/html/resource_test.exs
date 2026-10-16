@@ -1,7 +1,6 @@
 defmodule Backpex.HTML.ResourceTest do
   use ExUnit.Case, async: true
 
-  import ExUnit.CaptureIO
   import Phoenix.LiveViewTest
 
   alias Backpex.Filters.Select
@@ -142,22 +141,18 @@ defmodule Backpex.HTML.ResourceTest do
           else: []
 
       # The library tests have no error translator configured, so the fallback translator warns about the
-      # `:type` option of cast errors.
-      {html, _warnings} =
-        with_io(:stderr, fn ->
-          render_component(
-            &Resource.resource_filters/1,
-            [
-              live_resource: ContextLive,
-              search_placeholder: "Search",
-              filters: @filters,
-              query_options: %{filters: raw_filters},
-              filter_values: Backpex.FilterValidation.valid_values(changeset)
-            ] ++ form_assigns
-          )
-        end)
-
-      html
+      # `:type` option of cast errors. The warnings are not captured: capturing `:standard_error` re-registers
+      # the named device, so other async tests that write to stderr meanwhile would crash.
+      render_component(
+        &Resource.resource_filters/1,
+        [
+          live_resource: ContextLive,
+          search_placeholder: "Search",
+          filters: @filters,
+          query_options: %{filters: raw_filters},
+          filter_values: Backpex.FilterValidation.valid_values(changeset)
+        ] ++ form_assigns
+      )
     end
 
     test "renders the form without values of the wrong shape and shows the cast error" do
