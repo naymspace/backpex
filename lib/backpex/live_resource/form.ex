@@ -44,7 +44,7 @@ defmodule Backpex.LiveResource.Form do
 
   # credo:disable-for-this-file Credo.Check.Design.DuplicatedCode
   def handle_info({:put_assoc, {key, value} = _assoc}, socket) do
-    changeset = Ecto.Changeset.put_assoc(socket.assigns.changeset, key, value)
+    changeset = Resource.put_assoc(socket.assigns.changeset, key, value, socket.assigns.live_resource)
     assocs = Map.get(socket.assigns, :assocs, []) |> Keyword.put(key, value)
 
     socket
@@ -77,10 +77,7 @@ defmodule Backpex.LiveResource.Form do
   end
 
   defp assign_item(socket, :new = _live_action) do
-    schema = socket.assigns.live_resource.adapter_config(:schema)
-    empty_item = schema.__struct__()
-
-    assign(socket, :item, empty_item)
+    assign(socket, :item, Resource.new_item(socket.assigns, socket.assigns.live_resource))
   end
 
   defp assign_item(socket, :edit = _live_action) do
@@ -106,13 +103,13 @@ defmodule Backpex.LiveResource.Form do
     socket
   end
 
+  # The adapter applies the changeset function of the live action. Without an action, the form doesn't show errors yet.
   defp assign_changeset(socket, live_action) do
     %{live_resource: live_resource, item: item, fields: fields} = socket.assigns
 
-    changeset_fun = changeset_fun(live_resource, live_action)
-    LiveResource.assign_changeset(socket, changeset_fun, item, fields, live_action)
-  end
+    attrs = LiveResource.default_attrs(live_action, fields, socket.assigns)
+    changeset = Resource.change(item, attrs, fields, socket.assigns, live_resource, action: nil)
 
-  defp changeset_fun(live_resource, :new = _live_action), do: live_resource.adapter_config(:create_changeset)
-  defp changeset_fun(live_resource, :edit = _live_action), do: live_resource.adapter_config(:update_changeset)
+    assign(socket, :changeset, changeset)
+  end
 end

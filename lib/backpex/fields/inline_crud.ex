@@ -267,12 +267,6 @@ defmodule Backpex.Fields.InlineCRUD do
   def association?({_name, %{type: :assoc}} = _field), do: true
   def association?({_name, %{type: :embed}} = _field), do: false
 
-  @impl Backpex.Field
-  def schema({name, _field_options}, schema) do
-    schema.__schema__(:association, name)
-    |> Map.get(:queryable)
-  end
-
   defp get_link(assigns, row) do
     live_resource = Map.get(assigns.field_options, :live_resource)
 

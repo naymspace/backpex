@@ -112,14 +112,15 @@ defmodule Backpex.FieldTest do
   defmodule OptionsRepo do
     @moduledoc false
     # Only the author with the id 1 is an option.
-    def exists?(query) do
-      send(self(), {:exists?, query})
-      Enum.any?(query.wheres, &match?([{1, _type}], &1.params))
+    def all(query) do
+      send(self(), {:all, query})
+      if Enum.any?(query.wheres, &match?([{[1], _type}], &1.params)), do: [%Author{id: 1}], else: []
     end
   end
 
   defmodule ArticleLive do
     @moduledoc false
+    def config(:adapter), do: Backpex.Adapters.Ecto
     def adapter_config(:schema), do: Article
     def adapter_config(:repo), do: OptionsRepo
   end
@@ -136,7 +137,7 @@ defmodule Backpex.FieldTest do
 
       assert BelongsTo.index_editable_change(field, "1", assigns) == %{author_id: "1"}
       assert_received {:options_query, %{current_user: :user}}
-      assert_received {:exists?, _query}
+      assert_received {:all, _query}
     end
 
     test "refuses a value of a belongs to field that is not an option" do
@@ -152,7 +153,7 @@ defmodule Backpex.FieldTest do
       assigns = %{live_resource: ArticleLive, field_options: %{}}
 
       assert BelongsTo.index_editable_change({:author, %{}}, "", assigns) == %{author_id: ""}
-      refute_received {:exists?, _query}
+      refute_received {:all, _query}
     end
   end
 
