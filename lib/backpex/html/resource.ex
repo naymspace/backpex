@@ -699,6 +699,16 @@ defmodule Backpex.HTML.Resource do
 
   @doc """
   Renders pagination buttons. The `page_path` function receives a page number and returns the path to that page.
+  The component uses the path as is, so `page_path` must encode user input in it, for example with
+  `Plug.Conn.Query.encode/1`.
+
+  ## Example
+
+      <.pagination
+        page_path={&("/admin/posts?" <> Plug.Conn.Query.encode(%{search: @search, page: &1}))}
+        current_page={@page}
+        total_pages={@total_pages}
+      />
   """
   @doc type: :component
 

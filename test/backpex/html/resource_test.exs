@@ -233,8 +233,10 @@ defmodule Backpex.HTML.ResourceTest do
   end
 
   describe "pagination/1" do
+    # Tests the component contract: every link is the unchanged return value of `page_path`. The regression test for
+    # the index view's page links is in demo/test/demo_web/live/post/pagination_live_test.exs.
     for search <- ["R&D 100%", "C# dev", "1+1", "100%25", ":page"] do
-      test "keeps the search #{inspect(search)} in every page link" do
+      test "uses the path from page_path unchanged for the search #{inspect(search)}" do
         search = unquote(search)
 
         html =
