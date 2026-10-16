@@ -241,7 +241,8 @@ defmodule Backpex.Adapters.Ecto do
   defp maybe_where_ids(query, _queryable, :error), do: query
 
   defp maybe_where_ids(query, queryable, {:ok, ids}) do
-    type = queryable.__schema__(:type, :id)
+    primary_key = get_primary_key_field(queryable)
+    type = queryable.__schema__(:type, primary_key)
 
     ids =
       Enum.flat_map(ids, fn id ->
@@ -251,7 +252,7 @@ defmodule Backpex.Adapters.Ecto do
         end
       end)
 
-    where(query, [option], option.id in ^ids)
+    where(query, [option], field(option, ^primary_key) in ^ids)
   end
 
   defp maybe_options_query(query, %{options_query: options_query}, assigns), do: options_query.(query, assigns)

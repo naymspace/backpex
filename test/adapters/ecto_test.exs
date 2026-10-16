@@ -589,6 +589,39 @@ defmodule Backpex.Adapters.EctoTest do
       assert_received {:repo, :all, %{wheres: [%{params: [{[1, 2], _type}]}]}}
     end
 
+    test "lists the items with the given ids by the primary key of the associated schema" do
+      defmodule TestAuthor do
+        use Ecto.Schema
+
+        @primary_key {:uuid, :binary_id, autogenerate: false}
+        schema "authors" do
+          field :name, :string
+        end
+      end
+
+      defmodule TestComment do
+        use Ecto.Schema
+
+        schema "comments" do
+          belongs_to :author, TestAuthor, references: :uuid, type: :binary_id
+        end
+      end
+
+      defmodule CommentLive do
+        @moduledoc false
+        def adapter_config(:schema), do: TestComment
+        def adapter_config(:repo), do: FakeRepo
+      end
+
+      uuid = "5b0a3b7e-0c3d-4b5e-9a3f-2f1d0c6e8a91"
+      field = {:author, %{module: Backpex.Fields.BelongsTo, display_field: :name}}
+
+      EctoAdapter.list_options(field, [ids: [uuid, 1]], %{}, CommentLive)
+
+      assert_received {:repo, :all, %{wheres: [%{expr: expr, params: [{[^uuid], _type}]}]}}
+      assert Macro.to_string(expr) =~ "&0.uuid()"
+    end
+
     test "limits the ids after the options query, even if it ignores or widens the query it receives" do
       for options_query <- [
             fn _query, _assigns -> from(u in TestUser, where: u.age > 18) end,
