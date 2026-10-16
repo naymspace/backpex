@@ -56,6 +56,35 @@ defmodule Backpex.Fields.SelectTest do
     test "renders a placeholder when the value is nil" do
       assert render_label([{"Group", %{"A" => "a"}}], nil) == "—"
     end
+
+    test "renders the label of an option in a nested group" do
+      options = [{"Outer", [{"Inner", %{"A" => "a"}}, {"Other", [B: "b"]}]}]
+
+      assert render_label(options, "a") == "A"
+      assert render_label(options, "b") == "B"
+    end
+
+    test "skips empty groups" do
+      assert render_label([{"Empty", []}, {"Also empty", %{}}, B: "b"], "b") == "B"
+    end
+
+    test "handles plain values and separators inside groups" do
+      assert render_label(%{"Group" => ["plain", :hr, {"A", "a"}]}, "plain") == "plain"
+      assert render_label(%{"Group" => ["plain", :hr, {"A", "a"}]}, "a") == "A"
+      assert render_label([{"Group", %{:hr => nil, "A" => "a"}}], "a") == "A"
+    end
+
+    test "compares integer and atom option values with the stored value" do
+      assert render_label([{"A", 1}], "1") == "A"
+      assert render_label([{"A", 1}], 1) == "A"
+      assert render_label([{"A", :a}], "a") == "A"
+      assert render_label([{"A", :a}], :a) == "A"
+    end
+
+    test "renders the label of a nil or empty option when the value is nil" do
+      assert render_label([{"None", nil}, A: "a"], nil) == "None"
+      assert render_label([{"Empty", ""}, A: "a"], nil) == "Empty"
+    end
   end
 
   defp render_label(options, value) do
