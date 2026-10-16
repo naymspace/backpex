@@ -367,6 +367,55 @@ defmodule Backpex.PreferencesControllerTest do
     end
   end
 
+  describe "update/2 through Plug.Session's cookie store" do
+    @session_opts Plug.Session.init(
+                    store: :cookie,
+                    key: "_my_app_web_key",
+                    signing_salt: "signing1",
+                    same_site: "Lax",
+                    secure: true,
+                    max_age: 60 * 24 * 60 * 60
+                  )
+
+    test "answers near the cookie cap with 200 or 422, never CookieOverflowError" do
+      # Sweep across the budget boundary: every write must either fit in the
+      # Set-Cookie header Plug sends or be refused before it gets there.
+      statuses =
+        for size <- 2_700..3_000//5 do
+          conn =
+            capture_log_result(fn ->
+              cookie_session_conn()
+              |> PreferencesController.update(%{"key" => Keys.theme(), "value" => String.duplicate("x", size)})
+            end)
+
+          case conn.status do
+            200 ->
+              assert [cookie] = Plug.Conn.get_resp_header(conn, "set-cookie")
+              assert byte_size(cookie) <= 4096
+
+            422 ->
+              assert Jason.decode!(conn.resp_body)["error"] == %{"key" => Keys.theme(), "reason" => "too_large"}
+          end
+
+          conn.status
+        end
+
+      assert 200 in statuses
+      assert 422 in statuses
+    end
+
+    defp cookie_session_conn do
+      conn(:post, "/backpex_preferences")
+      |> Map.put(:secret_key_base, String.duplicate("s", 64))
+      |> Plug.Session.call(@session_opts)
+      |> Plug.Conn.fetch_session()
+      |> Plug.Conn.put_session("_csrf_token", String.duplicate("c", 24))
+      |> Plug.Conn.put_session("user_token", :binary.copy(<<0xAB>>, 32))
+      |> Plug.Conn.put_private(:phoenix_endpoint, __MODULE__)
+      |> Plug.Conn.put_req_header("content-type", "application/json")
+    end
+  end
+
   describe "update/2 when the adapter fails with a non-atom reason" do
     defmodule AdapterInternalsError do
       defexception [:message, :query]
