@@ -584,15 +584,16 @@ defmodule Backpex.HTML.Resource do
   def filter_presets(assigns) do
     ~H"""
     <div class="min-w-[80px] mt-2">
-      <div
+      <button
         :for={{preset, index} <- Enum.with_index(@presets)}
+        type="button"
         phx-click={@select_filter_preset_event}
         phx-value-field={@filter_name}
         phx-value-preset-index={index}
-        class="text-primary mb-1 cursor-pointer truncate text-xs font-medium hover:underline"
+        class="text-primary mb-1 block max-w-full cursor-pointer truncate text-left text-xs font-medium hover:underline"
       >
         {preset.label}
-      </div>
+      </button>
     </div>
     """
   end
