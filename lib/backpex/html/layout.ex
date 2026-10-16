@@ -756,7 +756,7 @@ defmodule Backpex.HTML.Layout do
   attr :class, :string, default: nil, doc: "class for the modal wrapper"
   attr :box_class, :string, default: "max-w-xl", doc: "class for the modal box"
   attr :title, :string, default: nil, doc: "modal title"
-  attr :close_label, :string, default: "Close modal"
+  attr :close_label, :string, default: "Close modal", doc: "accessible name of the close button"
   attr :open, :boolean, default: true, doc: "modal open"
   attr :on_cancel, JS, default: %JS{}, doc: "event triggered on modal close"
   attr :rest, :global
@@ -785,6 +785,7 @@ defmodule Backpex.HTML.Layout do
             type="button"
             class="btn btn-sm btn-circle btn-ghost absolute top-3 right-3"
             phx-click={JS.exec("data-cancel", to: "##{@id}")}
+            aria-label={@close_label}
           >
             <.icon name="hero-x-mark" class="size-5" />
           </button>

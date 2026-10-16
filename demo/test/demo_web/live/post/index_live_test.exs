@@ -142,5 +142,56 @@ defmodule DemoWeb.Live.Post.IndexLiveTest do
       test_show_action_redirect(conn, ~p"/admin/posts", posts)
       test_edit_action_redirect(conn, ~p"/admin/posts", posts)
     end
+
+    test "ignores filter values of the wrong shape in the URL", %{conn: conn} do
+      insert(:post, %{title: "Published Post", published: true})
+      insert(:post, %{title: "Draft Post", published: false})
+
+      for query <- [
+            "filters[published]=published&filters[likes]=abc",
+            "filters[likes][start][a]=b&filters[inserted_at][end][a]=b"
+          ] do
+        {:ok, _view, html} = live(conn, "/admin/posts?" <> query)
+
+        assert html =~ "Published Post"
+        assert html =~ "Draft Post"
+      end
+    end
+
+    test "drops persisted filter values of the wrong shape on the next filter change", %{conn: conn} do
+      insert(:post, %{title: "Published Post", published: true})
+      insert(:post, %{title: "Draft Post", published: false})
+
+      session = %{
+        "backpex_preferences" => %{
+          "resource" => %{
+            "DemoWeb.PostLive" => %{
+              "filters" => %{"published" => "published", "likes" => %{"start" => %{"a" => "b"}, "end" => ""}}
+            }
+          }
+        }
+      }
+
+      conn = Plug.Test.init_test_session(conn, session)
+
+      changes = [
+        fn view -> view |> form("#filter-form", filters: %{published: ["published"]}) |> render_change() end,
+        fn view -> render_click(view, "clear-filter", %{"field" => "category_id"}) end,
+        fn view -> render_click(view, "filter-preset-selected", %{"field" => "likes", "preset-index" => "0"}) end
+      ]
+
+      for change <- changes do
+        {:ok, view, html} = live(conn, ~p"/admin/posts")
+
+        assert html =~ "Published Post"
+        assert html =~ "Draft Post"
+
+        change.(view)
+
+        path = view |> assert_patch() |> URI.decode()
+        refute path =~ "filters[published]=published"
+        refute path =~ "[a]=b"
+      end
+    end
   end
 end
