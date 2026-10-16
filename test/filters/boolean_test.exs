@@ -39,6 +39,18 @@ defmodule Backpex.Filters.BooleanTest do
                {:or, [{:==, :published, true}, {:==, :published, false}, {:==, :featured, true}]}
     end
 
+    test "finds the predicates of options with atom keys" do
+      options = [
+        %{label: "Published", key: :published, predicate: {:==, :published, true}},
+        %{label: "Featured", key: :featured, predicate: {:==, :featured, true}}
+      ]
+
+      assert BooleanFilter.condition(options, :status, ["published"], %{}) == {:==, :published, true}
+
+      assert BooleanFilter.condition(options, :status, ["published", "featured"], %{}) ==
+               {:or, [{:==, :published, true}, {:==, :featured, true}]}
+    end
+
     test "is the condition of a filter module, with the options for the assigns" do
       assert OwnerFilter.condition(:owner, ["mine"], %{user_id: 1}) == {:==, :user_id, 1}
     end

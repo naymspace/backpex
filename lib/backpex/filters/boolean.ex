@@ -173,12 +173,12 @@ defmodule Backpex.Filters.Boolean do
   """
   def condition(_options, _field, [], _assigns), do: nil
 
-  def condition(options, _field, [key], _assigns), do: options |> predicates() |> Map.get(key)
+  def condition(options, _field, [key], _assigns), do: options |> predicates() |> Map.get(to_string(key))
 
   def condition(options, _field, keys, _assigns) do
     predicates = predicates(options)
 
-    {:or, Enum.map(keys, &Map.get(predicates, &1))}
+    {:or, Enum.map(keys, &Map.get(predicates, to_string(&1)))}
   end
 
   @doc """
@@ -243,7 +243,8 @@ defmodule Backpex.Filters.Boolean do
   end
 
   @doc """
-  Transforms options list into a map of keys to predicates.
+  Transforms options list into a map of keys to predicates. The keys are strings, as the selected keys of the filter
+  are, even if the options have atom keys.
 
   ## Examples
 
@@ -260,6 +261,6 @@ defmodule Backpex.Filters.Boolean do
   """
   def predicates(options) do
     options
-    |> Map.new(fn %{predicate: p, key: k} -> {k, p} end)
+    |> Map.new(fn %{predicate: p, key: k} -> {to_string(k), p} end)
   end
 end
