@@ -4,6 +4,7 @@ defmodule Backpex.HTML.ResourceTest do
   import Phoenix.LiveViewTest
 
   alias Backpex.HTML.Resource
+  alias Plug.Conn.Query
 
   defmodule ContextLive do
     @moduledoc false
@@ -229,6 +230,39 @@ defmodule Backpex.HTML.ResourceTest do
     assigns
     |> Map.merge(%{params: %{}, item_actions: [assign_icon: %{module: AssignIconAction, only: [:row]}]})
     |> Backpex.LiveResource.context()
+  end
+
+  describe "pagination/1" do
+    for search <- ["R&D 100%", "C# dev", "1+1", "100%25", ":page"] do
+      test "keeps the search #{inspect(search)} in every page link" do
+        search = unquote(search)
+
+        html =
+          render_component(&Resource.pagination/1,
+            current_page: 2,
+            total_pages: 3,
+            page_path: &("/admin/posts?" <> Query.encode(%{search: search, page: &1}))
+          )
+
+        links =
+          html
+          |> LazyHTML.from_fragment()
+          |> LazyHTML.query("a")
+          |> Enum.map(fn link ->
+            [href] = LazyHTML.attribute(link, "href")
+            %URI{path: "/admin/posts", query: query, fragment: nil} = URI.parse(href)
+            Query.decode(query)
+          end)
+
+        assert links == [
+                 %{"search" => search, "page" => "1"},
+                 %{"search" => search, "page" => "1"},
+                 %{"search" => search, "page" => "2"},
+                 %{"search" => search, "page" => "3"},
+                 %{"search" => search, "page" => "3"}
+               ]
+      end
+    end
   end
 
   describe "lv_reserved_assigns/0" do
