@@ -15,6 +15,23 @@ defmodule DemoWeb.Browser.PostBrowserTest do
       |> visit(~p"/admin/posts")
       |> assert_a11y()
     end
+
+    test "applies a filter preset with the keyboard", %{conn: conn} do
+      insert_list(3, :post)
+
+      conn
+      |> visit(~p"/admin/posts")
+      |> assert_has("body .phx-connected")
+      |> press("#filter-dropdown-trigger", "Enter")
+      |> assert_has("#filter-dropdown-menu button", text: "Over 100")
+      |> press(~s|input[name="filters[likes][end]"]|, "Tab")
+      |> assert_has("button[type=button]:focus", text: "Over 100")
+      |> press("button:focus", "Enter")
+      |> assert_has(~s|button[aria-label="Clear Likes filter"]|)
+      |> evaluate("decodeURIComponent(window.location.search)", fn search ->
+        assert search =~ "filters[likes][start]=100"
+      end)
+    end
   end
 
   describe "posts show" do
