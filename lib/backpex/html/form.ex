@@ -527,7 +527,10 @@ defmodule Backpex.HTML.Form do
     ~H"""
     <div class="badge badge-sm badge-soft badge-primary pointer-events-auto pr-0">
       {@label}
-      <%!-- Mouse shortcut only: keyboard and screen reader users deselect via the option checkboxes in the menu --%>
+      <%!--
+        aria-hidden on purpose: this is a mouse-only shortcut inside the trigger, which is already a button. Keyboard and
+        screen reader users deselect via the option checkboxes in the menu, so those must stay keyboard-reachable.
+      --%>
       <div
         class="flex cursor-pointer items-center pr-2"
         phx-click="toggle-option"
