@@ -964,7 +964,7 @@ var theme_selector_default = {
     BackpexPreferences.syncScope();
     this.preferenceScopeMarker = BackpexPreferences.scopeMarker;
     this.boundHandleThemeChange = this.handleThemeChange.bind(this);
-    this.el.addEventListener("backpex:theme-change", this.boundHandleThemeChange);
+    this.el.addEventListener("change", this.boundHandleThemeChange);
     this.applyRenderedTheme();
   },
   updated() {
@@ -993,7 +993,7 @@ var theme_selector_default = {
     }
   },
   destroyed() {
-    this.el.removeEventListener("backpex:theme-change", this.boundHandleThemeChange);
+    this.el.removeEventListener("change", this.boundHandleThemeChange);
   }
 };
 
@@ -4307,7 +4307,9 @@ var currency_input_default = {
     this.mask.destroy();
   },
   rawValue(value) {
-    return value.replace(this.el.dataset.unit || "", "").trim().replace(new RegExp(`\\${this.el.dataset.thousandsSeparator}`, "g"), "");
+    const thousandsSeparator = this.el.dataset.thousandsSeparator;
+    const unitless = value.replace(this.el.dataset.unit || "", "").trim();
+    return thousandsSeparator ? unitless.replaceAll(thousandsSeparator, "") : unitless;
   }
 };
 //# sourceMappingURL=backpex.cjs.js.map
