@@ -9,9 +9,9 @@ defmodule Backpex.FormComponent do
   alias Backpex.Field
   alias Backpex.Fields.Upload
   alias Backpex.ItemAction
-  alias Backpex.LiveResource
   alias Backpex.Resource
   alias Backpex.ResourceAction
+  alias Backpex.Router
   alias Phoenix.Component
 
   require Backpex
@@ -497,14 +497,8 @@ defmodule Backpex.FormComponent do
     end)
   end
 
-  defp return_to_path(:continue, live_resource, _socket, %{current_url: url}, :new, item) do
-    primary_value = LiveResource.primary_value(item, live_resource)
-
-    url
-    |> URI.parse()
-    |> Map.get(:path)
-    |> Path.dirname()
-    |> Kernel.<>("/#{primary_value}/edit")
+  defp return_to_path(:continue, live_resource, socket, assigns, :new, item) do
+    Router.get_path(socket, live_resource, assigns.params, :edit, item)
   end
 
   defp return_to_path(:continue, _live_resource, _socket, %{current_url: url}, :edit, _item) do
