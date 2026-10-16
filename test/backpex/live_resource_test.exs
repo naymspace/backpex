@@ -249,6 +249,18 @@ defmodule Backpex.LiveResourceTest do
     end
   end
 
+  describe "search_options/3" do
+    @searchable_fields [{:title, %{module: Backpex.Fields.Text, searchable: true}}]
+
+    test "keeps a string search term" do
+      assert {"hello", [{:title, %{queryable: TestPost}}]} =
+               LiveResource.search_options(%{"search" => "hello"}, @searchable_fields, TestPost)
+
+      assert {"hello", _fields} = LiveResource.search_options(%{search: "hello"}, @searchable_fields, TestPost)
+      assert {"", _fields} = LiveResource.search_options(%{}, @searchable_fields, TestPost)
+    end
+  end
+
   describe "Index.handle_event/3" do
     test "change-filter is a no-op for filters that are not a map" do
       # `filters` arrives in a client-controlled event payload; a tampered value
@@ -300,6 +312,21 @@ defmodule Backpex.LiveResourceTest do
 
       assert {:noreply, ^socket} =
                Index.handle_event("toggle_column", %{"field" => "bogus"}, socket)
+    end
+
+    test "select-page-size and index-search are no-ops for a payload without a value" do
+      # The payload is client-controlled. A tampered value is validated in `handle_params/3`; a payload
+      # without one must not crash the LiveView.
+      socket = %Socket{assigns: %{__changed__: %{}, query_options: %{}, params: %{}}}
+
+      for {event, params} <- [
+            {"select-page-size", %{}},
+            {"select-page-size", %{"select_per_page" => "15"}},
+            {"index-search", %{}},
+            {"index-search", %{"index_search" => "R&D"}}
+          ] do
+        assert {:noreply, ^socket} = Index.handle_event(event, params, socket)
+      end
     end
   end
 end
