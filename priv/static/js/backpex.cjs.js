@@ -82,23 +82,22 @@ var drag_hover_default = {
 // js/hooks/_dropdown.js
 var dropdown_default = {
   mounted() {
-    this.trigger = this.el.querySelector(`#${this.el.id}-trigger`);
-    this.menu = this.el.querySelector(`#${this.el.id}-menu`);
-    if (!this.trigger) return;
+    if (!this.triggerEl()) return;
     this.isOpen = false;
     this.mousedownInside = false;
     this.handleRootMousedown = this.handleRootMousedown.bind(this);
-    this.handleTriggerKeydown = this.handleTriggerKeydown.bind(this);
+    this.handleRootKeydown = this.handleRootKeydown.bind(this);
     this.handleDocumentMousedown = this.handleDocumentMousedown.bind(this);
     this.handleDocumentClick = this.handleDocumentClick.bind(this);
     this.handleDocumentKeydown = this.handleDocumentKeydown.bind(this);
     this.el.addEventListener("mousedown", this.handleRootMousedown);
-    this.trigger.addEventListener("keydown", this.handleTriggerKeydown);
+    this.el.addEventListener("keydown", this.handleRootKeydown);
   },
   beforeUpdate() {
     this.focusedBeforeUpdate = this.el.contains(document.activeElement) ? document.activeElement : null;
   },
   updated() {
+    if (!this.menuEl()) this.close();
     this.el.classList.toggle("dropdown-open", this.isOpen);
     if (this.focusedBeforeUpdate && !this.el.contains(document.activeElement)) {
       const target = this.focusedBeforeUpdate.isConnected ? this.focusedBeforeUpdate : this.focusedBeforeUpdate.id && this.el.querySelector(`#${this.focusedBeforeUpdate.id}`);
@@ -109,7 +108,13 @@ var dropdown_default = {
   destroyed() {
     this.detachDocumentListeners();
     this.el.removeEventListener("mousedown", this.handleRootMousedown);
-    this.trigger?.removeEventListener("keydown", this.handleTriggerKeydown);
+    this.el.removeEventListener("keydown", this.handleRootKeydown);
+  },
+  triggerEl() {
+    return this.el.querySelector(`#${this.el.id}-trigger`);
+  },
+  menuEl() {
+    return this.el.querySelector(`#${this.el.id}-menu`);
   },
   open() {
     if (this.isOpen) return;
@@ -140,11 +145,13 @@ var dropdown_default = {
   },
   handleRootMousedown(event) {
     this.mousedownInside = true;
-    if (this.menu?.contains(event.target)) return;
+    const menu = this.menuEl();
+    if (!menu || menu.contains(event.target)) return;
     this.toggle();
   },
-  handleTriggerKeydown(event) {
+  handleRootKeydown(event) {
     if (event.key !== "Enter" && event.key !== " ") return;
+    if (!this.menuEl() || !this.triggerEl()?.contains(event.target)) return;
     event.preventDefault();
     this.toggle();
   },
@@ -162,7 +169,7 @@ var dropdown_default = {
   handleDocumentKeydown(event) {
     if (event.key !== "Escape") return;
     this.close();
-    this.trigger.focus();
+    this.triggerEl()?.focus();
   }
 };
 
