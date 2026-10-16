@@ -487,7 +487,14 @@ defmodule Backpex.Adapters.Ecto do
     end
   end
 
-  defp condition_dynamic({:in, field, values}) when is_atom(field) and is_list(values) do
+  defp condition_dynamic({:in, field, values} = condition) when is_atom(field) and is_list(values) do
+    # As in SQL, `nil` would never match, and in a negated condition it would keep no items at all.
+    if nil in values do
+      raise ArgumentError,
+            "expected the values of an :in condition not to contain nil, got: #{inspect(condition)}. " <>
+              "Use {:or, [{:in, #{inspect(field)}, values}, {:is_nil, #{inspect(field)}}]} instead"
+    end
+
     dynamic([item], field(item, ^field) in ^values)
   end
 

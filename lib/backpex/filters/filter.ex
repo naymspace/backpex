@@ -15,7 +15,8 @@ defmodule Backpex.Filter do
 
     * `{:==, field, value}`, `{:!=, field, value}`, `{:<, field, value}`, `{:<=, field, value}`, `{:>, field, value}`
       or `{:>=, field, value}` - compares a field of the items to a value.
-    * `{:in, field, values}` - keeps the items whose field has one of the values.
+    * `{:in, field, values}` - keeps the items whose field has one of the values. The values must not contain `nil`,
+      combine the condition with `{:is_nil, field}` in an `:or` instead.
     * `{:is_nil, field}` - keeps the items whose field is `nil`. Use it instead of comparing a field to `nil`.
     * `{:not, condition}` - negates the condition.
     * `{:and, conditions}` and `{:or, conditions}` - combine a list of conditions.

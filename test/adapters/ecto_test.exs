@@ -636,6 +636,12 @@ defmodule Backpex.Adapters.EctoTest do
       assert filter_query(nil).wheres == []
     end
 
+    test "raises for nil in the values of an :in condition, also when it is negated" do
+      for condition <- [{:in, :age, [1, nil]}, {:not, {:in, :age, [nil]}}] do
+        assert_raise ArgumentError, ~r/not to contain nil.*\{:is_nil, :age\}/, fn -> filter_query(condition) end
+      end
+    end
+
     test "raises for an unknown condition" do
       assert_raise ArgumentError,
                    ~r/expected a condition such as {:==, :field, value}, got: {:like, :name, "A%"}/,
