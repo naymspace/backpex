@@ -223,6 +223,7 @@ defmodule Backpex.Fields.HasManyThrough do
 
         %{
           index: editable.index,
+          has_error: editable.errors != [],
           pivot: Map.take(edited, Enum.map(assoc_field_options.pivot_fields, fn {name, _field_options} -> name end)),
           child: Map.take(item, Enum.map(assoc_field_options.child_fields, fn {name, _field_options} -> name end))
         }
@@ -321,7 +322,7 @@ defmodule Backpex.Fields.HasManyThrough do
                       <Backpex.HTML.CoreComponents.icon name="hero-trash" class="h-5 w-5" />
                     </button>
                     <div
-                      :if={has_error?(@editables, index)}
+                      :if={listable.has_error}
                       aria-label={
                         Backpex.__({"Error in relation with index %{index}", %{index: listable.index}}, @live_resource)
                       }
@@ -455,14 +456,6 @@ defmodule Backpex.Fields.HasManyThrough do
         |> assign(:field, {assigns.name, new_field_options})
         |> assign(:field_options, new_field_options)
     end
-  end
-
-  defp has_error?(editables, index) do
-    editables
-    |> Enum.at(index)
-    |> Map.get(:errors, [])
-    |> Enum.count()
-    |> Kernel.>(0)
   end
 
   @impl Backpex.Field
