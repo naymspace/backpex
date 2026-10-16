@@ -86,8 +86,9 @@ defmodule Backpex.Adapter do
   Returns the data of a metric, such as the sum of a column, for the items matching the given criteria.
 
   Receives the same criteria as `c:count/4`. Computes the `:aggregate` of the metric over the items that also match its
-  `:where` condition, see `Backpex.Metric`. Backpex doesn't call it for a metric whose module implements
-  `c:Backpex.Metric.data/2`.
+  `:where` condition, see `Backpex.Metric`. The data covers all matching items, so ignore `:order`, `:pagination` and
+  `:limit`. Backpex doesn't call it for a metric whose module implements
+  `c:Backpex.Metric.data/3`.
   """
   @callback metric(
               metric :: map(),

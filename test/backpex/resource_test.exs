@@ -383,15 +383,15 @@ defmodule Backpex.ResourceTest do
       def format(data, _format), do: data
 
       @impl Backpex.Metric
-      def data(metric, assigns), do: {:data, metric.label, assigns.filter_values}
+      def data(metric, criteria, assigns), do: {:data, metric.label, criteria, assigns.current_user}
     end
 
-    test "calls data/2 of the metric module with the assigns instead of the adapter" do
+    test "calls data/3 of the metric module with the criteria and the assigns instead of the adapter" do
       metric = %{module: DataMetric, label: "Balance"}
-      assigns = %{filter_values: %{year: 2026}}
+      criteria = [search: {"Ann", []}, filter_values: %{year: 2026}, filter_configs: []]
 
-      assert Resource.metric(metric, [search: {"", []}], [], assigns, MetricLive) ==
-               {:ok, {:data, "Balance", %{year: 2026}}}
+      assert Resource.metric(metric, criteria, [], %{current_user: :ann}, MetricLive) ==
+               {:ok, {:data, "Balance", criteria, :ann}}
     end
 
     test "raises for a metric module that still implements query/3" do

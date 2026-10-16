@@ -853,6 +853,36 @@ defmodule Backpex.Adapters.EctoTest do
       assert Macro.to_string(query.select.expr) == "count(&0.id())"
     end
 
+    test "ignores the order, the pagination and the limit" do
+      criteria = [
+        order: %{by: :title, direction: :asc, field_name: :title},
+        pagination: %{page: 3, size: 10},
+        limit: 5
+      ]
+
+      metric(%{module: Value, aggregate: {:sum, :id}}, criteria)
+
+      assert_received {:repo, :one, query}
+      assert %{order_bys: [], limit: nil, offset: nil, wheres: [_search]} = query
+    end
+
+    test "drops an order of the item query from the aggregate" do
+      defmodule OrderedPostLive do
+        @moduledoc false
+        def config(:primary_key), do: :id
+        def config(:full_text_search), do: nil
+        def adapter_config(:schema), do: TestPost
+        def adapter_config(:repo), do: FakeRepo
+        def adapter_config(:item_query), do: fn query, _live_action, _assigns -> order_by(query, :title) end
+      end
+
+      criteria = [search: {"", []}]
+
+      EctoAdapter.metric(%{module: Value, aggregate: :count}, criteria, [], %{live_action: :index}, OrderedPostLive)
+
+      assert_received {:repo, :one, %{order_bys: []}}
+    end
+
     test "raises for a metric without an aggregate" do
       assert_raise ArgumentError, ~r/expected the metric to have an :aggregate option/, fn ->
         metric(%{module: Value})
@@ -863,9 +893,9 @@ defmodule Backpex.Adapters.EctoTest do
       end
     end
 
-    defp metric(metric) do
+    defp metric(metric, criteria \\ []) do
       fields = [user: %{module: Backpex.Fields.BelongsTo, display_field: :name}]
-      criteria = [search: {"Ann", [title: %{module: Backpex.Fields.Text}]}]
+      criteria = [search: {"Ann", [title: %{module: Backpex.Fields.Text}]}] ++ criteria
 
       EctoAdapter.metric(metric, criteria, fields, %{live_action: :index}, PostLive)
     end

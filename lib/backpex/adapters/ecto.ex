@@ -161,17 +161,19 @@ defmodule Backpex.Adapters.Ecto do
   Returns the data of a metric for the items matching the given criteria.
 
   Computes the `:aggregate` of the metric, or selects its `:select` expression, for the items that also match its
-  `:where` condition.
+  `:where` condition. Ignores the `:order`, `:pagination` and `:limit` criteria, as the data covers all matching items.
   """
   @impl Backpex.Adapter
   def metric(metric, criteria, fields, assigns, live_resource) do
     repo = live_resource.adapter_config(:repo)
 
     criteria
+    |> Keyword.drop([:order, :pagination, :limit])
     |> list_query(fields, assigns, live_resource)
     |> exclude(:select)
     |> exclude(:preload)
     |> exclude(:group_by)
+    |> exclude(:order_by)
     |> maybe_where(Map.get(metric, :where))
     |> select(^metric_select(metric))
     |> repo.one()

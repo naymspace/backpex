@@ -20,12 +20,24 @@ defmodule Backpex.Metric do
 
   ## Data of your own
 
-  A metric module that gets its data in another way, e.g. from a function of your context module, implements `c:data/2`.
-  Backpex then calls it instead of the adapter. It receives the assigns of the index view, so it can read the values of
-  the active filters from `:filter_values`.
+  A metric module that gets its data in another way, e.g. from a function of your context module, implements `c:data/3`.
+  Backpex then calls it instead of the adapter, with the criteria of the index view: the search under `:search`, and the
+  validated values and the configurations of the active filters under `:filter_values` and `:filter_configs`. These are
+  the criteria the adapter would compute the aggregate for.
 
-  As the adapter doesn't query the data, neither the search, the filters nor the `item_query` of `Backpex.Adapters.Ecto`
-  limit it. `c:data/2` has to limit the data itself, e.g. to the items the current user may see.
+  The criteria don't limit the data by themselves. To get the items of the index view, after the `item_query` of
+  `Backpex.Adapters.Ecto`, the search and the filters, pass them to `Backpex.Resource.list/4` or
+  `Backpex.Resource.count/4`:
+
+      @impl Backpex.Metric
+      def data(_metric, criteria, assigns) do
+        {:ok, items} = Backpex.Resource.list(criteria, assigns.fields, assigns, assigns.live_resource)
+
+        items |> Enum.map(&MyApp.Orders.total/1) |> Enum.sum()
+      end
+
+  A metric that reads its data elsewhere has to limit it itself, e.g. with the search string from `criteria[:search]`,
+  the values of the filters from `criteria[:filter_values]` and the current user from the assigns.
   """
 
   alias Phoenix.LiveView.Rendered
@@ -46,12 +58,12 @@ defmodule Backpex.Metric do
   Returns the data of the metric. Implement it to get the data in another way than with the `:aggregate` the adapter
   computes, see the [Data of your own](#module-data-of-your-own) section.
 
-  Receives the metric and the assigns of the index view, which hold the validated values of the active filters under
-  `:filter_values`.
+  Receives the metric, the criteria of the index view (the same criteria `c:Backpex.Adapter.metric/5` gets) and the
+  assigns of the index view.
   """
-  @callback data(metric :: map(), assigns :: map()) :: term()
+  @callback data(metric :: map(), criteria :: keyword(), assigns :: map()) :: term()
 
-  @optional_callbacks data: 2
+  @optional_callbacks data: 3
 
   @doc """
   Determine if metrics are visible for given live_resource.
