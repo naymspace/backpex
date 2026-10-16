@@ -416,6 +416,103 @@ defmodule Backpex.PreferencesControllerTest do
     end
   end
 
+  describe "update/2 when the adapter fails with a non-atom reason" do
+    defmodule AdapterInternalsError do
+      defexception [:message, :query]
+    end
+
+    defmodule CrashingAdapter do
+      @moduledoc false
+      @behaviour Adapter
+
+      @impl Adapter
+      def get(_ctx, _key, _opts), do: {:ok, :not_found}
+
+      @impl Adapter
+      def get_map(_ctx, _prefix, _opts), do: {:ok, %{}}
+
+      @impl Adapter
+      def put(_ctx, _key, _value, _opts) do
+        raise AdapterInternalsError,
+          message: "invalid byte sequence for encoding UTF8",
+          query: ~s|SELECT count(*) FROM "backpex_preferences"|
+      end
+    end
+
+    defmodule TupleReasonAdapter do
+      @moduledoc false
+      @behaviour Adapter
+
+      @impl Adapter
+      def get(_ctx, _key, _opts), do: {:ok, :not_found}
+
+      @impl Adapter
+      def get_map(_ctx, _prefix, _opts), do: {:ok, %{}}
+
+      @impl Adapter
+      def put(_ctx, _key, _value, _opts), do: {:error, {:invalid_scope, [:tenant_id]}}
+    end
+
+    setup do
+      prior = Application.get_env(:backpex, Backpex.Preferences)
+
+      Application.put_env(:backpex, Backpex.Preferences,
+        adapters: [
+          {"crash.*", CrashingAdapter, []},
+          {"tuple.*", TupleReasonAdapter, []},
+          {:default, Session, []}
+        ]
+      )
+
+      on_exit(fn ->
+        case prior do
+          nil -> Application.delete_env(:backpex, Backpex.Preferences)
+          value -> Application.put_env(:backpex, Backpex.Preferences, value)
+        end
+      end)
+
+      :ok
+    end
+
+    test "an adapter exception reaches the client only as adapter_error", %{conn: conn} do
+      {conn, log} =
+        ExUnit.CaptureLog.with_log(fn ->
+          PreferencesController.update(conn, %{"key" => "crash.thing", "value" => "x"})
+        end)
+
+      assert conn.status == 422
+
+      assert Jason.decode!(conn.resp_body) == %{
+               "ok" => false,
+               "error" => %{"key" => "crash.thing", "reason" => "adapter_error"}
+             }
+
+      refute conn.resp_body =~ "AdapterInternalsError"
+      refute conn.resp_body =~ "invalid byte sequence"
+      refute conn.resp_body =~ "backpex_preferences"
+
+      # The detail stays available to operators.
+      assert log =~ "AdapterInternalsError"
+      assert log =~ "invalid byte sequence"
+    end
+
+    test "a non-atom error reason reaches the client only as adapter_error", %{conn: conn} do
+      {conn, log} =
+        ExUnit.CaptureLog.with_log(fn ->
+          PreferencesController.update(conn, %{"key" => "tuple.thing", "value" => "x"})
+        end)
+
+      assert conn.status == 422
+
+      assert Jason.decode!(conn.resp_body) == %{
+               "ok" => false,
+               "error" => %{"key" => "tuple.thing", "reason" => "adapter_error"}
+             }
+
+      assert log =~ "{:invalid_scope, [:tenant_id]}"
+    end
+  end
+
   defp capture_log_result(fun) do
     {result, _log} = ExUnit.CaptureLog.with_log(fun)
     result

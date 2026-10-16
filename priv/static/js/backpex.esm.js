@@ -917,7 +917,6 @@ function writeSession2(key, value) {
 // js/hooks/_sticky_actions.js
 var sticky_actions_default = {
   mounted() {
-    this.sticky = this.el.querySelector(".sticky");
     this.observer = new IntersectionObserver(
       ([entry]) => {
         this.stuck = entry.intersectionRatio < 1;
@@ -934,7 +933,7 @@ var sticky_actions_default = {
     this.observer.disconnect();
   },
   toggleStuckAttribute() {
-    this.sticky.toggleAttribute("stuck", this.stuck);
+    this.el.querySelector(".sticky")?.toggleAttribute("stuck", this.stuck === true);
   }
 };
 
@@ -944,7 +943,7 @@ var theme_selector_default = {
     BackpexPreferences.syncScope();
     this.preferenceScopeMarker = BackpexPreferences.scopeMarker;
     this.boundHandleThemeChange = this.handleThemeChange.bind(this);
-    this.el.addEventListener("backpex:theme-change", this.boundHandleThemeChange);
+    this.el.addEventListener("change", this.boundHandleThemeChange);
     this.applyRenderedTheme();
   },
   updated() {
@@ -973,7 +972,7 @@ var theme_selector_default = {
     }
   },
   destroyed() {
-    this.el.removeEventListener("backpex:theme-change", this.boundHandleThemeChange);
+    this.el.removeEventListener("change", this.boundHandleThemeChange);
   }
 };
 
@@ -4287,7 +4286,9 @@ var currency_input_default = {
     this.mask.destroy();
   },
   rawValue(value) {
-    return value.replace(this.el.dataset.unit || "", "").trim().replace(new RegExp(`\\${this.el.dataset.thousandsSeparator}`, "g"), "");
+    const thousandsSeparator = this.el.dataset.thousandsSeparator;
+    const unitless = value.replace(this.el.dataset.unit || "", "").trim();
+    return thousandsSeparator ? unitless.replaceAll(thousandsSeparator, "") : unitless;
   }
 };
 export {

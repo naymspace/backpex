@@ -660,7 +660,10 @@ The response contract is:
 - `200 {"ok": false, "error": {"key": "...", "reason": "unscoped"}}`
   when a single write targets an adapter that cannot resolve its complete scope.
 - `422 {"ok": false, "error": {"key": "...", "reason": "..."}}` for the
-  first adapter error in a batch or any other write error.
+  first adapter error in a batch or any other write error. An atom reason
+  (`too_large`, `invalid_value`, an adapter's own atom) is sent as is. Any
+  other reason, including an exception the adapter raised, is sent as
+  `"adapter_error"`; the full reason is only written to the server log.
 - `400 {"ok": false, "error": "missing key/value"}` when the outer payload
   matches neither supported shape.
 
@@ -1319,8 +1322,9 @@ prefixes (columns, filters) onto a database adapter.
 **"Changes aren't saving for some scopes."** The configured adapter likely
 returned `{:error, :unscoped}` because the resolver could not build the full
 scope, or `{:error, {:invalid_scope, fields}}` because a configured field was
-missing. Check `conn.assigns` / `socket.assigns` after the authentication and
-tenant hooks have run.
+missing. The endpoint reports the latter only as `"adapter_error"`; the server
+log names the missing fields. Check `conn.assigns` / `socket.assigns` after the
+authentication and tenant hooks have run.
 
 **"I want to inspect what's stored for a scope."** Session adapter: read
 `Plug.Conn.get_session(conn, "backpex_preferences")` directly. DB adapter:

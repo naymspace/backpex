@@ -86,8 +86,7 @@ defmodule Backpex.LiveResource.Form do
   defp assign_item(socket, :edit = _live_action) do
     %{live_resource: live_resource, fields: fields, params: params} = socket.assigns
 
-    backpex_id = Map.fetch!(params, "backpex_id")
-    primary_value = URI.decode(backpex_id)
+    primary_value = Map.fetch!(params, "backpex_id")
 
     item = Resource.get!(primary_value, fields, socket.assigns, live_resource)
 
