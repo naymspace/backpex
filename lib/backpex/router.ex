@@ -192,7 +192,7 @@ defmodule Backpex.Router do
     id_field = module.config(:primary_key)
 
     if Map.has_key?(params_or_item, id_field) do
-      id = params_or_item |> Map.get(id_field) |> to_string() |> URI.encode_www_form()
+      id = params_or_item |> Map.get(id_field) |> to_string()
 
       put_route_params(route_path, Map.put(params, "backpex_id", id))
     else
@@ -254,6 +254,10 @@ defmodule Backpex.Router do
   @doc """
   Replace path params with actual params
 
+  Each param is percent-encoded as a single path segment (everything but unreserved characters is
+  escaped, so a space becomes `%20` and a slash `%2F`). Phoenix decodes each segment exactly once
+  with `URI.decode/1` before matching, so the matched param equals the given value again.
+
   ## Examples
 
       iex> Backpex.Router.put_route_params("/:param1/events/:param2/show", %{"param1" => "123", "param2" => "xyz", "test" => "abcdef"})
@@ -261,7 +265,9 @@ defmodule Backpex.Router do
       iex> Backpex.Router.put_route_params("/:param1/events/:id/edit", %{"param1" => "123", "id" => "xyz"})
       "/123/events/xyz/edit"
       iex> Backpex.Router.put_route_params("/:param1/events/:id/edit", %{"param1" => "123", "id" => "hällö / world"})
-      "/123/events/h%C3%A4ll%C3%B6+%2F+world/edit"
+      "/123/events/h%C3%A4ll%C3%B6%20%2F%20world/edit"
+      iex> Backpex.Router.put_route_params("/events/:id/show", %{"id" => "a+b 100%"})
+      "/events/a%2Bb%20100%25/show"
       iex> Backpex.Router.put_route_params("/events", %{"param1" => "123", "param2" => "xyz"})
       "/events"
       iex> Backpex.Router.put_route_params("/events", %{})
@@ -279,14 +285,12 @@ defmodule Backpex.Router do
       ":" <> param, acc ->
         case Map.fetch(params, param) do
           {:ok, value} ->
-            acc <> "/#{URI.encode_www_form(value)}"
+            acc <> "/#{URI.encode(value, &URI.char_unreserved?/1)}"
 
           :error ->
             raise ArgumentError,
                   "Cannot build route '#{route}' because required parameter '#{param}' is missing in the list of params."
         end
-
-        acc <> "/#{URI.encode_www_form(params[param])}"
 
       path, acc ->
         acc <> "/#{path}"

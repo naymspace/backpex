@@ -428,8 +428,8 @@ data — and:
 
 A refused write surfaces to the browser as `422 {ok: false, error: %{reason:
 "too_large"}}`, and the JS hook stops carrying it. The alternative would be a
-`Plug.Conn.CookieOverflowError` — an HTTP 500 on this and every later request,
-with no way for the user to reach a page to undo it.
+`Plug.Conn.CookieOverflowError` — an HTTP 500 that loses the write, which the
+JS hook then keeps pending and replays on later page loads.
 
 The warning is the signal to route heavy prefixes (per-resource column
 visibility, saved filters, etc.) to a database-backed adapter before writes
@@ -443,9 +443,23 @@ config :backpex, Backpex.Preferences,
   ]
 ```
 
-The estimate is approximate by design: it is a budget check, not an exact
-reproduction of `Plug.Session`'s encoding. It errs toward over-estimating, so
-it refuses slightly before the true ceiling rather than slightly after.
+`:max_bytes` (default `4096`) is the budget for the session cookie's whole
+`Set-Cookie` header. The estimate is approximate by design: it is a budget
+check, not an exact reproduction of `Plug.Session`'s encoding. The adapter
+cannot see your `Plug.Session` options, so it reserves 256 bytes for the
+signature (or the encryption envelope, with `:encryption_salt`), the cookie
+name and the attributes (`secure`, `max-age`/`expires`, `domain`, ...). For
+typical options that is conservative, so it refuses slightly before the true
+ceiling rather than slightly after.
+
+If your options are unusually long (a long `:key` or `:domain`, `:extra`
+attributes), work out the tail your app actually sends: the length of
+`Plug.Conn.Cookies.encode(key, Map.new([value: ""] ++ cookie_opts))`, with
+the `key` and cookie options you pass to `Plug.Session`, plus 52 bytes
+for the signed value (the default), or plus about 58 instead with
+`:encryption_salt` (the value is then encrypted, not additionally signed).
+Lower `:max_bytes` by however much that tail exceeds 256. The warning threshold
+is 75% of `:max_bytes` and moves with it.
 
 ### Routing by prefix
 
@@ -646,7 +660,10 @@ The response contract is:
 - `200 {"ok": false, "error": {"key": "...", "reason": "unscoped"}}`
   when a single write targets an adapter that cannot resolve its complete scope.
 - `422 {"ok": false, "error": {"key": "...", "reason": "..."}}` for the
-  first adapter error in a batch or any other write error.
+  first adapter error in a batch or any other write error. An atom reason
+  (`too_large`, `invalid_value`, an adapter's own atom) is sent as is. Any
+  other reason, including an exception the adapter raised, is sent as
+  `"adapter_error"`; the full reason is only written to the server log.
 - `400 {"ok": false, "error": "missing key/value"}` when the outer payload
   matches neither supported shape.
 
@@ -1298,15 +1315,16 @@ Two API notes for hook authors:
 hard size limit (commonly about 4KB for the complete encoded session, not just
 Backpex's tree). Plug does not silently truncate an oversized session; the
 response write may fail with `Plug.Conn.CookieOverflowError`. The
-Session adapter warns once its own tree passes 3072 bytes, but other session
-data and encoding overhead can make failure happen earlier. Route bulky
+Session adapter warns once its estimate of the whole cookie passes 75% of
+`:max_bytes` and refuses writes past it (see "Picking an adapter"). Route bulky
 prefixes (columns, filters) onto a database adapter.
 
 **"Changes aren't saving for some scopes."** The configured adapter likely
 returned `{:error, :unscoped}` because the resolver could not build the full
 scope, or `{:error, {:invalid_scope, fields}}` because a configured field was
-missing. Check `conn.assigns` / `socket.assigns` after the authentication and
-tenant hooks have run.
+missing. The endpoint reports the latter only as `"adapter_error"`; the server
+log names the missing fields. Check `conn.assigns` / `socket.assigns` after the
+authentication and tenant hooks have run.
 
 **"I want to inspect what's stored for a scope."** Session adapter: read
 `Plug.Conn.get_session(conn, "backpex_preferences")` directly. DB adapter:
