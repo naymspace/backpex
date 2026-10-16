@@ -29,9 +29,11 @@ defmodule Backpex.Fields.UploadTest do
     def upload_error(field, error, upload, assigns), do: Upload.upload_error(field, error, upload, assigns)
   end
 
-  # A LiveResource that returns Backpex's texts untranslated.
+  # A LiveResource that returns Backpex's texts untranslated, with their bindings filled in.
   defmodule UntranslatedLive do
-    def translate({msg, _opts}), do: msg
+    def translate({msg, opts}) do
+      Enum.reduce(opts, msg, fn {key, value}, msg -> String.replace(msg, "%{#{key}}", to_string(value)) end)
+    end
   end
 
   # An upload field that works out its files from the field instead of taking a function per field.
@@ -250,6 +252,14 @@ defmodule Backpex.Fields.UploadTest do
 
       assert html =~ "upload could not be started"
     end
+
+    test "names the file in the labels of its cancel and remove buttons", %{upload: upload} do
+      html = render_upload_form(%{}, upload_with_errors(upload, []), [{"uploads/abc123.png", "stored.png"}])
+
+      assert html =~ ~s(aria-label="Cancel photo.png")
+      assert html =~ ~s(aria-label="Remove stored.png")
+      refute html =~ ~s(aria-label="Remove uploads/abc123.png")
+    end
   end
 
   defp upload_with_errors(upload, errors) do
@@ -258,13 +268,13 @@ defmodule Backpex.Fields.UploadTest do
     %{upload | entries: [entry], errors: errors}
   end
 
-  defp render_upload_form(field_options, upload) do
+  defp render_upload_form(field_options, upload, uploaded_files \\ []) do
     render_component(&Upload.render_form/1,
       name: :images,
       field_options: Map.merge(%{module: Upload, label: "Images"}, field_options),
       form: Phoenix.Component.to_form(%{}, as: :change),
       lv_uploads: %{images: upload},
-      uploaded_files: [images: []],
+      uploaded_files: [images: uploaded_files],
       live_resource: UntranslatedLive,
       readonly: false,
       type: :form
