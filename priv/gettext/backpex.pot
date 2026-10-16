@@ -284,10 +284,6 @@ msgid "unacceptable file type"
 msgstr ""
 
 #, elixir-autogen, elixir-format
-msgid "Unselect %{label}"
-msgstr ""
-
-#, elixir-autogen, elixir-format
 msgid "Upload a file"
 msgstr ""
 
