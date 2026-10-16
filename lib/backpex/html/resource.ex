@@ -717,14 +717,23 @@ defmodule Backpex.HTML.Resource do
   end
 
   @doc """
-  Renders pagination buttons. You are required to provide a `:page` pattern in the URL. It will be replaced
-  with the corresponding page number.
+  Renders pagination buttons. The `page_path` function receives a page number and returns the path to that page.
+  The component uses the path as is, so `page_path` must encode user input in it, for example with
+  `Plug.Conn.Query.encode/1`.
+
+  ## Example
+
+      <.pagination
+        page_path={&("/admin/posts?" <> Plug.Conn.Query.encode(%{search: @search, page: &1}))}
+        current_page={@page}
+        total_pages={@total_pages}
+      />
   """
   @doc type: :component
 
   attr :current_page, :integer, required: true, doc: "current page number"
   attr :total_pages, :integer, required: true, doc: "number of total pages"
-  attr :path, :string, required: true, doc: "path to be used for page links"
+  attr :page_path, {:fun, 1}, required: true, doc: "function that receives a page number and returns its path"
   attr :next_page_label, :string, default: "Next page"
   attr :previous_page_label, :string, default: "Previous page"
 
@@ -739,7 +748,7 @@ defmodule Backpex.HTML.Resource do
         type={type}
         number={number}
         current_page={@current_page}
-        path={@path}
+        page_path={@page_path}
         next_page_label={@next_page_label}
         previous_page_label={@previous_page_label}
       />
@@ -747,7 +756,7 @@ defmodule Backpex.HTML.Resource do
     """
   end
 
-  attr :path, :string, required: true
+  attr :page_path, {:fun, 1}, required: true
   attr :current_page, :integer, required: true
   attr :type, :atom, required: true
   attr :number, :integer, default: nil, required: false
@@ -756,7 +765,7 @@ defmodule Backpex.HTML.Resource do
   attr :previous_page_label, :string, default: "Previous page"
 
   defp pagination_item(%{type: :number} = assigns) do
-    pagination_link = get_pagination_link(assigns.path, assigns.number)
+    pagination_link = assigns.page_path.(assigns.number)
 
     assigns =
       assigns
@@ -771,7 +780,7 @@ defmodule Backpex.HTML.Resource do
   end
 
   defp pagination_item(%{type: :prev} = assigns) do
-    pagination_link = get_pagination_link(assigns.path, assigns.current_page - 1)
+    pagination_link = assigns.page_path.(assigns.current_page - 1)
 
     assigns =
       assigns
@@ -786,7 +795,7 @@ defmodule Backpex.HTML.Resource do
   end
 
   defp pagination_item(%{type: :next} = assigns) do
-    pagination_link = get_pagination_link(assigns.path, assigns.current_page + 1)
+    pagination_link = assigns.page_path.(assigns.current_page + 1)
 
     assigns =
       assigns
@@ -811,8 +820,6 @@ defmodule Backpex.HTML.Resource do
   end
 
   defp pagination_btn_class, do: ["btn btn-sm bg-base-100 hover:bg-[var(--btn-border)]"]
-
-  defp get_pagination_link(path, page), do: String.replace(path, ":page", page |> Integer.to_string())
 
   @doc """
   Creates a list of pagination items based on the current page and the total number of pages. A maximum of five pages will be displayed.
