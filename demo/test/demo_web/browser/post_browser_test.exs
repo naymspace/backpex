@@ -60,5 +60,22 @@ defmodule DemoWeb.Browser.PostBrowserTest do
       |> visit(~p"/admin/posts/new")
       |> assert_a11y()
     end
+
+    test "selects and deselects all tags with the keyboard", %{conn: conn} do
+      insert_list(3, :tag)
+      checked_tags = "#has-many-tags input[name='change[tags][]']:checked"
+
+      conn
+      |> visit(~p"/admin/posts/new")
+      |> press("#has-many-dropdown-tags-trigger", "Enter")
+      |> press("#has-many-dropdown-tags-menu input[type=search]", "Tab")
+      |> evaluate("document.activeElement.textContent.trim()", &assert(&1 == "Select all"))
+      |> press("#has-many-tags button:has-text('Select all')", "Enter")
+      |> assert_has(checked_tags, count: 3)
+      |> evaluate("document.activeElement.textContent.trim()", &assert(&1 == "Deselect all"))
+      |> press("#has-many-tags button:has-text('Deselect all')", "Space")
+      |> refute_has(checked_tags)
+      |> evaluate("document.activeElement.textContent.trim()", &assert(&1 == "Select all"))
+    end
   end
 end
