@@ -243,6 +243,25 @@ defmodule Backpex.HTML.LayoutTest do
     end
   end
 
+  describe "modal/1" do
+    test "gives the close button an accessible name" do
+      # The close button only contains an aria-hidden icon and receives the
+      # focus when the modal opens, so it needs the label as its name.
+      assert close_button_label(id: "test-modal") == ["Close modal"]
+      assert close_button_label(id: "test-modal", close_label: "Modal schließen") == ["Modal schließen"]
+    end
+  end
+
+  defp close_button_label(attrs) do
+    inner_block = [%{__slot__: :inner_block, inner_block: fn _assigns, _arg -> "Content" end}]
+
+    (&Layout.modal/1)
+    |> render_component(Keyword.put(attrs, :inner_block, inner_block))
+    |> LazyHTML.from_fragment()
+    |> LazyHTML.query("#test-modal-box button[type=button]")
+    |> LazyHTML.attribute("aria-label")
+  end
+
   defp sidebar_section(assigns) do
     label = [%{__slot__: :label, inner_block: fn _assigns, _arg -> "Blog" end}]
     render_component(&Layout.sidebar_section/1, Keyword.put_new(assigns, :label, label))

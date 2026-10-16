@@ -207,6 +207,24 @@ defmodule Backpex.HTML.ResourceTest do
     end
   end
 
+  describe "filter_presets/1" do
+    test "renders each preset as a button that does not submit the filter form" do
+      html =
+        render_component(&Resource.filter_presets/1,
+          filter_name: :inserted_at,
+          presets: [%{label: "Last 7 Days"}, %{label: "Last 14 Days"}]
+        )
+
+      buttons = html |> LazyHTML.from_fragment() |> LazyHTML.query("button")
+
+      assert Enum.map(buttons, &String.trim(LazyHTML.text(&1))) == ["Last 7 Days", "Last 14 Days"]
+      assert LazyHTML.attribute(buttons, "type") == ["button", "button"]
+      assert LazyHTML.attribute(buttons, "phx-click") == ["filter-preset-selected", "filter-preset-selected"]
+      assert LazyHTML.attribute(buttons, "phx-value-field") == ["inserted_at", "inserted_at"]
+      assert LazyHTML.attribute(buttons, "phx-value-preset-index") == ["0", "1"]
+    end
+  end
+
   defmodule ShowPanelLive do
     @moduledoc false
     def config(:primary_key), do: :id
