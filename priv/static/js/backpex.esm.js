@@ -64,6 +64,7 @@ var dropdown_default = {
     if (!this.triggerEl()) return;
     this.isOpen = false;
     this.mousedownInside = false;
+    this.syncOpenState();
     this.handleRootMousedown = this.handleRootMousedown.bind(this);
     this.handleRootKeydown = this.handleRootKeydown.bind(this);
     this.handleDocumentMousedown = this.handleDocumentMousedown.bind(this);
@@ -76,8 +77,9 @@ var dropdown_default = {
     this.focusedBeforeUpdate = this.el.contains(document.activeElement) ? document.activeElement : null;
   },
   updated() {
+    if (this.isOpen === void 0) return;
     if (!this.menuEl()) this.close();
-    this.el.classList.toggle("dropdown-open", this.isOpen);
+    this.syncOpenState();
     if (this.focusedBeforeUpdate && !this.el.contains(document.activeElement)) {
       const target = this.focusedBeforeUpdate.isConnected ? this.focusedBeforeUpdate : this.focusedBeforeUpdate.id && this.el.querySelector(`#${this.focusedBeforeUpdate.id}`);
       target?.focus();
@@ -98,15 +100,21 @@ var dropdown_default = {
   open() {
     if (this.isOpen) return;
     this.isOpen = true;
-    this.el.classList.add("dropdown-open");
+    this.syncOpenState();
     this.attachDocumentListeners();
   },
   close() {
     if (!this.isOpen) return;
     this.isOpen = false;
     this.mousedownInside = false;
-    this.el.classList.remove("dropdown-open");
+    this.syncOpenState();
     this.detachDocumentListeners();
+  },
+  syncOpenState() {
+    this.el.classList.toggle("dropdown-open", this.isOpen);
+    this.el.classList.toggle("dropdown-close", !this.isOpen);
+    this.triggerEl()?.setAttribute("aria-expanded", this.isOpen);
+    this.menuEl()?.toggleAttribute("inert", !this.isOpen);
   },
   toggle() {
     if (this.isOpen) this.close();

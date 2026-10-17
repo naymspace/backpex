@@ -7,6 +7,7 @@ class FakeElement {
     const classes = new Set()
 
     this.id = id
+    this.attributes = new Map()
     this.children = children
     this.listeners = {}
     this.classList = {
@@ -19,6 +20,24 @@ class FakeElement {
         return add
       }
     }
+  }
+
+  setAttribute (name, value) {
+    this.attributes.set(name, String(value))
+  }
+
+  getAttribute (name) {
+    return this.attributes.get(name) ?? null
+  }
+
+  hasAttribute (name) {
+    return this.attributes.has(name)
+  }
+
+  toggleAttribute (name, force) {
+    const add = force === undefined ? !this.attributes.has(name) : force
+    add ? this.attributes.set(name, '') : this.attributes.delete(name)
+    return add
   }
 
   contains (node) {
@@ -103,6 +122,46 @@ describe('BackpexDropdown', () => {
 
     root.dispatch('mousedown', event(root))
     expect(isOpen(root)).toBe(false)
+  })
+
+  test('marks the trigger expanded and the menu inert by the open state', () => {
+    const { root, trigger, menu } = editableDropdown()
+    mountHook(root)
+
+    expect(trigger.getAttribute('aria-expanded')).toBe('false')
+    expect(menu.hasAttribute('inert')).toBe(true)
+
+    root.dispatch('mousedown', event(trigger))
+    expect(trigger.getAttribute('aria-expanded')).toBe('true')
+    expect(menu.hasAttribute('inert')).toBe(false)
+
+    root.dispatch('mousedown', event(root))
+    expect(trigger.getAttribute('aria-expanded')).toBe('false')
+    expect(menu.hasAttribute('inert')).toBe(true)
+  })
+
+  test('restores the open state on a trigger and menu that a patch re-created', () => {
+    const { root, trigger } = editableDropdown()
+    const hook = mountHook(root)
+    root.dispatch('mousedown', event(trigger))
+
+    const newTrigger = new FakeElement('dd-trigger')
+    const newMenu = new FakeElement('dd-menu')
+    patch(hook, [newTrigger, newMenu])
+
+    expect(isOpen(root)).toBe(true)
+    expect(newTrigger.getAttribute('aria-expanded')).toBe('true')
+    expect(newMenu.hasAttribute('inert')).toBe(false)
+  })
+
+  test('leaves a dropdown without a trigger alone', () => {
+    const root = new FakeElement('dd', [new FakeElement('dd-menu')])
+    const hook = mountHook(root)
+
+    patch(hook, [new FakeElement('dd-menu')])
+
+    expect(root.classList.contains('dropdown-open')).toBe(false)
+    expect(root.classList.contains('dropdown-close')).toBe(false)
   })
 
   test('stays open for clicks in a menu that a patch re-created', () => {

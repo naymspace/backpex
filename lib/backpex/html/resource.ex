@@ -608,7 +608,7 @@ defmodule Backpex.HTML.Resource do
         phx-click={@select_filter_preset_event}
         phx-value-field={@filter_name}
         phx-value-preset-index={index}
-        class="text-primary mb-1 block max-w-full cursor-pointer truncate text-left text-xs font-medium hover:underline"
+        class="link mb-1 block max-w-full truncate text-left text-xs font-medium"
       >
         {preset.label}
       </button>
@@ -627,7 +627,7 @@ defmodule Backpex.HTML.Resource do
       type="button"
       phx-click={@clear_event}
       phx-value-field={@filter_name}
-      class="text-primary cursor-pointer text-xs font-medium hover:underline"
+      class="link text-xs font-medium"
     >
       {Backpex.__("clear", @live_resource)}
     </button>

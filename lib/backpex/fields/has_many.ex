@@ -301,7 +301,7 @@ defmodule Backpex.Fields.HasMany do
       name={@button_name}
       value=""
       phx-click={JS.dispatch("change")}
-      class={["text-primary block cursor-pointer text-sm underline", @class]}
+      class={["link block text-sm", @class]}
     >
       {@button_text}
     </button>
@@ -343,7 +343,7 @@ defmodule Backpex.Fields.HasMany do
       type="button"
       phx-click="show-more"
       phx-target={@event_target}
-      class="text-primary mb-2 cursor-pointer text-sm underline"
+      class="link mb-2 text-sm"
     >
       {Backpex.__("Show more", @live_resource)}
     </button>
