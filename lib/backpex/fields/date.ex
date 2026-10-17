@@ -66,7 +66,7 @@ defmodule Backpex.Fields.Date do
             module: Backpex.Fields.Date,
             label: "Created At",
             # If you use the same formatting logic in multiple places
-            format: &MyApp.Formatters.Dates/1
+            format: &MyApp.Formatters.format_date/1
           }
         ]
       end
