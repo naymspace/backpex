@@ -12,7 +12,7 @@ defmodule Backpex.Fields.Upload do
     ],
     max_entries: [
       doc: "Number of max files that can be uploaded.",
-      type: :non_neg_integer,
+      type: :pos_integer,
       default: 1
     ],
     max_file_size: [
@@ -631,7 +631,6 @@ defmodule Backpex.Fields.Upload do
   @impl Backpex.Field
   def render_form(assigns) do
     upload_key = Backpex.Field.upload_key({assigns.name, assigns.field_options})
-    uploads_allowed = not is_nil(assigns.lv_uploads[upload_key])
     translate_error_fun = Map.get(assigns.field_options, :translate_error, &Function.identity/1)
 
     hidden_field_name = to_string(assigns.name)
@@ -653,7 +652,6 @@ defmodule Backpex.Fields.Upload do
       |> assign(:hidden_field_name, hidden_field_name)
       |> assign(:upload, assigns.lv_uploads[upload_key])
       |> assign(:upload_key, upload_key)
-      |> assign(:uploads_allowed, uploads_allowed)
       |> assign(:uploaded_files, Keyword.get(assigns.uploaded_files, upload_key))
       |> assign(:errors, errors)
       |> assign(:form_errors, form_errors)
@@ -673,7 +671,7 @@ defmodule Backpex.Fields.Upload do
           id={"#{@name}-drop-target"}
           class="w-full max-w-lg"
           phx-hook={not @readonly && "BackpexDragHover"}
-          phx-drop-target={if @uploads_allowed and not @readonly, do: @upload.ref}
+          phx-drop-target={if not @readonly, do: @upload.ref}
         >
           <div class={[
             "rounded-field flex justify-center border-2 border-dashed px-6 pt-5 pb-6",
@@ -692,7 +690,7 @@ defmodule Backpex.Fields.Upload do
                     {Backpex.__("Upload a file", @live_resource)}
                   </span>
                   <.live_file_input
-                    :if={@uploads_allowed and not @readonly}
+                    :if={not @readonly}
                     upload={@upload}
                     phx-target="#form-component"
                     class="hidden"
@@ -732,34 +730,30 @@ defmodule Backpex.Fields.Upload do
               </div>
             <% end %>
 
-            <%= if @uploads_allowed do %>
-              <div :for={entry <- @upload.entries} class="break-all">
-                <p class="inline">{Map.get(entry, :client_name)}</p>
-                <button
-                  :if={not @readonly}
-                  type="button"
-                  phx-click="cancel-entry"
-                  phx-value-ref={entry.ref}
-                  phx-value-id={@upload_key}
-                  phx-target="#form-component"
-                  class="cursor-pointer"
-                  aria-label={Backpex.__({"Cancel %{name}", %{name: Map.get(entry, :client_name)}}, @live_resource)}
-                >
-                  &times;
-                </button>
-                <progress :if={entry.progress > 0} class="progress ml-4 w-32" value={entry.progress} max="100"></progress>
-                <p :for={err <- upload_errors(@upload, entry)} class="text-xs italic text-red-500">
-                  {@upload_error.(err)}
-                </p>
-              </div>
-            <% end %>
+            <div :for={entry <- @upload.entries} class="break-all">
+              <p class="inline">{Map.get(entry, :client_name)}</p>
+              <button
+                :if={not @readonly}
+                type="button"
+                phx-click="cancel-entry"
+                phx-value-ref={entry.ref}
+                phx-value-id={@upload_key}
+                phx-target="#form-component"
+                class="cursor-pointer"
+                aria-label={Backpex.__({"Cancel %{name}", %{name: Map.get(entry, :client_name)}}, @live_resource)}
+              >
+                &times;
+              </button>
+              <progress :if={entry.progress > 0} class="progress ml-4 w-32" value={entry.progress} max="100"></progress>
+              <p :for={err <- upload_errors(@upload, entry)} class="text-xs italic text-red-500">
+                {@upload_error.(err)}
+              </p>
+            </div>
           </article>
 
-          <%= if @uploads_allowed do %>
-            <p :for={err <- upload_errors(@upload)} class="text-xs italic text-red-500">
-              {@upload_error.(err)}
-            </p>
-          <% end %>
+          <p :for={err <- upload_errors(@upload)} class="text-xs italic text-red-500">
+            {@upload_error.(err)}
+          </p>
           <BackpexForm.error :for={msg <- @form_errors}>{msg}</BackpexForm.error>
 
           <%= if help_text = Backpex.Field.help_text(@field_options, assigns) do %>
@@ -792,8 +786,6 @@ defmodule Backpex.Fields.Upload do
     uploaded_files = Map.get(socket.assigns, :uploaded_files, [])
     assign(socket, :uploaded_files, [field_files | uploaded_files])
   end
-
-  defp allow_field_uploads(socket, _upload_key, _field_options, 0, _max_file_size), do: socket
 
   defp allow_field_uploads(socket, upload_key, %{external: presign_upload} = field_options, max_entries, max_file_size) do
     Phoenix.LiveView.allow_upload(socket, upload_key,
