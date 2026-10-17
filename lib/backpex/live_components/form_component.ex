@@ -143,10 +143,22 @@ defmodule Backpex.FormComponent do
   end
 
   def handle_event("cancel-entry", %{"ref" => ref, "id" => upload_key}, socket) do
-    socket
-    |> cancel_upload(String.to_existing_atom(upload_key), ref)
-    |> push_event("cancel-entry:#{upload_key}", %{})
-    |> noreply()
+    %{assigns: assigns} = socket
+
+    # Both params are client-controlled, and the entry may already be gone, e.g. when a newly picked
+    # file replaced it for an upload with `max_entries: 1`. `cancel_upload/3` raises for an unknown
+    # upload or ref, and an entry with a running upload stays in `entries` as `cancelled?` until its
+    # channel shuts down, so only a pending entry of an upload field the user may edit is cancelled.
+    with {_field, upload_key} <- editable_upload_field(assigns, upload_key),
+         %{entries: entries} <- get_in(assigns, [:uploads, upload_key]),
+         true <- Enum.any?(entries, &(&1.ref == ref and not &1.cancelled?)) do
+      socket
+      |> cancel_upload(upload_key, ref)
+      |> push_event("cancel-entry:#{upload_key}", %{})
+      |> noreply()
+    else
+      _invalid -> noreply(socket)
+    end
   end
 
   def handle_event("cancel-existing-entry", %{"ref" => file_key, "id" => upload_key}, socket) do
@@ -155,9 +167,7 @@ defmodule Backpex.FormComponent do
     # Both params are client-controlled and `file_key` ends up in the field's `remove_uploads/4`,
     # which typically deletes it from disk. Only a file the item currently has, on an upload field
     # the user may edit, may be marked as removed. Anything else is a no-op.
-    with {_name, field_options} = field <- find_upload_field(assigns.fields, upload_key),
-         upload_key = Field.upload_key(field),
-         false <- Field.readonly?(field_options, assigns),
+    with {field, upload_key} <- editable_upload_field(assigns, upload_key),
          removed_files = Keyword.get(assigns.removed_uploads, upload_key, []),
          true <- file_key in Upload.list_existing_files(field, assigns.item, removed_files) do
       removed_uploads = Keyword.put(assigns.removed_uploads, upload_key, [file_key | removed_files])
@@ -479,6 +489,17 @@ defmodule Backpex.FormComponent do
   # again would crash the socket with "socket already prepared to redirect".
   defp maybe_navigate(%{redirected: nil} = socket, path), do: push_navigate(socket, to: path)
   defp maybe_navigate(socket, _path), do: socket
+
+  # Returns the upload field for a client-supplied upload key and its upload key as an atom, or
+  # `nil` when no upload field has that key or the user may not edit it.
+  defp editable_upload_field(assigns, upload_key) do
+    with {_name, field_options} = field <- find_upload_field(assigns.fields, upload_key),
+         false <- Field.readonly?(field_options, assigns) do
+      {field, Field.upload_key(field)}
+    else
+      _invalid -> nil
+    end
+  end
 
   # Matches binaries rather than using `String.to_existing_atom/1`, so an unknown key is a plain miss
   # instead of an `ArgumentError`.

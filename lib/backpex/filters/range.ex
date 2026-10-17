@@ -112,11 +112,11 @@ defmodule Backpex.Filters.Range do
     ~H"""
     <div class="mt-2">
       <label class={["input input-sm mb-2", @errors != [] && "input-error bg-error/10"]}>
-        <span class="text-base-content/50 w-10">{Backpex.__("From", @live_resource)}</span>
+        <span class="label text-base-content min-w-16">{Backpex.__("From", @live_resource)}</span>
         <input type="date" name={@form[:start].name} value={@value["start"]} class="inline-block" />
       </label>
       <label class={["input input-sm", @errors != [] && "input-error bg-error/10"]}>
-        <span class="text-base-content/50 w-10">{Backpex.__("To", @live_resource)}</span>
+        <span class="label text-base-content min-w-16">{Backpex.__("To", @live_resource)}</span>
         <input type="date" name={@form[:end].name} value={@value["end"]} class="inline-block" />
       </label>
     </div>
@@ -127,11 +127,11 @@ defmodule Backpex.Filters.Range do
     ~H"""
     <div class="mt-2">
       <label class={["input input-sm mb-2", @errors != [] && "input-error bg-error/10"]}>
-        <span class="text-base-content/50 w-10">{Backpex.__("From", @live_resource)}</span>
+        <span class="label text-base-content min-w-16">{Backpex.__("From", @live_resource)}</span>
         <input type="number" name={@form[:start].name} value={@value["start"]} />
       </label>
       <label class={["input input-sm", @errors != [] && "input-error bg-error/10"]}>
-        <span class="text-base-content/50 w-10">{Backpex.__("To", @live_resource)}</span>
+        <span class="label text-base-content min-w-16">{Backpex.__("To", @live_resource)}</span>
         <input type="number" name={@form[:end].name} value={@value["end"]} />
       </label>
     </div>

@@ -582,7 +582,7 @@ defmodule Backpex.HTML.Form do
     ~H"""
     <button
       type="button"
-      class={["text-primary text-sm underline hover:cursor-pointer", @class]}
+      class={["link text-sm", @class]}
       phx-click="toggle-select-all"
       phx-value-field-name={@field.name}
       phx-target={@event_target}
@@ -652,7 +652,7 @@ defmodule Backpex.HTML.Form do
     ~H"""
     <button
       type="button"
-      class="text-primary mb-2 text-sm underline hover:cursor-pointer"
+      class="link mb-2 text-sm"
       phx-click="show-more"
       phx-target={@event_target}
     >

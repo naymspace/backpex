@@ -12,7 +12,7 @@ defmodule Backpex.Fields.Upload do
     ],
     max_entries: [
       doc: "Number of max files that can be uploaded.",
-      type: :non_neg_integer,
+      type: :pos_integer,
       default: 1
     ],
     max_file_size: [
@@ -801,8 +801,6 @@ defmodule Backpex.Fields.Upload do
     uploaded_files = Map.get(socket.assigns, :uploaded_files, [])
     assign(socket, :uploaded_files, Keyword.put_new(uploaded_files, upload_key, files))
   end
-
-  defp allow_field_uploads(socket, _upload_key, _field_options, 0, _max_file_size), do: socket
 
   defp allow_field_uploads(socket, upload_key, %{external: presign_upload} = field_options, max_entries, max_file_size) do
     Phoenix.LiveView.allow_upload(socket, upload_key,

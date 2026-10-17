@@ -23,6 +23,16 @@
  *      last mousedown landed and ignores outside clicks whose mousedown was
  *      inside the dropdown.
  *
+ * The CSS-only mechanism also shows the menu whenever focus is inside the
+ * dropdown, e.g. while the trigger is focused or after closing the menu with
+ * Enter or Escape, so keyboard users would Tab through every option of a menu
+ * they did not open. While closed, the root therefore carries daisyUI's
+ * `dropdown-close` class, which hides the menu regardless of focus. The
+ * server-rendered markup omits it, so the dropdown still opens on focus before
+ * the hook mounts. The closed menu is also `inert`, because daisyUI keeps it
+ * rendered while it fades out. The trigger's `aria-expanded` tells screen
+ * readers whether the menu is open.
+ *
  * Document listeners only run while the dropdown is open, so pages with many
  * dropdowns don't pay an event-handler tax for closed ones.
  *
@@ -37,6 +47,7 @@ export default {
 
     this.isOpen = false
     this.mousedownInside = false
+    this.syncOpenState()
 
     this.handleRootMousedown = this.handleRootMousedown.bind(this)
     this.handleRootKeydown = this.handleRootKeydown.bind(this)
@@ -57,12 +68,15 @@ export default {
       : null
   },
   updated () {
+    // mounted() found no trigger, so the hook leaves this dropdown alone.
+    if (this.isOpen === undefined) return
+
     // A readonly dropdown renders no menu, so there is nothing to keep open.
     if (!this.menuEl()) this.close()
 
     // Restore the open state across LiveView re-renders, since morphdom strips
-    // classes that aren't in the server-rendered HTML.
-    this.el.classList.toggle('dropdown-open', this.isOpen)
+    // classes and attributes that aren't in the server-rendered HTML.
+    this.syncOpenState()
 
     if (this.focusedBeforeUpdate && !this.el.contains(document.activeElement)) {
       const target = this.focusedBeforeUpdate.isConnected
@@ -86,15 +100,21 @@ export default {
   open () {
     if (this.isOpen) return
     this.isOpen = true
-    this.el.classList.add('dropdown-open')
+    this.syncOpenState()
     this.attachDocumentListeners()
   },
   close () {
     if (!this.isOpen) return
     this.isOpen = false
     this.mousedownInside = false
-    this.el.classList.remove('dropdown-open')
+    this.syncOpenState()
     this.detachDocumentListeners()
+  },
+  syncOpenState () {
+    this.el.classList.toggle('dropdown-open', this.isOpen)
+    this.el.classList.toggle('dropdown-close', !this.isOpen)
+    this.triggerEl()?.setAttribute('aria-expanded', this.isOpen)
+    this.menuEl()?.toggleAttribute('inert', !this.isOpen)
   },
   toggle () {
     if (this.isOpen) this.close()
