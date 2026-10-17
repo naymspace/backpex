@@ -93,12 +93,15 @@ defmodule DemoWeb.Browser.PostBrowserTest do
       conn
       |> visit(~p"/admin/posts/new")
       |> assert_has("body .phx-connected")
+      |> assert_has("#has-many-dropdown-tags-trigger[aria-expanded=false]")
       |> press("#has-many-dropdown-tags-trigger", "Tab")
       |> evaluate(focus_in_menu, &refute/1)
       |> press("#has-many-dropdown-tags-trigger", "Enter")
+      |> assert_has("#has-many-dropdown-tags-trigger[aria-expanded=true]")
       |> press("#has-many-dropdown-tags-trigger", "Tab")
       |> evaluate(focus_in_menu, &assert/1)
       |> press("#has-many-dropdown-tags-trigger", "Enter")
+      |> assert_has("#has-many-dropdown-tags-trigger[aria-expanded=false]")
       |> press("#has-many-dropdown-tags-trigger", "Tab")
       |> evaluate(focus_in_menu, &refute/1)
     end
