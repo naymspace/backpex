@@ -232,21 +232,21 @@ defmodule Backpex.Fields.UploadTest do
 
     test "gives render_form/1 what it needs", %{field_options: field_options, socket: socket} do
       socket = Upload.assign_uploads({:images, field_options}, socket)
-
-      html =
-        render_component(&Upload.render_form/1,
-          name: :images,
-          field_options: Map.put(field_options, :label, "Images"),
-          form: Phoenix.Component.to_form(%{}, as: :change),
-          lv_uploads: socket.assigns.uploads,
-          uploaded_files: socket.assigns.uploaded_files,
-          live_resource: UntranslatedLive,
-          readonly: false,
-          type: :form
-        )
+      html = render_assigned_form(socket, field_options, false)
 
       assert html =~ ~s(for="#{socket.assigns.uploads.images.ref}")
       assert html =~ "old.png"
+    end
+
+    test "renders a readonly field without a file input, drop target or remove button",
+         %{field_options: field_options, socket: socket} do
+      socket = Upload.assign_uploads({:images, field_options}, socket)
+      html = render_assigned_form(socket, field_options, true)
+
+      assert html =~ "old.png"
+      refute html =~ ~s(type="file")
+      refute html =~ "phx-drop-target"
+      refute html =~ "cancel-existing-entry"
     end
   end
 
@@ -325,6 +325,19 @@ defmodule Backpex.Fields.UploadTest do
       assert html =~ ~s(aria-label="Remove stored.png")
       refute html =~ ~s(aria-label="Remove uploads/abc123.png")
     end
+  end
+
+  defp render_assigned_form(socket, field_options, readonly) do
+    render_component(&Upload.render_form/1,
+      name: :images,
+      field_options: Map.put(field_options, :label, "Images"),
+      form: Phoenix.Component.to_form(%{}, as: :change),
+      lv_uploads: socket.assigns.uploads,
+      uploaded_files: socket.assigns.uploaded_files,
+      live_resource: UntranslatedLive,
+      readonly: readonly,
+      type: :form
+    )
   end
 
   defp upload_with_errors(upload, errors) do
