@@ -29,8 +29,9 @@
  * they did not open. While closed, the root therefore carries daisyUI's
  * `dropdown-close` class, which hides the menu regardless of focus. The
  * server-rendered markup omits it, so the dropdown still opens on focus before
- * the hook mounts. The trigger's `aria-expanded` tells screen readers whether
- * the menu is open.
+ * the hook mounts. The closed menu is also `inert`, because daisyUI keeps it
+ * rendered while it fades out. The trigger's `aria-expanded` tells screen
+ * readers whether the menu is open.
  *
  * Document listeners only run while the dropdown is open, so pages with many
  * dropdowns don't pay an event-handler tax for closed ones.
@@ -113,6 +114,7 @@ export default {
     this.el.classList.toggle('dropdown-open', this.isOpen)
     this.el.classList.toggle('dropdown-close', !this.isOpen)
     this.triggerEl()?.setAttribute('aria-expanded', this.isOpen)
+    this.menuEl()?.toggleAttribute('inert', !this.isOpen)
   },
   toggle () {
     if (this.isOpen) this.close()

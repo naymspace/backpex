@@ -135,6 +135,7 @@ var dropdown_default = {
     this.el.classList.toggle("dropdown-open", this.isOpen);
     this.el.classList.toggle("dropdown-close", !this.isOpen);
     this.triggerEl()?.setAttribute("aria-expanded", this.isOpen);
+    this.menuEl()?.toggleAttribute("inert", !this.isOpen);
   },
   toggle() {
     if (this.isOpen) this.close();
