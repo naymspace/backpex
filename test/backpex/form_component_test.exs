@@ -33,10 +33,21 @@ defmodule Backpex.FormComponentTest do
     test "cancels a pending entry", %{socket: socket} do
       assert {:noreply, socket} = FormComponent.handle_event("cancel-entry", %{"ref" => "0", "id" => "avatar"}, socket)
       assert socket.assigns.uploads.avatar.entries == []
+      assert socket.private.live_temp.push_events == [["cancel-entry:avatar", %{}]]
     end
 
     test "ignores a ref without a pending entry", %{socket: socket} do
       assert FormComponent.handle_event("cancel-entry", %{"ref" => "1", "id" => "avatar"}, socket) == {:noreply, socket}
+    end
+
+    test "ignores an entry that is already cancelled", %{socket: socket} do
+      # An entry with a running upload stays in `entries` as `cancelled?` until its channel shuts down.
+      socket =
+        Phoenix.Component.update(socket, :uploads, fn uploads ->
+          update_in(uploads.avatar.entries, &Enum.map(&1, fn entry -> %{entry | cancelled?: true} end))
+        end)
+
+      assert FormComponent.handle_event("cancel-entry", %{"ref" => "0", "id" => "avatar"}, socket) == {:noreply, socket}
     end
 
     test "ignores a key that is not an upload", %{socket: socket} do
@@ -75,6 +86,7 @@ defmodule Backpex.FormComponentTest do
 
       assert {:noreply, socket} = FormComponent.handle_event("cancel-entry", %{"ref" => "0", "id" => "avatar"}, socket)
       assert socket.assigns.uploads.avatar.entries == []
+      assert socket.private.live_temp.push_events == [["cancel-entry:avatar", %{}]]
     end
   end
 
