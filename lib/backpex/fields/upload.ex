@@ -604,7 +604,8 @@ defmodule Backpex.Fields.Upload do
 
   When the field is readonly, the drop target and the "Upload a file" link are disabled, and the
   cancel/remove buttons on both pending and existing entries are hidden. The list of existing files
-  is still displayed so users can see the current value. See the
+  is still displayed so users can see the current value. The field gets no upload config, so the
+  server refuses uploads for it, and existing files can't be removed. See the
   [readonly](/guides/fields/readonly.md) guide for details.
   """
   use Backpex.Field, config_schema: @config_schema
@@ -667,7 +668,8 @@ defmodule Backpex.Fields.Upload do
     <div>
       <Layout.field_container>
         <:label align={Backpex.Field.align_label(@field_options, assigns, :top)}>
-          <Layout.input_label for={@upload.ref} text={@field_options[:label]} />
+          <Layout.input_label :if={@uploads_allowed} for={@upload.ref} text={@field_options[:label]} />
+          <Layout.input_label :if={not @uploads_allowed} as="span" text={@field_options[:label]} />
         </:label>
         <div
           id={"#{@name}-drop-target"}
@@ -779,18 +781,25 @@ defmodule Backpex.Fields.Upload do
     max_entries = field_options.max_entries
     max_file_size = Map.get(field_options, :max_file_size, 8_000_000)
 
-    if get_in(socket.assigns, [:uploads, upload_key]) do
-      socket
-    else
-      socket
-      |> assign_uploaded_files(field_files)
-      |> allow_field_uploads(upload_key, field_options, max_entries, max_file_size)
+    cond do
+      get_in(socket.assigns, [:uploads, upload_key]) ->
+        socket
+
+      # Without an upload config, LiveView refuses any upload for the field, even from a crafted client.
+      Backpex.Field.readonly?(field_options, socket.assigns) ->
+        assign_uploaded_files(socket, field_files)
+
+      true ->
+        socket
+        |> assign_uploaded_files(field_files)
+        |> allow_field_uploads(upload_key, field_options, max_entries, max_file_size)
     end
   end
 
-  defp assign_uploaded_files(socket, field_files) do
+  # `assign_uploads/2` runs on every update, and a field without an upload config would add its files again each time.
+  defp assign_uploaded_files(socket, {upload_key, files}) do
     uploaded_files = Map.get(socket.assigns, :uploaded_files, [])
-    assign(socket, :uploaded_files, [field_files | uploaded_files])
+    assign(socket, :uploaded_files, Keyword.put_new(uploaded_files, upload_key, files))
   end
 
   defp allow_field_uploads(socket, _upload_key, _field_options, 0, _max_file_size), do: socket
