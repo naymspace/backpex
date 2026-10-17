@@ -207,7 +207,12 @@ defmodule Backpex.FormComponent do
   end
 
   def handle_event("save", _params, socket) do
-    change = put_upload_change(%{}, socket, :insert)
+    %{assigns: %{fields: fields} = assigns} = socket
+
+    change =
+      %{}
+      |> put_upload_change(socket, :insert)
+      |> drop_readonly_changes(fields, assigns)
 
     save(socket, socket.assigns.live_action, change, :save)
   end
