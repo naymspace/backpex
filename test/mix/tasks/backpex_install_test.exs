@@ -38,7 +38,7 @@ defmodule Mix.Tasks.Backpex.InstallTest do
     test "adds the Backpex hooks to app.js", %{igniter: igniter} do
       app_js = read(igniter, @app_js)
 
-      assert count(app_js, "import { Hooks as BackpexHooks, backpexParams } from 'backpex'") == 1
+      assert length(Regex.scan(~r/import \{ Hooks as BackpexHooks, backpexParams \} from ["']backpex["']/, app_js)) == 1
       assert count(app_js, "...BackpexHooks") == 1
       assert app_js =~ "...colocatedHooks"
     end
