@@ -362,19 +362,19 @@ defmodule Backpex.Field do
         live_component: {MyAppWeb, :live_component}
 
   The configured entrypoint must set up a `Phoenix.LiveComponent`, as the standard
-  Phoenix-generated `MyAppWeb, :live_component` entrypoint does.
+  Phoenix-generated `MyAppWeb, :live_component` entrypoint does. The `:live_component`
+  option has to be given literally, because it is needed at compile time.
   """
   defmacro __using__(opts) do
-    opts = Macro.expand(opts, __CALLER__)
-
-    if !Keyword.keyword?(opts) do
-      raise ArgumentError, "expected Backpex.Field options to be a keyword list, got: #{Macro.to_string(opts)}"
-    end
-
-    {live_component, opts} = Keyword.pop(opts, :live_component)
-    live_component = live_component(live_component, __CALLER__)
+    {live_component, opts} = pop_live_component(opts, __CALLER__)
 
     quote bind_quoted: [opts: opts], unquote: true do
+      if Keyword.has_key?(opts, :live_component) do
+        raise ArgumentError,
+              "expected :live_component to be given literally in the options of `use Backpex.Field`, " <>
+                "as it is needed to set up the LiveComponent at compile time"
+      end
+
       @config_schema opts[:config_schema] || []
 
       @before_compile Backpex.Field
@@ -409,6 +409,20 @@ defmodule Backpex.Field do
     end
   end
 
+  # The options are only inspected when they are a literal keyword list. Any other expression (e.g. a module
+  # attribute or a variable) is passed through untouched and evaluated in the caller's module body.
+  defp pop_live_component(opts, caller) do
+    expanded_opts = Macro.expand(opts, caller)
+
+    if Keyword.keyword?(expanded_opts) do
+      {live_component, expanded_opts} = Keyword.pop(expanded_opts, :live_component)
+
+      {live_component(live_component, caller), expanded_opts}
+    else
+      {live_component(nil, caller), opts}
+    end
+  end
+
   defp live_component(nil, _caller) do
     quote do
       use Phoenix.LiveComponent
@@ -433,7 +447,38 @@ defmodule Backpex.Field do
           "expected :live_component to be a {module, entrypoint} tuple, got: #{Macro.to_string(live_component)}"
   end
 
-  defmacro __before_compile__(_env) do
+  # Fails the compilation instead of the first render if the field is not set up as a LiveComponent exactly once.
+  defp verify_live_component!(module) do
+    behaviours = module |> Module.get_attribute(:behaviour) |> List.wrap()
+
+    if Phoenix.LiveComponent not in behaviours do
+      raise ArgumentError, """
+      expected #{inspect(module)} to be a Phoenix.LiveComponent.
+
+      The :live_component entrypoint passed to `use Backpex.Field` must set up a Phoenix.LiveComponent, as the
+      Phoenix-generated `MyAppWeb, :live_component` entrypoint does.
+      """
+    end
+
+    component_setups =
+      module
+      |> Module.get_attribute(:before_compile)
+      |> Enum.count(&match?({Phoenix.Component.Declarative, _fun}, &1))
+
+    if component_setups > 1 do
+      raise ArgumentError, """
+      expected #{inspect(module)} to set up Phoenix.Component only once.
+
+      `use Backpex.Field` already sets up a Phoenix.LiveComponent. Remove `use MyAppWeb, :html` or
+      `use Phoenix.Component` from the field. To use your application's helpers, pass
+      `live_component: {MyAppWeb, :live_component}` to `use Backpex.Field` instead.
+      """
+    end
+  end
+
+  defmacro __before_compile__(env) do
+    verify_live_component!(env.module)
+
     quote generated: true do
       import Ecto.Query
 

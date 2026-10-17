@@ -65,6 +65,8 @@ use Backpex.Field,
 
 The standard Phoenix-generated `MyAppWeb, :live_component` entrypoint includes the application's HTML helpers while setting up `Phoenix.LiveComponent` exactly once. Do not additionally `use MyAppWeb, :html` in the same field module.
 
+Pass the `live_component` option literally to `use Backpex.Field`, because Backpex needs it to set up the LiveComponent at compile time. A field fails to compile if the entrypoint doesn't set up a `Phoenix.LiveComponent` or if the field sets up `Phoenix.Component` a second time.
+
 ## Add field option validation
 
 With Backpex v0.9 we are validating field options. This ensures that only field options that are actually used by the field can be defined in the field options map. So if your custom field requires certain field options, make sure you define them.
