@@ -45,6 +45,7 @@ defmodule Backpex.MixProject do
       {:mix_audit, "~> 2.0", only: [:dev, :test], runtime: false},
       {:sobelow, ">= 0.0.0", only: [:dev, :test]},
       {:lazy_html, ">= 0.0.0", only: :test},
+      {:phx_new, "~> 1.8", only: :test, runtime: false},
       {:esbuild, "~> 0.2", only: :dev},
       {:quokka, "~> 2.9", only: [:dev, :test], runtime: false},
       {:usage_rules, "~> 0.1", only: [:dev]},
