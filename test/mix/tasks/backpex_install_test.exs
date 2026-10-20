@@ -5,6 +5,7 @@ defmodule Mix.Tasks.Backpex.InstallTest do
   import Igniter.Test
 
   @app_js "assets/js/app.js"
+  @app_ts "assets/js/app.ts"
   @app_css "assets/css/app.css"
   @router "lib/test_web/router.ex"
   @root_layout "lib/test_web/components/layouts/root.html.heex"
@@ -61,6 +62,12 @@ defmodule Mix.Tasks.Backpex.InstallTest do
       |> install()
       |> assert_unchanged()
     end
+
+    test "re-running the installer adds no backpexParams notice", %{igniter: igniter} do
+      igniter = install(igniter)
+
+      refute Enum.any?(igniter.notices, &(&1 =~ "backpexParams"))
+    end
   end
 
   describe "router" do
@@ -94,6 +101,24 @@ defmodule Mix.Tasks.Backpex.InstallTest do
         assert count(router, "import Backpex.Router") == 1
         assert count(router, "backpex_routes()") == 1
         assert router =~ ~r/scope "\/admin", TestWeb do\s+pipe_through \[:browser\]\s+live_session :backpex_admin/
+      end)
+    end
+
+    test "adds only the import when backpex_routes and the live_session already exist" do
+      project()
+      |> update_router(
+        &String.replace(
+          &1,
+          ~s/get("\/", PageController, :home)/,
+          ~s/get("\/", PageController, :home)\n    backpex_routes()\n\n    live_session :backpex_admin, on_mount: Backpex.InitAssigns do\n    end/
+        )
+      )
+      |> install()
+      |> apply_igniter!()
+      |> read(@router)
+      |> then(fn router ->
+        assert count(router, "import Backpex.Router") == 1
+        refute router =~ ~s(scope "/admin")
       end)
     end
   end
@@ -130,6 +155,60 @@ defmodule Mix.Tasks.Backpex.InstallTest do
       |> assert_unchanged(@app_js)
     end
 
+    test "adds the BackpexHooks binding to an existing Backpex import" do
+      project()
+      |> update_app_js(
+        &String.replace(
+          &1,
+          ~s/import topbar from "..\/vendor\/topbar"/,
+          ~s/import topbar from "..\/vendor\/topbar"\nimport {backpexParams} from "backpex"/
+        )
+      )
+      |> install()
+      |> apply_igniter!()
+      |> read(@app_js)
+      |> then(fn app_js ->
+        assert app_js =~ ~r/import \{\s*backpexParams, Hooks as BackpexHooks\s*\} from ["']backpex["']/
+        assert count(app_js, "from \"backpex\"") + count(app_js, "from 'backpex'") == 1
+        assert count(app_js, "...BackpexHooks") == 1
+      end)
+    end
+
+    test "warns without a backpexParams notice when the hooks cannot be added to app.ts" do
+      igniter =
+        project()
+        |> Igniter.move_file(@app_js, @app_ts)
+        |> apply_igniter!()
+        |> update_app_ts(
+          &String.replace(&1, "const liveSocket = new LiveSocket", "const liveSocket: LiveSocket = new LiveSocket")
+        )
+        |> install()
+
+      igniter
+      |> assert_unchanged(@app_ts)
+      |> assert_has_warning(&(&1 =~ "Failed to modify #{@app_ts}"))
+
+      refute Enum.any?(igniter.notices, &(&1 =~ "backpexParams"))
+    end
+
+    test "adds the import to app.ts when the hook already exists" do
+      project()
+      |> Igniter.move_file(@app_js, @app_ts)
+      |> apply_igniter!()
+      |> update_app_ts(fn content ->
+        content
+        |> String.replace("const liveSocket = new LiveSocket", "const liveSocket: LiveSocket = new LiveSocket")
+        |> String.replace("hooks: {...colocatedHooks}", "hooks: {...colocatedHooks, ...BackpexHooks}")
+      end)
+      |> install()
+      |> apply_igniter!()
+      |> read(@app_ts)
+      |> then(fn app_ts ->
+        assert app_ts =~ ~r/import \{ Hooks as BackpexHooks, backpexParams \} from ["']backpex["']/
+        assert app_ts =~ "const liveSocket: LiveSocket = new LiveSocket"
+      end)
+    end
+
     test "warns instead of raising when the file is missing" do
       project()
       |> Igniter.rm(@app_js)
@@ -156,6 +235,15 @@ defmodule Mix.Tasks.Backpex.InstallTest do
       refute read(igniter, @root_layout) =~ "bg-white"
       refute read(igniter, @app_css) =~ "@tailwindcss/forms"
     end
+
+    test "warns about an incompatible Tailwind version instead of prompting" do
+      Application.put_env(:tailwind, :version, "3.4.17")
+      on_exit(fn -> Application.delete_env(:tailwind, :version) end)
+
+      project()
+      |> install()
+      |> assert_has_warning(&(&1 =~ "No compatible Tailwind version found in config.exs (3.4.17)"))
+    end
   end
 
   # Vendoring daisyUI keeps the installer from running `npm install`.
@@ -167,9 +255,14 @@ defmodule Mix.Tasks.Backpex.InstallTest do
 
   defp install(igniter), do: Igniter.compose_task(igniter, "backpex.install", ["--yes"])
 
-  defp update_router(igniter, fun) do
+  defp update_router(igniter, fun), do: update_source(igniter, @router, fun)
+
+  defp update_app_js(igniter, fun), do: update_source(igniter, @app_js, fun)
+  defp update_app_ts(igniter, fun), do: update_source(igniter, @app_ts, fun)
+
+  defp update_source(igniter, path, fun) do
     igniter
-    |> Igniter.update_file(@router, &Rewrite.Source.update(&1, :content, fun))
+    |> Igniter.update_file(path, &Rewrite.Source.update(&1, :content, fun))
     |> apply_igniter!()
   end
 

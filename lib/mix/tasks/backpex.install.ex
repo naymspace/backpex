@@ -62,6 +62,7 @@ if Code.ensure_loaded?(Igniter) and Code.ensure_loaded?(IgniterJs) do
     alias Igniter.Project.Module
     alias Igniter.Util.IO, as: IgniterIO
     alias Igniter.Util.Warning
+    alias IgniterJs.Helpers
     alias IgniterJs.Parsers.Javascript.Parser
 
     @default_app_css_path Path.join(["assets", "css", "app.css"])
@@ -127,12 +128,18 @@ if Code.ensure_loaded?(Igniter) and Code.ensure_loaded?(IgniterJs) do
 
     defp show_tailwind_warning(igniter, version_info) do
       message =
-        "No compatible Tailwind version found in config.exs (#{version_info}). Backpex requires Tailwind CSS >= 4.x.x. Do you want to continue anyway? Installation may not work correctly."
+        "No compatible Tailwind version found in config.exs (#{version_info}). Backpex requires Tailwind CSS >= 4.x.x."
 
-      if yes?(igniter, message) do
-        igniter
-      else
-        Mix.raise("Installation cancelled. Please install Tailwind CSS >= 4.x.x and try again.")
+      cond do
+        # With --yes the prompt is skipped, so keep the hint in the summary.
+        igniter.args.options[:yes] ->
+          Igniter.add_warning(igniter, message <> " Installation may not work correctly.")
+
+        IgniterIO.yes?(message <> " Do you want to continue anyway? Installation may not work correctly.") ->
+          igniter
+
+        true ->
+          Mix.raise("Installation cancelled. Please install Tailwind CSS >= 4.x.x and try again.")
       end
     end
 
@@ -142,54 +149,76 @@ if Code.ensure_loaded?(Igniter) and Code.ensure_loaded?(IgniterJs) do
       app_js_path = igniter.args.options[:app_js_path] || detect_app_file_path(igniter)
 
       if Igniter.exists?(igniter, app_js_path) do
-        igniter
-        |> Igniter.update_file(app_js_path, &add_backpex_hooks(&1, app_js_path))
-        |> Igniter.add_notice("""
-        Wrap your LiveSocket connect params with backpexParams in #{app_js_path}:
+        igniter = Igniter.include_existing_file(igniter, app_js_path)
+        content = igniter.rewrite |> Rewrite.source!(app_js_path) |> Rewrite.Source.get(:content)
 
-            #{@imports}
+        case add_backpex_hooks(content, Helpers.dialect_of_path(app_js_path)) do
+          {:ok, ^content} ->
+            igniter
 
-            const liveSocket = new LiveSocket('/live', Socket, {
-              params: backpexParams({ _csrf_token: csrfToken }),
-              hooks: { ...BackpexHooks }
-            })
+          {:ok, new_content} ->
+            igniter
+            |> Igniter.update_file(app_js_path, &Rewrite.Source.update(&1, :content, new_content))
+            |> add_backpex_params_notice(app_js_path)
 
-        Without it, preferences written after the websocket connects (hidden
-        columns, hidden metrics) reappear on the next live navigation.
-        """)
+          {:error, error} ->
+            warn_manual_hooks(igniter, "Failed to modify #{app_js_path} (#{error}).")
+        end
       else
         warn_manual_hooks(igniter, "Could not find #{app_js_path}.")
       end
     end
 
-    defp add_backpex_hooks(source, app_js_path) do
-      content = Rewrite.Source.get(source, :content)
-
-      with {:ok, new_content} <- maybe_insert_backpex_imports(content),
-           {:ok, new_content} <- maybe_extend_hook_object(new_content) do
-        if new_content == content, do: source, else: Rewrite.Source.update(source, :content, new_content)
-      else
-        {:error, _fun, error} ->
-          {:warning, manual_hooks_warning("Failed to modify #{app_js_path}: #{inspect(error)}")}
+    defp add_backpex_hooks(content, dialect) do
+      with {:ok, content} <- maybe_insert_backpex_imports(content, dialect) do
+        maybe_extend_hook_object(content, dialect)
       end
     end
 
-    # igniter_js reformats the whole file and its import dedupe differs between versions,
-    # so only call it when the import or hook is actually missing.
-    defp maybe_insert_backpex_imports(content) do
-      if Regex.match?(~r/from\s*["']backpex["']/, content) do
+    # igniter_js reformats the whole file, so only call it when the import or hook is actually missing.
+    # Check for the binding itself: igniter_js merges it into an existing import from "backpex".
+    defp maybe_insert_backpex_imports(content, dialect) do
+      if Regex.match?(~r/import\s*\{[^}]*\bas\s+BackpexHooks\b[^}]*\}\s*from\s*["']backpex["']/, content) do
         {:ok, content}
       else
-        with {:ok, _fun, content} <- Parser.insert_imports(content, @imports, :content), do: {:ok, content}
+        case Parser.insert_imports(content, @imports, :content, dialect: dialect) do
+          {:ok, _fun, content} -> {:ok, content}
+          {:error, _fun, error} -> {:error, inspect(error)}
+        end
       end
     end
 
-    defp maybe_extend_hook_object(content) do
-      if String.contains?(content, @hooks) do
-        {:ok, content}
-      else
-        with {:ok, _fun, content} <- Parser.extend_hook_object(content, @hooks, :content), do: {:ok, content}
+    defp maybe_extend_hook_object(content, dialect) do
+      cond do
+        String.contains?(content, @hooks) ->
+          {:ok, content}
+
+        # extend_hook_object/3 always parses as JavaScript and drops TypeScript annotations.
+        dialect != "js" ->
+          {:error, "the hooks can only be added to JavaScript files automatically"}
+
+        true ->
+          case Parser.extend_hook_object(content, @hooks, :content) do
+            {:ok, _fun, content} -> {:ok, content}
+            {:error, _fun, error} -> {:error, inspect(error)}
+          end
       end
+    end
+
+    defp add_backpex_params_notice(igniter, app_js_path) do
+      Igniter.add_notice(igniter, """
+      Wrap your LiveSocket connect params with backpexParams in #{app_js_path}:
+
+          #{@imports}
+
+          const liveSocket = new LiveSocket('/live', Socket, {
+            params: backpexParams({ _csrf_token: csrfToken }),
+            hooks: { ...BackpexHooks }
+          })
+
+      Without it, preferences written after the websocket connects (hidden
+      columns, hidden metrics) reappear on the next live navigation.
+      """)
     end
 
     defp warn_manual_hooks(igniter, reason) do
@@ -350,8 +379,19 @@ if Code.ensure_loaded?(Igniter) and Code.ensure_loaded?(IgniterJs) do
             do: code <> "\n"
 
       igniter
-      |> Phoenix.append_to_scope(@admin_scope, contents, router: router, arg2: web_module, with_pipelines: [:browser])
+      |> maybe_append_to_admin_scope(router, web_module, contents)
       |> maybe_add_live_session_notice(init_assigns?)
+    end
+
+    # Only the import was missing, so there is nothing to add to the scope.
+    defp maybe_append_to_admin_scope(igniter, _router, _web_module, ""), do: igniter
+
+    defp maybe_append_to_admin_scope(igniter, router, web_module, contents) do
+      Phoenix.append_to_scope(igniter, @admin_scope, contents,
+        router: router,
+        arg2: web_module,
+        with_pipelines: [:browser]
+      )
     end
 
     defp maybe_add_live_session_notice(igniter, true = _init_assigns?), do: igniter
@@ -394,7 +434,7 @@ if Code.ensure_loaded?(Igniter) and Code.ensure_loaded?(IgniterJs) do
 
           backpex_routes()
 
-          #{String.replace(@live_session, "\n", "\n  ")}
+          #{@live_session}
         end
         """
       )
