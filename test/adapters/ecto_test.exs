@@ -625,27 +625,7 @@ defmodule Backpex.Adapters.EctoTest do
       assert [%{params: [{["1", "2"], {:in, {0, :age}}}]}] = filter_query({:in, :age, ["1", "2"]}).wheres
     end
 
-    test "compares an integer field with the integer that keeps the same items as a fraction" do
-      expected = [
-        {{:>=, :age, 2.5}, "&0.age() >= ^0", [3]},
-        {{:>, :age, 2.5}, "&0.age() > ^0", [2]},
-        {{:<=, :age, 2.5}, "&0.age() <= ^0", [2]},
-        {{:<, :age, 2.5}, "&0.age() < ^0", [3]},
-        {{:>=, :age, -2.5}, "&0.age() >= ^0", [-2]},
-        {{:<=, :age, Decimal.new("2.5")}, "&0.age() <= ^0", [2]},
-        {{:>=, :age, 3.0}, "&0.age() >= ^0", [3]},
-        {{:==, :age, 3.0}, "&0.age() == ^0", [3]},
-        {{:>=, :id, 1.5}, "&0.id() >= ^0", [2]},
-        {{:not, {:>=, :age, 2.5}}, "not (&0.age() >= ^0)", [3]},
-        # No integer equals a fraction.
-        {{:==, :age, 2.5}, "&0.age() > type(^0, :integer)", [9_223_372_036_854_775_807]},
-        {{:!=, :age, 2.5}, "&0.age() <= type(^0, :integer)", [9_223_372_036_854_775_807]}
-      ]
-
-      assert_wheres(expected)
-    end
-
-    test "compares an integer field with a number beyond the range of an integer as a bigint" do
+    test "compares an integer field with an integer beyond the range of an integer as a bigint" do
       huge = 10 ** 20
 
       expected = [
@@ -653,7 +633,8 @@ defmodule Backpex.Adapters.EctoTest do
         {{:>=, :age, huge}, "&0.age() > type(^0, :integer)", [9_223_372_036_854_775_807]},
         {{:<=, :age, huge}, "&0.age() <= type(^0, :integer)", [9_223_372_036_854_775_807]},
         {{:!=, :age, huge}, "&0.age() <= type(^0, :integer)", [9_223_372_036_854_775_807]},
-        {{:>=, :age, 1.0e30}, "&0.age() > type(^0, :integer)", [9_223_372_036_854_775_807]},
+        {{:not, {:<, :age, 3_000_000_000}}, "not (&0.age() < type(^0, :integer))", [3_000_000_000]},
+        {{:>=, :id, huge}, "&0.id() > type(^0, :integer)", [9_223_372_036_854_775_807]},
         {{:<=, :age, -huge}, "&0.age() < type(^0, :integer)", [-9_223_372_036_854_775_808]},
         {{:>, :age, -huge}, "&0.age() >= type(^0, :integer)", [-9_223_372_036_854_775_808]},
         {{:==, :age, -huge}, "&0.age() < type(^0, :integer)", [-9_223_372_036_854_775_808]}
@@ -662,9 +643,11 @@ defmodule Backpex.Adapters.EctoTest do
       assert_wheres(expected)
     end
 
-    test "leaves the values of other fields and strings to the cast of the field" do
-      assert [%{params: [{2.5, {0, :title}}]}] = filter_query({:>=, :title, 2.5}).wheres
-      assert [%{params: [{"2.5", {0, :age}}]}] = filter_query({:>=, :age, "2.5"}).wheres
+    test "leaves integers within the range of an integer, other fields and other values to the cast of the field" do
+      assert [%{params: [{2_147_483_647, {0, :age}}]}] = filter_query({:<=, :age, 2_147_483_647}).wheres
+      assert [%{params: [{3_000_000_000, {0, :title}}]}] = filter_query({:>=, :title, 3_000_000_000}).wheres
+      assert [%{params: [{2.5, {0, :age}}]}] = filter_query({:>=, :age, 2.5}).wheres
+      assert [%{params: [{"3000000000", {0, :age}}]}] = filter_query({:>=, :age, "3000000000"}).wheres
     end
 
     test "takes Ecto dynamic expressions as conditions" do

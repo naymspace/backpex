@@ -489,14 +489,11 @@ defmodule Backpex.Adapters.Ecto do
   defp condition_dynamic(%Ecto.Query.DynamicExpr{} = condition, _schema), do: condition
 
   defp condition_dynamic({operator, field, value}, schema) when operator in @comparison_operators and is_atom(field) do
-    if integer_field?(schema, field) and number?(value) do
-      {operator, value} = integer_comparison(operator, value)
-
-      # Postgres takes the type of a parameter from the column, so a parameter beyond the range of an integer column
-      # would fail to encode. A bigint parameter compares with every integer column.
-      if value in @integer_range,
-        do: comparison_dynamic(operator, field, value),
-        else: bigint_comparison_dynamic(operator, field, value)
+    # Postgres takes the type of a parameter from the column, so a parameter beyond the range of an integer column
+    # would fail to encode. A bigint parameter compares with every integer column.
+    if is_integer(value) and value not in @integer_range and integer_field?(schema, field) do
+      {operator, value} = limit_comparison(operator, value)
+      bigint_comparison_dynamic(operator, field, value)
     else
       comparison_dynamic(operator, field, value)
     end
@@ -557,51 +554,18 @@ defmodule Backpex.Adapters.Ecto do
   defp integer_field?(nil = _schema, _field), do: false
   defp integer_field?(schema, field), do: schema.__schema__(:type, field) in [:integer, :id]
 
-  defp number?(value) when is_integer(value) or is_float(value), do: true
-  defp number?(%Decimal{} = value), do: not Decimal.inf?(value) and not Decimal.nan?(value)
-  defp number?(_value), do: false
-
-  # Turns the comparison of an integer field with a number, e.g. the bound of a range filter, into a comparison with an
-  # integer that keeps the same items and that the database can take. Casting a fraction or a number beyond the range
-  # of a bigint to the type of the field would fail instead. Like the comparison, the result doesn't keep items whose
+  # Every integer in the database is within the range of a bigint, so a comparison with an integer beyond it becomes a
+  # comparison with the bound of a bigint that keeps the same items. Like the comparison, it doesn't keep items whose
   # field is `nil`.
-  defp integer_comparison(operator, value) do
-    operator
-    |> round_comparison(value)
-    |> limit_comparison()
-  end
-
-  defp round_comparison(operator, value) when is_integer(value), do: {operator, value}
-
-  defp round_comparison(operator, value) do
-    case {round_number(value, :floor), round_number(value, :ceiling)} do
-      {integer, integer} -> {operator, integer}
-      {floor, ceiling} -> round_fraction_comparison(operator, floor, ceiling)
-    end
-  end
-
-  defp round_fraction_comparison(:<, _floor, ceiling), do: {:<, ceiling}
-  defp round_fraction_comparison(:<=, floor, _ceiling), do: {:<=, floor}
-  defp round_fraction_comparison(:>, floor, _ceiling), do: {:>, floor}
-  defp round_fraction_comparison(:>=, _floor, ceiling), do: {:>=, ceiling}
-  # No integer equals a fraction.
-  defp round_fraction_comparison(:==, _floor, _ceiling), do: {:>, @bigint_max}
-  defp round_fraction_comparison(:!=, _floor, _ceiling), do: {:<=, @bigint_max}
-
-  defp round_number(value, :floor) when is_float(value), do: floor(value)
-  defp round_number(value, :ceiling) when is_float(value), do: ceil(value)
-  defp round_number(%Decimal{} = value, mode), do: value |> Decimal.round(0, mode) |> Decimal.to_integer()
-
-  # Every integer in the database is within the range of a bigint.
-  defp limit_comparison({operator, value}) when value > @bigint_max do
+  defp limit_comparison(operator, value) when value > @bigint_max do
     if operator in [:<, :<=, :!=], do: {:<=, @bigint_max}, else: {:>, @bigint_max}
   end
 
-  defp limit_comparison({operator, value}) when value < @bigint_min do
+  defp limit_comparison(operator, value) when value < @bigint_min do
     if operator in [:>, :>=, :!=], do: {:>=, @bigint_min}, else: {:<, @bigint_min}
   end
 
-  defp limit_comparison(comparison), do: comparison
+  defp limit_comparison(operator, value), do: {operator, value}
 
   def apply_criteria(query, [], _fields, _schema), do: query
 

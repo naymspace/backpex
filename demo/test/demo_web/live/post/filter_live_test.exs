@@ -169,19 +169,6 @@ defmodule DemoWeb.Live.Post.FilterLiveTest do
       |> refute_has("td", text: "New Post")
     end
 
-    test "filters the integer likes by a range with fractions", %{conn: conn} do
-      insert(:post, title: "Popular Post", published: true, likes: 200)
-      insert(:post, title: "Average Post", published: true, likes: 50)
-      insert(:post, title: "New Post", published: true, likes: 5)
-
-      params = %{"filters" => %{"published" => ["published"], "likes" => %{"start" => "49.5", "end" => "50.5"}}}
-
-      conn
-      |> visit(~p"/admin/posts?#{params}")
-      |> assert_has("table tbody tr", count: 1)
-      |> assert_has("td", text: "Average Post")
-    end
-
     test "filters the integer likes by a range beyond the range of an integer", %{conn: conn} do
       insert(:post, title: "Popular Post", published: true, likes: 200)
 
