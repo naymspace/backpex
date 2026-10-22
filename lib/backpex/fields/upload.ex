@@ -604,8 +604,12 @@ defmodule Backpex.Fields.Upload do
 
   When the field is readonly, the drop target and the "Upload a file" link are disabled, and the
   cancel/remove buttons on both pending and existing entries are hidden. The list of existing files
-  is still displayed so users can see the current value. See the
-  [readonly](/guides/fields/readonly.md) guide for details.
+  is still displayed so users can see the current value. A field that is readonly when the form
+  opens gets no upload config, so the server refuses uploads for it. On save, the form ignores the
+  new and removed files of a readonly field, also of one that turned readonly while the form was
+  open. With `external` uploads, such a field still accepts a presigned upload, so the file can
+  reach the bucket, but it isn't saved. See the [readonly](/guides/fields/readonly.md) guide for
+  details.
   """
   use Backpex.Field, config_schema: @config_schema
   alias Backpex.HTML.Form, as: BackpexForm
@@ -665,13 +669,17 @@ defmodule Backpex.Fields.Upload do
     <div>
       <Layout.field_container>
         <:label align={Backpex.Field.align_label(@field_options, assigns, :top)}>
-          <Layout.input_label for={@upload.ref} text={@field_options[:label]} />
+          <Layout.input_label
+            as={if @upload, do: "label", else: "span"}
+            for={@upload && @upload.ref}
+            text={@field_options[:label]}
+          />
         </:label>
         <div
           id={"#{@name}-drop-target"}
           class="w-full max-w-lg"
           phx-hook={not @readonly && "BackpexDragHover"}
-          phx-drop-target={if not @readonly, do: @upload.ref}
+          phx-drop-target={if @upload && not @readonly, do: @upload.ref}
         >
           <div class={[
             "rounded-field flex justify-center border-2 border-dashed px-6 pt-5 pb-6",
@@ -690,7 +698,7 @@ defmodule Backpex.Fields.Upload do
                     {Backpex.__("Upload a file", @live_resource)}
                   </span>
                   <.live_file_input
-                    :if={not @readonly}
+                    :if={@upload && not @readonly}
                     upload={@upload}
                     phx-target="#form-component"
                     class="hidden"
@@ -730,30 +738,34 @@ defmodule Backpex.Fields.Upload do
               </div>
             <% end %>
 
-            <div :for={entry <- @upload.entries} class="break-all">
-              <p class="inline">{Map.get(entry, :client_name)}</p>
-              <button
-                :if={not @readonly}
-                type="button"
-                phx-click="cancel-entry"
-                phx-value-ref={entry.ref}
-                phx-value-id={@upload_key}
-                phx-target="#form-component"
-                class="cursor-pointer"
-                aria-label={Backpex.__({"Cancel %{name}", %{name: Map.get(entry, :client_name)}}, @live_resource)}
-              >
-                &times;
-              </button>
-              <progress :if={entry.progress > 0} class="progress ml-4 w-32" value={entry.progress} max="100"></progress>
-              <p :for={err <- upload_errors(@upload, entry)} class="text-xs italic text-red-500">
-                {@upload_error.(err)}
-              </p>
-            </div>
+            <%= if @upload do %>
+              <div :for={entry <- @upload.entries} class="break-all">
+                <p class="inline">{Map.get(entry, :client_name)}</p>
+                <button
+                  :if={not @readonly}
+                  type="button"
+                  phx-click="cancel-entry"
+                  phx-value-ref={entry.ref}
+                  phx-value-id={@upload_key}
+                  phx-target="#form-component"
+                  class="cursor-pointer"
+                  aria-label={Backpex.__({"Cancel %{name}", %{name: Map.get(entry, :client_name)}}, @live_resource)}
+                >
+                  &times;
+                </button>
+                <progress :if={entry.progress > 0} class="progress ml-4 w-32" value={entry.progress} max="100"></progress>
+                <p :for={err <- upload_errors(@upload, entry)} class="text-xs italic text-red-500">
+                  {@upload_error.(err)}
+                </p>
+              </div>
+            <% end %>
           </article>
 
-          <p :for={err <- upload_errors(@upload)} class="text-xs italic text-red-500">
-            {@upload_error.(err)}
-          </p>
+          <%= if @upload do %>
+            <p :for={err <- upload_errors(@upload)} class="text-xs italic text-red-500">
+              {@upload_error.(err)}
+            </p>
+          <% end %>
           <BackpexForm.error :for={msg <- @form_errors}>{msg}</BackpexForm.error>
 
           <%= if help_text = Backpex.Field.help_text(@field_options, assigns) do %>
@@ -773,18 +785,25 @@ defmodule Backpex.Fields.Upload do
     max_entries = field_options.max_entries
     max_file_size = Map.get(field_options, :max_file_size, 8_000_000)
 
-    if get_in(socket.assigns, [:uploads, upload_key]) do
-      socket
-    else
-      socket
-      |> assign_uploaded_files(field_files)
-      |> allow_field_uploads(upload_key, field_options, max_entries, max_file_size)
+    cond do
+      get_in(socket.assigns, [:uploads, upload_key]) ->
+        socket
+
+      # Without an upload config, LiveView refuses any upload for the field, even from a crafted client.
+      Backpex.Field.readonly?(field_options, socket.assigns) ->
+        assign_uploaded_files(socket, field_files)
+
+      true ->
+        socket
+        |> assign_uploaded_files(field_files)
+        |> allow_field_uploads(upload_key, field_options, max_entries, max_file_size)
     end
   end
 
-  defp assign_uploaded_files(socket, field_files) do
+  # `assign_uploads/2` runs on every update, and a field without an upload config would add its files again each time.
+  defp assign_uploaded_files(socket, {upload_key, files}) do
     uploaded_files = Map.get(socket.assigns, :uploaded_files, [])
-    assign(socket, :uploaded_files, [field_files | uploaded_files])
+    assign(socket, :uploaded_files, Keyword.put_new(uploaded_files, upload_key, files))
   end
 
   defp allow_field_uploads(socket, upload_key, %{external: presign_upload} = field_options, max_entries, max_file_size) do

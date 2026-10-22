@@ -40,7 +40,7 @@ A few fields need tailored behavior beyond a single attribute:
 
 - `Backpex.Fields.MultiSelect` — dropdown is rendered as a labelled, non-interactive group; selected badges lose the remove control
 - `Backpex.Fields.HasMany` — dropdown is rendered as a labelled, non-interactive group; selected badges lose the remove control
-- `Backpex.Fields.Upload` — the drop target and "Upload a file" link are disabled, the cancel/remove buttons on pending and existing entries are hidden, and the existing-file list is still displayed so users can see what is attached.
+- `Backpex.Fields.Upload` — the drop target and "Upload a file" link are disabled, the cancel/remove buttons on pending and existing entries are hidden, and the existing-file list is still displayed so users can see what is attached. The server refuses uploads for a field that is readonly when the form opens, as it gets no upload config. On save, new and removed files of a readonly field are ignored, also when the field turned readonly while the form was open.
 - `Backpex.Fields.InlineCRUD` — nested row fields become readonly, and the per-row delete button and the add-row control are hidden entirely.
 - `Backpex.Fields.HasManyThrough` — the Actions column (edit/remove buttons) is hidden, the "new relational" button is disabled, and pivot and select inputs inside the modal are rendered as disabled.
 

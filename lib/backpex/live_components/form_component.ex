@@ -21,8 +21,9 @@ defmodule Backpex.FormComponent do
     |> assign(assigns)
     |> assign_new(:action_type, fn -> nil end)
     |> assign_new(:show_form_errors, fn -> false end)
-    |> update_assigns()
+    # Before `update_assigns/1`, as a readonly function of an upload field may read the form when it assigns uploads.
     |> assign_form()
+    |> update_assigns()
     |> ok()
   end
 
@@ -207,9 +208,14 @@ defmodule Backpex.FormComponent do
   end
 
   def handle_event("save", _params, socket) do
-    change = put_upload_change(%{}, socket, :insert)
+    %{assigns: %{live_action: live_action, fields: fields} = assigns} = socket
 
-    save(socket, socket.assigns.live_action, change, :save)
+    change =
+      %{}
+      |> put_upload_change(socket, :insert)
+      |> drop_readonly_changes(fields, assigns)
+
+    save(socket, live_action, change, :save)
   end
 
   # Fields are live components that handle their own events. Anything else that reaches the form,
@@ -236,8 +242,10 @@ defmodule Backpex.FormComponent do
     end
   end
 
-  defp refused_upload_fields(%{assigns: %{uploads: uploads, fields: fields}}) do
-    for {name, _field_options} = field <- fields,
+  # A readonly field is skipped: its uploads aren't saved, and the user can't cancel its entries.
+  defp refused_upload_fields(%{assigns: %{uploads: uploads, fields: fields} = assigns}) do
+    for {name, field_options} = field <- fields,
+        not Field.readonly?(field_options, assigns),
         upload = uploads[Field.upload_key(field)],
         upload.errors != [] or Enum.any?(upload.entries, &(not &1.done?)),
         do: name
@@ -531,7 +539,7 @@ defmodule Backpex.FormComponent do
   end
 
   defp put_upload_change(change, socket, action) do
-    for {name, _field_options} = field <- socket.assigns.fields,
+    for {name, _field_options} = field <- editable_fields(socket.assigns),
         upload_key = Field.upload_key(field),
         reduce: change do
       acc ->
@@ -565,7 +573,7 @@ defmodule Backpex.FormComponent do
   end
 
   defp handle_uploads(%{assigns: %{uploads: _uploads}} = socket, item) do
-    for field <- socket.assigns.fields,
+    for field <- editable_fields(socket.assigns),
         upload_key = Field.upload_key(field),
         Map.has_key?(socket.assigns.uploads, upload_key) do
       consume_and_remove_uploads(socket, item, field, upload_key)
@@ -573,6 +581,13 @@ defmodule Backpex.FormComponent do
   end
 
   defp handle_uploads(_socket, _item), do: :ok
+
+  # A field that turns readonly while the form is open keeps the upload config it got when it was editable, so a
+  # crafted client could still upload files for it. These are neither put into the change nor consumed, and the files
+  # removed before the field turned readonly aren't deleted, as the change of a readonly field is dropped.
+  defp editable_fields(%{fields: fields} = assigns) do
+    Enum.reject(fields, fn {_name, field_options} -> Field.readonly?(field_options, assigns) end)
+  end
 
   defp consume_and_remove_uploads(socket, item, field, upload_key) do
     module = Field.upload_module(field)
