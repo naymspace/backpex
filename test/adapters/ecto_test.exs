@@ -163,80 +163,78 @@ defmodule Backpex.Adapters.EctoTest do
   end
 
   describe "apply_criteria/3 ordering" do
-    test "applies ascending order by single field" do
-      base_query = from(TestUser, as: ^EctoAdapter.name_by_schema(TestUser))
-
-      fields = [
-        {:name, %{module: Backpex.Fields.Text, queryable: TestUser}}
-      ]
-
-      criteria = [
-        order: %{by: :name, direction: :asc, schema: TestUser, field_name: :name}
-      ]
-
-      query = EctoAdapter.apply_criteria(base_query, criteria, fields)
-
-      assert %{order_bys: [%{expr: order_expr}]} = query
-      assert [{:asc_nulls_first, _order_expression}] = order_expr
+    defp order_query(order, fields \\ [{:name, %{module: Backpex.Fields.Text, queryable: TestUser}}]) do
+      TestUser
+      |> from(as: ^EctoAdapter.name_by_schema(TestUser))
+      |> EctoAdapter.apply_criteria([order: order], fields)
     end
 
-    test "applies descending order by single field" do
-      base_query = from(TestUser, as: ^EctoAdapter.name_by_schema(TestUser))
+    test "uses the database default for NULL values without a nulls option" do
+      for direction <- [:asc, :desc] do
+        query = order_query(%{by: :name, direction: direction, schema: TestUser, field_name: :name})
 
-      fields = [
-        {:name, %{module: Backpex.Fields.Text, queryable: TestUser}}
+        assert %{order_bys: [%{expr: [{^direction, order_expression}]}]} = query
+        assert Macro.to_string(order_expression) =~ "name"
+      end
+    end
+
+    test "applies the nulls option to both directions" do
+      expected = [
+        {:default, :asc, :asc},
+        {:default, :desc, :desc},
+        {:first, :asc, :asc_nulls_first},
+        {:first, :desc, :desc_nulls_first},
+        {:last, :asc, :asc_nulls_last},
+        {:last, :desc, :desc_nulls_last},
+        {:smallest, :asc, :asc_nulls_first},
+        {:smallest, :desc, :desc_nulls_last}
       ]
 
-      criteria = [
-        order: %{by: :name, direction: :desc, schema: TestUser, field_name: :name}
-      ]
+      for {nulls, direction, expected_direction} <- expected do
+        query = order_query(%{by: :name, direction: direction, schema: TestUser, field_name: :name, nulls: nulls})
 
-      query = EctoAdapter.apply_criteria(base_query, criteria, fields)
-
-      assert %{order_bys: [%{expr: order_expr}]} = query
-      assert [{:desc_nulls_last, _order_expression}] = order_expr
+        assert %{order_bys: [%{expr: [{^expected_direction, _order_expression}]}]} = query
+      end
     end
 
     test "applies ordering with custom select expression" do
-      base_query = from(TestUser, as: ^EctoAdapter.name_by_schema(TestUser))
-
       select_expr = dynamic([testuser: u], fragment("UPPER(?)", field(u, ^:name)))
+      fields = [{:name, %{module: Backpex.Fields.Text, queryable: TestUser, select: select_expr}}]
 
-      fields = [
-        {:name, %{module: Backpex.Fields.Text, queryable: TestUser, select: select_expr}}
-      ]
+      query =
+        order_query(%{by: :name, direction: :asc, schema: TestUser, field_name: :name, nulls: :first}, fields)
 
-      criteria = [
-        order: %{by: :name, direction: :asc, schema: TestUser, field_name: :name}
-      ]
-
-      query = EctoAdapter.apply_criteria(base_query, criteria, fields)
-
-      assert %{order_bys: [%{expr: order_expr}]} = query
-      [{:asc_nulls_first, order_expression}] = order_expr
+      assert %{order_bys: [%{expr: [{:asc_nulls_first, order_expression}]}]} = query
 
       expr_str = Macro.to_string(order_expression)
       assert expr_str =~ "fragment"
       assert expr_str =~ "UPPER("
     end
 
-    test "applies order by a column that is not a declared field" do
-      base_query = from(TestUser, as: ^EctoAdapter.name_by_schema(TestUser))
+    test "orders an association field by its display_field on its custom alias" do
+      fields = [
+        {:author, %{module: Backpex.Fields.BelongsTo, queryable: TestUser, display_field: :name, custom_alias: :author}}
+      ]
 
+      query =
+        TestUser
+        |> from(as: ^EctoAdapter.name_by_schema(TestUser))
+        |> join(:left, [testuser: u], a in TestUser, as: :author, on: a.id == u.id)
+        |> EctoAdapter.apply_criteria(
+          [order: %{by: :name, direction: :desc, schema: TestUser, field_name: :author, nulls: :last}],
+          fields
+        )
+
+      assert %{order_bys: [%{expr: [{:desc_nulls_last, order_expression}]}]} = query
+      assert Macro.to_string(order_expression) == "&1.name()"
+    end
+
+    test "applies order by a column that is not a declared field" do
       # :id is not among the declared fields, which is the case for the default
       # init_order of %{by: :id, direction: :asc} on virtually every live resource.
-      fields = [
-        {:name, %{module: Backpex.Fields.Text, queryable: TestUser}}
-      ]
+      query = order_query(%{by: :id, direction: :asc, schema: TestUser, field_name: nil, nulls: :default})
 
-      criteria = [
-        order: %{by: :id, direction: :asc, schema: TestUser, field_name: nil}
-      ]
-
-      query = EctoAdapter.apply_criteria(base_query, criteria, fields)
-
-      assert %{order_bys: [%{expr: order_expr}]} = query
-      assert [{:asc_nulls_first, order_expression}] = order_expr
+      assert %{order_bys: [%{expr: [{:asc, order_expression}]}]} = query
       assert Macro.to_string(order_expression) =~ "id"
     end
 

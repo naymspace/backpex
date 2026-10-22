@@ -4,9 +4,10 @@ defmodule Backpex.Fields.Date do
   @config_schema [
     format: [
       doc: """
-      Format string which will be used to format the date time value or function that formats the date time.
+      Format string which will be used to format the date value or function that formats the date.
 
-      Can also be a function wich receives a `DateTime` and must return a string.
+      Can also be a function which receives a `Date` and must return a string. Empty (`nil`) values are rendered as "—"
+      and never passed to the function.
       """,
       type: {:or, [:string, {:fun, 1}]},
       default: "%Y-%m-%d"
@@ -65,7 +66,7 @@ defmodule Backpex.Fields.Date do
             module: Backpex.Fields.Date,
             label: "Created At",
             # If you use the same formatting logic in multiple places
-            format: &MyApp.Formatters.Dates/1
+            format: &MyApp.Formatters.format_date/1
           }
         ]
       end
@@ -78,9 +79,9 @@ defmodule Backpex.Fields.Date do
 
     value =
       cond do
+        is_nil(assigns.value) -> HTML.pretty_value(assigns.value)
         is_function(format, 1) -> format.(assigns.value)
-        assigns.value -> Calendar.strftime(assigns.value, format)
-        true -> HTML.pretty_value(assigns.value)
+        true -> Calendar.strftime(assigns.value, format)
       end
 
     assigns =

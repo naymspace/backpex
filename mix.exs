@@ -1,7 +1,7 @@
 defmodule Backpex.MixProject do
   use Mix.Project
 
-  @version "0.22.0"
+  @version "0.23.0"
 
   @source_url "https://github.com/naymspace/backpex"
   @changelog_url "https://github.com/naymspace/backpex/releases"
@@ -45,6 +45,7 @@ defmodule Backpex.MixProject do
       {:mix_audit, "~> 2.0", only: [:dev, :test], runtime: false},
       {:sobelow, ">= 0.0.0", only: [:dev, :test]},
       {:lazy_html, ">= 0.0.0", only: :test},
+      {:phx_new, "~> 1.8", only: :test, runtime: false},
       {:esbuild, "~> 0.2", only: :dev},
       {:quokka, "~> 2.9", only: [:dev, :test], runtime: false},
       {:usage_rules, "~> 0.1", only: [:dev]},
@@ -66,7 +67,7 @@ defmodule Backpex.MixProject do
 
       # generators
       {:igniter, "~> 0.8", optional: true},
-      {:igniter_js, "~> 0.4", optional: true}
+      {:igniter_js, "~> 0.5", optional: true}
     ]
   end
 
@@ -199,6 +200,7 @@ defmodule Backpex.MixProject do
       "guides/translations/translations.md",
 
       # Upgrade Guides
+      "guides/upgrading/v0.23.md",
       "guides/upgrading/v0.22.md",
       "guides/upgrading/v0.21.md",
       "guides/upgrading/v0.20.md",

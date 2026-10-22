@@ -62,6 +62,15 @@ defmodule Backpex.Field do
       doc: "Define wether this field should be orderable on the index view.",
       type: :boolean
     ],
+    order_nulls: [
+      doc: """
+      Where `NULL` values are placed when the index view is ordered by this field: `:default` (database default),
+      `:first` (`NULLS FIRST`), `:last` (`NULLS LAST`) or `:smallest` (`ASC NULLS FIRST` and `DESC NULLS LAST`).
+      Overrides the `:order_nulls` option of the LiveResource. See the [Ordering](/guides/live_resource/ordering.md)
+      guide.
+      """,
+      type: {:in, [:default, :first, :last, :smallest]}
+    ],
     visible: [
       doc:
         "Function to change the visibility of a field for all views except index. Receives the assigns and has to return a boolean.",
@@ -288,10 +297,45 @@ defmodule Backpex.Field do
             ) :: {:ok, term()} | {:postpone, term()}
 
   @doc """
-  Removes the files the user removed during an edit, after the item has been saved. See `c:list_existing_files/2`.
+  Removes the files the user removed during an edit, after the item has been saved.
+
+  The form component calls it with the saved item, so the item already has the changes of the edit. See
+  `c:list_existing_files/2`.
   """
   @callback remove_uploads(field :: tuple(), socket :: Socket.t(), item :: struct(), removed_entries :: [String.t()]) ::
               term()
+
+  @doc """
+  Returns the text of an upload error, which the form shows next to the file or below the upload.
+
+  `error` is an error from `Phoenix.Component.upload_errors/1` or `Phoenix.Component.upload_errors/2`, such as
+  `:too_large` or the `{:external_metadata_failure, meta}` of an `external` function that returned
+  `{:error, meta, socket}`. `upload` is the `Phoenix.LiveView.UploadConfig`, for limits such as `max_file_size`, and
+  `assigns` are the assigns of `c:render_form/1`. The text is shown as it is returned, so translate it, for example
+  with `Backpex.translate_error/1` like the errors of the changeset.
+
+  `Backpex.Fields.Upload` implements it with texts of its own and calls it on the module of the field, so a custom
+  upload field that delegates `c:render_form/1` to `Backpex.Fields.Upload` can give its own texts. A field without
+  this callback gets the texts of `Backpex.Fields.Upload`. The callback gets every error, so delegate the errors your
+  field doesn't handle to `Backpex.Fields.Upload.upload_error/4`, as in the example.
+
+  ## Example
+
+      @impl Backpex.Field
+      def upload_error(_field, :too_large, upload, _assigns) do
+        Backpex.translate_error({"must be at most %{count} bytes", count: upload.max_file_size})
+      end
+
+      def upload_error(field, error, upload, assigns) do
+        Backpex.Fields.Upload.upload_error(field, error, upload, assigns)
+      end
+  """
+  @callback upload_error(
+              field :: tuple(),
+              error :: term(),
+              upload :: Phoenix.LiveView.UploadConfig.t(),
+              assigns :: map()
+            ) :: String.t()
 
   @optional_callbacks render_index_form: 1,
                       index_assigns: 3,
@@ -299,7 +343,8 @@ defmodule Backpex.Field do
                       list_existing_files: 2,
                       put_upload_change: 7,
                       consume_upload: 5,
-                      remove_uploads: 4
+                      remove_uploads: 4,
+                      upload_error: 4
 
   @doc """
   Returns the default config schema.

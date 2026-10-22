@@ -223,11 +223,7 @@ defmodule Backpex.Adapters.Ecto do
     field_name = Map.get(order, :field_name)
     schema_name = get_custom_alias(fields, field_name, name_by_schema(schema))
 
-    direction =
-      case direction do
-        :desc -> :desc_nulls_last
-        :asc -> :asc_nulls_first
-      end
+    direction = order_direction(direction, Map.get(order, :nulls, :default))
 
     field =
       Enum.find(fields, fn
@@ -253,6 +249,14 @@ defmodule Backpex.Adapters.Ecto do
     raise ArgumentError,
           "expected order criteria to be a map with the keys :by, :direction and :schema, got: #{inspect(order)}"
   end
+
+  defp order_direction(direction, :default) when direction in [:asc, :desc], do: direction
+  defp order_direction(:asc, :first), do: :asc_nulls_first
+  defp order_direction(:asc, :last), do: :asc_nulls_last
+  defp order_direction(:desc, :first), do: :desc_nulls_first
+  defp order_direction(:desc, :last), do: :desc_nulls_last
+  defp order_direction(:asc, :smallest), do: :asc_nulls_first
+  defp order_direction(:desc, :smallest), do: :desc_nulls_last
 
   @doc """
   Deletes multiple items.

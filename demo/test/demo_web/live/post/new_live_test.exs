@@ -39,6 +39,29 @@ defmodule DemoWeb.Live.Post.NewLiveTest do
       |> assert_path(~p"/admin/posts")
     end
 
+    test "save and continue opens the edit view of the created post", %{conn: conn} do
+      user = insert(:user)
+      category = insert(:category)
+
+      session =
+        conn
+        |> visit(~p"/admin/posts/new")
+        |> unwrap(fn view ->
+          view
+          |> form("#resource-form",
+            change: %{title: "Continue Post", body: "Body", user_id: user.id, category_id: category.id}
+          )
+          |> put_submitter("button[value=continue]")
+          |> render_submit()
+        end)
+
+      post = Demo.Repo.get_by!(Demo.Post, title: "Continue Post")
+
+      session
+      |> assert_path(~p"/admin/posts/#{post.id}/edit")
+      |> assert_has("h1", text: "Edit Post", exact: true)
+    end
+
     test "shows BelongsTo user select", %{conn: conn} do
       insert(:user)
 

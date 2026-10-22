@@ -6,7 +6,16 @@ defmodule Backpex.LiveResourceTest do
   alias Backpex.Adapters.Ecto, as: EctoAdapter
   alias Backpex.ItemActions.Delete
   alias Backpex.LiveResource
+  alias Backpex.LiveResource.Index
   alias Phoenix.LiveView.Socket
+
+  defmodule TestAuthor do
+    use Ecto.Schema
+
+    schema "authors" do
+      field :name, :string
+    end
+  end
 
   defmodule TestPost do
     use Ecto.Schema
@@ -14,12 +23,22 @@ defmodule Backpex.LiveResourceTest do
     @primary_key {:id, :binary_id, autogenerate: true}
     schema "posts" do
       field :title, :string
+      belongs_to :author, TestAuthor
     end
   end
 
   defmodule TestPostLive do
     @moduledoc false
     def adapter_config(:schema), do: Backpex.LiveResourceTest.TestPost
+    def config(:primary_key), do: :id
+    def config(:order_nulls), do: :default
+  end
+
+  defmodule NullsFirstPostLive do
+    @moduledoc false
+    def adapter_config(:schema), do: Backpex.LiveResourceTest.TestPost
+    def config(:primary_key), do: :id
+    def config(:order_nulls), do: :first
   end
 
   defmodule AllContextLive do
@@ -91,6 +110,20 @@ defmodule Backpex.LiveResourceTest do
   end
 
   describe "build_criteria/1" do
+    defp order_criteria(live_resource, fields, order_by, init_order \\ %{by: :id, direction: :asc}) do
+      assigns = %{
+        live_resource: live_resource,
+        filters: [],
+        fields: fields,
+        init_order: init_order,
+        query_options: %{order_by: order_by, order_direction: :desc, page: 1, per_page: 15}
+      }
+
+      assigns
+      |> LiveResource.build_criteria()
+      |> Keyword.fetch!(:order)
+    end
+
     test "builds an order criteria the adapter applies when ordering by a column that is not a declared field" do
       # :id is the default init_order column, but a primary key is virtually never
       # declared as a field. The order criteria must still reach the query.
@@ -111,8 +144,44 @@ defmodule Backpex.LiveResourceTest do
         |> from(as: ^EctoAdapter.name_by_schema(TestPost))
         |> EctoAdapter.apply_criteria(criteria, fields)
 
-      assert %{order_bys: [%{expr: [{:asc_nulls_first, order_expression}]}]} = query
+      assert %{order_bys: [%{expr: [{:asc, order_expression}]}]} = query
       assert Macro.to_string(order_expression) =~ "id"
+    end
+
+    test "orders by the primary key without NULLS FIRST/LAST" do
+      fields = [{:id, %{module: Backpex.Fields.Text, order_nulls: :last}}, {:title, %{module: Backpex.Fields.Text}}]
+
+      assert %{by: :id, nulls: :default} = order_criteria(NullsFirstPostLive, fields, :id)
+      assert %{by: :id, field_name: nil, nulls: :default} = order_criteria(NullsFirstPostLive, fields, :unknown)
+    end
+
+    test "uses the order_nulls option of the live resource" do
+      fields = [{:title, %{module: Backpex.Fields.Text}}]
+
+      assert %{by: :title, nulls: :default} = order_criteria(TestPostLive, fields, :title)
+      assert %{by: :title, nulls: :first} = order_criteria(NullsFirstPostLive, fields, :title)
+
+      init_order = %{by: :title, direction: :asc}
+      assert %{by: :title, field_name: nil, nulls: :first} = order_criteria(NullsFirstPostLive, [], :title, init_order)
+    end
+
+    test "prefers the order_nulls option of the field" do
+      fields = [{:title, %{module: Backpex.Fields.Text, order_nulls: :last}}]
+
+      assert %{by: :title, nulls: :last} = order_criteria(NullsFirstPostLive, fields, :title)
+    end
+
+    test "applies order_nulls to a field with a select expression named like the primary key" do
+      select = dynamic([testpost: p], fragment("upper(?)", p.title))
+      fields = [{:id, %{module: Backpex.Fields.Text, select: select}}]
+
+      assert %{by: :id, nulls: :first} = order_criteria(NullsFirstPostLive, fields, :id)
+    end
+
+    test "applies order_nulls to the primary key of an association" do
+      fields = [{:author, %{module: Backpex.Fields.BelongsTo, queryable: TestAuthor, display_field: :id}}]
+
+      assert %{by: :id, schema: TestAuthor, nulls: :first} = order_criteria(NullsFirstPostLive, fields, :author)
     end
   end
 
@@ -180,7 +249,60 @@ defmodule Backpex.LiveResourceTest do
     end
   end
 
+  describe "search_options/3" do
+    @searchable_fields [{:title, %{module: Backpex.Fields.Text, searchable: true}}]
+
+    test "keeps a string search term" do
+      assert {"hello", [{:title, %{queryable: TestPost}}]} =
+               LiveResource.search_options(%{"search" => "hello"}, @searchable_fields, TestPost)
+
+      assert {"hello", _fields} = LiveResource.search_options(%{search: "hello"}, @searchable_fields, TestPost)
+      assert {"", _fields} = LiveResource.search_options(%{}, @searchable_fields, TestPost)
+    end
+  end
+
   describe "Index.handle_event/3" do
+    test "change-filter is a no-op for filters that are not a map" do
+      # `filters` arrives in a client-controlled event payload; a tampered value
+      # must not crash the LiveView.
+      socket = %Socket{assigns: %{__changed__: %{}, query_options: %{filters: %{}}}}
+
+      for filters <- ["active", ["active"], 1] do
+        assert {:noreply, ^socket} =
+                 Index.handle_event("change-filter", %{"filters" => filters}, socket)
+      end
+    end
+
+    test "filter-preset-selected is a no-op for a field or preset the resource does not know" do
+      # `field` and `preset-index` arrive in a client-controlled event payload;
+      # a tampered value must not crash the LiveView.
+      presets = [%{label: "Active", values: fn -> ["active"] end}]
+
+      socket = %Socket{
+        assigns: %{
+          __changed__: %{},
+          query_options: %{filters: %{}},
+          filters: [status: %{module: nil, presets: presets}, published: %{module: nil}]
+        }
+      }
+
+      for params <- [
+            %{"field" => "status", "preset-index" => "abc"},
+            %{"field" => "status", "preset-index" => "1abc"},
+            %{"field" => "status", "preset-index" => "1"},
+            %{"field" => "status", "preset-index" => "-1"},
+            %{"field" => "status", "preset-index" => 0},
+            %{"field" => "not_an_existing_atom_8f3a1c", "preset-index" => "0"},
+            %{"field" => "title", "preset-index" => "0"},
+            %{"field" => "published", "preset-index" => "0"},
+            %{"field" => "status"},
+            %{}
+          ] do
+        assert {:noreply, ^socket} =
+                 Index.handle_event("filter-preset-selected", params, socket)
+      end
+    end
+
     test "toggle_column is a no-op for a field the resource does not know" do
       # `field` arrives in a client-controlled event payload; an unknown name
       # must not crash the LiveView.
@@ -189,7 +311,22 @@ defmodule Backpex.LiveResourceTest do
       }
 
       assert {:noreply, ^socket} =
-               Backpex.LiveResource.Index.handle_event("toggle_column", %{"field" => "bogus"}, socket)
+               Index.handle_event("toggle_column", %{"field" => "bogus"}, socket)
+    end
+
+    test "select-page-size and index-search are no-ops for a payload without a value" do
+      # The payload is client-controlled. A tampered value is validated in `handle_params/3`; a payload
+      # without one must not crash the LiveView.
+      socket = %Socket{assigns: %{__changed__: %{}, query_options: %{}, params: %{}}}
+
+      for {event, params} <- [
+            {"select-page-size", %{}},
+            {"select-page-size", %{"select_per_page" => "15"}},
+            {"index-search", %{}},
+            {"index-search", %{"index_search" => "R&D"}}
+          ] do
+        assert {:noreply, ^socket} = Index.handle_event(event, params, socket)
+      end
     end
   end
 end
