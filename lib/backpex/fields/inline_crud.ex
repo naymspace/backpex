@@ -15,7 +15,9 @@ defmodule Backpex.Fields.InlineCRUD do
       - `Backpex.Fields.InlineCRUD`
       - `Backpex.Fields.Upload`
 
-      You can add additional classes to child field inputs by setting the class option in the list of `child_fields`.
+      You can add additional classes to the table cell of a child field (in the header row and in every entry row) by
+      setting the class option in the list of `child_fields`. Use it for widths like `w-1/3`. Flex classes like `grow`
+      have no effect on a table cell, and display classes like `hidden` break the row.
       The class can be a string or a function that takes the assigns and must return a string.
       """,
       type: :keyword_list,
@@ -196,7 +198,22 @@ defmodule Backpex.Fields.InlineCRUD do
           <Layout.input_label id={"inline-crud-label-#{@name}"} as="span" text={@field_options[:label]} />
         </:label>
 
-        <div class="flex flex-col">
+        <%!-- Not the `table` class: daisyUI's table component adds a font size, a radius and border spacing. --%>
+        <div class="[display:table] w-full">
+          <div :if={@row_count > 0} class="table-row">
+            <div
+              :for={{child_field_name, child_field_options} <- @child_fields}
+              id={"inline-crud-header-label-#{@name}-#{child_field_name}"}
+              class={[
+                "table-cell pr-4 pb-2 align-bottom text-xs last:pr-0",
+                child_field_class(child_field_options, assigns)
+              ]}
+            >
+              {child_field_options.label}
+            </div>
+            <div :if={not @readonly} class="table-cell" />
+          </div>
+
           <.inputs_for :let={f_nested} field={@form[@name]}>
             <input
               type="hidden"
@@ -207,18 +224,11 @@ defmodule Backpex.Fields.InlineCRUD do
               disabled={@readonly}
             />
 
-            <div class="mb-3 flex items-start gap-x-4">
+            <div class="table-row">
               <div
                 :for={{child_field_name, child_field_options} <- @child_fields}
-                class={child_field_class(child_field_options, assigns)}
+                class={["table-cell pr-4 pb-3 align-top last:pr-0", child_field_class(child_field_options, assigns)]}
               >
-                <div
-                  :if={f_nested.index == 0}
-                  id={"inline-crud-header-label-#{@name}-#{child_field_name}"}
-                  class="mb-2 text-xs"
-                >
-                  {child_field_options.label}
-                </div>
                 {Backpex.HTML.Resource.resource_form_field(
                   assign(assigns,
                     hide_label: true,
@@ -230,7 +240,7 @@ defmodule Backpex.Fields.InlineCRUD do
                 )}
               </div>
 
-              <div :if={not @readonly} class={if f_nested.index == 0, do: "mt-5", else: nil}>
+              <div :if={not @readonly} class="table-cell w-px pb-3 align-top">
                 <button
                   type="button"
                   name={"change[#{@name}_delete][]"}
@@ -301,7 +311,7 @@ defmodule Backpex.Fields.InlineCRUD do
 
   defp child_field_class(%{class: class} = _child_field_options, assigns) when is_function(class), do: class.(assigns)
   defp child_field_class(%{class: class} = _child_field_options, _assigns) when is_binary(class), do: class
-  defp child_field_class(_child_field_options, _assigns), do: "flex-1"
+  defp child_field_class(_child_field_options, _assigns), do: nil
 
   defp assign_form_errors(socket) do
     %{assigns: %{form: form, name: name, field_options: field_options}} = socket
