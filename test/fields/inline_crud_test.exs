@@ -11,6 +11,7 @@ defmodule Backpex.Fields.InlineCRUDTest do
     use Ecto.Schema
 
     embedded_schema do
+      field :label, :string
       field :url, :string
     end
   end
@@ -20,6 +21,7 @@ defmodule Backpex.Fields.InlineCRUDTest do
     use Ecto.Schema
 
     schema "suppliers" do
+      field :label, :string
       field :url, :string
       field :product_id, :integer
     end
@@ -51,7 +53,8 @@ defmodule Backpex.Fields.InlineCRUDTest do
   end
 
   defp render_form(name, overrides \\ []) do
-    form = product() |> Ecto.Changeset.change() |> to_form(as: :change)
+    {product, overrides} = Keyword.pop_lazy(overrides, :product, &product/0)
+    form = product |> Ecto.Changeset.change() |> to_form(as: :change)
 
     assigns =
       Keyword.merge(
@@ -106,6 +109,37 @@ defmodule Backpex.Fields.InlineCRUDTest do
       test "does not render the delete control as a hidden checkbox" do
         assert render_form(@name)
                |> LazyHTML.query("input[type=checkbox][name='change[#{@name}_delete][]']")
+               |> Enum.empty?()
+      end
+
+      test "renders one header row whose labels name the inputs of every row" do
+        child_fields = [
+          label: %{module: Backpex.Fields.Text, label: "Label"},
+          url: %{module: Backpex.Fields.Text, label: "URL"}
+        ]
+
+        html = render_form(@name, child_fields: child_fields)
+
+        header_ids =
+          html |> LazyHTML.query("[id^='inline-crud-header-label-#{@name}-']") |> LazyHTML.attribute("id")
+
+        assert header_ids == ["inline-crud-header-label-#{@name}-label", "inline-crud-header-label-#{@name}-url"]
+
+        labelledby = html |> LazyHTML.query("input[aria-labelledby]") |> LazyHTML.attribute("aria-labelledby")
+
+        assert length(labelledby) == 4
+
+        for ids <- labelledby, id <- String.split(ids) do
+          assert html |> LazyHTML.query("##{id}") |> Enum.count() == 1
+        end
+      end
+
+      test "renders no header row without rows" do
+        child_fields = [label: %{module: Backpex.Fields.Text, label: "Label"}]
+        product = %Product{links: [], suppliers: []}
+
+        assert render_form(@name, child_fields: child_fields, product: product)
+               |> LazyHTML.query("[id^='inline-crud-header-label-']")
                |> Enum.empty?()
       end
 

@@ -15,7 +15,9 @@ defmodule Backpex.Fields.InlineCRUD do
       - `Backpex.Fields.InlineCRUD`
       - `Backpex.Fields.Upload`
 
-      You can add additional classes to child field inputs by setting the class option in the list of `child_fields`.
+      You can add additional classes to the table cell of a child field (in the header row and in every entry row) by
+      setting the class option in the list of `child_fields`. Use it for widths like `w-1/3`. Flex classes like `grow`
+      have no effect on a table cell, and display classes like `hidden` break the row.
       The class can be a string or a function that takes the assigns and must return a string.
       """,
       type: :keyword_list,
@@ -196,7 +198,8 @@ defmodule Backpex.Fields.InlineCRUD do
           <Layout.input_label id={"inline-crud-label-#{@name}"} as="span" text={@field_options[:label]} />
         </:label>
 
-        <div class="table w-full">
+        <%!-- Not the `table` class: daisyUI's table component adds a font size, a radius and border spacing. --%>
+        <div class="[display:table] w-full">
           <div :if={@row_count > 0} class="table-row">
             <div
               :for={{child_field_name, child_field_options} <- @child_fields}
