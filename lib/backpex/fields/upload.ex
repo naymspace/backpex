@@ -604,9 +604,12 @@ defmodule Backpex.Fields.Upload do
 
   When the field is readonly, the drop target and the "Upload a file" link are disabled, and the
   cancel/remove buttons on both pending and existing entries are hidden. The list of existing files
-  is still displayed so users can see the current value. The field gets no upload config, so the
-  server refuses uploads for it, and existing files can't be removed. See the
-  [readonly](/guides/fields/readonly.md) guide for details.
+  is still displayed so users can see the current value. A field that is readonly when the form
+  opens gets no upload config, so the server refuses uploads for it. On save, the form ignores the
+  new and removed files of a readonly field, also of one that turned readonly while the form was
+  open. With `external` uploads, such a field still accepts a presigned upload, so the file can
+  reach the bucket, but it isn't saved. See the [readonly](/guides/fields/readonly.md) guide for
+  details.
   """
   use Backpex.Field, config_schema: @config_schema
   alias Backpex.HTML.Form, as: BackpexForm
@@ -632,7 +635,6 @@ defmodule Backpex.Fields.Upload do
   @impl Backpex.Field
   def render_form(assigns) do
     upload_key = Backpex.Field.upload_key({assigns.name, assigns.field_options})
-    uploads_allowed = not is_nil(assigns.lv_uploads[upload_key])
     translate_error_fun = Map.get(assigns.field_options, :translate_error, &Function.identity/1)
 
     hidden_field_name = to_string(assigns.name)
@@ -654,7 +656,6 @@ defmodule Backpex.Fields.Upload do
       |> assign(:hidden_field_name, hidden_field_name)
       |> assign(:upload, assigns.lv_uploads[upload_key])
       |> assign(:upload_key, upload_key)
-      |> assign(:uploads_allowed, uploads_allowed)
       |> assign(:uploaded_files, Keyword.get(assigns.uploaded_files, upload_key))
       |> assign(:errors, errors)
       |> assign(:form_errors, form_errors)
@@ -668,14 +669,17 @@ defmodule Backpex.Fields.Upload do
     <div>
       <Layout.field_container>
         <:label align={Backpex.Field.align_label(@field_options, assigns, :top)}>
-          <Layout.input_label :if={@uploads_allowed} for={@upload.ref} text={@field_options[:label]} />
-          <Layout.input_label :if={not @uploads_allowed} as="span" text={@field_options[:label]} />
+          <Layout.input_label
+            as={if @upload, do: "label", else: "span"}
+            for={@upload && @upload.ref}
+            text={@field_options[:label]}
+          />
         </:label>
         <div
           id={"#{@name}-drop-target"}
           class="w-full max-w-lg"
           phx-hook={not @readonly && "BackpexDragHover"}
-          phx-drop-target={if @uploads_allowed and not @readonly, do: @upload.ref}
+          phx-drop-target={if @upload && not @readonly, do: @upload.ref}
         >
           <div class={[
             "rounded-field flex justify-center border-2 border-dashed px-6 pt-5 pb-6",
@@ -694,7 +698,7 @@ defmodule Backpex.Fields.Upload do
                     {Backpex.__("Upload a file", @live_resource)}
                   </span>
                   <.live_file_input
-                    :if={@uploads_allowed and not @readonly}
+                    :if={@upload && not @readonly}
                     upload={@upload}
                     phx-target="#form-component"
                     class="hidden"
@@ -734,7 +738,7 @@ defmodule Backpex.Fields.Upload do
               </div>
             <% end %>
 
-            <%= if @uploads_allowed do %>
+            <%= if @upload do %>
               <div :for={entry <- @upload.entries} class="break-all">
                 <p class="inline">{Map.get(entry, :client_name)}</p>
                 <button
@@ -757,7 +761,7 @@ defmodule Backpex.Fields.Upload do
             <% end %>
           </article>
 
-          <%= if @uploads_allowed do %>
+          <%= if @upload do %>
             <p :for={err <- upload_errors(@upload)} class="text-xs italic text-red-500">
               {@upload_error.(err)}
             </p>

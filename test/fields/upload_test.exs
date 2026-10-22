@@ -260,14 +260,16 @@ defmodule Backpex.Fields.UploadTest do
 
     test "renders a readonly field without a file input, drop target or remove button",
          %{field_options: field_options, socket: socket} do
-      field_options = Map.put(field_options, :readonly, true)
-      socket = Upload.assign_uploads({:images, field_options}, socket)
-      html = render_assigned_form(socket, field_options, true)
+      # A field that is readonly when the form opens gets no upload config. One that turns readonly later keeps it.
+      for assign_options <- [Map.put(field_options, :readonly, true), field_options] do
+        socket = Upload.assign_uploads({:images, assign_options}, socket)
+        html = render_assigned_form(socket, Map.put(field_options, :readonly, true), true)
 
-      assert html =~ "old.png"
-      refute html =~ ~s(type="file")
-      refute html =~ "phx-drop-target"
-      refute html =~ "cancel-existing-entry"
+        assert html =~ "old.png"
+        refute html =~ ~s(type="file")
+        refute html =~ "phx-drop-target"
+        refute html =~ "cancel-existing-entry"
+      end
     end
   end
 
