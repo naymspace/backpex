@@ -25,7 +25,7 @@ defmodule Backpex.Adapters.EctoTest do
     end
   end
 
-  defmodule TestLengthField do
+  defmodule TestLabelField do
     @moduledoc false
     use Backpex.Field
 
@@ -36,9 +36,7 @@ defmodule Backpex.Adapters.EctoTest do
     def render_form(assigns), do: assigns
 
     @impl Backpex.Field
-    def order_expression(schema_name, field_name, _field, _assigns) do
-      dynamic([{^schema_name, schema_name}], fragment("length(?)", schema_name |> field(^field_name)))
-    end
+    def option_labels(_field, assigns), do: [{assigns.open_label, "open"}]
   end
 
   defmodule TestFilter do
@@ -388,21 +386,16 @@ defmodule Backpex.Adapters.EctoTest do
       assert Macro.to_string(order_expression) == "&1.name()"
     end
 
-    test "uses the order expression of the field module" do
+    test "orders a custom field by its option labels" do
       base_query = from(TestUser, as: ^EctoAdapter.name_by_schema(TestUser))
+      fields = [{:title, %{module: TestLabelField}}]
+      criteria = [order: %{by: :title, direction: :asc, schema: TestUser, field_name: :title}]
 
-      fields = [
-        {:title, %{module: TestLengthField, queryable: TestUser}}
-      ]
+      query = EctoAdapter.apply_criteria(base_query, criteria, fields, %{open_label: "Offen"})
 
-      criteria = [
-        order: %{by: :title, direction: :asc, schema: TestUser, field_name: :title}
-      ]
-
-      query = EctoAdapter.apply_criteria(base_query, criteria, fields)
-
-      assert %{order_bys: [%{expr: [{:asc, order_expression}]}]} = query
-      assert Macro.to_string(order_expression) =~ "length("
+      assert %{order_bys: [%{expr: [{:asc, order_expression}], params: params}]} = query
+      assert Macro.to_string(order_expression) =~ "array_position"
+      assert [["Offen"], ["open"]] = Enum.map(params, &elem(&1, 0))
     end
 
     test "raises when the order criteria is malformed instead of silently dropping the order" do

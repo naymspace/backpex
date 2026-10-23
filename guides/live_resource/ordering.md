@@ -132,9 +132,9 @@ Invalid URL parameters won't crash the application. Instead, they are silently r
 
 Ordering by labels uses PostgreSQL functions, so it requires the `Backpex.Adapters.Ecto` adapter with a PostgreSQL database.
 
-## Custom Order Expressions
+## Ordering Custom Fields by Labels
 
-A field module can change the expression the index view is ordered by when the user orders by the field. Implement the `c:Backpex.Field.order_expression/4` callback in your [custom field](../fields/custom-fields.md) and return an `Ecto.Query.dynamic/2` expression.
+A [custom field](../fields/custom-fields.md) that shows labels instead of its stored values can implement the `c:Backpex.Field.option_labels/2` callback. It returns the labels as `{label, value}` tuples, and the index view orders and searches the field by them, like a select field.
 
 ## Disabling Ordering for Fields
 

@@ -181,7 +181,13 @@ defmodule Backpex.Adapters.Ecto do
     field_name = Map.get(field_options, :display_field, name)
     schema_name = Map.get(field_options, :custom_alias, name_by_schema(queryable))
 
-    dynamic(^field_options.module.search_condition(schema_name, field_name, search_string, field, assigns))
+    if option_labels?(field_options.module) do
+      labels = field_options.module.option_labels(field, assigns)
+
+      dynamic(ilike(^label_expression(schema_name, field_name, queryable, labels), ^search_string))
+    else
+      dynamic(^field_options.module.search_condition(schema_name, field_name, search_string))
+    end
   end
 
   @doc """
@@ -232,23 +238,23 @@ defmodule Backpex.Adapters.Ecto do
 
     direction = order_direction(direction, Map.get(order, :nulls, :default))
 
-    case order_field(fields, field_name, by) do
-      {_name, %{select: select} = _field_options} ->
-        query
-        |> order_by([{^schema_name, schema_name}], ^[{direction, select}])
+    expression =
+      case order_field(fields, field_name, by) do
+        {_name, %{select: select} = _field_options} ->
+          select
 
-      {name, %{module: module} = field_options} ->
-        field = {name, Map.put(field_options, :queryable, schema)}
+        {_name, %{module: module}} = field ->
+          if option_labels?(module) do
+            label_expression(schema_name, by, schema, module.option_labels(field, assigns))
+          else
+            dynamic([{^schema_name, schema_name}], field(schema_name, ^by))
+          end
 
-        query
-        |> order_by(^[{direction, module.order_expression(schema_name, by, field, assigns)}])
+        _field ->
+          dynamic([{^schema_name, schema_name}], field(schema_name, ^by))
+      end
 
-      _field ->
-        query
-        |> order_by([{^schema_name, schema_name}], [
-          {^direction, field(schema_name, ^by)}
-        ])
-    end
+    order_by(query, ^[{direction, expression}])
   end
 
   defp apply_order(_query, order, _fields, _assigns) do
@@ -260,6 +266,52 @@ defmodule Backpex.Adapters.Ecto do
   # of the schema.
   defp order_field(fields, nil = _field_name, by), do: Enum.find(fields, &match?({^by, _field_options}, &1))
   defp order_field(fields, field_name, _by), do: Enum.find(fields, &match?({^field_name, _field_options}, &1))
+
+  defp option_labels?(module), do: Code.ensure_loaded?(module) and function_exported?(module, :option_labels, 2)
+
+  # Maps the stored value to its label from `c:Backpex.Field.option_labels/2`, so that searching and ordering match what
+  # the user sees. Values without a label fall back to the stored value.
+  #
+  # The values are compared in their database representation: the values of an `Ecto.Enum` are dumped, e.g. `:draft` to
+  # `1` for `values: [draft: 1]`. A `NULL` column matches a `nil` or `""` value, as `to_string(nil)` does.
+  defp label_expression(schema_name, field_name, queryable, labels) do
+    type = column_type(queryable, field_name)
+
+    {labels, values} =
+      labels
+      |> Enum.map(fn {label, value} -> {to_string(label), value |> dump_label_value(type) |> to_string()} end)
+      |> Enum.unzip()
+
+    dynamic(
+      [{^schema_name, schema_name}],
+      fragment(
+        "coalesce((?::text[])[array_position(?::text[], coalesce(?::text, ''))], ?::text)",
+        ^labels,
+        ^values,
+        field(schema_name, ^field_name),
+        field(schema_name, ^field_name)
+      )
+    )
+  end
+
+  defp column_type(queryable, field_name) when is_atom(queryable) do
+    if function_exported?(queryable, :__schema__, 2), do: queryable.__schema__(:type, field_name)
+  end
+
+  defp column_type(_queryable, _field_name), do: nil
+
+  defp dump_label_value(value, {:parameterized, {Ecto.Enum, _params}} = type), do: dump_enum_value(value, type)
+  defp dump_label_value(value, {:parameterized, Ecto.Enum, _params} = type), do: dump_enum_value(value, type)
+  defp dump_label_value(value, _type), do: value
+
+  defp dump_enum_value(value, type) do
+    with {:ok, cast_value} <- Ecto.Type.cast(type, value),
+         {:ok, dumped_value} <- Ecto.Type.dump(type, cast_value) do
+      dumped_value
+    else
+      _error -> value
+    end
+  end
 
   defp order_direction(direction, :default) when direction in [:asc, :desc], do: direction
   defp order_direction(:asc, :first), do: :asc_nulls_first

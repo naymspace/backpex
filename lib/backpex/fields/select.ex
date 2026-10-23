@@ -63,11 +63,10 @@ defmodule Backpex.Fields.Select do
   > are not set. Do not read the fields of the item or the value in the `options` function of a field that is orderable
   > or searchable.
 
-  Ordering and searching by labels uses PostgreSQL functions, so it requires the `Backpex.Adapters.Ecto` adapter with a
-  PostgreSQL database.
+  The labels come from `c:Backpex.Field.option_labels/2`. The `Backpex.Adapters.Ecto` adapter requires PostgreSQL to
+  order and search by them.
   """
   use Backpex.Field, config_schema: @config_schema
-  import Ecto.Query
 
   @impl Backpex.Field
   def render_value(assigns) do
@@ -154,63 +153,11 @@ defmodule Backpex.Fields.Select do
   def index_editable_change({name, _field_options}, value, _assigns), do: %{name => value}
 
   @impl Backpex.Field
-  def search_condition(schema_name, field_name, search_string, field, assigns) do
-    label = label_expression(schema_name, field_name, field, assigns)
-
-    dynamic(ilike(^label, ^search_string))
-  end
-
-  @impl Backpex.Field
-  def order_expression(schema_name, field_name, field, assigns) do
-    label_expression(schema_name, field_name, field, assigns)
-  end
-
-  # Maps the stored value to the label of its option, so that searching and ordering match what the user sees, e.g.
-  # translated labels. Values without an option fall back to the stored value, like in `render_value/1`.
-  #
-  # The values are compared in their database representation: the values of an `Ecto.Enum` are dumped, e.g. `:draft` to
-  # `1` for `values: [draft: 1]`. A `NULL` column matches a `nil` or `""` option, as `to_string(nil)` does in
-  # `render_value/1`.
-  defp label_expression(schema_name, field_name, {_name, field_options}, assigns) do
-    type = column_type(field_options, field_name)
-
-    {labels, values} =
-      assigns
-      |> Map.put(:field_options, field_options)
-      |> get_options()
-      |> flatten_options()
-      |> Enum.map(fn {label, value} -> {to_string(label), value |> dump_value(type) |> to_string()} end)
-      |> Enum.unzip()
-
-    dynamic(
-      [{^schema_name, schema_name}],
-      fragment(
-        "coalesce((?::text[])[array_position(?::text[], coalesce(?::text, ''))], ?::text)",
-        ^labels,
-        ^values,
-        schema_name |> field(^field_name),
-        schema_name |> field(^field_name)
-      )
-    )
-  end
-
-  defp column_type(%{queryable: queryable}, field_name) when is_atom(queryable) do
-    if function_exported?(queryable, :__schema__, 2), do: queryable.__schema__(:type, field_name)
-  end
-
-  defp column_type(_field_options, _field_name), do: nil
-
-  defp dump_value(value, {:parameterized, {Ecto.Enum, _params}} = type), do: dump_enum_value(value, type)
-  defp dump_value(value, {:parameterized, Ecto.Enum, _params} = type), do: dump_enum_value(value, type)
-  defp dump_value(value, _type), do: value
-
-  defp dump_enum_value(value, type) do
-    with {:ok, cast_value} <- Ecto.Type.cast(type, value),
-         {:ok, dumped_value} <- Ecto.Type.dump(type, cast_value) do
-      dumped_value
-    else
-      _error -> value
-    end
+  def option_labels({_name, field_options}, assigns) do
+    assigns
+    |> Map.put(:field_options, field_options)
+    |> get_options()
+    |> flatten_options()
   end
 
   defp get_label(value, options) do
