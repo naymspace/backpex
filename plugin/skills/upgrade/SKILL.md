@@ -26,7 +26,6 @@ All upgrade guides are at `guides/upgrading/` in the Backpex repository (also av
 
 | Version | File |
 |---------|------|
-| 0.24 | `guides/upgrading/v0.24.md` |
 | 0.23 | `guides/upgrading/v0.23.md` |
 | 0.22 | `guides/upgrading/v0.22.md` |
 | 0.21 | `guides/upgrading/v0.21.md` |
