@@ -232,19 +232,14 @@ defmodule Backpex.Adapters.Ecto do
 
     direction = order_direction(direction, Map.get(order, :nulls, :default))
 
-    field =
-      Enum.find(fields, fn
-        {^by, field} -> field
-        {^field_name, %{display_field: ^by} = field} -> field
-        _field -> nil
-      end)
-
-    case field do
+    case order_field(fields, field_name, by) do
       {_name, %{select: select} = _field_options} ->
         query
         |> order_by([{^schema_name, schema_name}], ^[{direction, select}])
 
-      {_name, %{module: module} = _field_options} ->
+      {name, %{module: module} = field_options} ->
+        field = {name, Map.put(field_options, :queryable, schema)}
+
         query
         |> order_by(^[{direction, module.order_expression(schema_name, by, field, assigns)}])
 
@@ -260,6 +255,11 @@ defmodule Backpex.Adapters.Ecto do
     raise ArgumentError,
           "expected order criteria to be a map with the keys :by, :direction and :schema, got: #{inspect(order)}"
   end
+
+  # The field the user ordered by is identified by its name. Without one, e.g. for the `init_order`, `by` names a column
+  # of the schema.
+  defp order_field(fields, nil = _field_name, by), do: Enum.find(fields, &match?({^by, _field_options}, &1))
+  defp order_field(fields, field_name, _by), do: Enum.find(fields, &match?({^field_name, _field_options}, &1))
 
   defp order_direction(direction, :default) when direction in [:asc, :desc], do: direction
   defp order_direction(:asc, :first), do: :asc_nulls_first

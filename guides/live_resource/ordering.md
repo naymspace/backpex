@@ -130,6 +130,8 @@ Invalid URL parameters won't crash the application. Instead, they are silently r
 
 `Backpex.Fields.Select` fields are ordered by the labels of their options instead of the stored values. If you translate the labels in an `options` function, the index view is ordered by the labels in the locale of the current user. See `Backpex.Fields.Select` for details.
 
+Ordering by labels uses PostgreSQL functions, so it requires the `Backpex.Adapters.Ecto` adapter with a PostgreSQL database.
+
 ## Custom Order Expressions
 
 A field module can change the expression the index view is ordered by when the user orders by the field. Implement the `c:Backpex.Field.order_expression/4` callback in your [custom field](../fields/custom-fields.md) and return an `Ecto.Query.dynamic/2` expression.

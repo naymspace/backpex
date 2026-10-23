@@ -6,7 +6,7 @@ Backpex provides a simple search feature that allows you to search for records i
 >
 > Note that fields are searched using a case-insensitive `ilike` query.
 >
-> `Backpex.Fields.Select` fields search the labels of their options instead of the stored values, so translated labels are searched in the locale of the current user.
+> `Backpex.Fields.Select` fields search the labels of their options instead of the stored values, so translated labels are searched in the locale of the current user. This requires the `Backpex.Adapters.Ecto` adapter with a PostgreSQL database.
 
 ## Configuration
 
