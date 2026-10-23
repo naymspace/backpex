@@ -43,9 +43,11 @@ defmodule Backpex.Fields.Checkgroup do
 
   If you translate the labels in an `options` function, they are ordered and searched in the locale of the current
   user. See `Backpex.Fields.Select` for which assigns the function receives when ordering or searching.
+
+  The labels come from `c:Backpex.Field.option_labels/2`. The `Backpex.Adapters.Ecto` adapter requires PostgreSQL to
+  order and search by them.
   """
   use Backpex.Field, config_schema: @config_schema
-  import Ecto.Query
   alias Backpex.Fields.OptionLabels
 
   @impl Backpex.Field
@@ -88,16 +90,7 @@ defmodule Backpex.Fields.Checkgroup do
   end
 
   @impl Backpex.Field
-  def search_condition(schema_name, field_name, search_string, field, assigns) do
-    labels = OptionLabels.labels_expression(schema_name, field_name, OptionLabels.options(field, assigns))
-
-    dynamic(ilike(^labels, ^search_string))
-  end
-
-  @impl Backpex.Field
-  def order_expression(schema_name, field_name, field, assigns) do
-    OptionLabels.labels_expression(schema_name, field_name, OptionLabels.options(field, assigns))
-  end
+  def option_labels(field, assigns), do: OptionLabels.option_labels(field, assigns)
 
   defp get_labels(value, options) do
     values = List.wrap(value) |> Enum.map(&to_string/1)

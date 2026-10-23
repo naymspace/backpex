@@ -130,9 +130,11 @@ Invalid URL parameters won't crash the application. Instead, they are silently r
 
 `Backpex.Fields.Select` fields are ordered by the labels of their options instead of the stored values. `Backpex.Fields.MultiSelect` and `Backpex.Fields.Checkgroup` fields are ordered by the labels of their selected options, in the order of the options and joined with `", "`. If you translate the labels in an `options` function, the index view is ordered by the labels in the locale of the current user. See `Backpex.Fields.Select` for details.
 
-## Custom Order Expressions
+Ordering by labels uses PostgreSQL functions, so it requires the `Backpex.Adapters.Ecto` adapter with a PostgreSQL database.
 
-A field module can change the expression the index view is ordered by when the user orders by the field. Implement the `c:Backpex.Field.order_expression/4` callback in your [custom field](../fields/custom-fields.md) and return an `Ecto.Query.dynamic/2` expression.
+## Ordering Custom Fields by Labels
+
+A [custom field](../fields/custom-fields.md) that shows labels instead of its stored values can implement the `c:Backpex.Field.option_labels/2` callback. It returns the labels as `{label, value}` tuples, and the index view orders and searches the field by them, like a select field. A field of an array column is ordered and searched by the labels of its values, joined with `", "`, like a multi select field.
 
 ## Disabling Ordering for Fields
 

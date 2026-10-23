@@ -58,12 +58,15 @@ defmodule Backpex.Fields.Select do
 
   > #### Info {: .info}
   >
-  > When ordering or searching, the `:item` of the assigns is `nil`, or the `base_schema` of a resource action while
-  > one is open, instead of the item of a row. Do not read the fields of the item in the `options` function of a field
-  > that is orderable or searchable.
+  > When ordering or searching, the `options` function receives the assigns of the index view without the assigns of a
+  > row: `:item` is `nil`, or the `base_schema` of a resource action while one is open, and assigns such as `:value`
+  > are not set. Do not read the fields of the item or the value in the `options` function of a field that is orderable
+  > or searchable.
+
+  The labels come from `c:Backpex.Field.option_labels/2`. The `Backpex.Adapters.Ecto` adapter requires PostgreSQL to
+  order and search by them.
   """
   use Backpex.Field, config_schema: @config_schema
-  import Ecto.Query
   alias Backpex.Fields.OptionLabels
 
   @impl Backpex.Field
@@ -151,16 +154,7 @@ defmodule Backpex.Fields.Select do
   def index_editable_change({name, _field_options}, value, _assigns), do: %{name => value}
 
   @impl Backpex.Field
-  def search_condition(schema_name, field_name, search_string, field, assigns) do
-    label = OptionLabels.label_expression(schema_name, field_name, OptionLabels.options(field, assigns))
-
-    dynamic(ilike(^label, ^search_string))
-  end
-
-  @impl Backpex.Field
-  def order_expression(schema_name, field_name, field, assigns) do
-    OptionLabels.label_expression(schema_name, field_name, OptionLabels.options(field, assigns))
-  end
+  def option_labels(field, assigns), do: OptionLabels.option_labels(field, assigns)
 
   defp get_label(value, options) do
     options

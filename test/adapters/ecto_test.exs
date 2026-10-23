@@ -14,10 +14,20 @@ defmodule Backpex.Adapters.EctoTest do
       field :name, :string
       field :age, :integer
       field :active, :boolean
+      field :teams, {:array, :string}
     end
   end
 
-  defmodule TestLengthField do
+  defmodule TestTicket do
+    use Ecto.Schema
+
+    schema "tickets" do
+      field :status, Ecto.Enum, values: [draft: 1, published: 2]
+      field :labels, {:array, Ecto.Enum}, values: [bug: 1, feature: 2]
+    end
+  end
+
+  defmodule TestLabelField do
     @moduledoc false
     use Backpex.Field
 
@@ -28,9 +38,7 @@ defmodule Backpex.Adapters.EctoTest do
     def render_form(assigns), do: assigns
 
     @impl Backpex.Field
-    def order_expression(schema_name, field_name, _field, _assigns) do
-      dynamic([{^schema_name, schema_name}], fragment("length(?)", schema_name |> field(^field_name)))
-    end
+    def option_labels(_field, assigns), do: [{assigns.open_label, "open"}]
   end
 
   defmodule TestFilter do
@@ -178,6 +186,24 @@ defmodule Backpex.Adapters.EctoTest do
 
       assert [["Administrator", "User"], ["admin", "user"], "%istrat%"] = Enum.map(params, &elem(&1, 0))
     end
+
+    test "compares the dumped values of an Ecto.Enum" do
+      base_query = from(TestTicket, as: ^EctoAdapter.name_by_schema(TestTicket))
+
+      searchable_fields = [
+        {:status,
+         %{
+           module: Backpex.Fields.Select,
+           queryable: TestTicket,
+           options: [Draft: :draft, Published: "published", Archived: :archived]
+         }}
+      ]
+
+      query = EctoAdapter.apply_search(base_query, TestTicket, nil, {"draft", searchable_fields})
+
+      assert [%{params: params}] = query.wheres
+      assert [_labels, ["1", "2", "archived"], "%draft%"] = Enum.map(params, &elem(&1, 0))
+    end
   end
 
   describe "apply_search/5 with a field of multiple options" do
@@ -185,7 +211,7 @@ defmodule Backpex.Adapters.EctoTest do
       base_query = from(TestUser, as: ^EctoAdapter.name_by_schema(TestUser))
 
       searchable_fields = [
-        {:title,
+        {:teams,
          %{
            module: Backpex.Fields.MultiSelect,
            queryable: TestUser,
@@ -201,6 +227,26 @@ defmodule Backpex.Adapters.EctoTest do
       assert Macro.to_string(ilike_expr) =~ "array_to_string"
 
       assert [["Alex", "Bob"], ["Alex", "Bob"], ["alex", "bob"], "%lex%"] = Enum.map(params, &elem(&1, 0))
+    end
+
+    test "compares the dumped values of an array of Ecto.Enum values" do
+      base_query = from(TestTicket, as: ^EctoAdapter.name_by_schema(TestTicket))
+
+      searchable_fields = [
+        {:labels,
+         %{
+           module: Backpex.Fields.MultiSelect,
+           queryable: TestTicket,
+           options: [{"Bug", :bug}, {"Feature", "feature"}, {"Unknown", :unknown}, {"None", nil}]
+         }}
+      ]
+
+      query = EctoAdapter.apply_search(base_query, TestTicket, nil, {"bug", searchable_fields})
+
+      assert [%{expr: ilike_expr, params: params}] = query.wheres
+      assert Macro.to_string(ilike_expr) =~ "::text[], null, ''))"
+      assert [labels, labels, ["1", "2", "unknown", ""], "%bug%"] = Enum.map(params, &elem(&1, 0))
+      assert labels == ["Bug", "Feature", "Unknown", "None"]
     end
   end
 
@@ -353,12 +399,11 @@ defmodule Backpex.Adapters.EctoTest do
       base_query = from(TestUser, as: ^EctoAdapter.name_by_schema(TestUser))
 
       fields = [
-        {:title,
-         %{module: Backpex.Fields.Checkgroup, queryable: TestUser, options: [{"Admin", "admin"}, {"User", :user}]}}
+        {:teams, %{module: Backpex.Fields.Checkgroup, options: [{"Admin", "admin"}, {"User", :user}]}}
       ]
 
       criteria = [
-        order: %{by: :title, direction: :asc, schema: TestUser, field_name: :title}
+        order: %{by: :teams, direction: :asc, schema: TestUser, field_name: :teams}
       ]
 
       query = EctoAdapter.apply_criteria(base_query, criteria, fields)
@@ -368,21 +413,73 @@ defmodule Backpex.Adapters.EctoTest do
       assert [["Admin", "User"], ["Admin", "User"], ["admin", "user"]] = Enum.map(params, &elem(&1, 0))
     end
 
-    test "uses the order expression of the field module" do
-      base_query = from(TestUser, as: ^EctoAdapter.name_by_schema(TestUser))
+    test "orders a checkgroup field of Ecto.Enum values by the dumped values of its options" do
+      base_query = from(TestTicket, as: ^EctoAdapter.name_by_schema(TestTicket))
 
       fields = [
-        {:title, %{module: TestLengthField, queryable: TestUser}}
+        {:labels, %{module: Backpex.Fields.Checkgroup, options: [Bug: :bug, Feature: :feature, None: nil]}}
       ]
 
       criteria = [
-        order: %{by: :title, direction: :asc, schema: TestUser, field_name: :title}
+        order: %{by: :labels, direction: :asc, schema: TestTicket, field_name: :labels}
       ]
 
       query = EctoAdapter.apply_criteria(base_query, criteria, fields)
 
-      assert %{order_bys: [%{expr: [{:asc, order_expression}]}]} = query
-      assert Macro.to_string(order_expression) =~ "length("
+      assert %{order_bys: [%{expr: [{:asc, order_expression}], params: params}]} = query
+      assert Macro.to_string(order_expression) =~ "::text[], null, ''))"
+
+      assert [["Bug", "Feature", "None"], ["Bug", "Feature", "None"], ["1", "2", ""]] =
+               Enum.map(params, &elem(&1, 0))
+    end
+
+    test "orders an Ecto.Enum select field by the dumped values of its options" do
+      base_query = from(TestTicket, as: ^EctoAdapter.name_by_schema(TestTicket))
+
+      fields = [
+        {:status, %{module: Backpex.Fields.Select, options: [Draft: :draft, Published: :published, None: nil]}}
+      ]
+
+      criteria = [
+        order: %{by: :status, direction: :asc, schema: TestTicket, field_name: :status}
+      ]
+
+      query = EctoAdapter.apply_criteria(base_query, criteria, fields)
+
+      assert %{order_bys: [%{expr: [{:asc, order_expression}], params: params}]} = query
+      assert Macro.to_string(order_expression) =~ "::text, ''))"
+      assert [["Draft", "Published", "None"], ["1", "2", ""]] = Enum.map(params, &elem(&1, 0))
+    end
+
+    test "orders an association by its own field when a field has the name of its display_field" do
+      fields = [
+        {:name, %{module: Backpex.Fields.Select, options: [Admin: "admin"]}},
+        {:author, %{module: Backpex.Fields.BelongsTo, display_field: :name, custom_alias: :author}}
+      ]
+
+      query =
+        TestUser
+        |> from(as: ^EctoAdapter.name_by_schema(TestUser))
+        |> join(:left, [testuser: u], a in TestUser, as: :author, on: a.id == u.id)
+        |> EctoAdapter.apply_criteria(
+          [order: %{by: :name, direction: :asc, schema: TestUser, field_name: :author}],
+          fields
+        )
+
+      assert %{order_bys: [%{expr: [{:asc, order_expression}], params: []}]} = query
+      assert Macro.to_string(order_expression) == "&1.name()"
+    end
+
+    test "orders a custom field by its option labels" do
+      base_query = from(TestUser, as: ^EctoAdapter.name_by_schema(TestUser))
+      fields = [{:title, %{module: TestLabelField}}]
+      criteria = [order: %{by: :title, direction: :asc, schema: TestUser, field_name: :title}]
+
+      query = EctoAdapter.apply_criteria(base_query, criteria, fields, %{open_label: "Offen"})
+
+      assert %{order_bys: [%{expr: [{:asc, order_expression}], params: params}]} = query
+      assert Macro.to_string(order_expression) =~ "array_position"
+      assert [["Offen"], ["open"]] = Enum.map(params, &elem(&1, 0))
     end
 
     test "raises when the order criteria is malformed instead of silently dropping the order" do

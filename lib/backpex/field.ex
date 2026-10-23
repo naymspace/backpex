@@ -255,42 +255,27 @@ defmodule Backpex.Field do
               Ecto.Query.dynamic_expr()
 
   @doc """
-  Defines the search condition like `c:search_condition/3`, but additionally receives the field definition and the
-  assigns of the index view. Use it if the condition depends on the field configuration or on runtime data, e.g. to
-  search the translated labels of a select field instead of the stored values.
+  Returns the labels the field shows instead of its stored values, as a flat list of `{label, value}` tuples.
 
-  Defaults to calling `c:search_condition/3`.
-  """
-  @callback search_condition(
-              schema_name :: atom(),
-              field_name :: atom(),
-              search_string :: binary(),
-              field :: tuple(),
-              assigns :: map()
-            ) ::
-              Ecto.Query.dynamic_expr()
+  The index view orders and searches a field that implements this callback by these labels instead of the stored
+  values, so the results match what the user sees, e.g. translated labels. Values without a label are ordered and
+  searched by the stored value. A field of an array column is ordered and searched by the labels of its values, in the
+  order of the labels and joined with `", "`.
 
-  @doc """
-  Defines the expression the index view is ordered by when the user orders by this field. Defaults to the column of the
-  field. The function has to return a query wrapped into a `Ecto.Query.dynamic/2` which is then passed into an
-  `Ecto.Query.order_by/3`.
+  Receives the field and the assigns of the index view, without the assigns of a row: `:item` is `nil`, or the
+  `base_schema` of a resource action while one is open, and assigns such as `:value` are not set.
+
+  The adapter turns the labels into a query, so this callback does not depend on the data layer. The Ecto adapter
+  requires PostgreSQL for it.
 
   ## Example
 
-  Order by the length of a text instead of the text itself.
-
-      dynamic(
-        [{^schema_name, schema_name}],
-        fragment("length(?)", schema_name |> field(^field_name))
-      )
+      @impl Backpex.Field
+      def option_labels(_field, _assigns) do
+        [{gettext("Open"), "open"}, {gettext("Closed"), "closed"}]
+      end
   """
-  @callback order_expression(
-              schema_name :: atom(),
-              field_name :: atom(),
-              field :: tuple(),
-              assigns :: map()
-            ) ::
-              Ecto.Query.dynamic_expr()
+  @callback option_labels(field :: tuple(), assigns :: map()) :: [{label :: term(), value :: term()}]
 
   @doc """
   Returns the files of the item as a list of strings.
@@ -382,7 +367,8 @@ defmodule Backpex.Field do
                       put_upload_change: 7,
                       consume_upload: 5,
                       remove_uploads: 4,
-                      upload_error: 4
+                      upload_error: 4,
+                      option_labels: 2
 
   @doc """
   Returns the default config schema.
@@ -469,16 +455,6 @@ defmodule Backpex.Field do
           [{^schema_name, schema_name}],
           schema_name |> field(^field_name) |> ilike(^search_string)
         )
-      end
-
-      @impl Backpex.Field
-      def search_condition(schema_name, field_name, search_string, _field, _assigns) do
-        search_condition(schema_name, field_name, search_string)
-      end
-
-      @impl Backpex.Field
-      def order_expression(schema_name, field_name, _field, _assigns) do
-        dynamic([{^schema_name, schema_name}], schema_name |> field(^field_name))
       end
 
       @impl Backpex.Field
