@@ -353,7 +353,7 @@ defmodule Backpex.Field do
         file: env.file,
         description: """
         #{inspect(env.module)} defines before_changeset/6, but the callback no longer receives the repo. Implement \
-        before_changeset/5 instead, see the guide on upgrading to v0.23.
+        before_changeset/5 instead, see the guide on upgrading to v0.24.
         """
     end
 
