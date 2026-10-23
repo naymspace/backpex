@@ -68,6 +68,10 @@ msgid "Cancel"
 msgstr ""
 
 #, elixir-autogen, elixir-format
+msgid "Cancel %{name}"
+msgstr ""
+
+#, elixir-autogen, elixir-format
 msgid "Choose %{resource} ..."
 msgstr ""
 
@@ -85,6 +89,10 @@ msgstr ""
 
 #, elixir-autogen, elixir-format
 msgid "Delete"
+msgstr ""
+
+#, elixir-autogen, elixir-format
+msgid "Delete entry %{index}"
 msgstr ""
 
 #, elixir-autogen, elixir-format
@@ -109,6 +117,10 @@ msgstr ""
 
 #, elixir-autogen, elixir-format
 msgid "Error in relation with index %{index}"
+msgstr ""
+
+#, elixir-autogen, elixir-format
+msgid "file could not be uploaded"
 msgstr ""
 
 #, elixir-autogen, elixir-format
@@ -169,6 +181,14 @@ msgstr ""
 
 #, elixir-autogen, elixir-format
 msgid "Previous Page"
+msgstr ""
+
+#, elixir-autogen, elixir-format
+msgid "Remove %{name}"
+msgstr ""
+
+#, elixir-autogen, elixir-format
+msgid "remove the files that can't be uploaded"
 msgstr ""
 
 #, elixir-autogen, elixir-format
@@ -268,11 +288,15 @@ msgid "unacceptable file type"
 msgstr ""
 
 #, elixir-autogen, elixir-format
-msgid "Unselect %{label}"
+msgid "Upload a file"
 msgstr ""
 
 #, elixir-autogen, elixir-format
-msgid "Upload a file"
+msgid "upload could not be started"
+msgstr ""
+
+#, elixir-autogen, elixir-format
+msgid "upload failed"
 msgstr ""
 
 #, elixir-autogen, elixir-format

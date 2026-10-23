@@ -25,7 +25,7 @@ defmodule Mix.Tasks.Backpex.Install.Docs do
     - Installs [daisyUI](installation.html#daisyui) via npm (with your permission)
     - Sets up the [formatter configuration](installation.html#setup-formatter)
     - Adds [Backpex files to Tailwind content](installation.html#add-files-to-tailwind-content)
-    - Adds routes to your router
+    - Adds `import Backpex.Router`, `backpex_routes()` and a `live_session` with `Backpex.InitAssigns` to an `/admin` scope in your router
     - Creates a default admin layout
     - Checks for and offers to remove the [default background color](installation.html#remove-default-background-color)
     - Checks for and offers to remove the [@tailwindcss/forms plugin](installation.html#remove-tailwindcssforms-plugin)
@@ -41,6 +41,7 @@ defmodule Mix.Tasks.Backpex.Install.Docs do
     * `--app-js-path` - Path to your app.js or app.ts file (auto-detected by default)
     * `--app-css-path` - Path to your app.css file (default: "assets/css/app.css")
     * `--no-layout` - Skip generating the admin layout
+    * `--yes` - Answer all confirmation prompts with yes (also applied when no TTY is attached, e.g. in CI)
     """
   end
 end
@@ -61,17 +62,24 @@ if Code.ensure_loaded?(Igniter) and Code.ensure_loaded?(IgniterJs) do
     alias Igniter.Project.Module
     alias Igniter.Util.IO, as: IgniterIO
     alias Igniter.Util.Warning
+    alias IgniterJs.Helpers
     alias IgniterJs.Parsers.Javascript.Parser
 
     @default_app_css_path Path.join(["assets", "css", "app.css"])
     @hooks "...BackpexHooks"
     @imports "import { Hooks as BackpexHooks, backpexParams } from 'backpex'"
     @daisyui_version "daisyui@5"
+    @admin_scope "/admin"
+    @live_session String.trim_trailing("""
+                  live_session :backpex_admin, on_mount: Backpex.InitAssigns do
+                    # live_resources "/posts", PostLive
+                  end
+                  """)
 
     @impl Igniter.Mix.Task
     def info(_argv, _composing_task) do
       %Info{
-        adds_deps: [igniter_js: "~> 0.4"],
+        adds_deps: [igniter_js: "~> 0.5"],
         example: __MODULE__.Docs.example(),
         schema: [app_js_path: :string, app_css_path: :string, no_layout: :boolean],
         defaults: [app_js_path: nil, app_css_path: @default_app_css_path, no_layout: false]
@@ -120,12 +128,18 @@ if Code.ensure_loaded?(Igniter) and Code.ensure_loaded?(IgniterJs) do
 
     defp show_tailwind_warning(igniter, version_info) do
       message =
-        "No compatible Tailwind version found in config.exs (#{version_info}). Backpex requires Tailwind CSS >= 4.x.x. Do you want to continue anyway? Installation may not work correctly."
+        "No compatible Tailwind version found in config.exs (#{version_info}). Backpex requires Tailwind CSS >= 4.x.x."
 
-      if IgniterIO.yes?(message) do
-        igniter
-      else
-        Mix.raise("Installation cancelled. Please install Tailwind CSS >= 4.x.x and try again.")
+      cond do
+        # With --yes the prompt is skipped, so keep the hint in the summary.
+        igniter.args.options[:yes] ->
+          Igniter.add_warning(igniter, message <> " Installation may not work correctly.")
+
+        IgniterIO.yes?(message <> " Do you want to continue anyway? Installation may not work correctly.") ->
+          igniter
+
+        true ->
+          Mix.raise("Installation cancelled. Please install Tailwind CSS >= 4.x.x and try again.")
       end
     end
 
@@ -134,26 +148,95 @@ if Code.ensure_loaded?(Igniter) and Code.ensure_loaded?(IgniterJs) do
     defp install_backpex_hooks(igniter) do
       app_js_path = igniter.args.options[:app_js_path] || detect_app_file_path(igniter)
 
-      with {:ok, content} <- IgniterJs.Helpers.read_and_validate_file(app_js_path),
-           {:ok, _fun, content} <- Parser.insert_imports(content, @imports, :content),
-           {:ok, _fun, content} <- Parser.extend_hook_object(content, @hooks, :content) do
-        igniter
-        |> Igniter.create_new_file(app_js_path, content, on_exists: :overwrite)
-        |> Igniter.add_notice("""
-        Wrap your LiveSocket connect params with backpexParams in #{app_js_path}:
+      if Igniter.exists?(igniter, app_js_path) do
+        igniter = Igniter.include_existing_file(igniter, app_js_path)
+        content = igniter.rewrite |> Rewrite.source!(app_js_path) |> Rewrite.Source.get(:content)
 
-            const liveSocket = new LiveSocket('/live', Socket, {
-              params: backpexParams({ _csrf_token: csrfToken }),
-              hooks: { ...BackpexHooks }
-            })
+        case add_backpex_hooks(content, Helpers.dialect_of_path(app_js_path)) do
+          {:ok, ^content} ->
+            igniter
 
-        Without it, preferences written after the websocket connects (hidden
-        columns, hidden metrics) reappear on the next live navigation.
-        """)
+          {:ok, new_content} ->
+            igniter
+            |> Igniter.update_file(app_js_path, &Rewrite.Source.update(&1, :content, new_content))
+            |> add_backpex_params_notice(app_js_path)
+
+          {:error, error} ->
+            warn_manual_hooks(igniter, "Failed to modify #{app_js_path} (#{error}).")
+        end
       else
-        {:error, _fun, error} -> Mix.raise("Failed to modify app file: #{error}")
-        {:error, error} -> Mix.raise("Could not read app file: #{error}")
+        warn_manual_hooks(igniter, "Could not find #{app_js_path}.")
       end
+    end
+
+    defp add_backpex_hooks(content, dialect) do
+      with {:ok, content} <- maybe_insert_backpex_imports(content, dialect) do
+        maybe_extend_hook_object(content, dialect)
+      end
+    end
+
+    # igniter_js reformats the whole file, so only call it when the import or hook is actually missing.
+    # Check for the binding itself: igniter_js merges it into an existing import from "backpex".
+    defp maybe_insert_backpex_imports(content, dialect) do
+      if Regex.match?(~r/import\s*\{[^}]*\bas\s+BackpexHooks\b[^}]*\}\s*from\s*["']backpex["']/, content) do
+        {:ok, content}
+      else
+        case Parser.insert_imports(content, @imports, :content, dialect: dialect) do
+          {:ok, _fun, content} -> {:ok, content}
+          {:error, _fun, error} -> {:error, inspect(error)}
+        end
+      end
+    end
+
+    defp maybe_extend_hook_object(content, dialect) do
+      cond do
+        String.contains?(content, @hooks) ->
+          {:ok, content}
+
+        # extend_hook_object/3 always parses as JavaScript and drops TypeScript annotations.
+        dialect != "js" ->
+          {:error, "the hooks can only be added to JavaScript files automatically"}
+
+        true ->
+          case Parser.extend_hook_object(content, @hooks, :content) do
+            {:ok, _fun, content} -> {:ok, content}
+            {:error, _fun, error} -> {:error, inspect(error)}
+          end
+      end
+    end
+
+    defp add_backpex_params_notice(igniter, app_js_path) do
+      Igniter.add_notice(igniter, """
+      Wrap your LiveSocket connect params with backpexParams in #{app_js_path}:
+
+          #{@imports}
+
+          const liveSocket = new LiveSocket('/live', Socket, {
+            params: backpexParams({ _csrf_token: csrfToken }),
+            hooks: { ...BackpexHooks }
+          })
+
+      Without it, preferences written after the websocket connects (hidden
+      columns, hidden metrics) reappear on the next live navigation.
+      """)
+    end
+
+    defp warn_manual_hooks(igniter, reason) do
+      Igniter.add_warning(igniter, manual_hooks_warning(reason))
+    end
+
+    # Warning.formatted_warning/2 runs the sample through the Elixir formatter, so build the JS sample by hand.
+    defp manual_hooks_warning(reason) do
+      """
+      #{reason} Please add the Backpex hooks to your app.js manually:
+
+          #{@imports}
+
+          const liveSocket = new LiveSocket('/live', Socket, {
+            params: backpexParams({ _csrf_token: csrfToken }),
+            hooks: { #{@hooks} }
+          })
+      """
     end
 
     # Auto-detect app.js or app.ts file
@@ -184,7 +267,7 @@ if Code.ensure_loaded?(Igniter) and Code.ensure_loaded?(IgniterJs) do
 
       with false <- Igniter.exists?(igniter, "assets/vendor/daisyui.js"),
            false <- IgniterHelpers.npm_package_installed?(@daisyui_version),
-           :ok <- install_daisyui_via_npm() do
+           :ok <- install_daisyui_via_npm(igniter) do
         igniter = IgniterHelpers.add_line_to_file(igniter, app_css_path, "@plugin \"daisyui\"")
         Igniter.add_notice(igniter, "Installed daisyUI via npm.")
       else
@@ -201,10 +284,10 @@ if Code.ensure_loaded?(Igniter) and Code.ensure_loaded?(IgniterJs) do
       end
     end
 
-    defp install_daisyui_via_npm do
+    defp install_daisyui_via_npm(igniter) do
       cmd_opts = [stderr_to_stdout: true, env: [{"PATH", System.get_env("PATH")}]]
 
-      with true <- install_daisyui?(),
+      with true <- install_daisyui?(igniter),
            {_version, 0} <- System.cmd("npm", ["--version"], cmd_opts),
            {_output, 0} <- System.cmd("npm", ["i", "-D", @daisyui_version], cmd_opts) do
         :ok
@@ -214,8 +297,9 @@ if Code.ensure_loaded?(Igniter) and Code.ensure_loaded?(IgniterJs) do
       end
     end
 
-    defp install_daisyui? do
-      IgniterIO.yes?(
+    defp install_daisyui?(igniter) do
+      yes?(
+        igniter,
         "The following npm package is outdated or needs to be installed: '#{@daisyui_version}'. Do you want to install '#{@daisyui_version}' via npm?"
       )
     end
@@ -242,63 +326,118 @@ if Code.ensure_loaded?(Igniter) and Code.ensure_loaded?(IgniterJs) do
       web_module = Phoenix.web_module(igniter)
 
       case Phoenix.select_router(igniter) do
-        {igniter, nil} ->
-          Mix.shell().error("Could not find router")
-          igniter
-
-        {igniter, router} ->
-          with {:ok, {igniter, false}} <- IgniterHelpers.exists_in_module?(igniter, router, "import Backpex.Router"),
-               {:ok, {igniter, false}} <- IgniterHelpers.exists_in_module?(igniter, router, "backpex_routes()"),
-               {:ok, igniter} <-
-                 Module.find_and_update_module(igniter, router, &add_backpex_router_import(&1, igniter)) do
-            contents = """
-            pipe_through :browser
-            backpex_routes()
-            """
-
-            Phoenix.add_scope(igniter, "/", contents, arg2: web_module)
-          else
-            {:ok, {igniter, true}} ->
-              Mix.shell().info("Backpex routes already added")
-              igniter
-
-            {:error, igniter} ->
-              Warning.warn_with_code_sample(
-                igniter,
-                """
-                Failed to add backpex routes automatically. Please manually add the following to your router.ex:
-
-                1. Add the import at the top of your router file:
-                """,
-                "import Backpex.Router"
-              )
-              |> Warning.warn_with_code_sample(
-                """
-                2. Add the backpex routes in a scope with the browser pipeline:
-                """,
-                """
-                scope "/admin", #{Phoenix.web_module(igniter)} do
-                  pipe_through :browser
-                  backpex_routes()
-                end
-                """
-              )
-          end
+        {igniter, nil} -> warn_manual_routes(igniter, web_module)
+        {igniter, router} -> add_backpex_routes(igniter, router, web_module)
       end
     end
 
-    defp add_backpex_router_import(zipper, igniter) do
-      case Phoenix.move_to_router_use(igniter, zipper) do
-        {:ok, zipper} ->
-          {:ok, Common.add_code(zipper, "import Backpex.Router")}
+    defp add_backpex_routes(igniter, router, web_module) do
+      case Module.find_module(igniter, router) do
+        {:ok, {igniter, source, zipper}} ->
+          import? = IgniterHelpers.string_in_source?(source, "import Backpex.Router")
+          routes? = IgniterHelpers.string_in_source?(source, "backpex_routes()")
+          init_assigns? = IgniterHelpers.string_in_source?(source, "Backpex.InitAssigns")
 
-        _error ->
-          Mix.shell().error(
-            "Could not find router use. Please manually add the following line to your router: import Backpex.Router"
-          )
+          cond do
+            import? and routes? and init_assigns? ->
+              Mix.shell().info("Backpex routes already added")
+              igniter
 
-          {:ok, zipper}
+            # Without the import the scope would not compile, so leave the router alone.
+            not import? and not router_use?(igniter, zipper) ->
+              warn_manual_routes(igniter, web_module)
+
+            true ->
+              igniter
+              |> maybe_add_backpex_router_import(router, import?)
+              |> add_backpex_scope(router, web_module, routes?, init_assigns?)
+          end
+
+        {:error, igniter} ->
+          warn_manual_routes(igniter, web_module)
       end
+    end
+
+    defp router_use?(igniter, zipper) do
+      match?({:ok, _zipper}, Phoenix.move_to_router_use(igniter, zipper))
+    end
+
+    defp maybe_add_backpex_router_import(igniter, _router, true = _import?), do: igniter
+
+    defp maybe_add_backpex_router_import(igniter, router, false = _import?) do
+      Module.find_and_update_module!(igniter, router, fn zipper ->
+        {:ok, zipper} = Phoenix.move_to_router_use(igniter, zipper)
+        {:ok, Common.add_code(zipper, "import Backpex.Router")}
+      end)
+    end
+
+    defp add_backpex_scope(igniter, router, web_module, routes?, init_assigns?) do
+      contents =
+        for {present?, code} <- [{routes?, "backpex_routes()"}, {init_assigns?, @live_session}],
+            not present?,
+            into: "",
+            do: code <> "\n"
+
+      igniter
+      |> maybe_append_to_admin_scope(router, web_module, contents)
+      |> maybe_add_live_session_notice(init_assigns?)
+    end
+
+    # Only the import was missing, so there is nothing to add to the scope.
+    defp maybe_append_to_admin_scope(igniter, _router, _web_module, ""), do: igniter
+
+    defp maybe_append_to_admin_scope(igniter, router, web_module, contents) do
+      Phoenix.append_to_scope(igniter, @admin_scope, contents,
+        router: router,
+        arg2: web_module,
+        with_pipelines: [:browser]
+      )
+    end
+
+    defp maybe_add_live_session_notice(igniter, true = _init_assigns?), do: igniter
+
+    defp maybe_add_live_session_notice(igniter, false = _init_assigns?) do
+      Igniter.add_notice(igniter, """
+      Backpex added a `live_session` with `on_mount: Backpex.InitAssigns` to the
+      #{inspect(@admin_scope)} scope of your router. Add your LiveResources inside it:
+
+          live_session :backpex_admin, on_mount: Backpex.InitAssigns do
+            live_resources "/posts", PostLive
+          end
+
+      If the scope needs authentication or tenant hooks, list them before
+      Backpex.InitAssigns so it can read the user and tenant from the assigns:
+
+          on_mount: [{MyAppWeb.UserAuth, :require_authenticated}, Backpex.InitAssigns]
+
+      Put backpex_routes() behind the same authentication pipelines.
+      """)
+    end
+
+    defp warn_manual_routes(igniter, web_module) do
+      Warning.warn_with_code_sample(
+        igniter,
+        """
+        Failed to add backpex routes automatically. Please manually add the following to your router.ex:
+
+        1. Add the import at the top of your router file:
+        """,
+        "import Backpex.Router"
+      )
+      |> Warning.warn_with_code_sample(
+        """
+        2. Add the backpex routes and a live_session with Backpex.InitAssigns in a scope with the browser pipeline:
+        """,
+        """
+        scope #{inspect(@admin_scope)}, #{inspect(web_module)} do
+          pipe_through :browser
+
+          backpex_routes()
+
+          #{@live_session}
+        end
+        """
+      )
     end
 
     # Creates default admin layout
@@ -324,18 +463,18 @@ if Code.ensure_loaded?(Igniter) and Code.ensure_loaded?(IgniterJs) do
       root_layout_path = Path.join([web_folder_path, "components", "layouts", "root.html.heex"])
 
       if Igniter.exists?(igniter, root_layout_path) do
-        Igniter.update_file(igniter, root_layout_path, &maybe_remove_bg_white/1)
+        Igniter.update_file(igniter, root_layout_path, &maybe_remove_bg_white(&1, igniter))
       else
         Igniter.add_warning(igniter, "root.html.heex not found at #{root_layout_path}")
       end
     end
 
-    defp maybe_remove_bg_white(source) do
+    defp maybe_remove_bg_white(source, igniter) do
       root_layout_content = Rewrite.Source.get(source, :content)
       body_tag_with_bg_white = "<body class=\"bg-white\">"
 
       if String.contains?(root_layout_content, body_tag_with_bg_white) do
-        if remove_bg_white?() do
+        if remove_bg_white?(igniter) do
           new_content = String.replace(root_layout_content, body_tag_with_bg_white, "<body>")
           Rewrite.Source.update(source, :content, new_content)
         else
@@ -346,8 +485,9 @@ if Code.ensure_loaded?(Igniter) and Code.ensure_loaded?(IgniterJs) do
       end
     end
 
-    defp remove_bg_white? do
-      Mix.shell().yes?(
+    defp remove_bg_white?(igniter) do
+      yes?(
+        igniter,
         "A background color at the body could cause issues with the backpex app_shell component. Do you want to remove it? See: https://hexdocs.pm/backpex/installation.html#remove-default-background-color"
       )
     end
@@ -359,7 +499,7 @@ if Code.ensure_loaded?(Igniter) and Code.ensure_loaded?(IgniterJs) do
       line = "@plugin \"@tailwindcss/forms\""
 
       if Igniter.exists?(igniter, app_css_path) do
-        Igniter.update_file(igniter, app_css_path, &maybe_remove_tailwind_forms_plugin(&1, line))
+        Igniter.update_file(igniter, app_css_path, &maybe_remove_tailwind_forms_plugin(&1, line, igniter))
       else
         Warning.warn_with_code_sample(
           igniter,
@@ -372,19 +512,23 @@ if Code.ensure_loaded?(Igniter) and Code.ensure_loaded?(IgniterJs) do
       end
     end
 
-    defp maybe_remove_tailwind_forms_plugin(source, line) do
+    defp maybe_remove_tailwind_forms_plugin(source, line, igniter) do
       app_css_content = Rewrite.Source.get(source, :content)
 
       with true <- String.contains?(app_css_content, line),
-           true <- remove_tailwind_forms_plugin?(line) do
+           true <- remove_tailwind_forms_plugin?(igniter, line) do
         Rewrite.Source.update(source, :content, &String.replace(&1, line, ""))
       else
         _false -> source
       end
     end
 
-    defp remove_tailwind_forms_plugin?(line) do
-      Mix.shell().yes?("The following line could cause issues with daisyUI: #{line}. Do you want to remove it?")
+    defp remove_tailwind_forms_plugin?(igniter, line) do
+      yes?(igniter, "The following line could cause issues with daisyUI: #{line}. Do you want to remove it?")
+    end
+
+    defp yes?(igniter, message) do
+      igniter.args.options[:yes] || IgniterIO.yes?(message)
     end
   end
 else
