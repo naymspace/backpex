@@ -17,24 +17,17 @@ defmodule Backpex.Fields.OptionLabels do
   end
 
   @doc """
-  Flattens possibly grouped options into a list of `{label, value}` tuples. An option without a label is its own label.
+  Normalizes all option shapes supported by `Phoenix.HTML.Form.options_for_select/2` into a flat list of
+  `{label, value}` tuples. An option without a label is its own label.
   """
   def flatten(options) do
-    options
-    |> Enum.map(fn
-      {_label, value} = option ->
-        case value do
-          value when is_list(value) or is_map(value) -> value
-          _value -> option
-        end
-
-      option ->
-        option
-    end)
-    |> List.flatten()
-    |> Enum.map(fn
-      {label, value} -> {label, value}
-      value -> {value, value}
+    Enum.flat_map(options, fn
+      {:hr, nil} -> []
+      {_group_label, group} when is_list(group) or (is_map(group) and not is_struct(group)) -> flatten(group)
+      {label, value} -> [{label, value}]
+      option when is_list(option) -> [{Keyword.fetch!(option, :key), Keyword.fetch!(option, :value)}]
+      :hr -> []
+      option -> [{option, option}]
     end)
   end
 

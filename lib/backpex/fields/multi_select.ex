@@ -139,6 +139,7 @@ defmodule Backpex.Fields.MultiSelect do
     socket
     |> assign(:search_input, "")
     |> assign(:show_select_all, show_select_all)
+    |> assign_filtered_options()
   end
 
   defp maybe_assign_form(socket), do: socket
@@ -174,7 +175,7 @@ defmodule Backpex.Fields.MultiSelect do
           readonly={@readonly}
           prompt={@prompt}
           not_found_text={@not_found_text}
-          options={@options}
+          options={@filtered_options}
           selected={@selected}
           search_input={@search_input}
           field_options={@field_options}
@@ -216,16 +217,13 @@ defmodule Backpex.Fields.MultiSelect do
 
   @impl Phoenix.LiveComponent
   def handle_event("search", params, socket) do
-    socket = assign_options(socket)
-    %{assigns: %{name: name, options: options}} = socket
+    %{assigns: %{form: form, name: name}} = socket
 
-    search_input = Map.get(params, "change[#{name}]_search")
-
-    options = apply_search(options, search_input)
+    search_input = Map.get(params, form[name].name <> "_search", "")
 
     socket
-    |> assign(:options, options)
     |> assign(:search_input, search_input)
+    |> assign_filtered_options()
     |> noreply()
   end
 
@@ -243,22 +241,34 @@ defmodule Backpex.Fields.MultiSelect do
     |> noreply()
   end
 
+  defp assign_filtered_options(socket) do
+    %{assigns: %{options: options, search_input: search_input}} = socket
+
+    assign(socket, :filtered_options, apply_search(options, search_input))
+  end
+
   defp apply_search(options, search_input) do
-    Enum.map(options, fn {label, value} -> filter_option(label, value, search_input) end) |> Enum.filter(& &1)
+    if String.trim(search_input) == "" do
+      options
+    else
+      search_input_downcase = String.downcase(search_input)
+
+      Enum.flat_map(options, &filter_option(&1, search_input_downcase))
+    end
   end
 
-  defp filter_option(label, value, search_input) when is_list(value) or is_map(value) do
-    search_input_downcase = String.downcase(search_input)
-
-    filtered =
-      Enum.filter(value, fn {_label, _value} -> String.downcase(label) |> String.contains?(search_input_downcase) end)
-
-    if not Enum.empty?(filtered), do: {label, filtered}
+  defp filter_option({label, options}, search_input_downcase) when is_list(options) do
+    case Enum.filter(options, &label_matches?(&1, search_input_downcase)) do
+      [] -> []
+      matching_options -> [{label, matching_options}]
+    end
   end
 
-  defp filter_option(label, _value, search_input) do
-    search_input_downcase = String.downcase(search_input)
+  defp filter_option(option, search_input_downcase) do
+    if label_matches?(option, search_input_downcase), do: [option], else: []
+  end
 
+  defp label_matches?({label, _value}, search_input_downcase) do
     label
     |> String.downcase()
     |> String.contains?(search_input_downcase)

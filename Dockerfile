@@ -7,7 +7,7 @@ ARG ELIXIR_VERSION=1.20.4
 # renovate: datasource=github-tags depName=erlang packageName=erlang/otp versioning=regex:^(?<major>\d+?)\.(?<minor>\d+?)(\.(?<patch>\d+))?$ extractVersion=^OTP-(?<version>\S+)
 ARG OTP_VERSION=29.1.1
 # renovate: datasource=docker depName=ubuntu packageName=ubuntu versioning=ubuntu
-ARG UBUNTU_VERSION=resolute-20260912
+ARG UBUNTU_VERSION=resolute-20260927
 # renovate: datasource=github-tags depName=bun packageName=oven-sh/bun versioning=semver extractVersion=^bun-v(?<version>\S+)
 ARG BUN_VERSION=1.4.2
 

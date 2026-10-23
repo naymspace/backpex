@@ -163,18 +163,12 @@ defmodule Backpex.Fields.Select do
   end
 
   defp get_label(value, options) do
-    option =
-      options
-      |> OptionLabels.flatten()
-      |> Enum.find(fn {_label, option_value} -> value?(option_value, value) end)
-
-    case option do
-      nil -> value
-      {label, _value} -> label
-    end
+    options
+    |> OptionLabels.flatten()
+    |> Enum.find_value(value, fn {label, option_value} ->
+      if to_string(option_value) == to_string(value), do: label
+    end)
   end
-
-  defp value?(value, to_compare), do: to_string(value) == to_string(to_compare)
 
   defp assign_prompt(assigns, field_options) do
     prompt =
