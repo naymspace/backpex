@@ -5,14 +5,22 @@ on:
   schedule:
     - cron: "0 6 * * 1" # Every Monday at 06:00 UTC
 
+permissions:
+  contents: read
+
 jobs:
   test:
     name: "Test backpex (Elixir main)"
     runs-on: ubuntu-latest
+    timeout-minutes: 15
 
     steps:
       - name: Checkout code
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Set runner image
+        # Part of the cache keys, so caches don't carry over to a new Ubuntu version behind ubuntu-latest
+        run: echo "RUNNER_IMAGE=$ImageOS" >> "$GITHUB_ENV"
 
       - uses: erlef/setup-beam@54075bcc5e249e4758d363f27d099f55d843f124 # v1.24.1
         id: beam
@@ -36,8 +44,8 @@ jobs:
           path: |
             deps
             _build
-          key: ${{ runner.os }}-elixir-${{ env.ELIXIR_VERSION }}-otp-${{ env.OTP_VERSION }}-build-deps-mixlockhash-${{ env.MIX_LOCK_HASH }}
-          restore-keys: ${{ runner.os }}-elixir-${{ env.ELIXIR_VERSION }}-otp-${{ env.OTP_VERSION }}-build-deps-
+          key: ${{ runner.os }}-${{ env.RUNNER_IMAGE }}-elixir-${{ env.ELIXIR_VERSION }}-otp-${{ env.OTP_VERSION }}-build-deps-mixlockhash-${{ env.MIX_LOCK_HASH }}
+          restore-keys: ${{ runner.os }}-${{ env.RUNNER_IMAGE }}-elixir-${{ env.ELIXIR_VERSION }}-otp-${{ env.OTP_VERSION }}-build-deps-
 
       - name: Install dependencies
         run: mix deps.get

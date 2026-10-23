@@ -15,10 +15,10 @@ ARG BUILDER_IMAGE="hexpm/elixir:${ELIXIR_VERSION}-erlang-${OTP_VERSION}-ubuntu-$
 ARG RUNTIME_IMAGE="ubuntu:${UBUNTU_VERSION}"
 
 ########################################################################
-# Stage: builder
+# Stage: base
 ########################################################################
 
-FROM ${BUILDER_IMAGE} AS builder
+FROM ${BUILDER_IMAGE} AS base
 
 ARG BUN_VERSION
 
@@ -41,7 +41,7 @@ RUN curl -fsSL https://deb.nodesource.com/setup_lts.x | bash - \
     && rm -rf /root/.bun
 
 COPY .docker/opt/scripts/ /opt/scripts
-ADD https://github.com/naymspace/env-secrets-expand/raw/main/env-secrets-expand.sh /opt/scripts/
+ADD https://github.com/naymspace/env-secrets-expand/raw/ed67c7928a5be6d24e25c084ac749006ef5347c1/env-secrets-expand.sh /opt/scripts/
 RUN chmod -R +x /opt/scripts/
 ENV PATH=/opt/scripts/:/opt/app/_build/prod/rel/demo/bin:$PATH
 
@@ -55,16 +55,15 @@ RUN bun install --frozen-lockfile
 RUN mkdir demo
 WORKDIR $APP_HOME/demo
 
-COPY lib ../lib/
 COPY mix.exs mix.lock .formatter.exs ../
 
 COPY demo/mix.exs demo/mix.lock ./
 RUN mix deps.get --only $MIX_ENV
 
 COPY demo/config/config.exs demo/config/${MIX_ENV}.exs config/
-RUN mix deps.compile
+# Backpex is compiled together with the demo, so changes to Backpex do not invalidate the compiled deps
+RUN mix deps.compile --skip-local-deps
 
-COPY demo/priv priv/
 COPY demo/package.json demo/bun.lock demo/bunfig.toml demo/.stylelintrc.json ./
 
 COPY assets ../assets/
@@ -72,11 +71,19 @@ COPY package.json ../
 
 RUN bun install --frozen-lockfile
 
+COPY lib ../lib/
+COPY demo/priv priv/
 COPY demo/assets assets/
 COPY demo/lib lib/
 
 RUN mix compile
 RUN mix assets.deploy
+
+########################################################################
+# Stage: builder
+########################################################################
+
+FROM base AS builder
 
 # Copy the rest of the application files
 COPY . ../
@@ -89,12 +96,15 @@ EXPOSE 4000
 # Stage: release
 ########################################################################
 
-FROM builder AS release
+FROM base AS release
 
 ENV MIX_ENV=prod
 
+COPY demo/config/runtime.exs config/
+COPY demo/rel rel/
+
 # Compile and create the release
-RUN mix do deps.get + deps.compile + assets.deploy + sentry.package_source_code + release --overwrite
+RUN mix do deps.get + deps.compile + sentry.package_source_code + release --overwrite
 
 ########################################################################
 # Stage: runtime
@@ -109,7 +119,7 @@ RUN apt-get update -y \
     && apt-get install -y libstdc++6 openssl libncurses6 locales ca-certificates wget \
     && apt-get clean && rm -f /var/lib/apt/lists/*_*
 
-COPY --from=builder /opt/scripts /opt/scripts
+COPY --from=base /opt/scripts /opt/scripts
 
 RUN chown -R nobody /opt
 

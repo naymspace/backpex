@@ -2,6 +2,7 @@
 defmodule DocTest do
   use ExUnit.Case, async: true
 
+  doctest Backpex.Field
   doctest Backpex.LiveResource
   doctest Backpex.ResourceAction
   doctest Backpex.Resource

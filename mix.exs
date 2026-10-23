@@ -1,7 +1,7 @@
 defmodule Backpex.MixProject do
   use Mix.Project
 
-  @version "0.21.0"
+  @version "0.22.0"
 
   @source_url "https://github.com/naymspace/backpex"
   @changelog_url "https://github.com/naymspace/backpex/releases"
@@ -199,6 +199,7 @@ defmodule Backpex.MixProject do
       "guides/translations/translations.md",
 
       # Upgrade Guides
+      "guides/upgrading/v0.24.md",
       "guides/upgrading/v0.22.md",
       "guides/upgrading/v0.21.md",
       "guides/upgrading/v0.20.md",
