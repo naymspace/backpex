@@ -207,7 +207,7 @@ defmodule Backpex.Filter do
       def condition(_field, _value, _assigns) do
         raise """
         You must implement the condition/3 callback in your filter module. Filters no longer build queries with
-        query/4, see the guide on upgrading to v0.23.
+        query/4, see the guide on upgrading to v0.24.
 
         Example:
 
@@ -230,7 +230,7 @@ defmodule Backpex.Filter do
         file: env.file,
         description: """
         #{inspect(env.module)} defines query/4, but filters no longer build queries. Return a condition from \
-        condition/3 instead, see the guide on upgrading to v0.23.
+        condition/3 instead, see the guide on upgrading to v0.24.
         """
     end
   end

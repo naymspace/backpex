@@ -74,7 +74,7 @@ defmodule Backpex.Metric do
         file: env.file,
         description: """
         #{inspect(env.module)} defines query/3, but metrics no longer query their data. Implement \
-        Backpex.Metric.data/3 instead, see the guide on upgrading to v0.23.
+        Backpex.Metric.data/3 instead, see the guide on upgrading to v0.24.
         """
     end
   end
