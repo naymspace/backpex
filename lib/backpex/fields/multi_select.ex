@@ -23,8 +23,6 @@ defmodule Backpex.Fields.MultiSelect do
   @moduledoc """
   A field for handling a multi select with predefined options.
 
-  This field can not be searchable.
-
   ## Field-specific options
 
   See `Backpex.Field` for general field options.
@@ -42,8 +40,21 @@ defmodule Backpex.Fields.MultiSelect do
             options: fn _assigns -> [{"Alex", "user_id_alex"}, {"Bob", "user_id_bob"}] end
           },
         ]
+
+  ## Ordering and searching
+
+  The index view orders and searches this field by the labels of the selected options, in the order of the options and
+  joined with `", "`, instead of the stored values. A search matches a row if this text contains the search term.
+  Values without an option are left out, like when rendering the field.
+
+  If you translate the labels in an `options` function, they are ordered and searched in the locale of the current
+  user. See `Backpex.Fields.Select` for which assigns the function receives when ordering or searching.
+
+  The labels come from `c:Backpex.Field.option_labels/2`. The `Backpex.Adapters.Ecto` adapter requires PostgreSQL to
+  order and search by them.
   """
   use Backpex.Field, config_schema: @config_schema
+  alias Backpex.Fields.OptionLabels
   alias Backpex.HTML.Form
   require Backpex
 
@@ -264,6 +275,9 @@ defmodule Backpex.Fields.MultiSelect do
     |> String.downcase()
     |> String.contains?(search_input_downcase)
   end
+
+  @impl Backpex.Field
+  def option_labels(field, assigns), do: OptionLabels.option_labels(field, assigns)
 
   defp prompt(assigns, field_options) do
     case Map.get(field_options, :prompt) do

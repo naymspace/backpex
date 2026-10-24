@@ -259,9 +259,11 @@ defmodule Backpex.Field do
 
   The index view orders and searches a field that implements this callback by these labels instead of the stored
   values, so the results match what the user sees, e.g. translated labels. Values without a label are ordered and
-  searched by the stored value. Receives the field and the assigns of the index view, without the assigns of a row:
-  `:item` is `nil`, or the `base_schema` of a resource action while one is open, and assigns such as `:value` are not
-  set.
+  searched by the stored value. A field of an array column is ordered and searched by the labels of its values, in the
+  order of the labels and joined with `", "`.
+
+  Receives the field and the assigns of the index view, without the assigns of a row: `:item` is `nil`, or the
+  `base_schema` of a resource action while one is open, and assigns such as `:value` are not set.
 
   The adapter turns the labels into a query, so this callback does not depend on the data layer. The Ecto adapter
   requires PostgreSQL for it.
