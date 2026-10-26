@@ -7,12 +7,17 @@ defmodule Backpex.MixProject do
   @changelog_url "https://github.com/naymspace/backpex/releases"
   @website_url "https://backpex.live"
 
+  # The integration tests in `integration_test` run the LiveResources of a test app against PostgreSQL and in a browser.
+  # Their dependencies need Elixir 1.19, so older versions of Elixir only run the unit tests in `test`.
+  @integration_tests Version.match?(System.version(), ">= 1.19.0")
+
   def project do
     [
       app: :backpex,
       version: @version,
       elixir: "~> 1.16",
       elixirc_paths: elixirc_paths(Mix.env()),
+      test_paths: if(@integration_tests, do: ["test", "integration_test"], else: ["test"]),
       compilers: [:phoenix_live_view] ++ Mix.compilers(),
       start_permanent: Mix.env() == :prod,
       deps: deps(),
@@ -33,14 +38,17 @@ defmodule Backpex.MixProject do
     ]
   end
 
-  defp elixirc_paths(:test), do: ["lib", "test/support"]
+  defp elixirc_paths(:test) do
+    if @integration_tests, do: ["lib", "test/support", "integration_test/support"], else: ["lib", "test/support"]
+  end
+
   defp elixirc_paths(_), do: ["lib"]
 
   # The threshold is the floor of the merged coverage of the unit and browser tests in CI. Raise it when coverage grows.
   defp test_coverage do
     [
-      summary: [threshold: 0],
-      ignore_modules: [~r/^Backpex\.Test\./]
+      summary: [threshold: 88],
+      ignore_modules: [~r/^Backpex\.(Test\.|ConnCase|DataCase|E2ECase)/]
     ]
   end
 
@@ -55,13 +63,6 @@ defmodule Backpex.MixProject do
       {:sobelow, ">= 0.0.0", only: [:dev, :test]},
       {:lazy_html, ">= 0.0.0", only: :test},
       {:phx_new, "~> 1.8", only: :test, runtime: false},
-      {:ecto_sql, "~> 3.10", only: :test},
-      {:bandit, "~> 1.14", only: :test},
-      {:phoenix_test, "~> 0.13.0", only: :test, runtime: false},
-      {:phoenix_test_playwright, "~> 0.19.0", only: :test, runtime: false},
-      {:a11y_audit, "~> 0.5.0", only: :test},
-      {:ex_machina, "~> 2.8", only: :test},
-      {:money, "~> 1.14", only: :test},
       {:esbuild, "~> 0.10", only: :dev},
       {:quokka, "~> 2.9", only: [:dev, :test], runtime: false},
       {:usage_rules, "~> 0.1", only: [:dev]},
@@ -84,7 +85,23 @@ defmodule Backpex.MixProject do
       # generators
       {:igniter, "~> 0.8", optional: true},
       {:igniter_js, "~> 0.5", optional: true}
-    ]
+    ] ++ integration_test_deps()
+  end
+
+  defp integration_test_deps do
+    if @integration_tests do
+      [
+        {:ecto_sql, "~> 3.10", only: :test},
+        {:bandit, "~> 1.14", only: :test},
+        {:phoenix_test, "~> 0.13.0", only: :test, runtime: false},
+        {:phoenix_test_playwright, "~> 0.19.0", only: :test, runtime: false},
+        {:a11y_audit, "~> 0.5.0", only: :test},
+        {:ex_machina, "~> 2.8", only: :test},
+        {:money, "~> 1.14", only: :test}
+      ]
+    else
+      []
+    end
   end
 
   defp package do

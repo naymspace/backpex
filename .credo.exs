@@ -43,6 +43,7 @@ project_checks =
         included: [
           "lib/",
           "test/",
+          "integration_test/",
           "priv/"
         ],
         excluded: [~r"/_build/", ~r"/deps/", ~r"/node_modules/"]

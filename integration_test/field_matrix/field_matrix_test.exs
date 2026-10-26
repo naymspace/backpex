@@ -40,7 +40,7 @@ defmodule Backpex.Integration.FieldMatrixTest do
   ]
 
   # Fields that need a relation or an upload. They are rendered in every view of their LiveResource; saving them is
-  # covered by the tests of each field in `test/integration/fields`.
+  # covered by the tests of each field in `integration_test/fields`.
   @relation_fields [
     {Backpex.Fields.BelongsTo, path: "/admin/samples", factory: :sample, field: :category},
     {Backpex.Fields.Upload, path: "/admin/samples", factory: :sample, field: :upload},

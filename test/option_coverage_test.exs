@@ -107,7 +107,7 @@ defmodule Backpex.OptionCoverageTest do
   end
 
   defp used_options do
-    "test/**/*.{ex,exs}"
+    "{test,integration_test}/**/*.{ex,exs}"
     |> Path.wildcard()
     |> Enum.reject(&(&1 == Path.relative_to_cwd(__ENV__.file)))
     |> Enum.flat_map(&file_options/1)

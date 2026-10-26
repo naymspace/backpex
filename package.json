@@ -25,10 +25,10 @@
     "assets/js/**"
   ],
   "scripts": {
-    "format:standard": "standard assets/js test/js test/e2e/assets --fix",
-    "lint:standard": "standard assets/js test/js test/e2e/assets",
+    "format:standard": "standard assets/js test/js integration_test/e2e/assets --fix",
+    "lint:standard": "standard assets/js test/js integration_test/e2e/assets",
     "test:js": "bun test test/js",
-    "e2e:assets": "bun build test/e2e/assets/app.js --outdir tmp/e2e/assets && tailwindcss --input test/e2e/assets/app.css --output tmp/e2e/assets/app.css",
+    "e2e:assets": "bun build integration_test/e2e/assets/app.js --outdir tmp/e2e/assets && tailwindcss --input integration_test/e2e/assets/app.css --output tmp/e2e/assets/app.css",
     "e2e:install": "playwright install chromium --with-deps --only-shell"
   },
   "standard": {

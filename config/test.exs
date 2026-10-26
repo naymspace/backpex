@@ -37,7 +37,7 @@ config :backpex, Repo,
   database: "backpex_test#{System.get_env("MIX_TEST_PARTITION")}",
   pool: Ecto.Adapters.SQL.Sandbox,
   pool_size: System.schedulers_online() * 2,
-  priv: "test/support/app/priv",
+  priv: "integration_test/support/app/priv",
   migration_primary_key: [name: :id, type: :binary_id],
   log: false
 
