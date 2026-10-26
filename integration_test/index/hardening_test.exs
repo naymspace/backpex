@@ -45,10 +45,10 @@ defmodule Backpex.Integration.Index.HardeningTest do
           "filters[published]=published&filters[likes]=abc",
           "filters[likes][start][a]=b&filters[inserted_at][end][a]=b"
         ] do
-      {:ok, _view, html} = live(conn, "/admin/posts?" <> query)
-
-      assert html =~ "Published Post"
-      assert html =~ "Draft Post"
+      conn
+      |> visit("/admin/posts?" <> query)
+      |> assert_has("td", text: "Published Post")
+      |> assert_has("td", text: "Draft Post")
     end
   end
 

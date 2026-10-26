@@ -1,8 +1,6 @@
 defmodule Backpex.Integration.Index.OrderingTest do
   use Backpex.ConnCase, async: true
 
-  import Phoenix.LiveViewTest
-
   # Tags have `init_order: %{by: :name, direction: :desc}`.
   describe "init_order as a map" do
     setup do
@@ -50,16 +48,16 @@ defmodule Backpex.Integration.Index.OrderingTest do
       conn
       |> visit(~p"/admin/tags")
       |> assert_order(["Gamma", "Beta", "Alpha"])
-      |> click_column("Name")
+      |> click_link("thead a", "Name")
       |> assert_order(["Alpha", "Beta", "Gamma"])
     end
 
     test "clicking the column header twice returns to the original direction", %{conn: conn} do
       conn
       |> visit(~p"/admin/tags")
-      |> click_column("Name")
+      |> click_link("thead a", "Name")
       |> assert_order(["Alpha", "Beta", "Gamma"])
-      |> click_column("Name")
+      |> click_link("thead a", "Name")
       |> assert_order(["Gamma", "Beta", "Alpha"])
     end
   end
@@ -139,7 +137,7 @@ defmodule Backpex.Integration.Index.OrderingTest do
       conn
       |> visit(~p"/admin/short-links")
       |> assert_order(["aaa", "bbb", "ccc"])
-      |> click_column("URL Suffix")
+      |> click_link("thead a", "URL Suffix")
       |> assert_order(["ccc", "bbb", "aaa"])
     end
   end
@@ -151,14 +149,6 @@ defmodule Backpex.Integration.Index.OrderingTest do
     |> Enum.with_index(1)
     |> Enum.reduce(session, fn {text, index}, session ->
       assert_has(session, "table tbody tr:nth-child(#{index}) td", text: text)
-    end)
-  end
-
-  defp click_column(session, label) do
-    unwrap(session, fn view ->
-      view
-      |> element("a", label)
-      |> render_click()
     end)
   end
 end

@@ -33,13 +33,10 @@ defmodule Backpex.Integration.Authorization.UploadsTest do
   end
 
   test "removes a file the item has", %{conn: conn, product: product, own_file: own_file, paths: paths} do
-    {:ok, view, _html} = live(conn, ~p"/admin/products/#{product.id}/edit")
-
-    view
-    |> element("button[phx-click='cancel-existing-entry'][phx-value-ref='#{own_file}']")
-    |> render_click()
-
-    save_product_form(view)
+    conn
+    |> visit(~p"/admin/products/#{product.id}/edit")
+    |> click_button("Remove #{own_file}")
+    |> click_button("Save")
 
     refute File.exists?(paths.own)
     assert Repo.reload!(product).images == []
@@ -53,15 +50,14 @@ defmodule Backpex.Integration.Authorization.UploadsTest do
     canary_file: canary_file,
     paths: paths
   } do
-    {:ok, view, _html} = live(conn, ~p"/admin/products/#{product.id}/edit")
+    session = visit(conn, ~p"/admin/products/#{product.id}/edit")
 
-    for ref <- [foreign_file, "../../../#{canary_file}"] do
-      view
-      |> with_target("#form-component")
-      |> render_click("cancel-existing-entry", %{"ref" => ref, "id" => "images"})
-    end
+    session =
+      Enum.reduce([foreign_file, "../../../#{canary_file}"], session, fn ref, session ->
+        forge_cancel_existing_entry(session, %{"ref" => ref, "id" => "images"})
+      end)
 
-    save_product_form(view)
+    click_button(session, "Save")
 
     assert File.exists?(paths.foreign)
     assert File.exists?(paths.canary)
@@ -70,19 +66,17 @@ defmodule Backpex.Integration.Authorization.UploadsTest do
   end
 
   test "an unknown upload key is ignored", %{conn: conn, product: product, own_file: own_file} do
-    {:ok, view, _html} = live(conn, ~p"/admin/products/#{product.id}/edit")
-
-    view
-    |> with_target("#form-component")
-    |> render_click("cancel-existing-entry", %{"ref" => own_file, "id" => "no_such_upload_key"})
-
-    assert has_element?(view, "button[phx-click='cancel-existing-entry'][phx-value-ref='#{own_file}']")
+    conn
+    |> visit(~p"/admin/products/#{product.id}/edit")
+    |> forge_cancel_existing_entry(%{"ref" => own_file, "id" => "no_such_upload_key"})
+    |> assert_has("button[phx-click='cancel-existing-entry'][phx-value-ref='#{own_file}']")
   end
 
-  defp save_product_form(view) do
-    view
-    |> form("#resource-form")
-    |> put_submitter("button[value=save]")
-    |> render_submit()
+  defp forge_cancel_existing_entry(session, params) do
+    unwrap(session, fn view ->
+      view
+      |> with_target("#form-component")
+      |> render_click("cancel-existing-entry", params)
+    end)
   end
 end

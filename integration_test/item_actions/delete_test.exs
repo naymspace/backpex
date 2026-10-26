@@ -1,21 +1,16 @@
 defmodule Backpex.Integration.ItemActions.DeleteTest do
   use Backpex.ConnCase, async: true
 
-  import Phoenix.LiveViewTest
-
   setup do
     %{category: insert(:category, name: "Elixir")}
   end
 
-  test "deletes the item from the index view", %{conn: conn, category: category} do
+  test "deletes the item from the index view", %{conn: conn} do
     conn
     |> visit(~p"/admin/categories")
     |> assert_has("td", text: "Elixir", exact: true)
-    |> unwrap(fn view ->
-      view
-      |> element("button[aria-label='Delete'][phx-value-item-id='#{category.id}']")
-      |> render_click()
-    end)
+    # The toolbar has a "Delete" button for the selected items, too.
+    |> within("table", &click_button(&1, "Delete"))
     |> confirm()
     |> assert_path(~p"/admin/categories")
     |> refute_has("td", text: "Elixir", exact: true)
@@ -26,7 +21,7 @@ defmodule Backpex.Integration.ItemActions.DeleteTest do
     conn
     |> visit(~p"/admin/categories/#{category.id}/show")
     |> assert_has("dd", text: "Elixir", exact: true)
-    |> unwrap(fn view -> view |> element("#item-action-delete") |> render_click() end)
+    |> click_button("Delete")
     |> confirm()
     |> assert_path(~p"/admin/categories")
     |> refute_has("td", text: "Elixir", exact: true)
@@ -34,6 +29,6 @@ defmodule Backpex.Integration.ItemActions.DeleteTest do
   end
 
   defp confirm(session) do
-    unwrap(session, fn view -> view |> form("#resource-form") |> render_submit() end)
+    within(session, "#resource-form", &click_button(&1, "Delete"))
   end
 end

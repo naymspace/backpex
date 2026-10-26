@@ -1,8 +1,6 @@
 defmodule Backpex.Integration.ItemActions.OpenFromUrlTest do
   use Backpex.ConnCase, async: true
 
-  import Phoenix.LiveViewTest
-
   setup do
     %{tag: insert(:tag, name: "Elixir")}
   end
@@ -12,10 +10,10 @@ defmodule Backpex.Integration.ItemActions.OpenFromUrlTest do
       conn
       |> visit(~p"/admin/tags/#{tag.id}/show?item_action=duplicate")
       |> assert_has("form#resource-form")
-      |> unwrap(fn view ->
-        view
-        |> form("#resource-form", change: %{name: "Elixir Copy"})
-        |> render_submit()
+      |> within("#resource-form", fn session ->
+        session
+        |> fill_in("Name", with: "Elixir Copy")
+        |> click_button("Duplicate")
       end)
       |> assert_has("dd", text: "Elixir Copy", exact: true)
     end

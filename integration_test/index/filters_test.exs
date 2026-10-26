@@ -1,10 +1,9 @@
 defmodule Backpex.Integration.Index.FiltersTest do
   use Backpex.ConnCase, async: true
 
-  import Phoenix.LiveViewTest
-
   # Posts have a `published` filter with the default `["published"]`. Visiting `/admin/posts` without filter params
-  # redirects to the URL with this default.
+  # redirects to the URL with this default. The likes and created at range filters both label their inputs "From" and
+  # "To", so the likes inputs are targeted by name.
 
   describe "boolean filter" do
     setup do
@@ -41,7 +40,7 @@ defmodule Backpex.Integration.Index.FiltersTest do
       conn
       |> visit(~p"/admin/posts")
       |> assert_has("table tbody tr", count: 1)
-      |> change_filters(%{published: ["published", "not_published"]})
+      |> check("Not published")
       |> assert_has("table tbody tr", count: 2)
       |> assert_has("td", text: "Published Post")
       |> assert_has("td", text: "Draft Post")
@@ -68,7 +67,7 @@ defmodule Backpex.Integration.Index.FiltersTest do
       conn
       |> visit(~p"/admin/posts")
       |> assert_has("table tbody tr", count: 2)
-      |> change_filters(%{category_id: category.id})
+      |> select("Select category ...", option: category.name)
       |> assert_has("table tbody tr", count: 1)
       |> assert_has("td", text: "Tech Post")
       |> refute_has("td", text: "Sports Post")
@@ -109,7 +108,7 @@ defmodule Backpex.Integration.Index.FiltersTest do
       conn
       |> visit(~p"/admin/posts")
       |> assert_has("table tbody tr", count: 3)
-      |> change_filters(%{user_id: [alice.id]})
+      |> check("#{alice.first_name} #{alice.last_name}")
       |> assert_has("table tbody tr", count: 1)
       |> assert_has("td", text: "Alice Post")
       |> refute_has("td", text: "Bob Post")
@@ -139,7 +138,7 @@ defmodule Backpex.Integration.Index.FiltersTest do
       conn
       |> visit(~p"/admin/posts")
       |> assert_has("table tbody tr", count: 3)
-      |> change_filters(%{likes: %{start: "100"}})
+      |> fill_in("input[name='filters[likes][start]']", "From", with: "100")
       |> assert_has("table tbody tr", count: 1)
       |> assert_has("td", text: "Popular Post")
       |> refute_has("td", text: "New Post")
@@ -149,7 +148,7 @@ defmodule Backpex.Integration.Index.FiltersTest do
       conn
       |> visit(~p"/admin/posts")
       |> assert_has("table tbody tr", count: 3)
-      |> change_filters(%{likes: %{end: "100"}})
+      |> fill_in("input[name='filters[likes][end]']", "To", with: "100")
       |> assert_has("table tbody tr", count: 2)
       |> refute_has("td", text: "Popular Post")
       |> assert_has("td", text: "Average Post")
@@ -169,13 +168,13 @@ defmodule Backpex.Integration.Index.FiltersTest do
       conn
       |> visit(~p"/admin/posts")
       |> assert_has("table tbody tr", count: 3)
-      |> select_preset("likes", 0)
+      |> click_button("Over 100")
       |> assert_has("table tbody tr", count: 1)
       |> assert_has("td", text: "Popular Post")
 
       conn
       |> visit(~p"/admin/posts")
-      |> select_preset("likes", 1)
+      |> click_button("1-99")
       |> assert_has("table tbody tr", count: 1)
       |> assert_has("td", text: "Average Post")
       |> refute_has("td", text: "Popular Post")
@@ -193,7 +192,7 @@ defmodule Backpex.Integration.Index.FiltersTest do
       |> visit(~p"/admin/posts?#{%{"filters" => %{"published" => ["published"], "category_id" => category.id}}}")
       |> assert_has("table tbody tr", count: 1)
       |> assert_has("td", text: "Tech Post")
-      |> clear_filter("category_id")
+      |> click_button("Clear Category filter")
       |> assert_has("table tbody tr", count: 2)
       |> assert_has("td", text: "Tech Post")
       |> assert_has("td", text: "Sports Post")
@@ -208,7 +207,7 @@ defmodule Backpex.Integration.Index.FiltersTest do
       conn
       |> visit(~p"/admin/posts?#{params}")
       |> assert_has("table tbody tr", count: 1)
-      |> clear_filter("likes")
+      |> click_button("Clear Likes filter")
       |> assert_has("table tbody tr", count: 2)
     end
   end
@@ -243,7 +242,7 @@ defmodule Backpex.Integration.Index.FiltersTest do
       conn
       |> visit(~p"/admin/posts?#{%{"filters" => %{"published" => ["published"], "category_id" => category.id}}}")
       |> assert_has("table tbody tr", count: 2)
-      |> change_filters(%{likes: %{start: "100"}})
+      |> fill_in("input[name='filters[likes][start]']", "From", with: "100")
       |> assert_has("table tbody tr", count: 1)
       |> assert_has("td", text: "Popular Tech")
       |> refute_has("td", text: "New Tech")
@@ -280,7 +279,7 @@ defmodule Backpex.Integration.Index.FiltersTest do
       conn
       |> visit(~p"/admin/posts")
       |> assert_has("table tbody tr", count: 2)
-      |> change_filters(%{likes: %{end: "99.5"}})
+      |> fill_in("input[name='filters[likes][end]']", "To", with: "99.5")
       |> assert_has("table tbody tr", count: 2)
       |> assert_has("#filter-form", text: "has invalid end value")
     end
@@ -307,18 +306,10 @@ defmodule Backpex.Integration.Index.FiltersTest do
       |> visit(~p"/admin/posts")
       |> assert_has("table tbody tr", count: 1)
       |> refute_has("td", text: "Draft to Keep")
-      |> clear_filter("published")
+      |> click_button("Clear Published? filter")
       |> assert_has("table tbody tr", count: 3)
-      |> unwrap(fn view ->
-        view
-        |> element("button[aria-label='Delete'][phx-value-item-id='#{draft_to_delete.id}']")
-        |> render_click()
-      end)
-      |> unwrap(fn view ->
-        view
-        |> form("#resource-form")
-        |> render_submit()
-      end)
+      |> within("#row-item-#{draft_to_delete.id}", &click_button(&1, "Delete"))
+      |> within("#resource-form", &click_button(&1, "Delete"))
       # The confirmed delete navigates to `return_to`, which remounts the index. Without `filters_changed` in that URL
       # the index would apply the default filter again and hide the remaining draft.
       |> assert_path(~p"/admin/posts",
@@ -366,31 +357,5 @@ defmodule Backpex.Integration.Index.FiltersTest do
       |> visit(~p"/admin/products")
       |> refute_has("button[aria-label='Clear QTY filter']")
     end
-  end
-
-  defp change_filters(session, filters) do
-    unwrap(session, fn view ->
-      view
-      |> form("form[phx-change='change-filter']", filters: filters)
-      |> render_change()
-    end)
-  end
-
-  defp select_preset(session, field, index) do
-    unwrap(session, fn view ->
-      view
-      |> element(
-        "button[phx-click='filter-preset-selected'][phx-value-field='#{field}'][phx-value-preset-index='#{index}']"
-      )
-      |> render_click()
-    end)
-  end
-
-  defp clear_filter(session, field) do
-    unwrap(session, fn view ->
-      view
-      |> element("button[phx-click='clear-filter'][phx-value-field='#{field}'][aria-label]")
-      |> render_click()
-    end)
   end
 end

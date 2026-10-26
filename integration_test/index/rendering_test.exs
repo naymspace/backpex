@@ -22,11 +22,7 @@ defmodule Backpex.Integration.Index.RenderingTest do
       conn
       |> visit(~p"/admin/tags")
       |> refute_has("button:not([disabled])", text: "Delete")
-      |> unwrap(fn view ->
-        view
-        |> element("#select-input-#{tag.id}")
-        |> render_click()
-      end)
+      |> check("#select-input-#{tag.id}", "Select item with id: #{tag.id}")
       |> assert_has("button:not([disabled])", text: "Delete", exact: true)
     end
 
@@ -35,20 +31,12 @@ defmodule Backpex.Integration.Index.RenderingTest do
 
       conn
       |> visit(~p"/admin/tags")
-      |> unwrap(fn view ->
-        view
-        |> element("#item-action-show-#{tag.id}")
-        |> render_click()
-      end)
+      |> click_link("#item-action-show-#{tag.id}", "Show")
       |> assert_path(~p"/admin/tags/#{tag.id}/show")
 
       conn
       |> visit(~p"/admin/tags")
-      |> unwrap(fn view ->
-        view
-        |> element("#item-action-edit-#{tag.id}")
-        |> render_click()
-      end)
+      |> click_link("#item-action-edit-#{tag.id}", "Edit")
       |> assert_path(~p"/admin/tags/#{tag.id}/edit")
     end
 

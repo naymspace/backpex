@@ -1,17 +1,15 @@
 defmodule Backpex.Integration.ItemActions.SoftDeleteTest do
   use Backpex.ConnCase, async: true
 
-  import Phoenix.LiveViewTest
-
   alias Backpex.Test.User
 
   describe "on the index view" do
     test "asks for the fields of the action", %{conn: conn} do
-      user = insert(:user)
+      insert(:user)
 
       conn
       |> visit(~p"/admin/users")
-      |> click_delete(user)
+      |> click_delete()
       |> assert_has("label", text: "Reason")
       |> assert_has("textarea[name='change[reason]']")
     end
@@ -23,7 +21,7 @@ defmodule Backpex.Integration.ItemActions.SoftDeleteTest do
       |> visit(~p"/admin/users")
       # The username field is index_editable, so it renders as an input.
       |> assert_has("input[value='usertoremove']")
-      |> click_delete(user)
+      |> click_delete()
       |> submit_reason("User requested deletion")
       |> assert_path(~p"/admin/users")
       |> refute_has("input[value='usertoremove']")
@@ -87,19 +85,16 @@ defmodule Backpex.Integration.ItemActions.SoftDeleteTest do
     end
   end
 
-  defp click_delete(session, user) do
-    unwrap(session, fn view ->
-      view
-      |> element("button[aria-label='Delete'][phx-value-item-id='#{user.id}']")
-      |> render_click()
-    end)
-  end
+  # The toolbar has a "Delete" button for the selected items, too.
+  defp click_delete(session), do: within(session, "table", &click_button(&1, "Delete"))
 
-  defp click_show_action(session) do
-    unwrap(session, fn view -> view |> element("#item-action-user_soft_delete") |> render_click() end)
-  end
+  defp click_show_action(session), do: click_button(session, "Delete")
 
   defp submit_reason(session, reason) do
-    unwrap(session, fn view -> view |> form("#resource-form", change: %{reason: reason}) |> render_submit() end)
+    within(session, "#resource-form", fn session ->
+      session
+      |> fill_in("Reason", with: reason)
+      |> click_button("Delete")
+    end)
   end
 end

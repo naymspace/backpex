@@ -13,14 +13,14 @@ defmodule Backpex.Integration.Index.IndexEditTest do
   describe "index editable text field" do
     test "marks an invalid change that is not saved", %{conn: conn} do
       user = insert(:user, username: "testuser123")
-      {:ok, view, _html} = live(conn, ~p"/admin/users")
 
-      view
-      |> form("#index-form-username-#{user.id}", index_form: %{value: ""})
-      |> render_change()
+      session =
+        conn
+        |> visit(~p"/admin/users")
+        |> fill_in("#index-form-input-username-#{user.id}", "Username", with: "")
 
       assert Repo.get!(User, user.id).username == "testuser123"
-      assert has_element?(view, "#index-form-input-username-#{user.id}.input-error")
+      assert_has(session, "#index-form-input-username-#{user.id}.input-error")
     end
   end
 
@@ -30,15 +30,16 @@ defmodule Backpex.Integration.Index.IndexEditTest do
       posts = insert_list(3, :post)
       deleted_user = insert(:user, deleted_at: DateTime.utc_now(:second))
 
-      {:ok, view, _html} = live(conn, index_path(conn))
-
-      author_ids = posts |> Enum.map(&to_string(&1.user_id)) |> Enum.sort()
+      session = visit(conn, ~p"/admin/posts")
 
       for post <- posts do
-        options = author_options(view, post)
+        options = "#index-form-user-#{post.id} option:not([value=''])"
 
-        assert Enum.sort(options) == author_ids
-        refute to_string(deleted_user.id) in options
+        session
+        |> assert_has(options, count: length(posts))
+        |> refute_has("#{options}[value='#{deleted_user.id}']")
+
+        for author <- posts, do: assert_has(session, "#{options}[value='#{author.user_id}']")
       end
     end
 
@@ -83,14 +84,19 @@ defmodule Backpex.Integration.Index.IndexEditTest do
     test "saves the change and shows the updated item", %{conn: conn} do
       post = insert(:post)
       other_user = insert(:user)
-      {:ok, view, _html} = live(conn, index_path(conn))
 
-      view
-      |> form("#index-form-user-#{post.id}", index_form: %{value: other_user.id})
-      |> render_change()
+      session =
+        conn
+        |> visit(~p"/admin/posts")
+        |> select("#index-form-input-user-#{post.id}", "Author",
+          option: "#{other_user.first_name} #{other_user.last_name}"
+        )
 
       assert Repo.get!(Post, post.id).user_id == other_user.id
-      assert view |> element("#index-form-user-#{post.id} option[selected]") |> render() =~ ~s(value="#{other_user.id}")
+
+      session
+      |> assert_has("#index-form-user-#{post.id} option[selected]", count: 1)
+      |> assert_has("#index-form-user-#{post.id} option[selected][value='#{other_user.id}']")
     end
   end
 
@@ -108,14 +114,5 @@ defmodule Backpex.Integration.Index.IndexEditTest do
            |> LazyHTML.from_fragment()
            |> LazyHTML.query("form[id^='index-form-user-']")
            |> Enum.count() == count
-  end
-
-  defp author_options(view, post) do
-    view
-    |> render()
-    |> LazyHTML.from_fragment()
-    |> LazyHTML.query("#index-form-user-#{post.id} option")
-    |> LazyHTML.attribute("value")
-    |> Enum.reject(&(&1 == ""))
   end
 end

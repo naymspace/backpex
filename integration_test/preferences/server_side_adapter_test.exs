@@ -43,15 +43,10 @@ defmodule Backpex.Integration.Preferences.ServerSideAdapterTest do
   test "column toggle persists through the adapter and queues no push_event", %{conn: conn} do
     insert(:post, title: "Alpha", published: true)
 
-    {:ok, view, _html} = live(conn, ~p"/admin/posts?filters[published][]=published")
-
-    view
-    |> element("input[phx-click='toggle_column'][phx-value-field='title']")
-    |> render_click()
-
-    # Not one preference event over the whole mount + click cycle — the `%{}` pattern matches any payload, so this
-    # refutes them all.
-    refute_push_event(view, @event_name, %{})
+    conn
+    |> visit(~p"/admin/posts?filters[published][]=published")
+    |> uncheck("Title")
+    |> refute_preference_push_event()
 
     assert %{"title" => false} = Map.fetch!(InMemoryPreferencesAdapter.dump(), PrefKeys.columns(@resource_mod))
   end
@@ -59,15 +54,21 @@ defmodule Backpex.Integration.Preferences.ServerSideAdapterTest do
   test "sort change persists through the adapter and queues no push_event", %{conn: conn} do
     insert(:post, title: "Alpha", published: true)
 
-    {:ok, view, _html} = live(conn, ~p"/admin/posts?filters[published][]=published")
-
-    view
-    |> element("a", "Title")
-    |> render_click()
-
-    refute_push_event(view, @event_name, %{})
+    conn
+    |> visit(~p"/admin/posts?filters[published][]=published")
+    |> click_link("Title")
+    |> refute_preference_push_event()
 
     assert %{"by" => "title", "direction" => "asc"} =
              Map.fetch!(InMemoryPreferencesAdapter.dump(), PrefKeys.order(@resource_mod))
+  end
+
+  # Not one preference event over the whole mount + click cycle — the `%{}` pattern matches any payload, so this refutes
+  # them all.
+  defp refute_preference_push_event(session) do
+    unwrap(session, fn view ->
+      refute_push_event(view, @event_name, %{})
+      render(view)
+    end)
   end
 end

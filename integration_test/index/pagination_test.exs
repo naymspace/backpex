@@ -1,8 +1,6 @@
 defmodule Backpex.Integration.Index.PaginationTest do
   use Backpex.ConnCase, async: true
 
-  import Phoenix.LiveViewTest
-
   # Tags use the defaults `per_page_default: 15` and `per_page_options: [15, 50, 100]`.
   describe "pagination params" do
     test "shows the first page with the default page size", %{conn: conn} do
@@ -106,11 +104,7 @@ defmodule Backpex.Integration.Index.PaginationTest do
       conn
       |> visit(~p"/admin/products?#{%{"page" => "2", "order_by" => "name", "order_direction" => "asc"}}")
       |> assert_has("div", text: "Items 16 to 20 (20 total)", exact: true)
-      |> unwrap(fn view ->
-        view
-        |> element("a", "Quantity")
-        |> render_click()
-      end)
+      |> click_link("thead a", "Quantity")
       |> assert_has("div", text: "Items 16 to 20 (20 total)", exact: true)
       |> assert_has("table tbody tr", count: 5)
     end

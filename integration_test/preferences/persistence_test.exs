@@ -20,25 +20,34 @@ defmodule Backpex.Integration.Preferences.PersistenceTest do
   # module-level constants or local variables before the macro call so the pattern is literal-shaped.
   @event_name PrefLiveView.event_name()
 
+  # Where the default-filter redirect lands on a first visit: the `published` filter's default plus the canonical order
+  # and pagination.
+  @default_query_params %{
+    "filters" => %{"published" => ["published"]},
+    "order_by" => "id",
+    "order_direction" => "asc",
+    "page" => "1",
+    "per_page" => "15"
+  }
+
   describe "persist: [:order]" do
     test "sort change via column-header click emits push_event with order key", %{conn: conn} do
       insert(:post, title: "Alpha", published: true)
       insert(:post, title: "Beta", published: true)
 
-      {:ok, view, _html} = live(conn, ~p"/admin/posts?filters[published][]=published")
-
-      # Clicking the Title column header sorts and routes through maybe_persist_order/2, which fires the push_event.
-      view
-      |> element("a", "Title")
-      |> render_click()
-
       expected_key = PrefKeys.order(@resource_mod)
 
-      assert_push_event(view, @event_name, %{
-        key: ^expected_key,
-        mirror: "session",
-        value: %{"by" => "title", "direction" => "asc"}
-      })
+      conn
+      |> visit(~p"/admin/posts?filters[published][]=published")
+      # Clicking the Title column header sorts and routes through maybe_persist_order/2, which fires the push_event.
+      |> click_link("Title")
+      |> with_view(fn view ->
+        assert_push_event(view, @event_name, %{
+          key: ^expected_key,
+          mirror: "session",
+          value: %{"by" => "title", "direction" => "asc"}
+        })
+      end)
     end
 
     test "invalid persisted direction falls back to and repairs the initial order", %{conn: conn} do
@@ -53,17 +62,18 @@ defmodule Backpex.Integration.Preferences.PersistenceTest do
 
       conn = put_persisted_order(conn, %{"by" => "title", "direction" => "error"})
 
-      {:ok, view, _html} = live(conn, ~p"/admin/posts?filters[published][]=published&search=#{search}")
-
-      assert has_element?(view, "table tbody tr:first-child td", first.title)
-
       expected_key = PrefKeys.order(@resource_mod)
 
-      assert_push_event(view, @event_name, %{
-        key: ^expected_key,
-        mirror: "session",
-        value: %{"by" => "id", "direction" => "asc"}
-      })
+      conn
+      |> visit(~p"/admin/posts?filters[published][]=published&search=#{search}")
+      |> assert_has("table tbody tr:first-child td", text: first.title)
+      |> with_view(fn view ->
+        assert_push_event(view, @event_name, %{
+          key: ^expected_key,
+          mirror: "session",
+          value: %{"by" => "id", "direction" => "asc"}
+        })
+      end)
     end
 
     test "persisted non-orderable field falls back to and repairs the initial order", %{conn: conn} do
@@ -79,17 +89,18 @@ defmodule Backpex.Integration.Preferences.PersistenceTest do
       # `tags` is an existing field/atom, but PostLive marks it non-orderable.
       conn = put_persisted_order(conn, %{"by" => "tags", "direction" => "desc"})
 
-      {:ok, view, _html} = live(conn, ~p"/admin/posts?filters[published][]=published&search=#{search}")
-
-      assert has_element?(view, "table tbody tr:first-child td", first.title)
-
       expected_key = PrefKeys.order(@resource_mod)
 
-      assert_push_event(view, @event_name, %{
-        key: ^expected_key,
-        mirror: "session",
-        value: %{"by" => "id", "direction" => "asc"}
-      })
+      conn
+      |> visit(~p"/admin/posts?filters[published][]=published&search=#{search}")
+      |> assert_has("table tbody tr:first-child td", text: first.title)
+      |> with_view(fn view ->
+        assert_push_event(view, @event_name, %{
+          key: ^expected_key,
+          mirror: "session",
+          value: %{"by" => "id", "direction" => "asc"}
+        })
+      end)
     end
 
     test "valid persisted order remains the default for a clean URL", %{conn: conn} do
@@ -101,10 +112,10 @@ defmodule Backpex.Integration.Preferences.PersistenceTest do
 
       conn = put_persisted_order(conn, %{"by" => "title", "direction" => "desc"})
 
-      {:ok, view, _html} = live(conn, ~p"/admin/posts?filters[published][]=published&search=#{search}")
-
-      assert has_element?(view, "table tbody tr:first-child td", "#{search}-Cherry")
-      assert has_element?(view, "table tbody tr:last-child td", "#{search}-Apple")
+      conn
+      |> visit(~p"/admin/posts?filters[published][]=published&search=#{search}")
+      |> assert_has("table tbody tr:first-child td", text: "#{search}-Cherry")
+      |> assert_has("table tbody tr:last-child td", text: "#{search}-Apple")
     end
 
     test "a first visit with no order chosen writes nothing", %{conn: conn} do
@@ -114,10 +125,10 @@ defmodule Backpex.Integration.Preferences.PersistenceTest do
       search = unique_search("persisted-order")
       insert(:post, title: "#{search}-Alpha", published: true)
 
-      {:ok, view, _html} = live(conn, ~p"/admin/posts?filters[published][]=published&search=#{search}")
-
-      assert has_element?(view, "table tbody tr:first-child td", "#{search}-Alpha")
-      refute_push_event(view, @event_name, %{key: _key, value: %{"by" => _by, "direction" => _dir}})
+      conn
+      |> visit(~p"/admin/posts?filters[published][]=published&search=#{search}")
+      |> assert_has("table tbody tr:first-child td", text: "#{search}-Alpha")
+      |> with_view(&refute_push_event(&1, @event_name, %{key: _key, value: %{"by" => _by, "direction" => _dir}}))
     end
 
     test "a first visit through the default-filter redirect writes nothing", %{conn: conn} do
@@ -126,12 +137,10 @@ defmodule Backpex.Integration.Preferences.PersistenceTest do
       # for "the user picked this".
       insert(:post, title: "Alpha", published: true)
 
-      assert {:error, {:live_redirect, %{to: to}}} = live(conn, ~p"/admin/posts")
-      assert to =~ "order_by=id"
-
-      {:ok, view, _html} = live(conn, to)
-
-      refute_push_event(view, @event_name, %{key: _key, value: %{"by" => _by, "direction" => _dir}})
+      conn
+      |> visit(~p"/admin/posts")
+      |> assert_path(~p"/admin/posts", query_params: @default_query_params)
+      |> with_view(&refute_push_event(&1, @event_name, %{key: _key, value: %{"by" => _by, "direction" => _dir}}))
     end
 
     test "an explicit URL order equal to the default writes nothing", %{conn: conn} do
@@ -140,31 +149,22 @@ defmodule Backpex.Integration.Preferences.PersistenceTest do
       search = unique_search("persisted-order")
       insert(:post, title: "#{search}-Alpha", published: true)
 
-      {:ok, view, _html} =
-        live(
-          conn,
-          ~p"/admin/posts?filters[published][]=published&order_by=id&order_direction=asc&search=#{search}"
-        )
-
-      refute_push_event(view, @event_name, %{key: _key, value: %{"by" => _by, "direction" => _dir}})
+      conn
+      |> visit(~p"/admin/posts?filters[published][]=published&order_by=id&order_direction=asc&search=#{search}")
+      |> with_view(&refute_push_event(&1, @event_name, %{key: _key, value: %{"by" => _by, "direction" => _dir}}))
     end
 
     test "an explicit URL order that diverges from the default is written", %{conn: conn} do
       search = unique_search("persisted-order")
       insert(:post, title: "#{search}-Alpha", published: true)
 
-      {:ok, view, _html} =
-        live(
-          conn,
-          ~p"/admin/posts?filters[published][]=published&order_by=title&order_direction=desc&search=#{search}"
-        )
-
       expected_key = PrefKeys.order(@resource_mod)
 
-      assert_push_event(view, @event_name, %{
-        key: ^expected_key,
-        value: %{"by" => "title", "direction" => "desc"}
-      })
+      conn
+      |> visit(~p"/admin/posts?filters[published][]=published&order_by=title&order_direction=desc&search=#{search}")
+      |> with_view(fn view ->
+        assert_push_event(view, @event_name, %{key: ^expected_key, value: %{"by" => "title", "direction" => "desc"}})
+      end)
     end
 
     test "explicit URL order takes precedence over valid persisted order", %{conn: conn} do
@@ -176,14 +176,10 @@ defmodule Backpex.Integration.Preferences.PersistenceTest do
 
       conn = put_persisted_order(conn, %{"by" => "title", "direction" => "desc"})
 
-      {:ok, view, _html} =
-        live(
-          conn,
-          ~p"/admin/posts?filters[published][]=published&order_by=likes&order_direction=asc&search=#{search}"
-        )
-
-      assert has_element?(view, "table tbody tr:first-child td", "#{search}-New")
-      assert has_element?(view, "table tbody tr:last-child td", "#{search}-Popular")
+      conn
+      |> visit(~p"/admin/posts?filters[published][]=published&order_by=likes&order_direction=asc&search=#{search}")
+      |> assert_has("table tbody tr:first-child td", text: "#{search}-New")
+      |> assert_has("table tbody tr:last-child td", text: "#{search}-Popular")
     end
   end
 
@@ -192,45 +188,41 @@ defmodule Backpex.Integration.Preferences.PersistenceTest do
       insert(:post, title: "Published", published: true)
       insert(:post, title: "Draft", published: false)
 
-      {:ok, view, _html} = live(conn, ~p"/admin/posts?filters[published][]=published")
-
-      # Including not_published too routes through the change-filter handler → apply_filter_change/2 → push_event.
-      view
-      |> form("form[phx-change='change-filter']",
-        filters: %{published: ["published", "not_published"]}
-      )
-      |> render_change()
-
       expected_key = PrefKeys.filters(@resource_mod)
 
-      # The LiveResource emits several filter-persistence events over the mount + change cycle. We care that at least
-      # one of them reflects the new two-value set and carries the filters key.
-      assert_push_event(view, @event_name, %{
-        key: ^expected_key,
-        mirror: "session",
-        value: %{"published" => ["published", "not_published"]}
-      })
+      conn
+      |> visit(~p"/admin/posts?filters[published][]=published")
+      # Including not_published too routes through the change-filter handler → apply_filter_change/2 → push_event.
+      |> check("Not published")
+      |> with_view(fn view ->
+        # The LiveResource emits several filter-persistence events over the mount + change cycle. We care that at least
+        # one of them reflects the new two-value set and carries the filters key.
+        assert_push_event(view, @event_name, %{
+          key: ^expected_key,
+          mirror: "session",
+          value: %{"published" => ["published", "not_published"]}
+        })
+      end)
     end
 
     test "clear-filter emits push_event with empty map", %{conn: conn} do
       insert(:post, title: "Published", published: true)
       insert(:post, title: "Draft", published: false)
 
-      {:ok, view, _html} = live(conn, ~p"/admin/posts?filters[published][]=published")
+      expected_key = PrefKeys.filters(@resource_mod)
 
+      conn
+      |> visit(~p"/admin/posts?filters[published][]=published")
       # The URL collapses to no `filters[]` param, so the clear-filter handler itself must emit the empty-map
       # push_event — apply_index can't infer the cleared intent from the URL alone.
       #
       # Two buttons fire `clear-filter` for the same field (the inline "clear" link and the indicator badge's × icon).
-      # Target the indicator explicitly via its aria-label.
-      view
-      |> element("button[aria-label='Clear Published? filter']")
-      |> render_click()
-
-      expected_key = PrefKeys.filters(@resource_mod)
-
-      assert_push_event(view, @event_name, %{key: ^expected_key, mirror: "session", value: value})
-      assert value == %{}
+      # Target the indicator by its accessible name.
+      |> click_button("Clear Published? filter")
+      |> with_view(fn view ->
+        assert_push_event(view, @event_name, %{key: ^expected_key, mirror: "session", value: value})
+        assert value == %{}
+      end)
     end
 
     test "persisted %{} filters suppress redirect to defaults on mount", %{conn: conn} do
@@ -247,11 +239,11 @@ defmodule Backpex.Integration.Preferences.PersistenceTest do
 
       conn = put_persisted_resource_preferences(conn, %{"filters" => %{}})
 
-      {:ok, _view, html} = live(conn, ~p"/admin/posts?search=#{search}")
-
+      conn
+      |> visit(~p"/admin/posts?search=#{search}")
       # Both posts are visible → no `published` default was applied.
-      assert html =~ published_title
-      assert html =~ draft_title
+      |> assert_has("table tbody td", text: published_title)
+      |> assert_has("table tbody td", text: draft_title)
     end
 
     test "no persisted filters still triggers redirect to defaults on mount", %{conn: conn} do
@@ -260,8 +252,9 @@ defmodule Backpex.Integration.Preferences.PersistenceTest do
       insert(:post, title: "Published Post", published: true)
       insert(:post, title: "Draft Post", published: false)
 
-      assert {:error, {:live_redirect, %{to: to}}} = live(conn, ~p"/admin/posts")
-      assert to =~ "filters[published][]=published"
+      conn
+      |> visit(~p"/admin/posts")
+      |> assert_path(~p"/admin/posts", query_params: @default_query_params)
     end
   end
 
@@ -269,21 +262,29 @@ defmodule Backpex.Integration.Preferences.PersistenceTest do
     test "column toggle emits push_event with columns key", %{conn: conn} do
       insert(:post, title: "Alpha", published: true)
 
-      {:ok, view, _html} = live(conn, ~p"/admin/posts?filters[published][]=published")
-
-      # maybe_push_columns/3 emits the push_event with the full active-fields map.
-      view
-      |> element("input[phx-click='toggle_column'][phx-value-field='title']")
-      |> render_click()
-
       expected_key = PrefKeys.columns(@resource_mod)
 
-      assert_push_event(view, @event_name, %{key: ^expected_key, value: value})
+      conn
+      |> visit(~p"/admin/posts?filters[published][]=published")
+      # maybe_push_columns/3 emits the push_event with the full active-fields map.
+      |> uncheck("Title")
+      |> with_view(fn view ->
+        assert_push_event(view, @event_name, %{key: ^expected_key, value: value})
 
-      # title was just toggled, so it must now be false; other fields remain true.
-      assert is_map(value)
-      assert value["title"] == false
+        # title was just toggled, so it must now be false; other fields remain true.
+        assert is_map(value)
+        assert value["title"] == false
+      end)
     end
+  end
+
+  # `assert_push_event` and `refute_push_event` read the messages the LiveView sends the test process, so they need the
+  # view itself.
+  defp with_view(session, fun) do
+    unwrap(session, fn view ->
+      fun.(view)
+      render(view)
+    end)
   end
 
   defp unique_search(scope) do

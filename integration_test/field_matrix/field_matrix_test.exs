@@ -1,7 +1,7 @@
 defmodule Backpex.Integration.FieldMatrixTest do
   use Backpex.ConnCase, async: true
 
-  import Phoenix.LiveViewTest
+  import Phoenix.LiveViewTest, only: [form: 2, put_submitter: 2, render_submit: 2]
 
   alias Backpex.Test.Sample
 
@@ -9,34 +9,42 @@ defmodule Backpex.Integration.FieldMatrixTest do
   # fields are covered by the LiveResource that has one. Every entry runs the same tests, so a new field type only needs
   # an entry here to be rendered and saved in every view.
   #
-  # - `:params` are the form params of a new item that set the field,
-  # - `:stored` is the value of `:column` after saving these params,
-  # - `:shown` is the text the index and show views render for that value,
-  # - `:hidden` marks a field whose form value is set by a hook in a hidden input, which LiveViewTest can't fill in.
+  # - `:input` is how a user sets the field in a new form: `{:fill_in, label, value}`, `{:select, label, option}` or
+  #   `{:check, labels}`. A field whose value a hook sets in a hidden input, which phoenix_test can't fill in, has
+  #   `{:hidden, params}` with the form params that the hook would set,
+  # - `:stored` is the value of `:column` after saving that input,
+  # - `:shown` is the text the index and show views render for that value.
   @scalar_fields [
-    {Backpex.Fields.Text, column: :text, params: %{text: "Hello"}, stored: "Hello", shown: "Hello"},
+    {Backpex.Fields.Text, column: :text, input: {:fill_in, "Text", "Hello"}, stored: "Hello", shown: "Hello"},
     {Backpex.Fields.Textarea,
-     column: :textarea, params: %{textarea: "Some text"}, stored: "Some text", shown: "Some text"},
-    {Backpex.Fields.Number, column: :number, params: %{number: "42"}, stored: 42, shown: "42"},
-    {Backpex.Fields.Boolean, column: :boolean, params: %{boolean: "true"}, stored: true, shown: nil},
-    {Backpex.Fields.Select, column: :select, params: %{select: "two"}, stored: :two, shown: "Two"},
+     column: :textarea, input: {:fill_in, "Textarea", "Some text"}, stored: "Some text", shown: "Some text"},
+    {Backpex.Fields.Number, column: :number, input: {:fill_in, "Number", "42"}, stored: 42, shown: "42"},
+    {Backpex.Fields.Boolean, column: :boolean, input: {:check, ["Boolean"]}, stored: true, shown: nil},
+    {Backpex.Fields.Select, column: :select, input: {:select, "Select", "Two"}, stored: :two, shown: "Two"},
     {Backpex.Fields.MultiSelect,
-     column: :multi_select, params: %{multi_select: ["red", "blue"]}, stored: ["red", "blue"], shown: "Red"},
+     column: :multi_select, input: {:check, ["Red", "Blue"]}, stored: ["red", "blue"], shown: "Red"},
     {Backpex.Fields.Checkgroup,
-     column: :checkgroup, params: %{checkgroup: ["read", "write"]}, stored: ["read", "write"], shown: "Read, Write"},
-    {Backpex.Fields.Date, column: :date, params: %{date: "2026-10-26"}, stored: ~D[2026-10-26], shown: "2026-10-26"},
+     column: :checkgroup, input: {:check, ["Read", "Write"]}, stored: ["read", "write"], shown: "Read, Write"},
+    {Backpex.Fields.Date,
+     column: :date, input: {:fill_in, "Date", "2026-10-26"}, stored: ~D[2026-10-26], shown: "2026-10-26"},
     {Backpex.Fields.DateTime,
      column: :date_time,
-     params: %{date_time: "2026-10-26T14:30"},
+     input: {:fill_in, "Date Time", "2026-10-26T14:30"},
      stored: ~U[2026-10-26 14:30:00Z],
      shown: "2026-10-26 02:30 PM"},
-    {Backpex.Fields.Time, column: :time, params: %{time: "14:30"}, stored: ~T[14:30:00], shown: "02:30 PM"},
+    {Backpex.Fields.Time, column: :time, input: {:fill_in, "Time", "14:30"}, stored: ~T[14:30:00], shown: "02:30 PM"},
     {Backpex.Fields.Email,
-     column: :email, params: %{email: "jane@example.com"}, stored: "jane@example.com", shown: "jane@example.com"},
+     column: :email,
+     input: {:fill_in, "Email", "jane@example.com"},
+     stored: "jane@example.com",
+     shown: "jane@example.com"},
     {Backpex.Fields.URL,
-     column: :url, params: %{url: "https://example.com"}, stored: "https://example.com", shown: "https://example.com"},
+     column: :url,
+     input: {:fill_in, "URL", "https://example.com"},
+     stored: "https://example.com",
+     shown: "https://example.com"},
     {Backpex.Fields.Currency,
-     column: :currency, params: %{currency: "12.50"}, stored: Money.new(1250), shown: "$12.50", hidden: true}
+     column: :currency, input: {:hidden, %{currency: "12.50"}}, stored: Money.new(1250), shown: "$12.50"}
   ]
 
   # Fields that need a relation or an upload. They are rendered in every view of their LiveResource; saving them is
@@ -67,14 +75,10 @@ defmodule Backpex.Integration.FieldMatrixTest do
     @opts opts
     describe inspect(module) do
       test "saves a value from the new form", %{conn: conn} do
-        {:ok, view, _html} = live(conn, ~p"/admin/samples/new")
-        params = Map.put_new(@opts[:params], :text, "Sample")
-        {form_params, hidden_params} = if @opts[:hidden], do: Map.split(params, [:text]), else: {params, %{}}
+        session = visit(conn, ~p"/admin/samples/new")
+        session = if @opts[:column] == :text, do: session, else: fill_in(session, "Text", with: "Sample")
 
-        view
-        |> form("#resource-form", change: form_params)
-        |> put_submitter("button[value=save]")
-        |> render_submit(%{change: hidden_params})
+        set_field_and_save(session, @opts[:input])
 
         assert [sample] = Repo.all(Sample)
         assert Map.fetch!(sample, @opts[:column]) == @opts[:stored]
@@ -94,15 +98,14 @@ defmodule Backpex.Integration.FieldMatrixTest do
 
       test "keeps the value when another field of the edit form changes", %{conn: conn} do
         sample = insert(:sample, [{@opts[:column], @opts[:stored]}])
-        {:ok, view, _html} = live(conn, ~p"/admin/samples/#{sample.id}/edit")
 
-        {other_column, other_param, other_value} =
-          if @opts[:column] == :number, do: {:text, "Changed", "Changed"}, else: {:number, "7", 7}
+        {other_column, other_label, other_param, other_value} =
+          if @opts[:column] == :number, do: {:text, "Text", "Changed", "Changed"}, else: {:number, "Number", "7", 7}
 
-        view
-        |> form("#resource-form", change: %{other_column => other_param})
-        |> put_submitter("button[value=save]")
-        |> render_submit()
+        conn
+        |> visit(~p"/admin/samples/#{sample.id}/edit")
+        |> fill_in(other_label, with: other_param)
+        |> click_button("Save")
 
         updated = Repo.get!(Sample, sample.id)
         assert Map.fetch!(updated, other_column) == other_value
@@ -125,4 +128,20 @@ defmodule Backpex.Integration.FieldMatrixTest do
       end
     end
   end
+
+  # The params of a hidden input that a hook fills in are sent as values of the submit.
+  defp set_field_and_save(session, {:hidden, params}) do
+    unwrap(session, fn view ->
+      view
+      |> form("#resource-form")
+      |> put_submitter("button[value=save]")
+      |> render_submit(%{change: params})
+    end)
+  end
+
+  defp set_field_and_save(session, input), do: session |> set_field(input) |> click_button("Save")
+
+  defp set_field(session, {:fill_in, label, value}), do: fill_in(session, label, with: value)
+  defp set_field(session, {:select, label, option}), do: select(session, label, option: option)
+  defp set_field(session, {:check, labels}), do: Enum.reduce(labels, session, &check(&2, &1))
 end
