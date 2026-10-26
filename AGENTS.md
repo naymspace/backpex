@@ -200,7 +200,6 @@ Test Backpex features in the library, not in the demo: unit tests in `test/`, ev
 - The integration tests use the test app in `integration_test/support/app`. Its fixture LiveResources mirror the demo ones (`Backpex.Test.PostLive` etc.); extend a fixture or add one instead of testing through the demo. `Backpex.ConnCase`, `Backpex.DataCase` and `Backpex.E2ECase` are the test cases.
 - `mix test` needs the `postgres` service of `compose.yml` (`docker compose up -d postgres`); the port is found with `docker compose port`. Each run recreates its database, so parallel runs need their own `MIX_TEST_PARTITION`.
 - Browser tests are tagged `:e2e`: run `bun run e2e:assets`, then `mix test --only e2e`.
-- `test/option_coverage_test.exs` fails when an option has no test. A new option needs a test that configures it.
 - CI merges the coverage of all tests and fails below the threshold in `mix.exs`. Raise it when coverage grows.
 
 ### Quality Assurance
