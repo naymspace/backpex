@@ -7,6 +7,7 @@ defmodule Backpex.Test.ShortLink do
   import Ecto.Changeset
   import Ecto.Query, warn: false
 
+  alias Backpex.Test.Product
   alias Backpex.Test.Repo
 
   @primary_key false
@@ -14,7 +15,7 @@ defmodule Backpex.Test.ShortLink do
     field :short_key, :string, primary_key: true
     field :url, :string
 
-    belongs_to :product, Backpex.Test.Product, type: :binary_id
+    belongs_to :product, Product, type: :binary_id
 
     timestamps()
   end
@@ -25,7 +26,7 @@ defmodule Backpex.Test.ShortLink do
   def changeset(short_link, attrs, _metadata \\ []) do
     short_link
     |> cast(attrs, @required_fields ++ @optional_fields)
-    |> cast_assoc(:product, with: &Backpex.Test.Product.changeset/2)
+    |> cast_assoc(:product, with: &Product.changeset/2)
     |> add_short_key()
     |> validate_required(@required_fields)
     |> validate_format(:short_key, ~r/^[A-Za-z0-9_-]+$/,

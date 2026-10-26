@@ -1,3 +1,4 @@
+alias Backpex.Test.Endpoint
 alias Backpex.Test.Repo
 alias Ecto.Adapters.SQL.Sandbox
 
@@ -14,7 +15,7 @@ Ecto.Adapters.Postgres.storage_down(repo_config)
     [
       Repo,
       {Phoenix.PubSub, name: Backpex.Test.AppPubSub},
-      Backpex.Test.Endpoint
+      Endpoint
     ],
     strategy: :one_for_one
   )
@@ -23,7 +24,7 @@ Ecto.Migrator.run(Repo, Path.join(repo_config[:priv], "migrations"), :up, all: t
 Sandbox.mode(Repo, :manual)
 
 # The endpoint listens on a random port, see `config/test.exs`.
-{:ok, {_ip, port}} = Backpex.Test.Endpoint.server_info(:http)
+{:ok, {_ip, port}} = Endpoint.server_info(:http)
 Application.put_env(:phoenix_test, :base_url, "http://localhost:#{port}")
 
 # The browser tests are tagged `:e2e` and need Playwright (`bun install`) and the assets of `bun run e2e:assets`. They only

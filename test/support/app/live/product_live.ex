@@ -12,11 +12,12 @@ defmodule Backpex.Test.ProductLive do
 
   alias Backpex.LiveResource
   alias Backpex.Metrics.Value
-  alias Backpex.Test.Supplier
   alias Backpex.Test.Endpoint
   alias Backpex.Test.Filters.ProductQuantityRange
   alias Backpex.Test.Layouts
   alias Backpex.Test.ShortLinkLive
+  alias Backpex.Test.Supplier
+  alias Backpex.Test.Uploads
   alias Phoenix.VerifiedRoutes
 
   @impl LiveResource
@@ -194,7 +195,7 @@ defmodule Backpex.Test.ProductLive do
   # sobelow_skip ["Traversal"]
   defp consume_upload(_socket, _item, %{path: path} = _meta, entry) do
     file_name = file_name(entry)
-    dest = Path.join([Backpex.Test.Uploads.dir(), upload_dir(), file_name])
+    dest = Path.join([Uploads.dir(), upload_dir(), file_name])
 
     File.mkdir_p!(Path.dirname(dest))
     File.cp!(path, dest)
@@ -205,7 +206,7 @@ defmodule Backpex.Test.ProductLive do
   # sobelow_skip ["Traversal"]
   defp remove_uploads(_socket, _item, removed_entries) do
     for file <- removed_entries do
-      path = Path.join([Backpex.Test.Uploads.dir(), upload_dir(), file])
+      path = Path.join([Uploads.dir(), upload_dir(), file])
       File.rm!(path)
     end
   end

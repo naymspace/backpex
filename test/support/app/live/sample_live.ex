@@ -11,6 +11,8 @@ defmodule Backpex.Test.SampleLive do
       create_changeset: &Backpex.Test.Sample.changeset/3
     ]
 
+  alias Backpex.Test.Uploads
+
   @impl Backpex.LiveResource
   def layout(_assigns), do: {Backpex.Test.Layouts, :admin}
 
@@ -87,7 +89,7 @@ defmodule Backpex.Test.SampleLive do
   end
 
   defp consume_upload(_socket, _item, %{path: path}, entry) do
-    dest = Path.join([Backpex.Test.Uploads.dir(), "uploads", "samples", file_name(entry)])
+    dest = Path.join([Uploads.dir(), "uploads", "samples", file_name(entry)])
     File.mkdir_p!(Path.dirname(dest))
     File.cp!(path, dest)
 
@@ -95,7 +97,7 @@ defmodule Backpex.Test.SampleLive do
   end
 
   defp remove_uploads(_socket, _item, removed_entries) do
-    Enum.each(removed_entries, &File.rm(Path.join([Backpex.Test.Uploads.dir(), "uploads", "samples", &1])))
+    Enum.each(removed_entries, &File.rm(Path.join([Uploads.dir(), "uploads", "samples", &1])))
   end
 
   defp file_name(entry) do

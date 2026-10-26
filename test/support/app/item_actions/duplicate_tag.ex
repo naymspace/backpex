@@ -4,6 +4,7 @@ defmodule Backpex.Test.ItemActions.DuplicateTag do
   use BackpexWeb, :item_action
 
   alias Backpex.Test.Repo
+  alias Backpex.Test.Tag
 
   @impl Backpex.ItemAction
   def icon(assigns, _item) do
@@ -42,7 +43,7 @@ defmodule Backpex.Test.ItemActions.DuplicateTag do
 
   @impl Backpex.ItemAction
   def changeset(item, change, metadata) do
-    Backpex.Test.Tag.create_changeset(item, change, metadata)
+    Tag.create_changeset(item, change, metadata)
   end
 
   @impl Backpex.ItemAction
@@ -57,8 +58,8 @@ defmodule Backpex.Test.ItemActions.DuplicateTag do
     params = Map.from_struct(data)
 
     result =
-      %Backpex.Test.Tag{}
-      |> Backpex.Test.Tag.create_changeset(params, target: nil, assigns: socket.assigns)
+      %Tag{}
+      |> Tag.create_changeset(params, target: nil, assigns: socket.assigns)
       |> Repo.insert()
 
     socket =

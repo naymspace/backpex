@@ -29,7 +29,8 @@ defmodule Backpex.DataCase do
   end
 
   @doc """
-  Counts the queries on the table `source` that `fun` runs.
+  Counts the queries on the table `source` that `fun` runs. Only queries of the test process and the processes it started,
+  like a LiveView under test, are counted, so async tests don't see the queries of other tests.
   """
   def count_queries(source, fun) do
     handler_id = {__MODULE__, make_ref()}
@@ -39,7 +40,9 @@ defmodule Backpex.DataCase do
       handler_id,
       [:backpex, :test, :repo, :query],
       fn _event, _measurements, %{source: query_source}, _config ->
-        if query_source == source, do: send(test_pid, {:query, handler_id})
+        if query_source == source and test_pid in [self() | Process.get(:"$callers", [])] do
+          send(test_pid, {:query, handler_id})
+        end
       end,
       nil
     )

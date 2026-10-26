@@ -1,6 +1,7 @@
 defmodule Backpex.Test.Layouts do
   @moduledoc """
-  The root and admin layouts of the test app, built from the Backpex layout components like in a generated app.
+  The root and admin layouts of the test app. The admin layout is built from the Backpex layout components and has the
+  same sidebar as the demo.
   """
   use Phoenix.Component
 
@@ -49,17 +50,41 @@ defmodule Backpex.Test.Layouts do
     >
       <:topbar>
         <div class="flex-1"></div>
-        <Layout.theme_selector current_theme={@current_theme} themes={[{"Light", "light"}, {"Dark", "dark"}]} />
+        <Layout.theme_selector
+          current_theme={@current_theme}
+          themes={[{"Light", "light"}, {"Dark", "dark"}, {"Cupcake", "cupcake"}]}
+        />
       </:topbar>
       <:sidebar_branding>
         <Layout.sidebar_branding />
       </:sidebar_branding>
       <:sidebar>
-        <Layout.sidebar_item current_url={@current_url} navigate="/admin/posts">
-          <CoreComponents.icon name="hero-book-open" class="size-5" /> Posts
+        <Layout.sidebar_item current_url={@current_url} navigate="/admin/users">
+          <CoreComponents.icon name="hero-user" class="size-5" /> Users
         </Layout.sidebar_item>
-        <Layout.sidebar_section id="relations" sidebar_section_states={@sidebar_section_states}>
-          <:label>Relations</:label>
+        <Layout.sidebar_item current_url={@current_url} navigate="/admin/addresses">
+          <CoreComponents.icon name="hero-building-office-2" class="size-5" /> Addresses
+        </Layout.sidebar_item>
+        <Layout.sidebar_item current_url={@current_url} navigate="/admin/products">
+          <CoreComponents.icon name="hero-shopping-bag" class="size-5" /> Products
+        </Layout.sidebar_item>
+        <Layout.sidebar_item current_url={@current_url} navigate="/admin/invoices">
+          <CoreComponents.icon name="hero-document-text" class="size-5" /> Invoices
+        </Layout.sidebar_item>
+        <Layout.sidebar_item current_url={@current_url} navigate="/admin/film-reviews">
+          <CoreComponents.icon name="hero-film" class="size-5" /> Film Reviews
+        </Layout.sidebar_item>
+        <Layout.sidebar_item current_url={@current_url} navigate="/admin/short-links">
+          <CoreComponents.icon name="hero-link" class="size-5" /> Short Links
+        </Layout.sidebar_item>
+        <Layout.sidebar_item current_url={@current_url} navigate="/admin/samples">
+          <CoreComponents.icon name="hero-squares-2x2" class="size-5" /> Samples
+        </Layout.sidebar_item>
+        <Layout.sidebar_section id="blog" sidebar_section_states={@sidebar_section_states}>
+          <:label>Blog</:label>
+          <Layout.sidebar_item current_url={@current_url} navigate="/admin/posts">
+            <CoreComponents.icon name="hero-book-open" class="size-5" /> Posts
+          </Layout.sidebar_item>
           <Layout.sidebar_item current_url={@current_url} navigate="/admin/categories">
             <CoreComponents.icon name="hero-tag" class="size-5" /> Categories
           </Layout.sidebar_item>
