@@ -1467,7 +1467,7 @@ defmodule Backpex.HTML.Resource do
       <div class="card-body p-0">
         <%!-- Card Body --%>
         <div class="first:pt-3 last:pb-3">
-          <fieldset :for={{panel, i} <- Enum.with_index(@panel)} class={Map.get(panel, :class)}>
+          <fieldset :for={{panel, i} <- Enum.with_index(@panel)} class={["min-w-0", Map.get(panel, :class)]}>
             <div :if={panel[:label]}>
               <hr :if={i != 0} class="border-base-200 mb-8 border" />
 
