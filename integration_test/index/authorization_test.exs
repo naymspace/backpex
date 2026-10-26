@@ -33,7 +33,7 @@ defmodule Backpex.Integration.Index.AuthorizationTest do
 
   # Invoices only allow `:index` in `can?/3` and are only routed with `only: [:index]`.
   describe "index-only resource" do
-    test "renders neither the new button nor the edit and show item actions", %{conn: conn} do
+    test "renders neither the new button nor the edit, show and delete item actions", %{conn: conn} do
       invoice = insert(:invoice)
 
       conn
@@ -42,6 +42,9 @@ defmodule Backpex.Integration.Index.AuthorizationTest do
       |> refute_has("button", text: "New Invoice")
       |> refute_has("#item-action-edit-#{invoice.id}")
       |> refute_has("#item-action-show-#{invoice.id}")
+      |> refute_has("#item-action-delete-#{invoice.id}")
+      # The bulk delete button of the toolbar.
+      |> refute_has("button", text: "Delete")
     end
   end
 end

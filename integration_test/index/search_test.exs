@@ -28,6 +28,20 @@ defmodule Backpex.Integration.Index.SearchTest do
     |> assert_has("tr", text: "John Doe")
   end
 
+  test "finds items by an index editable field", %{conn: conn} do
+    insert(:user, username: "alice_wonder")
+    insert(:user, username: "bob_builder")
+
+    # Usernames render as the values of their index-edit inputs.
+    conn
+    |> visit(~p"/admin/users")
+    |> assert_has("table tbody tr", count: 2)
+    |> search("alice")
+    |> assert_has("table tbody tr", count: 1)
+    |> assert_has("input", value: "alice_wonder")
+    |> refute_has("input", value: "bob_builder")
+  end
+
   test "finds items with the full-text search", %{conn: conn} do
     insert(:film_review, title: "The Matrix", overview: "A sci-fi classic about reality")
     insert(:film_review, title: "Inception", overview: "Dreams within dreams")

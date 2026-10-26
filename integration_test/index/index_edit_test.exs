@@ -51,6 +51,8 @@ defmodule Backpex.Integration.Index.IndexEditTest do
       insert_list(6, :post)
       many_rows_queries = count_queries("users", fn -> assert_rendered_rows(conn, path, 8) end)
 
+      # Without queries the counts would be equal, too.
+      assert few_rows_queries > 0
       assert many_rows_queries == few_rows_queries
     end
 
@@ -75,10 +77,16 @@ defmodule Backpex.Integration.Index.IndexEditTest do
     end
 
     test "does not load the options again when rendering without item changes", %{conn: conn} do
-      insert_list(3, :post)
+      [post | _posts] = insert_list(3, :post)
       {:ok, view, _html} = live(conn, index_path(conn))
 
       assert count_queries("users", fn -> render_click(view, "toggle-item-selection") end) == 0
+
+      # An item change loads the options again, so the count above would see these queries.
+      assert count_queries("users", fn ->
+               send(view.pid, {"backpex:updated", post})
+               render(view)
+             end) > 0
     end
 
     test "saves the change and shows the updated item", %{conn: conn} do

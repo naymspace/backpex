@@ -156,6 +156,44 @@ defmodule Backpex.Integration.Index.FiltersTest do
     end
   end
 
+  describe "number range filter" do
+    setup do
+      insert(:product, name: "Few Product", quantity: 5)
+      insert(:product, name: "Some Product", quantity: 50)
+      insert(:product, name: "Many Product", quantity: 500)
+      :ok
+    end
+
+    test "filters by start and end from the URL", %{conn: conn} do
+      conn
+      |> visit(~p"/admin/products?#{%{"filters" => %{"quantity" => %{"start" => "10", "end" => "100"}}}}")
+      |> assert_has("table tbody tr", count: 1)
+      |> assert_has("td", text: "Some Product")
+      |> assert_has("button[aria-label='Clear QTY filter']")
+    end
+
+    test "filters by the values entered in the form", %{conn: conn} do
+      conn
+      |> visit(~p"/admin/products")
+      |> assert_has("table tbody tr", count: 3)
+      |> fill_in("To", with: "100")
+      |> assert_has("table tbody tr", count: 2)
+      |> assert_has("td", text: "Few Product")
+      |> assert_has("td", text: "Some Product")
+      |> refute_has("td", text: "Many Product")
+    end
+
+    test "is not applied with an end value from the URL that is not a number", %{conn: conn} do
+      conn
+      |> visit(~p"/admin/products?#{%{"filters" => %{"quantity" => %{"start" => "10", "end" => "xyz"}}}}")
+      |> assert_has("table tbody tr", count: 3)
+      |> assert_has("#filter-form", text: "has invalid end value")
+      |> assert_has("td", text: "Few Product")
+      |> assert_has("td", text: "Some Product")
+      |> assert_has("td", text: "Many Product")
+    end
+  end
+
   describe "filter presets" do
     setup do
       insert(:post, title: "Popular Post", likes: 200)

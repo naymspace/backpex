@@ -41,7 +41,10 @@ defmodule Backpex.Integration.ItemActions.SoftDeleteTest do
       |> click_show_action()
       |> submit_reason("Deleting from show view")
       |> assert_path(~p"/admin/users")
-      |> refute_has("td", text: "showuser")
+      # The username field is index_editable, so it renders as an input.
+      |> refute_has("input[value='showuser']")
+
+      assert %User{deleted_at: %DateTime{}} = Repo.get!(User, user.id)
     end
 
     test "is not offered when can?/3 denies it", %{conn: conn} do

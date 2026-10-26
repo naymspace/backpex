@@ -1,5 +1,7 @@
 defmodule Backpex.Integration.Index.RenderingTest do
-  use Backpex.ConnCase, async: true
+  # The LiveViews subscribe to the PubSub topic of their LiveResource, which other tests broadcast to. Their events
+  # would update the field components that a test here refutes updates of, so these tests must not run concurrently.
+  use Backpex.ConnCase, async: false
 
   import Phoenix.LiveViewTest
 
@@ -38,6 +40,22 @@ defmodule Backpex.Integration.Index.RenderingTest do
       |> visit(~p"/admin/tags")
       |> click_link("#item-action-edit-#{tag.id}", "Edit")
       |> assert_path(~p"/admin/tags/#{tag.id}/edit")
+    end
+
+    test "the show and edit item actions lead to the views of an item with an integer id", %{conn: conn} do
+      user = insert(:user, username: "integer_id_user")
+
+      conn
+      |> visit(~p"/admin/users")
+      |> click_link("#item-action-show-#{user.id}", "Show")
+      |> assert_path(~p"/admin/users/#{user.id}/show")
+      |> assert_has("dd", text: "integer_id_user", exact: true)
+
+      conn
+      |> visit(~p"/admin/users")
+      |> click_link("#item-action-edit-#{user.id}", "Edit")
+      |> assert_path(~p"/admin/users/#{user.id}/edit")
+      |> assert_has("input", label: "Username", value: "integer_id_user")
     end
 
     test "lists only the items of the item_query scope", %{conn: conn} do

@@ -3,7 +3,9 @@ defmodule Backpex.Integration.Authorization.SelectionTest do
   Checks that the index selection only ever holds items an action may apply to, and that it follows the rows it points
   at, so bulk actions are authorized against the current records.
   """
-  use Backpex.ConnCase, async: true
+  # The LiveViews subscribe to the PubSub topic of their LiveResource, which other tests broadcast to. Their events
+  # would reload the list that a test here refutes a reload of, so these tests must not run concurrently with them.
+  use Backpex.ConnCase, async: false
 
   import Ecto.Query
   import Phoenix.LiveViewTest

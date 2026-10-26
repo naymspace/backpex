@@ -4,6 +4,8 @@ defmodule Backpex.Integration.FieldMatrixTest do
   import Phoenix.LiveViewTest, only: [form: 2, put_submitter: 2, render_submit: 2]
 
   alias Backpex.Test.Sample
+  alias Backpex.Test.SampleLive
+  alias Backpex.Test.UsersAddresses
 
   # One entry per field module of Backpex. `Backpex.Test.SampleLive` has a field of every scalar type; the relation
   # fields are covered by the LiveResource that has one. Every entry runs the same tests, so a new field type only needs
@@ -13,16 +15,22 @@ defmodule Backpex.Integration.FieldMatrixTest do
   #   `{:check, labels}`. A field whose value a hook sets in a hidden input, which phoenix_test can't fill in, has
   #   `{:hidden, params}` with the form params that the hook would set,
   # - `:stored` is the value of `:column` after saving that input,
-  # - `:shown` is the text the index and show views render for that value.
+  # - `:shown` is what the index and show views render for that value in the field's cell: the exact text of the cell,
+  #   `{:selector, css}` for an element in it or `{:selector, css, text}` for an element with that exact text. A list
+  #   holds several of these.
   @scalar_fields [
     {Backpex.Fields.Text, column: :text, input: {:fill_in, "Text", "Hello"}, stored: "Hello", shown: "Hello"},
     {Backpex.Fields.Textarea,
      column: :textarea, input: {:fill_in, "Textarea", "Some text"}, stored: "Some text", shown: "Some text"},
     {Backpex.Fields.Number, column: :number, input: {:fill_in, "Number", "42"}, stored: 42, shown: "42"},
-    {Backpex.Fields.Boolean, column: :boolean, input: {:check, ["Boolean"]}, stored: true, shown: nil},
+    {Backpex.Fields.Boolean,
+     column: :boolean, input: {:check, ["Boolean"]}, stored: true, shown: {:selector, ".hero-check-solid"}},
     {Backpex.Fields.Select, column: :select, input: {:select, "Select", "Two"}, stored: :two, shown: "Two"},
     {Backpex.Fields.MultiSelect,
-     column: :multi_select, input: {:check, ["Red", "Blue"]}, stored: ["red", "blue"], shown: "Red"},
+     column: :multi_select,
+     input: {:check, ["Red", "Blue"]},
+     stored: ["red", "blue"],
+     shown: [{:selector, ".badge", "Red"}, {:selector, ".badge", "Blue"}]},
     {Backpex.Fields.Checkgroup,
      column: :checkgroup, input: {:check, ["Read", "Write"]}, stored: ["read", "write"], shown: "Read, Write"},
     {Backpex.Fields.Date,
@@ -47,14 +55,62 @@ defmodule Backpex.Integration.FieldMatrixTest do
      column: :currency, input: {:hidden, %{currency: "12.50"}}, stored: Money.new(1250), shown: "$12.50"}
   ]
 
-  # Fields that need a relation or an upload. They are rendered in every view of their LiveResource; saving them is
-  # covered by the tests of each field in `integration_test/fields`.
+  # Fields that need a relation or an upload. `insert_item/1` inserts an item of `:path` with a value for the field.
+  # `:index`, `:show`, `:new` and `:edit` list the `{selector, opts}` assertions of each view for that field; the index
+  # has none for fields that it doesn't show. Saving them is covered by the tests of each field in
+  # `integration_test/fields`.
   @relation_fields [
-    {Backpex.Fields.BelongsTo, path: "/admin/samples", factory: :sample, field: :category},
-    {Backpex.Fields.Upload, path: "/admin/samples", factory: :sample, field: :upload},
-    {Backpex.Fields.HasMany, path: "/admin/posts", factory: :post, field: :tags},
-    {Backpex.Fields.HasManyThrough, path: "/admin/users", factory: :user, field: :addresses},
-    {Backpex.Fields.InlineCRUD, path: "/admin/users", factory: :user, field: :social_links}
+    {Backpex.Fields.BelongsTo,
+     path: "/admin/samples",
+     index: [{"td a", text: "Science", exact: true}],
+     show: [{"dt", text: "Category", exact: true}, {"dd a", text: "Science", exact: true}],
+     new: [{"select", label: "Category"}],
+     edit: [{"select", label: "Category", selected: "Science"}]},
+    {Backpex.Fields.Upload,
+     path: "/admin/samples",
+     index: [{"td p", text: "notes.txt", exact: true}],
+     show: [{"dt", text: "Upload", exact: true}, {"dd p", text: "notes.txt", exact: true}],
+     new: [{"input[type='file']", label: "Upload"}],
+     edit: [{"input[type='file']", label: "Upload"}, {"button[aria-label='Remove notes.txt']", []}]},
+    {Backpex.Fields.HasMany,
+     path: "/admin/posts",
+     index: [{"td a", text: "Elixir", exact: true}, {"td a", text: "Phoenix", exact: true}],
+     show: [
+       {"dt", text: "Tags", exact: true},
+       {"dd a", text: "Elixir", exact: true},
+       {"dd a", text: "Phoenix", exact: true}
+     ],
+     new: [{"#resource-form_tags-label", text: "Tags", exact: true}],
+     edit: [
+       {"#has-many-tags label:has(input[checked])", text: "Elixir", exact: true},
+       {"#has-many-tags label:has(input[checked])", text: "Phoenix", exact: true}
+     ]},
+    {Backpex.Fields.HasManyThrough,
+     path: "/admin/users",
+     index: [],
+     show: [
+       {"dt", text: "Addresses", exact: true},
+       {"dd td", text: "Main Street 1", exact: true},
+       {"dd td", text: "Billing", exact: true}
+     ],
+     new: [{"#has-many-through-label-addresses", text: "Addresses", exact: true}],
+     edit: [
+       {"table[aria-labelledby='has-many-through-label-addresses'] td", text: "Main Street 1", exact: true},
+       {"table[aria-labelledby='has-many-through-label-addresses'] td", text: "Billing", exact: true}
+     ]},
+    {Backpex.Fields.InlineCRUD,
+     path: "/admin/users",
+     index: [],
+     show: [
+       {"dt", text: "Social links", exact: true},
+       {"dd td", text: "Mastodon", exact: true},
+       {"dd td", text: "https://mastodon.example/@jane", exact: true}
+     ],
+     new: [{"#inline-crud-label-social_links", text: "Social links", exact: true}],
+     edit: [
+       {"input[name='change[social_links][0][label]'][value='Mastodon']", []},
+       {"input[name='change[social_links][0][url]'][value='https://mastodon.example/@jane']", []}
+     ]}
   ]
 
   @field_modules Enum.map(@scalar_fields ++ @relation_fields, &elem(&1, 0))
@@ -87,13 +143,14 @@ defmodule Backpex.Integration.FieldMatrixTest do
       test "renders the value on the index and show views", %{conn: conn} do
         sample = insert(:sample, [{@opts[:column], @opts[:stored]}])
 
-        index = conn |> visit(~p"/admin/samples") |> assert_has("table tbody tr", count: 1)
-        show = conn |> visit(~p"/admin/samples/#{sample.id}/show") |> assert_has("dl")
+        conn
+        |> visit(~p"/admin/samples")
+        |> assert_has("table tbody tr", count: 1)
+        |> assert_shown(:index, @opts[:column], @opts[:shown])
 
-        if shown = @opts[:shown] do
-          assert_has(index, "table tbody td", text: shown)
-          assert_has(show, "dd", text: shown)
-        end
+        conn
+        |> visit(~p"/admin/samples/#{sample.id}/show")
+        |> assert_shown(:show, @opts[:column], @opts[:shown])
       end
 
       test "keeps the value when another field of the edit form changes", %{conn: conn} do
@@ -115,19 +172,72 @@ defmodule Backpex.Integration.FieldMatrixTest do
   end
 
   for {module, opts} <- @relation_fields do
+    @module module
     @opts opts
     describe inspect(module) do
       test "renders in the index, show, new and edit views", %{conn: conn} do
-        item = insert(@opts[:factory])
+        item = insert_item(@module)
         path = @opts[:path]
 
-        conn |> visit(path) |> assert_has("table tbody tr", count: 1)
-        conn |> visit("#{path}/#{item.id}/show") |> assert_has("dl")
-        conn |> visit("#{path}/new") |> assert_has("#resource-form")
-        conn |> visit("#{path}/#{item.id}/edit") |> assert_has("#resource-form")
+        conn |> visit(path) |> assert_has("table tbody tr", count: 1) |> assert_all(@opts[:index])
+        conn |> visit("#{path}/#{item.id}/show") |> assert_all(@opts[:show])
+        conn |> visit("#{path}/new") |> within("#resource-form", &assert_all(&1, @opts[:new]))
+        conn |> visit("#{path}/#{item.id}/edit") |> within("#resource-form", &assert_all(&1, @opts[:edit]))
       end
     end
   end
+
+  defp insert_item(Backpex.Fields.BelongsTo), do: insert(:sample, category: build(:category, name: "Science"))
+  defp insert_item(Backpex.Fields.Upload), do: insert(:sample, upload: "notes.txt")
+
+  defp insert_item(Backpex.Fields.HasMany),
+    do: insert(:post, tags: [build(:tag, name: "Elixir"), build(:tag, name: "Phoenix")])
+
+  defp insert_item(Backpex.Fields.HasManyThrough) do
+    address = build(:address, street: "Main Street 1")
+    insert(:user, users_addresses: [%UsersAddresses{address: address, type: :billing}])
+  end
+
+  defp insert_item(Backpex.Fields.InlineCRUD),
+    do: insert(:user, social_links: [%{label: "Mastodon", url: "https://mastodon.example/@jane"}])
+
+  defp assert_all(session, assertions) do
+    Enum.reduce(assertions, session, fn {selector, opts}, session -> assert_has(session, selector, opts) end)
+  end
+
+  # The index and show views render the fields of `Backpex.Test.SampleLive` in the order of `fields/0`: one table column
+  # after the selection checkbox and one `dl` in its own `div` per field. The label assertions make sure that the
+  # selectors point at the field.
+  defp assert_shown(session, :index, column, shown) do
+    position = field_position(column) + 1
+
+    session
+    |> assert_has("table thead th:nth-child(#{position})", text: field_label(column), exact: true)
+    |> assert_shown_in("table tbody td:nth-child(#{position})", shown)
+  end
+
+  defp assert_shown(session, :show, column, shown) do
+    container = "div:nth-child(#{field_position(column)}) > dl"
+
+    session
+    |> assert_has("#{container} > dt", text: field_label(column), exact: true)
+    |> assert_shown_in("#{container} > dd", shown)
+  end
+
+  defp assert_shown_in(session, cell, shown) when is_list(shown),
+    do: Enum.reduce(shown, session, &assert_shown_in(&2, cell, &1))
+
+  defp assert_shown_in(session, cell, {:selector, css}), do: assert_has(session, "#{cell} #{css}")
+
+  defp assert_shown_in(session, cell, {:selector, css, text}),
+    do: assert_has(session, "#{cell} #{css}", text: text, exact: true)
+
+  defp assert_shown_in(session, cell, text), do: assert_has(session, cell, text: text, exact: true)
+
+  defp field_position(column),
+    do: SampleLive.fields() |> Keyword.keys() |> Enum.find_index(&(&1 == column)) |> Kernel.+(1)
+
+  defp field_label(column), do: SampleLive.fields() |> Keyword.fetch!(column) |> Map.fetch!(:label)
 
   # The params of a hidden input that a hook fills in are sent as values of the submit.
   defp set_field_and_save(session, {:hidden, params}) do
