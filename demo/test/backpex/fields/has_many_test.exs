@@ -50,7 +50,7 @@ defmodule Backpex.Fields.HasManyTest do
       changeset =
         %Post{tags: []}
         |> Ecto.Changeset.change()
-        |> HasMany.before_changeset(%{"tags_select_all" => ""}, [], Demo.Repo, field(), %{
+        |> HasMany.before_changeset(%{"tags_select_all" => ""}, [], field(), %{
           form: form(%Post{tags: []}, "r"),
           live_resource: DemoWeb.PostLive
         })
