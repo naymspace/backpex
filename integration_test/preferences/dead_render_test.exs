@@ -195,8 +195,8 @@ defmodule Backpex.Integration.Preferences.DeadRenderTest do
   end
 
   # The wire format the JS hook writes: encodeURIComponent(JSON.stringify(envelope)), where each pending write carries
-  # the adapter namespace token the server rendered into `data-preferences-manifest`. By default the token belongs to the
-  # session making this request.
+  # the adapter namespace token the server rendered into `data-preferences-manifest`. By default the token belongs to
+  # the session making this request.
   defp put_pending_writes(conn, writes, stamped_for \\ nil) do
     token = namespace_token(stamped_for || Plug.Conn.get_session(conn))
 

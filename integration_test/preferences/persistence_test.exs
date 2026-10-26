@@ -218,8 +218,8 @@ defmodule Backpex.Integration.Preferences.PersistenceTest do
 
       {:ok, view, _html} = live(conn, ~p"/admin/posts?filters[published][]=published")
 
-      # The URL collapses to no `filters[]` param, so the clear-filter handler itself must emit the empty-map push_event —
-      # apply_index can't infer the cleared intent from the URL alone.
+      # The URL collapses to no `filters[]` param, so the clear-filter handler itself must emit the empty-map
+      # push_event — apply_index can't infer the cleared intent from the URL alone.
       #
       # Two buttons fire `clear-filter` for the same field (the inline "clear" link and the indicator badge's × icon).
       # Target the indicator explicitly via its aria-label.

@@ -27,8 +27,8 @@ Sandbox.mode(Repo, :manual)
 {:ok, {_ip, port}} = Endpoint.server_info(:http)
 Application.put_env(:phoenix_test, :base_url, "http://localhost:#{port}")
 
-# The browser tests are tagged `:e2e` and need Playwright (`bun install`) and the assets of `bun run e2e:assets`. They only
-# run with `mix test --only e2e` or `--include e2e`.
+# The browser tests are tagged `:e2e` and need Playwright (`bun install`) and the assets of `bun run e2e:assets`.
+# They only run with `mix test --only e2e` or `--include e2e`.
 if Enum.any?(ExUnit.configuration()[:include], &(&1 == :e2e or match?({:e2e, _value}, &1))) do
   {:ok, _pid} = PhoenixTest.Playwright.Supervisor.start_link()
 end

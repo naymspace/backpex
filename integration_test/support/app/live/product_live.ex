@@ -1,3 +1,4 @@
+# credo:disable-for-this-file Credo.Check.Design.DuplicatedCode
 defmodule Backpex.Test.ProductLive do
   use Backpex.LiveResource,
     adapter_config: [
@@ -197,7 +198,7 @@ defmodule Backpex.Test.ProductLive do
     file_name = file_name(entry)
     dest = Path.join([Uploads.dir(), upload_dir(), file_name])
 
-    File.mkdir_p!(Path.dirname(dest))
+    dest |> Path.dirname() |> File.mkdir_p!()
     File.cp!(path, dest)
 
     {:ok, file_url(file_name)}

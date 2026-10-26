@@ -130,11 +130,13 @@ defmodule Backpex.OptionCoverageTest do
     adapter_config = Keyword.get(opts, :adapter_config, [])
     adapter_keys = if Keyword.keyword?(adapter_config), do: Keyword.keys(adapter_config), else: []
 
-    Enum.map(Keyword.keys(opts), &{:live_resource, &1}) ++ Enum.map(adapter_keys, &{:adapter_config, &1})
+    live_resource_options = opts |> Keyword.keys() |> Enum.map(&{:live_resource, &1})
+
+    live_resource_options ++ Enum.map(adapter_keys, &{:adapter_config, &1})
   end
 
   defp node_options({:live_resources, _meta, [_path, _live_resource, opts]}, _aliases) when is_list(opts) do
-    Enum.map(Keyword.keys(opts), &{:live_resources, &1})
+    opts |> Keyword.keys() |> Enum.map(&{:live_resources, &1})
   end
 
   defp node_options({:%{}, _meta, pairs}, aliases), do: field_options(pairs, aliases)
@@ -159,12 +161,19 @@ defmodule Backpex.OptionCoverageTest do
 
   defp resolve({:__aliases__, _meta, [first | rest]}, aliases) do
     case Map.fetch(aliases, first) do
-      {:ok, parts} -> Module.concat(parts ++ rest)
-      :error -> Module.concat([first | rest])
+      {:ok, parts} -> safe_concat(parts ++ rest)
+      :error -> safe_concat([first | rest])
     end
   end
 
   defp resolve(_ast, _aliases), do: nil
+
+  # A module that doesn't exist can't be a field module.
+  defp safe_concat(parts) do
+    Module.safe_concat(parts)
+  rescue
+    ArgumentError -> nil
+  end
 
   # `alias A.B`, `alias A.B, as: C` and `alias A.{B, C}`, as a map of the short name to the parts of the full name.
   defp aliases(ast) do

@@ -90,7 +90,7 @@ defmodule Backpex.Test.SampleLive do
 
   defp consume_upload(_socket, _item, %{path: path}, entry) do
     dest = Path.join([Uploads.dir(), "uploads", "samples", file_name(entry)])
-    File.mkdir_p!(Path.dirname(dest))
+    dest |> Path.dirname() |> File.mkdir_p!()
     File.cp!(path, dest)
 
     {:ok, "/uploads/samples/" <> file_name(entry)}

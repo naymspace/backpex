@@ -141,7 +141,7 @@ defmodule Backpex.Testing do
 
   # The views of a LiveResource are the modules `Index`, `Form` and `Show` inside of it.
   defp primary_value(item, %Phoenix.LiveViewTest.View{module: module}) do
-    live_resource = module |> Module.split() |> Enum.drop(-1) |> Module.concat()
+    live_resource = module |> Module.split() |> Enum.drop(-1) |> Module.safe_concat()
     primary_value(item, live_resource)
   end
 

@@ -100,7 +100,7 @@ defmodule Backpex.Test.AdapterConformance do
           changeset = change(@live_resource, new_item(), Map.put(@attrs, to_string(@field), "Inserted"), :insert)
 
           assert {:ok, item} = adapter(@live_resource).insert(changeset, @live_resource)
-          assert Map.fetch!(reload(@live_resource, item), @field) == "Inserted"
+          assert @live_resource |> reload(item) |> Map.fetch!(@field) == "Inserted"
         end
 
         test "update an item" do
@@ -109,7 +109,7 @@ defmodule Backpex.Test.AdapterConformance do
           changeset = change(@live_resource, item, %{to_string(@field) => "After"}, :update)
 
           assert {:ok, _item} = adapter(@live_resource).update(changeset, @live_resource)
-          assert Map.fetch!(reload(@live_resource, item), @field) == "After"
+          assert @live_resource |> reload(item) |> Map.fetch!(@field) == "After"
         end
 
         test "refuse an invalid change" do

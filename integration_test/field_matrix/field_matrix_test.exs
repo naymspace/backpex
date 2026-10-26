@@ -5,9 +5,9 @@ defmodule Backpex.Integration.FieldMatrixTest do
 
   alias Backpex.Test.Sample
 
-  # One entry per field module of Backpex. `Backpex.Test.SampleLive` has a field of every scalar type; the relation fields
-  # are covered by the LiveResource that has one. Every entry runs the same tests, so a new field type only needs an
-  # entry here to be rendered and saved in every view.
+  # One entry per field module of Backpex. `Backpex.Test.SampleLive` has a field of every scalar type; the relation
+  # fields are covered by the LiveResource that has one. Every entry runs the same tests, so a new field type only needs
+  # an entry here to be rendered and saved in every view.
   #
   # - `:params` are the form params of a new item that set the field,
   # - `:stored` is the value of `:column` after saving these params,
