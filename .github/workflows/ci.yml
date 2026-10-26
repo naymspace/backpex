@@ -121,11 +121,6 @@ jobs:
       - name: Sobelow
         run: mix sobelow --config
 
-      - name: Deps Unused
-        # Older Elixir versions don't load the dependencies of the integration tests, which would count as unused.
-        if: matrix.elixir == '1.20'
-        run: mix deps.unlock --check-unused
-
       - name: Run tests
         run: mix test
 
@@ -219,6 +214,10 @@ jobs:
           key: ${{ runner.os }}-${{ env.RUNNER_IMAGE }}-playwright-${{ hashFiles('bun.lock') }}
           restore-keys: |
             ${{ runner.os }}-${{ env.RUNNER_IMAGE }}-playwright-
+
+      - name: Deps Unused
+        # Only the latest Elixir loads the dependencies of the integration tests, see mix.exs.
+        run: mix deps.unlock --check-unused
 
       - name: Install node dependencies
         run: bun install --frozen-lockfile
