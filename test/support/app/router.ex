@@ -32,6 +32,7 @@ defmodule Backpex.Test.Router do
       live_resources "/film-reviews", Backpex.Test.FilmReviewLive
       live_resources "/short-links", Backpex.Test.ShortLinkLive
       live_resources "/samples", Backpex.Test.SampleLive
+      live_resources "/notes", Backpex.Test.NoteLive
     end
   end
 end

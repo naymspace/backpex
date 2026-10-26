@@ -10,6 +10,7 @@ defmodule Backpex.Test.EctoFactory do
   alias Backpex.Test.Category
   alias Backpex.Test.FilmReview
   alias Backpex.Test.Invoice
+  alias Backpex.Test.Note
   alias Backpex.Test.Post
   alias Backpex.Test.Product
   alias Backpex.Test.Sample
@@ -99,6 +100,10 @@ defmodule Backpex.Test.EctoFactory do
       company: sequence(:company, &"Company #{&1}"),
       amount: 1_000
     }
+  end
+
+  def note_factory do
+    %Note{title: sequence(:note_title, &"Note #{&1}")}
   end
 
   def sample_factory do

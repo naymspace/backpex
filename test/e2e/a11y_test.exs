@@ -13,7 +13,8 @@ defmodule Backpex.E2E.A11yTest do
     {"/admin/samples", :sample, :id, [:index, :new, :show, :edit]},
     {"/admin/posts", :post, :id, [:index, :new, :show, :edit]},
     {"/admin/categories", :category, :id, [:index, :new, :show, :edit]},
-    {"/admin/tags", :tag, :id, [:index, :new, :show, :edit]}
+    {"/admin/tags", :tag, :id, [:index, :new, :show, :edit]},
+    {"/admin/notes", :note, :id, [:index, :new, :show, :edit]}
   ]
 
   for {path, factory, primary_key, views} <- @resources, view <- views do

@@ -41,7 +41,8 @@ defmodule Backpex.Test.ShortLinkLive do
       url: %{
         module: Backpex.Fields.URL,
         label: "URL",
-        placeholder: "https://example.com"
+        placeholder: "https://example.com",
+        searchable: true
       },
       product: %{
         module: Backpex.Fields.BelongsTo,

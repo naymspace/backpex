@@ -2,7 +2,7 @@ defmodule Backpex.Test.Repo.Migrations.CreateTables do
   use Ecto.Migration
 
   # The repo is configured with `migration_primary_key: [type: :binary_id]`, so every table without an explicit primary
-  # key gets a UUID `id`. `users` has an integer id and `short_links` a string primary key.
+  # key gets a UUID `id`. `users` and `notes` have an integer id and `short_links` a string primary key.
   def change do
     create table(:users, primary_key: false) do
       add(:id, :bigserial, primary_key: true)
@@ -116,6 +116,12 @@ defmodule Backpex.Test.Repo.Migrations.CreateTables do
     end
 
     create(unique_index(:backpex_user_preferences, [:user_id, :tenant_id, :key]))
+
+    create table(:notes, primary_key: false) do
+      add(:id, :bigserial, primary_key: true)
+      add(:title, :string, null: false)
+      timestamps()
+    end
 
     create table(:samples) do
       add(:text, :string, null: false)
