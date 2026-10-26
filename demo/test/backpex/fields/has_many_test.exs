@@ -51,7 +51,8 @@ defmodule Backpex.Fields.HasManyTest do
         %Post{tags: []}
         |> Ecto.Changeset.change()
         |> HasMany.before_changeset(%{"tags_select_all" => ""}, [], Demo.Repo, field(), %{
-          form: form(%Post{tags: []}, "r")
+          form: form(%Post{tags: []}, "r"),
+          live_resource: DemoWeb.PostLive
         })
 
       assert for(%{action: :update, data: tag} <- changeset.changes.tags, do: tag.name) == ["rust"]
