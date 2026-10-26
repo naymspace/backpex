@@ -65,7 +65,7 @@ defmodule Backpex.Fields.URL do
         <BackpexForm.input
           type="text"
           field={@form[@name]}
-          placeholder={@field_options[:placeholder]}
+          placeholder={Backpex.Field.placeholder(@field_options, assigns)}
           translate_error_fun={Backpex.Field.translate_error_fun(@field_options, assigns)}
           help_text={Backpex.Field.help_text(@field_options, assigns)}
           phx-debounce={Backpex.Field.debounce(@field_options, assigns)}
