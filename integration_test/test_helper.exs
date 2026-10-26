@@ -1,4 +1,5 @@
 alias Backpex.Test.Endpoint
+alias Backpex.Test.OptionsPubSub
 alias Backpex.Test.Repo
 alias Ecto.Adapters.SQL.Sandbox
 
@@ -26,6 +27,8 @@ File.rm_rf!(Backpex.Test.Uploads.dir())
     [
       Repo,
       {Phoenix.PubSub, name: Backpex.Test.AppPubSub},
+      # The PubSub server of `Backpex.Test.PubSubNoteLive`, which configures its own.
+      Supervisor.child_spec({Phoenix.PubSub, name: OptionsPubSub}, id: OptionsPubSub),
       Endpoint
     ],
     strategy: :one_for_one
