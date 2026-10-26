@@ -214,7 +214,7 @@ defmodule DemoWeb.Live.Post.FilterLiveTest do
       |> assert_has("table tbody tr", count: 2)
       |> unwrap(fn view ->
         view
-        |> element("div[phx-click='filter-preset-selected'][phx-value-field='likes'][phx-value-preset-index='0']")
+        |> element("button[phx-click='filter-preset-selected'][phx-value-field='likes'][phx-value-preset-index='0']")
         |> render_click()
       end)
       |> assert_has("table tbody tr", count: 1)
@@ -232,7 +232,7 @@ defmodule DemoWeb.Live.Post.FilterLiveTest do
       |> assert_has("table tbody tr", count: 3)
       |> unwrap(fn view ->
         view
-        |> element("div[phx-click='filter-preset-selected'][phx-value-field='likes'][phx-value-preset-index='1']")
+        |> element("button[phx-click='filter-preset-selected'][phx-value-field='likes'][phx-value-preset-index='1']")
         |> render_click()
       end)
       |> assert_has("table tbody tr", count: 1)
@@ -340,6 +340,34 @@ defmodule DemoWeb.Live.Post.FilterLiveTest do
       |> assert_has("table tbody tr", count: 2)
       |> assert_has("td", text: "Post A")
       |> assert_has("td", text: "Post B")
+    end
+
+    test "decimal start value in range filter on an integer field does not apply filter", %{conn: conn} do
+      insert(:post, title: "Post A", published: true, likes: 200)
+      insert(:post, title: "Post B", published: true, likes: 5)
+
+      params = %{"filters" => %{"published" => ["published"], "likes" => %{"start" => "1.5", "end" => ""}}}
+
+      conn
+      |> visit(~p"/admin/posts?#{params}")
+      |> assert_has("table tbody tr", count: 2)
+      |> assert_has("#filter-form", text: "has invalid start value")
+    end
+
+    test "decimal end value in range filter on an integer field via form change shows an error", %{conn: conn} do
+      insert(:post, title: "Post A", published: true, likes: 200)
+      insert(:post, title: "Post B", published: true, likes: 5)
+
+      conn
+      |> visit(~p"/admin/posts")
+      |> assert_has("table tbody tr", count: 2)
+      |> unwrap(fn view ->
+        view
+        |> form("form[phx-change='change-filter']", filters: %{likes: %{end: "99.5"}})
+        |> render_change()
+      end)
+      |> assert_has("table tbody tr", count: 2)
+      |> assert_has("#filter-form", text: "has invalid end value")
     end
 
     test "invalid category value does not apply filter", %{conn: conn} do

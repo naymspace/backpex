@@ -3,12 +3,20 @@ defmodule Backpex.HTML.ResourceTest do
 
   import Phoenix.LiveViewTest
 
+  alias Backpex.Filters.Select
   alias Backpex.HTML.Resource
+  alias Plug.Conn.Query
+
+  defmodule NoTypesAdapter do
+    @moduledoc false
+    # An adapter that doesn't know the types of the fields.
+  end
 
   defmodule ContextLive do
     @moduledoc false
     def translate({msg, _opts}), do: msg
     def config(:full_text_search), do: nil
+    def config(:adapter), do: NoTypesAdapter
   end
 
   defmodule MarkerFilter do
@@ -16,6 +24,10 @@ defmodule Backpex.HTML.ResourceTest do
     use Phoenix.Component
 
     def label, do: "Marker"
+
+    def type(_assigns), do: :string
+
+    def changeset(changeset, _field, _assigns), do: changeset
 
     def render_form(assigns) do
       ~H"""
@@ -49,6 +61,169 @@ defmodule Backpex.HTML.ResourceTest do
         )
 
       assert html =~ ~s(<span id="marker">assigns</span>)
+    end
+  end
+
+  defmodule BooleanFilter do
+    @moduledoc false
+    use Backpex.Filters.Boolean
+
+    @impl Backpex.Filter
+    def label, do: "Published"
+
+    @impl Backpex.Filters.Boolean
+    def options(_assigns) do
+      [
+        %{label: "Published", key: "published", predicate: {:==, :published, true}},
+        %{label: "Not published", key: "not_published", predicate: {:==, :published, false}}
+      ]
+    end
+  end
+
+  defmodule MultiSelectFilter do
+    @moduledoc false
+    use Backpex.Filters.MultiSelect
+
+    @impl Backpex.Filter
+    def label, do: "Users"
+
+    @impl Select
+    def prompt, do: "Select users ..."
+
+    @impl Select
+    def options(_assigns), do: [{"Jane", "a"}, {"John", "b"}]
+  end
+
+  defmodule RangeFilter do
+    @moduledoc false
+    use Backpex.Filters.Range
+
+    @impl Backpex.Filter
+    def label, do: "Likes"
+
+    @impl Backpex.Filters.Range
+    def type, do: :number
+  end
+
+  defmodule SelectFilter do
+    @moduledoc false
+    use Backpex.Filters.Select
+
+    @impl Backpex.Filter
+    def label, do: "Category"
+
+    @impl Select
+    def prompt, do: "Select category ..."
+
+    @impl Select
+    def options(_assigns), do: [{"Tech", "tech"}, {"News", "news"}]
+  end
+
+  describe "resource_filters/1 with filter values from the URL or persisted filters" do
+    @filters [
+      published: %{module: BooleanFilter},
+      user_id: %{module: MultiSelectFilter},
+      likes: %{module: RangeFilter},
+      category: %{module: SelectFilter}
+    ]
+
+    @wrong_shapes [
+      %{"published" => "published"},
+      %{"user_id" => "a"},
+      %{"likes" => "abc"},
+      %{"likes" => ["abc"]},
+      %{"likes" => %{"start" => %{"a" => "b"}, "end" => ""}},
+      %{"likes" => %{"start" => "", "end" => ["a"]}},
+      %{"category" => ["tech"]},
+      %{"published" => "published", "user_id" => "a", "likes" => "abc", "category" => ["tech"]}
+    ]
+
+    defp render_filters(raw_filters, opts \\ []) do
+      changeset = Backpex.FilterValidation.build_changeset(raw_filters, @filters, %{})
+
+      form_assigns =
+        if Keyword.get(opts, :filter_form, true),
+          do: [filter_form: Phoenix.Component.to_form(changeset, as: :filters)],
+          else: []
+
+      # The library tests have no error translator configured, so the fallback translator warns about the
+      # `:type` option of cast errors. The warnings are not captured: capturing `:standard_error` re-registers
+      # the named device, so other async tests that write to stderr meanwhile would crash.
+      render_component(
+        &Resource.resource_filters/1,
+        [
+          live_resource: ContextLive,
+          search_placeholder: "Search",
+          filters: @filters,
+          query_options: %{filters: raw_filters},
+          filter_values: Backpex.FilterValidation.valid_values(changeset)
+        ] ++ form_assigns
+      )
+    end
+
+    test "renders the form without values of the wrong shape and shows the cast error" do
+      for raw_filters <- @wrong_shapes do
+        html = render_filters(raw_filters)
+
+        assert html =~ ~s(id="filter-form")
+        assert html =~ ~s(<p class="text-error)
+        refute html =~ "checked"
+        refute html =~ "<option selected"
+
+        # The invalid value can be cleared.
+        for {field, _value} <- raw_filters do
+          assert html =~ ~s(phx-click="clear-filter" phx-value-field="#{field}")
+        end
+      end
+    end
+
+    test "renders the form without values of the wrong shape when called without a filter form" do
+      for raw_filters <- @wrong_shapes do
+        html = render_filters(raw_filters, filter_form: false)
+
+        assert html =~ ~s(id="filter-form")
+        assert html =~ ~s(<p class="text-error)
+        refute html =~ "checked"
+      end
+    end
+
+    test "keeps values of the right shape in the form" do
+      for opts <- [[], [filter_form: false]] do
+        html =
+          render_filters(
+            %{
+              "published" => ["published"],
+              "user_id" => ["a"],
+              "likes" => %{"start" => "1", "end" => "5"},
+              "category" => "news"
+            },
+            opts
+          )
+
+        refute html =~ ~s(<p class="text-error)
+        assert html =~ ~r/value="published"\s+checked/
+        assert html =~ "1 selected"
+        assert html =~ ~s(value="5")
+        assert html =~ ~s(<option selected value="news">)
+      end
+    end
+  end
+
+  describe "filter_presets/1" do
+    test "renders each preset as a button that does not submit the filter form" do
+      html =
+        render_component(&Resource.filter_presets/1,
+          filter_name: :inserted_at,
+          presets: [%{label: "Last 7 Days"}, %{label: "Last 14 Days"}]
+        )
+
+      buttons = html |> LazyHTML.from_fragment() |> LazyHTML.query("button")
+
+      assert Enum.map(buttons, &String.trim(LazyHTML.text(&1))) == ["Last 7 Days", "Last 14 Days"]
+      assert LazyHTML.attribute(buttons, "type") == ["button", "button"]
+      assert LazyHTML.attribute(buttons, "phx-click") == ["filter-preset-selected", "filter-preset-selected"]
+      assert LazyHTML.attribute(buttons, "phx-value-field") == ["inserted_at", "inserted_at"]
+      assert LazyHTML.attribute(buttons, "phx-value-preset-index") == ["0", "1"]
     end
   end
 
@@ -231,6 +406,41 @@ defmodule Backpex.HTML.ResourceTest do
     |> Backpex.LiveResource.context()
   end
 
+  describe "pagination/1" do
+    # Tests the component contract: every link is the unchanged return value of `page_path`. The regression test for
+    # the index view's page links is in demo/test/demo_web/live/post/pagination_live_test.exs.
+    for search <- ["R&D 100%", "C# dev", "1+1", "100%25", ":page"] do
+      test "uses the path from page_path unchanged for the search #{inspect(search)}" do
+        search = unquote(search)
+
+        html =
+          render_component(&Resource.pagination/1,
+            current_page: 2,
+            total_pages: 3,
+            page_path: &("/admin/posts?" <> Query.encode(%{search: search, page: &1}))
+          )
+
+        links =
+          html
+          |> LazyHTML.from_fragment()
+          |> LazyHTML.query("a")
+          |> Enum.map(fn link ->
+            [href] = LazyHTML.attribute(link, "href")
+            %URI{path: "/admin/posts", query: query, fragment: nil} = URI.parse(href)
+            Query.decode(query)
+          end)
+
+        assert links == [
+                 %{"search" => search, "page" => "1"},
+                 %{"search" => search, "page" => "1"},
+                 %{"search" => search, "page" => "2"},
+                 %{"search" => search, "page" => "3"},
+                 %{"search" => search, "page" => "3"}
+               ]
+      end
+    end
+  end
+
   describe "lv_reserved_assigns/0" do
     test "includes every assign reserved by Phoenix.LiveView" do
       reserved = Resource.lv_reserved_assigns()
@@ -247,6 +457,35 @@ defmodule Backpex.HTML.ResourceTest do
 
       refute Map.has_key?(result, :streams)
       assert result == %{foo: 1, bar: 2}
+    end
+  end
+
+  describe "pagination/1 accessibility" do
+    setup do
+      html =
+        render_component(&Resource.pagination/1,
+          current_page: 2,
+          total_pages: 10,
+          page_path: &"/admin/posts?page=#{&1}"
+        )
+
+      %{doc: LazyHTML.from_fragment(html)}
+    end
+
+    test "renders the placeholder as non-interactive and hidden from assistive technology", %{doc: doc} do
+      assert doc |> LazyHTML.query("button") |> Enum.empty?()
+
+      [placeholder] = doc |> LazyHTML.query(".join-item:not(a)") |> Enum.to_list()
+      assert LazyHTML.text(placeholder) =~ "..."
+      assert LazyHTML.attribute(placeholder, "aria-hidden") == ["true"]
+      assert LazyHTML.attribute(placeholder, "aria-disable") == []
+    end
+
+    test "marks only the current page link with aria-current", %{doc: doc} do
+      current = LazyHTML.query(doc, ~s(a[aria-current="page"]))
+
+      assert LazyHTML.text(current) =~ "2"
+      assert doc |> LazyHTML.query("a[aria-current]") |> Enum.count() == 1
     end
   end
 end

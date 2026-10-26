@@ -51,6 +51,14 @@ defmodule Backpex.Filters.BooleanTest do
                {:or, [{:==, :published, true}, {:==, :featured, true}]}
     end
 
+    test "ignores selected keys without an option" do
+      assert BooleanFilter.condition(test_options(), :published, ["featured", "unknown"], %{}) == {:==, :featured, true}
+    end
+
+    test "returns nil when no selected key has an option" do
+      assert BooleanFilter.condition(test_options(), :published, ["unknown", "other"], %{}) == nil
+    end
+
     test "is the condition of a filter module, with the options for the assigns" do
       assert OwnerFilter.condition(:owner, ["mine"], %{user_id: 1}) == {:==, :user_id, 1}
     end

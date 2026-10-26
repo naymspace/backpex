@@ -407,6 +407,19 @@ defmodule Backpex.ResourceTest do
       end
     end
 
+    test "raises for a metric module that still implements data/2" do
+      defmodule LegacyDataMetric do
+        @moduledoc false
+        def data(_metric, _assigns), do: 1
+      end
+
+      metric = %{module: LegacyDataMetric, label: "Balance"}
+
+      assert_raise ArgumentError, ~r/implements data\/2, but Backpex calls Backpex.Metric.data\/3/, fn ->
+        Resource.metric(metric, [search: {"", []}], [], %{}, MetricLive)
+      end
+    end
+
     test "lets the adapter compute the metric otherwise" do
       metric = %{module: Backpex.Metrics.Value, label: "Total", aggregate: :count}
 
