@@ -82,6 +82,11 @@ defmodule Backpex.FieldTest do
       true
     end
 
+    def on_item_updating(socket, {:changeset, item, attrs}) do
+      send(self(), {:on_item_updating, socket, item})
+      {:changeset, item, Map.put(attrs, :edited_inline, true)}
+    end
+
     def on_item_updated(socket, item) do
       send(self(), {:on_item_updated, socket, item})
       socket
@@ -185,7 +190,8 @@ defmodule Backpex.FieldTest do
       assert {:noreply, socket} = Field.handle_index_editable(socket, "After", %{title: "After"})
 
       assert_received {:can?, :edit, %{name: :title, item: ^item}}
-      assert_received {:adapter, :update, ^item, %{title: "After"}}
+      assert_received {:on_item_updating, %Socket{assigns: %{name: :title}}, ^item}
+      assert_received {:adapter, :update, ^item, %{title: "After", edited_inline: true}}
       assert_received {:on_item_updated, %Socket{assigns: %{name: :title}}, ^item}
       assert socket.assigns.valid
       assert socket.assigns.form.params == %{"value" => "After"}

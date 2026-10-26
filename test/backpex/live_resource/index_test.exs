@@ -30,6 +30,11 @@ defmodule Backpex.LiveResource.IndexTest do
       true
     end
 
+    def on_item_updating(socket, {:changeset, item, attrs}) do
+      send(self(), {:on_item_updating, socket, item})
+      {:changeset, item, Map.put(attrs, :edited_inline, true)}
+    end
+
     def on_item_updated(socket, item) do
       send(self(), {:on_item_updated, socket, item})
       socket
@@ -41,6 +46,7 @@ defmodule Backpex.LiveResource.IndexTest do
     def config(:adapter), do: Backpex.LiveResource.IndexTest.FailingAdapter
     def config(:primary_key), do: :id
     def can?(_assigns, _action, _item), do: true
+    def on_item_updating(_socket, change), do: change
   end
 
   defmodule DenyEditLive do
@@ -111,7 +117,8 @@ defmodule Backpex.LiveResource.IndexTest do
       assert {:noreply, socket} = Index.handle_event("index-edit", params("title", "1", "After"), socket)
 
       assert_received {:can?, :edit, %{current_user: :user, name: :title, item: ^item}}
-      assert_received {:adapter, :update, ^item, %{title: "After"}}
+      assert_received {:on_item_updating, %Socket{}, ^item}
+      assert_received {:adapter, :update, ^item, %{title: "After", edited_inline: true}}
       assert_received {:on_item_updated, %Socket{}, ^item}
       assert socket.assigns.items == [item]
       assert socket.assigns.index_edits == Map.new([other_edit])

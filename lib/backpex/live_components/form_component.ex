@@ -275,6 +275,7 @@ defmodule Backpex.FormComponent do
 
     opts = [
       assocs: Map.get(assigns, :assocs, []),
+      before_save_fun: &live_resource.on_item_creating(socket, &1),
       after_save_fun: fn item ->
         handle_uploads(socket, item)
         live_resource.on_item_created(socket, item)
@@ -322,6 +323,7 @@ defmodule Backpex.FormComponent do
 
     opts = [
       assocs: Map.get(socket.assigns, :assocs, []),
+      before_save_fun: &live_resource.on_item_updating(socket, &1),
       after_save_fun: fn item ->
         handle_uploads(socket, item)
         live_resource.on_item_updated(socket, item)

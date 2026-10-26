@@ -558,6 +558,7 @@ defmodule Backpex.LiveResource.Index do
          true <- Authorization.can?(live_resource, assigns, :edit, item),
          %{} = change <- field_options.module.index_editable_change(field, value, assigns) do
       opts = [
+        before_save_fun: &live_resource.on_item_updating(socket, &1),
         after_save_fun: fn item ->
           live_resource.on_item_updated(socket, item)
 

@@ -16,15 +16,25 @@ defmodule Backpex.FormComponentTest do
     def singular_name, do: "Item"
     def pubsub, do: [server: PubSub, topic: "items"]
     def form_actions(_assigns, default_actions), do: default_actions
-    def on_item_updated(socket, _item), do: socket
+    def on_item_creating(socket, change), do: run_hook(socket, :on_item_creating, change)
+    def on_item_updating(socket, change), do: run_hook(socket, :on_item_updating, change)
+    def on_item_created(_socket, item), do: send(self(), {:on_item_created, item})
+    def on_item_updated(_socket, item), do: send(self(), {:on_item_updated, item})
     def return_to(_socket, _assigns, _live_action, _form_action, _item), do: "/items"
 
     def change(_item, attrs, _fields, _assigns, _live_resource, _opts) do
       send(self(), {:change, attrs})
-      Ecto.Changeset.change({%{}, %{images: {:array, :string}, docs: {:array, :string}}})
+      Ecto.Changeset.change({%{}, %{title: :string, images: {:array, :string}, docs: {:array, :string}}})
     end
 
-    def update(changeset, _live_resource), do: {:ok, Ecto.Changeset.apply_changes(changeset)}
+    def insert(changeset, _live_resource), do: Ecto.Changeset.apply_action(changeset, :insert)
+    def update(changeset, _live_resource), do: Ecto.Changeset.apply_action(changeset, :update)
+
+    # Calls the function in the `:hook` assign of the form, if any, with the change.
+    defp run_hook(socket, name, change) do
+      send(self(), {name, change})
+      Map.get(socket.assigns, :hook, &Function.identity/1).(change)
+    end
   end
 
   describe "update/2" do
@@ -127,6 +137,67 @@ defmodule Backpex.FormComponentTest do
 
       assert_received {:removed, :docs, ["old.pdf"]}
       refute_received {:removed, :images, _removed_entries}
+    end
+  end
+
+  describe "handle_event/3 with \"save\"" do
+    setup do
+      start_supervised!({Phoenix.PubSub, name: PubSub})
+      :ok
+    end
+
+    test "creates the item from the change on_item_creating/2 returns" do
+      hook = &Ecto.Changeset.put_change(&1, :title, "From hook")
+      socket = save_socket(:new, hook: hook)
+
+      assert {:noreply, socket} = FormComponent.handle_event("save", %{}, socket)
+      assert {:live, :redirect, %{to: "/items"}} = socket.redirected
+
+      assert_received {:on_item_creating, %Ecto.Changeset{}}
+      assert_received {:on_item_created, %{title: "From hook"}}
+      refute_received {:on_item_updating, _change}
+    end
+
+    test "updates the item from the change on_item_updating/2 returns" do
+      hook = &Ecto.Changeset.put_change(&1, :title, "From hook")
+      socket = save_socket(:edit, hook: hook)
+
+      assert {:noreply, socket} = FormComponent.handle_event("save", %{}, socket)
+      assert {:live, :redirect, %{to: "/items"}} = socket.redirected
+
+      assert_received {:on_item_updating, %Ecto.Changeset{}}
+      assert_received {:on_item_updated, %{title: "From hook"}}
+      refute_received {:on_item_creating, _change}
+    end
+
+    test "shows the error on_item_updating/2 adds and saves nothing" do
+      hook = &Ecto.Changeset.add_error(&1, :title, "is taken")
+      socket = save_socket(:edit, hook: hook)
+
+      assert {:noreply, socket} = FormComponent.handle_event("save", %{}, socket)
+      refute socket.redirected
+
+      assert socket.assigns.show_form_errors
+      assert socket.assigns.form.errors == [title: {"is taken", []}]
+      assert_received {:update_changeset, %Ecto.Changeset{valid?: false}}
+      refute_received {:on_item_updated, _item}
+    end
+
+    test "raises when on_item_updating/2 does not return the change" do
+      socket = save_socket(:edit, hook: fn _change -> %Socket{} end)
+
+      assert_raise ArgumentError, ~r/must return the change they receive/, fn ->
+        FormComponent.handle_event("save", %{}, socket)
+      end
+
+      refute_received {:on_item_updated, _item}
+    end
+
+    defp save_socket(live_action, assigns) do
+      %Socket{}
+      |> Phoenix.Component.assign(fields: [], item: %{}, live_resource: ChangeLive, live_action: live_action)
+      |> Phoenix.Component.assign(removed_uploads: [])
+      |> Phoenix.Component.assign(assigns)
     end
   end
 
