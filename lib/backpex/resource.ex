@@ -73,12 +73,16 @@ defmodule Backpex.Resource do
 
   @doc """
   Returns the data of the given metric for the items matching the given criteria. Takes the same criteria as
-  `count/4`.
+  `count/4`. Calls `c:Backpex.Metric.data/2` instead of the adapter if the module of the metric implements it.
   """
-  def metric(metric, criteria, fields, assigns, live_resource) do
-    adapter = live_resource.config(:adapter)
+  def metric(%{module: module} = metric, criteria, fields, assigns, live_resource) do
+    if Code.ensure_loaded?(module) and function_exported?(module, :data, 2) do
+      {:ok, module.data(metric, assigns)}
+    else
+      adapter = live_resource.config(:adapter)
 
-    adapter.metric(metric, criteria, fields, assigns, live_resource)
+      adapter.metric(metric, criteria, fields, assigns, live_resource)
+    end
   end
 
   @doc """
@@ -135,6 +139,28 @@ defmodule Backpex.Resource do
     adapter = live_resource.config(:adapter)
 
     adapter.count_options(field, criteria, assigns, live_resource)
+  end
+
+  @doc """
+  Returns a term that changes whenever the options of the association field may change, or `nil` if the adapter doesn't
+  implement `c:Backpex.Adapter.options_key/3`.
+  """
+  def options_key(field, assigns, live_resource) do
+    adapter = live_resource.config(:adapter)
+
+    if Code.ensure_loaded?(adapter) and function_exported?(adapter, :options_key, 3),
+      do: adapter.options_key(field, assigns, live_resource)
+  end
+
+  @doc """
+  Returns the primitive type of the field `name` of the items, or `nil` if the adapter doesn't know it or doesn't
+  implement `c:Backpex.Adapter.field_type/2`.
+  """
+  def field_type(name, live_resource) do
+    adapter = live_resource.config(:adapter)
+
+    if Code.ensure_loaded?(adapter) and function_exported?(adapter, :field_type, 2),
+      do: adapter.field_type(name, live_resource)
   end
 
   @doc """

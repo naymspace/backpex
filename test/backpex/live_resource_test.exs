@@ -6,6 +6,7 @@ defmodule Backpex.LiveResourceTest do
   alias Backpex.Adapters.Ecto, as: EctoAdapter
   alias Backpex.ItemActions.Delete
   alias Backpex.LiveResource
+  alias Backpex.LiveResource.Index
   alias Phoenix.LiveView.Socket
 
   defmodule TestAuthor do
@@ -261,7 +262,60 @@ defmodule Backpex.LiveResourceTest do
     end
   end
 
+  describe "search_options/2" do
+    @searchable_fields [{:title, %{module: Backpex.Fields.Text, searchable: true}}]
+
+    test "keeps a string search term" do
+      assert {"hello", [{:title, %{searchable: true}}]} =
+               LiveResource.search_options(%{"search" => "hello"}, @searchable_fields)
+
+      assert {"hello", _fields} = LiveResource.search_options(%{search: "hello"}, @searchable_fields)
+      assert {"", _fields} = LiveResource.search_options(%{}, @searchable_fields)
+    end
+  end
+
   describe "Index.handle_event/3" do
+    test "change-filter is a no-op for filters that are not a map" do
+      # `filters` arrives in a client-controlled event payload; a tampered value
+      # must not crash the LiveView.
+      socket = %Socket{assigns: %{__changed__: %{}, query_options: %{filters: %{}}}}
+
+      for filters <- ["active", ["active"], 1] do
+        assert {:noreply, ^socket} =
+                 Index.handle_event("change-filter", %{"filters" => filters}, socket)
+      end
+    end
+
+    test "filter-preset-selected is a no-op for a field or preset the resource does not know" do
+      # `field` and `preset-index` arrive in a client-controlled event payload;
+      # a tampered value must not crash the LiveView.
+      presets = [%{label: "Active", values: fn -> ["active"] end}]
+
+      socket = %Socket{
+        assigns: %{
+          __changed__: %{},
+          query_options: %{filters: %{}},
+          filters: [status: %{module: nil, presets: presets}, published: %{module: nil}]
+        }
+      }
+
+      for params <- [
+            %{"field" => "status", "preset-index" => "abc"},
+            %{"field" => "status", "preset-index" => "1abc"},
+            %{"field" => "status", "preset-index" => "1"},
+            %{"field" => "status", "preset-index" => "-1"},
+            %{"field" => "status", "preset-index" => 0},
+            %{"field" => "not_an_existing_atom_8f3a1c", "preset-index" => "0"},
+            %{"field" => "title", "preset-index" => "0"},
+            %{"field" => "published", "preset-index" => "0"},
+            %{"field" => "status"},
+            %{}
+          ] do
+        assert {:noreply, ^socket} =
+                 Index.handle_event("filter-preset-selected", params, socket)
+      end
+    end
+
     test "toggle_column is a no-op for a field the resource does not know" do
       # `field` arrives in a client-controlled event payload; an unknown name
       # must not crash the LiveView.
@@ -270,7 +324,22 @@ defmodule Backpex.LiveResourceTest do
       }
 
       assert {:noreply, ^socket} =
-               Backpex.LiveResource.Index.handle_event("toggle_column", %{"field" => "bogus"}, socket)
+               Index.handle_event("toggle_column", %{"field" => "bogus"}, socket)
+    end
+
+    test "select-page-size and index-search are no-ops for a payload without a value" do
+      # The payload is client-controlled. A tampered value is validated in `handle_params/3`; a payload
+      # without one must not crash the LiveView.
+      socket = %Socket{assigns: %{__changed__: %{}, query_options: %{}, params: %{}}}
+
+      for {event, params} <- [
+            {"select-page-size", %{}},
+            {"select-page-size", %{"select_per_page" => "15"}},
+            {"index-search", %{}},
+            {"index-search", %{"index_search" => "R&D"}}
+          ] do
+        assert {:noreply, ^socket} = Index.handle_event(event, params, socket)
+      end
     end
   end
 end

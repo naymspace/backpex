@@ -15,6 +15,15 @@ defmodule DemoWeb.Browser.FilmReviewBrowserTest do
       |> visit(~p"/admin/film-reviews")
       |> assert_a11y()
     end
+
+    test "a11y with the pagination placeholder", %{conn: conn} do
+      insert_list(100, :film_review)
+
+      conn
+      |> visit(~p"/admin/film-reviews")
+      |> assert_has(".join-item", text: "...")
+      |> assert_a11y()
+    end
   end
 
   describe "film-reviews show" do

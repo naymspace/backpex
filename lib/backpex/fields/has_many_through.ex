@@ -109,9 +109,22 @@ defmodule Backpex.Fields.HasManyThrough do
 
   defp apply_action(socket, _type), do: socket
 
-  defp assign_options(%{assigns: %{options: _options, items: _items}} = socket), do: socket
-
+  # The options query may depend on other assigns, e.g. a value of the form. The options are loaded again whenever the
+  # options key of the adapter changes.
   defp assign_options(socket) do
+    %{field: field, live_resource: live_resource} = socket.assigns
+    options_key = Resource.options_key(field, socket.assigns, live_resource)
+
+    if Map.fetch(socket.assigns, :options_key) == {:ok, options_key} do
+      socket
+    else
+      socket
+      |> assign(:options_key, options_key)
+      |> load_options()
+    end
+  end
+
+  defp load_options(socket) do
     %{field: field, field_options: field_options, live_resource: live_resource} = socket.assigns
 
     display_field = Map.get(field_options, :display_field_form, Map.get(field_options, :display_field))
@@ -217,6 +230,7 @@ defmodule Backpex.Fields.HasManyThrough do
 
         %{
           index: editable.index,
+          has_error: editable.errors != [],
           pivot: Map.take(edited, Enum.map(assoc_field_options.pivot_fields, fn {name, _field_options} -> name end)),
           child: Map.take(item, Enum.map(assoc_field_options.child_fields, fn {name, _field_options} -> name end))
         }
@@ -315,7 +329,7 @@ defmodule Backpex.Fields.HasManyThrough do
                       <Backpex.HTML.CoreComponents.icon name="hero-trash" class="h-5 w-5" />
                     </button>
                     <div
-                      :if={has_error?(@editables, index)}
+                      :if={listable.has_error}
                       aria-label={
                         Backpex.__({"Error in relation with index %{index}", %{index: listable.index}}, @live_resource)
                       }
@@ -449,14 +463,6 @@ defmodule Backpex.Fields.HasManyThrough do
         |> assign(:field, {assigns.name, new_field_options})
         |> assign(:field_options, new_field_options)
     end
-  end
-
-  defp has_error?(editables, index) do
-    editables
-    |> Enum.at(index)
-    |> Map.get(:errors, [])
-    |> Enum.count()
-    |> Kernel.>(0)
   end
 
   @impl Backpex.Field

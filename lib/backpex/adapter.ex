@@ -63,7 +63,8 @@ defmodule Backpex.Adapter do
   @doc """
   Returns the data of a metric, such as the sum of a column, for the items matching the given criteria.
 
-  Receives the same criteria as `c:count/4`.
+  Receives the same criteria as `c:count/4`. Not called for a metric whose module implements
+  `c:Backpex.Metric.data/2`.
   """
   @callback metric(
               metric :: map(),
@@ -130,6 +131,15 @@ defmodule Backpex.Adapter do
               {:ok, non_neg_integer()}
 
   @doc """
+  Returns a term that changes whenever the items `c:list_options/4` returns for the assigns may change, e.g. the query
+  of the options after the `:options_query` of the field. Association fields compare it to load their options again,
+  e.g. when the `:options_query` depends on a value of the form. Backpex doesn't look into the term.
+
+  Without it, `Backpex.Resource.options_key/3` returns `nil`, so the fields load their options once.
+  """
+  @callback options_key(field :: tuple(), assigns :: map(), live_resource :: module()) :: term()
+
+  @doc """
   Inserts given item.
   """
   @callback insert(item :: struct(), live_resource :: module()) :: {:ok, struct()} | {:error, term()}
@@ -171,5 +181,13 @@ defmodule Backpex.Adapter do
   """
   @callback delete_all(items :: list(struct()), live_resource :: module()) :: {:ok, term()} | {:error, term()}
 
-  @optional_callbacks list_options_by_key: 4
+  @doc """
+  Returns the primitive type of the field `name` of the items, e.g. `:integer` or `:string`, or `nil` if it is unknown.
+  `Backpex.Filters.Range` uses it to refuse decimal boundaries for integer fields.
+
+  Without it, `Backpex.Resource.field_type/2` returns `nil`.
+  """
+  @callback field_type(name :: atom(), live_resource :: module()) :: atom() | nil
+
+  @optional_callbacks list_options_by_key: 4, options_key: 3, field_type: 2
 end
