@@ -48,17 +48,21 @@ defmodule Backpex.E2E.KeyboardTest do
       insert_list(3, :tag)
       checked_tags = "#has-many-tags input[name='change[tags][]']:checked"
 
+      # "Select all" sends an event to the server, so the LiveView has to be connected before the key presses. The focus
+      # assertions retry, since the buttons are patched after each event.
       conn
       |> visit(~p"/admin/posts/new")
+      |> assert_has("body .phx-connected")
       |> press("#has-many-dropdown-tags-trigger", "Enter")
+      |> assert_has("#has-many-dropdown-tags-trigger[aria-expanded=true]")
       |> press("#has-many-dropdown-tags-menu input[type=search]", "Tab")
-      |> evaluate("document.activeElement.textContent.trim()", &assert(&1 == "Select all"))
+      |> assert_has("#has-many-tags button:focus", text: "Select all", exact: true)
       |> press("#has-many-tags button:has-text('Select all')", "Enter")
       |> assert_has(checked_tags, count: 3)
-      |> evaluate("document.activeElement.textContent.trim()", &assert(&1 == "Deselect all"))
+      |> assert_has("#has-many-tags button:focus", text: "Deselect all", exact: true)
       |> press("#has-many-tags button:has-text('Deselect all')", "Space")
       |> refute_has(checked_tags)
-      |> evaluate("document.activeElement.textContent.trim()", &assert(&1 == "Select all"))
+      |> assert_has("#has-many-tags button:focus", text: "Select all", exact: true)
     end
   end
 
