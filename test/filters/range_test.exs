@@ -1,9 +1,23 @@
 defmodule Backpex.Filters.RangeTest do
   use ExUnit.Case, async: true
 
+  import Ecto.Query, only: [from: 1]
+
   alias Backpex.Filters.Range, as: RangeFilter
 
   doctest RangeFilter
+
+  defmodule TestItem do
+    use Ecto.Schema
+
+    @primary_key {:id, :id, autogenerate: false}
+    schema "items" do
+      field :price, :decimal
+      field :quantity, :integer
+      field :created_at, :date
+      field :updated_at, :utc_datetime
+    end
+  end
 
   defmodule LikeRange do
     use Backpex.Filters.Range
@@ -40,6 +54,29 @@ defmodule Backpex.Filters.RangeTest do
     end
   end
 
+  defmodule TestLiveResource do
+    def config(:adapter), do: Backpex.Adapters.Ecto
+    def adapter_config(:schema), do: TestItem
+  end
+
+  defmodule QuantityRange do
+    use Backpex.Filters.Range
+
+    @impl Backpex.Filters.Range
+    def type, do: :number
+
+    @impl Backpex.Filter
+    def label, do: "Quantity"
+  end
+
+  @assigns %{live_resource: TestLiveResource}
+
+  defp number_changeset(field, value, assigns) do
+    {%{}, %{field => :map}}
+    |> Ecto.Changeset.cast(%{field => value}, [field])
+    |> RangeFilter.changeset({field, %{type: :number}}, assigns)
+  end
+
   describe "condition/3 with :date type" do
     test "returns nil when both start and end are empty" do
       assert RangeFilter.condition({:created_at, %{type: :date}}, %{"start" => "", "end" => ""}, %{}) == nil
@@ -59,6 +96,35 @@ defmodule Backpex.Filters.RangeTest do
       value = %{"start" => "not-a-date", "end" => "also-not-a-date"}
 
       assert RangeFilter.condition({:created_at, %{type: :date}}, value, %{}) == nil
+    end
+  end
+
+  describe "condition/3 with :number type on an integer field" do
+    test "ignores decimal boundaries" do
+      for value <- ["1.5", "5.0", "1e2"] do
+        assert RangeFilter.condition({:quantity, %{type: :number}}, %{"start" => value, "end" => "10"}, @assigns) ==
+                 {:<=, :quantity, 10}
+      end
+    end
+
+    test "keeps integer boundaries" do
+      assert RangeFilter.condition({:quantity, %{type: :number}}, %{"start" => "2", "end" => "10"}, @assigns) ==
+               {:and, [{:>=, :quantity, 2}, {:<=, :quantity, 10}]}
+    end
+  end
+
+  describe "filter validation and condition on an integer field" do
+    test "a decimal value is invalid and not applied to the query" do
+      filter_configs = [Backpex.Filter.validate_config!({:quantity, %{module: QuantityRange}}, __MODULE__)]
+      params = %{"quantity" => %{"start" => "1.5", "end" => ""}}
+
+      changeset = Backpex.FilterValidation.build_changeset(params, filter_configs, @assigns)
+      filter_values = Backpex.FilterValidation.valid_values(changeset)
+      query = TestItem |> from() |> Backpex.Adapters.Ecto.apply_filters(filter_values, filter_configs, @assigns)
+
+      assert changeset.errors == [quantity: {"has invalid start value", []}]
+      assert filter_values == %{}
+      assert query.wheres == []
     end
   end
 
@@ -99,7 +165,7 @@ defmodule Backpex.Filters.RangeTest do
       assert result.valid?
     end
 
-    test "validates valid number range with floats" do
+    test "validates valid number range with floats when the field type is unknown" do
       changeset =
         {%{}, %{amount: :map}}
         |> Ecto.Changeset.cast(%{amount: %{"start" => "10.5", "end" => "100.75"}}, [:amount])
@@ -107,6 +173,34 @@ defmodule Backpex.Filters.RangeTest do
       result = RangeFilter.changeset(changeset, {:amount, %{type: :number}}, %{})
 
       assert result.valid?
+    end
+
+    test "validates valid number range with floats on a decimal field" do
+      result = number_changeset(:price, %{"start" => "10.5", "end" => "100.75"}, @assigns)
+
+      assert result.valid?
+    end
+
+    test "validates valid number range with integers on an integer field" do
+      result = number_changeset(:quantity, %{"start" => "10", "end" => "100"}, @assigns)
+
+      assert result.valid?
+    end
+
+    for value <- ["1.5", "5.0", "1e2"] do
+      test "returns error for start value #{value} on an integer field" do
+        result = number_changeset(:quantity, %{"start" => unquote(value), "end" => ""}, @assigns)
+
+        refute result.valid?
+        assert result.errors == [quantity: {"has invalid start value", []}]
+      end
+
+      test "returns error for end value #{value} on an integer field" do
+        result = number_changeset(:quantity, %{"start" => "", "end" => unquote(value)}, @assigns)
+
+        refute result.valid?
+        assert result.errors == [quantity: {"has invalid end value", []}]
+      end
     end
 
     test "returns error for invalid start number" do

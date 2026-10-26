@@ -51,6 +51,22 @@ defmodule Backpex.LiveResource.IndexTest do
     def can?(_assigns, _action, _item), do: true
   end
 
+  defmodule DataMetric do
+    @moduledoc false
+    def data(metric, criteria, assigns) do
+      send(self(), {:metric_data, metric, criteria, assigns})
+      {:balance, criteria[:filter_values]}
+    end
+  end
+
+  defmodule MetricsLive do
+    @moduledoc false
+    def config(:persist), do: []
+    def adapter_config(:schema), do: nil
+    def filters(_assigns), do: []
+    def metrics, do: [balance: %{module: Backpex.LiveResource.IndexTest.DataMetric, label: "Balance"}]
+  end
+
   defmodule LegacyField do
     @moduledoc false
     def render_index_form(_assigns), do: nil
@@ -250,6 +266,34 @@ defmodule Backpex.LiveResource.IndexTest do
 
       assert %{filters: ^filters, __changed__: changed} = Index.assign_active_filters(assigns)
       refute Map.has_key?(changed, :filters)
+    end
+  end
+
+  describe "handle_event/3 toggling metrics" do
+    test "gets the data of a metric that implements data/3 from the criteria and the assigns" do
+      socket =
+        socket(MetricsLive, %{id: 1}, %{
+          metric_visibility: %{to_string(MetricsLive) => false},
+          query_options: %{},
+          filter_values: %{status: ["open"]}
+        })
+
+      assert {:noreply, %{assigns: assigns}} = Index.handle_event("toggle_metrics", %{}, socket)
+
+      assert [balance: %{data: {:balance, %{status: ["open"]}}}] = assigns.metrics
+      assert_received {:metric_data, %{label: "Balance"}, criteria, %{current_user: :user}}
+      assert criteria[:filter_values] == %{status: ["open"]}
+    end
+
+    test "leaves out the data while the metrics are hidden" do
+      socket =
+        socket(MetricsLive, %{id: 1}, %{metric_visibility: %{}, query_options: %{}, filter_values: %{}})
+
+      assert {:noreply, %{assigns: assigns}} = Index.handle_event("toggle_metrics", %{}, socket)
+
+      assert [balance: metric] = assigns.metrics
+      refute Map.has_key?(metric, :data)
+      refute_received {:metric_data, _metric, _criteria, _assigns}
     end
   end
 

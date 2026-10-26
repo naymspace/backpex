@@ -65,6 +65,23 @@ defmodule Backpex.FilterValidation do
   end
 
   @doc """
+  Returns the fields of a changeset whose value could not be cast to the filter's type.
+
+  Such a value has the wrong shape for the filter, e.g. a string where a list is expected, so it is neither
+  applied nor rendered in the filter form.
+
+  ## Examples
+
+      iex> changeset = %Ecto.Changeset{errors: [count: {"is invalid", [type: :integer, validation: :cast]}, status: {"is invalid", []}]}
+      iex> Backpex.FilterValidation.cast_error_fields(changeset)
+      [:count]
+
+  """
+  def cast_error_fields(changeset) do
+    for {field, {_msg, opts}} <- changeset.errors, opts[:validation] == :cast, uniq: true, do: field
+  end
+
+  @doc """
   Builds the types map for schemaless changeset from filter configurations.
 
   Each filter module must implement `c:Backpex.Filter.type/2` to specify its Ecto type.

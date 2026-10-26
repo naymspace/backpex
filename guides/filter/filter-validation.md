@@ -155,6 +155,7 @@ Validates based on the `:type` of the range:
 
 **Number ranges:**
 - Values must be valid integers or floats
+- Values must be integers if the schema declares the filtered field as `:integer` or `:id`
 - Start must be less than or equal to end (when both provided)
 
 **Date ranges:**

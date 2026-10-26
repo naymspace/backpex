@@ -73,6 +73,9 @@ defmodule Backpex.Filters.Boolean do
 
   @doc """
   The list of options for the select filter.
+
+  Each option is a map with a `label`, a `key` and a `predicate`. The key may be a string or an atom; keys are compared
+  as strings, so `predicates/1` returns a map with string keys.
   """
   @callback options(assigns :: map()) :: [map()]
 
@@ -160,8 +163,10 @@ defmodule Backpex.Filters.Boolean do
 
   def condition(filter, keys, assigns) do
     predicates = filter |> options(assigns) |> predicates()
+    selected = keys |> Enum.map(&Map.get(predicates, to_string(&1))) |> Enum.reject(&is_nil/1)
 
-    case Enum.map(keys, &Map.get(predicates, to_string(&1))) do
+    case selected do
+      [] -> nil
       [predicate] -> predicate
       predicates -> {:or, predicates}
     end
@@ -291,7 +296,7 @@ defmodule Backpex.Filters.Boolean do
   end
 
   @doc """
-  Transforms options list into a map of keys to predicates. The keys are strings, as the selected keys of the filter
+  Transforms options list into a map of keys to predicates. The keys are strings, as the selected values of the filter
   are, even if the options have atom keys.
 
   ## Examples
@@ -302,6 +307,11 @@ defmodule Backpex.Filters.Boolean do
       ...> ]
       iex> Backpex.Filters.Boolean.predicates(options)
       %{"featured" => {:==, :featured, true}, "published" => {:==, :published, true}}
+
+      iex> import Ecto.Query
+      iex> predicate = dynamic([x], x.published == true)
+      iex> Backpex.Filters.Boolean.predicates([%{label: "Published", key: :published, predicate: predicate}])
+      %{"published" => predicate}
 
       iex> Backpex.Filters.Boolean.predicates([])
       %{}

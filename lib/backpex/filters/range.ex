@@ -109,18 +109,37 @@ defmodule Backpex.Filters.Range do
   Validates that:
   - Date values are valid ISO 8601 dates (for :date and :datetime types)
   - Number values are valid integers or floats (for :number type)
+  - Number values are integers if the filtered field is an integer field, see `Backpex.Resource.field_type/2`
   - Start is not greater than end when both are provided
+
+  A start or end value that is neither a string, a number nor a `Date`, e.g. a nested map from the URL, is a cast
+  error: the `:map` type accepts it, but it does not have the shape of a range.
   """
   @impl Backpex.Filter
-  def changeset(changeset, {field, config} = _filter, _assigns) do
+  def changeset(changeset, {field, config} = _filter, assigns) do
+    parse_type = parse_type(config.type, field, assigns)
+
     Ecto.Changeset.validate_change(changeset, field, fn _field, value ->
-      validate_range(value, config.type, field)
+      if boundaries_castable?(value),
+        do: validate_range(value, parse_type, field),
+        else: [{field, {"is invalid", [type: :map, validation: :cast]}}]
     end)
   end
 
+  defp boundaries_castable?(value) when is_map(value) do
+    Enum.all?(["start", "end"], &boundary_castable?(Map.get(value, &1)))
+  end
+
+  defp boundaries_castable?(_value), do: true
+
+  defp boundary_castable?(value) when is_nil(value) or is_binary(value) or is_number(value), do: true
+  defp boundary_castable?(%Date{}), do: true
+  defp boundary_castable?(_value), do: false
+
   @doc """
   Returns the condition that keeps the items whose field is within the range, or `nil` if the range has no valid
-  boundary. See `maybe_parse_range/3` for how the boundaries are parsed.
+  boundary. See `maybe_parse_range/3` for how the boundaries are parsed. On an integer field, see `changeset/3`, the
+  boundaries of a `:number` range are parsed as integers.
 
   ## Examples
 
@@ -135,8 +154,10 @@ defmodule Backpex.Filters.Range do
 
   """
   @impl Backpex.Filter
-  def condition({field, config} = _filter, %{"start" => start_at, "end" => end_at}, _assigns) do
-    case maybe_parse_range(config.type, start_at, end_at) do
+  def condition({field, config} = _filter, %{"start" => start_at, "end" => end_at}, assigns) do
+    parse_type = parse_type(config.type, field, assigns)
+
+    case {parse(parse_type, start_at), parse(parse_type, end_at, true)} do
       {nil, nil} -> nil
       {start_at, nil} -> {:>=, field, start_at}
       {nil, end_at} -> {:<=, field, end_at}
@@ -196,11 +217,11 @@ defmodule Backpex.Filters.Range do
     ~H"""
     <div class="mt-2">
       <label class={["input input-sm mb-2", @errors != [] && "input-error bg-error/10"]}>
-        <span class="text-base-content/50 w-10">{Backpex.__("From", @live_resource)}</span>
+        <span class="label text-base-content min-w-16">{Backpex.__("From", @live_resource)}</span>
         <input type="date" name={@form[:start].name} value={@value["start"]} class="inline-block" />
       </label>
       <label class={["input input-sm", @errors != [] && "input-error bg-error/10"]}>
-        <span class="text-base-content/50 w-10">{Backpex.__("To", @live_resource)}</span>
+        <span class="label text-base-content min-w-16">{Backpex.__("To", @live_resource)}</span>
         <input type="date" name={@form[:end].name} value={@value["end"]} class="inline-block" />
       </label>
     </div>
@@ -211,11 +232,11 @@ defmodule Backpex.Filters.Range do
     ~H"""
     <div class="mt-2">
       <label class={["input input-sm mb-2", @errors != [] && "input-error bg-error/10"]}>
-        <span class="text-base-content/50 w-10">{Backpex.__("From", @live_resource)}</span>
+        <span class="label text-base-content min-w-16">{Backpex.__("From", @live_resource)}</span>
         <input type="number" name={@form[:start].name} value={@value["start"]} />
       </label>
       <label class={["input input-sm", @errors != [] && "input-error bg-error/10"]}>
-        <span class="text-base-content/50 w-10">{Backpex.__("To", @live_resource)}</span>
+        <span class="label text-base-content min-w-16">{Backpex.__("To", @live_resource)}</span>
         <input type="number" name={@form[:end].name} value={@value["end"]} />
       </label>
     </div>
@@ -227,8 +248,8 @@ defmodule Backpex.Filters.Range do
   defp validate_range(%{"start" => nil, "end" => nil}, _type, _field), do: []
 
   defp validate_range(%{"start" => start_val, "end" => end_val}, type, field) do
-    start_parsed = maybe_parse(type, start_val || "")
-    end_parsed = maybe_parse(type, end_val || "", true)
+    start_parsed = parse(type, start_val || "")
+    end_parsed = parse(type, end_val || "", true)
 
     []
     |> validate_start_format(start_val, start_parsed, field)
@@ -265,8 +286,8 @@ defmodule Backpex.Filters.Range do
     end
   end
 
-  defp compare_values(:number, start_val, end_val) when start_val > end_val, do: :gt
-  defp compare_values(:number, _start_val, _end_val), do: :lte
+  defp compare_values(type, start_val, end_val) when type in [:number, :integer] and start_val > end_val, do: :gt
+  defp compare_values(type, _start_val, _end_val) when type in [:number, :integer], do: :lte
 
   defp compare_values(:date, start_val, end_val) do
     with {:ok, start_date} <- Date.from_iso8601(start_val),
@@ -456,6 +477,36 @@ defmodule Backpex.Filters.Range do
   end
 
   def parse_float_or_int(_other), do: nil
+
+  # A `:number` range on an integer field is parsed as `:integer`, so that decimal
+  # values are invalid instead of reaching the query, where Ecto cannot cast them.
+  defp parse_type(:number, field, assigns) do
+    if integer_field?(field, assigns), do: :integer, else: :number
+  end
+
+  defp parse_type(type, _field, _assigns), do: type
+
+  defp integer_field?(field, %{live_resource: live_resource}) when is_atom(live_resource) do
+    function_exported?(live_resource, :config, 1) and
+      Backpex.Resource.field_type(field, live_resource) in [:integer, :id]
+  end
+
+  defp integer_field?(_field, _assigns), do: false
+
+  defp parse(type, value, is_end? \\ false)
+
+  defp parse(:integer, value, _is_end?) when is_integer(value), do: value
+
+  defp parse(:integer, value, _is_end?) when is_binary(value) do
+    case Integer.parse(value) do
+      {integer, ""} -> integer
+      _other -> nil
+    end
+  end
+
+  defp parse(:integer, _value, _is_end?), do: nil
+
+  defp parse(type, value, is_end?), do: maybe_parse(type, value, is_end?)
 
   @doc """
   Checks if a string is a valid ISO 8601 date.

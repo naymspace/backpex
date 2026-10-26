@@ -107,9 +107,7 @@ defmodule Backpex.Fields.HasMany do
       field_options[:not_found_text] || Backpex.__("No options found", socket.assigns.live_resource)
     end)
     |> assign_new(:search_input, fn -> "" end)
-    |> assign_new(:offset, fn -> 0 end)
-    |> assign_new(:options_count, fn -> count_options(assigns) end)
-    |> assign_initial_options()
+    |> maybe_assign_options()
     |> assign_selected()
     |> assign_form_errors()
   end
@@ -190,6 +188,7 @@ defmodule Backpex.Fields.HasMany do
                 :if={Enum.any?(@options)}
                 live_resource={@live_resource}
                 name={@name}
+                form={@form}
                 all_selected={@all_selected}
               />
 
@@ -281,28 +280,30 @@ defmodule Backpex.Fields.HasMany do
   attr :live_resource, :atom, required: true
   attr :all_selected, :boolean, required: true
   attr :name, :string, required: true
+  attr :form, Phoenix.HTML.Form, required: true
 
   defp toggle_all(assigns) do
-    hidden_input_name =
-      if assigns.all_selected, do: "change[#{assigns.name}_deselect_all]", else: "change[#{assigns.name}_select_all]"
-
-    button_text =
+    {param, button_text} =
       if assigns.all_selected,
-        do: Backpex.__("Deselect all", assigns.live_resource),
-        else: Backpex.__("Select all", assigns.live_resource)
+        do: {"#{assigns.name}_deselect_all", Backpex.__("Deselect all", assigns.live_resource)},
+        else: {"#{assigns.name}_select_all", Backpex.__("Select all", assigns.live_resource)}
 
     assigns =
       assigns
-      |> assign(:hidden_input_name, hidden_input_name)
+      |> assign(:button_name, PhoenixForm.input_name(assigns.form, param))
       |> assign(:button_text, button_text)
 
+    # LiveView sends the button's name with the change event it dispatches, as for any other form input.
     ~H"""
-    <label class={@class}>
-      <input type="checkbox" class="hidden" name={@hidden_input_name} value="" tabindex="-1" aria-hidden="true" />
-      <div role="button" class="text-primary cursor-pointer text-sm underline">
-        {@button_text}
-      </div>
-    </label>
+    <button
+      type="button"
+      name={@button_name}
+      value=""
+      phx-click={JS.dispatch("change")}
+      class={["link block text-sm", @class]}
+    >
+      {@button_text}
+    </button>
     """
   end
 
@@ -341,7 +342,7 @@ defmodule Backpex.Fields.HasMany do
       type="button"
       phx-click="show-more"
       phx-target={@event_target}
-      class="text-primary mb-2 cursor-pointer text-sm underline"
+      class="link mb-2 text-sm"
     >
       {Backpex.__("Show more", @live_resource)}
     </button>
@@ -471,9 +472,22 @@ defmodule Backpex.Fields.HasMany do
     assign(assigns, :link, link)
   end
 
-  defp assign_initial_options(%{assigns: %{options: _options}} = socket), do: socket
+  # The options query may depend on other assigns, e.g. a value of the form. The options are loaded again whenever the
+  # options key of the adapter changes.
+  defp maybe_assign_options(socket) do
+    %{field: field, live_resource: live_resource} = socket.assigns
+    options_key = Resource.options_key(field, socket.assigns, live_resource)
 
-  defp assign_initial_options(socket), do: assign_options(socket)
+    if Map.fetch(socket.assigns, :options_key) == {:ok, options_key} do
+      socket
+    else
+      socket = assign(socket, options_key: options_key, offset: 0)
+
+      socket
+      |> assign(:options_count, count_options(socket.assigns))
+      |> assign_options()
+    end
+  end
 
   defp assign_options(socket, other_options \\ []) do
     %{assigns: %{field_options: field_options, search_input: search_input, offset: offset} = assigns} = socket
@@ -513,9 +527,10 @@ defmodule Backpex.Fields.HasMany do
     selected_ids = extract_selected_ids(socket.assigns.form[socket.assigns.name].value, primary_key)
     selected_items = fetch_selected_items(socket, selected_ids)
 
+    # Items that are no longer options, e.g. because a value the options query depends on changed, are deselected.
     socket
     |> assign(:selected, selected_items)
-    |> assign(:selected_ids, selected_ids)
+    |> assign(:selected_ids, Enum.map(selected_items, fn {_label, id} -> id end))
     |> assign(:all_selected, length(selected_items) == socket.assigns.options_count)
   end
 

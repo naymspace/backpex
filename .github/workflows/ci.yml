@@ -63,7 +63,7 @@ jobs:
       - name: Setup bun
         uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
         with:
-          bun-version: "1.4.2"
+          bun-version: "1.4.4"
 
       - name: Restore the deps and _build cache
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
@@ -170,57 +170,72 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
 
-    services:
-      postgres:
-        image: postgres:16.15@sha256:ca0bd484cb98bf4b24eb1010e73fb3fcbd6714d240fbc1a10eea5b7dbecb641d
-        env:
-          POSTGRES_PASSWORD: postgres
-        options: >-
-          --health-cmd pg_isready
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-        ports:
-          - "5432:5432"
-
     steps:
       - name: Checkout code
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Start Postgres
+        id: postgres
+        background: true
+        # The step ends once the database accepts TCP connections, so `wait: postgres` blocks until it is ready.
+        # The image's init server only listens on the socket, so checking 127.0.0.1 skips it.
+        run: |
+          docker run -d --name postgres -p 5432:5432 -e POSTGRES_PASSWORD=postgres \
+            postgres:16.15@sha256:ca0bd484cb98bf4b24eb1010e73fb3fcbd6714d240fbc1a10eea5b7dbecb641d
+          timeout 60 bash -c 'until docker exec postgres pg_isready -h 127.0.0.1 -U postgres; do sleep 1; done'
 
       - name: Set runner image
         # Part of the cache keys, so caches don't carry over to a new Ubuntu version behind ubuntu-latest
         run: echo "RUNNER_IMAGE=$ImageOS" >> "$GITHUB_ENV"
 
-      - name: Setup beam
-        uses: erlef/setup-beam@54075bcc5e249e4758d363f27d099f55d843f124 # v1.24.1
-        id: beam
-        with:
-          version-file: .tool-versions
-          version-type: strict
+      - parallel:
+          - name: Setup beam
+            uses: erlef/setup-beam@54075bcc5e249e4758d363f27d099f55d843f124 # v1.24.1
+            with:
+              version-file: .tool-versions
+              version-type: strict
 
-      - name: Setup node
-        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
-        with:
-          node-version: 24
+          - name: Setup node
+            uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+            with:
+              node-version: 24
 
-      - name: Setup bun
-        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
-        with:
-          bun-version: "1.4.2"
+          - name: Setup bun
+            uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+            with:
+              bun-version: "1.4.4"
 
-      - name: Restore the deps and _build cache
-        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
-        id: restore-cache
-        env:
-          OTP_VERSION: ${{ steps.beam.outputs.otp-version }}
-          ELIXIR_VERSION: ${{ steps.beam.outputs.elixir-version }}
-          MIX_LOCK_HASH: ${{ hashFiles(format('{0}{1}', github.workspace, '/demo/mix.lock')) }}
-        with:
-          path: |
-            demo/deps
-            demo/_build
-          key: ${{ runner.os }}-${{ env.RUNNER_IMAGE }}-${{ env.ELIXIR_VERSION }}-${{ env.OTP_VERSION }}-build-deps-demo-mixlockhash-${{ env.MIX_LOCK_HASH }}
-          restore-keys: ${{ runner.os }}-${{ env.RUNNER_IMAGE }}-${{ env.ELIXIR_VERSION }}-${{ env.OTP_VERSION }}-build-deps-demo-
+          - name: Restore the deps and _build cache
+            uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+            id: restore-cache
+            env:
+              # setup-beam's outputs aren't available inside the group. With `version-type: strict` the versions are
+              # exactly the ones in .tool-versions.
+              TOOL_VERSIONS_HASH: ${{ hashFiles('.tool-versions') }}
+              MIX_LOCK_HASH: ${{ hashFiles(format('{0}{1}', github.workspace, '/demo/mix.lock')) }}
+            with:
+              path: |
+                demo/deps
+                demo/_build
+              key: ${{ runner.os }}-${{ env.RUNNER_IMAGE }}-${{ env.TOOL_VERSIONS_HASH }}-build-deps-demo-mixlockhash-${{ env.MIX_LOCK_HASH }}
+              restore-keys: ${{ runner.os }}-${{ env.RUNNER_IMAGE }}-${{ env.TOOL_VERSIONS_HASH }}-build-deps-demo-
+
+          - name: Cache bun install cache
+            uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+            with:
+              path: ~/.bun/install/cache
+              key: ${{ runner.os }}-bun-store-${{ hashFiles('demo/bun.lock', 'bun.lock') }}
+              restore-keys: |
+                ${{ runner.os }}-bun-store-
+
+          - name: Cache Playwright browsers
+            uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+            id: playwright-cache
+            with:
+              path: ~/.cache/ms-playwright
+              key: ${{ runner.os }}-${{ env.RUNNER_IMAGE }}-playwright-${{ hashFiles('demo/bun.lock') }}
+              restore-keys: |
+                ${{ runner.os }}-${{ env.RUNNER_IMAGE }}-playwright-
 
       - name: Install dependencies
         if: steps.restore-cache.outputs.cache-hit != 'true'
@@ -235,14 +250,6 @@ jobs:
       - name: Compile with warnings as errors
         working-directory: demo
         run: mix compile --warnings-as-errors --force
-
-      - name: Cache bun install cache
-        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
-        with:
-          path: ~/.bun/install/cache
-          key: ${{ runner.os }}-bun-store-${{ hashFiles('demo/bun.lock', 'bun.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-bun-store-
 
       - name: Install node dependencies
         working-directory: demo
@@ -259,38 +266,51 @@ jobs:
         working-directory: demo
         run: mix assets.build
 
+      # The lints run in the background while the tests run. They use MIX_ENV=dev, the tests MIX_ENV=test, so they
+      # don't share a _build directory.
       - name: lint:mix
         working-directory: demo
+        background: true
         run: bun run lint:mix
 
       - name: lint:credo
         working-directory: demo
+        background: true
         run: bun run lint:credo
 
       - name: lint:sobelow
         working-directory: demo
+        background: true
         run: bun run lint:sobelow
 
       - name: lint:style
         working-directory: demo
+        background: true
         run: bun run lint:style
 
       - name: lint:standard
         working-directory: demo
+        background: true
         run: bun run lint:standard
 
       - name: lint:deps-unused
         working-directory: demo
+        background: true
         run: bun run lint:deps-unused
 
       - name: lint:gettext
         working-directory: demo
+        background: true
         run: bun run lint:gettext
 
       - name: Deps audit
         working-directory: demo
+        background: true
         continue-on-error: true
         run: mix deps.audit
+
+      - name: Wait for Postgres
+        wait: postgres
 
       - name: Run test
         working-directory: demo
@@ -300,15 +320,6 @@ jobs:
           DB_PASSWORD: postgres
           DB_DATABASE: test
         run: bun run test
-
-      - name: Cache Playwright browsers
-        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
-        id: playwright-cache
-        with:
-          path: ~/.cache/ms-playwright
-          key: ${{ runner.os }}-${{ env.RUNNER_IMAGE }}-playwright-${{ hashFiles('demo/bun.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-${{ env.RUNNER_IMAGE }}-playwright-
 
       - name: Install playwright
         if: steps.playwright-cache.outputs.cache-hit != 'true'
@@ -326,11 +337,14 @@ jobs:
 
       - name: Upload Playwright traces
         if: failure()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: playwright-traces
           path: demo/tmp/
           retention-days: 7
+
+      - name: Wait for the lints
+        wait-all:
 
   build-runtime:
     name: "Build and push image (Demo)"
@@ -349,10 +363,13 @@ jobs:
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+        with:
+          # The runner is ephemeral, so skip the post step that removes the builder
+          cleanup: false
 
       - name: Log in to the container registry
         if: env.PUSH_IMAGE == 'true'
-        uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4.6.0
+        uses: docker/login-action@81c6f93d4bc991e510b342a00b419b3bb4efc5c6 # v4.7.0
         with:
           registry: ${{ env.REGISTRY }}
           username: ${{ github.actor }}
