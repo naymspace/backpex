@@ -44,6 +44,11 @@ defmodule Backpex.Test.Router do
       live_resources "/order-nulls-last-users", Backpex.Test.OrderNullsLastUserLive
       live_resources "/order-nulls-smallest-users", Backpex.Test.OrderNullsSmallestUserLive
       live_resources "/field-options-samples", Backpex.Test.FieldOptionsSampleLive
+      live_resources "/display-options-samples", Backpex.Test.DisplayOptionsSampleLive
+      live_resources "/fluid-notes", Backpex.Test.FluidNoteLive
+      live_resources "/on-mount-module-notes", Backpex.Test.OnMountModuleNoteLive
+      live_resources "/on-mount-tuple-notes", Backpex.Test.OnMountTupleNoteLive
+      live_resources "/on-mount-list-notes", Backpex.Test.OnMountListNoteLive
     end
   end
 end

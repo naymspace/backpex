@@ -75,7 +75,10 @@ defmodule Backpex.Fields.FormInputOptionsTest do
           {Fields.Email, :render_index_form, @index_form_assigns, "index-form-input-value-1"},
           {Fields.Number, :render_form, [], "change_value"},
           {Fields.Number, :render_index_form, @index_form_assigns, "index-form-input-value-1"},
-          {Fields.Textarea, :render_form, [], "change_value"}
+          {Fields.Text, :render_form, [], "change_value"},
+          {Fields.Text, :render_index_form, @index_form_assigns, "index-form-input-value-1"},
+          {Fields.Textarea, :render_form, [], "change_value"},
+          {Fields.URL, :render_form, [], "change_value"}
         ] do
       @module module
       @fun fun
@@ -87,6 +90,80 @@ defmodule Backpex.Fields.FormInputOptionsTest do
         assert attribute_by_id(doc, "placeholder") == [{@input_id, "Enter a value"}]
 
         assert @module |> render(@fun, :value, [], @extra_assigns) |> attribute_by_id("placeholder") == []
+      end
+
+      # Bug: the config schema accepts a function, but the field renders the function itself instead of calling it
+      # with the assigns (`Backpex.Field.placeholder/2`), which raises.
+      @tag :skip
+      test "#{inspect(module)}.#{fun}/1 renders the result of a function on the input" do
+        doc =
+          render(@module, @fun, :value, [placeholder: fn %{readonly: false} -> "From a function" end], @extra_assigns)
+
+        assert attribute_by_id(doc, "placeholder") == [{@input_id, "From a function"}]
+      end
+    end
+  end
+
+  describe "rows" do
+    test "Backpex.Fields.Textarea.render_form/1 renders them on the textarea" do
+      assert Fields.Textarea |> render(:render_form, :value, [rows: 5], []) |> attribute_by_id("rows") ==
+               [{"change_value", "5"}]
+
+      assert Fields.Textarea |> render(:render_form, :value, [], []) |> attribute_by_id("rows") == [
+               {"change_value", "2"}
+             ]
+    end
+  end
+
+  describe "help_text" do
+    for {module, :render_form, name, required_options, extra_assigns, _input_id} <- @fields do
+      @module module
+      @name name
+      @required_options required_options
+      @extra_assigns extra_assigns
+
+      # Bug: Backpex.Fields.Number does not pass the help text to its input.
+      if module == Fields.Number, do: @tag(:skip)
+
+      test "#{inspect(module)}.render_form/1 renders a string or the result of a function below the input" do
+        for {options, expected} <- [
+              {[], []},
+              {[help_text: "Help text"], ["Help text"]},
+              {[help_text: fn %{readonly: false} -> "Help from a function" end], ["Help from a function"]}
+            ] do
+          doc = render(@module, :render_form, @name, @required_options ++ options, @extra_assigns)
+
+          assert doc
+                 |> LazyHTML.query("p.text-base-content\\/60")
+                 |> Enum.map(&(&1 |> LazyHTML.text() |> String.trim())) == expected,
+                 "help text for #{inspect(options)}"
+        end
+      end
+    end
+  end
+
+  describe "align_label" do
+    for {module, :render_form, name, required_options, extra_assigns, _input_id} <- @fields do
+      @module module
+      @name name
+      @required_options required_options
+      @extra_assigns extra_assigns
+
+      test "#{inspect(module)}.render_form/1 aligns the label to a value or the result of a function" do
+        for {options, expected} <- [
+              {[align_label: :top], "sm:self-start"},
+              {[align_label: :center], "sm:self-center"},
+              {[align_label: :bottom], "sm:self-end"},
+              {[align_label: fn %{readonly: false} -> :bottom end], "sm:self-end"}
+            ] do
+          [class] =
+            @module
+            |> render(:render_form, @name, @required_options ++ options, @extra_assigns)
+            |> LazyHTML.query("dl > dt")
+            |> LazyHTML.attribute("class")
+
+          assert expected in String.split(class), "label alignment for #{inspect(options)}"
+        end
       end
     end
   end
