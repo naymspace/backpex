@@ -1,7 +1,5 @@
 defmodule Backpex.Test.Filters.PostPublished do
-  @moduledoc """
-  Implementation of the `Backpex.Filters.Boolean` behaviour.
-  """
+  @moduledoc "A boolean filter with an option for published and one for unpublished posts."
 
   use Backpex.Filters.Boolean
 

@@ -1,5 +1,8 @@
 defmodule Backpex.Test.ItemActions.UserSoftDelete do
-  @moduledoc false
+  @moduledoc """
+  An item action with fields that soft deletes users and unassigns their posts, with the labels of the default delete
+  item action.
+  """
 
   use BackpexWeb, :item_action
 
@@ -7,36 +10,25 @@ defmodule Backpex.Test.ItemActions.UserSoftDelete do
 
   alias Backpex.ItemActions.Delete
 
-  require Logger
-
   @impl Backpex.ItemAction
   def icon(assigns, _item) do
     ~H"""
-    <Backpex.HTML.CoreComponents.icon
-      name="hero-trash"
-      class="h-5 w-5 cursor-pointer transition duration-75 hover:scale-110 hover:text-red-600"
-    />
+    <Backpex.HTML.CoreComponents.icon name="hero-trash" class="h-5 w-5" />
     """
   end
 
   @impl Backpex.ItemAction
   def fields do
     [
-      reason: %{
-        module: Backpex.Fields.Textarea,
-        label: "Reason",
-        type: :string
-      }
+      reason: %{module: Backpex.Fields.Textarea, label: "Reason", type: :string}
     ]
   end
-
-  @required_fields ~w[reason]a
 
   @impl Backpex.ItemAction
   def changeset(change, attrs, _metadata) do
     change
-    |> cast(attrs, @required_fields)
-    |> validate_required(@required_fields)
+    |> cast(attrs, [:reason])
+    |> validate_required([:reason])
   end
 
   @impl Backpex.ItemAction
@@ -46,90 +38,36 @@ defmodule Backpex.Test.ItemActions.UserSoftDelete do
   def confirm_label(assigns), do: Delete.confirm_label(assigns)
 
   @impl Backpex.ItemAction
-  def cancel_label(assigns), do: Delete.cancel_label(assigns)
-
-  @impl Backpex.ItemAction
-  def confirm(assigns) do
-    count = Enum.count(assigns.selected_items)
-
-    if count > 1 do
-      "Why do you want to delete these #{count} items?"
-    else
-      "Why do you want to delete this item?"
-    end
-  end
+  def confirm(_assigns), do: "Why do you want to delete the selected items?"
 
   @impl Backpex.ItemAction
   def handle(socket, items, _data) do
-    datetime = DateTime.utc_now(:second)
+    # Backpex re-read these items and authorized exactly them under this action's key before calling handle/3, so the
+    # write does not check again.
+    {:ok, _count} =
+      Backpex.Resource.update_all(
+        items,
+        [set: [deleted_at: DateTime.utc_now(:second)]],
+        socket.assigns,
+        socket.assigns.live_resource,
+        event_name: "deleted",
+        authorize?: false
+      )
 
-    socket =
-      try do
-        updates = [set: [deleted_at: datetime]]
+    # Unassigning the posts is a cascade write on another resource, not a user-initiated action on it, so it skips
+    # authorization deliberately.
+    for item <- items do
+      Backpex.Resource.update_all(item.posts, [set: [user_id: nil]], socket.assigns, Backpex.Test.PostLive,
+        event_name: "updated",
+        authorize?: false
+      )
+    end
 
-        # Backpex re-read these items and authorized exactly them under this action's key before
-        # calling handle/3, so the write does not check again.
-        {:ok, _count} =
-          Backpex.Resource.update_all(items, updates, socket.assigns, socket.assigns.live_resource,
-            event_name: "deleted",
-            authorize?: false
-          )
-
-        # nullify the user_id in the posts owned by the users. This is a cascade write on another
-        # resource, not a user-initiated action on it, so it skips authorization deliberately.
-        _nullified_posts =
-          items
-          |> Enum.map(fn item ->
-            Backpex.Resource.update_all(item.posts, [set: [user_id: nil]], socket.assigns, Backpex.Test.PostLive,
-              event_name: "updated",
-              authorize?: false
-            )
-          end)
-
-        socket
-        |> clear_flash()
-        |> put_flash(:info, success_message(socket.assigns, items))
-      rescue
-        error ->
-          Logger.error("An error occurred while deleting the resource: #{inspect(error)}")
-
-          socket
-          |> clear_flash()
-          |> put_flash(:error, error_message(socket.assigns, error, items))
-      end
-
-    {:ok, socket}
+    {:ok, put_flash(socket, :info, success_message(socket.assigns, items))}
   end
 
-  defp success_message(assigns, [_item]) do
-    "#{assigns.live_resource.singular_name()} has been deleted successfully."
-  end
+  defp success_message(assigns, [_item]), do: "#{assigns.live_resource.singular_name()} has been deleted successfully."
 
-  defp success_message(assigns, items) do
-    "#{Enum.count(items)} #{assigns.live_resource.plural_name()} have been deleted successfully."
-  end
-
-  defp error_message(assigns, %Postgrex.Error{postgres: %{code: :foreign_key_violation}}, [_item] = items) do
-    "#{error_message(assigns, :error, items)} The item is used elsewhere."
-  end
-
-  defp error_message(assigns, %Ecto.ConstraintError{type: :foreign_key}, [_item] = items) do
-    "#{error_message(assigns, :error, items)} The item is used elsewhere."
-  end
-
-  defp error_message(assigns, %Postgrex.Error{postgres: %{code: :foreign_key_violation}}, items) do
-    "#{error_message(assigns, :error, items)} The items are used elsewhere.}"
-  end
-
-  defp error_message(assigns, %Ecto.ConstraintError{type: :foreign_key}, items) do
-    "#{error_message(assigns, :error, items)} The items are used elsewhere.}"
-  end
-
-  defp error_message(assigns, _error, [_item]) do
-    "An error occurred while deleting the #{assigns.live_resource.singular_name()}!"
-  end
-
-  defp error_message(assigns, _error, items) do
-    "An error occurred while deleting #{Enum.count(items)} #{assigns.live_resource.plural_name()}!"
-  end
+  defp success_message(assigns, items),
+    do: "#{length(items)} #{assigns.live_resource.plural_name()} have been deleted successfully."
 end

@@ -1,7 +1,5 @@
 defmodule Backpex.Test.Filters.PostUserMultiSelect do
-  @moduledoc """
-  Implementation of the `Backpex.Filters.MultiSelect` behaviour.
-  """
+  @moduledoc "A multi select filter with the authors of the posts as options."
 
   use Backpex.Filters.MultiSelect
 

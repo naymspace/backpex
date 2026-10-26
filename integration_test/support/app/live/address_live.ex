@@ -1,13 +1,15 @@
 defmodule Backpex.Test.AddressLive do
+  @moduledoc """
+  Addresses with UUID primary keys and the default `init_order`. They are the children of the HasManyThrough field of
+  `Backpex.Test.UserLive`.
+  """
   use Backpex.LiveResource,
     adapter_config: [
       schema: Backpex.Test.Address,
       repo: Backpex.Test.Repo,
-      update_changeset: &Backpex.Test.Address.update_changeset/3,
-      create_changeset: &Backpex.Test.Address.create_changeset/3
-    ],
-    fluid?: true,
-    persist: [:order, :filters, :columns, :metrics]
+      update_changeset: &Backpex.Test.Address.changeset/3,
+      create_changeset: &Backpex.Test.Address.changeset/3
+    ]
 
   @impl Backpex.LiveResource
   def layout(_assigns), do: {Backpex.Test.Layouts, :admin}
@@ -21,21 +23,9 @@ defmodule Backpex.Test.AddressLive do
   @impl Backpex.LiveResource
   def fields do
     [
-      street: %{
-        module: Backpex.Fields.Text,
-        label: "Street Name",
-        searchable: true
-      },
-      zip: %{
-        module: Backpex.Fields.Text,
-        label: "Zip Code",
-        searchable: true
-      },
-      city: %{
-        module: Backpex.Fields.Text,
-        label: "City",
-        searchable: true
-      },
+      street: %{module: Backpex.Fields.Text, label: "Street Name"},
+      zip: %{module: Backpex.Fields.Text, label: "Zip Code"},
+      city: %{module: Backpex.Fields.Text, label: "City"},
       country: %{
         module: Backpex.Fields.Select,
         label: "Country",

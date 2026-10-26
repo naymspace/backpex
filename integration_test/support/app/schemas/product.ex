@@ -5,7 +5,6 @@ defmodule Backpex.Test.Product do
   import Ecto.Changeset
 
   alias Backpex.Test.ShortLink
-  alias Backpex.Test.Supplier
 
   @primary_key {:id, :binary_id, autogenerate: true}
 
@@ -17,8 +16,7 @@ defmodule Backpex.Test.Product do
 
     field :price, Money.Ecto.Amount.Type
 
-    has_many :suppliers, Supplier, on_replace: :delete, on_delete: :delete_all
-    has_many :short_links, ShortLink, on_replace: :delete, on_delete: :delete_all, foreign_key: :product_id
+    has_many :short_links, ShortLink, on_replace: :delete, on_delete: :delete_all
 
     timestamps()
   end
@@ -29,17 +27,11 @@ defmodule Backpex.Test.Product do
   def changeset(product, attrs, _metadata \\ []) do
     product
     |> cast(attrs, @required_fields ++ @optional_fields)
-    |> cast_assoc(:suppliers,
-      with: &Supplier.changeset/2,
-      sort_param: :suppliers_order,
-      drop_param: :suppliers_delete
-    )
     |> cast_assoc(:short_links,
       with: &ShortLink.changeset/2,
       sort_param: :short_links_order,
       drop_param: :short_links_delete
     )
     |> validate_required(@required_fields)
-    |> validate_length(:images, max: 2)
   end
 end

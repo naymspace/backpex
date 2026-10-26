@@ -15,7 +15,6 @@ defmodule Backpex.Test.EctoFactory do
   alias Backpex.Test.Product
   alias Backpex.Test.Sample
   alias Backpex.Test.ShortLink
-  alias Backpex.Test.Supplier
   alias Backpex.Test.Tag
   alias Backpex.Test.User
 
@@ -50,24 +49,12 @@ defmodule Backpex.Test.EctoFactory do
     }
   end
 
-  def supplier_factory do
-    %Supplier{
-      name: sequence(:supplier_name, &"Supplier #{&1}"),
-      url: "https://example.com/",
-      country: :Germany,
-      contract_date: ~D[2025-01-01],
-      minimum_order: 100_000,
-      preferred: false
-    }
-  end
-
   def product_factory do
     %Product{
       name: sequence(:product_name, &"Product #{&1}"),
       quantity: 10,
       manufacturer: "https://example.com/",
       price: 1_000,
-      suppliers: [],
       short_links: []
     }
   end

@@ -1,7 +1,5 @@
 defmodule Backpex.Test.Filters.PostLikeRange do
-  @moduledoc """
-  Implementation of the `Backpex.Filters.Range` behaviour.
-  """
+  @moduledoc "A number range filter on the likes of posts."
 
   use Backpex.Filters.Range
 

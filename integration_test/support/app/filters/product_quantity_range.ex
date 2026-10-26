@@ -1,7 +1,5 @@
 defmodule Backpex.Test.Filters.ProductQuantityRange do
-  @moduledoc """
-  Implementation of the `Backpex.Filters.Range` behaviour.
-  """
+  @moduledoc "A number range filter on the quantity of products."
 
   use Backpex.Filters.Range
 

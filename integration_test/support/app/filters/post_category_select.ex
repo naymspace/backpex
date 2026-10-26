@@ -1,7 +1,5 @@
 defmodule Backpex.Test.Filters.PostCategorySelect do
-  @moduledoc """
-  Implementation of the `Backpex.Filters.MultiSelect` behaviour.
-  """
+  @moduledoc "A select filter with the categories of the posts as options."
 
   use Backpex.Filters.Select
 

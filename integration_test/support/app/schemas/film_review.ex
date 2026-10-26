@@ -14,13 +14,7 @@ defmodule Backpex.Test.FilmReview do
 
   @required_fields ~w[title overview]a
 
-  def update_changeset(film_review, attrs, _metadata \\ []) do
-    film_review
-    |> cast(attrs, @required_fields)
-    |> validate_required(@required_fields)
-  end
-
-  def create_changeset(film_review, attrs, _metadata \\ []) do
+  def changeset(film_review, attrs, _metadata \\ []) do
     film_review
     |> cast(attrs, @required_fields)
     |> validate_required(@required_fields)

@@ -1,5 +1,9 @@
-# credo:disable-for-this-file Credo.Check.Design.DuplicatedCode
 defmodule Backpex.Test.UserLive do
+  @moduledoc """
+  Users with integer primary keys. They have an `item_query` that hides soft-deleted users, an `init_order` function,
+  a `can?/3` that denies the item action `Backpex.Test.ItemActions.UserSoftDelete` for admins, two resource actions, a
+  panel, an index editable field, a HasManyThrough field with a pivot field and an InlineCRUD field of an embed.
+  """
   use Backpex.LiveResource,
     adapter_config: [
       schema: Backpex.Test.User,
@@ -8,13 +12,9 @@ defmodule Backpex.Test.UserLive do
       create_changeset: &Backpex.Test.User.changeset/3,
       item_query: &__MODULE__.item_query/3
     ],
-    init_order: &__MODULE__.init_order/1,
-    persist: [:order, :filters, :columns, :metrics]
+    init_order: &__MODULE__.init_order/1
 
   import Ecto.Query, warn: false
-
-  alias Backpex.Metrics.Value
-  alias Backpex.Test.Uploads
 
   @impl Backpex.LiveResource
   def layout(_assigns), do: {Backpex.Test.Layouts, :admin}
@@ -27,22 +27,13 @@ defmodule Backpex.Test.UserLive do
 
   @impl Backpex.LiveResource
   def can?(_assigns, :user_soft_delete, item), do: item.role != :admin
-
-  @impl Backpex.LiveResource
   def can?(_assigns, _action, _item), do: true
 
   def item_query(query, _live_action, _assigns) do
-    from u in query,
-      where: is_nil(u.deleted_at)
+    from u in query, where: is_nil(u.deleted_at)
   end
 
-  def init_order(_assigns) do
-    %{by: :username, direction: :asc}
-  end
-
-  @impl Backpex.LiveResource
-  def translate({"Cancel", _opts}), do: "Go back"
-  def translate({"Save", _opts}), do: "Save User"
+  def init_order(_assigns), do: %{by: :username, direction: :asc}
 
   @impl Backpex.LiveResource
   def resource_actions do
@@ -60,39 +51,17 @@ defmodule Backpex.Test.UserLive do
   end
 
   @impl Backpex.LiveResource
-  def panels do
-    [names: "Names"]
-  end
+  def panels, do: [names: "Names"]
 
   @impl Backpex.LiveResource
   def fields do
     [
-      avatar: %{
-        module: Backpex.Fields.Upload,
-        label: "Avatar",
-        upload_key: :avatar,
-        accept: ~w(.jpg .jpeg .png),
-        max_file_size: 512_000,
-        put_upload_change: &put_upload_change/6,
-        consume_upload: &consume_upload/4,
-        remove_uploads: &remove_uploads/3,
-        list_existing_files: &list_existing_files/1,
-        render: fn
-          %{value: value} = assigns when value == "" or is_nil(value) ->
-            ~H"<p>{Backpex.HTML.pretty_value(@value)}</p>"
-
-          assigns ->
-            ~H'<img class="h-10 w-auto" src={file_url(@value)} />'
-        end,
-        align_label: :center
-      },
       username: %{
         module: Backpex.Fields.Text,
         label: "Username",
         searchable: true,
         panel: :names,
-        index_editable: true,
-        help_text: "Insert your username."
+        index_editable: true
       },
       full_name: %{
         module: Backpex.Fields.Text,
@@ -116,61 +85,28 @@ defmodule Backpex.Test.UserLive do
         searchable: true,
         panel: :names
       },
-      age: %{
-        module: Backpex.Fields.Number,
-        label: "Age"
-      },
-      role: %{
-        module: Backpex.Fields.Select,
-        label: "Role",
-        options: [Admin: "admin", User: "user"],
-        prompt: "Choose role..."
-      },
-      permissions: %{
-        module: Backpex.Fields.Checkgroup,
-        label: "Permissions",
-        options: [
-          {"Create Posts", "create_posts"},
-          {"Edit Posts", "edit_posts"},
-          {"Delete Posts", "delete_posts"},
-          {"Manage Users", "manage_users"}
-        ]
-      },
+      age: %{module: Backpex.Fields.Number, label: "Age"},
+      role: %{module: Backpex.Fields.Select, label: "Role", options: [Admin: "admin", User: "user"]},
       posts: %{
         module: Backpex.Fields.HasMany,
         label: "Posts",
         display_field: :title,
         orderable: false,
-        searchable: false,
         live_resource: Backpex.Test.PostLive
       },
       addresses: %{
         module: Backpex.Fields.HasManyThrough,
         label: "Addresses",
-        display_field: :full_address,
+        display_field: :street,
         except: [:index],
-        orderable: false,
-        searchable: false,
         live_resource: Backpex.Test.AddressLive,
         pivot_fields: [
           type: %{
             module: Backpex.Fields.Select,
             label: "Address Type",
-            options: [Shipping: "shipping", Billing: "billing"],
-            prompt: "Choose address type..."
-          },
-          primary: %{
-            module: Backpex.Fields.Boolean,
-            label: "Primary"
+            options: [Shipping: "shipping", Billing: "billing"]
           }
-        ],
-        options_query: fn query, _assigns ->
-          select_merge(
-            query,
-            [a],
-            %{full_address: fragment("concat(?, ', ', ?, ' ', ?, ', ', ?)", a.street, a.zip, a.city, a.country)}
-          )
-        end
+        ]
       },
       social_links: %{
         module: Backpex.Fields.InlineCRUD,
@@ -178,122 +114,10 @@ defmodule Backpex.Test.UserLive do
         type: :embed,
         except: [:index],
         child_fields: [
-          label: %{
-            module: Backpex.Fields.Text,
-            label: "Label",
-            class: "w-1/3"
-          },
-          url: %{
-            module: Backpex.Fields.Text,
-            label: "URL",
-            class: "w-2/3"
-          }
-        ]
-      },
-      web_links: %{
-        module: Backpex.Fields.InlineCRUD,
-        label: "Web links",
-        type: :embed,
-        except: [:index],
-        child_fields: [
-          label: %{
-            module: Backpex.Fields.Text,
-            label: "Label"
-          },
-          url: %{
-            module: Backpex.Fields.Text,
-            label: "URL"
-          },
-          notes: %{
-            module: Backpex.Fields.Textarea,
-            label: "Notes"
-          }
+          label: %{module: Backpex.Fields.Text, label: "Label"},
+          url: %{module: Backpex.Fields.Text, label: "URL"}
         ]
       }
     ]
   end
-
-  @impl Backpex.LiveResource
-  def metrics do
-    [
-      min_age: %{
-        module: Value,
-        label: "Min age",
-        class: "w-full lg:w-1/3",
-        select: dynamic([u], min(u.age)),
-        format: fn value ->
-          Integer.to_string(value) <> " years"
-        end
-      },
-      max_age: %{
-        module: Value,
-        label: "Max age",
-        class: "w-full lg:w-1/3",
-        select: dynamic([u], max(u.age)),
-        format: fn value ->
-          Integer.to_string(value) <> " years"
-        end
-      }
-    ]
-  end
-
-  defp list_existing_files(%{avatar: avatar} = _item) when avatar != "" and not is_nil(avatar), do: [avatar]
-  defp list_existing_files(_item), do: []
-
-  def put_upload_change(_socket, params, item, uploaded_entries, removed_entries, action) do
-    existing_files = list_existing_files(item) -- removed_entries
-
-    new_entries =
-      case action do
-        :validate ->
-          elem(uploaded_entries, 1)
-
-        :insert ->
-          elem(uploaded_entries, 0)
-      end
-
-    files = existing_files ++ Enum.map(new_entries, fn entry -> file_name(entry) end)
-
-    case files do
-      [file] ->
-        Map.put(params, "avatar", file)
-
-      [_file | _other_files] ->
-        Map.put(params, "avatar", "too_many_files")
-
-      [] ->
-        Map.put(params, "avatar", nil)
-    end
-  end
-
-  # sobelow_skip ["Traversal"]
-  defp consume_upload(_socket, _item, %{path: path} = _meta, entry) do
-    file_name = file_name(entry)
-    dest = Path.join([Uploads.dir(), upload_dir(), file_name])
-
-    dest |> Path.dirname() |> File.mkdir_p!()
-    File.cp!(path, dest)
-
-    {:ok, file_url(file_name)}
-  end
-
-  # sobelow_skip ["Traversal"]
-  defp remove_uploads(_socket, _item, removed_entries) do
-    for file <- removed_entries do
-      path = Path.join([Uploads.dir(), upload_dir(), file])
-      File.rm!(path)
-    end
-  end
-
-  defp file_url(file_name) do
-    static_path = Path.join([upload_dir(), file_name])
-    Phoenix.VerifiedRoutes.static_url(Backpex.Test.Endpoint, "/" <> static_path)
-  end
-
-  defp file_name(entry) do
-    [ext | _tail] = MIME.extensions(entry.client_type)
-    "#{entry.uuid}.#{ext}"
-  end
-
-  defp upload_dir, do: Path.join(["uploads", "user", "avatar"])
 end

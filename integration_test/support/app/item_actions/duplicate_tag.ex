@@ -1,5 +1,7 @@
 defmodule Backpex.Test.ItemActions.DuplicateTag do
-  @moduledoc false
+  @moduledoc """
+  An item action with fields that creates a copy of a tag and opens it.
+  """
 
   use BackpexWeb, :item_action
 
@@ -9,22 +11,14 @@ defmodule Backpex.Test.ItemActions.DuplicateTag do
   @impl Backpex.ItemAction
   def icon(assigns, _item) do
     ~H"""
-    <Backpex.HTML.CoreComponents.icon
-      name="hero-document-duplicate"
-      class="h-5 w-5 cursor-pointer transition duration-75 hover:scale-110 hover:text-green-600"
-    />
+    <Backpex.HTML.CoreComponents.icon name="hero-document-duplicate" class="h-5 w-5" />
     """
   end
 
   @impl Backpex.ItemAction
   def fields do
     [
-      name: %{
-        module: Backpex.Fields.Text,
-        label: "Name",
-        searchable: true,
-        placeholder: "Tag name"
-      }
+      name: %{module: Backpex.Fields.Text, label: "Name"}
     ]
   end
 
@@ -39,12 +33,7 @@ defmodule Backpex.Test.ItemActions.DuplicateTag do
   def confirm_label(_assigns), do: "Duplicate"
 
   @impl Backpex.ItemAction
-  def cancel_label(_assigns), do: "Cancel"
-
-  @impl Backpex.ItemAction
-  def changeset(item, change, metadata) do
-    Tag.create_changeset(item, change, metadata)
-  end
+  def changeset(item, change, metadata), do: Tag.changeset(item, change, metadata)
 
   @impl Backpex.ItemAction
   def base_schema(assigns) do
@@ -55,26 +44,13 @@ defmodule Backpex.Test.ItemActions.DuplicateTag do
 
   @impl Backpex.ItemAction
   def handle(socket, _items, data) do
-    params = Map.from_struct(data)
-
-    result =
+    {:ok, created} =
       %Tag{}
-      |> Tag.create_changeset(params, target: nil, assigns: socket.assigns)
+      |> Tag.changeset(Map.from_struct(data))
       |> Repo.insert()
 
-    socket =
-      case result do
-        {:ok, created} ->
-          %{live_resource: live_resource, params: params} = socket.assigns
+    %{live_resource: live_resource, params: params} = socket.assigns
 
-          socket
-          |> put_flash(:info, "Item has been duplicated.")
-          |> push_navigate(to: Router.get_path(socket, live_resource, params, :show, created))
-
-        _error ->
-          put_flash(socket, :error, "Error while duplicating item.")
-      end
-
-    {:ok, socket}
+    {:ok, push_navigate(socket, to: Router.get_path(socket, live_resource, params, :show, created))}
   end
 end

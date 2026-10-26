@@ -1,5 +1,7 @@
 defmodule Backpex.Test.ResourceActions.Email do
-  @moduledoc false
+  @moduledoc """
+  A resource action with a multi select field. It only shows a flash.
+  """
 
   use Backpex.ResourceAction
 
@@ -7,6 +9,7 @@ defmodule Backpex.Test.ResourceActions.Email do
 
   @impl Backpex.ResourceAction
   def title, do: "Send email"
+
   @impl Backpex.ResourceAction
   def label, do: "Send email"
 
@@ -19,30 +22,19 @@ defmodule Backpex.Test.ResourceActions.Email do
         options: fn _assigns -> [{"Alex", "user_id_alex"}, {"Bob", "user_id_bob"}] end,
         type: {:array, :string}
       },
-      text: %{
-        module: Backpex.Fields.Textarea,
-        label: "Text",
-        type: :string
-      }
+      text: %{module: Backpex.Fields.Textarea, label: "Text", type: :string}
     ]
   end
 
-  @required_fields ~w[text users]a
-
   @impl Backpex.ResourceAction
-  def changeset(change, attrs, _metadata \\ []) do
+  def changeset(change, attrs, _metadata) do
     change
-    |> cast(attrs, @required_fields)
-    |> validate_required(@required_fields)
+    |> cast(attrs, [:users, :text])
+    |> validate_required([:users, :text])
   end
 
   @impl Backpex.ResourceAction
   def handle(socket, _data) do
-    # Send mail
-
-    # We suppose there was no error.
-    socket = Phoenix.LiveView.put_flash(socket, :info, "An email has been successfully sent to the specified users.")
-
-    {:ok, socket}
+    {:ok, Phoenix.LiveView.put_flash(socket, :info, "An email has been successfully sent to the specified users.")}
   end
 end

@@ -13,18 +13,9 @@ defmodule Backpex.Test.Category do
     timestamps()
   end
 
-  @required_fields ~w[name]a
-  @optional_fields ~w[]a
-
-  def update_changeset(category, attrs, _metadata \\ []) do
+  def changeset(category, attrs, _metadata \\ []) do
     category
-    |> cast(attrs, @required_fields ++ @optional_fields)
-    |> validate_required(@required_fields)
-  end
-
-  def create_changeset(category, attrs, _metadata \\ []) do
-    category
-    |> cast(attrs, @required_fields ++ @optional_fields)
-    |> validate_required(@required_fields)
+    |> cast(attrs, [:name])
+    |> validate_required([:name])
   end
 end

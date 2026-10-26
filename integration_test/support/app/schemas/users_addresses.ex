@@ -5,29 +5,22 @@ defmodule Backpex.Test.UsersAddresses do
 
   import Ecto.Changeset
 
-  alias Backpex.Test.Address
-  alias Backpex.Test.User
-
   @primary_key {:id, :binary_id, autogenerate: true}
 
   schema "users_addresses" do
-    belongs_to :user, User, type: :id
-    belongs_to :address, Address, type: :binary_id
+    belongs_to :user, Backpex.Test.User, type: :id
+    belongs_to :address, Backpex.Test.Address, type: :binary_id
 
     field :type, Ecto.Enum, values: [:shipping, :billing]
-    field :primary, :boolean, default: false
 
     timestamps()
   end
 
-  @required_fields ~w[type primary address_id]a
+  @required_fields ~w[type address_id]a
 
-  @doc false
   def changeset(user_address, attrs) do
     user_address
     |> cast(attrs, @required_fields)
     |> validate_required(@required_fields)
-    |> foreign_key_constraint(:user_id)
-    |> foreign_key_constraint(:address_id)
   end
 end

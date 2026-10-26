@@ -1,8 +1,7 @@
 defmodule Backpex.Integration.ItemActions.PrimaryKeyPathTest do
   use Backpex.ConnCase, async: true
 
-  # The changeset only allows URL-safe keys, but other apps use string primary keys with spaces or
-  # percent signs. Insert directly to check that the show and edit links still resolve the item.
+  # Apps use string primary keys with spaces or percent signs. The show and edit links must still resolve the item.
   for short_key <- ["with space", "100%", "a%20b"] do
     describe "item with primary key #{inspect(short_key)}" do
       setup do

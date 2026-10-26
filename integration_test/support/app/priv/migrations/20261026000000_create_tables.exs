@@ -13,8 +13,6 @@ defmodule Backpex.Test.Repo.Migrations.CreateTables do
       add(:role, :string, null: false)
       add(:avatar, :string)
       add(:social_links, :map)
-      add(:web_links, :map)
-      add(:permissions, {:array, :string}, default: [], null: false)
       add(:deleted_at, :utc_datetime)
       timestamps()
     end
@@ -31,7 +29,6 @@ defmodule Backpex.Test.Repo.Migrations.CreateTables do
       add(:user_id, references(:users, type: :bigserial), null: false)
       add(:address_id, references(:addresses), null: false)
       add(:type, :string, null: false)
-      add(:primary, :boolean, default: false, null: false)
       timestamps()
     end
 
@@ -67,17 +64,6 @@ defmodule Backpex.Test.Repo.Migrations.CreateTables do
       add(:quantity, :integer, default: 0, null: false)
       add(:manufacturer, :string, null: false)
       add(:images, {:array, :string})
-      timestamps()
-    end
-
-    create table(:suppliers) do
-      add(:name, :string, null: false)
-      add(:url, :string, null: false)
-      add(:country, :string)
-      add(:contract_date, :date)
-      add(:minimum_order, :integer, default: 0, null: false)
-      add(:preferred, :boolean)
-      add(:product_id, references(:products, on_delete: :delete_all), null: false)
       timestamps()
     end
 

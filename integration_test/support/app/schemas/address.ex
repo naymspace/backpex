@@ -12,27 +12,13 @@ defmodule Backpex.Test.Address do
     field :zip, :string
     field :city, :string
     field :country, Ecto.Enum, values: [:de, :at, :ch, :us, :ca]
-    field :full_address, :string, virtual: true
 
     timestamps()
   end
 
   @required_fields ~w[street zip city country]a
 
-  @doc false
   def changeset(address, attrs, _metadata \\ []) do
-    address
-    |> cast(attrs, @required_fields)
-    |> validate_required(@required_fields)
-  end
-
-  def update_changeset(address, attrs, _metadata \\ []) do
-    address
-    |> cast(attrs, @required_fields)
-    |> validate_required(@required_fields)
-  end
-
-  def create_changeset(address, attrs, _metadata \\ []) do
     address
     |> cast(attrs, @required_fields)
     |> validate_required(@required_fields)

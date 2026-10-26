@@ -1,7 +1,8 @@
 defmodule Backpex.Test.Layouts do
   @moduledoc """
-  The root and admin layouts of the test app. The admin layout is built from the Backpex layout components and has the
-  same sidebar as the demo.
+  The root and admin layouts of the test app. The admin layout is built from the Backpex layout components. The browser
+  tests use its theme selector, the collapsible "Blog" section of the sidebar and enough sidebar items to scroll the menu
+  in a short viewport.
   """
   use Phoenix.Component
 

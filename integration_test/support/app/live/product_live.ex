@@ -1,23 +1,21 @@
-# credo:disable-for-this-file Credo.Check.Design.DuplicatedCode
 defmodule Backpex.Test.ProductLive do
+  @moduledoc """
+  Products with a multi-file upload field, a URL field with an `anchor_text`, a currency field, a range filter and an
+  InlineCRUD field of an association (`short_links`).
+  """
   use Backpex.LiveResource,
     adapter_config: [
       schema: Backpex.Test.Product,
       repo: Backpex.Test.Repo,
       update_changeset: &Backpex.Test.Product.changeset/3,
       create_changeset: &Backpex.Test.Product.changeset/3
-    ],
-    persist: [:order, :filters, :columns, :metrics]
-
-  import Ecto.Query, warn: false
+    ]
 
   alias Backpex.LiveResource
-  alias Backpex.Metrics.Value
   alias Backpex.Test.Endpoint
   alias Backpex.Test.Filters.ProductQuantityRange
   alias Backpex.Test.Layouts
   alias Backpex.Test.ShortLinkLive
-  alias Backpex.Test.Supplier
   alias Backpex.Test.Uploads
   alias Phoenix.VerifiedRoutes
 
@@ -33,10 +31,7 @@ defmodule Backpex.Test.ProductLive do
   @impl LiveResource
   def filters do
     [
-      quantity: %{
-        module: ProductQuantityRange,
-        label: "QTY"
-      }
+      quantity: %{module: ProductQuantityRange, label: "QTY"}
     ]
   end
 
@@ -54,90 +49,16 @@ defmodule Backpex.Test.ProductLive do
         consume_upload: &consume_upload/4,
         remove_uploads: &remove_uploads/3,
         list_existing_files: &list_existing_files/1,
-        render: fn
-          %{value: value} = assigns when is_list(value) ->
-            ~H"""
-            <div>
-              <img :for={img <- @value} class="h-10 w-auto" src={file_url(img)} />
-            </div>
-            """
-
-          assigns ->
-            ~H"<p>{Backpex.HTML.pretty_value(@value)}</p>"
-        end,
         except: [:index]
       },
-      name: %{
-        module: Backpex.Fields.Text,
-        label: "Name",
-        searchable: true
-      },
+      name: %{module: Backpex.Fields.Text, label: "Name"},
       manufacturer: %{
         module: Backpex.Fields.URL,
         label: "Manufacturer URL",
-        orderable: false,
-        anchor_text: fn assigns ->
-          host = URI.parse(assigns.value).host
-          name = String.replace(host, ~r/\.(com|org|net|io)$/, "")
-          "Visit #{name}"
-        end
+        anchor_text: fn assigns -> "Visit " <> String.replace(URI.parse(assigns.value).host, ".com", "") end
       },
-      quantity: %{
-        module: Backpex.Fields.Number,
-        label: "Quantity",
-        align: :center,
-        translate_error: fn
-          {_msg, [type: :integer, validation: :cast] = metadata} ->
-            {"has to be a number", metadata}
-
-          error ->
-            error
-        end,
-        render: fn assigns ->
-          ~H"""
-          <p>{Backpex.Test.NumberFormat.to_delimited(@value)}</p>
-          """
-        end
-      },
-      price: %{
-        module: Backpex.Fields.Currency,
-        label: "Price",
-        align: :right
-      },
-      suppliers: %{
-        module: Backpex.Fields.InlineCRUD,
-        label: "Suppliers",
-        type: :assoc,
-        except: [:index],
-        child_fields: [
-          name: %{
-            module: Backpex.Fields.Text,
-            label: "Name"
-          },
-          url: %{
-            module: Backpex.Fields.URL,
-            label: "URL"
-          },
-          country: %{
-            module: Backpex.Fields.Select,
-            label: "Country",
-            prompt: "—",
-            options: Supplier.countries()
-          },
-          contract_date: %{
-            module: Backpex.Fields.Date,
-            label: "Contract Date"
-          },
-          minimum_order: %{
-            module: Backpex.Fields.Currency,
-            label: "Minimum Order"
-          },
-          preferred: %{
-            module: Backpex.Fields.Boolean,
-            label: "Preferred"
-          }
-        ]
-      },
+      quantity: %{module: Backpex.Fields.Number, label: "Quantity"},
+      price: %{module: Backpex.Fields.Currency, label: "Price"},
       short_links: %{
         module: Backpex.Fields.InlineCRUD,
         label: "Short Links",
@@ -145,76 +66,43 @@ defmodule Backpex.Test.ProductLive do
         except: [:index],
         live_resource: ShortLinkLive,
         child_fields: [
-          short_key: %{
-            module: Backpex.Fields.Text,
-            label: "URL Suffix"
-          },
-          url: %{
-            module: Backpex.Fields.Text,
-            label: "Target URL"
-          }
+          short_key: %{module: Backpex.Fields.Text, label: "URL Suffix"},
+          url: %{module: Backpex.Fields.Text, label: "Target URL"}
         ]
       }
     ]
   end
 
-  @impl LiveResource
-  def metrics do
-    [
-      total_quantity: %{
-        module: Value,
-        label: "In Stock",
-        class: "w-1/3",
-        select: dynamic([i], sum(i.quantity)),
-        format: fn value ->
-          Integer.to_string(value) <> " Products"
-        end
-      }
-    ]
-  end
-
-  defp list_existing_files(%{images: images} = _item) when is_list(images), do: images
+  defp list_existing_files(%{images: images}) when is_list(images), do: images
   defp list_existing_files(_item), do: []
 
   defp put_upload_change(_socket, params, item, uploaded_entries, removed_entries, action) do
-    existing_files = list_existing_files(item) -- removed_entries
-
     new_entries =
       case action do
-        :validate ->
-          elem(uploaded_entries, 1)
-
-        :insert ->
-          elem(uploaded_entries, 0)
+        :validate -> elem(uploaded_entries, 1)
+        :insert -> elem(uploaded_entries, 0)
       end
 
-    files = existing_files ++ Enum.map(new_entries, fn entry -> file_name(entry) end)
+    files = (list_existing_files(item) -- removed_entries) ++ Enum.map(new_entries, &file_name/1)
 
     Map.put(params, "images", files)
   end
 
   # sobelow_skip ["Traversal"]
-  defp consume_upload(_socket, _item, %{path: path} = _meta, entry) do
-    file_name = file_name(entry)
-    dest = Path.join([Uploads.dir(), upload_dir(), file_name])
+  defp consume_upload(_socket, _item, %{path: path}, entry) do
+    dest = Path.join([Uploads.dir(), upload_dir(), file_name(entry)])
 
     dest |> Path.dirname() |> File.mkdir_p!()
     File.cp!(path, dest)
 
-    {:ok, file_url(file_name)}
+    {:ok, VerifiedRoutes.static_url(Endpoint, "/" <> Path.join(upload_dir(), file_name(entry)))}
   end
 
   # sobelow_skip ["Traversal"]
   defp remove_uploads(_socket, _item, removed_entries) do
     for file <- removed_entries do
-      path = Path.join([Uploads.dir(), upload_dir(), file])
-      File.rm!(path)
+      [Uploads.dir(), upload_dir(), file] |> Path.join() |> File.rm!()
     end
-  end
-
-  defp file_url(file_name) do
-    static_path = Path.join([upload_dir(), file_name])
-    VerifiedRoutes.static_url(Endpoint, "/" <> static_path)
   end
 
   defp file_name(entry) do

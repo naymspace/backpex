@@ -1,4 +1,9 @@
 defmodule Backpex.Test.PostLive do
+  @moduledoc """
+  Posts, the LiveResource with the most options: a filter of every kind with defaults and presets, value metrics,
+  `persist`, a `context_assigns` list, the "Save & Continue editing" button and a custom form action, an index editable
+  BelongsTo field with an `options_query`, a HasMany field and a field with a `visible` function.
+  """
   use Backpex.LiveResource,
     adapter_config: [
       schema: Backpex.Test.Post,
@@ -6,9 +11,8 @@ defmodule Backpex.Test.PostLive do
       update_changeset: &Backpex.Test.Post.update_changeset/3,
       create_changeset: &Backpex.Test.Post.create_changeset/3
     ],
-    fluid?: true,
     save_and_continue_button?: true,
-    persist: [:order, :filters, :columns, :metrics],
+    persist: [:order, :filters, :columns],
     context_assigns: []
 
   import Ecto.Query, warn: false
@@ -38,138 +42,35 @@ defmodule Backpex.Test.PostLive do
   @impl LiveResource
   def filters do
     [
-      category_id: %{
-        module: PostCategorySelect,
-        label: "Category"
-      },
-      user_id: %{
-        module: PostUserMultiSelect,
-        label: "Users"
-      },
+      category_id: %{module: PostCategorySelect, label: "Category"},
+      user_id: %{module: PostUserMultiSelect, label: "Users"},
       likes: %{
         module: PostLikeRange,
         label: "Likes",
         presets: [
-          %{
-            label: "Over 100",
-            values: fn -> %{"start" => 100, "end" => nil} end
-          },
-          %{
-            label: "1-99",
-            values: fn -> %{"start" => 1, "end" => 99} end
-          }
+          %{label: "Over 100", values: fn -> %{"start" => 100, "end" => nil} end},
+          %{label: "1-99", values: fn -> %{"start" => 1, "end" => 99} end}
         ]
       },
-      inserted_at: %{
-        module: DateTimeRange,
-        label: "Created at",
-        presets: [
-          %{
-            label: "Last 7 Days",
-            values: fn ->
-              %{
-                "start" => Date.add(Date.utc_today(), -7),
-                "end" => Date.utc_today()
-              }
-            end
-          },
-          %{
-            label: "Last 14 Days",
-            values: fn ->
-              %{
-                "start" => Date.add(Date.utc_today(), -14),
-                "end" => Date.utc_today()
-              }
-            end
-          },
-          %{
-            label: "Last 30 Days",
-            values: fn ->
-              %{
-                "start" => Date.add(Date.utc_today(), -30),
-                "end" => Date.utc_today()
-              }
-            end
-          }
-        ]
-      },
-      published: %{
-        module: PostPublished,
-        label: "Published?",
-        default: ["published"],
-        presets: [
-          %{
-            label: "Both",
-            values: fn -> [:published, :not_published] end
-          },
-          %{
-            label: "Only published",
-            values: fn -> [:published] end
-          },
-          %{
-            label: "Only not published",
-            values: fn -> [:not_published] end
-          }
-        ]
-      }
+      inserted_at: %{module: DateTimeRange, label: "Created at"},
+      published: %{module: PostPublished, label: "Published?", default: ["published"]}
     ]
   end
 
   @impl LiveResource
   def fields do
     [
-      title: %{
-        module: Backpex.Fields.Text,
-        label: "Title",
-        searchable: true
-      },
-      body: %{
-        module: Backpex.Fields.Textarea,
-        label: "Body",
-        rows: 10,
-        except: [:index],
-        align_label: :center
-      },
-      published: %{
-        module: Backpex.Fields.Boolean,
-        label: "Published",
-        align: :center,
-        index_editable: true
-      },
-      show_likes: %{
-        module: Backpex.Fields.Boolean,
-        label: "Show likes",
-        select: dynamic([post: p], fragment("? > 0", p.likes)),
-        except: [:index, :show]
-      },
+      title: %{module: Backpex.Fields.Text, label: "Title", searchable: true},
+      body: %{module: Backpex.Fields.Textarea, label: "Body", except: [:index]},
+      published: %{module: Backpex.Fields.Boolean, label: "Published"},
       likes: %{
         module: Backpex.Fields.Number,
         label: "Likes",
-        visible: fn
-          %{live_action: :new} = assigns ->
-            Map.get(assigns.changeset.changes, :show_likes)
-
-          %{live_action: :edit} = assigns ->
-            Map.get(
-              assigns.changeset.changes,
-              :show_likes,
-              Map.get(assigns.item, :show_likes, false)
-            )
-
-          _assigns ->
-            true
-        end,
-        searchable: true,
-        render: fn assigns ->
-          ~H"""
-          <p>{Backpex.Test.NumberFormat.to_delimited(@value)}</p>
-          """
-        end
+        visible: fn assigns -> assigns.live_action not in [:new, :edit] end
       },
       user: %{
         module: Backpex.Fields.BelongsTo,
         label: "Author",
-        prompt: "Please select an author",
         display_field: :full_name,
         select: dynamic([user: u], fragment("concat(?, ' ', ?)", u.first_name, u.last_name)),
         options_query: fn query, _assigns ->
@@ -180,16 +81,13 @@ defmodule Backpex.Test.PostLive do
           })
         end,
         index_editable: true,
-        searchable: true,
         live_resource: UserLive
       },
       category: %{
         module: Backpex.Fields.BelongsTo,
         label: "Category",
         display_field: :name,
-        searchable: true,
-        live_resource: CategoryLive,
-        custom_alias: :custom_category
+        live_resource: CategoryLive
       },
       tags: %{
         module: Backpex.Fields.HasMany,
@@ -197,11 +95,6 @@ defmodule Backpex.Test.PostLive do
         orderable: false,
         display_field: :name,
         live_resource: TagLive
-      },
-      inserted_at: %{
-        module: Backpex.Fields.DateTime,
-        label: "Created At",
-        only: [:index, :show]
       }
     ]
   end
@@ -225,20 +118,14 @@ defmodule Backpex.Test.PostLive do
       total_likes: %{
         module: Value,
         label: "Total likes",
-        class: "lg:w-1/4",
         select: dynamic([p], sum(p.likes)),
-        format: fn value ->
-          Integer.to_string(value) <> " likes"
-        end
+        format: fn value -> Integer.to_string(value) <> " likes" end
       },
       published_posts: %{
         module: Value,
         label: "Published Posts",
-        class: "lg:w-1/4",
         select: dynamic([p], count(fragment("CASE WHEN ? = TRUE THEN 1 ELSE NULL END", p.published))),
-        format: fn value ->
-          Integer.to_string(value)
-        end
+        format: &Integer.to_string/1
       }
     ]
   end

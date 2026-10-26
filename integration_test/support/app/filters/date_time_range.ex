@@ -1,7 +1,5 @@
 defmodule Backpex.Test.Filters.DateTimeRange do
-  @moduledoc """
-  Implementation of the `Backpex.Filters.Range` behaviour.
-  """
+  @moduledoc "A datetime range filter on the creation time of posts."
 
   use Backpex.Filters.Range
 

@@ -1,13 +1,14 @@
 defmodule Backpex.Test.CategoryLive do
+  @moduledoc """
+  Categories, the target of the BelongsTo fields of `Backpex.Test.PostLive` and `Backpex.Test.SampleLive`.
+  """
   use Backpex.LiveResource,
     adapter_config: [
       schema: Backpex.Test.Category,
       repo: Backpex.Test.Repo,
-      update_changeset: &Backpex.Test.Category.update_changeset/3,
-      create_changeset: &Backpex.Test.Category.create_changeset/3
-    ],
-    init_order: %{by: :name, direction: :asc},
-    persist: [:order, :filters, :columns, :metrics]
+      update_changeset: &Backpex.Test.Category.changeset/3,
+      create_changeset: &Backpex.Test.Category.changeset/3
+    ]
 
   @impl Backpex.LiveResource
   def layout(_assigns), do: {Backpex.Test.Layouts, :admin}
@@ -21,11 +22,7 @@ defmodule Backpex.Test.CategoryLive do
   @impl Backpex.LiveResource
   def fields do
     [
-      name: %{
-        module: Backpex.Fields.Text,
-        label: "Name",
-        searchable: true
-      }
+      name: %{module: Backpex.Fields.Text, label: "Name"}
     ]
   end
 end
