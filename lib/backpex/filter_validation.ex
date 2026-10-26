@@ -67,13 +67,10 @@ defmodule Backpex.FilterValidation do
   @doc """
   Builds the types map for schemaless changeset from filter configurations.
 
-  Each filter module must implement `type/1` to specify its Ecto type.
+  Each filter module must implement `c:Backpex.Filter.type/2` to specify its Ecto type.
   """
   def build_types(filter_configs, assigns) do
-    Enum.reduce(filter_configs, %{}, fn {key, filter}, acc ->
-      type = filter.module.type(assigns)
-      Map.put(acc, key, type)
-    end)
+    Map.new(filter_configs, fn {key, config} = filter -> {key, config.module.type(filter, assigns)} end)
   end
 
   defp normalize_empty_strings(params) when is_map(params) do
@@ -86,8 +83,8 @@ defmodule Backpex.FilterValidation do
   defp normalize_value(value), do: value
 
   defp apply_filter_changesets(changeset, filter_configs, assigns) do
-    Enum.reduce(filter_configs, changeset, fn {key, filter}, cs ->
-      filter.module.changeset(cs, key, assigns)
+    Enum.reduce(filter_configs, changeset, fn {_key, config} = filter, cs ->
+      config.module.changeset(cs, filter, assigns)
     end)
   end
 

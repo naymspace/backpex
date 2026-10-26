@@ -456,14 +456,14 @@ defmodule Backpex.Adapters.Ecto do
 
   Receives a map of validated filter values and the filter configurations keyword list.
   For each filter value, looks up the corresponding filter config and applies the condition the filter returns for the
-  already-validated and casted value, see `c:Backpex.Filter.condition/3`.
+  already-validated and casted value, see `Backpex.Filter.to_condition/3`.
   """
   def apply_filters(query, filter_values, filter_configs, assigns)
       when is_map(filter_values) and is_list(filter_configs) do
     Enum.reduce(filter_values, query, fn {field, value}, acc ->
       case Keyword.get(filter_configs, field) do
         nil -> acc
-        %{module: module} -> maybe_where(acc, module.condition(field, value, assigns))
+        config -> maybe_where(acc, Backpex.Filter.to_condition({field, config}, value, assigns))
       end
     end)
   end

@@ -70,7 +70,7 @@ defmodule Backpex.Adapter do
 
     * `:search` - a tuple of the search string and the searchable fields.
     * `:filter_values` and `:filter_configs` - the validated values and the configurations of the active filters. Keep
-      the items that match the condition of every filter, see `c:Backpex.Filter.condition/3`.
+      the items that match the condition of every filter, see `Backpex.Filter.to_condition/3`.
     * `:order` - a map with the keys `:by` (the column to order by), `:direction` (`:asc` or `:desc`), `:field_name`
       (the name of the field that is ordered by, or `nil`) and `:nulls` (`:default`, `:first`, `:last` or `:smallest`).
     * `:pagination` - a map with the keys `:page` and `:size`.

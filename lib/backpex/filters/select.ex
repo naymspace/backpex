@@ -1,8 +1,48 @@
+# quokka:skip-module-directive-reordering
 defmodule Backpex.Filters.Select do
-  @moduledoc """
-  The select filter renders a select box for the implemented `options/1` and `prompt/0` callbacks. The `prompt/0` callback defines the key for the `nil` value added as first option.
+  @config_schema [
+    options: [
+      doc: "List of options as `{label, value}` tuples or function that receives the assigns and returns the list.",
+      type: {:or, [{:list, :any}, {:fun, 1}]},
+      required: true
+    ],
+    prompt: [
+      doc: """
+      The label of the empty option that selects no value or function that receives the assigns. Defaults to
+      `"Select an option..."`.
+      """,
+      type: {:or, [:string, {:fun, 1}]}
+    ]
+  ]
 
-  See the following example for an implementation of an event status filter.
+  @moduledoc """
+  The select filter renders a select box with the given options. It keeps the items whose field equals the selected
+  value.
+
+  ## Filter-specific options
+
+  See `Backpex.Filter` for general filter options.
+
+  #{NimbleOptions.docs(@config_schema)}
+
+  ## Example
+
+      def filters do
+        [
+          status: %{
+            module: Backpex.Filters.Select,
+            label: "Event status",
+            prompt: "Select an option...",
+            options: [{"Open", :open}, {"Close", :close}]
+          }
+        ]
+      end
+
+  ## Reusable filter modules
+
+  To reuse a select filter in several LiveResources, define a module that implements the `c:options/1` and `c:prompt/0`
+  callbacks and use it as the `:module` of the filter. The `:options` and `:prompt` options of the filter take
+  precedence over the callbacks.
 
       defmodule MyAppWeb.Filters.EventStatusSelect do
         use Backpex.Filters.Select
@@ -23,11 +63,13 @@ defmodule Backpex.Filters.Select do
   > #### `use Backpex.Filters.Select` {: .info}
   >
   > When you `use Backpex.Filters.Select`, the `Backpex.Filters.Select` module will set `@behavior Backpex.Filters.Select`.
-  > In addition it will add a `render` and `render_form` function in order to display the corresponding filter.
-  > It will also implement the `c:Backpex.Filter.condition/3` callback to keep the items whose field equals the selected
-  > value.
+  > In addition it will delegate the callbacks of `Backpex.Filter` to `Backpex.Filters.Select`, so you can override any
+  > of them.
   """
   use BackpexWeb, :filter
+  use Backpex.Filter, config_schema: @config_schema
+
+  require Backpex
 
   @doc """
   The select's default option.
@@ -49,55 +91,90 @@ defmodule Backpex.Filters.Select do
       alias Backpex.Filters.Select, as: SelectFilter
 
       @impl Backpex.Filter
-      def type(_assigns), do: :string
+      def config_schema, do: SelectFilter.module_config_schema(&options/1, &prompt/0)
 
       @impl Backpex.Filter
-      def changeset(changeset, field, assigns) do
-        SelectFilter.changeset(changeset, field, options(assigns))
-      end
+      defdelegate type(filter, assigns), to: SelectFilter
 
       @impl Backpex.Filter
-      defdelegate condition(field, value, assigns), to: SelectFilter
+      defdelegate changeset(changeset, filter, assigns), to: SelectFilter
 
       @impl Backpex.Filter
-      def render(assigns) do
-        assigns = assign(assigns, :options, options(assigns))
-        SelectFilter.render(assigns)
-      end
+      defdelegate condition(filter, value, assigns), to: SelectFilter
 
       @impl Backpex.Filter
-      def render_form(assigns) do
-        assigns =
-          assigns
-          |> assign(:options, options(assigns))
-          |> assign(:prompt, prompt())
+      defdelegate render(assigns), to: SelectFilter
 
-        SelectFilter.render_form(assigns)
-      end
+      @impl Backpex.Filter
+      defdelegate render_form(assigns), to: SelectFilter
 
-      defoverridable type: 1, changeset: 3, condition: 3, render: 1, render_form: 1
+      defoverridable config_schema: 0, type: 2, changeset: 3, condition: 3, render: 1, render_form: 1
     end
   end
 
-  attr :value, :any, required: true
-  attr :options, :list, required: true
+  @doc false
+  # The config schema of a module that uses this module: its callbacks are the defaults of the options.
+  def module_config_schema(options_fun, prompt_fun) do
+    @config_schema
+    |> Keyword.update!(:options, &(&1 |> Keyword.delete(:required) |> Keyword.put(:default, options_fun)))
+    |> Keyword.update!(:prompt, &Keyword.put(&1, :default, fn _assigns -> prompt_fun.() end))
+  end
 
+  @impl Backpex.Filter
+  def type(_filter, _assigns), do: :string
+
+  @doc """
+  Validates that the selected value exists in the options list.
+
+  Returns the changeset unchanged if the value is valid, or adds an error if not found in options.
+  Empty string is allowed as it represents the "no selection" state.
+  """
+  @impl Backpex.Filter
+  def changeset(changeset, {field, _config} = filter, assigns) do
+    valid_values = ["" | filter |> options(assigns) |> Enum.map(fn {_label, value} -> to_string(value) end)]
+
+    Ecto.Changeset.validate_inclusion(changeset, field, valid_values, message: "is not a valid option")
+  end
+
+  @doc """
+  Returns the condition that keeps the items whose field equals the selected value.
+
+  ## Examples
+
+      iex> Backpex.Filters.Select.condition({:status, %{}}, "open", %{})
+      {:==, :status, "open"}
+
+  """
+  @impl Backpex.Filter
+  def condition({field, _config}, value, _assigns), do: {:==, field, value}
+
+  attr :filter, :any, required: true, doc: "the filter"
+  attr :value, :any, required: true, doc: "the selected value"
+
+  @impl Backpex.Filter
   def render(assigns) do
-    assigns = assign(assigns, :label, option_value_to_label(assigns.options, assigns.value))
+    assigns = assign(assigns, :label, option_value_to_label(options(assigns.filter, assigns), assigns.value))
 
     ~H"""
     {@label}
     """
   end
 
-  attr :form, :any, required: true
-  attr :field, :atom, required: true
-  attr :value, :any, required: true
-  attr :options, :list, required: true
-  attr :prompt, :string, required: true
-  attr :errors, :list, default: []
+  attr :filter, :any, required: true, doc: "the filter"
+  attr :form, :any, required: true, doc: "the filter form"
+  attr :field, :atom, required: true, doc: "the name of the filter"
+  attr :value, :any, required: true, doc: "the selected value"
+  attr :live_resource, :atom, required: true, doc: "the LiveResource"
+  attr :errors, :list, default: [], doc: "the errors of the value"
 
+  @impl Backpex.Filter
   def render_form(assigns) do
+    assigns =
+      assigns
+      |> assign(:options, options(assigns.filter, assigns))
+      |> assign(:prompt, prompt(assigns.filter, assigns))
+      |> assign_new(:errors, fn -> [] end)
+
     ~H"""
     <select
       id={@form[@field].id}
@@ -116,6 +193,37 @@ defmodule Backpex.Filters.Select do
     </select>
     <.error :for={msg <- @errors} class="mt-1">{msg}</.error>
     """
+  end
+
+  @doc """
+  Returns the options of a select filter: its `:options` option, or the result of it if it is a function.
+
+  ## Examples
+
+      iex> Backpex.Filters.Select.options({:status, %{options: [{"Open", :open}]}}, %{})
+      [{"Open", :open}]
+
+      iex> Backpex.Filters.Select.options({:status, %{options: fn assigns -> assigns.options end}}, %{options: []})
+      []
+
+  """
+  def options({_name, config}, assigns) do
+    case Map.fetch!(config, :options) do
+      options when is_function(options, 1) -> options.(assigns)
+      options -> options
+    end
+  end
+
+  @doc """
+  Returns the prompt of a select filter: its `:prompt` option, the result of it if it is a function, or
+  `"Select an option..."`.
+  """
+  def prompt({_name, config}, assigns) do
+    case Map.get(config, :prompt) do
+      nil -> Backpex.__("Select an option...", assigns[:live_resource])
+      prompt when is_function(prompt, 1) -> prompt.(assigns)
+      prompt -> prompt
+    end
   end
 
   @doc """
@@ -138,29 +246,6 @@ defmodule Backpex.Filters.Select do
   """
   def selected(""), do: nil
   def selected(value), do: value
-
-  @doc """
-  Validates that the selected value exists in the options list.
-
-  Returns the changeset unchanged if the value is valid, or adds an error if not found in options.
-  Empty string is allowed as it represents the "no selection" state.
-  """
-  def changeset(changeset, field, options) do
-    valid_values = ["" | Enum.map(options, fn {_label, value} -> to_string(value) end)]
-
-    Ecto.Changeset.validate_inclusion(changeset, field, valid_values, message: "is not a valid option")
-  end
-
-  @doc """
-  Returns the condition that keeps the items whose field equals the selected value.
-
-  ## Examples
-
-      iex> Backpex.Filters.Select.condition(:status, "open", %{})
-      {:==, :status, "open"}
-
-  """
-  def condition(field, value, _assigns), do: {:==, field, value}
 
   @doc """
   Finds the label for a given option value.

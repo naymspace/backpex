@@ -1,8 +1,41 @@
+# quokka:skip-module-directive-reordering
 defmodule Backpex.Filters.Range do
-  @moduledoc """
-  The range filter renders two input fields of the same type. Backpex offers the `:date`, `:datetime` and the `number` type.
+  @config_schema [
+    type: [
+      doc: "The type of the range, which defines the rendered input fields.",
+      type: {:in, [:date, :datetime, :number]},
+      required: true
+    ]
+  ]
 
-  See the following example for an implementation of a date range filter.
+  @moduledoc """
+  The range filter renders two input fields of the same type. Backpex offers the `:date`, `:datetime` and the `:number`
+  type. It keeps the items whose field is within the range.
+
+  ## Filter-specific options
+
+  See `Backpex.Filter` for general filter options.
+
+  #{NimbleOptions.docs(@config_schema)}
+
+  ## Example
+
+  See the following example for a date range filter.
+
+      def filters do
+        [
+          begins_at: %{
+            module: Backpex.Filters.Range,
+            label: "Date Range (begins at)",
+            type: :date
+          }
+        ]
+      end
+
+  ## Reusable filter modules
+
+  To reuse a range filter in several LiveResources, define a module that implements the `c:type/0` callback and use it
+  as the `:module` of the filter. The `:type` option of the filter takes precedence over the callback.
 
       defmodule MyAppWeb.Filters.DateRange do
         use Backpex.Filters.Range
@@ -14,17 +47,14 @@ defmodule Backpex.Filters.Range do
         def label, do: "Date Range (begins at)"
       end
 
-  > #### Information {: .info}
-  >
-  > Note that the condition is already implemented via `Backpex.Filters.Range`.
-
   > #### `use Backpex.Filters.Range` {: .info}
   >
   > When you `use Backpex.Filters.Range`, the `Backpex.Filters.Range` module will set `@behavior Backpex.Filters.Range`.
-  > In addition it will add a `render` and `render_form` function in order to display the corresponding filter.
-  > It will also implement the `c:Backpex.Filter.condition/3` callback to keep the items whose field is within the range.
+  > In addition it will delegate the callbacks of `Backpex.Filter` to `Backpex.Filters.Range`, so you can override any
+  > of them.
   """
   use BackpexWeb, :filter
+  use Backpex.Filter, config_schema: @config_schema
 
   require Backpex
 
@@ -43,36 +73,82 @@ defmodule Backpex.Filters.Range do
       alias Backpex.Filters.Range, as: RangeFilter
 
       @impl Backpex.Filter
-      def type(_assigns), do: :map
+      def config_schema, do: RangeFilter.module_config_schema(&type/0)
 
       @impl Backpex.Filter
-      def changeset(changeset, field, _assigns) do
-        RangeFilter.changeset(changeset, field, type())
-      end
+      defdelegate type(filter, assigns), to: RangeFilter
 
       @impl Backpex.Filter
-      def condition(field, value, assigns) do
-        RangeFilter.condition(type(), field, value, assigns)
-      end
+      defdelegate changeset(changeset, filter, assigns), to: RangeFilter
 
       @impl Backpex.Filter
-      def render(assigns) do
-        RangeFilter.render(assigns)
-      end
+      defdelegate condition(filter, value, assigns), to: RangeFilter
 
       @impl Backpex.Filter
-      def render_form(assigns) do
-        type = RangeFilter.render_type(type())
-        assigns = assign(assigns, :type, type)
-        Backpex.Filters.Range.render_form(assigns)
-      end
+      defdelegate render(assigns), to: RangeFilter
 
-      defoverridable type: 1, changeset: 3, condition: 3, render: 1, render_form: 1
+      @impl Backpex.Filter
+      defdelegate render_form(assigns), to: RangeFilter
+
+      defoverridable config_schema: 0, type: 2, changeset: 3, condition: 3, render: 1, render_form: 1
     end
   end
 
-  attr :value, :map, required: true
+  @doc false
+  # The config schema of a module that uses this module: its callback is the default of the type.
+  def module_config_schema(type_fun) do
+    Keyword.update!(@config_schema, :type, &(&1 |> Keyword.delete(:required) |> Keyword.put(:default, type_fun.())))
+  end
 
+  @impl Backpex.Filter
+  def type(_filter, _assigns), do: :map
+
+  @doc """
+  Validates range filter values based on the type of the range.
+
+  Validates that:
+  - Date values are valid ISO 8601 dates (for :date and :datetime types)
+  - Number values are valid integers or floats (for :number type)
+  - Start is not greater than end when both are provided
+  """
+  @impl Backpex.Filter
+  def changeset(changeset, {field, config} = _filter, _assigns) do
+    Ecto.Changeset.validate_change(changeset, field, fn _field, value ->
+      validate_range(value, config.type, field)
+    end)
+  end
+
+  @doc """
+  Returns the condition that keeps the items whose field is within the range, or `nil` if the range has no valid
+  boundary. See `maybe_parse_range/3` for how the boundaries are parsed.
+
+  ## Examples
+
+      iex> Backpex.Filters.Range.condition({:likes, %{type: :number}}, %{"start" => "10", "end" => ""}, %{})
+      {:>=, :likes, 10}
+      iex> Backpex.Filters.Range.condition({:likes, %{type: :number}}, %{"start" => "", "end" => "100"}, %{})
+      {:<=, :likes, 100}
+      iex> Backpex.Filters.Range.condition({:begins_at, %{type: :date}}, %{"start" => "2024-01-01", "end" => "2024-12-31"}, %{})
+      {:and, [{:>=, :begins_at, "2024-01-01"}, {:<=, :begins_at, "2024-12-31"}]}
+      iex> Backpex.Filters.Range.condition({:likes, %{type: :number}}, %{"start" => "", "end" => ""}, %{})
+      nil
+
+  """
+  @impl Backpex.Filter
+  def condition({field, config} = _filter, %{"start" => start_at, "end" => end_at}, _assigns) do
+    case maybe_parse_range(config.type, start_at, end_at) do
+      {nil, nil} -> nil
+      {start_at, nil} -> {:>=, field, start_at}
+      {nil, end_at} -> {:<=, field, end_at}
+      {start_at, end_at} -> {:and, [{:>=, field, start_at}, {:<=, field, end_at}]}
+    end
+  end
+
+  def condition(_filter, _value, _assigns), do: nil
+
+  attr :value, :map, required: true, doc: "the range"
+
+  @impl Backpex.Filter
   def render(assigns) do
     assigns =
       assigns
@@ -86,14 +162,22 @@ defmodule Backpex.Filters.Range do
     """
   end
 
-  attr :form, :any, required: true
-  attr :field, :atom, required: true
-  attr :value, :any, required: true
-  attr :type, :atom, required: true
-  attr :live_resource, :atom, required: true
-  attr :errors, :list, default: []
+  attr :filter, :any, required: true, doc: "the filter"
+  attr :form, :any, required: true, doc: "the filter form"
+  attr :field, :atom, required: true, doc: "the name of the filter"
+  attr :value, :any, required: true, doc: "the range"
+  attr :live_resource, :atom, required: true, doc: "the LiveResource"
+  attr :errors, :list, default: [], doc: "the errors of the range"
 
+  @impl Backpex.Filter
   def render_form(assigns) do
+    {_name, config} = assigns.filter
+
+    assigns =
+      assigns
+      |> assign(:type, render_type(config.type))
+      |> assign_new(:errors, fn -> [] end)
+
     ~H"""
     <.inputs_for :let={f} field={@form[@field]}>
       <.range_input_set form={f} type={@type} value={@value} live_resource={@live_resource} errors={@errors} />
@@ -136,20 +220,6 @@ defmodule Backpex.Filters.Range do
       </label>
     </div>
     """
-  end
-
-  @doc """
-  Validates range filter values based on the filter type.
-
-  Validates that:
-  - Date values are valid ISO 8601 dates (for :date and :datetime types)
-  - Number values are valid integers or floats (for :number type)
-  - Start is not greater than end when both are provided
-  """
-  def changeset(changeset, field, range_type) do
-    Ecto.Changeset.validate_change(changeset, field, fn _field, value ->
-      validate_range(value, range_type, field)
-    end)
   end
 
   defp validate_range(nil, _type, _field), do: []
@@ -216,33 +286,6 @@ defmodule Backpex.Filters.Range do
     end_date = String.slice(end_val, 0, 10)
     compare_values(:date, start_date, end_date)
   end
-
-  @doc """
-  Returns the condition that keeps the items whose field is within the range, or `nil` if the range has no valid
-  boundary. See `maybe_parse_range/3` for how the boundaries are parsed.
-
-  ## Examples
-
-      iex> Backpex.Filters.Range.condition(:number, :likes, %{"start" => "10", "end" => ""}, %{})
-      {:>=, :likes, 10}
-      iex> Backpex.Filters.Range.condition(:number, :likes, %{"start" => "", "end" => "100"}, %{})
-      {:<=, :likes, 100}
-      iex> Backpex.Filters.Range.condition(:date, :begins_at, %{"start" => "2024-01-01", "end" => "2024-12-31"}, %{})
-      {:and, [{:>=, :begins_at, "2024-01-01"}, {:<=, :begins_at, "2024-12-31"}]}
-      iex> Backpex.Filters.Range.condition(:number, :likes, %{"start" => "", "end" => ""}, %{})
-      nil
-
-  """
-  def condition(type, field, %{"start" => start_at, "end" => end_at}, _assigns) do
-    case maybe_parse_range(type, start_at, end_at) do
-      {nil, nil} -> nil
-      {start_at, nil} -> {:>=, field, start_at}
-      {nil, end_at} -> {:<=, field, end_at}
-      {start_at, end_at} -> {:and, [{:>=, field, start_at}, {:<=, field, end_at}]}
-    end
-  end
-
-  def condition(_type, _field, _value, _assigns), do: nil
 
   @doc """
   Parses both start and end values for a range filter.

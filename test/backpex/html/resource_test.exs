@@ -50,6 +50,31 @@ defmodule Backpex.HTML.ResourceTest do
 
       assert html =~ ~s(<span id="marker">assigns</span>)
     end
+
+    test "renders a generic filter with the options of its configuration" do
+      status = %{
+        module: Backpex.Filters.Select,
+        label: "Status",
+        prompt: "Any status",
+        options: fn assigns -> assigns.status_options end
+      }
+
+      html =
+        render_component(&Resource.resource_filters/1,
+          live_resource: ContextLive,
+          search_placeholder: "Search",
+          filters: [status: status],
+          query_options: %{filters: %{"status" => "closed"}},
+          filter_values: %{status: "closed"},
+          backpex_context: %{status_options: [{"Open", "open"}, {"Closed", "closed"}]}
+        )
+
+      assert html =~ ~s(<option value="">Any status</option>)
+      assert html =~ ~s(<option selected value="closed">Closed</option>)
+      assert html =~ ~s(<option value="open">Open</option>)
+      # The badge of the applied filter shows the label of the selected option.
+      assert html =~ ~r/Status.*Closed/s
+    end
   end
 
   defmodule ShowPanelLive do

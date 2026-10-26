@@ -23,19 +23,20 @@ defmodule Backpex.Filters.BooleanTest do
     ]
   end
 
-  describe "condition/4" do
+  describe "condition/3" do
     test "returns nil when no option is selected" do
-      assert BooleanFilter.condition(test_options(), :published, [], %{}) == nil
+      assert BooleanFilter.condition({:published, %{options: test_options()}}, [], %{}) == nil
     end
 
     test "returns the predicate of a single selected option" do
-      assert BooleanFilter.condition(test_options(), :published, ["published"], %{}) == {:==, :published, true}
+      assert BooleanFilter.condition({:published, %{options: test_options()}}, ["published"], %{}) ==
+               {:==, :published, true}
     end
 
     test "combines the predicates of several selected options with :or" do
       keys = ["published", "not_published", "featured"]
 
-      assert BooleanFilter.condition(test_options(), :published, keys, %{}) ==
+      assert BooleanFilter.condition({:published, %{options: test_options()}}, keys, %{}) ==
                {:or, [{:==, :published, true}, {:==, :published, false}, {:==, :featured, true}]}
     end
 
@@ -45,14 +46,20 @@ defmodule Backpex.Filters.BooleanTest do
         %{label: "Featured", key: :featured, predicate: {:==, :featured, true}}
       ]
 
-      assert BooleanFilter.condition(options, :status, ["published"], %{}) == {:==, :published, true}
+      assert BooleanFilter.condition({:status, %{options: options}}, ["published"], %{}) == {:==, :published, true}
 
-      assert BooleanFilter.condition(options, :status, ["published", "featured"], %{}) ==
+      assert BooleanFilter.condition({:status, %{options: options}}, ["published", "featured"], %{}) ==
                {:or, [{:==, :published, true}, {:==, :featured, true}]}
     end
 
     test "is the condition of a filter module, with the options for the assigns" do
-      assert OwnerFilter.condition(:owner, ["mine"], %{user_id: 1}) == {:==, :user_id, 1}
+      filter = Backpex.Filter.validate_config!({:owner, %{module: OwnerFilter}}, __MODULE__)
+
+      assert OwnerFilter.condition(
+               filter,
+               ["mine"],
+               %{user_id: 1}
+             ) == {:==, :user_id, 1}
     end
   end
 
@@ -60,7 +67,7 @@ defmodule Backpex.Filters.BooleanTest do
     test "validates selected keys exist in options" do
       changeset = {%{}, %{filter: {:array, :string}}} |> Ecto.Changeset.cast(%{filter: ["published"]}, [:filter])
 
-      result = BooleanFilter.changeset(changeset, :filter, test_options())
+      result = BooleanFilter.changeset(changeset, {:filter, %{options: test_options()}}, %{})
 
       assert result.valid?
     end
@@ -70,7 +77,7 @@ defmodule Backpex.Filters.BooleanTest do
         {%{}, %{filter: {:array, :string}}}
         |> Ecto.Changeset.cast(%{filter: ["published", "featured"]}, [:filter])
 
-      result = BooleanFilter.changeset(changeset, :filter, test_options())
+      result = BooleanFilter.changeset(changeset, {:filter, %{options: test_options()}}, %{})
 
       assert result.valid?
     end
@@ -80,7 +87,7 @@ defmodule Backpex.Filters.BooleanTest do
         {%{}, %{filter: {:array, :string}}}
         |> Ecto.Changeset.cast(%{filter: ["invalid_key"]}, [:filter])
 
-      result = BooleanFilter.changeset(changeset, :filter, test_options())
+      result = BooleanFilter.changeset(changeset, {:filter, %{options: test_options()}}, %{})
 
       refute result.valid?
       assert Keyword.has_key?(result.errors, :filter)
@@ -91,7 +98,7 @@ defmodule Backpex.Filters.BooleanTest do
         {%{}, %{filter: {:array, :string}}}
         |> Ecto.Changeset.cast(%{filter: ["published", "invalid_key"]}, [:filter])
 
-      result = BooleanFilter.changeset(changeset, :filter, test_options())
+      result = BooleanFilter.changeset(changeset, {:filter, %{options: test_options()}}, %{})
 
       refute result.valid?
       assert Keyword.has_key?(result.errors, :filter)
@@ -102,7 +109,7 @@ defmodule Backpex.Filters.BooleanTest do
         {%{}, %{filter: {:array, :string}}}
         |> Ecto.Changeset.cast(%{filter: []}, [:filter])
 
-      result = BooleanFilter.changeset(changeset, :filter, test_options())
+      result = BooleanFilter.changeset(changeset, {:filter, %{options: test_options()}}, %{})
 
       assert result.valid?
     end
@@ -112,7 +119,7 @@ defmodule Backpex.Filters.BooleanTest do
         {%{}, %{filter: {:array, :string}}}
         |> Ecto.Changeset.cast(%{}, [:filter])
 
-      result = BooleanFilter.changeset(changeset, :filter, test_options())
+      result = BooleanFilter.changeset(changeset, {:filter, %{options: test_options()}}, %{})
 
       assert result.valid?
     end

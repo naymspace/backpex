@@ -208,6 +208,10 @@ msgid "Select all items"
 msgstr ""
 
 #, elixir-autogen, elixir-format
+msgid "Select an option..."
+msgstr ""
+
+#, elixir-autogen, elixir-format
 msgid "Select at least one item to use this action."
 msgstr ""
 
