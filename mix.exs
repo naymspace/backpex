@@ -18,6 +18,7 @@ defmodule Backpex.MixProject do
       deps: deps(),
       aliases: aliases(),
       gettext: gettext(),
+      test_coverage: test_coverage(),
 
       # Hex.pm
       hex: [cooldown: "3d"],
@@ -35,6 +36,14 @@ defmodule Backpex.MixProject do
   defp elixirc_paths(:test), do: ["lib", "test/support"]
   defp elixirc_paths(_), do: ["lib"]
 
+  # The threshold is the floor of the merged coverage of the unit and browser tests in CI. Raise it when coverage grows.
+  defp test_coverage do
+    [
+      summary: [threshold: 0],
+      ignore_modules: [~r/^Backpex\.Test\./]
+    ]
+  end
+
   defp deps do
     [
       # development
@@ -46,6 +55,13 @@ defmodule Backpex.MixProject do
       {:sobelow, ">= 0.0.0", only: [:dev, :test]},
       {:lazy_html, ">= 0.0.0", only: :test},
       {:phx_new, "~> 1.8", only: :test, runtime: false},
+      {:ecto_sql, "~> 3.10", only: :test},
+      {:bandit, "~> 1.14", only: :test},
+      {:phoenix_test, "~> 0.13.0", only: :test, runtime: false},
+      {:phoenix_test_playwright, "~> 0.19.0", only: :test, runtime: false},
+      {:a11y_audit, "~> 0.5.0", only: :test},
+      {:ex_machina, "~> 2.8", only: :test},
+      {:money, "~> 1.14", only: :test},
       {:esbuild, "~> 0.10", only: :dev},
       {:quokka, "~> 2.9", only: [:dev, :test], runtime: false},
       {:usage_rules, "~> 0.1", only: [:dev]},
