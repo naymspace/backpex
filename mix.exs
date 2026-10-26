@@ -126,7 +126,7 @@ defmodule Backpex.MixProject do
 
   defp aliases do
     [
-      lint: ["compile --warning-as-errors", "deps.unlock --unused", "format", "credo", "test"],
+      lint: lint(),
       "assets.build": [
         "esbuild module",
         "esbuild main"
@@ -134,6 +134,13 @@ defmodule Backpex.MixProject do
       "assets.watch": "esbuild module --watch",
       "assets.check": ["assets.build", "cmd ./scripts/check_assets.sh"]
     ]
+  end
+
+  # Without the integration tests, the lock still holds their dependencies, which `deps.unlock --unused` would remove.
+  defp lint do
+    unlock_unused = if @integration_tests, do: ["deps.unlock --unused"], else: []
+
+    ["compile --warning-as-errors"] ++ unlock_unused ++ ["format", "credo", "test"]
   end
 
   defp docs do

@@ -5,8 +5,19 @@ alias Ecto.Adapters.SQL.Sandbox
 # Recreate the database of the test app, so changes to its migrations always apply. Each `MIX_TEST_PARTITION` has its
 # own database.
 repo_config = Repo.config()
-Ecto.Adapters.Postgres.storage_down(repo_config)
+
+with {:error, reason} when reason != :already_down <- Ecto.Adapters.Postgres.storage_down(repo_config) do
+  raise """
+  The integration tests could not reach PostgreSQL at #{repo_config[:hostname]}:#{repo_config[:port]}: #{inspect(reason)}
+
+  Start the database of the development environment with `docker compose up -d postgres`, set `DB_HOSTNAME` and
+  `DB_PORT` to use another one, or run only the unit tests with `INTEGRATION_TESTS=false mix test`.
+  """
+end
+
 :ok = Ecto.Adapters.Postgres.storage_up(repo_config)
+
+File.rm_rf!(Backpex.Test.Uploads.dir())
 
 {:ok, _apps} = Application.ensure_all_started([:ecto_sql, :ex_machina])
 

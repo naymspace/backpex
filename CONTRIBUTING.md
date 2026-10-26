@@ -212,9 +212,13 @@ docker compose up -d postgres
 mix test
 ```
 
-The tests find the port of the database with `docker compose port`. Set `DB_HOSTNAME` and `DB_PORT` to use another database.
+The tests find the port of the database with `docker compose port`. Set `DB_HOSTNAME` and `DB_PORT` to use another database. To run only the unit tests without a database, set `INTEGRATION_TESTS=false`:
 
-The browser tests run with [Playwright](https://playwright.dev) and are excluded by default:
+```bash
+INTEGRATION_TESTS=false mix test
+```
+
+The browser tests run with [Playwright](https://playwright.dev), which needs Node.js, and are excluded by default:
 
 ```bash
 bun install
@@ -223,7 +227,13 @@ bun run e2e:assets
 mix test --only e2e
 ```
 
-Run `mix test --cover` to see the test coverage. CI merges the coverage of all tests and fails if it drops below the threshold in `mix.exs`.
+CI merges the coverage of all tests and fails if it drops below the threshold in `mix.exs`. To see the same report on your machine, export the coverage of both runs and merge it:
+
+```bash
+mix test --cover --export-coverage default
+mix test --only e2e --cover --export-coverage e2e
+mix test.coverage
+```
 
 ### Commit Messages
 

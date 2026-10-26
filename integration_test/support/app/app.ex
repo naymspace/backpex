@@ -1,6 +1,6 @@
 defmodule Backpex.Test.Repo do
   @moduledoc """
-  The PostgreSQL repo of the test app. Its migrations live in `test/support/app/priv/migrations` and run in
+  The PostgreSQL repo of the test app. Its migrations live in `integration_test/support/app/priv/migrations` and run in
   `test_helper.exs`.
   """
   use Ecto.Repo, otp_app: :backpex, adapter: Ecto.Adapters.Postgres

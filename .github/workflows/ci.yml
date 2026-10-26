@@ -177,6 +177,12 @@ jobs:
         with:
           bun-version: "1.4.4"
 
+      - name: Setup node
+        # Playwright runs its CLI with node
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 24
+
       - name: Restore the deps and _build cache
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         id: restore-cache
@@ -228,6 +234,9 @@ jobs:
 
       - name: Build the assets of the browser tests
         run: bun run e2e:assets
+
+      - name: Compile the test app with warnings as errors
+        run: MIX_ENV=test mix compile --warnings-as-errors
 
       - name: Run unit and integration tests with coverage
         run: mix test --cover --export-coverage default
