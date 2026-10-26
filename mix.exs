@@ -53,7 +53,7 @@ defmodule Backpex.MixProject do
   # The threshold is the floor of the merged coverage of the unit and browser tests in CI. Raise it when coverage grows.
   defp test_coverage do
     [
-      summary: [threshold: 88],
+      summary: [threshold: 90],
       ignore_modules: [~r/^Backpex\.(Test\.|ConnCase|DataCase|E2ECase)/]
     ]
   end
