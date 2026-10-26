@@ -92,9 +92,6 @@ defmodule Backpex.Fields.FormInputOptionsTest do
         assert @module |> render(@fun, :value, [], @extra_assigns) |> attribute_by_id("placeholder") == []
       end
 
-      # Bug: the config schema accepts a function, but the field renders the function itself instead of calling it
-      # with the assigns (`Backpex.Field.placeholder/2`), which raises.
-      @tag :skip
       test "#{inspect(module)}.#{fun}/1 renders the result of a function on the input" do
         doc =
           render(@module, @fun, :value, [placeholder: fn %{readonly: false} -> "From a function" end], @extra_assigns)
@@ -121,9 +118,6 @@ defmodule Backpex.Fields.FormInputOptionsTest do
       @name name
       @required_options required_options
       @extra_assigns extra_assigns
-
-      # Bug: Backpex.Fields.Number does not pass the help text to its input.
-      if module == Fields.Number, do: @tag(:skip)
 
       test "#{inspect(module)}.render_form/1 renders a string or the result of a function below the input" do
         for {options, expected} <- [
