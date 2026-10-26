@@ -16,12 +16,10 @@ defmodule DemoWeb.PostLive do
   alias Backpex.LiveResource
   alias Backpex.Metrics.Value
   alias Backpex.Router
+  alias Demo.Post
+  alias Demo.Repo
   alias DemoWeb.CategoryLive
-  alias DemoWeb.Filters.DateTimeRange
   alias DemoWeb.Filters.PostCategorySelect
-  alias DemoWeb.Filters.PostLikeRange
-  alias DemoWeb.Filters.PostPublished
-  alias DemoWeb.Filters.PostUserMultiSelect
   alias DemoWeb.Layouts
   alias DemoWeb.TagLive
   alias DemoWeb.UserLive
@@ -43,12 +41,15 @@ defmodule DemoWeb.PostLive do
         label: "Category"
       },
       user_id: %{
-        module: PostUserMultiSelect,
-        label: "Users"
+        module: Backpex.Filters.MultiSelect,
+        label: "Users",
+        prompt: "Select users ...",
+        options: &user_options/1
       },
       likes: %{
-        module: PostLikeRange,
+        module: Backpex.Filters.Range,
         label: "Likes",
+        type: :number,
         presets: [
           %{
             label: "Over 100",
@@ -61,8 +62,9 @@ defmodule DemoWeb.PostLive do
         ]
       },
       inserted_at: %{
-        module: DateTimeRange,
+        module: Backpex.Filters.Range,
         label: "Created at",
+        type: :datetime,
         presets: [
           %{
             label: "Last 7 Days",
@@ -94,8 +96,12 @@ defmodule DemoWeb.PostLive do
         ]
       },
       published: %{
-        module: PostPublished,
+        module: Backpex.Filters.Boolean,
         label: "Published?",
+        options: [
+          %{label: "Published", key: "published", predicate: {:==, :published, true}},
+          %{label: "Not published", key: "not_published", predicate: {:==, :published, false}}
+        ],
         default: ["published"],
         presets: [
           %{
@@ -113,6 +119,16 @@ defmodule DemoWeb.PostLive do
         ]
       }
     ]
+  end
+
+  defp user_options(_assigns) do
+    query =
+      from p in Post,
+        join: u in assoc(p, :user),
+        distinct: p.user_id,
+        select: {fragment("? || ' ' || ?", u.first_name, u.last_name), u.id}
+
+    Repo.all(query)
   end
 
   @impl LiveResource
