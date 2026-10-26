@@ -6,16 +6,6 @@ defmodule Backpex.Test.Repo do
   use Ecto.Repo, otp_app: :backpex, adapter: Ecto.Adapters.Postgres
 end
 
-defmodule Backpex.Test.Translator do
-  @moduledoc "Interpolates the bindings of a Backpex message, like the translator function of an app without Gettext."
-
-  def translate({msg, opts}) do
-    Enum.reduce(opts, msg, fn {key, value}, acc ->
-      String.replace(acc, "%{#{key}}", fn _match -> to_string(value) end)
-    end)
-  end
-end
-
 defmodule Backpex.Test.ErrorHTML do
   @moduledoc false
   def render(template, _assigns), do: Phoenix.Controller.status_message_from_template(template)
