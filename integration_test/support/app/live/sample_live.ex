@@ -1,7 +1,7 @@
 defmodule Backpex.Test.SampleLive do
   @moduledoc """
-  A LiveResource with one field of every scalar field type. The field matrix tests render every field in every view
-  through it.
+  A LiveResource with one field of every scalar field type. The accessibility browser tests audit every field type in
+  every view through it.
   """
   use Backpex.LiveResource,
     adapter_config: [
