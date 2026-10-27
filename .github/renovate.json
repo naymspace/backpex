@@ -30,6 +30,12 @@
     "minimumReleaseAge": "14 days"
   },
   "internalChecksFilter": "strict",
+  "osvVulnerabilityAlerts": true,
+  "vulnerabilityAlerts": {
+    "addLabels": [
+      "security"
+    ]
+  },
   "constraints": { "erlang": "^27" },
   "packageRules": [
     {
