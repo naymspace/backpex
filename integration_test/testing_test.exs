@@ -63,9 +63,26 @@ defmodule Backpex.TestingTest do
                "/42/admin/tags/#{tag.id}/edit?tab=main"
     end
 
+    test "takes an empty list or a string instead of no item or an atom key" do
+      assert Testing.path(Router, TagLive, :index, [], query: [page: 2]) == "/admin/tags?page=2"
+      assert Testing.path(Router, UserLive, :resource_action, "invite") == "/admin/users/invite/resource-action"
+    end
+
     test "raises for an item without a primary value" do
       assert_raise ArgumentError, ~r/the item has no primary value/, fn ->
         Testing.path(Router, TagLive, :show, %Tag{})
+      end
+    end
+
+    test "raises for options in place of the item" do
+      assert_raise ArgumentError, ~r/expected an item or its primary value, got: \[query:/, fn ->
+        Testing.path(Router, TagLive, :show, query: [page: 2])
+      end
+    end
+
+    test "raises with the valid forms for invalid arguments" do
+      for args <- [[:index, %{id: 1}, []], [:resource_action, nil, []], [:unknown, nil, []]] do
+        assert_raise ArgumentError, ~r/Valid forms are/, fn -> apply(Testing, :path, [Router, TagLive | args]) end
       end
     end
 
@@ -105,6 +122,15 @@ defmodule Backpex.TestingTest do
       assert_raise ArgumentError, ~r/because it is disabled/, fn ->
         Testing.select_item(view, short_link)
       end
+    end
+
+    test "raise for an item without a row on the index view", %{conn: conn} do
+      insert(:category)
+      {:ok, view, _html} = live(conn, Testing.path(Router, CategoryLive, :index))
+      missing_id = Ecto.UUID.generate()
+
+      assert_raise ArgumentError, ~r/the index view has no row/, fn -> Testing.select_item(view, missing_id) end
+      assert_raise ArgumentError, ~r/the index view has no row/, fn -> Testing.deselect_item(view, missing_id) end
     end
 
     test "raise for an item on a view that isn't a view of a LiveResource" do

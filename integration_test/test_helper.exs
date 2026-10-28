@@ -6,13 +6,39 @@ alias Ecto.Adapters.SQL.Sandbox
 # own database.
 repo_config = Repo.config()
 
-with {:error, reason} when reason != :already_down <- Ecto.Adapters.Postgres.storage_down(repo_config) do
+if output = Application.get_env(:backpex, :test_db_port_error) do
   raise """
-  The integration tests could not reach PostgreSQL at #{repo_config[:hostname]}:#{repo_config[:port]}: #{inspect(reason)}
+  The integration tests could not find the port of the `postgres` service with `docker compose port postgres 5432`:
+
+  #{output}
 
   Start the database of the development environment with `docker compose up -d postgres`, set `DB_HOSTNAME` and
   `DB_PORT` to use another one, or run only the unit tests with `INTEGRATION_TESTS=false mix test`.
   """
+end
+
+case Ecto.Adapters.Postgres.storage_down(repo_config) do
+  result when result in [:ok, {:error, :already_down}] ->
+    :ok
+
+  {:error, reason} when is_binary(reason) ->
+    if reason =~ "is being accessed by other users" do
+      raise """
+      The database #{repo_config[:database]} of the integration tests is in use: #{reason}
+
+      Stop the other test run or IEx session that uses it, or run the tests with another `MIX_TEST_PARTITION`.
+      """
+    else
+      raise """
+      The integration tests could not reach PostgreSQL at #{repo_config[:hostname]}:#{repo_config[:port]}: #{reason}
+
+      Start the database of the development environment with `docker compose up -d postgres`, set `DB_HOSTNAME` and
+      `DB_PORT` to use another one, or run only the unit tests with `INTEGRATION_TESTS=false mix test`.
+      """
+    end
+
+  {:error, reason} ->
+    raise "The integration tests could not drop the database #{repo_config[:database]}: #{inspect(reason)}"
 end
 
 :ok = Ecto.Adapters.Postgres.storage_up(repo_config)
