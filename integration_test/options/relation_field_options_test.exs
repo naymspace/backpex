@@ -129,12 +129,4 @@ defmodule Backpex.Integration.Options.RelationFieldOptionsTest do
       |> render_change(%{"tags_search" => search})
     end)
   end
-
-  defp assert_rows(session, tbody, cities) do
-    cities
-    |> Enum.with_index(1)
-    |> Enum.reduce(session, fn {city, index}, session ->
-      assert_has(session, "#{tbody} tr:nth-child(#{index}) td", text: city, exact: true)
-    end)
-  end
 end

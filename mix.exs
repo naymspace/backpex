@@ -8,9 +8,10 @@ defmodule Backpex.MixProject do
   @website_url "https://backpex.live"
 
   # The integration tests in `integration_test` run the LiveResources of a test app against PostgreSQL and in a browser.
-  # Their dependencies need Elixir 1.19, so older versions of Elixir only run the unit tests in `test`. CI runs them once,
-  # on the latest Elixir, and sets `INTEGRATION_TESTS=false` for the other versions.
-  @integration_tests Version.match?(System.version(), ">= 1.19.0")
+  # Their dependencies need Elixir 1.19, so older versions of Elixir only run the unit tests in `test`.
+  # `INTEGRATION_TESTS=false` leaves them out on any version, with their dependencies and support code. CI runs them
+  # once, on the latest Elixir, and sets it for the other versions.
+  @integration_tests Version.match?(System.version(), ">= 1.19.0") and System.get_env("INTEGRATION_TESTS") != "false"
 
   def project do
     [
@@ -40,9 +41,7 @@ defmodule Backpex.MixProject do
   end
 
   defp test_paths do
-    if @integration_tests and System.get_env("INTEGRATION_TESTS") != "false",
-      do: ["test", "integration_test"],
-      else: ["test"]
+    if @integration_tests, do: ["test", "integration_test"], else: ["test"]
   end
 
   defp elixirc_paths(:test) do

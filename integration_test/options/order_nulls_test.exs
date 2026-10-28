@@ -29,7 +29,7 @@ defmodule Backpex.Integration.Options.OrderNullsTest do
     test "order_nulls #{order_nulls} places the NULL age when ordering #{direction}", %{conn: conn} do
       conn
       |> visit("/admin/order-nulls-#{unquote(order_nulls)}-users?order_by=age&order_direction=#{unquote(direction)}")
-      |> assert_order(unquote(usernames))
+      |> assert_rows("table tbody", unquote(usernames))
     end
   end
 
@@ -38,17 +38,7 @@ defmodule Backpex.Integration.Options.OrderNullsTest do
     test "the order_nulls option of a field overrides the one of the LiveResource (#{direction})", %{conn: conn} do
       conn
       |> visit(~p"/admin/order-nulls-first-users?#{%{"order_by" => "avatar", "order_direction" => unquote(direction)}}")
-      |> assert_order(unquote(usernames))
+      |> assert_rows("table tbody", unquote(usernames))
     end
-  end
-
-  defp assert_order(session, usernames) do
-    session = assert_has(session, "table tbody tr", count: length(usernames))
-
-    usernames
-    |> Enum.with_index(1)
-    |> Enum.reduce(session, fn {username, index}, session ->
-      assert_has(session, "table tbody tr:nth-child(#{index}) td", text: username, exact: true)
-    end)
   end
 end
