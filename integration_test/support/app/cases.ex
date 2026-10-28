@@ -92,4 +92,17 @@ defmodule Backpex.ConnCase do
     Backpex.DataCase.setup_sandbox(tags)
     {:ok, conn: Phoenix.ConnTest.build_conn()}
   end
+
+  @doc """
+  Asserts that the table body `tbody` has one row per text, in this order, each with a cell of exactly that text.
+  """
+  def assert_rows(session, tbody, texts) do
+    session = PhoenixTest.assert_has(session, "#{tbody} tr", count: length(texts))
+
+    texts
+    |> Enum.with_index(1)
+    |> Enum.reduce(session, fn {text, index}, session ->
+      PhoenixTest.assert_has(session, "#{tbody} tr:nth-child(#{index}) td", text: text, exact: true)
+    end)
+  end
 end
