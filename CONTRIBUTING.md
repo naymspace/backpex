@@ -203,6 +203,37 @@ We value concise, readable, and high-quality code. While we don't have a formal 
 
 - Write tests for all public functions.
 - Use descriptive test names that explain the expected behavior.
+- Test features of Backpex in the library, not in the demo. Unit tests live in `test/`. Tests that need a LiveView, the database or a browser live in `integration_test/` and run against the test app in `integration_test/support/app`.
+
+The tests need PostgreSQL. Start the database of the development environment and run the tests on your machine:
+
+```bash
+docker compose up -d postgres
+mix test
+```
+
+The tests find the port of the database with `docker compose port`. Set `DB_HOSTNAME` and `DB_PORT` to use another database. To run only the unit tests without a database, set `INTEGRATION_TESTS=false`:
+
+```bash
+INTEGRATION_TESTS=false mix test
+```
+
+The browser tests run with [Playwright](https://playwright.dev), which needs Node.js, and are excluded by default:
+
+```bash
+bun install
+bun run e2e:install
+bun run e2e:assets
+mix test --only e2e
+```
+
+CI merges the coverage of all tests and fails if it drops below the threshold in `mix.exs`. To see the same report on your machine, export the coverage of both runs and merge it:
+
+```bash
+mix test --cover --export-coverage default
+mix test --only e2e --cover --export-coverage e2e
+mix test.coverage
+```
 
 ### Commit Messages
 

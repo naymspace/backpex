@@ -55,7 +55,7 @@ defmodule Backpex.Fields.Textarea do
         <BackpexForm.input
           type="textarea"
           field={@form[@name]}
-          placeholder={@field_options[:placeholder]}
+          placeholder={Backpex.Field.placeholder(@field_options, assigns)}
           rows={@field_options[:rows]}
           translate_error_fun={Backpex.Field.translate_error_fun(@field_options, assigns)}
           help_text={Backpex.Field.help_text(@field_options, assigns)}
