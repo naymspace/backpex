@@ -23,13 +23,15 @@ When the user wants to add a filter:
 
 All built-in filters auto-implement `condition/3`, `render/1`, and `render_form/1`. Do NOT re-implement those unless you need custom behavior.
 
-Filters don't build queries. `condition/3` returns a condition that the adapter turns into a query, or `nil` to keep all items:
+Filters don't build queries. `condition/3` returns an expression built with `Backpex.Expr.expr/1` (imported by `use Backpex.Filter`) that the adapter turns into a query, or `nil` to keep all items:
 
-- `{:==, field, value}`, `{:!=, field, value}`, `{:<, field, value}`, `{:<=, field, value}`, `{:>, field, value}`, `{:>=, field, value}`
-- `{:in, field, values}`, `{:is_nil, field}`, `{:not, condition}`
-- `{:and, conditions}`, `{:or, conditions}`
+- Comparisons: `expr(ref(^field) == ^value)`, also `!=`, `<`, `<=`, `>`, `>=`; `ref(^field)` is the filtered field, `^` pins Elixir values, a bare name is another field (`expr(status == "open")`)
+- `in`, `is_nil/1`, `not`, `and`, `or`: `expr(ref(^field) in ^values or is_nil(ref(^field)))`
+- Strings: `contains/2`, `starts_with/2`, `ends_with/2`, with `ignore_case: true` as third argument
+- Related items: a path through to-one relationships (`expr(author.name == ^name)`), `exists/2` for to-many (`expr(exists(tags, id in ^ids))`)
+- `Backpex.Expr.all/1` and `any/1` combine expressions and drop `nil`; a keyword list such as `[published: true]` stands for equal fields
 
-`field` is a field of the resource; the adapter casts values to its type. With `Backpex.Adapters.Ecto`, a condition can also be an `Ecto.Query.dynamic/2` expression.
+The adapter casts values to the type of the field. `Backpex.Expr.native(Backpex.Adapters.Ecto, dynamic(...))` wraps an expression only the Ecto adapter understands.
 
 All filters have these overridable callbacks with defaults:
 - `label/0`: filter label (optional callback, can also be set in `filters/0` map)
@@ -40,7 +42,7 @@ All filters have these overridable callbacks with defaults:
 
 ## Boolean Filter
 
-Multiple options selectable via checkboxes, combined with OR. Predicates are conditions.
+Multiple options selectable via checkboxes, combined with OR. Predicates are expressions.
 
 ```elixir
 defmodule MyAppWeb.Filters.PostPublished do
@@ -52,8 +54,8 @@ defmodule MyAppWeb.Filters.PostPublished do
   @impl Backpex.Filters.Boolean
   def options(_assigns) do
     [
-      %{label: "Published", key: "published", predicate: {:==, :published, true}},
-      %{label: "Not published", key: "not_published", predicate: {:==, :published, false}}
+      %{label: "Published", key: "published", predicate: expr(published == true)},
+      %{label: "Not published", key: "not_published", predicate: expr(published == false)}
     ]
   end
 end
@@ -61,7 +63,7 @@ end
 
 ## Select Filter
 
-Single-value dropdown. Default `condition/3` returns `{:==, field, value}`.
+Single-value dropdown. Default `condition/3` returns `expr(ref(^field) == ^value)`.
 
 ```elixir
 defmodule MyAppWeb.Filters.PostCategorySelect do
@@ -86,7 +88,7 @@ end
 
 ## MultiSelect Filter
 
-Same as Select but allows multiple values. Default `condition/3` returns `{:in, field, values}`. Uses `prompt/0` (implement with `@impl Backpex.Filters.Select`) and `options/1` (implement with `@impl Backpex.Filters.MultiSelect`). Note: MultiSelect internally sets `@behaviour Backpex.Filters.Select` for the prompt callback.
+Same as Select but allows multiple values. Default `condition/3` returns `expr(ref(^field) in ^values)`. Uses `prompt/0` (implement with `@impl Backpex.Filters.Select`) and `options/1` (implement with `@impl Backpex.Filters.MultiSelect`). Note: MultiSelect internally sets `@behaviour Backpex.Filters.Select` for the prompt callback.
 
 ## Range Filter
 
@@ -119,7 +121,7 @@ defmodule MyAppWeb.Filters.PostCustom do
   def label, do: "Custom"
 
   @impl Backpex.Filter
-  def condition(field, value, _assigns), do: {:==, field, value}
+  def condition(field, value, _assigns), do: expr(ref(^field) == ^value)
 
   @impl Backpex.Filter
   def render(assigns) do
@@ -135,27 +137,23 @@ defmodule MyAppWeb.Filters.PostCustom do
 end
 ```
 
-### Ecto-only conditions
+### Related items and Ecto-only expressions
 
-If a filter needs more than the conditions above (a fragment of SQL), return an `Ecto.Query.dynamic/2` expression from `condition/3`. The filter then only works with `Backpex.Adapters.Ecto`.
+A filter never joins, selects distinct items or otherwise changes the query; the adapter owns joins, order and pagination. To filter by an association (e.g. posts with one of the selected tags), use `exists/2`:
+
+```elixir
+@impl Backpex.Filter
+def condition(_field, tag_ids, _assigns), do: expr(exists(tags, id in ^tag_ids))
+```
+
+If a filter needs a fragment of SQL, wrap an `Ecto.Query.dynamic/2` expression with `Backpex.Expr.native/2`. The filter then only works with `Backpex.Adapters.Ecto`.
 
 ```elixir
 import Ecto.Query
 
 @impl Backpex.Filter
 def condition(field, value, _assigns) do
-  dynamic([x], fragment("lower(?)", field(x, ^field)) == ^value)
-end
-```
-
-A filter never joins, selects distinct items or otherwise changes the query; the adapter owns joins, order and pagination. To filter by an association (e.g. posts with one of the selected tags), use a subquery:
-
-```elixir
-@impl Backpex.Filter
-def condition(_field, tag_ids, _assigns) do
-  tagged_posts = from(p in MyApp.Post, join: t in assoc(p, :tags), where: t.id in ^tag_ids, select: p.id)
-
-  dynamic([post], post.id in subquery(tagged_posts))
+  Backpex.Expr.native(Backpex.Adapters.Ecto, dynamic([x], fragment("lower(?)", field(x, ^field)) == ^value))
 end
 ```
 
@@ -200,6 +198,6 @@ end
 - **Module naming**: `MyAppWeb.Filters.<Resource><FilterName>` (e.g. `MyAppWeb.Filters.PostPublished`)
 - **File location**: `lib/my_app_web/filters/<snake_case_name>.ex`
 - **The keyword list key** in `filters/0` must match the database column or foreign key
-- **Prefer conditions** over Ecto queries; they work with every adapter
+- **Prefer `expr/1`** over native Ecto expressions; expressions work with every adapter
 - **`import Ecto.Query` yourself** when a filter builds queries, e.g. in `options/1`. The built-in filters don't import it
 - **Database queries in `options/1`** are fine since it runs at render time

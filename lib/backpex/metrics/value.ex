@@ -8,7 +8,8 @@ defmodule Backpex.Metrics.Value do
     * `:module` - Defines the module to handle the metric.
     * `:label` - Label text to define a headline for the metric.
     * `:aggregate` - The aggregate to compute, e.g. `{:sum, :quantity}`. See `t:Backpex.Metric.aggregate/0`.
-    * `:where` - Optional condition that limits the items, see `t:Backpex.Filter.condition/0`.
+    * `:where` - Optional expression that limits the items, e.g. `[published: true]` or
+      `expr(likes > 10)`, see `Backpex.Expr`.
     * `:select` - Only for `Backpex.Adapters.Ecto`: a dynamic query expression to select instead of an aggregate,
       usually an aggregate function.
     * `:format` - Optional format function to post-process the value to display in frontend.

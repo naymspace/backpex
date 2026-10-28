@@ -1,9 +1,11 @@
 defmodule Backpex.Adapters.EctoTest do
   use ExUnit.Case, async: true
 
+  import Backpex.Expr, only: [expr: 1]
   import Ecto.Query
 
   alias Backpex.Adapters.Ecto, as: EctoAdapter
+  alias Backpex.Expr
   alias Backpex.Metrics.Value
 
   defmodule TestUser do
@@ -85,7 +87,7 @@ defmodule Backpex.Adapters.EctoTest do
     def can?(_assigns), do: true
 
     @impl Backpex.Filter
-    def condition(field, value, _assigns), do: {:==, field, value}
+    def condition(field, value, _assigns), do: expr(ref(^field) == ^value)
 
     @impl Backpex.Filter
     def render(assigns), do: assigns
@@ -106,7 +108,7 @@ defmodule Backpex.Adapters.EctoTest do
 
     @impl Backpex.Filter
     def condition(field, %{"start" => start_val, "end" => end_val}, _assigns) do
-      {:and, [{:>=, field, start_val}, {:<=, field, end_val}]}
+      expr(ref(^field) >= ^start_val and ref(^field) <= ^end_val)
     end
 
     @impl Backpex.Filter
@@ -553,7 +555,7 @@ defmodule Backpex.Adapters.EctoTest do
         def label, do: "Assigns Filter"
 
         @impl Backpex.Filter
-        def condition(_field, _value, assigns), do: {:==, :id, Map.get(assigns, :user_id, 0)}
+        def condition(_field, _value, assigns), do: expr(id == ^Map.get(assigns, :user_id, 0))
 
         @impl Backpex.Filter
         def render(assigns), do: assigns
@@ -592,20 +594,25 @@ defmodule Backpex.Adapters.EctoTest do
       assert match?({:==, _, _}, where_expr)
     end
 
-    test "turns each condition into a where clause on the schema" do
+    test "turns each expression into a where clause on the schema" do
       expected = [
-        {{:==, :age, 1}, "&0.age() == ^0", [1]},
-        {{:!=, :age, 1}, "&0.age() != ^0", [1]},
-        {{:<, :age, 1}, "&0.age() < ^0", [1]},
-        {{:<=, :age, 1}, "&0.age() <= ^0", [1]},
-        {{:>, :age, 1}, "&0.age() > ^0", [1]},
-        {{:>=, :age, 1}, "&0.age() >= ^0", [1]},
-        {{:in, :age, [1, 2]}, "&0.age() in ^0", [[1, 2]]},
-        {{:is_nil, :name}, "is_nil(&0.name())", []},
-        {{:not, {:==, :active, true}}, "not (&0.active() == ^0)", [true]},
-        {{:and, [{:>=, :age, 18}, {:<=, :age, 65}]}, "&0.age() >= ^0 and &0.age() <= ^1", [18, 65]},
-        {{:or, [{:==, :name, "Ann"}, {:is_nil, :name}]}, "&0.name() == ^0 or is_nil(&0.name())", ["Ann"]},
-        {{:or, []}, "false", []}
+        {expr(age == 1), "&0.age() == ^0", [1]},
+        {expr(age != 1), "&0.age() != ^0", [1]},
+        {expr(age < 1), "&0.age() < ^0", [1]},
+        {expr(age <= 1), "&0.age() <= ^0", [1]},
+        {expr(age > 1), "&0.age() > ^0", [1]},
+        {expr(age >= 1), "&0.age() >= ^0", [1]},
+        {expr(1 < age), "&0.age() > ^0", [1]},
+        {expr(age in [1, 2]), "&0.age() in ^0", [[1, 2]]},
+        {expr(is_nil(name)), "is_nil(&0.name())", []},
+        {expr(not (active == true)), "not (&0.active() == ^0)", [true]},
+        {expr(age >= 18 and age <= 65), "&0.age() >= ^0 and &0.age() <= ^1", [18, 65]},
+        {expr(name == "Ann" or is_nil(name)), "&0.name() == ^0 or is_nil(&0.name())", ["Ann"]},
+        {expr(title == name), "&0.title() == &0.name()", []},
+        {expr(contains(name, "a%")), "like(&0.name(), ^0)", ["%a\\%%"]},
+        {expr(starts_with(name, "A", ignore_case: true)), "ilike(&0.name(), ^0)", ["A%"]},
+        {[name: "Ann"], "&0.name() == ^0", ["Ann"]},
+        {%Expr.Call{name: :or, args: []}, "false", []}
       ]
 
       for {condition, expected_expr, expected_params} <- expected do
@@ -617,53 +624,72 @@ defmodule Backpex.Adapters.EctoTest do
       end
 
       # Ecto leaves out a `where: true`.
-      assert filter_query({:and, []}).wheres == []
+      assert filter_query(%Expr.Call{name: :and, args: []}).wheres == []
     end
 
-    test "casts the values of a condition to the type of the field" do
-      assert [%{params: [{"42", {0, :age}}]}] = filter_query({:==, :age, "42"}).wheres
-      assert [%{params: [{["1", "2"], {:in, {0, :age}}}]}] = filter_query({:in, :age, ["1", "2"]}).wheres
+    test "casts the values of an expression to the type of the field" do
+      assert [%{params: [{"42", {0, :age}}]}] = filter_query(expr(age == "42")).wheres
+      assert [%{params: [{["1", "2"], {:in, {0, :age}}}]}] = filter_query(expr(age in ["1", "2"])).wheres
     end
 
-    test "takes Ecto dynamic expressions as conditions" do
-      query = filter_query({:or, [dynamic([testuser: u], u.age > ^18), {:is_nil, :age}]})
+    test "takes native Ecto dynamic expressions" do
+      native = Expr.native(EctoAdapter, dynamic([testuser: u], u.age > ^18))
+      query = filter_query(Expr.any([native, expr(is_nil(age))]))
 
       assert [%{expr: expr, params: [{18, _type}]}] = query.wheres
       assert Macro.to_string(expr) == "&0.age() > ^0 or is_nil(&0.age())"
     end
 
-    test "keeps the query without a condition" do
+    test "keeps the query without an expression" do
       assert filter_query(nil).wheres == []
     end
 
-    test "raises for nil in the values of an :in condition, also when it is negated" do
-      for condition <- [{:in, :age, [1, nil]}, {:not, {:in, :age, [nil]}}] do
-        assert_raise ArgumentError, ~r/not to contain nil.*\{:is_nil, :age\}/, fn -> filter_query(condition) end
+    test "raises for nil in the values of in, also when it is negated" do
+      for condition <- [expr(age in [1, nil]), expr(age not in [nil])] do
+        assert_raise ArgumentError, ~r/not to contain nil.*is_nil\(age\)/, fn -> filter_query(condition) end
       end
     end
 
-    test "raises for an unknown condition" do
+    test "raises for the condition tuples of earlier versions and for unsupported expressions" do
       assert_raise ArgumentError,
-                   ~r/expected a condition such as {:==, :field, value}, got: {:like, :name, "A%"}/,
+                   ~r/expected an expression such as expr\(published == true\), got: {:==, :name, "A"}/,
                    fn ->
-                     filter_query({:like, :name, "A%"})
+                     filter_query({:==, :name, "A"})
                    end
+
+      assert_raise ArgumentError, ~r/Wrap it with Backpex.Expr.native\(Backpex.Adapters.Ecto, dynamic/, fn ->
+        filter_query(dynamic([testuser: u], u.age > 18))
+      end
+
+      assert_raise ArgumentError, ~r/unsupported expression/, fn ->
+        filter_query(%Expr.Call{name: :like, args: [Expr.ref(:name), "A%"]})
+      end
     end
 
-    test "keeps the items with an associated item through a subquery condition" do
-      tagged_posts = from(p in TestPost, join: pt in assoc(p, :post_tags), where: pt.tag_id in ^[1, 2], select: p.id)
-
+    test "keeps the items with a matching associated item through a subquery, without a join" do
       query =
         TestPost
         |> from(as: :testpost)
         |> EctoAdapter.apply_filters(
-          %{tags: dynamic([post], post.id in subquery(tagged_posts))},
+          %{tags: expr(exists(tags, id in [1, 2]))},
           [tags: %{module: ConditionFilter}],
           %{}
         )
 
       assert %{joins: [], distinct: nil, wheres: [where]} = query
-      assert %{expr: {:in, _meta, [_id, {:subquery, 0}]}, subqueries: [%Ecto.SubQuery{}]} = where
+      assert %{expr: {:in, _meta, [_id, {:subquery, 0}]}, subqueries: [%Ecto.SubQuery{query: subquery}]} = where
+      assert [%{as: :backpex_tags}] = subquery.joins
+    end
+
+    test "joins the relationships of a path to one item" do
+      query =
+        TestPost
+        |> from(as: :testpost)
+        |> EctoAdapter.apply_filters(%{user: expr(user.name == "Ann")}, [user: %{module: ConditionFilter}], %{})
+
+      assert [%{as: :backpex_user, qual: :left}] = query.joins
+      assert [%{expr: expr, params: [{"Ann", {1, :name}}]}] = query.wheres
+      assert Macro.to_string(expr) == "&1.name() == ^0"
     end
 
     defp filter_query(condition) do
@@ -846,7 +872,7 @@ defmodule Backpex.Adapters.EctoTest do
     end
 
     test "limits the items with the where condition of the metric" do
-      metric(%{module: Value, aggregate: :count, where: {:==, :title, "Hello"}})
+      metric(%{module: Value, aggregate: :count, where: expr(title == "Hello")})
 
       assert_received {:repo, :one, %{wheres: [_search, %{expr: expr, params: [{"Hello", _type}]}]}}
       assert Macro.to_string(expr) == "&0.title() == ^0"

@@ -29,6 +29,8 @@ defmodule Backpex.Filters.Select do
   """
   use BackpexWeb, :filter
 
+  import Backpex.Expr, only: [expr: 1]
+
   @doc """
   The select's default option.
   """
@@ -152,15 +154,16 @@ defmodule Backpex.Filters.Select do
   end
 
   @doc """
-  Returns the condition that keeps the items whose field equals the selected value.
+  Returns the expression that keeps the items whose field equals the selected value.
 
   ## Examples
 
-      iex> Backpex.Filters.Select.condition(:status, "open", %{})
-      {:==, :status, "open"}
+      iex> import Backpex.Expr
+      iex> Backpex.Filters.Select.condition(:status, "open", %{}) == expr(status == "open")
+      true
 
   """
-  def condition(field, value, _assigns), do: {:==, field, value}
+  def condition(field, value, _assigns), do: expr(ref(^field) == ^value)
 
   @doc """
   Finds the label for a given option value.

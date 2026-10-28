@@ -76,10 +76,20 @@ defmodule Backpex.Adapters.Ecto do
   @moduledoc """
   The `Backpex.Adapter` to connect your `Backpex.LiveResource` to an `Ecto.Schema`.
 
-  It builds and runs all queries of a LiveResource. It turns the conditions of filters (see
-  `t:Backpex.Filter.condition/0`) into `where` clauses, and the aggregates of metrics (see `Backpex.Metric`) into
-  aggregate functions. Conditions can also be `Ecto.Query.dynamic/2` expressions, e.g. for a fragment of SQL or a
-  subquery.
+  It builds and runs all queries of a LiveResource. It turns the expressions of filters and metrics (see
+  `Backpex.Expr`) into `where` clauses, and the aggregates of metrics (see `Backpex.Metric`) into aggregate functions.
+
+  ## Expressions
+
+  Fields of an expression are fields of the schema. A path through relationships to one item, such as `author.name`,
+  joins the relationships with left joins, which every expression with the same path shares. `exists/2` becomes a
+  subquery of the primary keys of the items with a matching related item, so it doesn't duplicate items.
+  `contains/2`, `starts_with/2` and `ends_with/2` become `like`, or `ilike` with `ignore_case: true`.
+
+  `Backpex.Expr.native/2` takes an `Ecto.Query.dynamic/2` expression for this adapter, e.g. for a fragment of SQL. Its
+  positional binding is the schema of the resource:
+
+      Backpex.Expr.native(Backpex.Adapters.Ecto, dynamic([post], fragment("lower(?)", post.title) == ^title))
 
   These options and callbacks take Ecto queries, so only this adapter understands them:
 
@@ -111,6 +121,8 @@ defmodule Backpex.Adapters.Ecto do
 
   use Backpex.Adapter, config_schema: @config_schema, field_config_schema: @field_config_schema
   import Ecto.Query
+
+  alias Backpex.Adapters.Ecto.Where
 
   @doc false
   def default_changeset(item, attrs, _metadata), do: Ecto.Changeset.cast(item, attrs, [])
@@ -488,50 +500,7 @@ defmodule Backpex.Adapters.Ecto do
 
   def apply_filters(query, _filter_values, _filter_configs, _assigns), do: query
 
-  defp maybe_where(query, nil = _condition), do: query
-  defp maybe_where(query, condition), do: where(query, ^condition_dynamic(condition))
-
-  # A condition, see `t:Backpex.Filter.condition/0`. Its fields are fields of the schema, the first binding.
-  defp condition_dynamic(%Ecto.Query.DynamicExpr{} = condition), do: condition
-
-  defp condition_dynamic({operator, field, value}) when operator in [:==, :!=, :<, :<=, :>, :>=] and is_atom(field) do
-    case operator do
-      :== -> dynamic([item], field(item, ^field) == ^value)
-      :!= -> dynamic([item], field(item, ^field) != ^value)
-      :< -> dynamic([item], field(item, ^field) < ^value)
-      :<= -> dynamic([item], field(item, ^field) <= ^value)
-      :> -> dynamic([item], field(item, ^field) > ^value)
-      :>= -> dynamic([item], field(item, ^field) >= ^value)
-    end
-  end
-
-  defp condition_dynamic({:in, field, values} = condition) when is_atom(field) and is_list(values) do
-    # As in SQL, `nil` would never match, and in a negated condition it would keep no items at all.
-    if nil in values do
-      raise ArgumentError,
-            "expected the values of an :in condition not to contain nil, got: #{inspect(condition)}. " <>
-              "Use {:or, [{:in, #{inspect(field)}, values}, {:is_nil, #{inspect(field)}}]} instead"
-    end
-
-    dynamic([item], field(item, ^field) in ^values)
-  end
-
-  defp condition_dynamic({:is_nil, field}) when is_atom(field), do: dynamic([item], is_nil(field(item, ^field)))
-  defp condition_dynamic({:not, condition}), do: dynamic(not (^condition_dynamic(condition)))
-  defp condition_dynamic({:and, []}), do: dynamic(true)
-  defp condition_dynamic({:or, []}), do: dynamic(false)
-
-  defp condition_dynamic({:and, [condition | conditions]}) do
-    Enum.reduce(conditions, condition_dynamic(condition), &dynamic(^&2 and ^condition_dynamic(&1)))
-  end
-
-  defp condition_dynamic({:or, [condition | conditions]}) do
-    Enum.reduce(conditions, condition_dynamic(condition), &dynamic(^&2 or ^condition_dynamic(&1)))
-  end
-
-  defp condition_dynamic(condition) do
-    raise ArgumentError, "expected a condition such as {:==, :field, value}, got: #{inspect(condition)}"
-  end
+  defp maybe_where(query, expression), do: Where.where_expr(query, expression)
 
   def apply_criteria(query, [], _fields, _schema), do: query
 
