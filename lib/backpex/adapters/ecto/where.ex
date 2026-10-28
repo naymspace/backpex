@@ -195,9 +195,13 @@ defmodule Backpex.Adapters.Ecto.Where do
   end
 
   # The names come from the relationships of the schemas, so there are only as many as the schemas have.
-  # credo:disable-for-lines:2 Credo.Check.Warning.UnsafeToAtom
-  defp binding_name({:root, _schema}, relationship), do: :"backpex_#{relationship}"
-  defp binding_name({name, _schema}, relationship), do: :"#{name}__#{relationship}"
+  # sobelow_skip ["DOS.StringToAtom"]
+  defp binding_name({binding, _schema}, relationship) do
+    name = if binding == :root, do: "backpex_#{relationship}", else: "#{binding}__#{relationship}"
+
+    # credo:disable-for-next-line Credo.Check.Warning.UnsafeToAtom
+    String.to_atom(name)
+  end
 
   defp join_assoc(query, :left, {:root, _schema}, relationship, name),
     do: join(query, :left, [item], related in assoc(item, ^relationship), as: ^name)
