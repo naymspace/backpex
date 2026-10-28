@@ -255,6 +255,27 @@ defmodule Backpex.Field do
               Ecto.Query.dynamic_expr()
 
   @doc """
+  Returns the labels the field shows instead of its stored values, as a flat list of `{label, value}` tuples.
+
+  The index view orders and searches a field that implements this callback by these labels instead of the stored
+  values, so the results match what the user sees, e.g. translated labels. Values without a label are ordered and
+  searched by the stored value. Receives the field and the assigns of the index view, without the assigns of a row:
+  `:item` is `nil`, or the `base_schema` of a resource action while one is open, and assigns such as `:value` are not
+  set.
+
+  The adapter turns the labels into a query, so this callback does not depend on the data layer. The Ecto adapter
+  requires PostgreSQL for it.
+
+  ## Example
+
+      @impl Backpex.Field
+      def option_labels(_field, _assigns) do
+        [{gettext("Open"), "open"}, {gettext("Closed"), "closed"}]
+      end
+  """
+  @callback option_labels(field :: tuple(), assigns :: map()) :: [{label :: term(), value :: term()}]
+
+  @doc """
   Returns the files of the item as a list of strings.
 
   Upload fields (see `upload_key/1`) implement it, together with `c:put_upload_change/7`,
@@ -344,7 +365,8 @@ defmodule Backpex.Field do
                       put_upload_change: 7,
                       consume_upload: 5,
                       remove_uploads: 4,
-                      upload_error: 4
+                      upload_error: 4,
+                      option_labels: 2
 
   @doc """
   Returns the default config schema.

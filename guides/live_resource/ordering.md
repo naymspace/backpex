@@ -126,6 +126,16 @@ Backpex validates ordering parameters from the URL:
 
 Invalid URL parameters won't crash the application. Instead, they are silently replaced with the default values from your `init_order` configuration.
 
+## Ordering Select Fields
+
+`Backpex.Fields.Select` fields are ordered by the labels of their options instead of the stored values. If you translate the labels in an `options` function, the index view is ordered by the labels in the locale of the current user. See `Backpex.Fields.Select` for details.
+
+Ordering by labels uses PostgreSQL functions, so it requires the `Backpex.Adapters.Ecto` adapter with a PostgreSQL database.
+
+## Ordering Custom Fields by Labels
+
+A [custom field](../fields/custom-fields.md) that shows labels instead of its stored values can implement the `c:Backpex.Field.option_labels/2` callback. It returns the labels as `{label, value}` tuples, and the index view orders and searches the field by them, like a select field.
+
 ## Disabling Ordering for Fields
 
 By default, all fields are orderable. To disable ordering for a specific field, set `orderable: false` in the field configuration:

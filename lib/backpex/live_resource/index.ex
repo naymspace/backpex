@@ -698,9 +698,10 @@ defmodule Backpex.LiveResource.Index do
   end
 
   defp apply_action(socket, :index) do
+    # Assign the item before the queries run, so functions such as the `options` of a select field always find it.
     socket
-    |> apply_index()
     |> assign(:item, nil)
+    |> apply_index()
   end
 
   defp apply_action(socket, :resource_action) do
