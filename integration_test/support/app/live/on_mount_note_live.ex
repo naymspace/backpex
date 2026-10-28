@@ -21,72 +21,15 @@ end
 
 defmodule Backpex.Test.OnMountModuleNoteLive do
   @moduledoc "Notes with a module as `on_mount` hook."
-  use Backpex.LiveResource,
-    adapter_config: [
-      schema: Backpex.Test.Note,
-      repo: Backpex.Test.Repo,
-      update_changeset: &Backpex.Test.Note.changeset/3,
-      create_changeset: &Backpex.Test.Note.changeset/3
-    ],
-    on_mount: Backpex.Test.OnMountHook
-
-  @impl Backpex.LiveResource
-  def layout(_assigns), do: {Backpex.Test.Layouts, :admin}
-
-  @impl Backpex.LiveResource
-  def singular_name, do: "Note"
-
-  @impl Backpex.LiveResource
-  def plural_name, do: "Notes"
-
-  @impl Backpex.LiveResource
-  def fields, do: [title: %{module: Backpex.Fields.Text, label: "Title"}]
+  use Backpex.Test.OptionsNoteLive, on_mount: Backpex.Test.OnMountHook
 end
 
 defmodule Backpex.Test.OnMountTupleNoteLive do
   @moduledoc "Notes with a `{module, argument}` tuple as `on_mount` hook."
-  use Backpex.LiveResource,
-    adapter_config: [
-      schema: Backpex.Test.Note,
-      repo: Backpex.Test.Repo,
-      update_changeset: &Backpex.Test.Note.changeset/3,
-      create_changeset: &Backpex.Test.Note.changeset/3
-    ],
-    on_mount: {Backpex.Test.OnMountHook, :tuple}
-
-  @impl Backpex.LiveResource
-  def layout(_assigns), do: {Backpex.Test.Layouts, :admin}
-
-  @impl Backpex.LiveResource
-  def singular_name, do: "Note"
-
-  @impl Backpex.LiveResource
-  def plural_name, do: "Notes"
-
-  @impl Backpex.LiveResource
-  def fields, do: [title: %{module: Backpex.Fields.Text, label: "Title"}]
+  use Backpex.Test.OptionsNoteLive, on_mount: {Backpex.Test.OnMountHook, :tuple}
 end
 
 defmodule Backpex.Test.OnMountListNoteLive do
   @moduledoc "Notes with a list of a module and a `{module, argument}` tuple as `on_mount` hooks."
-  use Backpex.LiveResource,
-    adapter_config: [
-      schema: Backpex.Test.Note,
-      repo: Backpex.Test.Repo,
-      update_changeset: &Backpex.Test.Note.changeset/3,
-      create_changeset: &Backpex.Test.Note.changeset/3
-    ],
-    on_mount: [Backpex.Test.OnMountHook, {Backpex.Test.OnMountHook, :second}]
-
-  @impl Backpex.LiveResource
-  def layout(_assigns), do: {Backpex.Test.Layouts, :admin}
-
-  @impl Backpex.LiveResource
-  def singular_name, do: "Note"
-
-  @impl Backpex.LiveResource
-  def plural_name, do: "Notes"
-
-  @impl Backpex.LiveResource
-  def fields, do: [title: %{module: Backpex.Fields.Text, label: "Title"}]
+  use Backpex.Test.OptionsNoteLive, on_mount: [Backpex.Test.OnMountHook, {Backpex.Test.OnMountHook, :second}]
 end

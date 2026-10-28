@@ -91,7 +91,7 @@ defmodule Backpex.Testing do
     path(router, live_resource, action, nil, opts)
   end
 
-  def path(router, live_resource, action, nil, opts) when action in [:index, :new] do
+  def path(router, live_resource, action, no_item, opts) when action in [:index, :new] and no_item in [nil, []] do
     build_path(router, live_resource, action, nil, opts)
   end
 
@@ -99,8 +99,21 @@ defmodule Backpex.Testing do
     build_path(router, live_resource, action, primary_value(item_or_id, live_resource), opts)
   end
 
-  def path(router, live_resource, :resource_action, key, opts) when is_atom(key) and not is_nil(key) do
-    build_path(router, live_resource, :resource_action, Atom.to_string(key), opts)
+  def path(router, live_resource, :resource_action, key, opts)
+      when (is_atom(key) and not is_nil(key)) or is_binary(key) do
+    build_path(router, live_resource, :resource_action, to_string(key), opts)
+  end
+
+  def path(_router, _live_resource, action, item_or_key, opts) do
+    raise ArgumentError, """
+    invalid arguments for Backpex.Testing.path/5: action #{inspect(action)}, #{inspect(item_or_key)}, #{inspect(opts)}
+
+    Valid forms are:
+
+      path(router, live_resource, :index | :new, opts \\ [])
+      path(router, live_resource, :show | :edit, item_or_primary_value, opts \\ [])
+      path(router, live_resource, :resource_action, key, opts \\ [])
+    """
   end
 
   defp build_path(router, live_resource, action, id, opts) do
@@ -112,18 +125,23 @@ defmodule Backpex.Testing do
 
   @doc """
   Selects the row of `item` on the index view, like a click on its checkbox. Bulk item actions apply to the selected
-  rows. Does nothing if the row is already selected.
+  rows. Does nothing if the row is already selected, and raises if the index view has no row for the item.
   """
   def select_item(view, item), do: toggle_item(view, item, false)
 
   @doc """
   Deselects the row of `item` on the index view, like a click on its checkbox. Does nothing if the row isn't selected.
+  Like `select_item/2`, it raises if the index view has no row for the item.
   """
   def deselect_item(view, item), do: toggle_item(view, item, true)
 
   # Clicks the checkbox of the row only if its state is `selected?`, because a click toggles the selection.
   defp toggle_item(view, item, selected?) do
     selector = ~s|input[id="select-input-#{escape(primary_value(item, view))}"]|
+
+    if !has_element?(view, selector) do
+      raise ArgumentError, "the index view has no row for #{inspect(item)}"
+    end
 
     if has_element?(view, selector <> "[checked]") == selected? do
       view
@@ -217,7 +235,10 @@ defmodule Backpex.Testing do
     end
   end
 
-  defp primary_value(nil, _view_or_live_resource), do: raise(ArgumentError, "expected an item or its primary value")
+  defp primary_value(value, _view_or_live_resource) when is_nil(value) or is_list(value) do
+    raise ArgumentError, "expected an item or its primary value, got: #{inspect(value)}"
+  end
+
   defp primary_value(id, _view_or_live_resource), do: id
 
   # The views of a LiveResource are the modules `Index`, `Form` and `Show` inside of it.

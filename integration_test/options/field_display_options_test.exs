@@ -21,11 +21,13 @@ defmodule Backpex.Integration.Options.FieldDisplayOptionsTest do
       |> assert_has("tbody td > div.justify-center.text-center.number-column-index", text: "7")
     end
 
-    test "default to a left aligned column without extra classes", %{conn: conn} do
+    test "default to a left aligned column without the classes of the other columns", %{conn: conn} do
       conn
       |> visit(~p"/admin/display-options-samples")
-      |> assert_has("thead th > div[class='text-xs font-medium flex justify-start text-left']", text: "URL")
-      |> assert_has("tbody td > div[class='flex justify-start text-left']", text: "https://example.com")
+      |> assert_has("thead th > div.justify-start.text-left", text: "URL")
+      |> assert_has("tbody td > div.justify-start.text-left", text: "https://example.com")
+      |> refute_has("thead th > div.text-column, thead th > div.number-column-index", text: "URL")
+      |> refute_has("tbody td > div.text-column, tbody td > div.number-column-index", text: "https://example.com")
     end
   end
 
