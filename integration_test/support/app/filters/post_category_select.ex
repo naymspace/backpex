@@ -3,6 +3,8 @@ defmodule Backpex.Test.Filters.PostCategorySelect do
 
   use Backpex.Filters.Select
 
+  import Ecto.Query
+
   alias Backpex.Filters.Select
   alias Backpex.Test.Category
   alias Backpex.Test.Post
