@@ -164,19 +164,19 @@ defmodule Backpex.Adapters.Ecto do
 
     assigns = Map.get(query.context, :assigns, %{})
 
-    # A `:select` refers to the binding named after the schema, so the options query is named for it. Without it, the
-    # binding is unnamed, as the options query of the field may name its own binding.
-    {base, search_expr} =
+    search_expr =
       case Map.get(field_options, :select) do
-        nil ->
-          {from(queryable), fn search -> dynamic([option], ilike(field(option, ^display_field), ^search)) end}
-
-        select ->
-          {from(queryable, as: ^name_by_schema(queryable)), fn search -> dynamic(ilike(^select, ^search)) end}
+        nil -> fn search -> dynamic([option], ilike(field(option, ^display_field), ^search)) end
+        select -> fn search -> dynamic(ilike(^select, ^search)) end
       end
 
+    # The options query runs when the query is read, as its binding is only named for a search with a `:select`, see
+    # `options_base/2`. The query it returns now is part of the key of the query, so the key changes with the assigns
+    # the options query depends on.
     query
-    |> Query.put_native(:options_query, maybe_options_query(base, field_options, assigns))
+    |> Query.put_native(:options_query, Map.get(field_options, :options_query))
+    |> Query.put_native(:options_key, maybe_options_query(from(queryable), field_options, assigns))
+    |> Query.put_native(:options_select?, Map.has_key?(field_options, :select))
     |> update_native(:search_exprs, &Map.put(&1, Backpex.Expr.ref(display_field), search_expr))
   end
 
@@ -371,8 +371,17 @@ defmodule Backpex.Adapters.Ecto do
 
   defp through_info(_owner, _association), do: []
 
-  defp maybe_options_query(query, %{options_query: options_query}, assigns), do: options_query.(query, assigns)
+  defp maybe_options_query(query, %{options_query: options_query}, assigns) when is_function(options_query, 2),
+    do: options_query.(query, assigns)
+
   defp maybe_options_query(query, _field_options, _assigns), do: query
+
+  # A `:select` refers to the binding named after the schema, so the options are named for a search with it. Otherwise
+  # the binding is unnamed, as the options query of the field may name its own binding.
+  defp options_base(queryable, %Query{search: %{targets: [_target | _targets]}, native: %{options_select?: true}}),
+    do: from(queryable, as: ^name_by_schema(queryable))
+
+  defp options_base(queryable, _query), do: from(queryable)
 
   defp search_condition({_name, %{select: select} = _field_options}, _schema, search_string) do
     dynamic(ilike(^select, ^search_string))
@@ -695,9 +704,11 @@ defmodule Backpex.Adapters.Ecto do
   # The query of related items, e.g. the options of an association field.
   defp to_ecto_query(%Query{from: path, resource: live_resource} = query) do
     queryable = path_queryable(live_resource.adapter_config(:schema), path)
+    assigns = Map.get(query.context, :assigns, %{})
 
-    query.native
-    |> Map.get_lazy(:options_query, fn -> from(queryable) end)
+    queryable
+    |> options_base(query)
+    |> maybe_options_query(%{options_query: Map.get(query.native, :options_query)}, assigns)
     |> Ecto.Queryable.to_query()
     |> maybe_preload(query.load, %{})
     |> Where.where_expr(query.filter)

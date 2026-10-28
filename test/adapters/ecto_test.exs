@@ -745,6 +745,29 @@ defmodule Backpex.Adapters.EctoTest do
                        }}
     end
 
+    test "leaves the binding to the options query of a field with a select expression unless it searches" do
+      select = dynamic([testuser: u], fragment("upper(?)", u.name))
+      options_query = fn query, _assigns -> from(u in query, as: :testuser, where: u.age > 18) end
+
+      field =
+        {:user, %{module: Backpex.Fields.BelongsTo, display_field: :name, select: select, options_query: options_query}}
+
+      Resource.list_options(field, [], %{}, PostLive)
+
+      assert_received {:repo, :all, %{from: %{as: :testuser}, wheres: [_age]}}
+    end
+
+    test "changes the key of the options with the assigns the options query depends on" do
+      options_query = fn query, assigns -> where(query, [u], u.age > ^assigns.min_age) end
+      field = {:user, %{module: Backpex.Fields.BelongsTo, display_field: :name, options_query: options_query}}
+
+      assert Resource.options_key(field, %{min_age: 18, other: 1}, PostLive) ==
+               Resource.options_key(field, %{min_age: 18, other: 2}, PostLive)
+
+      refute Resource.options_key(field, %{min_age: 18}, PostLive) ==
+               Resource.options_key(field, %{min_age: 21}, PostLive)
+    end
+
     test "ignores an empty search" do
       Resource.list_options(@user_field, [search: " "], %{}, PostLive)
 
