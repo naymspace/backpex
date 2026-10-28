@@ -134,10 +134,8 @@ defmodule Backpex.Resource do
 
   defp stage_supported?(%Query{filter: nil}, :filter, _adapter, _live_resource), do: true
 
-  defp stage_supported?(%Query{filter: filter}, :filter, adapter, live_resource) do
-    supports?(adapter, live_resource, :filter) and
-      filter |> operators() |> Enum.all?(&supports?(adapter, live_resource, {:filter, &1}))
-  end
+  defp stage_supported?(%Query{filter: filter}, :filter, adapter, live_resource),
+    do: filter_supported?(filter, adapter, live_resource)
 
   defp stage_supported?(%Query{search: nil}, :search, _adapter, _live_resource), do: true
 
@@ -146,6 +144,13 @@ defmodule Backpex.Resource do
 
   defp stage_supported?(query, stage, adapter, live_resource),
     do: is_nil(Map.fetch!(query, stage)) or supports?(adapter, live_resource, stage)
+
+  defp filter_supported?(nil = _expression, _adapter, _live_resource), do: true
+
+  defp filter_supported?(expression, adapter, live_resource) do
+    supports?(adapter, live_resource, :filter) and
+      expression |> operators() |> Enum.all?(&supports?(adapter, live_resource, {:filter, &1}))
+  end
 
   defp supports?(adapter, live_resource, feature) do
     if Code.ensure_loaded?(adapter) and function_exported?(adapter, :supports?, 2),
@@ -166,21 +171,34 @@ defmodule Backpex.Resource do
 
   # The relationships the parts in memory read, which the adapter has to load into the items.
   defp memory_relationships(query, memory_stages) do
-    refs =
-      Enum.flat_map(memory_stages, fn
-        :filter -> refs(query.filter)
-        :search -> if query.search, do: query.search.targets, else: []
-        :sort -> query |> Query.sorts() |> Enum.map(fn {ref, _direction} -> ref end)
-        _stage -> []
-      end)
-
-    refs |> Enum.flat_map(fn %{path: path} -> Enum.take(path, 1) end) |> Enum.uniq()
+    memory_stages
+    |> Enum.flat_map(fn
+      :filter -> paths(query.filter)
+      :search -> if query.search, do: Enum.map(query.search.targets, & &1.path), else: []
+      :sort -> query |> Query.sorts() |> Enum.map(fn {ref, _direction} -> ref.path end)
+      _stage -> []
+    end)
+    |> to_load()
   end
 
-  defp refs(%Ref{} = ref), do: [ref]
-  defp refs(%Call{args: args}), do: Enum.flat_map(args, &refs/1)
-  defp refs(%Exists{path: path}), do: [%Ref{path: path, name: nil}]
-  defp refs(_expression), do: []
+  # The paths of the relationships an expression reads, including the related items of `exists/2`.
+  defp paths(%Ref{path: path}), do: [path]
+  defp paths(%Call{args: args}), do: Enum.flat_map(args, &paths/1)
+  defp paths(%Exists{path: path, where: where}), do: [path | where |> paths() |> Enum.map(&(path ++ &1))]
+  defp paths(_expression), do: []
+
+  # The relationships to load for paths, nested like the preloads of Ecto, e.g. `[:author, tags: [:category]]`.
+  defp to_load(paths) do
+    paths
+    |> Enum.reject(&(&1 == []))
+    |> Enum.group_by(&hd/1, &tl/1)
+    |> Enum.map(fn {name, paths} ->
+      case to_load(paths) do
+        [] -> name
+        nested -> {name, nested}
+      end
+    end)
+  end
 
   @doc """
   Returns the items of many queries at once, e.g. the options of an association field for every row of the index view.
@@ -235,7 +253,9 @@ defmodule Backpex.Resource do
     if runs_all?(query, adapter, :aggregate) do
       adapter.aggregate(query)
     else
-      with {:ok, items} <- query |> Query.unset([:aggregates]) |> read() do
+      relationships = query.aggregates |> Enum.flat_map(&paths(&1.where)) |> to_load()
+
+      with {:ok, items} <- query |> Query.unset([:aggregates]) |> Query.load(relationships) |> read() do
         {:ok, Query.aggregate_items(query, items)}
       end
     end
@@ -246,7 +266,8 @@ defmodule Backpex.Resource do
     Code.ensure_loaded?(adapter) and function_exported?(adapter, callback, 1) and
       supports?(adapter, live_resource, callback) and
       stage_supported?(query, :filter, adapter, live_resource) and
-      stage_supported?(query, :search, adapter, live_resource)
+      stage_supported?(query, :search, adapter, live_resource) and
+      Enum.all?(query.aggregates, &filter_supported?(&1.where, adapter, live_resource))
   end
 
   @doc """

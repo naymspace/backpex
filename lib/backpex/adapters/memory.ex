@@ -149,10 +149,23 @@ defmodule Backpex.Adapters.Memory do
   @impl Backpex.Adapter
   def update_all(items, updates, live_resource) do
     changes = Keyword.get(updates, :set, [])
-    updated = Enum.map(items, &struct(&1, changes))
+    primary_key = live_resource.config(:primary_key)
+    values = MapSet.new(items, &Map.fetch!(&1, primary_key))
 
-    replace(live_resource, updated)
-    {length(updated), nil}
+    # The changes go into the stored items, so these keep what others changed since `items` were read.
+    live_resource
+    |> store()
+    |> Agent.get_and_update(fn stored ->
+      {stored, count} = Enum.map_reduce(stored, 0, &update_item(&1, &2, values, primary_key, changes))
+
+      {{count, nil}, stored}
+    end)
+  end
+
+  defp update_item(item, count, values, primary_key, changes) do
+    if MapSet.member?(values, Map.fetch!(item, primary_key)),
+      do: {struct(item, changes), count + 1},
+      else: {item, count}
   end
 
   @impl Backpex.Adapter

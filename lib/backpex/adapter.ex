@@ -77,13 +77,17 @@ defmodule Backpex.Adapter do
   run a part, Backpex applies it and every part after it in memory, e.g. the sort of a query whose filter the adapter
   doesn't run. Then the adapter gets the query without these parts.
 
-  `use Backpex.Adapter` defines it from its `:supports` option: `:all` or a list of features, where `:filter` stands
-  for all operators.
+  `use Backpex.Adapter` defines it from its `:supports` option: `:all` or a list of features. `:filter` stands for all
+  operators. A list of `{:filter, operator}` instead lets the adapter run the filters that only use these operators,
+  e.g. `[{:filter, :==}, {:filter, :in}, :sort]`.
   """
   @callback supports?(live_resource :: module(), feature :: atom() | {atom(), atom()}) :: boolean()
 
   @doc false
   def supported?(:all, _feature), do: true
+
+  def supported?(features, :filter) when is_list(features),
+    do: :filter in features or Enum.any?(features, &match?({:filter, _operator}, &1))
 
   def supported?(features, {:filter, _operator} = feature) when is_list(features),
     do: :filter in features or feature in features

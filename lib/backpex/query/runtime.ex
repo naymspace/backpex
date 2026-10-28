@@ -31,8 +31,11 @@ defmodule Backpex.Query.Runtime do
   defp contains_term?(value, term), do: value |> to_text() |> String.downcase() |> String.contains?(term)
 
   defp to_text(value) when is_binary(value), do: value
-  defp to_text(value) when is_atom(value), do: Atom.to_string(value)
-  defp to_text(value), do: to_string(value)
+  defp to_text(value) when is_atom(value) or is_number(value), do: to_string(value)
+  defp to_text(%_struct{} = value), do: if(String.Chars.impl_for(value), do: to_string(value), else: inspect(value))
+
+  # Values without a text form, e.g. lists and maps of embeds, are searched in their inspected form.
+  defp to_text(value), do: inspect(value)
 
   @doc false
   def eval(%Native{} = expression, _item) do
@@ -72,10 +75,11 @@ defmodule Backpex.Query.Runtime do
     compare(operator, operand(left, item), operand(right, item))
   end
 
+  # As in SQL, a value that is not in the list is unknown if the list contains `nil`.
   def eval(%Call{name: :in, args: [ref, values]}, item) when is_list(values) do
     case operand(ref, item) do
       nil -> nil
-      value -> Enum.any?(values, &(compare(:==, value, &1) == true))
+      value -> Enum.any?(values, &(compare(:==, value, &1) == true)) or if(nil not in values, do: false)
     end
   end
 

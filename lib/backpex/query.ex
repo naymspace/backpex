@@ -76,7 +76,7 @@ defmodule Backpex.Query do
           default_sort: [{Ref.t(), direction()}],
           limit: non_neg_integer() | nil,
           offset: non_neg_integer() | nil,
-          load: [atom()],
+          load: [atom() | {atom(), list()}],
           computed: %{atom() => term()},
           aggregates: [aggregate()],
           native: map(),
@@ -268,9 +268,10 @@ defmodule Backpex.Query do
     do: %{query | offset: offset}
 
   @doc """
-  Loads the relationships into the items.
+  Loads the relationships into the items, given as names or nested like the preloads of Ecto, e.g.
+  `[:author, tags: [:category]]`.
   """
-  @spec load(t(), [atom()]) :: t()
+  @spec load(t(), [atom() | {atom(), list()}]) :: t()
   def load(%__MODULE__{} = query, relationships) when is_list(relationships),
     do: %{query | load: Enum.uniq(query.load ++ relationships)}
 
