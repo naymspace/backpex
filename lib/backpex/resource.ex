@@ -43,6 +43,9 @@ defmodule Backpex.Resource do
   """
 
   alias Backpex.Authorization
+  alias Backpex.Expr.Call
+  alias Backpex.Expr.Exists
+  alias Backpex.Expr.Ref
   alias Backpex.Query
 
   # Counts and aggregates cover all matching items, so these parts of a query don't apply.
@@ -88,15 +91,96 @@ defmodule Backpex.Resource do
 
   @doc """
   Returns the items of the query, see `c:Backpex.Adapter.read/1`. An invalid query returns no items.
+
+  The adapter runs the parts of the query it supports (see `c:Backpex.Adapter.supports?/2`), and Backpex applies the
+  others to its items with `Backpex.Query.apply_to/2`.
   """
   @spec read(Query.t()) :: {:ok, list()} | {:error, term()}
   def read(%Query{valid?: false}), do: {:ok, []}
 
   def read(%Query{resource: live_resource} = query) do
     adapter = live_resource.config(:adapter)
+    {adapter_query, memory_query} = split(query, adapter)
 
-    adapter.read(query)
+    case adapter.read(adapter_query) do
+      {:ok, items} when memory_query == :none -> {:ok, items}
+      {:ok, items} -> {:ok, Query.apply_to(memory_query, items)}
+      error -> error
+    end
   end
+
+  # The parts of a query, in the order in which they depend on each other, and their keys.
+  @stages [filter: [:filter], search: [:search], sort: [:sort, :default_sort], offset: [:offset], limit: [:limit]]
+
+  # Splits the query into the query the adapter runs and the parts Backpex applies in memory (`:none` if the adapter
+  # runs all): the first part the adapter doesn't support and every part after it.
+  defp split(%Query{resource: live_resource} = query, adapter) do
+    {adapter_stages, memory_stages} =
+      Enum.split_while(@stages, fn {stage, _keys} -> stage_supported?(query, stage, adapter, live_resource) end)
+
+    memory_keys = Enum.flat_map(memory_stages, fn {_stage, keys} -> keys end)
+    adapter_keys = Enum.flat_map(adapter_stages, fn {_stage, keys} -> keys end)
+
+    adapter_query =
+      query
+      |> Query.unset(memory_keys)
+      |> Query.load(memory_relationships(query, Keyword.keys(memory_stages)))
+
+    memory_query =
+      if memory_stages == [], do: :none, else: Query.unset(query, [:load, :computed, :aggregates | adapter_keys])
+
+    {adapter_query, memory_query}
+  end
+
+  defp stage_supported?(%Query{filter: nil}, :filter, _adapter, _live_resource), do: true
+
+  defp stage_supported?(%Query{filter: filter}, :filter, adapter, live_resource) do
+    supports?(adapter, live_resource, :filter) and
+      filter |> operators() |> Enum.all?(&supports?(adapter, live_resource, {:filter, &1}))
+  end
+
+  defp stage_supported?(%Query{search: nil}, :search, _adapter, _live_resource), do: true
+
+  defp stage_supported?(query, :sort, adapter, live_resource),
+    do: Query.sorts(query) == [] or supports?(adapter, live_resource, :sort)
+
+  defp stage_supported?(query, stage, adapter, live_resource),
+    do: is_nil(Map.fetch!(query, stage)) or supports?(adapter, live_resource, stage)
+
+  defp supports?(adapter, live_resource, feature) do
+    if Code.ensure_loaded?(adapter) and function_exported?(adapter, :supports?, 2),
+      do: adapter.supports?(live_resource, feature),
+      else: true
+  end
+
+  # The operators of an expression, e.g. `:==` or `:exists`. `and`, `or`, `not` and native expressions belong to every
+  # filter.
+  defp operators(%Call{name: name, args: args}) do
+    operators = Enum.flat_map(args, &operators/1)
+
+    if name in [:and, :or, :not], do: operators, else: [name | operators]
+  end
+
+  defp operators(%Exists{where: where}), do: [:exists | operators(where)]
+  defp operators(_expression), do: []
+
+  # The relationships the parts in memory read, which the adapter has to load into the items.
+  defp memory_relationships(query, memory_stages) do
+    refs =
+      Enum.flat_map(memory_stages, fn
+        :filter -> refs(query.filter)
+        :search -> if query.search, do: query.search.targets, else: []
+        :sort -> query |> Query.sorts() |> Enum.map(fn {ref, _direction} -> ref end)
+        _stage -> []
+      end)
+
+    refs |> Enum.flat_map(fn %{path: path} -> Enum.take(path, 1) end) |> Enum.uniq()
+  end
+
+  defp refs(%Ref{} = ref), do: [ref]
+  defp refs(%Call{args: args}), do: Enum.flat_map(args, &refs/1)
+  defp refs(%Exists{path: path}), do: [%Ref{path: path, name: nil}]
+  defp refs(_expression), do: []
 
   @doc """
   Returns the items of many queries at once, e.g. the options of an association field for every row of the index view.
@@ -126,13 +210,19 @@ defmodule Backpex.Resource do
 
   def count(%Query{resource: live_resource} = query) do
     adapter = live_resource.config(:adapter)
+    query = Query.unset(query, @not_aggregated)
 
-    query |> Query.unset(@not_aggregated) |> adapter.count()
+    if runs_all?(query, adapter, :count) do
+      adapter.count(query)
+    else
+      with {:ok, items} <- read(query), do: {:ok, length(items)}
+    end
   end
 
   @doc """
   Returns the values of the aggregates of the query, see `c:Backpex.Adapter.aggregate/1`. Ignores the sorts, the limit,
-  the offset and the relationships to load.
+  the offset and the relationships to load. Backpex computes them from the items of `read/1` if the adapter doesn't
+  support `:aggregate` or the filter or search of the query.
   """
   @spec aggregate(Query.t()) :: {:ok, %{atom() => term()}} | {:error, term()}
   def aggregate(%Query{aggregates: []}), do: {:ok, %{}}
@@ -140,8 +230,23 @@ defmodule Backpex.Resource do
 
   def aggregate(%Query{resource: live_resource} = query) do
     adapter = live_resource.config(:adapter)
+    query = Query.unset(query, @not_aggregated)
 
-    query |> Query.unset(@not_aggregated) |> adapter.aggregate()
+    if runs_all?(query, adapter, :aggregate) do
+      adapter.aggregate(query)
+    else
+      with {:ok, items} <- query |> Query.unset([:aggregates]) |> read() do
+        {:ok, Query.aggregate_items(query, items)}
+      end
+    end
+  end
+
+  # Whether the adapter runs the callback for the whole query, which counts and aggregates only filter and search.
+  defp runs_all?(%Query{resource: live_resource} = query, adapter, callback) do
+    Code.ensure_loaded?(adapter) and function_exported?(adapter, callback, 1) and
+      supports?(adapter, live_resource, callback) and
+      stage_supported?(query, :filter, adapter, live_resource) and
+      stage_supported?(query, :search, adapter, live_resource)
   end
 
   @doc """

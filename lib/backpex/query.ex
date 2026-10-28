@@ -51,6 +51,7 @@ defmodule Backpex.Query do
 
   alias Backpex.Expr
   alias Backpex.Expr.Ref
+  alias Backpex.Query.Runtime
 
   @typedoc """
   The direction of a sort. `:asc` and `:desc` keep the order of `nil` values of the data source.
@@ -316,6 +317,40 @@ defmodule Backpex.Query do
       key, _query -> raise ArgumentError, "can't unset #{inspect(key)}, expected one of #{inspect(@unset_keys)}"
     end)
   end
+
+  @doc """
+  Applies the filter, the search, the sorts, the offset and the limit of the query to items in memory, e.g. to the items
+  of an adapter that doesn't run these parts itself (see `c:Backpex.Adapter.supports?/2`).
+
+  Expressions follow the rules of SQL: a comparison with `nil` keeps no item, not even negated, see `Backpex.Expr`.
+  Paths such as `author.name` and `exists/2` read the relationships in the items, so they have to be loaded. The search
+  keeps the items that contain the term in any target, ignoring the case. Sorts put `nil` last when ascending and first
+  when descending, unless their direction says otherwise. Strings sort by their code points, so `"B"` comes before
+  `"a"`. Raises for `Backpex.Expr.Native` expressions.
+
+      iex> items = [%{title: "Elixir", likes: 3}, %{title: "Erlang", likes: nil}, %{title: "Gleam", likes: 5}]
+      iex> Backpex.Query.new(MyApp.PostLive)
+      ...> |> Map.put(:filter, Backpex.Expr.expr(not starts_with(title, "G")))
+      ...> |> Map.put(:sort, [{Backpex.Expr.ref(:likes), :desc}])
+      ...> |> Backpex.Query.apply_to(items)
+      [%{title: "Erlang", likes: nil}, %{title: "Elixir", likes: 3}]
+  """
+  @spec apply_to(t(), list()) :: list()
+  def apply_to(%__MODULE__{} = query, items) when is_list(items) do
+    items
+    |> Runtime.filter(query.filter)
+    |> Runtime.search(query.search)
+    |> Runtime.sort(sorts(query))
+    |> Runtime.paginate(query.offset, query.limit)
+  end
+
+  @doc """
+  Computes the `:aggregates` of the query over items in memory, which already match the query, e.g. the items of
+  `apply_to/2`. Returns a map of the names of the aggregates to their values, like `c:Backpex.Adapter.aggregate/1`.
+  """
+  @spec aggregate_items(t(), list()) :: %{atom() => term()}
+  def aggregate_items(%__MODULE__{aggregates: aggregates}, items) when is_list(items),
+    do: Map.new(aggregates, &{&1.name, Runtime.aggregate(items, &1)})
 
   @doc """
   Puts data only the adapter understands under `key`, see the `:native` field.

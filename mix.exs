@@ -171,6 +171,14 @@ defmodule Backpex.MixProject do
         end
       end,
       skip_code_autolink_to: [
+        # Removed functions that the guides on upgrading to earlier versions name.
+        "Backpex.Adapters.Ecto.apply_filters/4",
+        "Backpex.LiveResource.build_criteria/1",
+        "Backpex.Resource.count/4",
+        "Backpex.Resource.list/4",
+        "c:Backpex.Adapter.count/4",
+        "c:Backpex.Adapter.get/4",
+        "c:Backpex.Adapter.list/4",
         "Ecto.Query.DynamicExpr",
         "Backpex.Router.cookie_path/1"
       ]
@@ -242,6 +250,9 @@ defmodule Backpex.MixProject do
       "guides/searching/basic-search.md",
       "guides/searching/full-text-search.md",
 
+      # Adapters
+      "guides/adapters/custom-adapter.md",
+
       # Translations
       "guides/translations/translations.md",
 
@@ -283,6 +294,7 @@ defmodule Backpex.MixProject do
       Actions: ~r/guides\/actions\/.?/,
       Authorization: ~r/guides\/authorization\/.?/,
       Searching: ~r/guides\/searching\/.?/,
+      Adapters: ~r/guides\/adapters\/.?/,
       "Custom Labels and Translations": ~r/guides\/custom_labels_and_translations\/.?/,
       "Upgrade Guides": ~r{guides/upgrading/.*}
     ]
@@ -295,7 +307,7 @@ defmodule Backpex.MixProject do
       Fields: ~r/Backpex\.Field.?/,
       Actions: ~r/Backpex\.(ItemAction|ResourceAction).?/,
       Filters: ~r/Backpex\.Filter.?/,
-      Expressions: ~r/Backpex\.Expr.?/,
+      Queries: ~r/Backpex\.(Expr|Query).?/,
       Metrics: ~r/Backpex\.Metric.?/,
       Preferences: ~r/Backpex\.Preferences.*/,
       Testing: ~r/Backpex\.Testing/
