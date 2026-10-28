@@ -117,13 +117,31 @@ defmodule Backpex.Resource do
   end
 
   @doc """
-  Returns the association `name` of the resource, or `nil` if there is no such association. See
-  `c:Backpex.Adapter.association/2`.
+  Returns the description of the items of the resource, or of the related items at the end of the relationships in
+  `path`, or `nil` if there is no such path. See `c:Backpex.Adapter.describe/2` and `Backpex.Adapter.Description`.
   """
-  def association(name, live_resource) do
+  @spec describe([atom()], module()) :: Backpex.Adapter.Description.t() | nil
+  def describe(path \\ [], live_resource) do
     adapter = live_resource.config(:adapter)
 
-    adapter.association(name, live_resource)
+    adapter.describe(path, live_resource)
+  end
+
+  @doc """
+  Returns the relationship `name` of the resource from its description, or `nil` if there is no such relationship. See
+  `Backpex.Adapter.Description` for its keys.
+  """
+  def association(name, live_resource) do
+    Map.get(describe([], live_resource).relationships, name)
+  end
+
+  @doc """
+  Checks the fields of the expression against the description of the resource and casts the values to the types of the
+  fields, see `Backpex.Expr.cast/2`.
+  """
+  @spec cast_expr(Backpex.Expr.t() | keyword() | nil, module()) :: Backpex.Expr.t() | nil
+  def cast_expr(expression, live_resource) do
+    Backpex.Expr.cast(expression, &describe(&1, live_resource))
   end
 
   @doc """
@@ -175,14 +193,14 @@ defmodule Backpex.Resource do
   end
 
   @doc """
-  Returns the primitive type of the field `name` of the items, or `nil` if the adapter doesn't know it or doesn't
-  implement `c:Backpex.Adapter.field_type/2`.
+  Returns the primitive type of the field `name` of the items from the description of the resource, e.g. `:integer` or
+  `:string`, or `nil` if there is no such field.
   """
   def field_type(name, live_resource) do
-    adapter = live_resource.config(:adapter)
-
-    if Code.ensure_loaded?(adapter) and function_exported?(adapter, :field_type, 2),
-      do: adapter.field_type(name, live_resource)
+    case describe([], live_resource).fields do
+      %{^name => %{primitive: primitive}} -> primitive
+      _fields -> nil
+    end
   end
 
   @doc """
