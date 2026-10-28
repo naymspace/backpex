@@ -12,8 +12,6 @@ defmodule Backpex.Integration.Authorization.SelectionTest do
 
   alias Backpex.Test.User
 
-  @moduletag :capture_log
-
   @mixed_selection_title "Your selection contains items you may not apply this action to."
   @empty_selection_title "Select at least one item to use this action."
 

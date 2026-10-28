@@ -74,4 +74,4 @@ if Enum.any?(ExUnit.configuration()[:include], &(&1 == :e2e or match?({:e2e, _va
 end
 
 ExUnit.configure(exclude: [e2e: true])
-ExUnit.start()
+ExUnit.start(capture_log: true)
