@@ -16,12 +16,12 @@ defmodule DemoWeb.Filters.PostPublished do
       %{
         label: "Published",
         key: "published",
-        predicate: {:==, :published, true}
+        predicate: expr(published == true)
       },
       %{
         label: "Not published",
         key: "not_published",
-        predicate: {:==, :published, false}
+        predicate: expr(published == false)
       }
     ]
   end

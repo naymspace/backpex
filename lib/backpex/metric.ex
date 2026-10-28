@@ -13,8 +13,8 @@ defmodule Backpex.Metric do
 
     * `:aggregate` - `:count` for the number of items, or a tuple of `:count`, `:sum`, `:avg`, `:min` or `:max` and the
       name of a field, e.g. `{:sum, :quantity}`.
-    * `:where` - an optional condition that limits the items, e.g. `{:==, :published, true}`. See
-      `t:Backpex.Filter.condition/0`.
+    * `:where` - an optional expression that limits the items, e.g. `[published: true]` or `expr(likes > 10)`. See
+      `Backpex.Expr`.
 
   `Backpex.Adapters.Ecto` also takes a `:select` expression instead of an aggregate.
 

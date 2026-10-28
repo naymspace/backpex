@@ -1,14 +1,16 @@
 defmodule Backpex.Filters.SelectTest do
   use ExUnit.Case, async: true
 
+  import Backpex.Expr, only: [expr: 1]
+
   alias Backpex.Filters.Select, as: SelectFilter
 
   doctest SelectFilter
 
   describe "condition/3" do
     test "keeps the items whose field equals the value" do
-      assert SelectFilter.condition(:status, "open", %{}) == {:==, :status, "open"}
-      assert SelectFilter.condition(:priority, 1, %{}) == {:==, :priority, 1}
+      assert SelectFilter.condition(:status, "open", %{}) == expr(status == "open")
+      assert SelectFilter.condition(:priority, 1, %{}) == expr(priority == 1)
     end
   end
 

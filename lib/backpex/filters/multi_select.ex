@@ -28,6 +28,7 @@ defmodule Backpex.Filters.MultiSelect do
   """
   use BackpexWeb, :filter
 
+  import Backpex.Expr, only: [expr: 1]
   import Backpex.HTML.CoreComponents
 
   require Backpex
@@ -162,19 +163,21 @@ defmodule Backpex.Filters.MultiSelect do
   end
 
   @doc """
-  Returns the condition that keeps the items whose field has one of the selected values, or `nil` if no value is
+  Returns the expression that keeps the items whose field has one of the selected values, or `nil` if no value is
   selected.
 
   ## Examples
 
-      iex> Backpex.Filters.MultiSelect.condition(:status, ["open", "pending"], %{})
-      {:in, :status, ["open", "pending"]}
+      iex> import Backpex.Expr
+      iex> Backpex.Filters.MultiSelect.condition(:status, ["open", "pending"], %{}) ==
+      ...>   expr(status in ["open", "pending"])
+      true
       iex> Backpex.Filters.MultiSelect.condition(:status, [], %{})
       nil
 
   """
   def condition(_field, [], _assigns), do: nil
-  def condition(field, values, _assigns), do: {:in, field, values}
+  def condition(field, values, _assigns), do: expr(ref(^field) in ^values)
 
   @doc """
   Converts a list of option values to their corresponding labels.

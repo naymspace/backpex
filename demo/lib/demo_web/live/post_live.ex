@@ -236,7 +236,7 @@ defmodule DemoWeb.PostLive do
         label: "Published Posts",
         class: "lg:w-1/4",
         aggregate: :count,
-        where: {:==, :published, true},
+        where: [published: true],
         format: fn value ->
           Integer.to_string(value)
         end

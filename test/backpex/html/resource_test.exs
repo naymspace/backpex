@@ -1,6 +1,7 @@
 defmodule Backpex.HTML.ResourceTest do
   use ExUnit.Case, async: true
 
+  import Backpex.Expr, only: [expr: 1]
   import Phoenix.LiveViewTest
 
   alias Backpex.Filters.Select
@@ -74,8 +75,8 @@ defmodule Backpex.HTML.ResourceTest do
     @impl Backpex.Filters.Boolean
     def options(_assigns) do
       [
-        %{label: "Published", key: "published", predicate: {:==, :published, true}},
-        %{label: "Not published", key: "not_published", predicate: {:==, :published, false}}
+        %{label: "Published", key: "published", predicate: expr(published == true)},
+        %{label: "Not published", key: "not_published", predicate: expr(published == false)}
       ]
     end
   end
