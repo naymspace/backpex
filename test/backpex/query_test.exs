@@ -183,6 +183,9 @@ defmodule Backpex.QueryTest do
       assert filtered(expr(not (likes > 4))) == [1]
       assert filtered(expr(is_nil(likes) or likes == 5)) == [2, 3]
       assert filtered(expr(likes in [3, 5])) == [1, 3]
+      # As in SQL, a value not in a list with nil is unknown, so the negation keeps it neither.
+      assert filtered(expr(likes in [5, nil])) == [3]
+      assert filtered(expr(likes not in [5, nil])) == []
       assert filtered(expr(published < ^~D[2026-01-01])) == [2]
     end
 
@@ -205,6 +208,7 @@ defmodule Backpex.QueryTest do
 
       assert ArticleLive |> Query.new() |> Query.search("BO", ["author.name"]) |> ids() == [3]
       assert ArticleLive |> Query.new() |> Query.search("5", [:likes, :title]) |> ids() == [3]
+      assert ArticleLive |> Query.new() |> Query.search("fp", [:tags]) |> ids() == [1, 3]
     end
 
     test "sorts with the nil rules of PostgreSQL, then skips and limits" do

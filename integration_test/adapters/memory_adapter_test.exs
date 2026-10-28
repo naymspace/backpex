@@ -9,13 +9,14 @@ defmodule Backpex.Integration.Adapters.MemoryAdapterTest do
 
   alias Backpex.Adapters.Memory
   alias Backpex.Test.MemoryNote
+  alias Backpex.Test.MemoryNoteLive
   alias Backpex.Test.MemoryNotes
 
   @store MemoryNotes
 
   defmodule Conformance do
     use ExUnit.Case, async: false
-    use Backpex.Test.AdapterConformance, live_resource: Backpex.Test.MemoryNoteLive, field: :title
+    use Backpex.Test.AdapterConformance, live_resource: MemoryNoteLive, field: :title
 
     setup do
       Memory.put_items(MemoryNotes, [])
@@ -104,5 +105,12 @@ defmodule Backpex.Integration.Adapters.MemoryAdapterTest do
 
     assert_error_sent 403, fn -> get(conn, ~p"/admin/read-only-notes/new") end
     assert_error_sent 403, fn -> get(conn, ~p"/admin/read-only-notes/1/edit") end
+  end
+
+  test "update_all/3 changes the stored items, not the given ones" do
+    stale = %MemoryNote{id: 1, title: "Stale title", likes: 0}
+
+    assert Memory.update_all([stale], %{likes: 7}, MemoryNoteLive) == {:ok, 1}
+    assert %MemoryNote{title: "Bravo", likes: 7} = @store |> Memory.items() |> Enum.find(&(&1.id == 1))
   end
 end
