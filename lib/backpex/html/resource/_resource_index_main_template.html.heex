@@ -39,16 +39,16 @@
   </div>
   <div class="mt-4 flex flex-wrap items-center justify-between gap-y-4">
     <.pagination
-      path={
-        URI.decode(
+      page_path={
+        fn page ->
           Router.get_path(
             @socket,
             @live_resource,
             @params,
             :index,
-            Map.merge(@query_options, %{filters_changed: @filters_changed, page: ":page"})
+            Map.merge(@query_options, %{filters_changed: @filters_changed, page: page})
           )
-        )
+        end
       }
       current_page={@query_options.page}
       total_pages={@total_pages}

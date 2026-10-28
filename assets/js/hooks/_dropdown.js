@@ -23,26 +23,40 @@
  *      last mousedown landed and ignores outside clicks whose mousedown was
  *      inside the dropdown.
  *
+ * The CSS-only mechanism also shows the menu whenever focus is inside the
+ * dropdown, e.g. while the trigger is focused or after closing the menu with
+ * Enter or Escape, so keyboard users would Tab through every option of a menu
+ * they did not open. While closed, the root therefore carries daisyUI's
+ * `dropdown-close` class, which hides the menu regardless of focus. The
+ * server-rendered markup omits it, so the dropdown still opens on focus before
+ * the hook mounts. The closed menu is also `inert`, because daisyUI keeps it
+ * rendered while it fades out. The trigger's `aria-expanded` tells screen
+ * readers whether the menu is open.
+ *
  * Document listeners only run while the dropdown is open, so pages with many
  * dropdowns don't pay an event-handler tax for closed ones.
+ *
+ * The trigger and menu are looked up when needed instead of in mounted(): a
+ * patch can re-create them while the hook stays mounted. Before LiveView
+ * 1.2.10, a dropdown that turns readonly and back keeps its hook, and a cached
+ * menu would still point to the one the readonly render removed.
  */
 export default {
   mounted () {
-    this.trigger = this.el.querySelector(`#${this.el.id}-trigger`)
-    this.menu = this.el.querySelector(`#${this.el.id}-menu`)
-    if (!this.trigger) return
+    if (!this.triggerEl()) return
 
     this.isOpen = false
     this.mousedownInside = false
+    this.syncOpenState()
 
     this.handleRootMousedown = this.handleRootMousedown.bind(this)
-    this.handleTriggerKeydown = this.handleTriggerKeydown.bind(this)
+    this.handleRootKeydown = this.handleRootKeydown.bind(this)
     this.handleDocumentMousedown = this.handleDocumentMousedown.bind(this)
     this.handleDocumentClick = this.handleDocumentClick.bind(this)
     this.handleDocumentKeydown = this.handleDocumentKeydown.bind(this)
 
     this.el.addEventListener('mousedown', this.handleRootMousedown)
-    this.trigger.addEventListener('keydown', this.handleTriggerKeydown)
+    this.el.addEventListener('keydown', this.handleRootKeydown)
   },
   beforeUpdate () {
     // Remember which element inside the dropdown had focus, so we can restore
@@ -54,9 +68,15 @@ export default {
       : null
   },
   updated () {
+    // mounted() found no trigger, so the hook leaves this dropdown alone.
+    if (this.isOpen === undefined) return
+
+    // A readonly dropdown renders no menu, so there is nothing to keep open.
+    if (!this.menuEl()) this.close()
+
     // Restore the open state across LiveView re-renders, since morphdom strips
-    // classes that aren't in the server-rendered HTML.
-    this.el.classList.toggle('dropdown-open', this.isOpen)
+    // classes and attributes that aren't in the server-rendered HTML.
+    this.syncOpenState()
 
     if (this.focusedBeforeUpdate && !this.el.contains(document.activeElement)) {
       const target = this.focusedBeforeUpdate.isConnected
@@ -69,20 +89,32 @@ export default {
   destroyed () {
     this.detachDocumentListeners()
     this.el.removeEventListener('mousedown', this.handleRootMousedown)
-    this.trigger?.removeEventListener('keydown', this.handleTriggerKeydown)
+    this.el.removeEventListener('keydown', this.handleRootKeydown)
+  },
+  triggerEl () {
+    return this.el.querySelector(`#${this.el.id}-trigger`)
+  },
+  menuEl () {
+    return this.el.querySelector(`#${this.el.id}-menu`)
   },
   open () {
     if (this.isOpen) return
     this.isOpen = true
-    this.el.classList.add('dropdown-open')
+    this.syncOpenState()
     this.attachDocumentListeners()
   },
   close () {
     if (!this.isOpen) return
     this.isOpen = false
     this.mousedownInside = false
-    this.el.classList.remove('dropdown-open')
+    this.syncOpenState()
     this.detachDocumentListeners()
+  },
+  syncOpenState () {
+    this.el.classList.toggle('dropdown-open', this.isOpen)
+    this.el.classList.toggle('dropdown-close', !this.isOpen)
+    this.triggerEl()?.setAttribute('aria-expanded', this.isOpen)
+    this.menuEl()?.toggleAttribute('inert', !this.isOpen)
   },
   toggle () {
     if (this.isOpen) this.close()
@@ -103,12 +135,14 @@ export default {
     // up front: when this mousedown is the one that *opens* the dropdown, the
     // document-level listener isn't attached yet and won't catch it.
     this.mousedownInside = true
-    if (this.menu?.contains(event.target)) return
+    const menu = this.menuEl()
+    if (!menu || menu.contains(event.target)) return
     this.toggle()
   },
-  handleTriggerKeydown (event) {
+  handleRootKeydown (event) {
     // Match WAI-ARIA button semantics: Enter and Space activate the trigger.
     if (event.key !== 'Enter' && event.key !== ' ') return
+    if (!this.menuEl() || !this.triggerEl()?.contains(event.target)) return
     event.preventDefault()
     this.toggle()
   },
@@ -126,6 +160,6 @@ export default {
   handleDocumentKeydown (event) {
     if (event.key !== 'Escape') return
     this.close()
-    this.trigger.focus()
+    this.triggerEl()?.focus()
   }
 }

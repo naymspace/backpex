@@ -284,6 +284,24 @@ defmodule Backpex.Adapters.Ecto do
     |> then(fn count -> {:ok, count} end)
   end
 
+  @doc """
+  Returns the primitive Ecto type of the field of the schema, e.g. `:integer` for an `Ecto.Enum` of integers, or `nil`
+  if the schema has no such field. See `c:Backpex.Adapter.field_type/2`.
+  """
+  @impl Backpex.Adapter
+  def field_type(name, live_resource) do
+    case live_resource.adapter_config(:schema).__schema__(:type, name) do
+      nil -> nil
+      type -> Ecto.Type.type(type)
+    end
+  end
+
+  @doc """
+  Returns the query of the options of the field after its `:options_query`, see `c:Backpex.Adapter.options_key/3`.
+  """
+  @impl Backpex.Adapter
+  def options_key(field, assigns, live_resource), do: options_query(field, [], assigns, live_resource)
+
   defp options_query({_name, field_options} = field, criteria, assigns, live_resource) do
     queryable = association_queryable(live_resource.adapter_config(:schema), field)
 

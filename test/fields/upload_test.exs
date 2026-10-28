@@ -168,6 +168,33 @@ defmodule Backpex.Fields.UploadTest do
     end
   end
 
+  describe "validate_config!/2" do
+    setup do
+      options = [
+        module: Upload,
+        label: "Images",
+        list_existing_files: fn item -> item.images end,
+        put_upload_change: fn _socket, params, _item, _uploaded_entries, _removed_entries, _action -> params end,
+        consume_upload: fn _socket, _item, _meta, _entry -> {:ok, "new.png"} end,
+        remove_uploads: fn _socket, _item, _removed_entries -> :ok end
+      ]
+
+      %{options: options}
+    end
+
+    test "accepts a positive max_entries", %{options: options} do
+      validated = Upload.validate_config!({:images, Keyword.put(options, :max_entries, 1)}, UntranslatedLive)
+
+      assert validated[:max_entries] == 1
+    end
+
+    test "rejects max_entries: 0", %{options: options} do
+      assert_raise RuntimeError, ~r/field "images".*invalid value for :max_entries option/s, fn ->
+        Upload.validate_config!({:images, Keyword.put(options, :max_entries, 0)}, UntranslatedLive)
+      end
+    end
+  end
+
   describe "assign_uploads/2" do
     setup do
       field_options = %{
@@ -194,6 +221,100 @@ defmodule Backpex.Fields.UploadTest do
 
       assert %UploadConfig{name: :pictures} = socket.assigns.uploads.pictures
       refute Map.has_key?(socket.assigns.uploads, :images)
+    end
+
+    test "sets no upload config for a readonly field but lists its files", %{
+      field_options: field_options,
+      socket: socket
+    } do
+      for readonly <- [true, fn assigns -> assigns.item.images != [] end] do
+        socket = Upload.assign_uploads({:images, Map.put(field_options, :readonly, readonly)}, socket)
+
+        refute Map.has_key?(socket.assigns, :uploads)
+        assert socket.assigns.uploaded_files == [images: [{"old.png", "old.png"}]]
+      end
+    end
+
+    test "labels the files with file_label", %{field_options: field_options, socket: socket} do
+      field_options = Map.put(field_options, :file_label, &String.upcase/1)
+      socket = Upload.assign_uploads({:images, field_options}, socket)
+
+      assert socket.assigns.uploaded_files == [images: [{"old.png", "OLD.PNG"}]]
+
+      html = render_assigned_form(socket, field_options, false)
+
+      assert html =~ ~s(aria-label="Remove OLD.PNG")
+      refute html =~ ~s(aria-label="Remove old.png")
+    end
+
+    test "configures an external upload with the external function", %{field_options: field_options, socket: socket} do
+      presign_upload = fn _entry, socket -> {:ok, %{uploader: "S3"}, socket} end
+
+      socket = Upload.assign_uploads({:images, Map.put(field_options, :external, presign_upload)}, socket)
+
+      assert socket.assigns.uploads.images.external == presign_upload
+    end
+
+    test "configures an upload to the LiveView without external", %{field_options: field_options, socket: socket} do
+      socket = Upload.assign_uploads({:images, field_options}, socket)
+
+      assert socket.assigns.uploads.images.external == false
+    end
+
+    test "lists the files of a readonly field once on each update", %{field_options: field_options, socket: socket} do
+      field = {:images, Map.put(field_options, :readonly, true)}
+
+      socket = socket |> then(&Upload.assign_uploads(field, &1)) |> then(&Upload.assign_uploads(field, &1))
+
+      assert socket.assigns.uploaded_files == [images: [{"old.png", "old.png"}]]
+    end
+
+    test "assigns the field's files once on every update", %{field_options: field_options, socket: socket} do
+      field = {:images, field_options}
+      socket = Upload.assign_uploads(field, Upload.assign_uploads(field, socket))
+
+      assert socket.assigns.uploaded_files == [images: [{"old.png", "old.png"}]]
+    end
+
+    test "gives render_form/1 what it needs", %{field_options: field_options, socket: socket} do
+      socket = Upload.assign_uploads({:images, field_options}, socket)
+      html = render_assigned_form(socket, field_options, false)
+
+      assert html =~ ~s(for="#{socket.assigns.uploads.images.ref}")
+      assert html =~ "old.png"
+    end
+
+    test "renders a readonly field without a file input, drop target or remove button",
+         %{field_options: field_options, socket: socket} do
+      # A field that is readonly when the form opens gets no upload config. One that turns readonly later keeps it.
+      for assign_options <- [Map.put(field_options, :readonly, true), field_options] do
+        socket = Upload.assign_uploads({:images, assign_options}, socket)
+        html = render_assigned_form(socket, Map.put(field_options, :readonly, true), true)
+
+        assert html =~ "old.png"
+        refute html =~ ~s(type="file")
+        refute html =~ "phx-drop-target"
+        refute html =~ "cancel-existing-entry"
+      end
+    end
+  end
+
+  describe "render_value/1" do
+    test "labels the files with file_label" do
+      field_options = %{module: Upload, list_existing_files: & &1.images, file_label: &String.upcase/1}
+
+      html = render_component(&Upload.render_value/1, field: {:images, field_options}, item: %{images: ["old.png"]})
+
+      assert html =~ "OLD.PNG"
+      refute html =~ "old.png"
+    end
+
+    test "shows the file names without file_label" do
+      field_options = %{module: Upload, list_existing_files: & &1.images}
+
+      html = render_component(&Upload.render_value/1, field: {:images, field_options}, item: %{images: ["old.png"]})
+
+      assert html =~ "old.png"
     end
   end
 
@@ -272,6 +393,39 @@ defmodule Backpex.Fields.UploadTest do
       assert html =~ ~s(aria-label="Remove stored.png")
       refute html =~ ~s(aria-label="Remove uploads/abc123.png")
     end
+
+    test "renders a readonly field without an upload config" do
+      html =
+        render_component(&Upload.render_form/1,
+          name: :images,
+          field_options: %{module: Upload, label: "Images"},
+          form: Phoenix.Component.to_form(%{}, as: :change),
+          lv_uploads: %{},
+          uploaded_files: [images: [{"old.png", "old.png"}]],
+          live_resource: UntranslatedLive,
+          readonly: true,
+          type: :form
+        )
+
+      assert html =~ "Images"
+      assert html =~ "old.png"
+      refute html =~ ~s(type="file")
+      refute html =~ "phx-drop-target"
+      refute html =~ ~s(aria-label="Remove old.png")
+    end
+  end
+
+  defp render_assigned_form(socket, field_options, readonly) do
+    render_component(&Upload.render_form/1,
+      name: :images,
+      field_options: Map.put(field_options, :label, "Images"),
+      form: Phoenix.Component.to_form(%{}, as: :change),
+      lv_uploads: Map.get(socket.assigns, :uploads, %{}),
+      uploaded_files: socket.assigns.uploaded_files,
+      live_resource: UntranslatedLive,
+      readonly: readonly,
+      type: :form
+    )
   end
 
   defp upload_with_errors(upload, errors) do

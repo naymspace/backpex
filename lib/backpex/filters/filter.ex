@@ -102,6 +102,11 @@ defmodule Backpex.Filter do
   - `{:array, :string}` - for multi-select or boolean filters
   - `:map` - for range filters with start/end values
 
+  A value from the URL or from persisted filters that cannot be cast to this type is neither applied nor passed to
+  `c:render_form/1`, so `c:render_form/1` only receives values of this type. If the type allows values that
+  `c:render_form/1` cannot render, e.g. a nested map in a `:map`, reject them in `c:changeset/3` with an error that
+  has the `validation: :cast` option, as `Backpex.Filters.Range` does.
+
   ## Examples
 
       def type(_assigns), do: :string

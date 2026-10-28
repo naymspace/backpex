@@ -25,9 +25,11 @@
     "assets/js/**"
   ],
   "scripts": {
-    "format:standard": "standard assets/js test/js --fix",
-    "lint:standard": "standard assets/js test/js",
-    "test:js": "bun test test/js"
+    "format:standard": "standard assets/js test/js integration_test/e2e/assets --fix",
+    "lint:standard": "standard assets/js test/js integration_test/e2e/assets",
+    "test:js": "bun test test/js",
+    "e2e:assets": "bun build integration_test/e2e/assets/app.js --outdir tmp/e2e/assets && tailwindcss --input integration_test/e2e/assets/app.css --output tmp/e2e/assets/app.css",
+    "e2e:install": "playwright install chromium --with-deps --only-shell"
   },
   "standard": {
     "globals": [
@@ -39,7 +41,12 @@
     ]
   },
   "devDependencies": {
-    "standard": "17.1.2"
+    "@tailwindcss/cli": "4.3.3",
+    "daisyui": "5.7.50",
+    "heroicons": "2.2.0",
+    "playwright": "1.64.1",
+    "standard": "17.1.2",
+    "tailwindcss": "4.3.3"
   },
   "dependencies": {
     "imask": "7.6.1"

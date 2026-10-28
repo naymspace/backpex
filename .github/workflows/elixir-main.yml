@@ -14,6 +14,10 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
 
+    # The integration tests run on the latest Elixir release in the CI workflow.
+    env:
+      INTEGRATION_TESTS: false
+
     steps:
       - name: Checkout code
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -25,13 +29,13 @@ jobs:
       - uses: erlef/setup-beam@54075bcc5e249e4758d363f27d099f55d843f124 # v1.24.1
         id: beam
         with:
-          otp-version: "29.1.1"
+          otp-version: "29.1.2"
           elixir-version: "main"
 
       - name: Setup bun
         uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
         with:
-          bun-version: "1.4.2"
+          bun-version-file: .tool-versions
 
       - name: Restore the deps and _build cache
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0

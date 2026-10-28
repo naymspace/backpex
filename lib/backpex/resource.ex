@@ -93,6 +93,13 @@ defmodule Backpex.Resource do
         Backpex.Metric.data/3 instead, see the guide on upgrading to v0.24.
         """
 
+      # Backpex no longer calls `data/2` either, `data/3` also receives the criteria.
+      function_exported?(module, :data, 2) ->
+        raise ArgumentError, """
+        #{inspect(module)} implements data/2, but Backpex calls Backpex.Metric.data/3 with the criteria of the index \
+        view. Implement data/3 instead, see the guide on upgrading to v0.24.
+        """
+
       true ->
         adapter = live_resource.config(:adapter)
 
@@ -154,6 +161,28 @@ defmodule Backpex.Resource do
     adapter = live_resource.config(:adapter)
 
     adapter.count_options(field, criteria, assigns, live_resource)
+  end
+
+  @doc """
+  Returns a term that changes whenever the options of the association field may change, or `nil` if the adapter doesn't
+  implement `c:Backpex.Adapter.options_key/3`.
+  """
+  def options_key(field, assigns, live_resource) do
+    adapter = live_resource.config(:adapter)
+
+    if Code.ensure_loaded?(adapter) and function_exported?(adapter, :options_key, 3),
+      do: adapter.options_key(field, assigns, live_resource)
+  end
+
+  @doc """
+  Returns the primitive type of the field `name` of the items, or `nil` if the adapter doesn't know it or doesn't
+  implement `c:Backpex.Adapter.field_type/2`.
+  """
+  def field_type(name, live_resource) do
+    adapter = live_resource.config(:adapter)
+
+    if Code.ensure_loaded?(adapter) and function_exported?(adapter, :field_type, 2),
+      do: adapter.field_type(name, live_resource)
   end
 
   @doc """
