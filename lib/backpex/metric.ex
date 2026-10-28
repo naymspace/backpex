@@ -21,23 +21,21 @@ defmodule Backpex.Metric do
   ## Data of your own
 
   A metric module that gets its data in another way, e.g. from a function of your context module, implements `c:data/3`.
-  Backpex then calls it instead of the adapter, with the criteria of the index view: the search under `:search`, and the
-  validated values and the configurations of the active filters under `:filter_values` and `:filter_configs`. These are
-  the criteria the adapter would compute the aggregate for.
+  Backpex then calls it instead of the adapter, with the `Backpex.Query` of the items of the index view: the items of
+  the resource after the search and the active filters, on all pages. It is the query the adapter would compute the
+  aggregate for.
 
-  The criteria don't limit the data by themselves. To get the items of the index view, after the `item_query` of
-  `Backpex.Adapters.Ecto`, the search and the filters, pass them to `Backpex.Resource.list/4` or
-  `Backpex.Resource.count/4`:
+  To get these items, read the query with `Backpex.Resource.read/1`, or count them with `Backpex.Resource.count/1`:
 
       @impl Backpex.Metric
-      def data(_metric, criteria, assigns) do
-        {:ok, items} = Backpex.Resource.list(criteria, assigns.fields, assigns, assigns.live_resource)
+      def data(_metric, query, _assigns) do
+        {:ok, items} = Backpex.Resource.read(query)
 
         items |> Enum.map(&MyApp.Orders.total/1) |> Enum.sum()
       end
 
-  A metric that reads its data elsewhere has to limit it itself, e.g. with the search string from `criteria[:search]`,
-  the values of the filters from `criteria[:filter_values]` and the current user from the assigns.
+  A metric that reads its data elsewhere has to limit it itself, e.g. with the search term of `query.search` and the
+  values of the filters and the current user from the assigns.
   """
 
   alias Phoenix.LiveView.Rendered
@@ -58,19 +56,18 @@ defmodule Backpex.Metric do
   Returns the data of the metric. Implement it to get the data in another way than with the `:aggregate` the adapter
   computes, see the [Data of your own](#module-data-of-your-own) section.
 
-  Receives the metric, the criteria of the index view (the same criteria `c:Backpex.Adapter.metric/5` gets) and the
-  assigns of the index view.
+  Receives the metric, the query of the items of the index view (see `Backpex.Query`) and the assigns of the index view.
   """
-  @callback data(metric :: map(), criteria :: keyword(), assigns :: map()) :: term()
+  @callback data(metric :: map(), query :: Backpex.Query.t(), assigns :: map()) :: term()
 
   @optional_callbacks data: 3
 
   # Backpex no longer calls `query/3` and `data/2`, so the adapter would compute other data than the metric did. Modules
   # that only declare `@behaviour Backpex.Metric` are refused when Backpex computes the metric, see
-  # `Backpex.Resource.metric/5`.
+  # `Backpex.Resource.metrics/3`.
   @removed_callbacks [
     {{:query, 3}, "metrics no longer query their data"},
-    {{:data, 2}, "Backpex calls data/3 with the criteria of the index view"}
+    {{:data, 2}, "Backpex calls data/3 with the query of the index view"}
   ]
 
   @doc false

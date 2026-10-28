@@ -9,7 +9,8 @@ defmodule Backpex.LiveResource.IndexTest do
 
   defmodule FailingAdapter do
     @moduledoc false
-    defdelegate get(primary_value, fields, assigns, live_resource), to: StubAdapter
+    defdelegate read(query), to: StubAdapter
+    defdelegate describe(path, live_resource), to: StubAdapter
 
     def change(item, attrs, _fields, _assigns, _live_resource, _opts), do: {:changeset, item, attrs}
 
@@ -53,14 +54,15 @@ defmodule Backpex.LiveResource.IndexTest do
 
   defmodule DataMetric do
     @moduledoc false
-    def data(metric, criteria, assigns) do
-      send(self(), {:metric_data, metric, criteria, assigns})
-      {:balance, criteria[:filter_values]}
+    def data(metric, query, assigns) do
+      send(self(), {:metric_data, metric, query, assigns})
+      {:balance, assigns.filter_values}
     end
   end
 
   defmodule MetricsLive do
     @moduledoc false
+    def config(:adapter), do: StubAdapter
     def config(:persist), do: []
     def adapter_config(:schema), do: nil
     def filters(_assigns), do: []
@@ -270,7 +272,7 @@ defmodule Backpex.LiveResource.IndexTest do
   end
 
   describe "handle_event/3 toggling metrics" do
-    test "gets the data of a metric that implements data/3 from the criteria and the assigns" do
+    test "gets the data of a metric that implements data/3 from the query and the assigns" do
       socket =
         socket(MetricsLive, %{id: 1}, %{
           metric_visibility: %{to_string(MetricsLive) => false},
@@ -281,8 +283,7 @@ defmodule Backpex.LiveResource.IndexTest do
       assert {:noreply, %{assigns: assigns}} = Index.handle_event("toggle_metrics", %{}, socket)
 
       assert [balance: %{data: {:balance, %{status: ["open"]}}}] = assigns.metrics
-      assert_received {:metric_data, %{label: "Balance"}, criteria, %{current_user: :user}}
-      assert criteria[:filter_values] == %{status: ["open"]}
+      assert_received {:metric_data, %{label: "Balance"}, %Backpex.Query{resource: MetricsLive}, %{current_user: :user}}
     end
 
     test "leaves out the data while the metrics are hidden" do
@@ -293,7 +294,7 @@ defmodule Backpex.LiveResource.IndexTest do
 
       assert [balance: metric] = assigns.metrics
       refute Map.has_key?(metric, :data)
-      refute_received {:metric_data, _metric, _criteria, _assigns}
+      refute_received {:metric_data, _metric, _query, _assigns}
     end
   end
 

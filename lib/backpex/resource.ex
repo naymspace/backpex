@@ -37,53 +37,140 @@ defmodule Backpex.Resource do
   the whole call raise. A `nil` entry (a stale or forged item id) raises `Backpex.NoResultsError`.
   An empty list passes without calling the adapter's authorization.
 
-  Reads (`list/4`, `get/4`, `get!/4`, `count/4`) are **not** authorized here. `:index` and `:show`
+  Reads (`read/1`, `get/4`, `get!/4`, `count/1`) are **not** authorized here. `:index` and `:show`
   remain enforced in the view layer — filtering rows after pagination would corrupt counts and
   select-all.
   """
 
   alias Backpex.Authorization
+  alias Backpex.Query
+
+  # Counts and aggregates cover all matching items, so these parts of a query don't apply.
+  @not_aggregated [:sort, :default_sort, :limit, :offset, :load, :computed]
 
   @doc """
-  Returns a list of items by given criteria.
-
-  Example criteria:
-
-  [
-    order: %{by: :item, direction: :asc},
-    pagination: %{page: 1, size: 5},
-    search: {"hello", [:title, :description]}
-  ]
+  Returns the query of the items of the resource that Backpex reads with the given fields: the items of the
+  `c:Backpex.LiveResource.scope/1` of the LiveResource, with the relationships of the association fields and the options
+  the adapter adds to the fields (see `c:Backpex.Adapter.put_field_options/2`). The `assigns` become the context of the
+  query, see `Backpex.Query`.
   """
-  def list(criteria, fields, assigns, live_resource) do
+  @spec items_query(list(), map(), module()) :: Query.t()
+  def items_query(fields, assigns, live_resource) do
+    live_resource
+    |> Query.new(%{assigns: assigns})
+    |> Query.filter(scope(live_resource, assigns))
+    |> put_fields(fields)
+  end
+
+  defp scope(live_resource, assigns) do
+    if function_exported?(live_resource, :scope, 1), do: live_resource.scope(assigns)
+  end
+
+  defp put_fields(query, fields) do
+    Enum.reduce(fields, query, fn {name, field_options} = field, query ->
+      query = if association?(field_options.module, field), do: Query.load(query, [name]), else: query
+
+      put_field_options(query, field)
+    end)
+  end
+
+  defp association?(module, field) do
+    Code.ensure_loaded?(module) and function_exported?(module, :association?, 1) and module.association?(field)
+  end
+
+  defp put_field_options(%Query{resource: live_resource} = query, field) do
     adapter = live_resource.config(:adapter)
 
-    adapter.list(criteria, fields, assigns, live_resource)
+    if Code.ensure_loaded?(adapter) and function_exported?(adapter, :put_field_options, 2),
+      do: adapter.put_field_options(query, field),
+      else: query
   end
 
   @doc """
-  Gets the total count of the current live_resource.
-  Possibly being constrained the item query and the search- and filter options.
+  Returns the items of the query, see `c:Backpex.Adapter.read/1`. An invalid query returns no items.
   """
-  def count(criteria, fields, assigns, live_resource) do
+  @spec read(Query.t()) :: {:ok, list()} | {:error, term()}
+  def read(%Query{valid?: false}), do: {:ok, []}
+
+  def read(%Query{resource: live_resource} = query) do
     adapter = live_resource.config(:adapter)
 
-    adapter.count(criteria, fields, assigns, live_resource)
+    adapter.read(query)
   end
 
   @doc """
-  Returns the data of the given metric for the items matching the given criteria. Takes the same criteria as
-  `count/4`.
-
-  Calls `c:Backpex.Metric.data/3` with the criteria if the module of the metric implements it, and the adapter
-  otherwise.
+  Returns the items of many queries at once, e.g. the options of an association field for every row of the index view.
+  Takes a map of keys to queries and returns a map of the same keys to the items. Equal queries are read only once, see
+  `Backpex.Query.key/1`.
   """
-  def metric(%{module: module} = metric, criteria, fields, assigns, live_resource) do
+  @spec read_by_key(%{term() => Query.t()}) :: {:ok, %{term() => list()}}
+  def read_by_key(queries_by_key) when is_map(queries_by_key) do
+    items_by_query =
+      queries_by_key
+      |> Map.values()
+      |> Enum.uniq_by(&Query.key/1)
+      |> Map.new(fn query ->
+        {:ok, items} = read(query)
+        {Query.key(query), items}
+      end)
+
+    {:ok, Map.new(queries_by_key, fn {key, query} -> {key, Map.fetch!(items_by_query, Query.key(query))} end)}
+  end
+
+  @doc """
+  Returns the number of items the query matches, see `c:Backpex.Adapter.count/1`. Ignores the sorts, the limit, the
+  offset and the relationships to load. An invalid query matches no items.
+  """
+  @spec count(Query.t()) :: {:ok, non_neg_integer()} | {:error, term()}
+  def count(%Query{valid?: false}), do: {:ok, 0}
+
+  def count(%Query{resource: live_resource} = query) do
+    adapter = live_resource.config(:adapter)
+
+    query |> Query.unset(@not_aggregated) |> adapter.count()
+  end
+
+  @doc """
+  Returns the values of the aggregates of the query, see `c:Backpex.Adapter.aggregate/1`. Ignores the sorts, the limit,
+  the offset and the relationships to load.
+  """
+  @spec aggregate(Query.t()) :: {:ok, %{atom() => term()}} | {:error, term()}
+  def aggregate(%Query{aggregates: []}), do: {:ok, %{}}
+  def aggregate(%Query{valid?: false, aggregates: aggregates}), do: {:ok, Map.new(aggregates, &{&1.name, nil})}
+
+  def aggregate(%Query{resource: live_resource} = query) do
+    adapter = live_resource.config(:adapter)
+
+    query |> Query.unset(@not_aggregated) |> adapter.aggregate()
+  end
+
+  @doc """
+  Returns a map of the keys of the metrics to their data for the items of the query, e.g. the query of the index view.
+
+  Calls `c:Backpex.Metric.data/3` with the query if the module of a metric implements it. The aggregates of the other
+  metrics are computed by the adapter in one call of `c:Backpex.Adapter.aggregate/1`.
+  """
+  @spec metrics(keyword(), Query.t(), map()) :: %{atom() => term()}
+  def metrics(metrics, %Query{resource: live_resource} = query, assigns) do
+    query = Query.unset(query, [:aggregates | @not_aggregated])
+    {own, aggregated} = Enum.split_with(metrics, fn {_key, %{module: module}} -> own_data?(module) end)
+
+    {:ok, data} =
+      aggregated
+      |> Enum.reduce(query, fn {key, metric}, query ->
+        Query.aggregate(query, key, metric_aggregate(metric, live_resource), where: Map.get(metric, :where))
+      end)
+      |> aggregate()
+
+    Enum.reduce(own, data, fn {key, metric}, data -> Map.put(data, key, metric.module.data(metric, query, assigns)) end)
+  end
+
+  defp own_data?(module) do
     Code.ensure_loaded(module)
 
     cond do
       function_exported?(module, :data, 3) ->
-        {:ok, module.data(metric, criteria, assigns)}
+        true
 
       # Backpex no longer calls `query/3`, so the adapter would compute other data than the metric did. `use BackpexWeb,
       # :metric` refuses this at compile time, this covers modules that only declare `@behaviour Backpex.Metric`.
@@ -93,18 +180,26 @@ defmodule Backpex.Resource do
         Backpex.Metric.data/3 instead, see the guide on upgrading to v0.24.
         """
 
-      # Backpex no longer calls `data/2` either, `data/3` also receives the criteria.
+      # Backpex no longer calls `data/2` either, `data/3` also receives the query.
       function_exported?(module, :data, 2) ->
         raise ArgumentError, """
-        #{inspect(module)} implements data/2, but Backpex calls Backpex.Metric.data/3 with the criteria of the index \
+        #{inspect(module)} implements data/2, but Backpex calls Backpex.Metric.data/3 with the query of the index \
         view. Implement data/3 instead, see the guide on upgrading to v0.24.
         """
 
       true ->
-        adapter = live_resource.config(:adapter)
-
-        adapter.metric(metric, criteria, fields, assigns, live_resource)
+        false
     end
+  end
+
+  # `Backpex.Adapters.Ecto` takes a `:select` expression instead of an aggregate, see `Backpex.Metric`.
+  defp metric_aggregate(%{aggregate: aggregate}, _live_resource), do: aggregate
+
+  defp metric_aggregate(%{select: select}, live_resource),
+    do: live_resource.config(:adapter) |> Backpex.Expr.native(select)
+
+  defp metric_aggregate(metric, _live_resource) do
+    raise ArgumentError, "expected the metric to have an :aggregate option, got: #{inspect(metric)}"
   end
 
   @doc """
@@ -145,52 +240,83 @@ defmodule Backpex.Resource do
   end
 
   @doc """
-  Returns the items that can be selected as the value of an association field. See
-  `c:Backpex.Adapter.list_options/4` for the criteria.
+  Returns the query of the items that can be selected as the value of the association field `field`, e.g. the options
+  of the select of a `Backpex.Fields.BelongsTo` field: the related items (`:from` is the name of the field) that match
+  the `:options_filter` of the field, with the options the adapter adds to the field (e.g. the `:options_query` of
+  `Backpex.Adapters.Ecto`).
+
+  Limit the options further with `Backpex.Query`, e.g. with `Backpex.Query.primary_in/2` or `Backpex.Query.search/3`,
+  and read them with `read/1`.
   """
+  @spec options_query({atom(), map()}, map(), module()) :: Query.t()
+  def options_query({name, field_options} = field, assigns, live_resource) do
+    live_resource
+    |> Query.new(%{assigns: assigns})
+    |> Query.from([name])
+    |> Query.filter(options_filter(field_options, assigns))
+    |> put_field_options(field)
+  end
+
+  defp options_filter(%{options_filter: options_filter}, assigns) when is_function(options_filter, 1),
+    do: options_filter.(assigns)
+
+  defp options_filter(field_options, _assigns), do: Map.get(field_options, :options_filter)
+
+  @doc """
+  Returns the items of `options_query/3`, limited by these criteria:
+
+    * `:ids` - only the items with these primary values. Values that are no valid primary value are ignored.
+    * `:search` - only the items whose display field contains this string, ignoring the case. Ignored if it is `nil`.
+    * `:offset` and `:limit` - skip and limit the items.
+  """
+  @spec list_options({atom(), map()}, keyword(), map(), module()) :: {:ok, list()} | {:error, term()}
   def list_options(field, criteria, assigns, live_resource) do
-    adapter = live_resource.config(:adapter)
-
-    adapter.list_options(field, criteria, assigns, live_resource)
+    field
+    |> options_query(assigns, live_resource)
+    |> options_criteria(field, criteria)
+    |> read()
   end
 
   @doc """
-  Same as `list_options/4` for many assigns at once. Takes a map of keys to assigns and returns a map of the same keys
-  to the items. See `c:Backpex.Adapter.list_options_by_key/4`.
+  Same as `list_options/4` for many assigns at once, e.g. for the index form of a `Backpex.Fields.BelongsTo` field in
+  every row of the index view. Takes a map of keys to assigns and returns a map of the same keys to the items. Equal
+  queries are read only once, see `read_by_key/1`.
   """
+  @spec list_options_by_key({atom(), map()}, keyword(), map(), module()) :: {:ok, map()}
   def list_options_by_key(field, criteria, assigns_by_key, live_resource) do
-    adapter = live_resource.config(:adapter)
-
-    if Code.ensure_loaded?(adapter) and function_exported?(adapter, :list_options_by_key, 4) do
-      adapter.list_options_by_key(field, criteria, assigns_by_key, live_resource)
-    else
-      {:ok,
-       Map.new(assigns_by_key, fn {key, assigns} ->
-         {:ok, items} = adapter.list_options(field, criteria, assigns, live_resource)
-         {key, items}
-       end)}
-    end
+    assigns_by_key
+    |> Map.new(fn {key, assigns} ->
+      {key, field |> options_query(assigns, live_resource) |> options_criteria(field, criteria)}
+    end)
+    |> read_by_key()
   end
 
   @doc """
-  Returns the number of items `list_options/4` returns for the given criteria, ignoring `:offset` and `:limit`.
+  Returns the number of items `list_options/4` returns for the criteria, ignoring `:offset` and `:limit`.
   """
+  @spec count_options({atom(), map()}, keyword(), map(), module()) :: {:ok, non_neg_integer()} | {:error, term()}
   def count_options(field, criteria, assigns, live_resource) do
-    adapter = live_resource.config(:adapter)
+    field
+    |> options_query(assigns, live_resource)
+    |> options_criteria(field, Keyword.drop(criteria, [:offset, :limit]))
+    |> count()
+  end
 
-    adapter.count_options(field, criteria, assigns, live_resource)
+  defp options_criteria(query, {_name, field_options}, criteria) do
+    Enum.reduce(criteria, query, fn
+      {:ids, ids}, query -> Query.primary_in(query, ids)
+      {:search, search}, query -> Query.search(query, search, List.wrap(field_options[:display_field]))
+      {:offset, offset}, query -> Query.offset(query, offset)
+      {:limit, limit}, query -> Query.limit(query, limit)
+    end)
   end
 
   @doc """
-  Returns a term that changes whenever the options of the association field may change, or `nil` if the adapter doesn't
-  implement `c:Backpex.Adapter.options_key/3`.
+  Returns a term that changes whenever the options of the association field may change, e.g. when its
+  `:options_filter` depends on a value of the form. It is the key of its `options_query/3`, see `Backpex.Query.key/1`.
   """
-  def options_key(field, assigns, live_resource) do
-    adapter = live_resource.config(:adapter)
-
-    if Code.ensure_loaded?(adapter) and function_exported?(adapter, :options_key, 3),
-      do: adapter.options_key(field, assigns, live_resource)
-  end
+  @spec options_key({atom(), map()}, map(), module()) :: map()
+  def options_key(field, assigns, live_resource), do: field |> options_query(assigns, live_resource) |> Query.key()
 
   @doc """
   Returns the primitive type of the field `name` of the items from the description of the resource, e.g. `:integer` or
@@ -215,9 +341,17 @@ defmodule Backpex.Resource do
   * `live_resource` (module): The `Backpex.LiveResource` module.
   """
   def get(primary_value, fields, assigns, live_resource) do
-    adapter = live_resource.config(:adapter)
+    query =
+      fields
+      |> items_query(assigns, live_resource)
+      |> Query.primary(primary_value)
+      |> Query.limit(1)
 
-    adapter.get(primary_value, fields, assigns, live_resource)
+    case read(query) do
+      {:ok, [item | _rest]} -> {:ok, item}
+      {:ok, []} -> {:ok, nil}
+      error -> error
+    end
   end
 
   @doc """

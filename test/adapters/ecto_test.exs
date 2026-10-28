@@ -7,6 +7,8 @@ defmodule Backpex.Adapters.EctoTest do
   alias Backpex.Adapters.Ecto, as: EctoAdapter
   alias Backpex.Expr
   alias Backpex.Metrics.Value
+  alias Backpex.Query
+  alias Backpex.Resource
 
   defmodule TestUser do
     use Ecto.Schema
@@ -67,14 +69,53 @@ defmodule Backpex.Adapters.EctoTest do
     end
   end
 
+  defmodule FakeLiveResource do
+    @moduledoc false
+    # Defines the `config/1` and `adapter_config/1` of a LiveResource of the `:schema` that reads with the `FakeRepo`.
+    # Takes the `:full_text_search` and an overridable `item_query/3`.
+    defmacro __using__(opts) do
+      quote do
+        @schema Keyword.fetch!(unquote(opts), :schema)
+        @full_text_search Keyword.get(unquote(opts), :full_text_search)
+
+        def config(:primary_key), do: :id
+        def config(:full_text_search), do: @full_text_search
+        def config(:order_nulls), do: nil
+        def config(:adapter), do: Backpex.Adapters.Ecto
+        def adapter_config(:schema), do: @schema
+        def adapter_config(:repo), do: Backpex.Adapters.EctoTest.FakeRepo
+        def adapter_config(:item_query), do: &__MODULE__.item_query/3
+
+        def item_query(query, _live_action, _assigns), do: query
+
+        defoverridable item_query: 3
+      end
+    end
+  end
+
   defmodule PostLive do
     @moduledoc false
-    def config(:primary_key), do: :id
-    def config(:full_text_search), do: nil
-    def config(:adapter), do: EctoAdapter
-    def adapter_config(:schema), do: TestPost
-    def adapter_config(:repo), do: FakeRepo
-    def adapter_config(:item_query), do: &EctoAdapter.default_item_query/3
+    use FakeLiveResource, schema: Backpex.Adapters.EctoTest.TestPost
+  end
+
+  defmodule UserLive do
+    @moduledoc false
+    use FakeLiveResource, schema: Backpex.Adapters.EctoTest.TestUser
+  end
+
+  defmodule FullTextUserLive do
+    @moduledoc false
+    use FakeLiveResource, schema: Backpex.Adapters.EctoTest.TestUser, full_text_search: :title
+  end
+
+  defmodule TotalsUserLive do
+    @moduledoc false
+    use FakeLiveResource, schema: Backpex.Adapters.EctoTest.TestUser
+
+    # Joins a table that the schema of the resource doesn't describe.
+    def item_query(query, _live_action, _assigns) do
+      join(query, :left, [testuser: u], t in "totals", as: :totals, on: t.user_id == u.id)
+    end
   end
 
   defmodule TestFilter do
@@ -119,33 +160,12 @@ defmodule Backpex.Adapters.EctoTest do
     def render_form(assigns), do: assigns
   end
 
-  defmodule ConditionFilter do
-    @moduledoc false
-    # Returns its value as the condition.
-    use Backpex.Filter
+  # The query of the resource without search, filters, sorts and pagination.
+  defp base_query(schema \\ TestUser), do: from(schema, as: ^EctoAdapter.name_by_schema(schema))
 
-    @impl Backpex.Filter
-    def label, do: "Condition"
-
-    @impl Backpex.Filter
-    def condition(_field, condition, _assigns), do: condition
-
-    @impl Backpex.Filter
-    def render(assigns), do: assigns
-
-    @impl Backpex.Filter
-    def render_form(assigns), do: assigns
-  end
-
-  describe "apply_search/4 (without full text search configured)" do
+  describe "read/1 search (without full text search configured)" do
     test "adds ilike condition for one field" do
-      base_query = from(TestUser, as: ^EctoAdapter.name_by_schema(TestUser))
-
-      searchable_fields = [
-        {:title, %{module: Backpex.Fields.Text}}
-      ]
-
-      query = EctoAdapter.apply_search(base_query, TestUser, nil, {"foo", searchable_fields})
+      query = search_query("foo", title: %{module: Backpex.Fields.Text})
 
       assert [%{expr: ilike_expr}] = query.wheres
       assert match?({:ilike, _, _}, ilike_expr)
@@ -155,14 +175,7 @@ defmodule Backpex.Adapters.EctoTest do
     end
 
     test "chains ilike conditions with OR for multiple fields" do
-      base_query = from(TestUser, as: ^EctoAdapter.name_by_schema(TestUser))
-
-      searchable_fields = [
-        {:title, %{module: Backpex.Fields.Text}},
-        {:name, %{module: Backpex.Fields.Text}}
-      ]
-
-      query = EctoAdapter.apply_search(base_query, TestUser, nil, {"bar", searchable_fields})
+      query = search_query("bar", title: %{module: Backpex.Fields.Text}, name: %{module: Backpex.Fields.Text})
 
       assert [%{expr: or_expr}] = query.wheres
       assert match?({:or, _, _}, or_expr)
@@ -173,35 +186,17 @@ defmodule Backpex.Adapters.EctoTest do
     end
 
     test "returns original query when no searchable fields provided" do
-      base_query = from(TestUser, as: ^EctoAdapter.name_by_schema(TestUser))
-
-      query = EctoAdapter.apply_search(base_query, TestUser, nil, {"baz", []})
-
-      assert query == base_query
+      assert search_query("baz", []) == base_query()
     end
 
     test "returns original query when empty search string provided" do
-      base_query = from(TestUser, as: ^EctoAdapter.name_by_schema(TestUser))
-
-      searchable_fields = [
-        {:title, %{module: Backpex.Fields.Text}}
-      ]
-
-      query = EctoAdapter.apply_search(base_query, TestUser, nil, {"", searchable_fields})
-
-      assert query == base_query
+      assert search_query("", title: %{module: Backpex.Fields.Text}) == base_query()
     end
 
     test "uses provided select expression for ilike" do
-      base_query = from(TestUser, as: ^EctoAdapter.name_by_schema(TestUser))
-
       select_expr = dynamic([testuser: u], fragment("UPPER(?)", field(u, ^:name)))
 
-      searchable_fields = [
-        {:name_display, %{module: Backpex.Fields.Text, select: select_expr}}
-      ]
-
-      query = EctoAdapter.apply_search(base_query, TestUser, nil, {"qux", searchable_fields})
+      query = search_query("qux", name_display: %{module: Backpex.Fields.Text, select: select_expr})
 
       assert [%{expr: ilike_expr}] = query.wheres
       assert match?({:ilike, _, _}, ilike_expr)
@@ -212,27 +207,19 @@ defmodule Backpex.Adapters.EctoTest do
     end
 
     test "casts a column that is not a string to text" do
-      base_query = from(TestUser, as: ^EctoAdapter.name_by_schema(TestUser))
-      searchable_fields = [{:age, %{module: Backpex.Fields.Number}}]
-
-      query = EctoAdapter.apply_search(base_query, TestUser, nil, {"42", searchable_fields})
+      query = search_query("42", age: %{module: Backpex.Fields.Number})
 
       assert [%{expr: {:ilike, _meta, [{:fragment, _fragment_meta, parts}, _search]}}] = query.wheres
       assert [raw: "CAST(", expr: _column, raw: " AS TEXT)"] = parts
     end
 
     test "casts a column of unknown type to text" do
-      base_query =
-        TestUser
-        |> from(as: ^EctoAdapter.name_by_schema(TestUser))
-        |> join(:left, [testuser: u], t in "totals", as: :totals, on: t.user_id == u.id)
-
       # `age` of the custom alias may have another type than `age` of the resource, `total` is no column of it.
       for field <- [
             {:age, %{module: Backpex.Fields.Text, custom_alias: :totals}},
             {:total, %{module: Backpex.Fields.Text}}
           ] do
-        query = EctoAdapter.apply_search(base_query, TestUser, nil, {"42", [field]})
+        query = search_query("42", [field], TotalsUserLive)
 
         assert [%{expr: {:ilike, _meta, [{:fragment, _fragment_meta, parts}, _search]}}] = query.wheres
         assert [raw: "CAST(", expr: _column, raw: " AS TEXT)"] = parts
@@ -244,46 +231,34 @@ defmodule Backpex.Adapters.EctoTest do
         @moduledoc false
         def association?(_field), do: false
 
+        def display_field({name, _field_options}), do: name
+
         def search_condition(schema_name, field_name, search_string) do
           dynamic([{^schema_name, s}], field(s, ^field_name) == ^String.trim(search_string, "%"))
         end
       end
 
-      base_query = from(TestUser, as: ^EctoAdapter.name_by_schema(TestUser))
-      searchable_fields = [{:name, %{module: ExactSearchField}}]
-
-      query = EctoAdapter.apply_search(base_query, TestUser, nil, {"Ann", searchable_fields})
+      query = search_query("Ann", name: %{module: ExactSearchField})
 
       assert [%{expr: {:==, _meta, _args}, params: [{"Ann", _type}]}] = query.wheres
     end
 
     test "searches the display field of an association field on the binding of the association" do
-      searchable_fields = [{:user, %{module: Backpex.Fields.BelongsTo, display_field: :name}}]
+      query = search_query("Ann", [user: %{module: Backpex.Fields.BelongsTo, display_field: :name}], PostLive)
 
-      query =
-        TestPost
-        |> from(as: :testpost)
-        |> join(:left, [testpost: p], u in TestUser, as: :testuser, on: u.id == p.user_id)
-        |> EctoAdapter.apply_search(TestPost, nil, {"Ann", searchable_fields})
-
+      assert [%{as: :testuser}] = query.joins
       assert [%{expr: {:ilike, _meta, [column, _search]}}] = query.wheres
       assert Macro.to_string(column) == "&1.name()"
     end
   end
 
-  describe "apply_search/4 (with full text search configured)" do
+  describe "read/1 search (with full text search configured)" do
     test "returns original query on empty search string" do
-      base_query = from(TestUser)
-
-      query = EctoAdapter.apply_search(base_query, TestUser, :title, {"", []})
-
-      assert query == base_query
+      assert search_query("", [], FullTextUserLive) == base_query()
     end
 
     test "adds tsquery fragment for non-empty search string" do
-      base_query = from(TestUser, as: ^EctoAdapter.name_by_schema(TestUser))
-
-      query = EctoAdapter.apply_search(base_query, TestUser, :title, {"hello world", []})
+      query = search_query("hello world", [], FullTextUserLive)
 
       assert [%{expr: fragment_expr}] = query.wheres
       assert match?({:fragment, _, _}, fragment_expr)
@@ -295,16 +270,18 @@ defmodule Backpex.Adapters.EctoTest do
     end
   end
 
-  describe "apply_criteria/4 ordering" do
-    defp order_query(order, fields \\ [{:name, %{module: Backpex.Fields.Text}}]) do
-      TestUser
-      |> from(as: ^EctoAdapter.name_by_schema(TestUser))
-      |> EctoAdapter.apply_criteria([order: order], fields, TestUser)
-    end
+  # Searches the fields like the index view, see `Backpex.LiveResource.filter_query/2`.
+  defp search_query(search, fields, live_resource \\ UserLive) do
+    fields
+    |> Backpex.Resource.items_query(%{live_action: :index}, live_resource)
+    |> Query.search(search, Enum.map(fields, &Backpex.LiveResource.field_ref/1))
+    |> EctoAdapter.ecto_query()
+  end
 
+  describe "read/1 sorting" do
     test "uses the database default for NULL values without a nulls option" do
       for direction <- [:asc, :desc] do
-        query = order_query(%{by: :name, direction: direction, field_name: :name})
+        query = index_query([name: %{module: Backpex.Fields.Text}], order_by: :name, order_direction: direction)
 
         assert %{order_bys: [%{expr: [{^direction, order_expression}]}]} = query
         assert Macro.to_string(order_expression) =~ "name"
@@ -324,7 +301,8 @@ defmodule Backpex.Adapters.EctoTest do
       ]
 
       for {nulls, direction, expected_direction} <- expected do
-        query = order_query(%{by: :name, direction: direction, field_name: :name, nulls: nulls})
+        fields = [name: %{module: Backpex.Fields.Text, order_nulls: nulls}]
+        query = index_query(fields, order_by: :name, order_direction: direction)
 
         assert %{order_bys: [%{expr: [{^expected_direction, _order_expression}]}]} = query
       end
@@ -332,10 +310,9 @@ defmodule Backpex.Adapters.EctoTest do
 
     test "applies ordering with custom select expression" do
       select_expr = dynamic([testuser: u], fragment("UPPER(?)", field(u, ^:name)))
-      fields = [{:name, %{module: Backpex.Fields.Text, select: select_expr}}]
+      fields = [name: %{module: Backpex.Fields.Text, select: select_expr, order_nulls: :first}]
 
-      query =
-        order_query(%{by: :name, direction: :asc, field_name: :name, nulls: :first}, fields)
+      query = index_query(fields, order_by: :name, order_direction: :asc)
 
       assert %{order_bys: [%{expr: [{:asc_nulls_first, order_expression}]}]} = query
 
@@ -346,31 +323,20 @@ defmodule Backpex.Adapters.EctoTest do
 
     test "orders an association field by its display_field on its custom alias" do
       fields = [
-        {:author, %{module: Backpex.Fields.BelongsTo, display_field: :name, custom_alias: :author}}
+        user: %{module: Backpex.Fields.BelongsTo, display_field: :name, custom_alias: :author, order_nulls: :last}
       ]
 
-      query =
-        TestUser
-        |> from(as: ^EctoAdapter.name_by_schema(TestUser))
-        |> join(:left, [testuser: u], a in TestUser, as: :author, on: a.id == u.id)
-        |> EctoAdapter.apply_criteria(
-          [order: %{by: :name, direction: :desc, field_name: :author, nulls: :last}],
-          fields,
-          TestUser
-        )
+      query = index_query(fields, [order_by: :user, order_direction: :desc], PostLive)
 
+      assert [%{as: :author}] = query.joins
       assert %{order_bys: [%{expr: [{:desc_nulls_last, order_expression}]}]} = query
       assert Macro.to_string(order_expression) == "&1.name()"
     end
 
     test "orders an association field by its display_field on the binding of the association" do
-      fields = [{:user, %{module: Backpex.Fields.BelongsTo, display_field: :name}}]
+      fields = [user: %{module: Backpex.Fields.BelongsTo, display_field: :name}]
 
-      query =
-        TestPost
-        |> from(as: :testpost)
-        |> join(:left, [testpost: p], u in TestUser, as: :testuser, on: u.id == p.user_id)
-        |> EctoAdapter.apply_criteria([order: %{by: :name, direction: :asc, field_name: :user}], fields, TestPost)
+      query = index_query(fields, [order_by: :user, order_direction: :asc], PostLive)
 
       assert %{order_bys: [%{expr: [{:asc, order_expression}]}]} = query
       assert Macro.to_string(order_expression) == "&1.name()"
@@ -379,71 +345,53 @@ defmodule Backpex.Adapters.EctoTest do
     test "applies order by a column that is not a declared field" do
       # :id is not among the declared fields, which is the case for the default
       # init_order of %{by: :id, direction: :asc} on virtually every live resource.
-      query = order_query(%{by: :id, direction: :asc, field_name: nil, nulls: :default})
+      query = index_query([name: %{module: Backpex.Fields.Text}], order_by: :id, order_direction: :asc)
 
       assert %{order_bys: [%{expr: [{:asc, order_expression}]}]} = query
       assert Macro.to_string(order_expression) =~ "id"
     end
 
     test "ignores the nulls option for the primary key" do
-      fields = [{:id, %{module: Backpex.Fields.Text}}]
+      fields = [id: %{module: Backpex.Fields.Text, order_nulls: :last}]
 
-      assert %{order_bys: [%{expr: [{:desc, _id}]}]} =
-               order_query(%{by: :id, direction: :desc, field_name: :id, nulls: :last}, fields)
-
-      assert %{order_bys: [%{expr: [{:asc, _id}]}]} =
-               order_query(%{by: :id, direction: :asc, field_name: nil, nulls: :first})
+      assert %{order_bys: [%{expr: [{:desc, _id}]}]} = index_query(fields, order_by: :id, order_direction: :desc)
+      assert %{order_bys: [%{expr: [{:asc, _id}]}]} = sort_query(id: :asc_nulls_first)
     end
 
     test "applies the nulls option to a field with a select expression named like the primary key" do
       select = dynamic([testuser: u], fragment("upper(?)", u.name))
-      fields = [{:id, %{module: Backpex.Fields.Text, select: select}}]
+      fields = [id: %{module: Backpex.Fields.Text, select: select, order_nulls: :first}]
 
       assert %{order_bys: [%{expr: [{:asc_nulls_first, _select}]}]} =
-               order_query(%{by: :id, direction: :asc, field_name: :id, nulls: :first}, fields)
+               index_query(fields, order_by: :id, order_direction: :asc)
     end
 
     test "applies the nulls option to the primary key of an association" do
-      fields = [{:user, %{module: Backpex.Fields.BelongsTo, display_field: :id}}]
+      fields = [user: %{module: Backpex.Fields.BelongsTo, display_field: :id, order_nulls: :first}]
 
-      query =
-        TestPost
-        |> from(as: :testpost)
-        |> join(:left, [testpost: p], u in TestUser, as: :testuser, on: u.id == p.user_id)
-        |> EctoAdapter.apply_criteria(
-          [order: %{by: :id, direction: :asc, field_name: :user, nulls: :first}],
-          fields,
-          TestPost
-        )
+      query = index_query(fields, [order_by: :user, order_direction: :asc], PostLive)
 
       assert %{order_bys: [%{expr: [{:asc_nulls_first, order_expression}]}]} = query
       assert Macro.to_string(order_expression) == "&1.id()"
     end
 
-    test "raises when the order criteria is malformed instead of silently dropping the order" do
-      base_query = from(TestUser, as: ^EctoAdapter.name_by_schema(TestUser))
-
-      criteria = [
-        order: %{by: :id}
-      ]
-
-      assert_raise ArgumentError, ~r/expected order criteria to be a map with the keys :by and :direction/, fn ->
-        EctoAdapter.apply_criteria(base_query, criteria, [], TestUser)
+    test "raises when the sort is malformed instead of silently dropping the sort" do
+      assert_raise ArgumentError, ~r/expected a field and a direction such as {:title, :asc}, got: :id/, fn ->
+        sort_query([:id])
       end
+    end
+
+    test "applies the sorts of the query instead of its default sorts" do
+      assert %{order_bys: [%{expr: [{:desc, name}]}]} =
+               UserLive |> Query.new() |> Query.default_sort(id: :asc) |> Query.sort(name: :desc) |> ecto_query()
+
+      assert Macro.to_string(name) == "&0.name()"
     end
   end
 
-  describe "apply_criteria/4 pagination" do
+  describe "read/1 pagination" do
     test "applies limit and offset from pagination" do
-      base_query = from(TestUser, as: ^EctoAdapter.name_by_schema(TestUser))
-
-      fields = []
-
-      criteria = [
-        pagination: %{page: 3, size: 10}
-      ]
-
-      query = EctoAdapter.apply_criteria(base_query, criteria, fields, TestUser)
+      query = index_query([], page: 3, per_page: 10)
 
       # Limit and offset are stored as pinned params
       assert %{limit: %{params: [{10, :integer}]}} = query
@@ -451,75 +399,52 @@ defmodule Backpex.Adapters.EctoTest do
     end
 
     test "applies first page correctly with zero offset" do
-      base_query = from(TestUser, as: ^EctoAdapter.name_by_schema(TestUser))
-
-      fields = []
-
-      criteria = [
-        pagination: %{page: 1, size: 25}
-      ]
-
-      query = EctoAdapter.apply_criteria(base_query, criteria, fields, TestUser)
+      query = index_query([], page: 1, per_page: 25)
 
       assert %{limit: %{params: [{25, :integer}]}} = query
       assert %{offset: %{params: [{0, :integer}]}} = query
     end
 
     test "applies simple limit without pagination" do
-      base_query = from(TestUser, as: ^EctoAdapter.name_by_schema(TestUser))
-
-      fields = []
-
-      criteria = [
-        limit: 5
-      ]
-
-      query = EctoAdapter.apply_criteria(base_query, criteria, fields, TestUser)
+      query = UserLive |> Query.new() |> Query.limit(5) |> ecto_query()
 
       assert %{limit: %{params: [{5, :integer}]}} = query
       assert query.offset == nil
     end
 
-    test "returns original query for empty criteria" do
-      base_query = from(TestUser, as: ^EctoAdapter.name_by_schema(TestUser))
-
-      query = EctoAdapter.apply_criteria(base_query, [], [], TestUser)
-
-      assert query == base_query
-    end
-
-    test "ignores unknown criteria" do
-      base_query = from(TestUser, as: ^EctoAdapter.name_by_schema(TestUser))
-
-      fields = []
-
-      criteria = [
-        unknown_option: "some_value",
-        another_unknown: 123
-      ]
-
-      query = EctoAdapter.apply_criteria(base_query, criteria, fields, TestUser)
-
-      assert query == base_query
+    test "returns original query for an empty query" do
+      assert UserLive |> Query.new() |> ecto_query() == base_query()
     end
   end
 
-  describe "apply_filters/4" do
+  # The query of the index view, see `Backpex.LiveResource.index_query/1`.
+  defp index_query(fields, query_options, live_resource \\ UserLive) do
+    query_options = Map.merge(%{order_by: :id, order_direction: :asc, page: 1, per_page: 15}, Map.new(query_options))
+
+    ecto_query(
+      Backpex.LiveResource.index_query(%{
+        live_resource: live_resource,
+        live_action: :index,
+        fields: fields,
+        filters: [],
+        filter_values: %{},
+        init_order: %{by: :id, direction: :asc},
+        query_options: query_options
+      })
+    )
+  end
+
+  defp sort_query(sorts), do: UserLive |> Query.new() |> Query.sort(sorts) |> ecto_query()
+
+  defp ecto_query(query), do: EctoAdapter.ecto_query(query)
+
+  describe "read/1 filters" do
     test "returns original query when filter_values is empty" do
-      base_query = from(TestUser, as: ^EctoAdapter.name_by_schema(TestUser))
-
-      query = EctoAdapter.apply_filters(base_query, %{}, [], %{})
-
-      assert query == base_query
+      assert filter_values_query(%{}, []) == base_query()
     end
 
     test "applies single filter correctly" do
-      base_query = from(TestUser, as: ^EctoAdapter.name_by_schema(TestUser))
-
-      filter_values = %{active: true}
-      filter_configs = [active: %{module: TestFilter}]
-
-      query = EctoAdapter.apply_filters(base_query, filter_values, filter_configs, %{})
+      query = filter_values_query(%{active: true}, active: %{module: TestFilter})
 
       assert [%{expr: where_expr}] = query.wheres
       assert match?({:==, _, _}, where_expr)
@@ -529,8 +454,6 @@ defmodule Backpex.Adapters.EctoTest do
     end
 
     test "applies multiple filters with AND logic" do
-      base_query = from(TestUser, as: ^EctoAdapter.name_by_schema(TestUser))
-
       filter_values = %{
         active: true,
         age: %{"start" => 18, "end" => 65}
@@ -541,10 +464,13 @@ defmodule Backpex.Adapters.EctoTest do
         age: %{module: TestRangeFilter}
       ]
 
-      query = EctoAdapter.apply_filters(base_query, filter_values, filter_configs, %{})
+      query = filter_values_query(filter_values, filter_configs)
 
-      # Should have 2 where clauses: active == true and age >= 18 and age <= 65
-      assert length(query.wheres) == 2
+      # One where clause: active == true and (age >= 18 and age <= 65)
+      assert [%{expr: {:and, _meta, _args} = where_expr, params: params}] = query.wheres
+      assert Macro.to_string(where_expr) =~ "active"
+      assert Macro.to_string(where_expr) =~ "age"
+      assert Enum.map(params, &elem(&1, 0)) == [true, 18, 65]
     end
 
     test "passes assigns to the condition function of the filter" do
@@ -568,14 +494,10 @@ defmodule Backpex.Adapters.EctoTest do
         def can?(_assigns), do: true
       end
 
-      base_query = from(TestUser, as: ^EctoAdapter.name_by_schema(TestUser))
-
       filter_values = %{owner: "any"}
       filter_configs = [owner: %{module: AssignsCapturingFilter}]
 
-      assigns = %{user_id: 42}
-
-      query = EctoAdapter.apply_filters(base_query, filter_values, filter_configs, assigns)
+      query = filter_values_query(filter_values, filter_configs, %{user_id: 42})
 
       assert [%{expr: _where_expr, params: params}] = query.wheres
       # The params should contain the user_id from assigns
@@ -583,12 +505,7 @@ defmodule Backpex.Adapters.EctoTest do
     end
 
     test "skips filters without matching config" do
-      base_query = from(TestUser, as: ^EctoAdapter.name_by_schema(TestUser))
-
-      filter_values = %{active: true, unknown: "value"}
-      filter_configs = [active: %{module: TestFilter}]
-
-      query = EctoAdapter.apply_filters(base_query, filter_values, filter_configs, %{})
+      query = filter_values_query(%{active: true, unknown: "value"}, active: %{module: TestFilter})
 
       # Only one filter applied (active), unknown is skipped
       assert [%{expr: where_expr}] = query.wheres
@@ -629,8 +546,8 @@ defmodule Backpex.Adapters.EctoTest do
     end
 
     test "casts the values of an expression to the type of the field" do
-      assert [%{params: [{"42", {0, :age}}]}] = filter_query(expr(age == "42")).wheres
-      assert [%{params: [{["1", "2"], {:in, {0, :age}}}]}] = filter_query(expr(age in ["1", "2"])).wheres
+      assert [%{params: [{42, {0, :age}}]}] = filter_query(expr(age == "42")).wheres
+      assert [%{params: [{[1, 2], {:in, {0, :age}}}]}] = filter_query(expr(age in ["1", "2"])).wheres
     end
 
     test "takes native Ecto dynamic expressions" do
@@ -658,24 +575,19 @@ defmodule Backpex.Adapters.EctoTest do
                      filter_query({:==, :name, "A"})
                    end
 
-      assert_raise ArgumentError, ~r/Wrap it with Backpex.Expr.native\(Backpex.Adapters.Ecto, dynamic/, fn ->
-        filter_query(dynamic([testuser: u], u.age > 18))
-      end
-
       assert_raise ArgumentError, ~r/unsupported expression/, fn ->
         filter_query(%Expr.Call{name: :like, args: [Expr.ref(:name), "A%"]})
       end
     end
 
+    test "raises with a hint to wrap an Ecto dynamic expression" do
+      assert_raise ArgumentError, ~r/Backpex.Expr.native\(Backpex.Adapters.Ecto, dynamic/, fn ->
+        filter_query(dynamic([testuser: u], u.age > 18))
+      end
+    end
+
     test "keeps the items with a matching associated item through a subquery, without a join" do
-      query =
-        TestPost
-        |> from(as: :testpost)
-        |> EctoAdapter.apply_filters(
-          %{tags: expr(exists(tags, id in [1, 2]))},
-          [tags: %{module: ConditionFilter}],
-          %{}
-        )
+      query = filter_query(expr(exists(tags, id in [1, 2])), PostLive)
 
       assert %{joins: [], distinct: nil, wheres: [where]} = query
       assert %{expr: {:in, _meta, [_id, {:subquery, 0}]}, subqueries: [%Ecto.SubQuery{query: subquery}]} = where
@@ -683,20 +595,32 @@ defmodule Backpex.Adapters.EctoTest do
     end
 
     test "joins the relationships of a path to one item" do
-      query =
-        TestPost
-        |> from(as: :testpost)
-        |> EctoAdapter.apply_filters(%{user: expr(user.name == "Ann")}, [user: %{module: ConditionFilter}], %{})
+      query = filter_query(expr(user.name == "Ann"), PostLive)
 
       assert [%{as: :backpex_user, qual: :left}] = query.joins
       assert [%{expr: expr, params: [{"Ann", {1, :name}}]}] = query.wheres
       assert Macro.to_string(expr) == "&1.name() == ^0"
     end
 
-    defp filter_query(condition) do
-      TestUser
-      |> from(as: ^EctoAdapter.name_by_schema(TestUser))
-      |> EctoAdapter.apply_filters(%{condition: condition}, [condition: %{module: ConditionFilter}], %{})
+    defp filter_query(condition, live_resource \\ UserLive) do
+      live_resource |> Query.new() |> Query.filter(condition) |> ecto_query()
+    end
+
+    # Applies the filter values like the index view, see `Backpex.LiveResource.filter_query/2`.
+    defp filter_values_query(filter_values, filters, assigns \\ %{}) do
+      assigns =
+        Map.merge(assigns, %{
+          live_resource: UserLive,
+          fields: [],
+          filters: filters,
+          filter_values: filter_values,
+          query_options: %{}
+        })
+
+      UserLive
+      |> Query.new(%{assigns: assigns})
+      |> Backpex.LiveResource.filter_query(assigns)
+      |> ecto_query()
     end
   end
 
@@ -733,7 +657,7 @@ defmodule Backpex.Adapters.EctoTest do
     end
   end
 
-  describe "list_options/4" do
+  describe "options" do
     @user_field {:user, %{module: Backpex.Fields.BelongsTo, display_field: :name}}
 
     test "lists the associated items with the options query of the field" do
@@ -741,14 +665,14 @@ defmodule Backpex.Adapters.EctoTest do
       options_query = fn query, assigns -> where(query, [u], u.age > ^assigns.min_age) end
       field = {:user, %{module: Backpex.Fields.BelongsTo, display_field: :name, options_query: options_query}}
 
-      assert EctoAdapter.list_options(field, [], %{min_age: 18}, PostLive) == {:ok, [%TestUser{id: 1}]}
+      assert Resource.list_options(field, [], %{min_age: 18}, PostLive) == {:ok, [%TestUser{id: 1}]}
 
       assert_received {:repo, :all, query}
       assert %{from: %{source: {"users", TestUser}, as: nil}, wheres: [%{params: [{18, _type}]}]} = query
     end
 
     test "lists the items with the given ids and ignores invalid ids" do
-      EctoAdapter.list_options(@user_field, [ids: ["1", 2, "invalid", %{"id" => "3"}]], %{}, PostLive)
+      Resource.list_options(@user_field, [ids: ["1", 2, "invalid", %{"id" => "3"}]], %{}, PostLive)
 
       assert_received {:repo, :all, %{wheres: [%{params: [{[1, 2], _type}]}]}}
     end
@@ -773,14 +697,13 @@ defmodule Backpex.Adapters.EctoTest do
 
       defmodule CommentLive do
         @moduledoc false
-        def adapter_config(:schema), do: TestComment
-        def adapter_config(:repo), do: FakeRepo
+        use FakeLiveResource, schema: Backpex.Adapters.EctoTest.TestComment
       end
 
       uuid = "5b0a3b7e-0c3d-4b5e-9a3f-2f1d0c6e8a91"
       field = {:author, %{module: Backpex.Fields.BelongsTo, display_field: :name}}
 
-      EctoAdapter.list_options(field, [ids: [uuid, 1]], %{}, CommentLive)
+      Resource.list_options(field, [ids: [uuid, 1, "invalid"]], %{}, CommentLive)
 
       assert_received {:repo, :all, %{wheres: [%{expr: expr, params: [{[^uuid], _type}]}]}}
       assert Macro.to_string(expr) =~ "&0.uuid()"
@@ -793,18 +716,19 @@ defmodule Backpex.Adapters.EctoTest do
           ] do
         field = {:user, %{module: Backpex.Fields.BelongsTo, display_field: :name, options_query: options_query}}
 
-        EctoAdapter.list_options(field, [ids: ["1"]], %{}, PostLive)
+        Resource.list_options(field, [ids: ["1"]], %{}, PostLive)
 
         assert_received {:repo, :all, %{wheres: wheres}}
         assert %{op: :and, params: [{[1], _type}]} = List.last(wheres)
       end
     end
 
-    test "searches the display field on a named binding, then skips and limits the items" do
-      EctoAdapter.list_options(@user_field, [search: "ann", offset: 10, limit: 5], %{}, PostLive)
+    test "searches the display field, then skips and limits the items" do
+      Resource.list_options(@user_field, [search: "ann", offset: 10, limit: 5], %{}, PostLive)
 
       assert_received {:repo, :all, query}
-      assert %{from: %{as: :testuser}, wheres: [%{expr: {:ilike, _meta, _args}, params: [{"%ann%", _type}]}]} = query
+      assert %{wheres: [%{expr: {:ilike, _meta, [column, _search]}, params: [{"%ann%", _type}]}]} = query
+      assert Macro.to_string(column) == "&0.name()"
       assert %{offset: %{params: [{10, :integer}]}, limit: %{params: [{5, :integer}]}} = query
     end
 
@@ -812,14 +736,17 @@ defmodule Backpex.Adapters.EctoTest do
       select = dynamic([testuser: u], fragment("upper(?)", u.name))
       field = {:user, %{module: Backpex.Fields.BelongsTo, display_field: :name, select: select}}
 
-      EctoAdapter.list_options(field, [search: "ann"], %{}, PostLive)
+      Resource.list_options(field, [search: "ann"], %{}, PostLive)
 
       assert_received {:repo, :all,
-                       %{wheres: [%{expr: {:ilike, _meta, [{:fragment, _fragment_meta, _parts}, _search]}}]}}
+                       %{
+                         from: %{as: :testuser},
+                         wheres: [%{expr: {:ilike, _meta, [{:fragment, _fragment_meta, _parts}, _search]}}]
+                       }}
     end
 
     test "ignores an empty search" do
-      EctoAdapter.list_options(@user_field, [search: " "], %{}, PostLive)
+      Resource.list_options(@user_field, [search: " "], %{}, PostLive)
 
       assert_received {:repo, :all, %{wheres: []}}
     end
@@ -827,42 +754,37 @@ defmodule Backpex.Adapters.EctoTest do
     test "lists the items at the end of a through association" do
       field = {:tags, %{module: Backpex.Fields.HasManyThrough, display_field: :name}}
 
-      EctoAdapter.list_options(field, [], %{}, PostLive)
+      Resource.list_options(field, [], %{}, PostLive)
 
       assert_received {:repo, :all, %{from: %{source: {"tags", TestTag}}}}
     end
-  end
 
-  describe "list_options_by_key/4" do
-    test "runs every distinct query once" do
+    test "runs every distinct query of list_options_by_key/4 once" do
       Process.put({FakeRepo, :all}, fn %{wheres: [%{params: [{user_id, _type}]}]} -> [%TestUser{id: user_id}] end)
       options_query = fn query, assigns -> where(query, [u], u.id == ^assigns.user_id) end
       field = {:user, %{module: Backpex.Fields.BelongsTo, display_field: :name, options_query: options_query}}
       assigns_by_key = %{a: %{user_id: 1}, b: %{user_id: 2}, c: %{user_id: 1}}
 
-      assert EctoAdapter.list_options_by_key(field, [], assigns_by_key, PostLive) ==
+      assert Resource.list_options_by_key(field, [], assigns_by_key, PostLive) ==
                {:ok, %{a: [%TestUser{id: 1}], b: [%TestUser{id: 2}], c: [%TestUser{id: 1}]}}
 
       assert_received {:repo, :all, _query}
       assert_received {:repo, :all, _query}
       refute_received {:repo, :all, _query}
     end
-  end
 
-  describe "count_options/4" do
-    test "counts the items without offset and limit" do
+    test "counts the items of count_options/4 without offset and limit" do
       Process.put({FakeRepo, :aggregate}, 3)
-      field = {:user, %{module: Backpex.Fields.BelongsTo, display_field: :name}}
 
-      assert EctoAdapter.count_options(field, [search: "ann", offset: 10, limit: 5], %{}, PostLive) == {:ok, 3}
+      assert Resource.count_options(@user_field, [search: "ann", offset: 10, limit: 5], %{}, PostLive) == {:ok, 3}
 
       assert_received {:repo, :aggregate, %Ecto.SubQuery{query: query}}
       assert %{offset: nil, limit: nil, wheres: [%{params: [{"%ann%", _type}]}]} = query
     end
   end
 
-  describe "metric/5" do
-    test "selects the aggregate of the metric for the items matching the criteria" do
+  describe "aggregate/1" do
+    test "selects the aggregate of the metric for the items matching the query" do
       expected = [
         {:count, "count()"},
         {{:count, :title}, "count(&0.title())"},
@@ -875,7 +797,7 @@ defmodule Backpex.Adapters.EctoTest do
       for {aggregate, expected_select} <- expected do
         Process.put({FakeRepo, :one}, 3)
 
-        assert {:ok, 3} = metric(%{module: Value, aggregate: aggregate})
+        assert %{value: 3} = metric(%{module: Value, aggregate: aggregate})
         assert_received {:repo, :one, query}
         assert %{preloads: [], group_bys: [], joins: [%{as: :testuser}], wheres: [_search]} = query
         assert Macro.to_string(query.select.expr) == expected_select
@@ -896,14 +818,10 @@ defmodule Backpex.Adapters.EctoTest do
       assert Macro.to_string(query.select.expr) == "count(&0.id())"
     end
 
-    test "ignores the order, the pagination and the limit" do
-      criteria = [
-        order: %{by: :title, direction: :asc, field_name: :title},
-        pagination: %{page: 3, size: 10},
-        limit: 5
-      ]
-
-      metric(%{module: Value, aggregate: {:sum, :id}}, criteria)
+    test "ignores the sort, the offset and the limit" do
+      metric(%{module: Value, aggregate: {:sum, :id}}, fn query ->
+        query |> Query.sort(title: :asc) |> Query.offset(20) |> Query.limit(10)
+      end)
 
       assert_received {:repo, :one, query}
       assert %{order_bys: [], limit: nil, offset: nil, wheres: [_search]} = query
@@ -912,16 +830,14 @@ defmodule Backpex.Adapters.EctoTest do
     test "drops an order of the item query from the aggregate" do
       defmodule OrderedPostLive do
         @moduledoc false
-        def config(:primary_key), do: :id
-        def config(:full_text_search), do: nil
-        def adapter_config(:schema), do: TestPost
-        def adapter_config(:repo), do: FakeRepo
-        def adapter_config(:item_query), do: fn query, _live_action, _assigns -> order_by(query, :title) end
+        use FakeLiveResource, schema: Backpex.Adapters.EctoTest.TestPost
+
+        def item_query(query, _live_action, _assigns), do: order_by(query, :title)
       end
 
-      criteria = [search: {"", []}]
+      query = Query.new(OrderedPostLive, %{assigns: %{live_action: :index}})
 
-      EctoAdapter.metric(%{module: Value, aggregate: :count}, criteria, [], %{live_action: :index}, OrderedPostLive)
+      Resource.metrics([value: %{module: Value, aggregate: :count}], query, %{live_action: :index})
 
       assert_received {:repo, :one, %{order_bys: []}}
     end
@@ -936,11 +852,18 @@ defmodule Backpex.Adapters.EctoTest do
       end
     end
 
-    defp metric(metric, criteria \\ []) do
-      fields = [user: %{module: Backpex.Fields.BelongsTo, display_field: :name}]
-      criteria = [search: {"Ann", [title: %{module: Backpex.Fields.Text}]}] ++ criteria
+    # The data of the metric for the items of the resource that match a search, see `Backpex.Resource.metrics/3`.
+    defp metric(metric, fun \\ & &1) do
+      fields = [title: %{module: Backpex.Fields.Text}, user: %{module: Backpex.Fields.BelongsTo, display_field: :name}]
+      assigns = %{live_action: :index}
 
-      EctoAdapter.metric(metric, criteria, fields, %{live_action: :index}, PostLive)
+      query =
+        fields
+        |> Resource.items_query(assigns, PostLive)
+        |> Query.search("Ann", [:title])
+        |> fun.()
+
+      Resource.metrics([value: metric], query, assigns)
     end
   end
 

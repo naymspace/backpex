@@ -2,7 +2,6 @@ defmodule Backpex.Filters.RangeTest do
   use ExUnit.Case, async: true
 
   import Backpex.Expr, only: [expr: 1]
-  import Ecto.Query, only: [from: 1]
 
   alias Backpex.Filters.Range, as: RangeFilter
 
@@ -121,11 +120,15 @@ defmodule Backpex.Filters.RangeTest do
 
       changeset = Backpex.FilterValidation.build_changeset(params, filter_configs, @assigns)
       filter_values = Backpex.FilterValidation.valid_values(changeset)
-      query = TestItem |> from() |> Backpex.Adapters.Ecto.apply_filters(filter_values, filter_configs, @assigns)
+
+      assigns =
+        Map.merge(@assigns, %{fields: [], filters: filter_configs, filter_values: filter_values, query_options: %{}})
+
+      query = TestLiveResource |> Backpex.Query.new(%{assigns: assigns}) |> Backpex.LiveResource.filter_query(assigns)
 
       assert changeset.errors == [quantity: {"has invalid start value", []}]
       assert filter_values == %{}
-      assert query.wheres == []
+      assert query.filter == nil
     end
   end
 

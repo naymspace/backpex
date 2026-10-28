@@ -34,6 +34,7 @@ defmodule Backpex.Test.Router do
       live_resources "/samples", Backpex.Test.SampleLive
       live_resources "/notes", Backpex.Test.NoteLive
       live_resources "/post-relation-options", Backpex.Test.PostRelationOptionsLive
+      live_resources "/scoped-posts", Backpex.Test.ScopedPostLive
       live_resources "/user-relation-options", Backpex.Test.UserRelationOptionsLive
       live_resources "/sample-field-options", Backpex.Test.SampleFieldOptionsLive
       live_resources "/recording-notes", Backpex.Test.RecordingNoteLive

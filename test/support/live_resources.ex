@@ -9,15 +9,30 @@ defmodule Backpex.Test.StubAdapter do
   @doc """
   Reads one record from the fake store in `assigns.stub_records`, a map of primary value to record.
 
-  `Backpex.Resource.reload/4` — and therefore every item action execution gate — goes through this,
-  so a test can make a record change or vanish between selecting it and acting on it just by
-  handing the gate a different store. A primary value the store does not know returns `{:ok, nil}`,
-  which is what a deleted or out-of-scope row looks like.
+  `Backpex.Resource.get/4` and `Backpex.Resource.reload/4` — and therefore every item action execution gate — read
+  through this, so a test can make a record change or vanish between selecting it and acting on it just by handing the
+  gate a different store. A primary value the store does not know returns no item, which is what a deleted or
+  out-of-scope row looks like.
   """
-  def get(primary_value, _fields, assigns, _live_resource) do
+  def read(%Backpex.Query{filter: %Backpex.Expr.Call{name: :==, args: [_ref, primary_value]}, context: context}) do
     send(self(), {:adapter, :get, primary_value})
 
-    {:ok, assigns |> Map.get(:stub_records, %{}) |> Map.get(primary_value)}
+    record = context |> Map.get(:assigns, %{}) |> Map.get(:stub_records, %{}) |> Map.get(primary_value)
+
+    if record, do: {:ok, [record]}, else: {:ok, []}
+  end
+
+  @doc """
+  Describes only the primary key, with a type that keeps every value as it is.
+  """
+  def describe(_path, live_resource) do
+    primary_key = live_resource.config(:primary_key)
+
+    %Backpex.Adapter.Description{
+      primary_key: [primary_key],
+      fields: %{primary_key => %{type: :any, primitive: :any}},
+      relationships: %{}
+    }
   end
 
   def change(item, attrs, _fields, _assigns, _live_resource, opts) do

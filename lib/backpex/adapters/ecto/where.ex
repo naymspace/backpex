@@ -42,6 +42,15 @@ defmodule Backpex.Adapters.Ecto.Where do
     end
   end
 
+  @doc """
+  Returns the query with the joins of the path of the ref and a dynamic expression of its field, e.g. to sort by it.
+  """
+  def field(query, %Ref{} = ref) do
+    query = Ecto.Queryable.to_query(query)
+
+    field(ref, query, {:root, schema(query)})
+  end
+
   # A binding is `{:root, schema}` for the first binding or `{name, schema}` for a named one.
   defp to_dynamic(%Native{adapter: Backpex.Adapters.Ecto, expr: %Ecto.Query.DynamicExpr{} = expression}, query, _b),
     do: {query, expression}

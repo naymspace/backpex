@@ -2,8 +2,8 @@ defmodule Backpex.Test.AdapterConformance do
   @moduledoc """
   The tests every `Backpex.Adapter` has to pass, run against the adapter of a LiveResource.
 
-  They call the adapter callbacks with the criteria and assigns the views of Backpex build, so an adapter that passes
-  them works with the index, show and form views. Use it in a test module that defines `insert_item/1`, which stores an
+  They call the adapter callbacks with the queries (see `Backpex.Query`) and assigns the views of Backpex build, so an
+  adapter that passes them works with the index, show and form views. Use it in a test module that defines `insert_item/1`, which stores an
   item with the given attributes, and `new_item/0`, which returns an unsaved item:
 
       defmodule Backpex.Integration.Adapters.EctoAdapterTest do
@@ -29,38 +29,24 @@ defmodule Backpex.Test.AdapterConformance do
       @field Keyword.fetch!(opts, :field)
       @attrs Keyword.get(opts, :attrs, %{})
 
-      describe "#{inspect(@live_resource)} adapter get/4" do
+      describe "#{inspect(@live_resource)} adapter read/1 of one item" do
         test "returns the item with the primary value" do
           item = insert_item(%{@field => "Alpha"})
-          primary_value = Backpex.LiveResource.primary_value(item, @live_resource)
 
-          assert {:ok, found} =
-                   adapter(@live_resource).get(
-                     primary_value,
-                     fields(@live_resource),
-                     assigns(@live_resource),
-                     @live_resource
-                   )
-
+          assert [found] = read_item(@live_resource, Backpex.LiveResource.primary_value(item, @live_resource))
           assert Map.fetch!(found, @field) == "Alpha"
         end
 
-        test "returns nil for an unknown primary value" do
+        test "returns no item for an unknown primary value" do
           item = insert_item(%{@field => "Alpha"})
           primary_value = Backpex.LiveResource.primary_value(item, @live_resource)
           adapter(@live_resource).delete_all([item], @live_resource)
 
-          assert {:ok, nil} =
-                   adapter(@live_resource).get(
-                     primary_value,
-                     fields(@live_resource),
-                     assigns(@live_resource),
-                     @live_resource
-                   )
+          assert read_item(@live_resource, primary_value) == []
         end
       end
 
-      describe "#{inspect(@live_resource)} adapter list/4 and count/4" do
+      describe "#{inspect(@live_resource)} adapter read/1, count/1 and aggregate/1" do
         setup do
           for value <- ~w(Bravo Alpha Charlie), do: insert_item(%{@field => value})
           :ok
@@ -92,6 +78,19 @@ defmodule Backpex.Test.AdapterConformance do
           assert count(@live_resource, []) == 3
           assert count(@live_resource, search: "a") == 3
           assert count(@live_resource, search: "rav") == 1
+        end
+
+        test "aggregate the items that match the search and the where expression of each aggregate" do
+          query =
+            @live_resource
+            |> assigns(search: "a")
+            |> Backpex.LiveResource.index_query()
+            |> Backpex.Query.unset([:sort, :default_sort, :limit, :offset, :load])
+            |> Backpex.Query.aggregate(:total, :count)
+            |> Backpex.Query.aggregate(:first, {:min, @field})
+            |> Backpex.Query.aggregate(:bravos, :count, where: [{@field, "Bravo"}])
+
+          assert adapter(@live_resource).aggregate(query) == {:ok, %{total: 3, first: "Alpha", bravos: 1}}
         end
       end
 
@@ -138,9 +137,6 @@ defmodule Backpex.Test.AdapterConformance do
   @doc "The adapter of the LiveResource."
   def adapter(live_resource), do: live_resource.config(:adapter)
 
-  @doc "The fields of the index view, as the views of Backpex pass them to the adapter."
-  def fields(live_resource), do: Backpex.LiveResource.fields(live_resource, :index, assigns(live_resource))
-
   @doc "The assigns of the index view, as the views of Backpex pass them to the adapter."
   def assigns(live_resource, query_options \\ []) do
     assigns = %{live_resource: live_resource, live_action: :index, filters: [], filter_values: %{}}
@@ -159,25 +155,41 @@ defmodule Backpex.Test.AdapterConformance do
     })
   end
 
-  @doc "Lists the items of the criteria the index view builds for `query_options` and returns the values of `field`."
+  @doc "Reads the items of the query the index view builds for `query_options` and returns the values of `field`."
   def list_values(live_resource, field, query_options) do
-    assigns = assigns(live_resource, query_options)
-    criteria = Backpex.LiveResource.build_criteria(assigns)
+    query = live_resource |> assigns(query_options) |> Backpex.LiveResource.index_query()
 
-    {:ok, items} = adapter(live_resource).list(criteria, assigns.fields, assigns, live_resource)
+    {:ok, items} = adapter(live_resource).read(query)
 
     Enum.map(items, &Map.fetch!(&1, field))
   end
 
   @doc "Counts the items like the index view, which passes the search and the filters, but no order or page."
   def count(live_resource, query_options) do
-    assigns = assigns(live_resource, query_options)
+    query =
+      live_resource
+      |> assigns(query_options)
+      |> Backpex.LiveResource.index_query()
+      |> Backpex.Query.unset([:sort, :default_sort, :limit, :offset, :load])
 
-    criteria =
-      assigns |> Backpex.LiveResource.build_criteria() |> Keyword.take([:search, :filter_values, :filter_configs])
+    {:ok, count} = adapter(live_resource).count(query)
 
-    {:ok, count} = adapter(live_resource).count(criteria, assigns.fields, assigns, live_resource)
     count
+  end
+
+  @doc "Reads the item with the primary value like the show view, with the fields of `live_action`."
+  def read_item(live_resource, primary_value, live_action \\ :show) do
+    assigns = %{assigns(live_resource) | live_action: live_action}
+    fields = Backpex.LiveResource.fields(live_resource, live_action, assigns)
+
+    query =
+      fields
+      |> Backpex.Resource.items_query(assigns, live_resource)
+      |> Backpex.Query.primary(primary_value)
+      |> Backpex.Query.limit(1)
+
+    {:ok, items} = adapter(live_resource).read(query)
+    items
   end
 
   @doc "Builds the change of the form view for `attrs`."
@@ -191,11 +203,7 @@ defmodule Backpex.Test.AdapterConformance do
 
   @doc "Reads the item again through the adapter, with the fields of `live_action`."
   def reload(live_resource, item, live_action \\ :index) do
-    primary_value = Backpex.LiveResource.primary_value(item, live_resource)
-    assigns = %{assigns(live_resource) | live_action: live_action}
-    fields = Backpex.LiveResource.fields(live_resource, live_action, assigns)
-
-    {:ok, item} = adapter(live_resource).get(primary_value, fields, assigns, live_resource)
+    [item] = read_item(live_resource, Backpex.LiveResource.primary_value(item, live_resource), live_action)
     item
   end
 end

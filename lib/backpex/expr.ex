@@ -348,17 +348,17 @@ defmodule Backpex.Expr do
   end
 
   defp cast_in(%Call{name: name, args: [%Ref{} = ref, value]} = call, base, describe) when name in @comparisons do
-    %{call | args: [ref, cast_value(field!(ref, base, describe), value)]}
+    %{call | args: [ref, cast_field_value(field!(ref, base, describe), value)]}
   end
 
   defp cast_in(%Call{name: name, args: [value, %Ref{} = ref]} = call, base, describe) when name in @comparisons do
-    %{call | args: [cast_value(field!(ref, base, describe), value), ref]}
+    %{call | args: [cast_field_value(field!(ref, base, describe), value), ref]}
   end
 
   defp cast_in(%Call{name: :in, args: [%Ref{} = ref, values]} = call, base, describe) when is_list(values) do
     field = field!(ref, base, describe)
 
-    %{call | args: [ref, Enum.map(values, &cast_value(field, &1))]}
+    %{call | args: [ref, Enum.map(values, &cast_field_value(field, &1))]}
   end
 
   defp cast_in(%Call{args: args} = call, base, describe) do
@@ -403,12 +403,29 @@ defmodule Backpex.Expr do
     describe.(path) || raise ArgumentError, "unknown relationship path #{inspect(path)}"
   end
 
-  defp cast_value(_field, nil), do: nil
+  defp cast_field_value(_field, nil), do: nil
 
-  defp cast_value(%{type: type}, value) do
+  defp cast_field_value(%{type: type}, value) do
+    case cast_value(type, value) do
+      {:ok, value} -> value
+      :error -> value
+    end
+  end
+
+  @doc """
+  Casts a value to a type of the description of a resource, see `Backpex.Adapter.Description`.
+
+      iex> Backpex.Expr.cast_value(:integer, "10")
+      {:ok, 10}
+
+      iex> Backpex.Expr.cast_value(:integer, "ten")
+      :error
+  """
+  @spec cast_value(term(), term()) :: {:ok, term()} | :error
+  def cast_value(type, value) do
     case Ecto.Changeset.cast({%{}, %{value: type}}, %{value: value}, [:value], empty_values: []) do
-      %{valid?: true} = changeset -> Ecto.Changeset.get_field(changeset, :value)
-      _changeset -> value
+      %{valid?: true} = changeset -> {:ok, Ecto.Changeset.get_field(changeset, :value)}
+      _changeset -> :error
     end
   end
 
@@ -440,7 +457,8 @@ defmodule Backpex.Expr do
     raise ArgumentError, """
     expected an expression such as expr(published == true), got: #{inspect(expression)}
 
-    Conditions are written with Backpex.Expr.expr/1, see the guide on upgrading to v0.24.
+    Conditions are written with Backpex.Expr.expr/1, see the guide on upgrading to v0.24. Wrap an expression of the
+    adapter, e.g. an Ecto dynamic expression, with Backpex.Expr.native(Backpex.Adapters.Ecto, dynamic(...)).
     """
   end
 end

@@ -4,6 +4,7 @@ defmodule Backpex.LiveResourceTest do
   import Ecto.Query
 
   alias Backpex.Adapters.Ecto, as: EctoAdapter
+  alias Backpex.Expr
   alias Backpex.ItemActions.Delete
   alias Backpex.LiveResource
   alias Backpex.LiveResource.Index
@@ -30,7 +31,9 @@ defmodule Backpex.LiveResourceTest do
   defmodule TestPostLive do
     @moduledoc false
     def adapter_config(:schema), do: Backpex.LiveResourceTest.TestPost
-    def config(:adapter), do: Backpex.Adapters.Ecto
+    def adapter_config(:item_query), do: &EctoAdapter.default_item_query/3
+    def config(:adapter), do: EctoAdapter
+    def config(:full_text_search), do: nil
     def config(:primary_key), do: :id
     def config(:order_nulls), do: :default
   end
@@ -38,6 +41,9 @@ defmodule Backpex.LiveResourceTest do
   defmodule NullsFirstPostLive do
     @moduledoc false
     def adapter_config(:schema), do: Backpex.LiveResourceTest.TestPost
+    def adapter_config(:item_query), do: &EctoAdapter.default_item_query/3
+    def config(:adapter), do: EctoAdapter
+    def config(:full_text_search), do: nil
     def config(:primary_key), do: :id
     def config(:order_nulls), do: :first
   end
@@ -146,88 +152,77 @@ defmodule Backpex.LiveResourceTest do
     end
   end
 
-  describe "build_criteria/1" do
-    defp order_criteria(live_resource, fields, order_by, init_order \\ %{by: :id, direction: :asc}) do
-      assigns = %{
+  describe "index_query/1" do
+    defp index_query(live_resource, fields, order_by, init_order \\ %{by: :id, direction: :asc}) do
+      LiveResource.index_query(%{
         live_resource: live_resource,
+        live_action: :index,
         filters: [],
         fields: fields,
         init_order: init_order,
         query_options: %{order_by: order_by, order_direction: :desc, page: 1, per_page: 15}
-      }
-
-      assigns
-      |> LiveResource.build_criteria()
-      |> Keyword.fetch!(:order)
+      })
     end
 
-    defp order_query(order, fields) do
-      TestPost
-      |> from(as: ^EctoAdapter.name_by_schema(TestPost))
-      |> EctoAdapter.apply_criteria([order: order], fields, TestPost)
-    end
+    defp order_bys(query), do: query |> EctoAdapter.ecto_query() |> Map.fetch!(:order_bys) |> Enum.flat_map(& &1.expr)
 
-    test "builds an order criteria the adapter applies when ordering by a column that is not a declared field" do
-      # :id is the default init_order column, but a primary key is virtually never
-      # declared as a field. The order criteria must still reach the query.
-      fields = [{:title, %{module: Backpex.Fields.Text}}]
+    test "sorts by the init order when ordering by a column that is not a declared field" do
+      # :id is the default init_order column, but a primary key is virtually never declared as a field. The order must
+      # still reach the query.
+      query = index_query(TestPostLive, [{:title, %{module: Backpex.Fields.Text}}], :id)
 
-      assigns = %{
-        live_resource: TestPostLive,
-        filters: [],
-        fields: fields,
-        init_order: %{by: :id, direction: :asc},
-        query_options: %{order_by: :id, order_direction: :asc, page: 1, per_page: 15}
-      }
-
-      criteria = LiveResource.build_criteria(assigns)
-
-      query =
-        TestPost
-        |> from(as: ^EctoAdapter.name_by_schema(TestPost))
-        |> EctoAdapter.apply_criteria(criteria, fields, TestPost)
-
-      assert %{order_bys: [%{expr: [{:asc, order_expression}]}]} = query
+      assert query.sort == []
+      assert query.default_sort == [{Expr.ref(:id), :asc}]
+      assert [{:asc, order_expression}] = order_bys(query)
       assert Macro.to_string(order_expression) =~ "id"
     end
 
     test "orders by the primary key without NULLS FIRST/LAST" do
       fields = [{:id, %{module: Backpex.Fields.Text, order_nulls: :last}}, {:title, %{module: Backpex.Fields.Text}}]
 
-      assert %{by: :id, nulls: :last} = order = order_criteria(NullsFirstPostLive, fields, :id)
-      assert %{order_bys: [%{expr: [{:desc, _id}]}]} = order_query(order, fields)
+      query = index_query(NullsFirstPostLive, fields, :id)
+      assert query.sort == [{Expr.ref(:id), :desc_nulls_last}]
+      assert [{:desc, _id}] = order_bys(query)
 
-      assert %{by: :id, field_name: nil, nulls: :first} = order = order_criteria(NullsFirstPostLive, fields, :unknown)
-      assert %{order_bys: [%{expr: [{:asc, _id}]}]} = order_query(order, fields)
+      query = index_query(NullsFirstPostLive, fields, :unknown)
+      assert query.default_sort == [{Expr.ref(:id), :asc_nulls_first}]
+      assert [{:asc, _id}] = order_bys(query)
     end
 
     test "uses the order_nulls option of the live resource" do
       fields = [{:title, %{module: Backpex.Fields.Text}}]
 
-      assert %{by: :title, nulls: :default} = order_criteria(TestPostLive, fields, :title)
-      assert %{by: :title, nulls: :first} = order_criteria(NullsFirstPostLive, fields, :title)
+      assert index_query(TestPostLive, fields, :title).sort == [{Expr.ref(:title), :desc}]
+      assert index_query(NullsFirstPostLive, fields, :title).sort == [{Expr.ref(:title), :desc_nulls_first}]
 
       init_order = %{by: :title, direction: :asc}
-      assert %{by: :title, field_name: nil, nulls: :first} = order_criteria(NullsFirstPostLive, [], :title, init_order)
+
+      assert index_query(NullsFirstPostLive, [], :title, init_order).default_sort == [
+               {Expr.ref(:title), :asc_nulls_first}
+             ]
     end
 
     test "prefers the order_nulls option of the field" do
       fields = [{:title, %{module: Backpex.Fields.Text, order_nulls: :last}}]
 
-      assert %{by: :title, nulls: :last} = order_criteria(NullsFirstPostLive, fields, :title)
+      assert index_query(NullsFirstPostLive, fields, :title).sort == [{Expr.ref(:title), :desc_nulls_last}]
     end
 
     test "applies order_nulls to a field with a select expression named like the primary key" do
       select = dynamic([testpost: p], fragment("upper(?)", p.title))
       fields = [{:id, %{module: Backpex.Fields.Text, select: select}}]
 
-      assert %{by: :id, nulls: :first} = order_criteria(NullsFirstPostLive, fields, :id)
+      query = index_query(NullsFirstPostLive, fields, :id)
+      assert query.sort == [{Expr.ref(:id), :desc_nulls_first}]
+      assert [{:desc_nulls_first, _select}] = order_bys(query)
     end
 
     test "applies order_nulls to the primary key of an association" do
       fields = [{:author, %{module: Backpex.Fields.BelongsTo, display_field: :id}}]
 
-      assert %{by: :id, field_name: :author, nulls: :first} = order_criteria(NullsFirstPostLive, fields, :author)
+      query = index_query(NullsFirstPostLive, fields, :author)
+      assert query.sort == [{Expr.ref([:author], :id), :desc_nulls_first}]
+      assert [{:desc_nulls_first, _author_id}] = order_bys(query)
     end
   end
 

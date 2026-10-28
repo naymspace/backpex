@@ -1,6 +1,8 @@
 defmodule Backpex.ResourceTest do
   use ExUnit.Case, async: true
 
+  alias Backpex.Metrics.Value
+  alias Backpex.Query
   alias Backpex.Resource
   alias Backpex.Test.LiveResources
   alias Backpex.Test.LiveResources.AllowAll
@@ -342,29 +344,48 @@ defmodule Backpex.ResourceTest do
     end
   end
 
-  describe "list_options_by_key/4" do
-    defmodule OptionsAdapter do
+  describe "read_by_key/1" do
+    defmodule KeyAdapter do
       @moduledoc false
-      def list_options(field, criteria, assigns, _live_resource), do: {:ok, [{field, criteria, assigns.key}]}
+      def read(query) do
+        send(self(), {:read, query.limit})
+        {:ok, [query.limit]}
+      end
     end
 
-    defmodule OptionsLive do
+    defmodule KeyLive do
       @moduledoc false
-      def config(:adapter), do: OptionsAdapter
+      def config(:adapter), do: KeyAdapter
     end
 
-    test "calls list_options/4 for every key if the adapter has no list_options_by_key/4" do
-      assigns_by_key = %{a: %{key: :a}, b: %{key: :b}}
+    test "reads equal queries once, whatever their context" do
+      queries = %{
+        a: KeyLive |> Query.new(%{assigns: %{key: :a}}) |> Query.limit(1),
+        b: KeyLive |> Query.new(%{assigns: %{key: :b}}) |> Query.limit(1),
+        c: KeyLive |> Query.new() |> Query.limit(2)
+      }
 
-      assert Resource.list_options_by_key(:field, [limit: 1], assigns_by_key, OptionsLive) ==
-               {:ok, %{a: [{:field, [limit: 1], :a}], b: [{:field, [limit: 1], :b}]}}
+      assert Resource.read_by_key(queries) == {:ok, %{a: [1], b: [1], c: [2]}}
+      assert_received {:read, 1}
+      assert_received {:read, 2}
+      refute_received {:read, _limit}
     end
   end
 
-  describe "metric/5" do
+  describe "read/1 and count/1" do
+    test "don't call the adapter for an invalid query" do
+      query = KeyLive |> Query.new() |> Query.put_error(:invalid)
+
+      assert Resource.read(query) == {:ok, []}
+      assert Resource.count(query) == {:ok, 0}
+      refute_received {:read, _limit}
+    end
+  end
+
+  describe "metrics/3" do
     defmodule MetricAdapter do
       @moduledoc false
-      def metric(metric, criteria, _fields, _assigns, _live_resource), do: {:ok, {:adapter, metric.label, criteria}}
+      def aggregate(query), do: {:ok, Map.new(query.aggregates, &{&1.name, {:adapter, &1.aggregate, query.limit}})}
     end
 
     defmodule MetricLive do
@@ -383,15 +404,14 @@ defmodule Backpex.ResourceTest do
       def format(data, _format), do: data
 
       @impl Backpex.Metric
-      def data(metric, criteria, assigns), do: {:data, metric.label, criteria, assigns.current_user}
+      def data(metric, query, assigns), do: {:data, metric.label, query.search, query.limit, assigns.current_user}
     end
 
-    test "calls data/3 of the metric module with the criteria and the assigns instead of the adapter" do
-      metric = %{module: DataMetric, label: "Balance"}
-      criteria = [search: {"Ann", []}, filter_values: %{year: 2026}, filter_configs: []]
+    test "calls data/3 of the metric module with the query of all pages and the assigns instead of the adapter" do
+      query = MetricLive |> Query.new() |> Query.search("Ann", []) |> Query.limit(10)
 
-      assert Resource.metric(metric, criteria, [], %{current_user: :ann}, MetricLive) ==
-               {:ok, {:data, "Balance", criteria, :ann}}
+      assert Resource.metrics([balance: %{module: DataMetric, label: "Balance"}], query, %{current_user: :ann}) ==
+               %{balance: {:data, "Balance", %{term: "Ann", targets: []}, nil, :ann}}
     end
 
     test "raises for a metric module that still implements query/3" do
@@ -400,10 +420,8 @@ defmodule Backpex.ResourceTest do
         def query(query, _select, _repo), do: query
       end
 
-      metric = %{module: QueryMetric, label: "Balance"}
-
       assert_raise ArgumentError, ~r/implements query\/3, but metrics no longer query their data/, fn ->
-        Resource.metric(metric, [search: {"", []}], [], %{}, MetricLive)
+        Resource.metrics([balance: %{module: QueryMetric, label: "Balance"}], Query.new(MetricLive), %{})
       end
     end
 
@@ -413,18 +431,23 @@ defmodule Backpex.ResourceTest do
         def data(_metric, _assigns), do: 1
       end
 
-      metric = %{module: LegacyDataMetric, label: "Balance"}
-
       assert_raise ArgumentError, ~r/implements data\/2, but Backpex calls Backpex.Metric.data\/3/, fn ->
-        Resource.metric(metric, [search: {"", []}], [], %{}, MetricLive)
+        Resource.metrics([balance: %{module: LegacyDataMetric, label: "Balance"}], Query.new(MetricLive), %{})
       end
     end
 
-    test "lets the adapter compute the metric otherwise" do
-      metric = %{module: Backpex.Metrics.Value, label: "Total", aggregate: :count}
+    test "lets the adapter compute the other metrics in one call, on all pages" do
+      metrics = [
+        total: %{module: Value, label: "Total", aggregate: :count},
+        sum: %{module: Value, label: "Sum", aggregate: {:sum, :amount}}
+      ]
 
-      assert Resource.metric(metric, [search: {"", []}], [], %{}, MetricLive) ==
-               {:ok, {:adapter, "Total", [search: {"", []}]}}
+      query = MetricLive |> Query.new() |> Query.limit(10)
+
+      assert Resource.metrics(metrics, query, %{}) == %{
+               total: {:adapter, :count, nil},
+               sum: {:adapter, {:sum, :amount}, nil}
+             }
     end
   end
 end

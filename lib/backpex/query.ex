@@ -1,0 +1,358 @@
+defmodule Backpex.Query do
+  @moduledoc ~S"""
+  A query of the items of a LiveResource, independent of the data source.
+
+  Backpex builds a query for every read: the items of the index view, a single item, the number of items, the data of
+  metrics and the options of association fields. The adapter only runs it, with `c:Backpex.Adapter.read/1`,
+  `c:Backpex.Adapter.count/1` and `c:Backpex.Adapter.aggregate/1`. The query is public, so you can read the items of the
+  index view in your own code, e.g. for an export:
+
+      query =
+        assigns
+        |> Backpex.LiveResource.index_query()
+        |> Backpex.Query.unset([:limit, :offset])
+
+      {:ok, items} = Backpex.Resource.read(query)
+
+  Build a query with the functions of this module, which work like the ones of `Ash.Query`:
+
+      import Backpex.Expr
+
+      MyAppWeb.PostLive
+      |> Backpex.Query.new(%{assigns: assigns})
+      |> Backpex.Query.filter(expr(published == true))
+      |> Backpex.Query.search("elixir", [:title, :body])
+      |> Backpex.Query.default_sort(inserted_at: :desc)
+      |> Backpex.Query.limit(50)
+
+  ## Fields
+
+    * `:resource` - the LiveResource whose adapter runs the query.
+    * `:from` - the path of relationships whose items are read, e.g. `[:author]` for the options of an association
+      field. `[]` reads the items of the resource.
+    * `:filter` - the expression every item matches, see `Backpex.Expr`. Every call of `filter/2` adds to it with
+      `and`. Its fields are fields of the items at the end of `:from`.
+    * `:search` - `nil` or a map of the `:term` to search for and the `:targets`, the `Backpex.Expr.Ref`s of the fields
+      to search in. An item matches if any target contains the term, ignoring the case. Adapters may search in another
+      way, e.g. with full text search.
+    * `:sort` and `:default_sort` - lists of a `Backpex.Expr.Ref` and a direction, see `t:direction/0`. The
+      `:default_sort` only applies without a `:sort`.
+    * `:limit` and `:offset` - limit and skip the items, or `nil`.
+    * `:load` - the relationships to load into the items, e.g. for association fields.
+    * `:computed` - a map of names to values the adapter computes for every item and puts into it, e.g. an
+      `Backpex.Expr.Native` expression.
+    * `:aggregates` - the aggregates `c:Backpex.Adapter.aggregate/1` computes, see `aggregate/4`.
+    * `:native` - a map of data only the adapter understands, e.g. what `c:Backpex.Adapter.put_field_options/2` takes
+      from the options it adds to fields. Backpex doesn't look into it.
+    * `:context` - a map of what the query is run for, e.g. `%{assigns: assigns}` with the assigns of the view.
+    * `:errors` and `:valid?` - the errors found while building the query, e.g. a primary value that can't be cast. An
+      invalid query is not run: `Backpex.Resource.read/1` returns no items for it.
+  """
+
+  alias Backpex.Expr
+  alias Backpex.Expr.Ref
+
+  @typedoc """
+  The direction of a sort. `:asc` and `:desc` keep the order of `nil` values of the data source.
+  """
+  @type direction :: :asc | :desc | :asc_nulls_first | :asc_nulls_last | :desc_nulls_first | :desc_nulls_last
+
+  @typedoc """
+  An aggregate, see `aggregate/4`.
+  """
+  @type aggregate :: %{
+          name: atom(),
+          aggregate: :count | {:count | :sum | :avg | :min | :max, atom()} | Expr.Native.t(),
+          where: Expr.t() | nil
+        }
+
+  @type t :: %__MODULE__{
+          resource: module(),
+          from: [atom()],
+          filter: Expr.t() | nil,
+          search: %{term: String.t(), targets: [Ref.t()]} | nil,
+          sort: [{Ref.t(), direction()}],
+          default_sort: [{Ref.t(), direction()}],
+          limit: non_neg_integer() | nil,
+          offset: non_neg_integer() | nil,
+          load: [atom()],
+          computed: %{atom() => term()},
+          aggregates: [aggregate()],
+          native: map(),
+          context: map(),
+          errors: [term()],
+          valid?: boolean()
+        }
+
+  defstruct resource: nil,
+            from: [],
+            filter: nil,
+            search: nil,
+            sort: [],
+            default_sort: [],
+            limit: nil,
+            offset: nil,
+            load: [],
+            computed: %{},
+            aggregates: [],
+            native: %{},
+            context: %{},
+            errors: [],
+            valid?: true
+
+  @directions [:asc, :desc, :asc_nulls_first, :asc_nulls_last, :desc_nulls_first, :desc_nulls_last]
+  @unset_keys [:filter, :search, :sort, :default_sort, :limit, :offset, :load, :computed, :aggregates]
+
+  @doc """
+  Returns a query of the items of the LiveResource. `context` describes what the query is run for, usually
+  `%{assigns: assigns}` with the assigns of the view. Adapters read it, e.g. for the `:item_query` of
+  `Backpex.Adapters.Ecto`.
+  """
+  @spec new(module(), map()) :: t()
+  def new(live_resource, context \\ %{}) when is_atom(live_resource) and is_map(context) do
+    %__MODULE__{resource: live_resource, context: context}
+  end
+
+  @doc """
+  Reads the items at the end of the path of relationships instead of the items of the resource, e.g. `[:author]` for the
+  options of a `Backpex.Fields.BelongsTo` field. Use it before adding filters, as their fields are fields of these
+  items.
+  """
+  @spec from(t(), [atom()]) :: t()
+  def from(%__MODULE__{} = query, path) when is_list(path), do: %{query | from: path}
+
+  @doc """
+  Adds an expression with `and`, see `Backpex.Expr`. Keeps the query for `nil`.
+
+  The fields of the expression are checked against the description of the items and its values are cast to the types
+  of the fields, see `Backpex.Expr.cast/2`. Raises an `ArgumentError` for unknown fields.
+  """
+  @spec filter(t(), Expr.t() | keyword() | nil) :: t()
+  def filter(%__MODULE__{} = query, expression) do
+    case Expr.cast(expression, &describe(query, &1)) do
+      nil -> query
+      expression -> %{query | filter: Expr.all([query.filter, expression])}
+    end
+  end
+
+  @doc """
+  Keeps the item whose primary key is `value`. A value that can't be cast to the type of the primary key makes the
+  query invalid, so it reads no items.
+  """
+  @spec primary(t(), term()) :: t()
+  def primary(%__MODULE__{} = query, value) do
+    case cast_primary(query, value) do
+      {:ok, value} -> filter(query, query |> primary_key() |> Expr.ref() |> equal(value))
+      :error -> put_error(query, {:invalid_primary_value, value})
+    end
+  end
+
+  @doc """
+  Keeps the items whose primary key is one of `values`. Values that can't be cast to the type of the primary key are
+  ignored.
+  """
+  @spec primary_in(t(), list()) :: t()
+  def primary_in(%__MODULE__{} = query, values) when is_list(values) do
+    values =
+      Enum.flat_map(values, fn value ->
+        case cast_primary(query, value) do
+          {:ok, nil} -> []
+          {:ok, value} -> [value]
+          :error -> []
+        end
+      end)
+
+    ref = query |> primary_key() |> Expr.ref()
+
+    filter(query, %Expr.Call{name: :in, args: [ref, values]})
+  end
+
+  defp equal(ref, value), do: %Expr.Call{name: :==, args: [ref, value]}
+
+  defp primary_key(%__MODULE__{from: [], resource: live_resource}), do: live_resource.config(:primary_key)
+
+  defp primary_key(%__MODULE__{} = query) do
+    case describe(query, []) do
+      %{primary_key: [primary_key]} -> primary_key
+      description -> raise ArgumentError, "expected one primary key in #{inspect(description)}"
+    end
+  end
+
+  defp cast_primary(query, value) do
+    description = describe(query, [])
+    type = description && get_in(description.fields, [primary_key(query), :type])
+
+    cond do
+      is_nil(value) -> :error
+      is_nil(type) -> {:ok, value}
+      true -> Expr.cast_value(type, value)
+    end
+  end
+
+  @doc """
+  Searches for `term` in the fields `targets`, given as names, paths such as `"author.name"` or `Backpex.Expr.Ref`s.
+  Removes the search for a blank term. Without targets, only an adapter with a search of its own, e.g. the full text
+  search of `Backpex.Adapters.Ecto`, searches.
+  """
+  @spec search(t(), String.t() | nil, [atom() | String.t() | Ref.t()]) :: t()
+  def search(%__MODULE__{} = query, term, targets) when is_list(targets) do
+    if is_nil(term) or String.trim(term) == "" do
+      %{query | search: nil}
+    else
+      %{query | search: %{term: term, targets: Enum.map(targets, &to_ref/1)}}
+    end
+  end
+
+  @doc """
+  Adds sorts, given as a keyword list or a list of tuples of a field and a direction, see `t:direction/0`. A field is a
+  name, a path such as `"author.name"` or a `Backpex.Expr.Ref`.
+  """
+  @spec sort(t(), [{atom() | String.t() | Ref.t(), direction()}]) :: t()
+  def sort(%__MODULE__{} = query, sorts) when is_list(sorts), do: %{query | sort: query.sort ++ to_sorts(sorts)}
+
+  @doc """
+  Sets the sorts that apply when no other sort is set with `sort/2`, see `sort/2`.
+  """
+  @spec default_sort(t(), [{atom() | String.t() | Ref.t(), direction()}]) :: t()
+  def default_sort(%__MODULE__{} = query, sorts) when is_list(sorts), do: %{query | default_sort: to_sorts(sorts)}
+
+  @doc """
+  Returns the sorts the adapter applies: the ones of `sort/2`, or else the ones of `default_sort/2`.
+  """
+  @spec sorts(t()) :: [{Ref.t(), direction()}]
+  def sorts(%__MODULE__{sort: [], default_sort: default_sort}), do: default_sort
+  def sorts(%__MODULE__{sort: sort}), do: sort
+
+  @doc """
+  Returns the direction of a sort for an ascending or descending `direction` and the `nulls` option of LiveResources and
+  fields (`:default`, `:first`, `:last` or `:smallest`).
+
+      iex> Backpex.Query.direction(:asc, :smallest)
+      :asc_nulls_first
+
+      iex> Backpex.Query.direction(:desc, :smallest)
+      :desc_nulls_last
+  """
+  @spec direction(:asc | :desc, :default | :first | :last | :smallest) :: direction()
+  def direction(direction, :default) when direction in [:asc, :desc], do: direction
+  def direction(:asc, :first), do: :asc_nulls_first
+  def direction(:asc, :last), do: :asc_nulls_last
+  def direction(:desc, :first), do: :desc_nulls_first
+  def direction(:desc, :last), do: :desc_nulls_last
+  def direction(:asc, :smallest), do: :asc_nulls_first
+  def direction(:desc, :smallest), do: :desc_nulls_last
+
+  defp to_sorts(sorts) do
+    Enum.map(sorts, fn
+      {field, direction} when direction in @directions ->
+        {to_ref(field), direction}
+
+      sort ->
+        raise ArgumentError, "expected a field and a direction such as {:title, :asc}, got: #{inspect(sort)}"
+    end)
+  end
+
+  @doc """
+  Limits the number of items, or removes the limit with `nil`.
+  """
+  @spec limit(t(), non_neg_integer() | nil) :: t()
+  def limit(%__MODULE__{} = query, limit) when is_nil(limit) or (is_integer(limit) and limit >= 0),
+    do: %{query | limit: limit}
+
+  @doc """
+  Skips a number of items, or removes the offset with `nil`.
+  """
+  @spec offset(t(), non_neg_integer() | nil) :: t()
+  def offset(%__MODULE__{} = query, offset) when is_nil(offset) or (is_integer(offset) and offset >= 0),
+    do: %{query | offset: offset}
+
+  @doc """
+  Loads the relationships into the items.
+  """
+  @spec load(t(), [atom()]) :: t()
+  def load(%__MODULE__{} = query, relationships) when is_list(relationships),
+    do: %{query | load: Enum.uniq(query.load ++ relationships)}
+
+  @doc """
+  Lets the adapter compute the value `name` for every item, e.g. with a `Backpex.Expr.Native` expression.
+  """
+  @spec compute(t(), atom(), term()) :: t()
+  def compute(%__MODULE__{} = query, name, value) when is_atom(name),
+    do: %{query | computed: Map.put(query.computed, name, value)}
+
+  @doc """
+  Adds an aggregate that `c:Backpex.Adapter.aggregate/1` computes under `name` over the items of the query, e.g. the
+  data of a metric. `aggregate` is `:count`, a tuple of `:count`, `:sum`, `:avg`, `:min` or `:max` and the name of a
+  field, or a `Backpex.Expr.Native` expression of the adapter.
+
+  ## Options
+
+    * `:where` - an expression that limits the items of this aggregate, see `Backpex.Expr`.
+  """
+  @spec aggregate(t(), atom(), aggregate()[:aggregate], keyword()) :: t()
+  def aggregate(%__MODULE__{} = query, name, aggregate, opts \\ []) when is_atom(name) do
+    check_aggregate!(aggregate)
+    where = Expr.cast(opts[:where], &describe(query, &1))
+
+    %{query | aggregates: Enum.concat(query.aggregates, [%{name: name, aggregate: aggregate, where: where}])}
+  end
+
+  defp check_aggregate!(:count), do: :ok
+  defp check_aggregate!({kind, field}) when kind in [:count, :sum, :avg, :min, :max] and is_atom(field), do: :ok
+  defp check_aggregate!(%Expr.Native{}), do: :ok
+
+  defp check_aggregate!(aggregate) do
+    raise ArgumentError, "expected an aggregate such as :count or {:sum, :field}, got: #{inspect(aggregate)}"
+  end
+
+  @doc """
+  Removes the given parts of the query, e.g. `unset(query, [:sort, :limit, :offset])` to count all matching items.
+  Takes `:filter`, `:search`, `:sort`, `:default_sort`, `:limit`, `:offset`, `:load`, `:computed` and `:aggregates`.
+  """
+  @spec unset(t(), [atom()]) :: t()
+  def unset(%__MODULE__{} = query, keys) when is_list(keys) do
+    Enum.reduce(keys, query, fn
+      key, query when key in @unset_keys -> Map.put(query, key, Map.fetch!(%__MODULE__{}, key))
+      key, _query -> raise ArgumentError, "can't unset #{inspect(key)}, expected one of #{inspect(@unset_keys)}"
+    end)
+  end
+
+  @doc """
+  Puts data only the adapter understands under `key`, see the `:native` field.
+  """
+  @spec put_native(t(), term(), term()) :: t()
+  def put_native(%__MODULE__{} = query, key, value), do: %{query | native: Map.put(query.native, key, value)}
+
+  @doc """
+  Adds an error and makes the query invalid.
+  """
+  @spec put_error(t(), term()) :: t()
+  def put_error(%__MODULE__{} = query, error), do: %{query | errors: Enum.concat(query.errors, [error]), valid?: false}
+
+  @doc """
+  Returns a term that is equal for queries that read the same items, e.g. to read the options of association fields
+  only once for equal queries. It is the query without its `:context`.
+  """
+  @spec key(t()) :: map()
+  def key(%__MODULE__{} = query), do: query |> Map.from_struct() |> Map.delete(:context)
+
+  @doc """
+  Returns the `Backpex.Expr.Ref` of a name, a path such as `"author.name"` or `:"author.name"`, or a ref.
+
+      iex> Backpex.Query.to_ref("author.name")
+      %Backpex.Expr.Ref{path: [:author], name: :name}
+  """
+  @spec to_ref(atom() | String.t() | Ref.t()) :: Ref.t()
+  def to_ref(%Ref{} = ref), do: ref
+  def to_ref(name) when is_atom(name), do: name |> Atom.to_string() |> to_ref()
+
+  def to_ref(path) when is_binary(path) do
+    # Fields and relationships are atoms of the data source, so an unknown name raises instead of creating an atom.
+    {path, [name]} = path |> String.split(".") |> Enum.map(&String.to_existing_atom/1) |> Enum.split(-1)
+
+    Expr.ref(path, name)
+  end
+
+  defp describe(%__MODULE__{resource: live_resource, from: from}, path),
+    do: Backpex.Resource.describe(from ++ path, live_resource)
+end
