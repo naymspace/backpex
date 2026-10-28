@@ -33,6 +33,10 @@ defmodule Backpex.Resource do
 
   Both options are consumed here and never reach `change/6`.
 
+  Before the authorization, every mutation checks that the adapter supports the write (`:insert`, `:update` or
+  `:delete`, see `c:Backpex.Adapter.supports?/2`) and raises an `ArgumentError` otherwise, also with another
+  `:authorization_action` or `authorize?: false`.
+
   For lists (`update_all/5`, `delete_all/4`) the check is strict: a single unauthorized item makes
   the whole call raise. A `nil` entry (a stale or forged item id) raises `Backpex.NoResultsError`.
   An empty list passes without calling the adapter's authorization.
@@ -548,6 +552,7 @@ defmodule Backpex.Resource do
   """
   def delete_all(items, assigns, live_resource, opts \\ [])
       when is_list(items) and is_map(assigns) and not is_struct(assigns) and is_atom(live_resource) do
+    ensure_supported!(live_resource, :delete)
     _opts = authorize_items!(items, assigns, live_resource, opts, :delete)
 
     adapter = live_resource.config(:adapter)
@@ -585,6 +590,7 @@ defmodule Backpex.Resource do
     * All remaining options are passed to `change/6`.
   """
   def insert(item, attrs, fields, assigns, live_resource, opts \\ []) do
+    ensure_supported!(live_resource, :insert)
     opts = authorize_item!(nil, assigns, live_resource, opts, :new)
 
     persist_item(item, attrs, fields, assigns, live_resource, opts, :insert, "created")
@@ -610,6 +616,7 @@ defmodule Backpex.Resource do
     * All remaining options are passed to `change/6`.
   """
   def update(item, attrs, fields, assigns, live_resource, opts \\ []) do
+    ensure_supported!(live_resource, :update)
     opts = authorize_item!(item, assigns, live_resource, opts, :edit)
 
     persist_item(item, attrs, fields, assigns, live_resource, opts, :update, "updated")
@@ -650,6 +657,7 @@ defmodule Backpex.Resource do
   """
   def update_all(items, changes, assigns, live_resource, opts \\ [])
       when is_list(items) and is_map(assigns) and not is_struct(assigns) and is_atom(live_resource) do
+    ensure_supported!(live_resource, :update)
     opts = authorize_items!(items, assigns, live_resource, opts, :edit)
 
     event_name = Keyword.get(opts, :event_name, "updated")
@@ -695,6 +703,16 @@ defmodule Backpex.Resource do
     case Backpex.Expr.cast_value(type, value) do
       {:ok, value} -> value
       :error -> raise ArgumentError, "can't cast #{inspect(value)} to the type of #{inspect(name)} in update_all/5"
+    end
+  end
+
+  # A write the adapter doesn't support never reaches it, whatever the authorization action, see
+  # `c:Backpex.Adapter.supports?/2`.
+  defp ensure_supported!(live_resource, feature) do
+    adapter = live_resource.config(:adapter)
+
+    if not supports?(adapter, live_resource, feature) do
+      raise ArgumentError, "#{inspect(adapter)} doesn't support #{inspect(feature)}, see Backpex.Adapter.supports?/2"
     end
   end
 

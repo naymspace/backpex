@@ -372,6 +372,39 @@ defmodule Backpex.ResourceTest do
     end
   end
 
+  describe "writes through an adapter that doesn't support them" do
+    defmodule ReadOnlyAdapter do
+      @moduledoc false
+      use Backpex.Adapter, supports: [:filter]
+
+      def update_all(items, changes, _live_resource), do: send(self(), {:update_all, items, changes})
+    end
+
+    defmodule ReadOnlyLive do
+      @moduledoc false
+      def config(:adapter), do: ReadOnlyAdapter
+      def can?(_assigns, _action, _item), do: true
+    end
+
+    test "raise before the adapter, also with another authorization action or without authorization" do
+      for opts <- [[], [authorization_action: :soft_delete], [authorize?: false]] do
+        assert_raise ArgumentError, ~r/doesn't support :update/, fn ->
+          Resource.update_all([%{id: 1}], %{x: 1}, %{}, ReadOnlyLive, opts)
+        end
+
+        assert_raise ArgumentError, ~r/doesn't support :delete/, fn ->
+          Resource.delete_all([%{id: 1}], %{}, ReadOnlyLive, opts)
+        end
+
+        assert_raise ArgumentError, ~r/doesn't support :insert/, fn ->
+          Resource.insert(%{}, %{}, [], %{}, ReadOnlyLive, opts)
+        end
+      end
+
+      refute_received {:update_all, _items, _changes}
+    end
+  end
+
   describe "read_by_key/1" do
     defmodule KeyAdapter do
       @moduledoc false
