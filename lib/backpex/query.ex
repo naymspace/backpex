@@ -367,6 +367,10 @@ defmodule Backpex.Query do
   @doc """
   Returns a term that is equal for queries that read the same items, e.g. to read the options of association fields
   only once for equal queries. It is the query without its `:context`.
+
+  So an adapter whose items depend on the context, e.g. on the current user in the assigns, puts what they depend on
+  into the `:native` field when the query is built, see `c:Backpex.Adapter.put_field_options/2`. The Ecto adapter puts
+  the result of the `:options_query` of a field there.
   """
   @spec key(t()) :: map()
   def key(%__MODULE__{} = query), do: query |> Map.from_struct() |> Map.delete(:context)
