@@ -56,6 +56,23 @@ defmodule DemoWeb.Live.User.IndexLiveTest do
       |> refute_has("input[value='bob_builder']")
     end
 
+    test "search finds users by the labels of their permissions", %{conn: conn} do
+      insert(:user, %{first_name: "John", last_name: "Doe", permissions: ["delete_posts", "edit_posts"]})
+      insert(:user, %{first_name: "Jane", last_name: "Smith", permissions: ["edit_posts"]})
+
+      conn
+      |> visit(~p"/admin/users")
+      |> assert_has(".table tbody tr", count: 2)
+      |> unwrap(fn view ->
+        view
+        |> form("#index-search-form", index_search: %{value: "Delete Posts"})
+        |> render_change()
+      end)
+      |> assert_has("table tbody tr", count: 1)
+      |> assert_has("tr", text: "John Doe")
+      |> refute_has("tr", text: "Jane Smith")
+    end
+
     test "search finds users by first_name", %{conn: conn} do
       insert(:user, %{first_name: "John", last_name: "Doe"})
       insert(:user, %{first_name: "Jane", last_name: "Smith"})

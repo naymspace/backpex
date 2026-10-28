@@ -128,6 +128,7 @@ defmodule DemoWeb.UserLive do
       permissions: %{
         module: Backpex.Fields.Checkgroup,
         label: "Permissions",
+        searchable: true,
         options: [
           {"Create Posts", "create_posts"},
           {"Edit Posts", "edit_posts"},
