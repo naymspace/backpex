@@ -45,7 +45,8 @@ defmodule Backpex.Test.Endpoint do
   plug Phoenix.Ecto.SQL.Sandbox
 
   plug Plug.Static, at: "/assets", from: Path.expand("../../../tmp/e2e/assets", __DIR__)
-  plug Plug.Static, at: "/", from: Backpex.Test.Uploads.dir(), only: ~w(uploads)
+  # An MFA tuple, so the directory of the current `MIX_TEST_PARTITION` is resolved per request.
+  plug Plug.Static, at: "/", from: {Backpex.Test.Uploads, :dir, []}, only: ~w(uploads)
 
   plug Plug.Parsers,
     parsers: [:urlencoded, :multipart, :json],

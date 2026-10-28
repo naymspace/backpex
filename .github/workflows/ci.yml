@@ -242,12 +242,14 @@ jobs:
         run: mix test --cover --export-coverage default
 
       - name: Run browser tests with coverage
+        # A failed test runs again with traces for the artifact, but the step fails anyway, so a flaky test shows up
+        # and the coverage check never merges the export of a failed run.
         run: |
-          mix test --only e2e --cover --export-coverage e2e || if [[ $? = 2 ]]; then
-            PW_TRACE=true mix test --only e2e --max-cases 1 --failed
-          else
-            false
-          fi
+          mix test --only e2e --cover --export-coverage e2e || {
+            status=$?
+            if [[ $status = 2 ]]; then PW_TRACE=true mix test --only e2e --max-cases 1 --failed || true; fi
+            exit $status
+          }
 
       - name: Check the merged coverage
         run: MIX_ENV=test mix test.coverage

@@ -6,8 +6,10 @@ defmodule Backpex.Integration.Options.LayoutTest do
   The option warns when a LiveResource is compiled, and the support files of the test app are compiled with
   `--warnings-as-errors`. So these LiveResources are compiled here, where the warning is captured, and the layout is
   resolved with `Backpex.HTML.Layout`, which renders every view of a LiveResource, instead of through a route.
+
+  Not async: capturing the warning captures the global stderr device, which would also take the output of other tests.
   """
-  use ExUnit.Case, async: true
+  use ExUnit.Case, async: false
 
   import ExUnit.CaptureIO
   import Phoenix.Component, only: [sigil_H: 2]
