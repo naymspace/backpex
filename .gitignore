@@ -22,3 +22,6 @@ npm-debug.log
 
 # Docker
 compose.override.yml
+
+# Test app
+/tmp/
