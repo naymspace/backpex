@@ -59,8 +59,9 @@ config :backpex,
   translator_function: {Translator, :translate},
   error_translator_function: {Translator, :translate}
 
-config :logger, :default_handler, false
-config :logger, :level, :debug
+# The test helpers start ExUnit with `capture_log: true`, so the log of a test, like a LiveView crash report, is only
+# printed when the test fails.
+config :logger, :level, :warning
 
 config :money,
   default_currency: :USD,
