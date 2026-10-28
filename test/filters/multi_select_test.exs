@@ -1,6 +1,8 @@
 defmodule Backpex.Filters.MultiSelectTest do
   use ExUnit.Case, async: true
 
+  import Backpex.Expr, only: [expr: 1]
+
   alias Backpex.Filters.MultiSelect, as: MultiSelectFilter
 
   doctest MultiSelectFilter
@@ -13,8 +15,8 @@ defmodule Backpex.Filters.MultiSelectTest do
     test "keeps the items whose field has one of the values" do
       values = ["acdd1860-65ce-4ed6-a37c-433851cf68d7", "9d78ce5e-9334-4a6c-a076-f1e72522de2"]
 
-      assert MultiSelectFilter.condition({:user_id, %{}}, values, %{}) == {:in, :user_id, values}
-      assert MultiSelectFilter.condition({:status, %{}}, ["open"], %{}) == {:in, :status, ["open"]}
+      assert MultiSelectFilter.condition({:user_id, %{}}, values, %{}) == expr(user_id in ^values)
+      assert MultiSelectFilter.condition({:status, %{}}, ["open"], %{}) == expr(status in ["open"])
     end
   end
 

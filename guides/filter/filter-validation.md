@@ -212,7 +212,7 @@ The `condition/3` callback receives already-validated and casted values:
 ```elixir
 def condition({field, _config}, value, _assigns) do
   # value is already an integer
-  {:==, field, value}
+  expr(ref(^field) == ^value)
 end
 ```
 
@@ -277,12 +277,10 @@ defmodule MyAppWeb.Filters.PriceRange do
 
   @impl Backpex.Filter
   def condition({field, _config}, %{"min" => min, "max" => max}, _assigns) do
-    case {parse_price(min), parse_price(max)} do
-      {nil, nil} -> nil
-      {min, nil} -> {:>=, field, min}
-      {nil, max} -> {:<=, field, max}
-      {min, max} -> {:and, [{:>=, field, min}, {:<=, field, max}]}
-    end
+    min = parse_price(min)
+    max = parse_price(max)
+
+    Backpex.Expr.all([min && expr(ref(^field) >= ^min), max && expr(ref(^field) <= ^max)])
   end
 
   def condition(_filter, _value, _assigns), do: nil

@@ -36,6 +36,8 @@ The `:module` may be one of the [built-in filters](what-is-a-filter.md#built-in-
 
 Backpex validates the options when it renders the index view and raises an error for an unknown or invalid option.
 
+The predicates of `Backpex.Filters.Boolean` and the `:condition` option take expressions, which you write with `Backpex.Expr.expr/1`. Add `import Backpex.Expr, only: [expr: 1]` to your *LiveResource* to use it there.
+
 When you use built-in filters like `Backpex.Filters.Select`, validation is handled automatically: the filter validates that the selected values exist in the options list.
 
 ## Default Values
@@ -47,8 +49,8 @@ published: %{
   module: Backpex.Filters.Boolean,
   label: "Published?",
   options: [
-    %{label: "Published", key: "published", predicate: {:==, :published, true}},
-    %{label: "Not published", key: "not_published", predicate: {:==, :published, false}}
+    %{label: "Published", key: "published", predicate: expr(published == true)},
+    %{label: "Not published", key: "not_published", predicate: expr(published == false)}
   ],
   default: ["published"]
 }
@@ -56,7 +58,7 @@ published: %{
 
 ## Changing the Condition
 
-A filter keeps the items that match its condition, see the Conditions section of `Backpex.Filter`. To change the condition of a single filter, pass a function to the `:condition` option. It receives the filter, the validated value and the assigns:
+A filter keeps the items that match its expression, see the Conditions section of `Backpex.Filter`. To change the expression of a single filter, pass a function to the `:condition` option. It receives the filter, the validated value and the assigns, and returns an expression built with `Backpex.Expr.expr/1`:
 
 ```elixir
 age: %{
@@ -64,8 +66,8 @@ age: %{
   label: "Age",
   options: [{"Under 18", "minor"}, {"18 and older", "adult"}],
   condition: fn
-    {field, _config}, "minor", _assigns -> {:<, field, 18}
-    {field, _config}, "adult", _assigns -> {:>=, field, 18}
+    {field, _config}, "minor", _assigns -> expr(ref(^field) < 18)
+    {field, _config}, "adult", _assigns -> expr(ref(^field) >= 18)
   end
 }
 ```

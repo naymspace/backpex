@@ -6,8 +6,8 @@ defmodule Backpex.Adapter do
   calls no repo and doesn't inspect schemas. LiveResources read and write data only through the callbacks of this
   behaviour, mostly via `Backpex.Resource`. Forms still use changesets.
 
-  Filters and metrics describe the data they need, and the adapter turns that into queries: filters return conditions
-  (see `t:Backpex.Filter.condition/0`), metrics name an aggregate (see `Backpex.Metric`). The `:options_query` option of
+  Filters and metrics describe the data they need, and the adapter turns that into queries: filters return expressions
+  (see `Backpex.Expr`), metrics name an aggregate (see `Backpex.Metric`). The `:options_query` option of
   association fields receives the query of the adapter.
 
   Options and callbacks that only one adapter understands belong to it, e.g. the `:select` option of fields and
@@ -70,7 +70,7 @@ defmodule Backpex.Adapter do
 
     * `:search` - a tuple of the search string and the searchable fields.
     * `:filter_values` and `:filter_configs` - the validated values and the configurations of the active filters. Keep
-      the items that match the condition of every filter, see `Backpex.Filter.to_condition/3`.
+      the items that match the expression of every filter, see `Backpex.Filter.to_condition/3` and `Backpex.Expr`.
     * `:order` - a map with the keys `:by` (the column to order by), `:direction` (`:asc` or `:desc`), `:field_name`
       (the name of the field that is ordered by, or `nil`) and `:nulls` (`:default`, `:first`, `:last` or `:smallest`).
     * `:pagination` - a map with the keys `:page` and `:size`.
@@ -88,7 +88,7 @@ defmodule Backpex.Adapter do
   Returns the data of a metric, such as the sum of a column, for the items matching the given criteria.
 
   Receives the same criteria as `c:count/4`. Computes the `:aggregate` of the metric over the items that also match its
-  `:where` condition, see `Backpex.Metric`. The data covers all matching items, so ignore `:order`, `:pagination` and
+  `:where` expression, see `Backpex.Metric`. The data covers all matching items, so ignore `:order`, `:pagination` and
   `:limit`. Backpex doesn't call it for a metric whose module implements
   `c:Backpex.Metric.data/3`.
   """

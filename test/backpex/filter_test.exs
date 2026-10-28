@@ -1,6 +1,8 @@
 defmodule Backpex.FilterTest do
   use ExUnit.Case, async: true
 
+  import Backpex.Expr, only: [expr: 1]
+
   alias Backpex.Filter
   alias Backpex.Filters.Select
 
@@ -34,7 +36,7 @@ defmodule Backpex.FilterTest do
     end
 
     @impl Backpex.Filter
-    def condition({field, config}, value, _assigns), do: {:>=, field, max(value, config.min)}
+    def condition({field, config}, value, _assigns), do: expr(ref(^field) >= ^max(value, config.min))
 
     @impl Backpex.Filter
     def render(assigns), do: assigns
@@ -153,20 +155,20 @@ defmodule Backpex.FilterTest do
   end
 
   describe "to_condition/3" do
-    test "returns the condition of the filter module" do
+    test "returns the expression of the filter module" do
       filter = {:count, %{module: MinFilter, min: 5}}
 
-      assert Filter.to_condition(filter, 3, %{}) == {:>=, :count, 5}
+      assert Filter.to_condition(filter, 3, %{}) == expr(count >= 5)
     end
 
     test "returns the result of the condition option instead" do
       condition = fn {field, config}, value, assigns ->
-        {:and, [{:==, field, value}, {:==, config.min, assigns.min}]}
+        expr(ref(^field) == ^value and min == ^(config.min + assigns.min))
       end
 
       filter = {:count, %{module: MinFilter, min: 5, condition: condition}}
 
-      assert Filter.to_condition(filter, 3, %{min: 1}) == {:and, [{:==, :count, 3}, {:==, 5, 1}]}
+      assert Filter.to_condition(filter, 3, %{min: 1}) == expr(count == 3 and min == 6)
     end
   end
 end

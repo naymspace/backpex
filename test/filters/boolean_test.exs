@@ -1,6 +1,8 @@
 defmodule Backpex.Filters.BooleanTest do
   use ExUnit.Case, async: true
 
+  import Backpex.Expr, only: [expr: 1]
+
   alias Backpex.Filters.Boolean, as: BooleanFilter
 
   doctest BooleanFilter
@@ -12,14 +14,14 @@ defmodule Backpex.Filters.BooleanTest do
     def label, do: "Owner"
 
     @impl Backpex.Filters.Boolean
-    def options(assigns), do: [%{label: "Mine", key: "mine", predicate: {:==, :user_id, assigns.user_id}}]
+    def options(assigns), do: [%{label: "Mine", key: "mine", predicate: expr(user_id == ^assigns.user_id)}]
   end
 
   defp test_options do
     [
-      %{label: "Published", key: "published", predicate: {:==, :published, true}},
-      %{label: "Not published", key: "not_published", predicate: {:==, :published, false}},
-      %{label: "Featured", key: "featured", predicate: {:==, :featured, true}}
+      %{label: "Published", key: "published", predicate: expr(published == true)},
+      %{label: "Not published", key: "not_published", predicate: expr(published == false)},
+      %{label: "Featured", key: "featured", predicate: expr(featured == true)}
     ]
   end
 
@@ -30,31 +32,31 @@ defmodule Backpex.Filters.BooleanTest do
 
     test "returns the predicate of a single selected option" do
       assert BooleanFilter.condition({:published, %{options: test_options()}}, ["published"], %{}) ==
-               {:==, :published, true}
+               expr(published == true)
     end
 
     test "combines the predicates of several selected options with :or" do
       keys = ["published", "not_published", "featured"]
 
       assert BooleanFilter.condition({:published, %{options: test_options()}}, keys, %{}) ==
-               {:or, [{:==, :published, true}, {:==, :published, false}, {:==, :featured, true}]}
+               expr(published == true or published == false or featured == true)
     end
 
     test "finds the predicates of options with atom keys" do
       options = [
-        %{label: "Published", key: :published, predicate: {:==, :published, true}},
-        %{label: "Featured", key: :featured, predicate: {:==, :featured, true}}
+        %{label: "Published", key: :published, predicate: expr(published == true)},
+        %{label: "Featured", key: :featured, predicate: expr(featured == true)}
       ]
 
-      assert BooleanFilter.condition({:status, %{options: options}}, ["published"], %{}) == {:==, :published, true}
+      assert BooleanFilter.condition({:status, %{options: options}}, ["published"], %{}) == expr(published == true)
 
       assert BooleanFilter.condition({:status, %{options: options}}, ["published", "featured"], %{}) ==
-               {:or, [{:==, :published, true}, {:==, :featured, true}]}
+               expr(published == true or featured == true)
     end
 
     test "ignores selected keys without an option" do
       assert BooleanFilter.condition({:published, %{options: test_options()}}, ["featured", "unknown"], %{}) ==
-               {:==, :featured, true}
+               expr(featured == true)
     end
 
     test "returns nil when no selected key has an option" do
@@ -68,7 +70,7 @@ defmodule Backpex.Filters.BooleanTest do
                filter,
                ["mine"],
                %{user_id: 1}
-             ) == {:==, :user_id, 1}
+             ) == expr(user_id == 1)
     end
   end
 

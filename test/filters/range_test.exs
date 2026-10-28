@@ -1,6 +1,7 @@
 defmodule Backpex.Filters.RangeTest do
   use ExUnit.Case, async: true
 
+  import Backpex.Expr, only: [expr: 1]
   import Ecto.Query, only: [from: 1]
 
   alias Backpex.Filters.Range, as: RangeFilter
@@ -36,17 +37,17 @@ defmodule Backpex.Filters.RangeTest do
 
     test "keeps the items from the start when only start is provided" do
       assert RangeFilter.condition({:price, %{type: :number}}, %{"start" => "10", "end" => ""}, %{}) ==
-               {:>=, :price, 10}
+               expr(price >= 10)
     end
 
     test "keeps the items up to the end when only end is provided" do
       assert RangeFilter.condition({:price, %{type: :number}}, %{"start" => "", "end" => "100"}, %{}) ==
-               {:<=, :price, 100}
+               expr(price <= 100)
     end
 
     test "keeps the items between start and end when both are provided" do
       assert RangeFilter.condition({:price, %{type: :number}}, %{"start" => "10", "end" => "99.5"}, %{}) ==
-               {:and, [{:>=, :price, 10}, {:<=, :price, 99.5}]}
+               expr(price >= 10 and price <= 99.5)
     end
 
     test "returns nil for a value without start and end" do
@@ -84,12 +85,12 @@ defmodule Backpex.Filters.RangeTest do
 
     test "keeps the items from a valid start date" do
       assert RangeFilter.condition({:created_at, %{type: :date}}, %{"start" => "2024-01-01", "end" => ""}, %{}) ==
-               {:>=, :created_at, "2024-01-01"}
+               expr(created_at >= "2024-01-01")
     end
 
     test "keeps the items up to a valid end date" do
       assert RangeFilter.condition({:created_at, %{type: :date}}, %{"start" => "", "end" => "2024-12-31"}, %{}) ==
-               {:<=, :created_at, "2024-12-31"}
+               expr(created_at <= "2024-12-31")
     end
 
     test "returns nil for an invalid date format" do
@@ -103,13 +104,13 @@ defmodule Backpex.Filters.RangeTest do
     test "ignores decimal boundaries" do
       for value <- ["1.5", "5.0", "1e2"] do
         assert RangeFilter.condition({:quantity, %{type: :number}}, %{"start" => value, "end" => "10"}, @assigns) ==
-                 {:<=, :quantity, 10}
+                 expr(quantity <= 10)
       end
     end
 
     test "keeps integer boundaries" do
       assert RangeFilter.condition({:quantity, %{type: :number}}, %{"start" => "2", "end" => "10"}, @assigns) ==
-               {:and, [{:>=, :quantity, 2}, {:<=, :quantity, 10}]}
+               expr(quantity >= 2 and quantity <= 10)
     end
   end
 
@@ -135,12 +136,12 @@ defmodule Backpex.Filters.RangeTest do
 
     test "keeps the items from the start of the start date" do
       assert RangeFilter.condition({:updated_at, %{type: :datetime}}, %{"start" => "2024-01-01", "end" => ""}, %{}) ==
-               {:>=, :updated_at, "2024-01-01T00:00:00+00:00"}
+               expr(updated_at >= "2024-01-01T00:00:00+00:00")
     end
 
     test "keeps the items up to the end of the end date" do
       assert RangeFilter.condition({:updated_at, %{type: :datetime}}, %{"start" => "", "end" => "2024-12-31"}, %{}) ==
-               {:<=, :updated_at, "2024-12-31T23:59:59+00:00"}
+               expr(updated_at <= "2024-12-31T23:59:59+00:00")
     end
   end
 
@@ -151,7 +152,7 @@ defmodule Backpex.Filters.RangeTest do
              filter,
              %{"start" => "5", "end" => ""},
              %{}
-           ) == {:>=, :likes, 5}
+           ) == expr(likes >= 5)
   end
 
   describe "changeset/3 with :number type" do

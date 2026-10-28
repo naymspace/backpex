@@ -137,18 +137,22 @@ defmodule Backpex.Filters.Range do
   defp boundary_castable?(_value), do: false
 
   @doc """
-  Returns the condition that keeps the items whose field is within the range, or `nil` if the range has no valid
+  Returns the expression that keeps the items whose field is within the range, or `nil` if the range has no valid
   boundary. See `maybe_parse_range/3` for how the boundaries are parsed. On an integer field, see `changeset/3`, the
   boundaries of a `:number` range are parsed as integers.
 
   ## Examples
 
-      iex> Backpex.Filters.Range.condition({:likes, %{type: :number}}, %{"start" => "10", "end" => ""}, %{})
-      {:>=, :likes, 10}
-      iex> Backpex.Filters.Range.condition({:likes, %{type: :number}}, %{"start" => "", "end" => "100"}, %{})
-      {:<=, :likes, 100}
-      iex> Backpex.Filters.Range.condition({:begins_at, %{type: :date}}, %{"start" => "2024-01-01", "end" => "2024-12-31"}, %{})
-      {:and, [{:>=, :begins_at, "2024-01-01"}, {:<=, :begins_at, "2024-12-31"}]}
+      iex> import Backpex.Expr
+      iex> Backpex.Filters.Range.condition({:likes, %{type: :number}}, %{"start" => "10", "end" => ""}, %{}) ==
+      ...>   expr(likes >= 10)
+      true
+      iex> Backpex.Filters.Range.condition({:likes, %{type: :number}}, %{"start" => "", "end" => "100"}, %{}) ==
+      ...>   expr(likes <= 100)
+      true
+      iex> Backpex.Filters.Range.condition({:begins_at, %{type: :date}}, %{"start" => "2024-01-01", "end" => "2024-12-31"}, %{}) ==
+      ...>   expr(begins_at >= "2024-01-01" and begins_at <= "2024-12-31")
+      true
       iex> Backpex.Filters.Range.condition({:likes, %{type: :number}}, %{"start" => "", "end" => ""}, %{})
       nil
 
@@ -157,12 +161,13 @@ defmodule Backpex.Filters.Range do
   def condition({field, config} = _filter, %{"start" => start_at, "end" => end_at}, assigns) do
     parse_type = parse_type(config.type, field, assigns)
 
-    case {parse(parse_type, start_at), parse(parse_type, end_at, true)} do
-      {nil, nil} -> nil
-      {start_at, nil} -> {:>=, field, start_at}
-      {nil, end_at} -> {:<=, field, end_at}
-      {start_at, end_at} -> {:and, [{:>=, field, start_at}, {:<=, field, end_at}]}
-    end
+    start_at = parse(parse_type, start_at)
+    end_at = parse(parse_type, end_at, true)
+
+    Backpex.Expr.all([
+      start_at && expr(ref(^field) >= ^start_at),
+      end_at && expr(ref(^field) <= ^end_at)
+    ])
   end
 
   def condition(_filter, _value, _assigns), do: nil

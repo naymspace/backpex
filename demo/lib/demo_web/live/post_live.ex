@@ -11,6 +11,7 @@ defmodule DemoWeb.PostLive do
     persist: [:order, :filters, :columns, :metrics],
     context_assigns: []
 
+  import Backpex.Expr, only: [expr: 1]
   import Ecto.Query, warn: false
 
   alias Backpex.LiveResource
@@ -99,8 +100,8 @@ defmodule DemoWeb.PostLive do
         module: Backpex.Filters.Boolean,
         label: "Published?",
         options: [
-          %{label: "Published", key: "published", predicate: {:==, :published, true}},
-          %{label: "Not published", key: "not_published", predicate: {:==, :published, false}}
+          %{label: "Published", key: "published", predicate: expr(published == true)},
+          %{label: "Not published", key: "not_published", predicate: expr(published == false)}
         ],
         default: ["published"],
         presets: [
@@ -252,7 +253,7 @@ defmodule DemoWeb.PostLive do
         label: "Published Posts",
         class: "lg:w-1/4",
         aggregate: :count,
-        where: {:==, :published, true},
+        where: [published: true],
         format: fn value ->
           Integer.to_string(value)
         end

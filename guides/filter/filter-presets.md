@@ -33,8 +33,8 @@ def filters, do: [
     module: Backpex.Filters.Boolean,
     label: "Published?",
     options: [
-      %{label: "Published", key: "published", predicate: {:==, :published, true}},
-      %{label: "Not published", key: "not_published", predicate: {:==, :published, false}}
+      %{label: "Published", key: "published", predicate: expr(published == true)},
+      %{label: "Not published", key: "not_published", predicate: expr(published == false)}
     ],
     presets: [
       %{

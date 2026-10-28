@@ -11,6 +11,7 @@ defmodule DemoWeb.UserLive do
     init_order: &__MODULE__.init_order/1,
     persist: [:order, :filters, :columns, :metrics]
 
+  import Backpex.Expr, only: [expr: 1]
   import Ecto.Query, warn: false
 
   alias Backpex.Filters.Select
@@ -72,8 +73,8 @@ defmodule DemoWeb.UserLive do
         label: "Age",
         options: [{"Under 18", "minor"}, {"18 and older", "adult"}],
         condition: fn
-          {field, _config}, "minor", _assigns -> {:<, field, 18}
-          {field, _config}, "adult", _assigns -> {:>=, field, 18}
+          {field, _config}, "minor", _assigns -> expr(ref(^field) < 18)
+          {field, _config}, "adult", _assigns -> expr(ref(^field) >= 18)
         end
       }
     ]

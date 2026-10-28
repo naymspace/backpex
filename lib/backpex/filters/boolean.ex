@@ -4,7 +4,7 @@ defmodule Backpex.Filters.Boolean do
     options: [
       doc: """
       List of options or function that receives the assigns and returns the list. An option is a map with a `:label`,
-      a `:key` and a `:predicate`, the condition of the items the option keeps, see `t:Backpex.Filter.condition/0`.
+      a `:key` and a `:predicate`, the expression of the items the option keeps, see `Backpex.Expr`.
       """,
       type: {:or, [{:list, :map}, {:fun, 1}]},
       required: true
@@ -13,8 +13,8 @@ defmodule Backpex.Filters.Boolean do
 
   @moduledoc """
   The boolean filter renders one checkbox per given option, hence multiple options can apply at the same time.
-  Instead of implementing a condition, you define a predicate for each option. A predicate is a condition, see
-  `t:Backpex.Filter.condition/0`.
+  Instead of implementing a condition, you define a predicate for each option. A predicate is an expression, see
+  `Backpex.Expr`.
 
   If none is selected, the filter keeps all items. If multiple options are selected, it keeps the items that match any
   of their predicates.
@@ -27,7 +27,8 @@ defmodule Backpex.Filters.Boolean do
 
   ## Example
 
-  See the following example for a boolean filter for a published field.
+  See the following example for a boolean filter for a published field. The LiveResource imports `Backpex.Expr` to use
+  `expr/1`.
 
       def filters do
         [
@@ -35,8 +36,8 @@ defmodule Backpex.Filters.Boolean do
             module: Backpex.Filters.Boolean,
             label: "Published?",
             options: [
-              %{label: "Published", key: "published", predicate: {:==, :published, true}},
-              %{label: "Not published", key: "not_published", predicate: {:==, :published, false}}
+              %{label: "Published", key: "published", predicate: expr(published == true)},
+              %{label: "Not published", key: "not_published", predicate: expr(published == false)}
             ]
           }
         ]
@@ -56,8 +57,8 @@ defmodule Backpex.Filters.Boolean do
         @impl Backpex.Filters.Boolean
         def options(_assigns) do
           [
-            %{label: "Published", key: "published", predicate: {:==, :published, true}},
-            %{label: "Not published", key: "not_published", predicate: {:==, :published, false}}
+            %{label: "Published", key: "published", predicate: expr(published == true)},
+            %{label: "Not published", key: "not_published", predicate: expr(published == false)}
           ]
         end
       end
@@ -140,22 +141,24 @@ defmodule Backpex.Filters.Boolean do
   end
 
   @doc """
-  Returns the condition for the keys of the selected options: the predicate of a single option, the predicates of
-  several options combined with `:or`, or `nil` if no option is selected.
+  Returns the expression for the keys of the selected options: the predicate of a single option, the predicates of
+  several options combined with `or`, or `nil` if no option is selected.
 
   ## Examples
 
+      iex> import Backpex.Expr
       iex> options = [
-      ...>   %{label: "Published", key: "published", predicate: {:==, :published, true}},
-      ...>   %{label: "Featured", key: "featured", predicate: {:==, :featured, true}}
+      ...>   %{label: "Published", key: "published", predicate: expr(published == true)},
+      ...>   %{label: "Featured", key: "featured", predicate: expr(featured == true)}
       ...> ]
       iex> filter = {:status, %{options: options}}
       iex> Backpex.Filters.Boolean.condition(filter, [], %{})
       nil
-      iex> Backpex.Filters.Boolean.condition(filter, ["published"], %{})
-      {:==, :published, true}
-      iex> Backpex.Filters.Boolean.condition(filter, ["published", "featured"], %{})
-      {:or, [{:==, :published, true}, {:==, :featured, true}]}
+      iex> Backpex.Filters.Boolean.condition(filter, ["published"], %{}) == expr(published == true)
+      true
+      iex> Backpex.Filters.Boolean.condition(filter, ["published", "featured"], %{}) ==
+      ...>   expr(published == true or featured == true)
+      true
 
   """
   @impl Backpex.Filter
@@ -163,13 +166,11 @@ defmodule Backpex.Filters.Boolean do
 
   def condition(filter, keys, assigns) do
     predicates = filter |> options(assigns) |> predicates()
-    selected = keys |> Enum.map(&Map.get(predicates, to_string(&1))) |> Enum.reject(&is_nil/1)
 
-    case selected do
-      [] -> nil
-      [predicate] -> predicate
-      predicates -> {:or, predicates}
-    end
+    keys
+    |> Enum.map(&Map.get(predicates, to_string(&1)))
+    |> Enum.reject(&is_nil/1)
+    |> Backpex.Expr.any()
   end
 
   attr :filter, :any, required: true, doc: "the filter"
@@ -301,17 +302,15 @@ defmodule Backpex.Filters.Boolean do
 
   ## Examples
 
+      iex> import Backpex.Expr
+      iex> published = expr(published == true)
+      iex> featured = expr(featured == true)
       iex> options = [
-      ...>   %{label: "Published", key: "published", predicate: {:==, :published, true}},
-      ...>   %{label: "Featured", key: "featured", predicate: {:==, :featured, true}}
+      ...>   %{label: "Published", key: "published", predicate: published},
+      ...>   %{label: "Featured", key: :featured, predicate: featured}
       ...> ]
-      iex> Backpex.Filters.Boolean.predicates(options)
-      %{"featured" => {:==, :featured, true}, "published" => {:==, :published, true}}
-
-      iex> import Ecto.Query
-      iex> predicate = dynamic([x], x.published == true)
-      iex> Backpex.Filters.Boolean.predicates([%{label: "Published", key: :published, predicate: predicate}])
-      %{"published" => predicate}
+      iex> Backpex.Filters.Boolean.predicates(options) == %{"published" => published, "featured" => featured}
+      true
 
       iex> Backpex.Filters.Boolean.predicates([])
       %{}

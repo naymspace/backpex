@@ -143,20 +143,22 @@ defmodule Backpex.Filters.MultiSelect do
   end
 
   @doc """
-  Returns the condition that keeps the items whose field has one of the selected values, or `nil` if no value is
+  Returns the expression that keeps the items whose field has one of the selected values, or `nil` if no value is
   selected.
 
   ## Examples
 
-      iex> Backpex.Filters.MultiSelect.condition({:status, %{}}, ["open", "pending"], %{})
-      {:in, :status, ["open", "pending"]}
+      iex> import Backpex.Expr
+      iex> Backpex.Filters.MultiSelect.condition({:status, %{}}, ["open", "pending"], %{}) ==
+      ...>   expr(status in ["open", "pending"])
+      true
       iex> Backpex.Filters.MultiSelect.condition({:status, %{}}, [], %{})
       nil
 
   """
   @impl Backpex.Filter
   def condition(_filter, [], _assigns), do: nil
-  def condition({field, _config}, values, _assigns), do: {:in, field, values}
+  def condition({field, _config}, values, _assigns), do: expr(ref(^field) in ^values)
 
   attr :filter, :any, required: true, doc: "the filter"
   attr :value, :any, required: true, doc: "the selected values"

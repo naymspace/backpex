@@ -32,7 +32,7 @@ defmodule Backpex.Filter do
     ],
     condition: [
       doc: """
-      Function that returns the condition of the items the filter keeps, instead of `c:condition/3` of the filter
+      Function that returns the expression of the items the filter keeps, instead of `c:condition/3` of the filter
       module. Receives the same arguments as `c:condition/3`. See the [Conditions](#module-conditions) section.
       """,
       type: {:fun, 3}
@@ -85,46 +85,34 @@ defmodule Backpex.Filter do
 
   ## Conditions
 
-  A filter doesn't query the items itself. Its `c:condition/3` callback describes the items the filter keeps, and the
-  adapter of the LiveResource turns this condition into a query. A condition is one of:
+  A filter doesn't query the items itself. Its `c:condition/3` callback returns an expression of the items the filter
+  keeps, and the adapter of the LiveResource turns it into a query. Write the expression with `Backpex.Expr.expr/1`,
+  which `use Backpex.Filter` imports:
 
-    * `{:==, field, value}`, `{:!=, field, value}`, `{:<, field, value}`, `{:<=, field, value}`, `{:>, field, value}`
-      or `{:>=, field, value}` - compares a field of the items to a value.
-    * `{:in, field, values}` - keeps the items whose field has one of the values. The values must not contain `nil`,
-      combine the condition with `{:is_nil, field}` in an `:or` instead.
-    * `{:is_nil, field}` - keeps the items whose field is `nil`. Use it instead of comparing a field to `nil`.
-    * `{:not, condition}` - negates the condition.
-    * `{:and, conditions}` and `{:or, conditions}` - combine a list of conditions.
+      def condition({field, _config}, value, _assigns), do: expr(ref(^field) >= ^value)
 
-  `field` is the name of a field of the resource, e.g. of a column of its `Ecto.Schema`. The adapter casts each value to
-  the type of the field.
+  `ref(^field)` refers to the field the filter is configured for. An expression may also refer to other fields, to
+  fields of related items with a path such as `author.name`, and to related items with `exists/2`, e.g. to keep the
+  posts with one of the selected tags:
 
-  As in SQL, an item whose field is `nil` is kept neither by a comparison of this field nor by its negation, e.g.
-  `{:not, {:==, :status, "done"}}` doesn't keep items without a status. To keep them, add
-  `{:or, [condition, {:is_nil, field}]}`.
+      def condition(_filter, tag_ids, _assigns), do: expr(exists(tags, id in ^tag_ids))
 
-  An adapter may also take conditions of its own: `Backpex.Adapters.Ecto` takes `Ecto.Query.dynamic/2` expressions, e.g.
-  for a fragment of SQL or a subquery. Such filters only work with that adapter.
+  The adapter casts each value to the type of the field. See `Backpex.Expr` for all operators and functions, and for
+  expressions that only one adapter understands, such as a fragment of SQL.
 
   A filter can't change the query itself, e.g. join a table or select distinct items, as the adapter decides how to
-  join, order and paginate the items. To keep the items with an associated item that matches, use a subquery:
+  join, order and paginate the items.
 
-      def condition(_filter, tag_ids, _assigns) do
-        tagged_posts = from(p in Post, join: t in assoc(p, :tags), where: t.id in ^tag_ids, select: p.id)
-
-        dynamic([post], post.id in subquery(tagged_posts))
-      end
-
-  To change the condition of a single filter, pass a function to the `:condition` option instead of implementing a
-  filter module:
+  To change the expression of a single filter, pass a function to the `:condition` option instead of implementing a
+  filter module. Import `Backpex.Expr` in the LiveResource to use `expr/1` there:
 
       deleted_at: %{
         module: Backpex.Filters.Select,
         label: "Status",
         options: [{"Active", "active"}, {"Deleted", "deleted"}],
         condition: fn
-          {field, _config}, "active", _assigns -> {:is_nil, field}
-          {field, _config}, "deleted", _assigns -> {:not, {:is_nil, field}}
+          {field, _config}, "active", _assigns -> expr(is_nil(ref(^field)))
+          {field, _config}, "deleted", _assigns -> expr(not is_nil(ref(^field)))
         end
       }
 
@@ -156,7 +144,7 @@ defmodule Backpex.Filter do
         end
 
         @impl Backpex.Filter
-        def condition({field, _config}, value, _assigns), do: {:>=, field, value}
+        def condition({field, _config}, value, _assigns), do: expr(ref(^field) >= ^value)
 
         @impl Backpex.Filter
         def render(assigns), do: ~H"{@value}"
@@ -175,16 +163,10 @@ defmodule Backpex.Filter do
   alias Phoenix.LiveView.Socket
 
   @typedoc """
-  A condition on the fields of the items, see the [Conditions](#module-conditions) section. A struct stands for a
-  condition of the adapter, such as an `Ecto.Query.dynamic/2` expression.
+  The expression of the items a filter keeps, see the [Conditions](#module-conditions) section. A keyword list stands
+  for fields that equal values, see `Backpex.Expr`.
   """
-  @type condition ::
-          {:== | :!= | :< | :<= | :> | :>=, atom(), term()}
-          | {:in, atom(), list()}
-          | {:is_nil, atom()}
-          | {:not, condition()}
-          | {:and | :or, [condition()]}
-          | struct()
+  @type condition :: Backpex.Expr.t() | keyword()
 
   @typedoc """
   A filter: its name and the validated map of its options from the LiveResource.
@@ -276,7 +258,7 @@ defmodule Backpex.Filter do
   @callback validate(filter :: t(), value :: any(), assigns :: map()) :: {:ok, any()} | {:error, keyword()}
 
   @doc """
-  Returns the condition of the items the filter keeps, see the [Conditions](#module-conditions) section, or `nil` to
+  Returns the expression of the items the filter keeps, see the [Conditions](#module-conditions) section, or `nil` to
   keep all items.
 
   The `value` parameter contains the already-validated and casted value from the changeset.
@@ -361,7 +343,7 @@ defmodule Backpex.Filter do
   end
 
   @doc """
-  Returns the condition of a filter for a validated value: the result of its `:condition` option, if given, or of the
+  Returns the expression of a filter for a validated value: the result of its `:condition` option, if given, or of the
   `c:condition/3` of its module. Adapters call this function to apply filters.
   """
   @spec to_condition(t(), any(), map()) :: condition() | nil
@@ -372,6 +354,7 @@ defmodule Backpex.Filter do
     quote bind_quoted: [opts: opts] do
       @behaviour Backpex.Filter
 
+      import Backpex.Expr, only: [expr: 1]
       import Ecto.Changeset
 
       @filter_config_schema opts[:config_schema] || []
@@ -409,7 +392,7 @@ defmodule Backpex.Filter do
         Example:
 
             @impl Backpex.Filter
-            def condition({field, _config}, value, _assigns), do: {:==, field, value}
+            def condition({field, _config}, value, _assigns), do: expr(ref(^field) == ^value)
         """
       end
 
@@ -422,7 +405,7 @@ defmodule Backpex.Filter do
   # Backpex no longer calls these functions, so a filter that still defines them would raise when it is applied, or
   # silently fall back to the default implementation.
   @removed_callbacks [
-    {{:query, 4}, "filters no longer build queries. Return a condition from condition/3 instead"},
+    {{:query, 4}, "filters no longer build queries. Return an expression from condition/3 instead"},
     {{:type, 1}, "type/2 now receives the filter. Implement type/2 instead"},
     {{:validate, 2}, "validate/3 now receives the filter. Implement validate/3 instead"}
   ]

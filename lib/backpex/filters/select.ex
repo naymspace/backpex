@@ -137,16 +137,17 @@ defmodule Backpex.Filters.Select do
   end
 
   @doc """
-  Returns the condition that keeps the items whose field equals the selected value.
+  Returns the expression that keeps the items whose field equals the selected value.
 
   ## Examples
 
-      iex> Backpex.Filters.Select.condition({:status, %{}}, "open", %{})
-      {:==, :status, "open"}
+      iex> import Backpex.Expr
+      iex> Backpex.Filters.Select.condition({:status, %{}}, "open", %{}) == expr(status == "open")
+      true
 
   """
   @impl Backpex.Filter
-  def condition({field, _config}, value, _assigns), do: {:==, field, value}
+  def condition({field, _config}, value, _assigns), do: expr(ref(^field) == ^value)
 
   attr :filter, :any, required: true, doc: "the filter"
   attr :value, :any, required: true, doc: "the selected value"
