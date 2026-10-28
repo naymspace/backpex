@@ -171,6 +171,14 @@ defmodule Backpex.MixProject do
         end
       end,
       skip_code_autolink_to: [
+        # Removed functions that the guides on upgrading to earlier versions name.
+        "Backpex.Adapters.Ecto.apply_filters/4",
+        "Backpex.LiveResource.build_criteria/1",
+        "Backpex.Resource.count/4",
+        "Backpex.Resource.list/4",
+        "c:Backpex.Adapter.count/4",
+        "c:Backpex.Adapter.get/4",
+        "c:Backpex.Adapter.list/4",
         "Ecto.Query.DynamicExpr",
         "Backpex.Router.cookie_path/1"
       ]
