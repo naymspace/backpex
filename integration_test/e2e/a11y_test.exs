@@ -21,7 +21,8 @@ defmodule Backpex.E2E.A11yTest do
     @tag path: path, factory: factory, primary_key: primary_key, view: view
     test "#{path} #{view}", %{conn: conn} = context do
       item = insert(context.factory)
-      id = item |> Map.fetch!(context.primary_key) |> to_string() |> URI.encode_www_form()
+      # Encoded like the router encodes a path segment: a space becomes `%20`, not `+`.
+      id = item |> Map.fetch!(context.primary_key) |> to_string() |> URI.encode(&URI.char_unreserved?/1)
 
       path =
         case context.view do
