@@ -267,10 +267,35 @@ defmodule Backpex.ResourceTest do
   end
 
   describe "update_all/5" do
+    test "casts the changes to the types of their fields and takes a keyword list" do
+      assigns = %{role: :admin}
+
+      assert {:ok, _items} = Resource.update_all([%{id: 1}], [x: "2"], assigns, AllowAll)
+      assert_received {:adapter, :update_all, [%{id: 1}], %{x: 2}}
+    end
+
+    test "refuses the updates of Ecto and unknown fields" do
+      assigns = %{role: :admin}
+
+      assert_raise ArgumentError, ~r/expected the changes as a map of fields and values/, fn ->
+        Resource.update_all([%{id: 1}], [set: [x: 1]], assigns, AllowAll)
+      end
+
+      assert_raise ArgumentError, ~r/unknown field :y/, fn ->
+        Resource.update_all([%{id: 1}], %{y: 1}, assigns, AllowAll)
+      end
+
+      assert_raise ArgumentError, ~r/can't cast "two"/, fn ->
+        Resource.update_all([%{id: 1}], %{x: "two"}, assigns, AllowAll)
+      end
+
+      refute_received {:adapter, :update_all, _items, _changes}
+    end
+
     test "authorizes :edit per item", %{assigns: assigns} do
       items = [%{id: 1}, %{id: 2}]
 
-      assert {:ok, ^items} = Resource.update_all(items, [set: [x: 1]], assigns, Recording)
+      assert {:ok, ^items} = Resource.update_all(items, %{x: 1}, assigns, Recording)
 
       assert_received {:can?, :edit, %{id: 1}}
       assert_received {:can?, :edit, %{id: 2}}
@@ -280,7 +305,7 @@ defmodule Backpex.ResourceTest do
       items = [%{id: 1, role: :user}, %{id: 2, role: :admin}]
 
       assert_raise Backpex.ForbiddenError, fn ->
-        Resource.update_all(items, [set: [x: 1]], assigns, NoAdmins)
+        Resource.update_all(items, %{x: 1}, assigns, NoAdmins)
       end
 
       refute_received {:adapter, :update_all, _items, _updates}
@@ -288,20 +313,20 @@ defmodule Backpex.ResourceTest do
 
     test "raises NoResultsError when the list contains nil", %{assigns: assigns} do
       assert_raise Backpex.NoResultsError, fn ->
-        Resource.update_all([%{id: 1}, nil], [set: [x: 1]], assigns, AllowAll)
+        Resource.update_all([%{id: 1}, nil], %{x: 1}, assigns, AllowAll)
       end
 
       refute_received {:adapter, :update_all, _items, _updates}
     end
 
     test "passes an empty list vacuously", %{assigns: assigns} do
-      assert {:ok, []} = Resource.update_all([], [set: [x: 1]], assigns, DenyAll)
+      assert {:ok, []} = Resource.update_all([], %{x: 1}, assigns, DenyAll)
     end
 
     test "broadcasts the default event", %{assigns: assigns} do
       item = %{id: 1}
 
-      assert {:ok, _items} = Resource.update_all([item], [set: [x: 1]], assigns, AllowAll)
+      assert {:ok, _items} = Resource.update_all([item], %{x: 1}, assigns, AllowAll)
 
       assert_received {"updated", ^item}
       assert_received {"backpex:updated", ^item}
@@ -310,7 +335,7 @@ defmodule Backpex.ResourceTest do
     test "honors :event_name", %{assigns: assigns} do
       item = %{id: 1}
 
-      assert {:ok, _items} = Resource.update_all([item], [set: [x: 1]], assigns, AllowAll, event_name: "deleted")
+      assert {:ok, _items} = Resource.update_all([item], %{x: 1}, assigns, AllowAll, event_name: "deleted")
 
       assert_received {"deleted", ^item}
       assert_received {"backpex:deleted", ^item}
@@ -320,14 +345,14 @@ defmodule Backpex.ResourceTest do
       items = [%{id: 1}]
 
       assert {:ok, ^items} =
-               Resource.update_all(items, [set: [x: 1]], assigns, OnlyCustomKey, authorization_action: :custom_key)
+               Resource.update_all(items, %{x: 1}, assigns, OnlyCustomKey, authorization_action: :custom_key)
 
-      assert {:ok, ^items} = Resource.update_all(items, [set: [x: 1]], assigns, DenyAll, authorize?: false)
+      assert {:ok, ^items} = Resource.update_all(items, %{x: 1}, assigns, DenyAll, authorize?: false)
     end
 
     test "does not answer the pre-0.21 update_all/3 signature" do
       # The old head had `event_name \\ "updated"`, so it defined an arity-3 function too.
-      args = [[%{id: 1}], [set: [x: 1]], AllowAll]
+      args = [[%{id: 1}], %{x: 1}, AllowAll]
 
       assert_raise UndefinedFunctionError, fn ->
         apply(Resource, :update_all, args)
@@ -338,7 +363,7 @@ defmodule Backpex.ResourceTest do
       # `update_all(items, updates, "deleted", MyLive)` has the same arity as the new
       # `update_all(items, updates, assigns, live_resource)`. The `is_map(assigns)` guard makes the
       # old call fail loudly instead of silently authorizing against a string.
-      args = [[%{id: 1}], [set: [x: 1]], "deleted", AllowAll]
+      args = [[%{id: 1}], %{x: 1}, "deleted", AllowAll]
 
       assert_raise FunctionClauseError, fn ->
         apply(Resource, :update_all, args)

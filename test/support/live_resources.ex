@@ -23,14 +23,14 @@ defmodule Backpex.Test.StubAdapter do
   end
 
   @doc """
-  Describes only the primary key, with a type that keeps every value as it is.
+  Describes the primary key and the integer field `x`, which tests update with `Backpex.Resource.update_all/5`.
   """
   def describe(_path, live_resource) do
     primary_key = live_resource.config(:primary_key)
 
     %Backpex.Adapter.Description{
       primary_key: [primary_key],
-      fields: %{primary_key => %{type: :any, primitive: :any}},
+      fields: %{primary_key => %{type: :any, primitive: :any}, x: %{type: :integer, primitive: :integer}},
       relationships: %{}
     }
   end
@@ -63,10 +63,10 @@ defmodule Backpex.Test.StubAdapter do
     if Enum.any?(items, &Map.get(&1, :referenced?)), do: {:error, :foreign_key_violation}, else: {:ok, items}
   end
 
-  def update_all(items, updates, _live_resource) do
-    send(self(), {:adapter, :update_all, items, updates})
+  def update_all(items, changes, _live_resource) do
+    send(self(), {:adapter, :update_all, items, changes})
 
-    {length(items), nil}
+    {:ok, length(items)}
   end
 end
 

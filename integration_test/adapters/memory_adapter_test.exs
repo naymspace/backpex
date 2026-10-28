@@ -92,4 +92,17 @@ defmodule Backpex.Integration.Adapters.MemoryAdapterTest do
 
     refute @store |> Memory.items() |> Enum.any?(&(&1.id == 1))
   end
+
+  test "the views hide the writes an adapter doesn't support and refuse them", %{conn: conn} do
+    conn
+    |> visit(~p"/admin/read-only-notes")
+    |> assert_rows("table tbody", ["Bravo", "alpha", "Charlie", "Secret note"])
+    |> refute_has("a", text: "New Note")
+    |> refute_has("button[aria-label=Delete]")
+    |> refute_has("a[aria-label=Edit]")
+    |> assert_has("a[aria-label=Show]")
+
+    assert_error_sent 403, fn -> get(conn, ~p"/admin/read-only-notes/new") end
+    assert_error_sent 403, fn -> get(conn, ~p"/admin/read-only-notes/1/edit") end
+  end
 end

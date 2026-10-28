@@ -4,7 +4,8 @@ defmodule Backpex.Adapter do
 
   Backpex is Ecto-first: `Backpex.Adapters.Ecto` is the default adapter. Outside of adapters, Backpex builds no queries,
   calls no repo and doesn't inspect schemas. LiveResources read and write data only through the callbacks of this
-  behaviour, mostly via `Backpex.Resource`. Forms still use changesets.
+  behaviour, mostly via `Backpex.Resource`. Forms are built from `Ecto.Changeset`s for every data source, see
+  `c:change/6`.
 
   Backpex builds a `Backpex.Query` for every read, and the adapter runs it with `c:read/1`, `c:count/1` and
   `c:aggregate/1`. Filters return expressions (see `Backpex.Expr`) and metrics name an aggregate (see
@@ -72,6 +73,9 @@ defmodule Backpex.Adapter do
     * `:search`, `:sort`, `:offset` and `:limit` - these parts of a query.
     * `:load` - the relationships of the `:load` of a query.
     * `:count` and `:aggregate` - `c:count/1` and `c:aggregate/1`.
+    * `:insert`, `:update` and `:delete` - writing items with `c:insert/2`, `c:update/2` and `c:update_all/3`, and
+      `c:delete_all/2`. Without them, `Backpex.Authorization` denies the `:new`, `:edit` and `:delete` actions, so the
+      views hide them. Backpex can't apply writes in memory.
 
   Parts depend on the ones before them, in the order filter, search, sort, offset and limit. If the adapter doesn't
   run a part, Backpex applies it and every part after it in memory, e.g. the sort of a query whose filter the adapter
@@ -148,23 +152,32 @@ defmodule Backpex.Adapter do
   @callback describe(path :: [atom()], live_resource :: module()) :: Backpex.Adapter.Description.t() | nil
 
   @doc """
-  Inserts given item.
+  Inserts the item of the changeset of `c:change/6`. Returns the inserted item, or the changeset with errors, e.g. of
+  constraints of the data source.
   """
-  @callback insert(item :: struct(), live_resource :: module()) :: {:ok, struct()} | {:error, term()}
+  @callback insert(changeset :: Ecto.Changeset.t(), live_resource :: module()) ::
+              {:ok, struct()} | {:error, Ecto.Changeset.t() | term()}
 
   @doc """
-  Updates given item.
+  Updates the item of the changeset of `c:change/6`. Returns the updated item, or the changeset with errors.
   """
-  @callback update(item :: struct(), live_resource :: module()) :: {:ok, struct()} | {:error, term()}
+  @callback update(changeset :: Ecto.Changeset.t(), live_resource :: module()) ::
+              {:ok, struct()} | {:error, Ecto.Changeset.t() | term()}
 
   @doc """
-  Updates given items.
+  Sets the fields of `changes` to their values in every item, e.g. `%{deleted_at: now}` for a soft delete. Returns the
+  number of updated items. Backpex checked the fields against `c:describe/2` and cast the values to their types.
   """
-  @callback update_all(items :: list(struct()), updates :: keyword(), live_resource :: module()) ::
-              {:ok, non_neg_integer()}
+  @callback update_all(items :: list(struct()), changes :: %{atom() => term()}, live_resource :: module()) ::
+              {:ok, non_neg_integer()} | {:error, term()}
 
   @doc """
-  Applies a change to a given item.
+  Returns the changeset of the form of an item: `attrs` cast onto the item by the changeset function of the
+  LiveResource for the action, after `c:Backpex.Field.before_changeset/5` of every field. The form of every view is
+  built from it, and `c:insert/2` and `c:update/2` write it.
+
+  An `Ecto.Changeset` is the form type of Backpex for every data source, as it doesn't need a database: changesets
+  work with `Ecto.Schema` and embedded schemas, and with schemaless types from `c:describe/2`.
   """
   @callback change(
               item :: struct(),
