@@ -13,8 +13,6 @@ defmodule Backpex.Integration.Authorization.ItemActionsTest do
   alias Backpex.Test.ShortLink
   alias Backpex.Test.User
 
-  @moduletag :capture_log
-
   setup do
     # `visit/2` links the LiveView to the test process. These tests deliberately make it crash, so the EXIT signal has
     # to arrive as a message instead of killing the test.
