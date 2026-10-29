@@ -1,11 +1,14 @@
 alias_usage_defaults = Credo.Check.Design.AliasUsage.param_defaults()
 
 overwrite_checks = [
+  # The fixture LiveResources of the integration tests name their schemas in `use Backpex.LiveResource`, before any
+  # alias can be defined.
   {Credo.Check.Design.AliasUsage,
    excluded_namespaces: alias_usage_defaults[:excluded_namespaces] ++ ["Backpex.Fields"],
    excluded_lastnames: alias_usage_defaults[:excluded_lastnames] ++ ["Type"],
    if_nested_deeper_than: 2,
-   if_called_more_often_than: 1},
+   if_called_more_often_than: 1,
+   files: %{excluded: ["integration_test/support/app/live/"]}},
   {Credo.Check.Design.TagTODO, false},
   {Credo.Check.Readability.AliasAs, false},
   {Credo.Check.Readability.OnePipePerLine, false},
@@ -43,6 +46,7 @@ project_checks =
         included: [
           "lib/",
           "test/",
+          "integration_test/",
           "priv/"
         ],
         excluded: [~r"/_build/", ~r"/deps/", ~r"/node_modules/"]

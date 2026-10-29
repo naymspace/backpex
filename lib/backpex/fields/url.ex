@@ -15,7 +15,7 @@ defmodule Backpex.Fields.URL do
     ],
     allowed_schemes: [
       doc:
-        "List of allowed schemes for the link (e.g. https). Values with disallowed scheme are displayed as raw text.",
+        "List of allowed schemes for the link (e.g. https). Schemes are compared case-insensitively. Values with a disallowed scheme are displayed as raw text.",
       type: {:list, :string},
       default: ~w(https http tel mailto)
     ],
@@ -46,9 +46,10 @@ defmodule Backpex.Fields.URL do
 
     ~H"""
     <p class={@live_action in [:index, :resource_action] && "truncate"}>
-      <.link :if={@valid?} href={@value} class="text-blue-600 underline">
+      <%!-- A plain anchor, as `<.link>` rejects schemes outside Phoenix's own list even if they are allowed here --%>
+      <a :if={@valid?} href={@value} class="text-blue-600 underline">
         {@anchor_text}
-      </.link>
+      </a>
       <span :if={!@valid?}>{@value}</span>
     </p>
     """
@@ -65,7 +66,7 @@ defmodule Backpex.Fields.URL do
         <BackpexForm.input
           type="text"
           field={@form[@name]}
-          placeholder={@field_options[:placeholder]}
+          placeholder={Backpex.Field.placeholder(@field_options, assigns)}
           translate_error_fun={Backpex.Field.translate_error_fun(@field_options, assigns)}
           help_text={Backpex.Field.help_text(@field_options, assigns)}
           phx-debounce={Backpex.Field.debounce(@field_options, assigns)}
@@ -81,7 +82,7 @@ defmodule Backpex.Fields.URL do
   defp valid_url?(value, field_options) when is_binary(value) do
     case URI.new(value) do
       {:ok, %URI{scheme: scheme}} ->
-        is_nil(scheme) or String.downcase(scheme) in field_options.allowed_schemes
+        is_nil(scheme) or scheme in Enum.map(field_options.allowed_schemes, &String.downcase/1)
 
       {:error, _part} ->
         false

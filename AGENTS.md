@@ -68,6 +68,10 @@ priv/
 └── templates/         # Default layout templates
 
 assets/js/             # JavaScript for LiveView hooks
+
+test/                  # Unit tests, no database
+integration_test/      # Tests against a test app with PostgreSQL, browser tests in e2e/
+└── support/app/       # The test app: endpoint, router, schemas and fixture LiveResources
 ```
 
 The library provides:
@@ -99,7 +103,7 @@ demo/
 ├── priv/
 │   ├── repo/              # Database migrations and seeds
 │   └── static/            # Static assets
-├── test/                  # Tests (including browser tests with Phoenix.Test.Playwright)
+├── test/                  # Smoke and a11y tests of the demo LiveResources
 └── assets/                # Frontend assets (JS, CSS)
 ```
 
@@ -107,7 +111,7 @@ The demo serves multiple purposes:
 - **Example implementation**: Shows how to use Backpex in a real application
 - **Development environment**: Used for testing new features during development
 - **Documentation**: Live examples for documentation and screenshots
-- **Testing**: Comprehensive test suite including accessibility tests
+- **Smoke testing**: Every view of its LiveResources renders and passes the a11y audit
 
 ### Difference Between Demo and Backpex
 
@@ -119,7 +123,7 @@ The demo serves multiple purposes:
 | **Dependencies** | Minimal (Phoenix, Ecto, Gettext) | Includes Backpex + app-specific deps |
 | **Code** | Generic, configurable abstractions | Specific LiveResource implementations |
 | **Assets** | Compiled JS (hooks) published with package | Full asset pipeline with Tailwind/esbuild |
-| **Tests** | Unit tests for library code | Browser tests, integration tests, a11y tests |
+| **Tests** | Unit, integration and browser tests of every feature | Smoke and a11y tests of the demo configuration |
 
 ### Backpex is designed to be extended
 
@@ -188,6 +192,15 @@ mix format
 - Dev settings live in `compose.yml`, test settings in the `config_env() == :test` block at the end of `demo/config/runtime.exs`. A developer's optional `.env` only holds host ports and personal settings; never read it. Without it, host ports are random.
 - In a worktree, never start or stop containers of another checkout; run `docker compose` only from the current directory. Start the demo with `docker compose up -d`; tests and `mix` commands need no ports. `docker compose port app 4000` shows the demo's host port. Without a `compose.override.yml`, the browser console shows errors for the LiveDebugger assets on port 4007. If absolute URLs or LiveDebugger must work, write one with free ports (check with `lsof -iTCP:<port> -sTCP:LISTEN`), as in CONTRIBUTING.md, and print the URL.
 - The Tidewave MCP server in `.mcp.json` runs `mix tidewave.proxy` inside the current checkout's app container. Its tools take a `port` argument: always pass `4000`, the demo's port inside the container, never the host port. The server only connects if the app container was running when the session started. If the Tidewave tools are missing, start the demo with `docker compose up -d` and ask the user to reconnect `tidewave` via `/mcp`.
+
+### Testing
+
+Test Backpex features in the library, not in the demo: unit tests in `test/`, everything that needs a LiveView, the database or a browser in `integration_test/`.
+
+- The integration tests use the test app in `integration_test/support/app`. Its fixture LiveResources mirror the demo ones (`Backpex.Test.PostLive` etc.); extend a fixture or add one instead of testing through the demo. `Backpex.ConnCase`, `Backpex.DataCase` and `Backpex.E2ECase` are the test cases.
+- `mix test` needs the `postgres` service of `compose.yml` (`docker compose up -d postgres`); the port is found with `docker compose port`. Each run recreates its database, so parallel runs need their own `MIX_TEST_PARTITION`.
+- Browser tests are tagged `:e2e`: run `bun run e2e:assets`, then `mix test --only e2e`.
+- CI merges the coverage of all tests and fails below the threshold in `mix.exs`. Raise it when coverage grows.
 
 ### Quality Assurance
 
@@ -263,7 +276,7 @@ Accessibility is **mandatory**, not optional. All features must be fully accessi
 5. **Screen reader compatibility**: Provide alt text for all images, use `sr-only` Tailwind class for screen-reader-only content when needed
 6. **Forms accessibility**: Always use `<label>` elements associated with form inputs
 
-The demo project contains an `A11yAssertions` module (`demo/test/support/a11y_assertions.ex`) with an `assert_a11y/1` function that can be used to test for a11y. See `demo/test/demo_web/browser/address_browser_test.exs` for an example of this.
+Browser tests check accessibility with `assert_a11y/1` from `Backpex.E2ECase`. See `integration_test/e2e/a11y_test.exs` for an example.
 
 ### Phoenix LiveView Hooks
 

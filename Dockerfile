@@ -50,7 +50,7 @@ ENV MIX_ENV=$MIX_ENV
 
 # Install root-level (Backpex) dependencies
 COPY package.json bun.lock bunfig.toml ./
-RUN bun install --frozen-lockfile
+RUN bun install --frozen-lockfile --production
 
 RUN mkdir demo
 WORKDIR $APP_HOME/demo
