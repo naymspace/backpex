@@ -7,17 +7,25 @@ defmodule Backpex.MixProject do
   @changelog_url "https://github.com/naymspace/backpex/releases"
   @website_url "https://backpex.live"
 
+  # The integration tests in `integration_test` run the LiveResources of a test app against PostgreSQL and in a browser.
+  # Their dependencies need Elixir 1.19, so older versions of Elixir only run the unit tests in `test`.
+  # `INTEGRATION_TESTS=false` leaves them out on any version, with their dependencies and support code. CI runs them
+  # once, on the latest Elixir, and sets it for the other versions.
+  @integration_tests Version.match?(System.version(), ">= 1.19.0") and System.get_env("INTEGRATION_TESTS") != "false"
+
   def project do
     [
       app: :backpex,
       version: @version,
       elixir: "~> 1.16",
       elixirc_paths: elixirc_paths(Mix.env()),
+      test_paths: test_paths(),
       compilers: [:phoenix_live_view] ++ Mix.compilers(),
       start_permanent: Mix.env() == :prod,
       deps: deps(),
       aliases: aliases(),
       gettext: gettext(),
+      test_coverage: test_coverage(),
 
       # Hex.pm
       hex: [cooldown: "3d"],
@@ -32,8 +40,23 @@ defmodule Backpex.MixProject do
     ]
   end
 
-  defp elixirc_paths(:test), do: ["lib", "test/support"]
+  defp test_paths do
+    if @integration_tests, do: ["test", "integration_test"], else: ["test"]
+  end
+
+  defp elixirc_paths(:test) do
+    if @integration_tests, do: ["lib", "test/support", "integration_test/support"], else: ["lib", "test/support"]
+  end
+
   defp elixirc_paths(_), do: ["lib"]
+
+  # The threshold is the floor of the merged coverage of the unit and browser tests in CI. Raise it when coverage grows.
+  defp test_coverage do
+    [
+      summary: [threshold: 88],
+      ignore_modules: [~r/^Backpex\.(Test\.|ConnCase|DataCase|E2ECase)/]
+    ]
+  end
 
   defp deps do
     [
@@ -68,7 +91,23 @@ defmodule Backpex.MixProject do
       # generators
       {:igniter, "~> 0.8", optional: true},
       {:igniter_js, "~> 0.5", optional: true}
-    ]
+    ] ++ integration_test_deps()
+  end
+
+  defp integration_test_deps do
+    if @integration_tests do
+      [
+        {:ecto_sql, "~> 3.10", only: :test},
+        {:bandit, "~> 1.14", only: :test},
+        {:phoenix_test, "~> 0.13.0", only: :test, runtime: false},
+        {:phoenix_test_playwright, "~> 0.19.0", only: :test, runtime: false},
+        {:a11y_audit, "~> 0.5.0", only: :test},
+        {:ex_machina, "~> 2.8", only: :test},
+        {:money, "~> 1.14", only: :test}
+      ]
+    else
+      []
+    end
   end
 
   defp package do
@@ -86,7 +125,7 @@ defmodule Backpex.MixProject do
 
   defp aliases do
     [
-      lint: ["compile --warning-as-errors", "deps.unlock --unused", "format", "credo", "test"],
+      lint: lint(),
       "assets.build": [
         "esbuild module",
         "esbuild main"
@@ -94,6 +133,13 @@ defmodule Backpex.MixProject do
       "assets.watch": "esbuild module --watch",
       "assets.check": ["assets.build", "cmd ./scripts/check_assets.sh"]
     ]
+  end
+
+  # Without the integration tests, the lock still holds their dependencies, which `deps.unlock --unused` would remove.
+  defp lint do
+    unlock_unused = if @integration_tests, do: ["deps.unlock --unused"], else: []
+
+    ["compile --warning-as-errors"] ++ unlock_unused ++ ["format", "credo", "test"]
   end
 
   defp docs do
@@ -249,7 +295,8 @@ defmodule Backpex.MixProject do
       Actions: ~r/Backpex\.(ItemAction|ResourceAction).?/,
       Filters: ~r/Backpex\.Filter.?/,
       Metrics: ~r/Backpex\.Metric.?/,
-      Preferences: ~r/Backpex\.Preferences.*/
+      Preferences: ~r/Backpex\.Preferences.*/,
+      Testing: ~r/Backpex\.Testing/
     ]
   end
 

@@ -47,6 +47,10 @@ jobs:
           - elixir: "1.20"
             otp: "29.0"
 
+    # The integration tests run once, on the latest Elixir, in the test-integration job.
+    env:
+      INTEGRATION_TESTS: false
+
     steps:
       - name: Checkout code
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -63,7 +67,7 @@ jobs:
       - name: Setup bun
         uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
         with:
-          bun-version: "1.4.4"
+          bun-version-file: .tool-versions
 
       - name: Restore the deps and _build cache
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
@@ -117,9 +121,6 @@ jobs:
       - name: Sobelow
         run: mix sobelow --config
 
-      - name: Deps Unused
-        run: mix deps.unlock --check-unused
-
       - name: Run tests
         run: mix test
 
@@ -136,8 +137,141 @@ jobs:
       - name: Check assets up-to-date
         run: mix assets.check
 
+  test-integration:
+    name: "Integration tests and coverage (backpex)"
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    services:
+      postgres:
+        image: postgres:18.6@sha256:edb0c08dc33befd0262ab3b5cf1c4f3f8cfd8b09e88c05b45adee29d6761ddb6
+        env:
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      DB_HOSTNAME: localhost
+      DB_PORT: 5432
+      DB_USERNAME: postgres
+      DB_PASSWORD: postgres
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Set runner image
+        # Part of the cache keys, so caches don't carry over to a new Ubuntu version behind ubuntu-latest
+        run: echo "RUNNER_IMAGE=$ImageOS" >> "$GITHUB_ENV"
+
+      - uses: erlef/setup-beam@54075bcc5e249e4758d363f27d099f55d843f124 # v1.24.1
+        with:
+          version-file: .tool-versions
+          version-type: strict
+
+      - name: Setup bun
+        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+        with:
+          bun-version-file: .tool-versions
+
+      - name: Setup node
+        # Playwright runs its CLI with node
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 24
+
+      - name: Restore the deps and _build cache
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        id: restore-cache
+        env:
+          TOOL_VERSIONS_HASH: ${{ hashFiles('.tool-versions') }}
+          MIX_LOCK_HASH: ${{ hashFiles(format('{0}{1}', github.workspace, '/mix.lock')) }}
+        with:
+          path: |
+            deps
+            _build
+          key: ${{ runner.os }}-${{ env.RUNNER_IMAGE }}-${{ env.TOOL_VERSIONS_HASH }}-build-deps-integration-mixlockhash-${{ env.MIX_LOCK_HASH }}
+          restore-keys: ${{ runner.os }}-${{ env.RUNNER_IMAGE }}-${{ env.TOOL_VERSIONS_HASH }}-build-deps-integration-
+
+      - name: Install dependencies
+        if: steps.restore-cache.outputs.cache-hit != 'true'
+        run: mix deps.get
+
+      - name: Compile dependencies
+        if: steps.restore-cache.outputs.cache-hit != 'true'
+        run: MIX_ENV=test mix deps.compile
+
+      - name: Cache bun install cache
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.bun/install/cache
+          key: ${{ runner.os }}-bun-store-${{ hashFiles('bun.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-bun-store-
+
+      - name: Cache Playwright browsers
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        id: playwright-cache
+        with:
+          path: ~/.cache/ms-playwright
+          key: ${{ runner.os }}-${{ env.RUNNER_IMAGE }}-playwright-${{ hashFiles('bun.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-${{ env.RUNNER_IMAGE }}-playwright-
+
+      - name: Deps Unused
+        # Only the latest Elixir loads the dependencies of the integration tests, see mix.exs.
+        run: mix deps.unlock --check-unused
+
+      - name: Install node dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Install Playwright
+        if: steps.playwright-cache.outputs.cache-hit != 'true'
+        run: bun run e2e:install
+
+      - name: Build the assets of the browser tests
+        run: bun run e2e:assets
+
+      - name: Compile the test app with warnings as errors
+        run: MIX_ENV=test mix compile --warnings-as-errors
+
+      - name: Run unit and integration tests with coverage
+        run: mix test --cover --export-coverage default
+
+      - name: Run browser tests with coverage
+        # A failed test runs again with traces for the artifact, but the step fails anyway, so a flaky test shows up
+        # and the coverage check never merges the export of a failed run.
+        run: |
+          mix test --only e2e --cover --export-coverage e2e || {
+            status=$?
+            if [[ $status = 2 ]]; then PW_TRACE=true mix test --only e2e --max-cases 1 --failed || true; fi
+            exit $status
+          }
+
+      - name: Check the merged coverage
+        run: MIX_ENV=test mix test.coverage
+
+      - name: Upload the coverage report
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: coverage
+          path: cover/
+          retention-days: 7
+
+      - name: Upload Playwright traces
+        if: failure()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: playwright-traces-backpex
+          path: tmp/e2e/traces/
+          retention-days: 7
+
   publish:
-    needs: [test, test-demo]
+    needs: [test, test-integration, test-demo]
     if: github.event_name == 'release'
     name: "Publish package on hex.pm"
     runs-on: ubuntu-latest
@@ -203,7 +337,7 @@ jobs:
           - name: Setup bun
             uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
             with:
-              bun-version: "1.4.4"
+              bun-version-file: .tool-versions
 
           - name: Restore the deps and _build cache
             uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0

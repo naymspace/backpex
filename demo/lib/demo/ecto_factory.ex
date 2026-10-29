@@ -97,7 +97,7 @@ defmodule Demo.EctoFactory do
   def invoice_factory do
     %Invoice{
       company: Faker.Company.name(),
-      amount: 100..5_000
+      amount: Enum.random(100..5_000)
     }
   end
 
