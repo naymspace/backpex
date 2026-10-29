@@ -9,7 +9,7 @@ defmodule DemoWeb.CategoryLive do
     init_order: %{by: :name, direction: :asc},
     persist: [:order, :filters, :columns, :metrics]
 
-  import Ecto.Query, warn: false
+  import Ecto.Query, only: [from: 2]
 
   alias Demo.Post
   alias Demo.Repo

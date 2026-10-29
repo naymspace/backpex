@@ -286,7 +286,8 @@ defmodule Backpex.LiveResource do
   Receives the change of the new item, which the adapter built from the form, for example an `Ecto.Changeset`, and
   must return a change of the same type. Backpex creates the item from the returned change. Use it to add changes
   that should only be made when the item is saved, not while the form is being validated. To cancel the save, add an
-  error to the change. The form then shows the error.
+  error to the change. The form then shows the error next to its field. An inline edit on the index view only marks the
+  field as invalid.
 
   The change may already be invalid. It is only called on save and only after the user is authorized to create the
   item. See the [Hooks](hooks.html) guide.
@@ -305,7 +306,8 @@ defmodule Backpex.LiveResource do
   This function is executed before an item is deleted.
 
   Return `:ok` to delete the item, or `{:error, message}` to cancel the deletion. Backpex then deletes none of the
-  selected items and shows the message. See the [Hooks](hooks.html) guide.
+  selected items and shows the message. It is called once per selected item, and exceptions it raises are not
+  rescued. See the [Hooks](hooks.html) guide.
   """
   @callback on_item_deleting(socket :: Socket.t(), item :: map()) :: :ok | {:error, message :: String.t()}
 

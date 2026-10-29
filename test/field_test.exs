@@ -82,9 +82,10 @@ defmodule Backpex.FieldTest do
       true
     end
 
+    # Refuses the title "Refused", like a hook that adds an error to the changeset.
     def on_item_updating(socket, {:changeset, item, attrs}) do
       send(self(), {:on_item_updating, socket, item})
-      {:changeset, item, Map.put(attrs, :edited_inline, true)}
+      {:changeset, item, Map.merge(attrs, %{edited_inline: true, refused?: attrs[:title] == "Refused"})}
     end
 
     def on_item_updated(socket, item) do
@@ -195,6 +196,18 @@ defmodule Backpex.FieldTest do
       assert_received {:on_item_updated, %Socket{assigns: %{name: :title}}, ^item}
       assert socket.assigns.valid
       assert socket.assigns.form.params == %{"value" => "After"}
+    end
+
+    test "marks the value as invalid when on_item_updating/2 refuses the change" do
+      item = %{id: 1, title: "Before"}
+      socket = field_socket(item)
+
+      assert {:noreply, socket} = Field.handle_index_editable(socket, "Refused", %{title: "Refused"})
+
+      assert_received {:adapter, :update, ^item, %{title: "Refused", refused?: true}}
+      refute_received {:on_item_updated, _socket, _item}
+      refute socket.assigns.valid
+      assert socket.assigns.form.params == %{"value" => "Refused"}
     end
 
     test "saves the change of a field component without a live action" do

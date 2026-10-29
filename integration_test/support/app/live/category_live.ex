@@ -12,7 +12,7 @@ defmodule Backpex.Test.CategoryLive do
       create_changeset: &Backpex.Test.Category.changeset/3
     ]
 
-  import Ecto.Query, warn: false
+  import Ecto.Query, only: [from: 2]
 
   @impl Backpex.LiveResource
   def layout(_assigns), do: {Backpex.Test.Layouts, :admin}

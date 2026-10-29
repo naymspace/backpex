@@ -1,6 +1,9 @@
 defmodule Backpex.Integration.ItemActions.DeleteTest do
   use Backpex.ConnCase, async: true
 
+  alias Backpex.Test.Category
+  alias Backpex.Test.Repo
+
   setup do
     %{category: insert(:category, name: "Elixir")}
   end
@@ -38,7 +41,21 @@ defmodule Backpex.Integration.ItemActions.DeleteTest do
     |> assert_has("div", text: "Elixir can't be deleted, because posts belong to it.", exact: true)
     |> assert_has("td", text: "Elixir", exact: true)
 
-    assert Backpex.Test.Repo.get(Backpex.Test.Category, category.id)
+    assert Repo.get(Category, category.id)
+  end
+
+  test "stays on the show view when on_item_deleting/2 refuses the item", %{conn: conn, category: category} do
+    insert(:post, category: category)
+
+    conn
+    |> visit(~p"/admin/categories/#{category.id}/show")
+    |> click_button("Delete")
+    |> confirm()
+    |> assert_path(~p"/admin/categories/#{category.id}/show")
+    |> assert_has("div", text: "Elixir can't be deleted, because posts belong to it.", exact: true)
+    |> assert_has("dd", text: "Elixir", exact: true)
+
+    assert Repo.get(Category, category.id)
   end
 
   defp confirm(session) do

@@ -32,7 +32,7 @@ def on_item_updating(socket, changeset) do
 end
 ```
 
-To cancel the save, add an error to the change. The adapter then refuses to save it and the form shows the error. Add the error to a field of the form, so it is shown next to the field. With the Ecto adapter, the item before the update is the `data` of the changeset.
+To cancel the save, add an error to the change. The adapter then refuses to save it and the form shows the error. Add the error to a field of the form, so it is shown next to the field. An error on another key, for example `:base` or a field that is not in the form, is not shown; the form only says that it has errors. An inline edit on the index view does not show the error either, it only marks the field as invalid. With the Ecto adapter, the item before the update is the `data` of the changeset.
 
 ```elixir
 @impl Backpex.LiveResource
@@ -75,7 +75,11 @@ def on_item_deleting(_socket, category) do
 end
 ```
 
-Backpex stops at the first item that may not be deleted. The hook may then already have been called for other selected items, which are not deleted either, so use `on_item_deleted/2` for side effects.
+Backpex stops at the first item that may not be deleted. The hook may then already have been called for other selected items, which are not deleted either, so use `on_item_deleted/2` for side effects. When the deletion of an item is refused on its show view, the user stays on the show view.
+
+The hook is called once per selected item, so a check that reads the database runs one query per item. Keep it cheap, as users may delete many items at once.
+
+Backpex does not rescue exceptions raised in the hook. Return `{:error, message}` for every case in which the user should see a message.
 
 ## After Hooks
 
@@ -104,3 +108,5 @@ Backpex.Resource.update(item, change, fields, assigns, live_resource,
   end
 )
 ```
+
+`Backpex.Resource.update_all/5` and `Backpex.Resource.delete_all/4` never call the hooks. `update_all/5` receives update instructions for the adapter instead of a change, so there is nothing to pass to `on_item_updating/2`. A custom item action that saves items with these functions, for example to soft delete them, skips the rules in your before hooks. Check them in the item action, for example in `c:Backpex.ItemAction.handle/3`.

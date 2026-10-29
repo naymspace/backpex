@@ -50,9 +50,21 @@ defmodule Backpex.ItemActions.Delete do
         socket
         |> clear_flash()
         |> put_flash(:error, message)
+        |> stay_on_show_view(items)
         |> ok()
     end
   end
+
+  # The show view navigates to the index view after an item action unless the action navigated itself. When the
+  # deletion is refused, the item still exists, so the user stays on its show view.
+  defp stay_on_show_view(%{assigns: %{live_action: :show}} = socket, [item]) do
+    %{live_resource: live_resource, params: params} = socket.assigns
+    path = Router.get_path(socket, live_resource, params, :show, item, Map.take(params, ["return_to"]))
+
+    push_patch(socket, to: path)
+  end
+
+  defp stay_on_show_view(socket, _items), do: socket
 
   # Stops at the first item that may not be deleted, as none of the items are deleted then.
   defp before_delete(socket, items) do

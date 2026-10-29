@@ -158,6 +158,18 @@ defmodule Backpex.FormComponentTest do
       refute_received {:on_item_updating, _change}
     end
 
+    test "shows the error on_item_creating/2 adds and creates nothing" do
+      hook = &Ecto.Changeset.add_error(&1, :title, "is taken")
+      socket = save_socket(:new, hook: hook)
+
+      assert {:noreply, socket} = FormComponent.handle_event("save", %{}, socket)
+      refute socket.redirected
+
+      assert socket.assigns.show_form_errors
+      assert socket.assigns.form.errors == [title: {"is taken", []}]
+      refute_received {:on_item_created, _item}
+    end
+
     test "updates the item from the change on_item_updating/2 returns" do
       hook = &Ecto.Changeset.put_change(&1, :title, "From hook")
       socket = save_socket(:edit, hook: hook)
