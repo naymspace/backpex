@@ -28,6 +28,20 @@ defmodule Backpex.Integration.Index.SearchTest do
     |> assert_has("tr", text: "John Doe")
   end
 
+  # The count of the index view resolves the search target `user.full_name` to the computed value of the loaded users.
+  test "finds items by a computed value of related items", %{conn: conn} do
+    insert(:post, title: "Post by John", user: build(:user, first_name: "John", last_name: "Doe"))
+    insert(:post, title: "Post by Jane", user: build(:user, first_name: "Jane", last_name: "Smith"))
+
+    conn
+    |> visit(~p"/admin/posts")
+    |> assert_has("table tbody tr", count: 2)
+    |> search("John Doe")
+    |> assert_has("table tbody tr", count: 1)
+    |> assert_has("tr", text: "Post by John")
+    |> refute_has("tr", text: "Post by Jane")
+  end
+
   test "finds items by an index editable field", %{conn: conn} do
     insert(:user, username: "alice_wonder")
     insert(:user, username: "bob_builder")

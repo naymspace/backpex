@@ -52,8 +52,10 @@ defmodule Backpex.Resource do
   alias Backpex.Expr.Ref
   alias Backpex.Query
 
-  # Counts and aggregates cover all matching items, so these parts of a query don't apply.
-  @not_aggregated [:sort, :default_sort, :limit, :offset, :load]
+  # Counts and aggregates cover all matching items, so these parts of a query don't apply. The `:load` stays: refs of
+  # the search and the filters may name computed values of the related queries it holds, see
+  # `Backpex.Query.computed_expr/2`.
+  @not_aggregated [:sort, :default_sort, :limit, :offset]
 
   @doc """
   Returns the query of the items of the resource that Backpex reads with the given fields: the items of the
@@ -243,8 +245,8 @@ defmodule Backpex.Resource do
   end
 
   @doc """
-  Returns the number of items the query matches, see `c:Backpex.Adapter.count/1`. Ignores the sorts, the limit, the
-  offset and the relationships to load. An invalid query matches no items.
+  Returns the number of items the query matches, see `c:Backpex.Adapter.count/1`. Ignores the sorts, the limit and the
+  offset. An invalid query matches no items.
   """
   @spec count(Query.t()) :: {:ok, non_neg_integer()} | {:error, term()}
   def count(%Query{valid?: false}), do: {:ok, 0}
@@ -261,9 +263,9 @@ defmodule Backpex.Resource do
   end
 
   @doc """
-  Returns the values of the aggregates of the query, see `c:Backpex.Adapter.aggregate/1`. Ignores the sorts, the limit,
-  the offset and the relationships to load. Backpex computes them from the items of `read/1` if the adapter doesn't
-  support `:aggregate` or the filter or search of the query.
+  Returns the values of the aggregates of the query, see `c:Backpex.Adapter.aggregate/1`. Ignores the sorts, the limit
+  and the offset. Backpex computes them from the items of `read/1` if the adapter doesn't support `:aggregate` or the
+  filter or search of the query.
   """
   @spec aggregate(Query.t()) :: {:ok, %{atom() => term()}} | {:error, term()}
   def aggregate(%Query{aggregates: []}), do: {:ok, %{}}
