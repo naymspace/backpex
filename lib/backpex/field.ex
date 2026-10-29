@@ -601,6 +601,7 @@ defmodule Backpex.Field do
     %{assigns: %{item: item, fields: fields, live_resource: live_resource} = assigns} = socket
 
     opts = [
+      before_save_fun: &live_resource.on_item_updating(socket, &1),
       after_save_fun: fn item ->
         live_resource.on_item_updated(socket, item)
 

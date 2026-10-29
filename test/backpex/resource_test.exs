@@ -99,6 +99,25 @@ defmodule Backpex.ResourceTest do
         Resource.insert(item, %{}, f, assigns, AllowAll, authorization_action: "custom_key")
       end
     end
+
+    test "inserts the change :before_save_fun returns", %{assigns: assigns, item: item, fields: f} do
+      opts = [before_save_fun: &put_attr(&1, :extra, true), assocs: [tags: []]]
+
+      assert {:ok, ^item} = Resource.insert(item, %{title: "Title"}, f, assigns, AllowAll, opts)
+
+      assert_received {:before_save, {:changeset, ^item, %{title: "Title"}}}
+      assert_received {:adapter, :insert, ^item, %{title: "Title", extra: true}}
+      assert_received {:adapter, :change, change_opts}
+      refute Keyword.has_key?(change_opts, :before_save_fun)
+    end
+
+    test "does not call :before_save_fun when not authorized", %{assigns: assigns, item: item, fields: f} do
+      assert_raise Backpex.ForbiddenError, fn ->
+        Resource.insert(item, %{}, f, assigns, DenyAll, before_save_fun: &put_attr(&1, :extra, true))
+      end
+
+      refute_received {:before_save, _change}
+    end
   end
 
   describe "update/6" do
@@ -129,6 +148,23 @@ defmodule Backpex.ResourceTest do
                Resource.update(item, %{}, f, assigns, OnlyCustomKey, authorization_action: :custom_key)
 
       assert {:ok, ^item} = Resource.update(item, %{}, f, assigns, DenyAll, authorize?: false)
+    end
+
+    test "updates the change :before_save_fun returns", %{assigns: assigns, item: item, fields: f} do
+      opts = [before_save_fun: &put_attr(&1, :extra, true)]
+
+      assert {:ok, ^item} = Resource.update(item, %{title: "Title"}, f, assigns, AllowAll, opts)
+
+      assert_received {:before_save, {:changeset, ^item, %{title: "Title"}}}
+      assert_received {:adapter, :update, ^item, %{title: "Title", extra: true}}
+    end
+
+    test "does not call :before_save_fun when not authorized", %{assigns: assigns, item: item, fields: f} do
+      assert_raise Backpex.ForbiddenError, fn ->
+        Resource.update(item, %{}, f, assigns, DenyAll, before_save_fun: &put_attr(&1, :extra, true))
+      end
+
+      refute_received {:before_save, _change}
     end
   end
 
@@ -569,5 +605,12 @@ defmodule Backpex.ResourceTest do
                sum: {:adapter, {:sum, :amount}, nil}
              }
     end
+  end
+
+  # Puts an attribute into a change of `Backpex.Test.StubAdapter`.
+  defp put_attr({:changeset, item, attrs} = change, key, value) do
+    send(self(), {:before_save, change})
+
+    {:changeset, item, Map.put(attrs, key, value)}
   end
 end

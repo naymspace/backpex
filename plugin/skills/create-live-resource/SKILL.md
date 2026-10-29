@@ -95,6 +95,9 @@ The `item_query` function must build on the incoming `query` argument (use `from
 | `metrics/0` | `[]` | Index page metrics |
 | `resource_actions/0` | `[]` | Resource-level actions |
 | `item_actions/1` | returns default_actions unchanged | Modify default item actions |
+| `on_item_creating/2` | returns the change | `fn socket, change -> change`, before the item is created; add an error to cancel |
+| `on_item_updating/2` | returns the change | `fn socket, change -> change`, before the item is updated; add an error to cancel |
+| `on_item_deleting/2` | `:ok` | `fn socket, item -> :ok \| {:error, message}`, before the item is deleted |
 | `on_item_created/2` | noop | `fn socket, item -> socket` |
 | `on_item_updated/2` | noop | `fn socket, item -> socket` |
 | `on_item_deleted/2` | noop | `fn socket, item -> socket` |
