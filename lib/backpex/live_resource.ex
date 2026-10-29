@@ -944,16 +944,24 @@ defmodule Backpex.LiveResource do
   Builds the query of the index view from its assigns: the items of the resource (see `Backpex.Resource.items_query/3`)
   that match the search and the active filters, in the current order, on the current page. See `Backpex.Query`.
 
-  Remove the page with `Backpex.Query.unset(query, [:limit, :offset])`, e.g. to export all items of the current search
-  and filters, or the order with `:sort` and `:default_sort` to count them.
+  The query has the fields of the index view of the LiveResource, so it also works with the assigns of item actions and
+  resource actions, which have fields of their own, e.g. for an export. Remove the page with
+  `Backpex.Query.unset(query, [:limit, :offset])` to export all items of the current search and filters, or the order
+  with `:sort` and `:default_sort` to count them.
   """
   @spec index_query(map()) :: Backpex.Query.t()
-  def index_query(assigns) do
+  def index_query(%{live_resource: live_resource} = assigns),
+    do: index_query(assigns, live_resource.fields(:index, assigns))
+
+  @doc """
+  Same as `index_query/1` with the given fields of the index view, e.g. the `:fields` of its assigns.
+  """
+  @spec index_query(map(), list()) :: Backpex.Query.t()
+  def index_query(assigns, fields) do
     %{
       live_resource: live_resource,
       query_options: query_options,
-      init_order: init_order,
-      fields: fields
+      init_order: init_order
     } = assigns
 
     field = Enum.find(fields, fn {name, _field_options} -> name == query_options.order_by end)
@@ -962,7 +970,7 @@ defmodule Backpex.LiveResource do
     query =
       fields
       |> Resource.items_query(assigns, live_resource)
-      |> filter_query(assigns)
+      |> filter_query(Map.put(assigns, :fields, fields))
       |> Backpex.Query.limit(per_page)
       |> Backpex.Query.offset((page - 1) * per_page)
 
