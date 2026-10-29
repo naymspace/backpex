@@ -18,6 +18,11 @@ defmodule Backpex.Adapters.Ecto.Where do
   @comparisons [:==, :!=, :<, :<=, :>, :>=]
   @flipped %{:== => :==, :!= => :!=, :< => :>, :<= => :>=, :> => :<, :>= => :<=}
   @string_functions [:contains, :starts_with, :ends_with]
+  @arithmetic [:+, :-, :*, :/]
+  @seconds %{second: 1, minute: 60, hour: 3600, day: 86_400}
+
+  # An expression that stands for a value, e.g. in a comparison such as `likes - dislikes > 10`.
+  defguardp value_expression?(arg) when is_struct(arg, Call) or is_struct(arg, Aggregate) or is_struct(arg, Native)
 
   @doc """
   Adds the expression to the query as a `where` clause. Keeps the query for a `nil` expression.
@@ -75,7 +80,50 @@ defmodule Backpex.Adapters.Ecto.Where do
     end
   end
 
+  @doc """
+  Returns the query with one left join for every group of aggregates of the expressions that share the relationships,
+  the kind, the `:where` and the `:sort`, e.g. the name and the email of the partner of the primary contact. The values
+  of an aggregate of the expressions then come from the join of its group, see `value/2`.
+  """
+  def join_aggregates(query, expressions) do
+    query = Ecto.Queryable.to_query(query)
+    binding = {:root, schema(query)}
+
+    expressions
+    |> Enum.flat_map(&aggregates/1)
+    |> Enum.uniq()
+    |> Enum.group_by(&aggregate_group/1)
+    |> Enum.reduce(query, fn {_group, [aggregate | _rest] = aggregates}, query ->
+      join_aggregates(query, binding, group_name(binding, aggregate), aggregates)
+    end)
+  end
+
+  defp aggregates(%Aggregate{} = aggregate), do: [aggregate]
+  defp aggregates(%Call{args: args}), do: Enum.flat_map(args, &aggregates/1)
+  defp aggregates(_expression), do: []
+
   defp value(%Ref{} = ref, query, binding), do: field(ref, query, binding)
+
+  defp value(%Call{name: operator, args: [left, right]}, query, binding) when operator in @arithmetic do
+    {query, left} = operand(left, query, binding)
+    {query, right} = operand(right, query, binding)
+
+    {query, arithmetic(operator, left, right)}
+  end
+
+  defp value(%Call{name: :datetime_diff, args: [left, right], opts: opts}, query, binding) do
+    {query, left} = operand(left, query, binding)
+    {query, right} = operand(right, query, binding)
+    seconds = Map.fetch!(@seconds, Keyword.fetch!(opts, :unit))
+
+    {query, dynamic(fragment("CAST(EXTRACT(EPOCH FROM (? - ?)) AS bigint) / ?", ^left, ^right, ^seconds))}
+  end
+
+  defp value(%Call{name: :to_string, args: [value]}, query, binding) do
+    {query, value} = operand(value, query, binding)
+
+    {query, dynamic(fragment("CAST(? AS TEXT)", ^value))}
+  end
 
   defp value(%Call{name: :concat, args: parts, opts: opts}, query, binding) do
     separator = Keyword.get(opts, :separator, "")
@@ -93,19 +141,24 @@ defmodule Backpex.Adapters.Ecto.Where do
   end
 
   # An aggregate is a subquery of the values of the related items by the primary key of the items, left joined to the
-  # items. Every aggregate with the same binding shares its join.
-  defp value(%Aggregate{kind: kind} = aggregate, query, {_kind, schema} = binding) do
-    primary_key = primary_key!(schema)
-    name = aggregate_name(binding, aggregate)
+  # items. An aggregate of a group of `join_aggregates/2` reads its value from the join of the group, others get a
+  # join of their own.
+  defp value(%Aggregate{kind: kind} = aggregate, query, binding) do
+    group_name = group_name(binding, aggregate)
 
-    query =
-      if has_named_binding?(query, name),
-        do: query,
-        else: join_aggregate(query, binding, name, aggregate_subquery(aggregate, schema, primary_key), primary_key)
+    {query, name} =
+      if has_named_binding?(query, group_name) do
+        {query, group_name}
+      else
+        name = aggregate_name(binding, aggregate)
+        {join_aggregates(query, binding, name, [aggregate]), name}
+      end
+
+    key = value_key(aggregate)
 
     case kind do
-      :count -> {query, dynamic([{^name, aggregate}], coalesce(aggregate.value, 0))}
-      _kind -> {query, dynamic([{^name, aggregate}], aggregate.value)}
+      :count -> {query, dynamic([{^name, aggregate}], coalesce(field(aggregate, ^key), 0))}
+      _kind -> {query, dynamic([{^name, aggregate}], field(aggregate, ^key))}
     end
   end
 
@@ -116,47 +169,60 @@ defmodule Backpex.Adapters.Ecto.Where do
     raise ArgumentError, "expected an expression such as a field or concat(...) as a value, got: #{inspect(value)}"
   end
 
-  defp aggregate_subquery(%Aggregate{path: path, where: where} = aggregate, schema, primary_key) do
+  defp join_aggregates(query, {_kind, schema} = binding, name, aggregates) do
+    if has_named_binding?(query, name) do
+      query
+    else
+      primary_key = primary_key!(schema)
+      join_aggregate(query, binding, name, aggregate_subquery(aggregates, schema, primary_key), primary_key)
+    end
+  end
+
+  # The values of aggregates of one group, by the primary key of the items.
+  defp aggregate_subquery([%Aggregate{path: path, where: where} = aggregate | _rest] = aggregates, schema, primary_key) do
     {subquery, target} = schema |> from() |> join_path(path, {:root, schema}, :inner)
     subquery = if where, do: where_in_binding(subquery, Expr.normalize(where), target), else: subquery
-    key = dynamic([item], field(item, ^primary_key))
 
-    aggregate_select(subquery, aggregate, target, key, primary_key)
+    {values, subquery} =
+      Enum.map_reduce(aggregates, subquery, fn aggregate, subquery ->
+        {subquery, value} = aggregate_value(aggregate, subquery, target)
+        {{value_key(aggregate), value}, subquery}
+      end)
+
+    select = Map.new([{:key, dynamic([item], field(item, ^primary_key))} | values])
+
+    aggregate_select(subquery, aggregate, target, select, primary_key)
   end
 
-  defp aggregate_select(subquery, %Aggregate{kind: :count}, _target, key, primary_key) do
-    subquery
-    |> group_by([item], field(item, ^primary_key))
-    |> select(^%{key: key, value: dynamic(count())})
-  end
+  defp aggregate_value(%Aggregate{kind: :count}, subquery, _target), do: {subquery, dynamic(count())}
+  defp aggregate_value(%Aggregate{kind: :first, value: value}, subquery, target), do: value(value, subquery, target)
 
-  # The value of the first related item of every item, after the sort: PostgreSQL keeps the first row of every primary
-  # key with `DISTINCT ON`.
-  defp aggregate_select(subquery, %Aggregate{kind: :first, value: value, sort: sort}, target, key, primary_key) do
+  defp aggregate_value(%Aggregate{kind: kind, value: value}, subquery, target) do
     {subquery, value} = value(value, subquery, target)
 
+    case kind do
+      :sum -> {subquery, dynamic(sum(^value))}
+      :avg -> {subquery, dynamic(avg(^value))}
+      :min -> {subquery, dynamic(min(^value))}
+      :max -> {subquery, dynamic(max(^value))}
+    end
+  end
+
+  # The values of the first related item of every item, after the sort: PostgreSQL keeps the first row of every primary
+  # key with `DISTINCT ON`.
+  defp aggregate_select(subquery, %Aggregate{kind: :first, sort: sort}, target, select, primary_key) do
     sort
     |> Enum.reduce(distinct(subquery, [item], field(item, ^primary_key)), fn {ref, direction}, subquery ->
       {subquery, field} = field(ref, subquery, target)
       order_by(subquery, ^[{direction, field}])
     end)
-    |> select(^%{key: key, value: value})
+    |> select(^select)
   end
 
-  defp aggregate_select(subquery, %Aggregate{kind: kind, value: value}, target, key, primary_key) do
-    {subquery, value} = value(value, subquery, target)
-
-    value =
-      case kind do
-        :sum -> dynamic(sum(^value))
-        :avg -> dynamic(avg(^value))
-        :min -> dynamic(min(^value))
-        :max -> dynamic(max(^value))
-      end
-
+  defp aggregate_select(subquery, _aggregate, _target, select, primary_key) do
     subquery
     |> group_by([item], field(item, ^primary_key))
-    |> select(^%{key: key, value: value})
+    |> select(^select)
   end
 
   defp join_aggregate(query, {:root, _schema}, name, subquery, primary_key) do
@@ -173,11 +239,26 @@ defmodule Backpex.Adapters.Ecto.Where do
     )
   end
 
+  # Aggregates of one group differ in their value only.
+  defp aggregate_group(%Aggregate{kind: kind, path: path, where: where, sort: sort}), do: {kind, path, where, sort}
+
   # The names come from the aggregates in the code of the LiveResource, so there are only as many as it has.
   # sobelow_skip ["DOS.StringToAtom"]
   defp aggregate_name({binding, _schema}, aggregate) do
     # credo:disable-for-next-line Credo.Check.Warning.UnsafeToAtom
     String.to_atom("backpex_aggregate_#{:erlang.phash2({binding, aggregate})}")
+  end
+
+  # sobelow_skip ["DOS.StringToAtom"]
+  defp group_name({binding, _schema}, aggregate) do
+    # credo:disable-for-next-line Credo.Check.Warning.UnsafeToAtom
+    String.to_atom("backpex_aggregates_#{:erlang.phash2({binding, aggregate_group(aggregate)})}")
+  end
+
+  # sobelow_skip ["DOS.StringToAtom"]
+  defp value_key(%Aggregate{value: value}) do
+    # credo:disable-for-next-line Credo.Check.Warning.UnsafeToAtom
+    String.to_atom("value_#{:erlang.phash2(value)}")
   end
 
   # A part of `concat` as text.
@@ -234,6 +315,14 @@ defmodule Backpex.Adapters.Ecto.Where do
     {query, field} = field(ref, query, binding)
 
     {query, dynamic(is_nil(^field))}
+  end
+
+  defp to_dynamic(%Call{name: operator, args: [left, right]}, query, binding)
+       when operator in @comparisons and (value_expression?(left) or value_expression?(right)) do
+    {query, left} = operand(left, query, binding)
+    {query, right} = operand(right, query, binding)
+
+    {query, compare_fields(operator, left, right)}
   end
 
   defp to_dynamic(%Call{name: operator, args: [%Ref{} = left, %Ref{} = right]}, query, binding)
@@ -304,6 +393,23 @@ defmodule Backpex.Adapters.Ecto.Where do
     {query, condition} = to_dynamic(expression, query, binding)
 
     where(query, ^condition)
+  end
+
+  # A side of a comparison or of arithmetic: a field, a value expression or a value, which Ecto takes as a parameter.
+  defp operand(%Ref{} = ref, query, binding), do: field(ref, query, binding)
+
+  defp operand(%struct{} = expression, query, binding) when struct in [Call, Aggregate, Native],
+    do: value(expression, query, binding)
+
+  defp operand(value, query, _binding), do: {query, value}
+
+  defp arithmetic(operator, left, right) do
+    case operator do
+      :+ -> dynamic(^left + ^right)
+      :- -> dynamic(^left - ^right)
+      :* -> dynamic(^left * ^right)
+      :/ -> dynamic(^left / ^right)
+    end
   end
 
   defp field(ref, query, binding) do

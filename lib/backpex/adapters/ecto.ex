@@ -89,6 +89,8 @@ defmodule Backpex.Adapters.Ecto do
   import Ecto.Query
 
   alias Backpex.Adapters.Ecto.Where
+  alias Backpex.Expr.Aggregate
+  alias Backpex.Expr.Call
   alias Backpex.Expr.Native
   alias Backpex.Expr.Ref
   alias Backpex.Query
@@ -189,26 +191,39 @@ defmodule Backpex.Adapters.Ecto do
 
     {:ok,
      Map.new(aggregates, fn %{name: name, aggregate: aggregate, where: where} ->
+       {ecto_query, value} = aggregate_dynamic(base, aggregate)
+
        data =
-         base
+         ecto_query
          |> Where.where_expr(where)
-         |> select(^aggregate_dynamic(aggregate))
+         |> select(^value)
          |> repo.one()
 
        {name, data}
      end)}
   end
 
-  # An aggregate, see `t:Backpex.Metric.aggregate/0`.
-  defp aggregate_dynamic(%Native{adapter: __MODULE__, expr: expression}), do: expression
-  defp aggregate_dynamic(:count), do: dynamic(count())
-  defp aggregate_dynamic({:count, field}) when is_atom(field), do: dynamic([item], count(field(item, ^field)))
-  defp aggregate_dynamic({:sum, field}) when is_atom(field), do: dynamic([item], sum(field(item, ^field)))
-  defp aggregate_dynamic({:avg, field}) when is_atom(field), do: dynamic([item], avg(field(item, ^field)))
-  defp aggregate_dynamic({:min, field}) when is_atom(field), do: dynamic([item], min(field(item, ^field)))
-  defp aggregate_dynamic({:max, field}) when is_atom(field), do: dynamic([item], max(field(item, ^field)))
+  # An aggregate, see `t:Backpex.Metric.aggregate/0`, with the query and the joins its value needs.
+  defp aggregate_dynamic(ecto_query, %Native{adapter: __MODULE__, expr: expression}), do: {ecto_query, expression}
+  defp aggregate_dynamic(ecto_query, :count), do: {ecto_query, dynamic(count())}
 
-  defp aggregate_dynamic(aggregate) do
+  defp aggregate_dynamic(ecto_query, {kind, field}) when is_atom(field),
+    do: aggregate_dynamic(ecto_query, {kind, Backpex.Expr.ref(field)})
+
+  defp aggregate_dynamic(ecto_query, {kind, %struct{} = expression})
+       when kind in [:count, :sum, :avg, :min, :max] and struct in [Ref, Call, Aggregate] do
+    {ecto_query, value} = Where.value(ecto_query, expression)
+
+    case kind do
+      :count -> {ecto_query, dynamic(count(^value))}
+      :sum -> {ecto_query, dynamic(sum(^value))}
+      :avg -> {ecto_query, dynamic(avg(^value))}
+      :min -> {ecto_query, dynamic(min(^value))}
+      :max -> {ecto_query, dynamic(max(^value))}
+    end
+  end
+
+  defp aggregate_dynamic(_ecto_query, aggregate) do
     raise ArgumentError, "expected an aggregate such as :count or {:sum, :field}, got: #{inspect(aggregate)}"
   end
 
@@ -514,7 +529,9 @@ defmodule Backpex.Adapters.Ecto do
 
   defp merge_computed(ecto_query, %Query{computed: computed}) when computed == %{}, do: ecto_query
 
-  defp merge_computed(ecto_query, %Query{computed: computed}) do
+  defp merge_computed(ecto_query, %Query{computed: computed} = query) do
+    ecto_query = Where.join_aggregates(ecto_query, aggregate_expressions(query))
+
     {values, ecto_query} =
       Enum.map_reduce(computed, ecto_query, fn {name, expression}, ecto_query ->
         {ecto_query, value} = Where.value(ecto_query, expression)
@@ -522,6 +539,16 @@ defmodule Backpex.Adapters.Ecto do
       end)
 
     select_merge(ecto_query, ^Map.new(values))
+  end
+
+  # The expressions whose aggregates share joins, see `Backpex.Adapters.Ecto.Where.join_aggregates/2`: the computed
+  # values, and the ones of related items that sorts and the search refer to.
+  defp aggregate_expressions(%Query{computed: computed, search: search} = query) do
+    sort_refs = query |> Query.sorts() |> Enum.map(fn {ref, _direction} -> ref end)
+    search_refs = if search, do: search.targets, else: []
+    related = Enum.flat_map(sort_refs ++ search_refs, fn ref -> query |> Query.computed_expr(ref) |> List.wrap() end)
+
+    Map.values(computed) ++ related
   end
 
   # --- QUERIES

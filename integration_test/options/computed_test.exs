@@ -26,6 +26,21 @@ defmodule Backpex.Integration.Options.ComputedTest do
     |> assert_has("tbody tr:nth-child(2) td", text: "0", exact: true)
   end
 
+  test "reads aggregates that share a join and computes with aggregates", %{ann: ann, bob: bob} do
+    {:ok, users} =
+      []
+      |> Backpex.Resource.items_query(%{}, Backpex.Test.UserStatsLive)
+      |> Backpex.Query.sort(username: :asc)
+      |> Backpex.Resource.read()
+
+    assert [
+             %{id: ann_id, top_post: "Big", top_post_likes: 9, draft_count: 1},
+             %{id: bob_id, top_post: nil, top_post_likes: nil, draft_count: 0}
+           ] = users
+
+    assert {ann_id, bob_id} == {ann.id, bob.id}
+  end
+
   test "sorts by an aggregate and searches it", %{conn: conn} do
     conn
     |> visit(~p"/admin/user-stats?#{%{order_by: "post_count", order_direction: "asc"}}")

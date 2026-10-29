@@ -810,6 +810,17 @@ defmodule Backpex.Adapters.EctoTest do
       end
     end
 
+    test "aggregates the values of expressions" do
+      Process.put({FakeRepo, :one}, 3)
+
+      assert %{value: 3} = metric(%{module: Value, aggregate: {:sum, expr(id * 2)}})
+      assert_received {:repo, :one, query}
+      assert Macro.to_string(query.select.expr) == "sum(&0.id() * ^0)"
+
+      metric(%{module: Value, aggregate: {:max, expr(user.name)}})
+      assert_received {:repo, :one, %{joins: [%{as: :backpex_user}]}}
+    end
+
     test "limits the items with the where condition of the metric" do
       metric(%{module: Value, aggregate: :count, where: expr(title == "Hello")})
 
@@ -914,6 +925,73 @@ defmodule Backpex.Adapters.EctoTest do
       assert [first_join, count_join] = Enum.sort_by(query.joins, &is_nil(&1.source.query.distinct))
       assert %{qual: :left, source: %Ecto.SubQuery{query: %{group_bys: [_id], distinct: nil}}} = count_join
       assert %{qual: :left, source: %Ecto.SubQuery{query: %{group_bys: [], distinct: %{expr: [_id]}}}} = first_join
+    end
+
+    test "shares one join for the aggregates of the same relationships, kind, where and sort" do
+      defmodule SharedAggregatePostLive do
+        @moduledoc false
+        use FakeLiveResource, schema: Backpex.Adapters.EctoTest.TestPost
+
+        def computed(_assigns) do
+          name = expr(name)
+          id = expr(id)
+          tag_count = Expr.aggregate(:count, :tags)
+
+          [
+            first_tag: Expr.aggregate(:first, :tags, value: name, sort: [name: :asc]),
+            first_tag_id: Expr.aggregate(:first, :tags, value: id, sort: [name: :asc]),
+            tag_count: tag_count,
+            # Arithmetic of two aggregates of the same group, and an aggregate with another sort.
+            tag_count_twice: expr(^tag_count + ^tag_count),
+            last_tag: Expr.aggregate(:first, :tags, value: expr(name), sort: [name: :desc])
+          ]
+        end
+      end
+
+      query =
+        []
+        |> Resource.items_query(%{}, SharedAggregatePostLive)
+        |> Query.sort(first_tag: :asc)
+        |> Query.search("x", [:first_tag_id])
+        |> ecto_query()
+
+      assert [first_tags, count, last_tags] =
+               query.joins
+               |> Enum.map(& &1.source.query)
+               |> Enum.sort_by(&(&1.select.expr |> elem(2) |> length()), :desc)
+
+      assert %{select: %{expr: {:%{}, _meta, [_key, _first_tag, _first_tag_id]}}} = first_tags
+      assert %{group_bys: [_id], select: %{expr: {:%{}, _count_meta, [_count_key, _count]}}} = count
+      assert %{distinct: %{expr: [_id_expr]}, order_bys: [%{expr: [desc: _name]}]} = last_tags
+    end
+
+    test "computes arithmetic, datetime_diff and to_string" do
+      defmodule ArithmeticPostLive do
+        @moduledoc false
+        use FakeLiveResource, schema: Backpex.Adapters.EctoTest.TestPost
+
+        def computed(_assigns) do
+          [
+            next_id: expr(id * 2 + 1),
+            age: expr(datetime_diff(^~U[2026-01-01 00:00:00Z], ^~U[2025-12-31 00:00:00Z], :hour)),
+            label: expr(to_string(id))
+          ]
+        end
+      end
+
+      query = [] |> Resource.items_query(%{}, ArithmeticPostLive) |> ecto_query()
+
+      assert %{select: %{expr: {:merge, _meta, [_item, {:%{}, _map_meta, values}]}}} = query
+      assert Macro.to_string(values[:next_id]) == "&0.id() * ^0 + ^1"
+      assert Macro.to_string(values[:age]) =~ "EXTRACT(EPOCH FROM"
+      assert Macro.to_string(values[:label]) =~ "CAST("
+    end
+
+    test "compares the values of expressions in filters" do
+      query = PostLive |> Query.new() |> Query.filter(expr(id * 2 > 10)) |> ecto_query()
+
+      assert [%{expr: expr}] = query.wheres
+      assert Macro.to_string(expr) == "&0.id() * ^0 > ^1"
     end
 
     test "preloads a related query with its computed values" do
