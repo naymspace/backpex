@@ -79,6 +79,7 @@ defmodule Backpex.Test.PostLive do
         module: Backpex.Fields.BelongsTo,
         label: "Author",
         display_field: :full_name,
+        searchable: true,
         options_filter: expr(is_nil(deleted_at)),
         index_editable: true,
         live_resource: UserLive

@@ -123,8 +123,9 @@ defmodule Backpex.Adapter do
   @callback read(query :: Backpex.Query.t()) :: {:ok, list()} | {:error, term()}
 
   @doc """
-  Returns the number of items the query matches. Backpex removes the sorts, the limit, the offset and the relationships
-  to load before, see `Backpex.Query.unset/2`.
+  Returns the number of items the query matches. Backpex removes the sorts, the limit and the offset before, see
+  `Backpex.Query.unset/2`. The `:load` stays, as the search and the filters may refer to computed values of related
+  items (see `Backpex.Query.computed_expr/2`), but the adapter doesn't need to load the relationships.
 
   Optional: without it, or if `c:supports?/2` doesn't support `:count`, Backpex counts the items of `c:read/1`.
   """
@@ -132,8 +133,8 @@ defmodule Backpex.Adapter do
 
   @doc """
   Returns a map of the names of the `:aggregates` of the query to their values, e.g. the data of metrics. Each aggregate
-  covers the items the query matches that also match its `:where` expression. Backpex removes the sorts, the limit, the
-  offset and the relationships to load before.
+  covers the items the query matches that also match its `:where` expression. Backpex removes the sorts, the limit and
+  the offset before, and keeps the `:load` as for `c:count/1`.
 
   Optional: without it, or if `c:supports?/2` doesn't support `:aggregate`, Backpex computes the aggregates from the
   items of `c:read/1`.
