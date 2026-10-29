@@ -896,6 +896,26 @@ defmodule Backpex.Adapters.EctoTest do
       assert [%{as: :backpex_user, qual: :left}] = query.joins
     end
 
+    test "joins an aggregate as a subquery of the related items by the primary key of the items" do
+      defmodule AggregatePostLive do
+        @moduledoc false
+        use FakeLiveResource, schema: Backpex.Adapters.EctoTest.TestPost
+
+        def computed(_assigns) do
+          [
+            tag_count: Expr.aggregate(:count, :tags),
+            first_tag: Expr.aggregate(:first, :tags, value: expr(name), sort: [name: :asc])
+          ]
+        end
+      end
+
+      query = [] |> Resource.items_query(%{}, AggregatePostLive) |> ecto_query()
+
+      assert [first_join, count_join] = Enum.sort_by(query.joins, &is_nil(&1.source.query.distinct))
+      assert %{qual: :left, source: %Ecto.SubQuery{query: %{group_bys: [_id], distinct: nil}}} = count_join
+      assert %{qual: :left, source: %Ecto.SubQuery{query: %{group_bys: [], distinct: %{expr: [_id]}}}} = first_join
+    end
+
     test "preloads a related query with its computed values" do
       query = [] |> Resource.items_query(%{}, AuthorPostLive) |> ecto_query()
 

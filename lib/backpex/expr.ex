@@ -50,6 +50,9 @@ defmodule Backpex.Expr do
     * `concat(parts, separator)` - joins the strings of the fields and strings in `parts` with the optional
       `separator`, e.g. `expr(concat([first_name, last_name], " "))`. Like `concat_ws` in SQL, it leaves out `nil`.
 
+  `aggregate/3` computes a value of related items, e.g. the number of the posts of a user or the name of the partner of
+  the primary contact.
+
   ## Keyword lists
 
   Wherever Backpex takes an expression, a keyword list stands for fields that equal values, e.g. `[published: true]` is
@@ -122,6 +125,23 @@ defmodule Backpex.Expr do
     @type t :: %__MODULE__{path: [atom(), ...], where: Backpex.Expr.t()}
   end
 
+  defmodule Aggregate do
+    @moduledoc """
+    A value of the related items at the end of `path`, e.g. their number, see `Backpex.Expr.aggregate/3`.
+    """
+
+    @enforce_keys [:kind, :path]
+    defstruct kind: nil, path: [], value: nil, where: nil, sort: []
+
+    @type t :: %__MODULE__{
+            kind: :first | :count | :sum | :avg | :min | :max,
+            path: [atom(), ...],
+            value: Backpex.Expr.t() | nil,
+            where: Backpex.Expr.t() | nil,
+            sort: [{Backpex.Expr.Ref.t(), atom()}]
+          }
+  end
+
   defmodule Native do
     @moduledoc """
     An expression that only `adapter` understands, see `Backpex.Expr.native/3`. `uses` lists the paths of relationships
@@ -137,7 +157,7 @@ defmodule Backpex.Expr do
   @typedoc """
   An expression, see the module documentation.
   """
-  @type t :: Ref.t() | Call.t() | Exists.t() | Native.t()
+  @type t :: Ref.t() | Call.t() | Exists.t() | Aggregate.t() | Native.t()
 
   @comparisons [:==, :!=, :<, :<=, :>, :>=]
   @string_functions [:contains, :starts_with, :ends_with]
@@ -354,6 +374,46 @@ defmodule Backpex.Expr do
   end
 
   @doc """
+  Returns a value of the related items at the end of `path`, a relationship or a list of relationships, e.g. as a
+  computed value (see `c:Backpex.LiveResource.computed/1`). `kind` is one of:
+
+    * `:count` - the number of related items.
+    * `:sum`, `:avg`, `:min` and `:max` - the sum, average, minimum or maximum of the `:value`, `nil` for no items.
+    * `:first` - the `:value` of the first related item after the `:sort`, `nil` for no items.
+
+  ## Options
+
+    * `:value` - an expression of the related items, e.g. `expr(amount)` or `expr(partner.name)`. Required for every kind
+      except `:count`.
+    * `:where` - an expression that limits the related items.
+    * `:sort` - the order of the related items for `:first`, like `Backpex.Query.sort/2`.
+
+  ## Examples
+
+      Backpex.Expr.aggregate(:count, :posts, where: expr(published == true))
+
+      Backpex.Expr.aggregate(:first, :partners_contacts, value: expr(partner.name), where: expr(primary == true))
+  """
+  @spec aggregate(Aggregate.t() | atom(), atom() | [atom()], keyword()) :: Aggregate.t()
+  def aggregate(kind, path, opts \\ []) when kind in [:first, :count, :sum, :avg, :min, :max] do
+    value = opts[:value] && normalize(opts[:value])
+
+    if kind != :count and is_nil(value) do
+      raise ArgumentError, "expected a :value for the aggregate #{inspect(kind)} of #{inspect(path)}"
+    end
+
+    sort =
+      opts
+      |> Keyword.get(:sort, [])
+      |> Enum.map(fn
+        {%Ref{} = ref, direction} -> {ref, direction}
+        {name, direction} when is_atom(name) -> {ref(name), direction}
+      end)
+
+    %Aggregate{kind: kind, path: List.wrap(path), value: value, where: normalize(opts[:where]), sort: sort}
+  end
+
+  @doc """
   Returns the expression for the items at the end of `path`, e.g. a value of the related items of `[:author]` as a
   value of the items: the paths of its refs start with `path`.
 
@@ -370,12 +430,15 @@ defmodule Backpex.Expr do
   def prefix(%Ref{path: own_path} = ref, path), do: %{ref | path: path ++ own_path}
   def prefix(%Call{args: args} = call, path), do: %{call | args: Enum.map(args, &prefix_arg(&1, path))}
   def prefix(%Exists{path: own_path} = exists, path), do: %{exists | path: path ++ own_path}
+  def prefix(%Aggregate{path: own_path} = aggregate, path), do: %{aggregate | path: path ++ own_path}
 
   def prefix(%Native{} = expression, path) do
     raise ArgumentError, "can't use the native expression #{inspect(expression)} for the items of #{inspect(path)}"
   end
 
-  defp prefix_arg(%struct{} = expression, path) when struct in [Ref, Call, Exists, Native], do: prefix(expression, path)
+  defp prefix_arg(%struct{} = expression, path) when struct in [Ref, Call, Exists, Aggregate, Native],
+    do: prefix(expression, path)
+
   defp prefix_arg(value, _path), do: value
 
   @doc """
@@ -397,6 +460,17 @@ defmodule Backpex.Expr do
   defp cast_in(nil, _base, _describe), do: nil
   defp cast_in(%Native{} = expression, _base, _describe), do: expression
   defp cast_in(%Ref{} = ref, base, describe), do: cast_arg(ref, base, describe)
+
+  defp cast_in(%Aggregate{path: path, value: value, where: where} = aggregate, base, describe) do
+    path = base ++ path
+    description!(path, describe)
+
+    %{
+      aggregate
+      | value: value |> normalize() |> cast_in(path, describe),
+        where: where |> normalize() |> cast_in(path, describe)
+    }
+  end
 
   defp cast_in(%Exists{path: path, where: where} = expression, base, describe) do
     path = base ++ path
@@ -428,7 +502,7 @@ defmodule Backpex.Expr do
     ref
   end
 
-  defp cast_arg(%struct{} = expression, base, describe) when struct in [Call, Exists, Native],
+  defp cast_arg(%struct{} = expression, base, describe) when struct in [Call, Exists, Aggregate, Native],
     do: cast_in(expression, base, describe)
 
   defp cast_arg(value, _base, _describe), do: value
@@ -501,7 +575,7 @@ defmodule Backpex.Expr do
   """
   @spec normalize(t() | keyword() | nil) :: t() | nil
   def normalize(nil), do: nil
-  def normalize(%struct{} = expression) when struct in [Ref, Call, Exists, Native], do: expression
+  def normalize(%struct{} = expression) when struct in [Ref, Call, Exists, Aggregate, Native], do: expression
 
   def normalize(keyword) when is_list(keyword) do
     if Keyword.keyword?(keyword) do

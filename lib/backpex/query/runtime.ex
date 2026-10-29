@@ -6,6 +6,7 @@ defmodule Backpex.Query.Runtime do
   # unknown, and an item is only kept if its expression is `true`. Sorting puts `nil` last when ascending and first when
   # descending, as PostgreSQL does, unless the direction says otherwise.
 
+  alias Backpex.Expr.Aggregate
   alias Backpex.Expr.Call
   alias Backpex.Expr.Exists
   alias Backpex.Expr.Native
@@ -31,6 +32,16 @@ defmodule Backpex.Query.Runtime do
     |> Enum.map(&value_of(&1, item))
     |> Enum.reject(&is_nil/1)
     |> Enum.map_join(Keyword.get(opts, :separator, ""), &to_text/1)
+  end
+
+  defp value_of(%Aggregate{kind: kind, path: path, value: value, where: where, sort: sort}, item) do
+    related = item |> related(path) |> filter(where)
+
+    case kind do
+      :count -> length(related)
+      :first -> related |> sort(sort) |> List.first() |> then(&(&1 && value_of(value, &1)))
+      kind -> related |> Enum.map(&value_of(value, &1)) |> Enum.reject(&is_nil/1) |> aggregate_values(kind)
+    end
   end
 
   defp value_of(%struct{} = expression, item) when struct in [Call, Exists, Native], do: eval(expression, item)
@@ -262,6 +273,11 @@ defmodule Backpex.Query.Runtime do
   end
 
   defp values(items, field), do: items |> Enum.map(&Map.get(&1, field)) |> Enum.reject(&is_nil/1)
+
+  defp aggregate_values(values, :sum), do: sum(values)
+  defp aggregate_values(values, :avg), do: avg(values)
+  defp aggregate_values(values, :min), do: extreme(values, :lt)
+  defp aggregate_values(values, :max), do: extreme(values, :gt)
 
   # As in SQL, the sum, average, minimum and maximum of no values is `nil`.
   defp sum([]), do: nil

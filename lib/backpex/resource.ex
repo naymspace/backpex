@@ -208,6 +208,13 @@ defmodule Backpex.Resource do
   defp paths(%Call{args: args}), do: Enum.flat_map(args, &paths/1)
   defp paths(%Exists{path: path, where: where}), do: [path | where |> paths() |> Enum.map(&(path ++ &1))]
   defp paths(%Backpex.Expr.Native{uses: uses}), do: uses
+
+  defp paths(%Backpex.Expr.Aggregate{path: path, value: value, where: where, sort: sort}) do
+    related = paths(value) ++ paths(where) ++ Enum.map(sort, fn {ref, _direction} -> ref.path end)
+
+    [path | Enum.map(related, &(path ++ &1))]
+  end
+
   defp paths(_expression), do: []
 
   # The relationships to load for paths, nested like the preloads of Ecto, e.g. `[:author, tags: [:category]]`.

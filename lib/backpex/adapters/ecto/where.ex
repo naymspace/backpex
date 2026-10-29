@@ -9,6 +9,7 @@ defmodule Backpex.Adapters.Ecto.Where do
   import Ecto.Query
 
   alias Backpex.Expr
+  alias Backpex.Expr.Aggregate
   alias Backpex.Expr.Call
   alias Backpex.Expr.Exists
   alias Backpex.Expr.Native
@@ -91,11 +92,92 @@ defmodule Backpex.Adapters.Ecto.Where do
     {query, joined || dynamic(fragment("''"))}
   end
 
+  # An aggregate is a subquery of the values of the related items by the primary key of the items, left joined to the
+  # items. Every aggregate with the same binding shares its join.
+  defp value(%Aggregate{kind: kind} = aggregate, query, {_kind, schema} = binding) do
+    primary_key = primary_key!(schema)
+    name = aggregate_name(binding, aggregate)
+
+    query =
+      if has_named_binding?(query, name),
+        do: query,
+        else: join_aggregate(query, binding, name, aggregate_subquery(aggregate, schema, primary_key), primary_key)
+
+    case kind do
+      :count -> {query, dynamic([{^name, aggregate}], coalesce(aggregate.value, 0))}
+      _kind -> {query, dynamic([{^name, aggregate}], aggregate.value)}
+    end
+  end
+
   defp value(%struct{} = expression, query, binding) when struct in [Call, Exists, Native],
     do: to_dynamic(expression, query, binding)
 
   defp value(value, _query, _binding) do
     raise ArgumentError, "expected an expression such as a field or concat(...) as a value, got: #{inspect(value)}"
+  end
+
+  defp aggregate_subquery(%Aggregate{path: path, where: where} = aggregate, schema, primary_key) do
+    {subquery, target} = schema |> from() |> join_path(path, {:root, schema}, :inner)
+    subquery = if where, do: where_in_binding(subquery, Expr.normalize(where), target), else: subquery
+    key = dynamic([item], field(item, ^primary_key))
+
+    aggregate_select(subquery, aggregate, target, key, primary_key)
+  end
+
+  defp aggregate_select(subquery, %Aggregate{kind: :count}, _target, key, primary_key) do
+    subquery
+    |> group_by([item], field(item, ^primary_key))
+    |> select(^%{key: key, value: dynamic(count())})
+  end
+
+  # The value of the first related item of every item, after the sort: PostgreSQL keeps the first row of every primary
+  # key with `DISTINCT ON`.
+  defp aggregate_select(subquery, %Aggregate{kind: :first, value: value, sort: sort}, target, key, primary_key) do
+    {subquery, value} = value(value, subquery, target)
+
+    sort
+    |> Enum.reduce(distinct(subquery, [item], field(item, ^primary_key)), fn {ref, direction}, subquery ->
+      {subquery, field} = field(ref, subquery, target)
+      order_by(subquery, ^[{direction, field}])
+    end)
+    |> select(^%{key: key, value: value})
+  end
+
+  defp aggregate_select(subquery, %Aggregate{kind: kind, value: value}, target, key, primary_key) do
+    {subquery, value} = value(value, subquery, target)
+
+    value =
+      case kind do
+        :sum -> dynamic(sum(^value))
+        :avg -> dynamic(avg(^value))
+        :min -> dynamic(min(^value))
+        :max -> dynamic(max(^value))
+      end
+
+    subquery
+    |> group_by([item], field(item, ^primary_key))
+    |> select(^%{key: key, value: value})
+  end
+
+  defp join_aggregate(query, {:root, _schema}, name, subquery, primary_key) do
+    join(query, :left, [item], aggregate in subquery(subquery),
+      as: ^name,
+      on: aggregate.key == field(item, ^primary_key)
+    )
+  end
+
+  defp join_aggregate(query, {binding, _schema}, name, subquery, primary_key) do
+    join(query, :left, [{^binding, item}], aggregate in subquery(subquery),
+      as: ^name,
+      on: aggregate.key == field(item, ^primary_key)
+    )
+  end
+
+  # The names come from the aggregates in the code of the LiveResource, so there are only as many as it has.
+  # sobelow_skip ["DOS.StringToAtom"]
+  defp aggregate_name({binding, _schema}, aggregate) do
+    # credo:disable-for-next-line Credo.Check.Warning.UnsafeToAtom
+    String.to_atom("backpex_aggregate_#{:erlang.phash2({binding, aggregate})}")
   end
 
   # A part of `concat` as text.
