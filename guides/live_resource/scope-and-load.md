@@ -14,11 +14,11 @@ count and metrics, the show and edit views and the items item actions are applie
 import Backpex.Expr
 
 @impl Backpex.LiveResource
-def scope(%{current_scope: scope}) do
-  if MyApp.Guard.can?(scope, :manage_for_others) do
-    expr(partner_id == ^scope.partner.id)
+def scope(%{current_user: user}) do
+  if user.role == :admin do
+    expr(team_id == ^user.team_id)
   else
-    expr(partner_id == ^scope.partner.id and user_id == ^scope.user.id)
+    expr(team_id == ^user.team_id and user_id == ^user.id)
   end
 end
 ```
@@ -32,7 +32,7 @@ fields, e.g. for the `render` function of a field that shows related data. Nest 
 
 ```elixir
 @impl Backpex.LiveResource
-def load(_assigns), do: [:partner, proceeding: :module, contact: [:partners]]
+def load(_assigns), do: [:category, author: :team, comments: [:author]]
 ```
 
 `Backpex.Query.related/1` sorts, filters, loads and computes values of the related items:
@@ -41,8 +41,8 @@ def load(_assigns), do: [:partner, proceeding: :module, contact: [:partners]]
 @impl Backpex.LiveResource
 def load(_assigns) do
   [
-    vacation_entitlements: Backpex.Query.related(sort: [year: :asc]),
-    user: Backpex.Query.related(load: [:contact], computed: [full_name: expr(concat([contact.first_name, contact.last_name], " "))])
+    comments: Backpex.Query.related(sort: [inserted_at: :desc]),
+    user: Backpex.Query.related(load: [:team], computed: [team_name: expr(team.name)])
   ]
 end
 ```
@@ -55,4 +55,4 @@ end
 ## Order
 
 The `:init_order` option takes a path through relationships to one item or the name of a computed value, e.g.
-`%{by: :"contact.last_name", direction: :asc}`.
+`%{by: :"author.last_name", direction: :asc}`.
