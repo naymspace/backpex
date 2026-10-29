@@ -7,32 +7,91 @@ defmodule Backpex.ItemActions.DeleteTest do
   alias Backpex.Test.StubAdapter
   alias Phoenix.LiveView.Socket
 
-  defmodule PostLive do
+  # Refuses to delete an item with `locked: true` and reports every hook call.
+  defmodule LockingLive do
     @moduledoc false
     def config(:adapter), do: StubAdapter
     def config(:primary_key), do: :id
-    def singular_name, do: "Post"
-    def plural_name, do: "Posts"
+    def pubsub, do: [server: Backpex.ItemActions.DeleteTest.PubSub, topic: "delete_test"]
 
-    def translate({msg, opts}) do
-      Enum.reduce(opts, msg, fn {key, value}, acc -> String.replace(acc, "%{#{key}}", to_string(value)) end)
+    def translate({msg, opts}),
+      do: Enum.reduce(opts, msg, fn {key, value}, acc -> String.replace(acc, "%{#{key}}", to_string(value)) end)
+
+    def singular_name, do: "Item"
+    def plural_name, do: "Items"
+
+    def on_item_deleting(_socket, item) do
+      send(self(), {:on_item_deleting, item})
+
+      case item do
+        %{locked: true, id: id} -> {:error, "Item #{id} is locked."}
+        %{invalid_return: true} -> :error
+        _item -> :ok
+      end
+    end
+
+    def on_item_deleted(socket, item) do
+      send(self(), {:on_item_deleted, item})
+      socket
     end
   end
 
-  describe "handle/3" do
-    test "tells that the items are used elsewhere when the adapter reports a foreign key violation" do
-      socket = %Socket{assigns: %{__changed__: %{}, flash: %{}, live_resource: PostLive}}
+  setup do
+    start_supervised!({Phoenix.PubSub, name: __MODULE__.PubSub})
+    :ok
+  end
 
-      {result, log} = with_log(fn -> Delete.handle(socket, [%{id: 1, referenced?: true}], %{}) end)
+  describe "handle/3" do
+    test "deletes the items when on_item_deleting/2 allows each of them" do
+      items = [%{id: 1}, %{id: 2}]
+
+      assert {:ok, socket} = Delete.handle(socket(), items, %{})
+
+      assert_received {:on_item_deleting, %{id: 1}}
+      assert_received {:on_item_deleting, %{id: 2}}
+      assert_received {:adapter, :delete_all, ^items}
+      assert_received {:on_item_deleted, %{id: 1}}
+      assert_received {:on_item_deleted, %{id: 2}}
+      assert socket.assigns.flash == %{"info" => "2 Items have been deleted successfully."}
+    end
+
+    test "deletes none of the items and shows the message when on_item_deleting/2 refuses one" do
+      items = [%{id: 1}, %{id: 2, locked: true}, %{id: 3}]
+
+      assert {:ok, socket} = Delete.handle(socket(), items, %{})
+
+      assert_received {:on_item_deleting, %{id: 1}}
+      assert_received {:on_item_deleting, %{id: 2}}
+      refute_received {:on_item_deleting, %{id: 3}}
+      refute_received {:adapter, :delete_all, _items}
+      refute_received {:on_item_deleted, _item}
+      assert socket.assigns.flash == %{"error" => "Item 2 is locked."}
+    end
+
+    test "raises when on_item_deleting/2 returns something else" do
+      assert_raise ArgumentError, ~r/on_item_deleting\/2/, fn ->
+        Delete.handle(socket(), [%{id: 1, invalid_return: true}], %{})
+      end
+
+      refute_received {:adapter, :delete_all, _items}
+    end
+
+    test "tells that the items are used elsewhere when the adapter reports a foreign key violation" do
+      {result, log} = with_log(fn -> Delete.handle(socket(), [%{id: 1, referenced?: true}], %{}) end)
 
       assert {:ok, %Socket{assigns: %{flash: %{"error" => message}}}} = result
-      assert message == "An error occurred while deleting the Post! The item is used elsewhere."
+      assert message == "An error occurred while deleting the Item! The item is used elsewhere."
       assert log =~ ":foreign_key_violation"
 
-      {result, _log} = with_log(fn -> Delete.handle(socket, [%{id: 1, referenced?: true}, %{id: 2}], %{}) end)
+      {result, _log} = with_log(fn -> Delete.handle(socket(), [%{id: 1, referenced?: true}, %{id: 2}], %{}) end)
 
       assert {:ok, %Socket{assigns: %{flash: %{"error" => message}}}} = result
-      assert message == "An error occurred while deleting 2 Posts! The items are used elsewhere."
+      assert message == "An error occurred while deleting 2 Items! The items are used elsewhere."
+      refute_received {:on_item_deleted, _item}
     end
+  end
+
+  defp socket do
+    Phoenix.Component.assign(%Socket{}, :live_resource, LockingLive)
   end
 end

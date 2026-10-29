@@ -335,6 +335,37 @@ defmodule Backpex.LiveResource do
   @callback metrics() :: keyword()
 
   @doc """
+  This function is executed before an item is created.
+
+  Receives the change of the new item, which the adapter built from the form, for example an `Ecto.Changeset`, and
+  must return a change of the same type. Backpex creates the item from the returned change. Use it to add changes
+  that should only be made when the item is saved, not while the form is being validated. To cancel the save, add an
+  error to the change. The form then shows the error next to its field. An inline edit on the index view only marks the
+  field as invalid.
+
+  The change may already be invalid. It is only called on save and only after the user is authorized to create the
+  item. See the [Hooks](hooks.html) guide.
+  """
+  @callback on_item_creating(socket :: Socket.t(), change :: term()) :: term()
+
+  @doc """
+  This function is executed before an item is updated.
+
+  Works like `c:on_item_creating/2` for the change of an existing item. With the Ecto adapter, the item before the
+  update is the `data` of the changeset. See the [Hooks](hooks.html) guide.
+  """
+  @callback on_item_updating(socket :: Socket.t(), change :: term()) :: term()
+
+  @doc """
+  This function is executed before an item is deleted.
+
+  Return `:ok` to delete the item, or `{:error, message}` to cancel the deletion. Backpex then deletes none of the
+  selected items and shows the message. It is called once per selected item, and exceptions it raises are not
+  rescued. See the [Hooks](hooks.html) guide.
+  """
+  @callback on_item_deleting(socket :: Socket.t(), item :: map()) :: :ok | {:error, message :: String.t()}
+
+  @doc """
   This function is executed when an item has been created.
   """
   @callback on_item_created(socket :: Socket.t(), item :: map()) ::
@@ -580,6 +611,15 @@ defmodule Backpex.LiveResource do
 
       @impl Backpex.LiveResource
       def metrics, do: []
+
+      @impl Backpex.LiveResource
+      def on_item_creating(_socket, change), do: change
+
+      @impl Backpex.LiveResource
+      def on_item_updating(_socket, change), do: change
+
+      @impl Backpex.LiveResource
+      def on_item_deleting(_socket, _item), do: :ok
 
       @impl Backpex.LiveResource
       def on_item_created(socket, _item), do: socket
