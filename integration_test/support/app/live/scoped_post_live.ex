@@ -2,7 +2,7 @@ defmodule Backpex.Test.ScopedPostLive do
   @moduledoc """
   A LiveResource of the published posts only, with `c:Backpex.LiveResource.scope/1`. Its relation fields limit their
   options with `:options_filter`: the author to users whose username doesn't start with `"hidden"`, and the tags of the
-  new form to the ones whose name doesn't start with `"Hidden"`.
+  new form to the ones whose name doesn't start with `"Hidden"`. `:options_sort` sorts both in descending order.
   """
   use Backpex.LiveResource,
     adapter_config: [
@@ -35,7 +35,8 @@ defmodule Backpex.Test.ScopedPostLive do
         label: "Author",
         display_field: :username,
         live_resource: Backpex.Test.UserLive,
-        options_filter: expr(not starts_with(username, "hidden"))
+        options_filter: expr(not starts_with(username, "hidden")),
+        options_sort: [username: :desc]
       },
       tags: %{
         module: Backpex.Fields.HasMany,
@@ -44,7 +45,8 @@ defmodule Backpex.Test.ScopedPostLive do
         live_resource: Backpex.Test.TagLive,
         options_filter: fn assigns ->
           if assigns.live_action == :new, do: expr(not starts_with(name, "Hidden"))
-        end
+        end,
+        options_sort: fn _assigns -> [name: :desc] end
       }
     ]
   end
