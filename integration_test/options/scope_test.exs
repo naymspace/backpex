@@ -1,9 +1,11 @@
 defmodule Backpex.Integration.Options.ScopeTest do
   @moduledoc """
-  Checks `c:Backpex.LiveResource.scope/1` and the `:options_filter` option of relation fields through
+  Checks `c:Backpex.LiveResource.scope/1` and the `:options_filter` and `:options_sort` options of relation fields through
   `Backpex.Test.ScopedPostLive`, which shows the published posts only.
   """
   use Backpex.ConnCase, async: true
+
+  import Phoenix.LiveViewTest, only: [live: 2]
 
   describe "scope/1" do
     setup do
@@ -48,6 +50,33 @@ defmodule Backpex.Integration.Options.ScopeTest do
       |> visit(~p"/admin/scoped-posts/#{published.id}/show")
       |> assert_has("dd", text: "Published post")
     end
+  end
+
+  describe "options_sort" do
+    test "sorts the options of a belongs to and a has many field", %{conn: conn} do
+      insert(:user, username: "anna")
+      insert(:user, username: "zoe")
+      insert(:tag, name: "Ash")
+      insert(:tag, name: "Zig")
+
+      {:ok, _view, html} = live(conn, ~p"/admin/scoped-posts/new")
+
+      assert before?(html, "zoe", "anna")
+      assert before?(html, "Zig", "Ash")
+    end
+
+    test "sorts the options by a computed value of the related items" do
+      insert(:user, first_name: "Ann", last_name: "Zed")
+      insert(:user, first_name: "Zoe", last_name: "Abe")
+
+      # The full name of the authors is a computed value of the user in the load/1 of PostLive.
+      field = {:user, %{module: Backpex.Fields.BelongsTo, display_field: :full_name, options_sort: [full_name: :desc]}}
+      {:ok, users} = Backpex.Resource.list_options(field, [], %{}, Backpex.Test.PostLive)
+
+      assert Enum.map(users, & &1.full_name) == ["Zoe Abe", "Ann Zed"]
+    end
+
+    defp before?(html, first, second), do: :binary.match(html, first) < :binary.match(html, second)
   end
 
   describe "options_filter" do

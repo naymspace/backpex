@@ -33,7 +33,9 @@ end
 ```
 
 A value can be a field of the items or of related items (e.g. `expr(author.name)`), a condition (e.g.
-`expr(likes > 0)`) or a string joined with `concat/2`, which leaves out `nil`. We recommend to show computed values on
+`expr(likes > 0)`), a string joined with `concat/2`, which leaves out `nil`, a number computed with `+`, `-`, `*` and
+`/` (e.g. `expr(datetime_diff(ends_at, starts_at, :minute) - pause)`) or a value as a string with `to_string/1`. See
+the [Values](`m:Backpex.Expr#module-values`) of `Backpex.Expr`. We recommend to show computed values on
 the `index` and `show` views only.
 
 > #### Important {: .info}

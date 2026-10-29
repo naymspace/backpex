@@ -18,6 +18,11 @@ defmodule Backpex.Adapters.Ecto.Where do
   @comparisons [:==, :!=, :<, :<=, :>, :>=]
   @flipped %{:== => :==, :!= => :!=, :< => :>, :<= => :>=, :> => :<, :>= => :<=}
   @string_functions [:contains, :starts_with, :ends_with]
+  @arithmetic [:+, :-, :*, :/]
+  @seconds %{second: 1, minute: 60, hour: 3600, day: 86_400}
+
+  # An expression that stands for a value, e.g. in a comparison such as `likes - dislikes > 10`.
+  defguardp value_expression?(arg) when is_struct(arg, Call) or is_struct(arg, Aggregate) or is_struct(arg, Native)
 
   @doc """
   Adds the expression to the query as a `where` clause. Keeps the query for a `nil` expression.
@@ -76,6 +81,28 @@ defmodule Backpex.Adapters.Ecto.Where do
   end
 
   defp value(%Ref{} = ref, query, binding), do: field(ref, query, binding)
+
+  defp value(%Call{name: operator, args: [left, right]}, query, binding) when operator in @arithmetic do
+    {query, left} = operand(left, query, binding)
+    {query, right} = operand(right, query, binding)
+
+    {query, arithmetic(operator, left, right)}
+  end
+
+  defp value(%Call{name: :datetime_diff, args: [left, right], opts: opts}, query, binding) do
+    {query, left} = operand(left, query, binding)
+    {query, right} = operand(right, query, binding)
+    seconds = Map.fetch!(@seconds, Keyword.fetch!(opts, :unit))
+
+    # An integer, so that e.g. its sum is an integer, too.
+    {query, dynamic(fragment("CAST(TRUNC(EXTRACT(EPOCH FROM (? - ?)) / ?) AS integer)", ^left, ^right, ^seconds))}
+  end
+
+  defp value(%Call{name: :to_string, args: [value]}, query, binding) do
+    {query, value} = operand(value, query, binding)
+
+    {query, dynamic(fragment("CAST(? AS TEXT)", ^value))}
+  end
 
   defp value(%Call{name: :concat, args: parts, opts: opts}, query, binding) do
     separator = Keyword.get(opts, :separator, "")
@@ -236,6 +263,14 @@ defmodule Backpex.Adapters.Ecto.Where do
     {query, dynamic(is_nil(^field))}
   end
 
+  defp to_dynamic(%Call{name: operator, args: [left, right]}, query, binding)
+       when operator in @comparisons and (value_expression?(left) or value_expression?(right)) do
+    {query, left} = operand(left, query, binding)
+    {query, right} = operand(right, query, binding)
+
+    {query, compare_fields(operator, left, right)}
+  end
+
   defp to_dynamic(%Call{name: operator, args: [%Ref{} = left, %Ref{} = right]}, query, binding)
        when operator in @comparisons do
     {query, left} = field(left, query, binding)
@@ -304,6 +339,23 @@ defmodule Backpex.Adapters.Ecto.Where do
     {query, condition} = to_dynamic(expression, query, binding)
 
     where(query, ^condition)
+  end
+
+  # A side of a comparison or of arithmetic: a field, a value expression or a value, which Ecto takes as a parameter.
+  defp operand(%Ref{} = ref, query, binding), do: field(ref, query, binding)
+
+  defp operand(%struct{} = expression, query, binding) when struct in [Call, Aggregate, Native],
+    do: value(expression, query, binding)
+
+  defp operand(value, query, _binding), do: {query, value}
+
+  defp arithmetic(operator, left, right) do
+    case operator do
+      :+ -> dynamic(^left + ^right)
+      :- -> dynamic(^left - ^right)
+      :* -> dynamic(^left * ^right)
+      :/ -> dynamic(^left / ^right)
+    end
   end
 
   defp field(ref, query, binding) do

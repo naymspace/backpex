@@ -22,6 +22,14 @@ defmodule Backpex.Fields.BelongsTo do
       """,
       type: {:or, [{:fun, 1}, :any]}
     ],
+    options_sort: [
+      doc: """
+      The order of the options, like `Backpex.Query.sort/2`, e.g. `[name: :asc]`, or a function that receives the assigns
+      and returns it. Its fields are fields or computed values of the related items, see `c:Backpex.LiveResource.load/1`.
+      Works with every adapter.
+      """,
+      type: {:or, [{:fun, 1}, {:list, :any}]}
+    ],
     options_query: [
       doc: """
       Only for `Backpex.Adapters.Ecto`: manipulates the list of available options in the select. Receives the

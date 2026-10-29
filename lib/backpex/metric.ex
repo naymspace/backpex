@@ -12,18 +12,25 @@ defmodule Backpex.Metric do
   after search and filters, with these options of the metric:
 
     * `:aggregate` - `:count` for the number of items, or a tuple of `:count`, `:sum`, `:avg`, `:min` or `:max` and the
-      name of a field, e.g. `{:sum, :quantity}`.
+      name of a field or an expression, e.g. `{:sum, :quantity}` or `{:sum, expr(price * quantity)}`, see
+      `Backpex.Expr`.
     * `:where` - an optional expression that limits the items, e.g. `[published: true]` or `expr(likes > 10)`. See
       `Backpex.Expr`.
 
   `Backpex.Adapters.Ecto` also takes a `:select` expression instead of an aggregate.
 
+  ## Filters
+
+  A metric covers the items after the search and the active filters of the index view. With `:ignore_filters`, it
+  ignores the given filters, e.g. `ignore_filters: [:status]` for a metric of the items of every status while the index
+  view shows the items of one status. The option applies to the query that `c:data/3` receives, too.
+
   ## Data of your own
 
   A metric module that gets its data in another way, e.g. from a function of your context module, implements `c:data/3`.
   Backpex then calls it instead of the adapter, with the `Backpex.Query` of the items of the index view: the items of
-  the resource after the search and the active filters, on all pages. It is the query the adapter would compute the
-  aggregate for.
+  the resource after the search and the active filters (except the ones of `:ignore_filters`), on all pages. It is the
+  query the adapter would compute the aggregate for.
 
   To get these items, read the query with `Backpex.Resource.read/1`, or count them with `Backpex.Resource.count/1`:
 
@@ -43,7 +50,7 @@ defmodule Backpex.Metric do
   @typedoc """
   The aggregate a metric computes, see the [Aggregates](#module-aggregates) section.
   """
-  @type aggregate :: :count | {:count | :sum | :avg | :min | :max, atom()}
+  @type aggregate :: :count | {:count | :sum | :avg | :min | :max, atom() | Backpex.Expr.t()}
 
   @doc """
   Used to render the metric as a heex template on the index views.
