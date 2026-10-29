@@ -632,6 +632,42 @@ defmodule Backpex.Adapters.EctoTest do
       assert [%{params: [{["1", "2"], {:in, {0, :age}}}]}] = filter_query(expr(age in ["1", "2"])).wheres
     end
 
+    test "compares an integer field with an integer beyond the range of an integer as a bigint" do
+      huge = 10 ** 20
+
+      expected = [
+        {expr(age < 3_000_000_000), "&0.age() < type(^0, :integer)", [3_000_000_000]},
+        {expr(age >= ^huge), "&0.age() > type(^0, :integer)", [9_223_372_036_854_775_807]},
+        {expr(age <= ^huge), "&0.age() <= type(^0, :integer)", [9_223_372_036_854_775_807]},
+        {expr(age != ^huge), "&0.age() <= type(^0, :integer)", [9_223_372_036_854_775_807]},
+        {expr(not (age < 3_000_000_000)), "not (&0.age() < type(^0, :integer))", [3_000_000_000]},
+        {expr(id >= ^huge), "&0.id() > type(^0, :integer)", [9_223_372_036_854_775_807]},
+        {expr(age <= ^(-huge)), "&0.age() < type(^0, :integer)", [-9_223_372_036_854_775_808]},
+        {expr(age > ^(-huge)), "&0.age() >= type(^0, :integer)", [-9_223_372_036_854_775_808]},
+        {expr(age == ^(-huge)), "&0.age() < type(^0, :integer)", [-9_223_372_036_854_775_808]},
+        {expr(3_000_000_000 > age), "&0.age() < type(^0, :integer)", [3_000_000_000]}
+      ]
+
+      assert_wheres(expected)
+    end
+
+    test "compares an integer field of a related item with an integer beyond the range of an integer as a bigint" do
+      query =
+        TestPost
+        |> from(as: :testpost)
+        |> EctoAdapter.apply_filters(%{age: expr(user.age < 3_000_000_000)}, [age: %{module: ConditionFilter}], %{})
+
+      assert [%{expr: expr, params: [{3_000_000_000, :integer}]}] = query.wheres
+      assert Macro.to_string(expr) == "&1.age() < type(^0, :integer)"
+    end
+
+    test "leaves integers within the range of an integer, other fields and other values to the cast of the field" do
+      assert [%{params: [{2_147_483_647, {0, :age}}]}] = filter_query(expr(age <= 2_147_483_647)).wheres
+      assert [%{params: [{3_000_000_000, {0, :title}}]}] = filter_query(expr(title >= 3_000_000_000)).wheres
+      assert [%{params: [{2.5, {0, :age}}]}] = filter_query(expr(age >= 2.5)).wheres
+      assert [%{params: [{"3000000000", {0, :age}}]}] = filter_query(expr(age >= "3000000000")).wheres
+    end
+
     test "takes native Ecto dynamic expressions" do
       native = Expr.native(EctoAdapter, dynamic([testuser: u], u.age > ^18))
       query = filter_query(Expr.any([native, expr(is_nil(age))]))
@@ -690,6 +726,14 @@ defmodule Backpex.Adapters.EctoTest do
       assert [%{as: :backpex_user, qual: :left}] = query.joins
       assert [%{expr: expr, params: [{"Ann", {1, :name}}]}] = query.wheres
       assert Macro.to_string(expr) == "&1.name() == ^0"
+    end
+
+    defp assert_wheres(expected) do
+      for {condition, expected_expr, expected_params} <- expected do
+        assert [%{expr: expr, params: params}] = filter_query(condition).wheres
+        assert {condition, Macro.to_string(expr)} == {condition, expected_expr}
+        assert Enum.map(params, &elem(&1, 0)) == expected_params
+      end
     end
 
     defp filter_query(condition) do

@@ -22,7 +22,9 @@ defmodule Backpex.Filter do
 
       def condition(_field, tag_ids, _assigns), do: expr(exists(tags, id in ^tag_ids))
 
-  The adapter casts each value to the type of the field. See `Backpex.Expr` for all operators and functions, and for
+  The adapter casts each value to the type of the field. `Backpex.Adapters.Ecto` also compares an integer field with an
+  integer beyond the range of the column, e.g. `expr(likes < 3_000_000_000)` on an `integer` column keeps every item
+  with likes. See `Backpex.Expr` for all operators and functions, and for
   expressions that only one adapter understands, such as a fragment of SQL.
 
   A filter can't change the query itself, e.g. join a table or select distinct items, as the adapter decides how to

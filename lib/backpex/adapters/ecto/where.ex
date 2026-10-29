@@ -15,6 +15,9 @@ defmodule Backpex.Adapters.Ecto.Where do
   alias Backpex.Expr.Ref
 
   @comparisons [:==, :!=, :<, :<=, :>, :>=]
+  @integer_range -2_147_483_648..2_147_483_647//1
+  @bigint_min -9_223_372_036_854_775_808
+  @bigint_max 9_223_372_036_854_775_807
   @flipped %{:== => :==, :!= => :!=, :< => :>, :<= => :>=, :> => :<, :>= => :<=}
   @string_functions [:contains, :starts_with, :ends_with]
 
@@ -90,9 +93,17 @@ defmodule Backpex.Adapters.Ecto.Where do
   end
 
   defp to_dynamic(%Call{name: operator, args: [%Ref{} = ref, value]}, query, binding) when operator in @comparisons do
-    {query, {binding, name}} = resolve(ref, query, binding)
+    {query, {{_kind, schema} = binding, name}} = resolve(ref, query, binding)
 
-    {query, compare(operator, binding, name, value)}
+    # Postgres takes the type of a parameter from the column, so a parameter beyond the range of an integer column
+    # would fail to encode. A bigint parameter compares with every integer column.
+    if is_integer(value) and value not in @integer_range and integer_field?(schema, name) do
+      {operator, value} = limit_comparison(operator, value)
+
+      {query, compare_bigint(operator, field_dynamic(binding, name), value)}
+    else
+      {query, compare(operator, binding, name, value)}
+    end
   end
 
   defp to_dynamic(%Call{name: operator, args: [value, %Ref{} = ref]} = call, query, binding)
@@ -268,6 +279,33 @@ defmodule Backpex.Adapters.Ecto.Where do
       :>= -> dynamic([{^binding, item}], field(item, ^name) >= ^value)
     end
   end
+
+  defp compare_bigint(operator, field, value) do
+    case operator do
+      :== -> dynamic(^field == type(^value, :integer))
+      :!= -> dynamic(^field != type(^value, :integer))
+      :< -> dynamic(^field < type(^value, :integer))
+      :<= -> dynamic(^field <= type(^value, :integer))
+      :> -> dynamic(^field > type(^value, :integer))
+      :>= -> dynamic(^field >= type(^value, :integer))
+    end
+  end
+
+  defp integer_field?(nil = _schema, _name), do: false
+  defp integer_field?(schema, name), do: schema.__schema__(:type, name) in [:integer, :id]
+
+  # Every integer in the database is within the range of a bigint, so a comparison with an integer beyond it becomes a
+  # comparison with the bound of a bigint that keeps the same items. Like the comparison, it doesn't keep items whose
+  # field is `nil`.
+  defp limit_comparison(operator, value) when value > @bigint_max do
+    if operator in [:<, :<=, :!=], do: {:<=, @bigint_max}, else: {:>, @bigint_max}
+  end
+
+  defp limit_comparison(operator, value) when value < @bigint_min do
+    if operator in [:>, :>=, :!=], do: {:>=, @bigint_min}, else: {:<, @bigint_min}
+  end
+
+  defp limit_comparison(operator, value), do: {operator, value}
 
   defp in_values({:root, _schema}, name, values), do: dynamic([item], field(item, ^name) in ^values)
   defp in_values({binding, _schema}, name, values), do: dynamic([{^binding, item}], field(item, ^name) in ^values)

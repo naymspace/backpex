@@ -134,6 +134,16 @@ defmodule Backpex.Integration.Index.FiltersTest do
       |> refute_has("td", text: "New Post")
     end
 
+    test "filters by a range beyond the range of an integer", %{conn: conn} do
+      params = fn likes -> %{"filters" => %{"published" => ["published"], "likes" => likes}} end
+
+      conn
+      |> visit(~p"/admin/posts?#{params.(%{"start" => "3000000000", "end" => ""})}")
+      |> refute_has("td", text: "Popular Post")
+      |> visit(~p"/admin/posts?#{params.(%{"start" => "", "end" => "100000000000000000000"})}")
+      |> assert_has("td", text: "Popular Post")
+    end
+
     test "filters by a start value only", %{conn: conn} do
       conn
       |> visit(~p"/admin/posts")
