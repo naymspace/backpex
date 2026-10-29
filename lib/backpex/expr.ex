@@ -51,9 +51,9 @@ defmodule Backpex.Expr do
       `separator`, e.g. `expr(concat([first_name, last_name], " "))`. Like `concat_ws` in SQL, it leaves out `nil`.
     * `+`, `-`, `*` and `/` - compute with numbers, e.g. `expr(likes - dislikes)`. As in SQL, the division of two
       integers is an integer, rounded towards zero, and a value with `nil` is `nil`.
-    * `datetime_diff(left, right, unit)` - the time from the datetime `right` to the datetime `left` in whole
-      `:second`, `:minute`, `:hour` or `:day` units, rounded towards zero, e.g. `expr(datetime_diff(ends_at, starts_at,
-      :minute))`.
+    * `datetime_diff(left, right, unit)` - the time from the datetime `right` to the datetime `left` as an integer of
+      whole `:second`, `:minute`, `:hour` or `:day` units, rounded towards zero, e.g.
+      `expr(datetime_diff(ends_at, starts_at, :minute))`.
     * `to_string(value)` - the value as a string, e.g. `expr(to_string(likes))`.
 
   Comparisons take values on both sides, e.g. `expr(likes - dislikes > 10)` or `expr(concat([street, city]) != "")`.

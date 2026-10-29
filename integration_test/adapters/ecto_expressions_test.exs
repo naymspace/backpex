@@ -133,7 +133,7 @@ defmodule Backpex.Integration.Adapters.EctoExpressionsTest do
         |> Backpex.Resource.aggregate()
 
       assert likes == 110
-      assert minutes == 0
+      assert minutes === 0
     end
   end
 

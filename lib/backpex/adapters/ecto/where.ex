@@ -116,7 +116,8 @@ defmodule Backpex.Adapters.Ecto.Where do
     {query, right} = operand(right, query, binding)
     seconds = Map.fetch!(@seconds, Keyword.fetch!(opts, :unit))
 
-    {query, dynamic(fragment("CAST(EXTRACT(EPOCH FROM (? - ?)) AS bigint) / ?", ^left, ^right, ^seconds))}
+    # An integer, so that e.g. its sum is an integer, too.
+    {query, dynamic(fragment("CAST(TRUNC(EXTRACT(EPOCH FROM (? - ?)) / ?) AS integer)", ^left, ^right, ^seconds))}
   end
 
   defp value(%Call{name: :to_string, args: [value]}, query, binding) do
