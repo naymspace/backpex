@@ -279,7 +279,7 @@ defmodule Backpex.LiveResource do
       @impl Backpex.LiveResource
       def load(_assigns) do
         [
-          proceeding: :module,
+          comments: :author,
           user: Backpex.Query.related(computed: [full_name: expr(concat([first_name, last_name], " "))])
         ]
       end
