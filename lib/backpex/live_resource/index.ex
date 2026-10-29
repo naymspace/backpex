@@ -945,10 +945,12 @@ defmodule Backpex.LiveResource.Index do
     item_count
   end
 
-  # The items of the index view on all pages: after the search and the already-validated filter values.
-  defp filtered_query(socket) do
+  # The items of the index view on all pages: after the search and the already-validated filter values, except the ones
+  # of the `ignored` filters.
+  defp filtered_query(socket, ignored \\ []) do
     %{live_resource: live_resource, fields: fields} = socket.assigns
-    assigns = Map.put(socket.assigns, :filters, LiveResource.active_filters(socket.assigns))
+    filters = socket.assigns |> LiveResource.active_filters() |> Keyword.drop(ignored)
+    assigns = Map.put(socket.assigns, :filters, filters)
 
     fields
     |> Resource.items_query(socket.assigns, live_resource)
@@ -976,7 +978,7 @@ defmodule Backpex.LiveResource.Index do
 
     data =
       if metrics != [] and Backpex.Metric.metrics_visible?(metric_visibility, live_resource),
-        do: Resource.metrics(metrics, filtered_query(socket), socket.assigns),
+        do: metrics_data(socket, metrics),
         else: %{}
 
     metrics =
@@ -988,6 +990,15 @@ defmodule Backpex.LiveResource.Index do
       end)
 
     assign(socket, metrics: metrics)
+  end
+
+  # The metrics that ignore the same filters share a query, see the `:ignore_filters` option of `Backpex.Metric`.
+  defp metrics_data(socket, metrics) do
+    metrics
+    |> Enum.group_by(fn {_key, metric} -> Map.get(metric, :ignore_filters, []) end)
+    |> Enum.reduce(%{}, fn {ignored, metrics}, data ->
+      Map.merge(data, Resource.metrics(metrics, filtered_query(socket, ignored), socket.assigns))
+    end)
   end
 
   defp assign_items(socket) do
