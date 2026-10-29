@@ -33,6 +33,22 @@ defmodule Backpex.Test.Router do
       live_resources "/short-links", Backpex.Test.ShortLinkLive
       live_resources "/samples", Backpex.Test.SampleLive
       live_resources "/notes", Backpex.Test.NoteLive
+      live_resources "/post-relation-options", Backpex.Test.PostRelationOptionsLive
+      live_resources "/user-relation-options", Backpex.Test.UserRelationOptionsLive
+      live_resources "/sample-field-options", Backpex.Test.SampleFieldOptionsLive
+      live_resources "/recording-notes", Backpex.Test.RecordingNoteLive
+      live_resources "/paged-notes", Backpex.Test.PagedNoteLive
+      live_resources "/pubsub-notes", Backpex.Test.PubSubNoteLive
+      live_resources "/order-nulls-default-users", Backpex.Test.OrderNullsDefaultUserLive
+      live_resources "/order-nulls-first-users", Backpex.Test.OrderNullsFirstUserLive
+      live_resources "/order-nulls-last-users", Backpex.Test.OrderNullsLastUserLive
+      live_resources "/order-nulls-smallest-users", Backpex.Test.OrderNullsSmallestUserLive
+      live_resources "/field-options-samples", Backpex.Test.FieldOptionsSampleLive
+      live_resources "/display-options-samples", Backpex.Test.DisplayOptionsSampleLive
+      live_resources "/fluid-notes", Backpex.Test.FluidNoteLive
+      live_resources "/on-mount-module-notes", Backpex.Test.OnMountModuleNoteLive
+      live_resources "/on-mount-tuple-notes", Backpex.Test.OnMountTupleNoteLive
+      live_resources "/on-mount-list-notes", Backpex.Test.OnMountListNoteLive
     end
   end
 end

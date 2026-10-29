@@ -150,4 +150,41 @@ defmodule Backpex.Fields.InlineCRUDTest do
       end
     end
   end
+
+  describe "class of a child field" do
+    test "is added to the header and every cell of the child field's column only" do
+      child_fields = [
+        label: %{module: Backpex.Fields.Text, label: "Label", class: "w-1/3"},
+        url: %{module: Backpex.Fields.Text, label: "URL"}
+      ]
+
+      html = render_form(:links, child_fields: child_fields)
+
+      assert column_classes(html, "w-1\\/3") == {["inline-crud-header-label-links-label"], ["label", "label"]}
+    end
+
+    test "can be the result of a function" do
+      child_fields = [
+        label: %{module: Backpex.Fields.Text, label: "Label"},
+        url: %{module: Backpex.Fields.Text, label: "URL", class: fn %{readonly: false} -> "w-2/3" end}
+      ]
+
+      html = render_form(:links, child_fields: child_fields)
+
+      assert column_classes(html, "w-2\\/3") == {["inline-crud-header-label-links-url"], ["url", "url"]}
+    end
+  end
+
+  # Returns the ids of the header cells and the child field names of the inputs in the row cells with the class.
+  defp column_classes(html, class) do
+    header_ids = html |> LazyHTML.query("div.table-cell.#{class}[id]") |> LazyHTML.attribute("id")
+
+    input_fields =
+      html
+      |> LazyHTML.query("div.table-row > div.table-cell.#{class} input[type=text]")
+      |> LazyHTML.attribute("name")
+      |> Enum.map(&(Regex.run(~r/\[(\w+)\]$/, &1, capture: :all_but_first) |> hd()))
+
+    {header_ids, input_fields}
+  end
 end
