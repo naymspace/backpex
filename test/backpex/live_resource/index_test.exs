@@ -31,6 +31,12 @@ defmodule Backpex.LiveResource.IndexTest do
       true
     end
 
+    # Refuses the title "Refused", like a hook that adds an error to the changeset.
+    def on_item_updating(socket, {:changeset, item, attrs}) do
+      send(self(), {:on_item_updating, socket, item})
+      {:changeset, item, Map.merge(attrs, %{edited_inline: true, refused?: attrs[:title] == "Refused"})}
+    end
+
     def on_item_updated(socket, item) do
       send(self(), {:on_item_updated, socket, item})
       socket
@@ -42,6 +48,7 @@ defmodule Backpex.LiveResource.IndexTest do
     def config(:adapter), do: Backpex.LiveResource.IndexTest.FailingAdapter
     def config(:primary_key), do: :id
     def can?(_assigns, _action, _item), do: true
+    def on_item_updating(_socket, change), do: change
   end
 
   defmodule DenyEditLive do
@@ -113,7 +120,8 @@ defmodule Backpex.LiveResource.IndexTest do
       assert {:noreply, socket} = Index.handle_event("index-edit", params("title", "1", "After"), socket)
 
       assert_received {:can?, :edit, %{current_user: :user, name: :title, item: ^item}}
-      assert_received {:adapter, :update, ^item, %{title: "After"}}
+      assert_received {:on_item_updating, %Socket{}, ^item}
+      assert_received {:adapter, :update, ^item, %{title: "After", edited_inline: true}}
       assert_received {:on_item_updated, %Socket{}, ^item}
       assert socket.assigns.items == [item]
       assert socket.assigns.index_edits == Map.new([other_edit])
@@ -127,6 +135,18 @@ defmodule Backpex.LiveResource.IndexTest do
 
       assert socket.assigns.items == [item]
       assert socket.assigns.index_edits == %{{:title, 1} => %{value: "", valid: false}}
+    end
+
+    test "keeps the value of an edit that on_item_updating/2 refuses as invalid" do
+      item = %{id: 1, title: "Before"}
+      socket = socket(InlineEditLive, item)
+
+      assert {:noreply, socket} = Index.handle_event("index-edit", params("title", "1", "Refused"), socket)
+
+      assert_received {:adapter, :update, ^item, %{title: "Refused", refused?: true}}
+      refute_received {:on_item_updated, _socket, _item}
+      assert socket.assigns.items == [item]
+      assert socket.assigns.index_edits == %{{:title, 1} => %{value: "Refused", valid: false}}
     end
 
     test "saves nothing for an unknown field or an item that is not on the page" do
