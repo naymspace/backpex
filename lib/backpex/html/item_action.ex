@@ -31,13 +31,10 @@ defmodule Backpex.HTML.ItemAction do
         {@action_to_confirm.module.confirm(assigns)}
       </div>
       <div>
-        <.live_component
-          module={Backpex.FormComponent}
-          id={:item_action_modal}
-          live_resource={@live_resource}
-          action_type={:item}
-          {Map.drop(assigns, [:fields | Backpex.HTML.Resource.lv_reserved_assigns()])}
-        />
+        {assigns
+        |> assign(module: Backpex.FormComponent, id: :item_action_modal, action_type: :item)
+        |> Map.drop([:fields | Backpex.HTML.Resource.lv_reserved_assigns()])
+        |> live_component()}
       </div>
     </Layout.modal>
     """

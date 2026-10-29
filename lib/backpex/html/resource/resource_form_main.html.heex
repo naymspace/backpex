@@ -1,8 +1,6 @@
 <.main_container>
-  <.live_component
-    module={Backpex.FormComponent}
-    id={:edit}
-    live_resource={@live_resource}
-    {Map.drop(assigns, lv_reserved_assigns())}
-  />
+  {assigns
+  |> assign(module: Backpex.FormComponent, id: :edit)
+  |> Map.drop(lv_reserved_assigns())
+  |> live_component()}
 </.main_container>

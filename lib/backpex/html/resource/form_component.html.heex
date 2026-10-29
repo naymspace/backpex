@@ -1,6 +1,5 @@
 <div id="form-component">
   <.form
-    :let={f}
     for={@form}
     id="resource-form"
     phx-target={@myself}
@@ -11,12 +10,9 @@
     <.edit_card>
       <%!-- Default panel --%>
       <:panel>
-        <.resource_form_field
-          :for={{name, _field_options} <- visible_fields_by_panel(@fields, :default, assigns)}
-          name={name}
-          form={f}
-          {assigns}
-        />
+        <%= for {name, _field_options} <- visible_fields_by_panel(@fields, :default, assigns) do %>
+          {resource_form_field(assign(assigns, name: name))}
+        <% end %>
       </:panel>
 
       <%!-- Custom panels --%>
@@ -26,16 +22,13 @@
         label={label}
         class="mt-4"
       >
-        <.resource_form_field
-          :for={{name, _field_options} <- visible_fields_by_panel(@fields, name, assigns)}
-          name={name}
-          form={f}
-          {assigns}
-        />
+        <%= for {field_name, _field_options} <- visible_fields_by_panel(@fields, name, assigns) do %>
+          {resource_form_field(assign(assigns, name: field_name))}
+        <% end %>
       </:panel>
 
       <:actions>
-        <div :if={form_errors?(@show_form_errors, f)}>
+        <div :if={form_errors?(@show_form_errors, @form)}>
           <p class="text-error text-sm italic">
             {Backpex.__("There are errors in the form.", @live_resource)}
           </p>
@@ -47,7 +40,7 @@
 
           <button
             type="submit"
-            class={["btn", if(form_errors?(@show_form_errors, f), do: "btn-error", else: "btn-primary")]}
+            class={["btn", if(form_errors?(@show_form_errors, @form), do: "btn-error", else: "btn-primary")]}
             phx-disable-with={@action_to_confirm.module.confirm_label(assigns) <> "..."}
           >
             {@action_to_confirm.module.confirm_label(assigns)}
@@ -67,7 +60,7 @@
             class={[
               "btn",
               action[:soft] && "btn-soft",
-              if(form_errors?(@show_form_errors, f), do: "btn-error", else: "btn-primary")
+              if(form_errors?(@show_form_errors, @form), do: "btn-error", else: "btn-primary")
             ]}
             phx-disable-with={action.label <> "..."}
           >

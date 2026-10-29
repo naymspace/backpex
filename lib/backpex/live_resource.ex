@@ -653,18 +653,10 @@ defmodule Backpex.LiveResource do
       end
 
       @impl Backpex.LiveResource
-      def render_resource_slot(var!(assigns), :edit, :main) do
-        ~H"""
-        <.resource_form_main {assigns} />
-        """
-      end
+      def render_resource_slot(var!(assigns), :edit, :main), do: resource_form_main(var!(assigns))
 
       @impl Backpex.LiveResource
-      def render_resource_slot(var!(assigns), :new, :main) do
-        ~H"""
-        <.resource_form_main {assigns} />
-        """
-      end
+      def render_resource_slot(var!(assigns), :new, :main), do: resource_form_main(var!(assigns))
 
       @impl Backpex.LiveResource
       def render_resource_slot(var!(assigns), _action, _position), do: ~H""
