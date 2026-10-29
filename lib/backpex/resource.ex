@@ -458,18 +458,18 @@ defmodule Backpex.Resource do
   # A struct must come back as the same struct, so a hook that returns the socket, as `on_item_updated/2` does, or the
   # item instead of the change fails here instead of being saved.
   defp before_save(change, func) do
-    case func.(change) do
-      %{__struct__: module} = result when is_struct(change, module) ->
+    case {change, func.(change)} do
+      {%module{}, %module{} = result} ->
         result
 
-      result when is_struct(change) ->
+      {%module{}, result} ->
         raise ArgumentError, """
-        expected the function called before saving to return a #{inspect(change.__struct__)}, got: #{inspect(result)}
+        expected the function called before saving to return a #{inspect(module)}, got: #{inspect(result)}
 
         on_item_creating/2 and on_item_updating/2 must return the change they receive.
         """
 
-      result ->
+      {_change, result} ->
         result
     end
   end
