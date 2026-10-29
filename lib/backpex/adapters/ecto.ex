@@ -68,13 +68,12 @@ defmodule Backpex.Adapters.Ecto do
 
     * the `:options_query` option of association fields, which receives an `Ecto.Query`
     * the `:select` option of metrics, an `Ecto.Query.dynamic/2` expression to select instead of an aggregate
-    * the callbacks of `Backpex.Adapters.Ecto.Field`
 
   ## Search
 
   Searchable fields are compared to the search string with `ilike`. Columns that are not strings, such as numbers or
-  dates, and computed values are cast to text first. A field can build its own condition with
-  `c:Backpex.Adapters.Ecto.Field.search_condition/3`.
+  dates, and computed values are cast to text first. A field can return its own condition with
+  `c:Backpex.Field.search_condition/3`.
 
   ## `adapter_config`
 
@@ -99,29 +98,9 @@ defmodule Backpex.Adapters.Ecto do
   def default_changeset(item, attrs, _metadata), do: Ecto.Changeset.cast(item, attrs, [])
 
   @doc """
-  Takes the `search_condition/3` of fields that implement `Backpex.Adapters.Ecto.Field` and the `:options_query` of
-  association fields into the query, see `c:Backpex.Adapter.put_field_options/2`.
+  Takes the `:options_query` of association fields into the query, see `c:Backpex.Adapter.put_field_options/2`.
   """
   @impl Backpex.Adapter
-  def put_field_options(%Query{from: []} = query, {name, %{module: module} = field_options} = field) do
-    if callback?(module, :search_condition, 3) do
-      association? = module.association?(field)
-      field_name = Map.get(field_options, :display_field, name)
-      ref = Backpex.LiveResource.field_ref(field)
-
-      # The condition gets the binding of the column of the field, the join of the association or the schema.
-      search_expr = fn ecto_query, pattern ->
-        {ecto_query, binding} = search_binding(ecto_query, association?, name)
-
-        {dynamic(^module.search_condition(binding, field_name, pattern)), ecto_query}
-      end
-
-      update_native(query, :search_exprs, &Map.put(&1, ref, search_expr))
-    else
-      query
-    end
-  end
-
   def put_field_options(%Query{from: [name], resource: live_resource} = query, {name, field_options} = field) do
     schema = live_resource.adapter_config(:schema)
     queryable = association_queryable(schema, field)
@@ -135,11 +114,6 @@ defmodule Backpex.Adapters.Ecto do
   end
 
   def put_field_options(%Query{} = query, _field), do: query
-
-  defp update_native(query, key, fun), do: Query.put_native(query, key, fun.(Map.get(query.native, key, %{})))
-
-  defp search_binding(ecto_query, true = _association?, name), do: Where.binding(ecto_query, [name])
-  defp search_binding(%Ecto.Query{from: %{as: root}} = ecto_query, false = _association?, _name), do: {ecto_query, root}
 
   @doc """
   Returns the items of the query, see `c:Backpex.Adapter.read/1`.
@@ -471,10 +445,6 @@ defmodule Backpex.Adapters.Ecto do
 
   defp related_queryable(_owner, %{queryable: queryable}), do: queryable
 
-  defp callback?(module, function, arity) do
-    Code.ensure_loaded?(module) and function_exported?(module, function, arity)
-  end
-
   def get_primary_key_field(schema)
 
   def get_primary_key_field(%{__struct__: struct}) when is_atom(struct), do: get_primary_key_field(struct)
@@ -622,16 +592,18 @@ defmodule Backpex.Adapters.Ecto do
   # An item matches if any target contains the search term, ignoring the case.
   defp search_targets(ecto_query, %Query{search: %{targets: []}}, _schema), do: ecto_query
 
-  defp search_targets(ecto_query, %Query{search: %{term: term, targets: targets}, native: native} = query, schema) do
+  defp search_targets(ecto_query, %Query{search: %{term: term, targets: targets}} = query, schema) do
     pattern = "%#{term}%"
-    search_exprs = Map.get(native, :search_exprs, %{})
 
+    # A field contains the term, any other target is a condition of its own.
     {conditions, ecto_query} =
-      Enum.map_reduce(targets, ecto_query, fn ref, ecto_query ->
-        case Map.fetch(search_exprs, ref) do
-          {:ok, search_expr} -> search_expr.(ecto_query, pattern)
-          :error -> ref_search(ecto_query, query, ref, schema, pattern)
-        end
+      Enum.map_reduce(targets, ecto_query, fn
+        %Ref{} = ref, ecto_query ->
+          ref_search(ecto_query, query, ref, schema, pattern)
+
+        condition, ecto_query ->
+          {ecto_query, condition} = Where.value(ecto_query, condition)
+          {condition, ecto_query}
       end)
 
     condition = Enum.reduce(conditions, fn condition, acc -> dynamic(^acc or ^condition) end)

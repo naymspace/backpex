@@ -77,8 +77,11 @@ defmodule Backpex.Query.Runtime do
   def search(items, %{term: term, targets: targets}) do
     term = String.downcase(term)
 
-    Enum.filter(items, fn item -> Enum.any?(targets, &contains_term?(value(&1, item), term)) end)
+    Enum.filter(items, fn item -> Enum.any?(targets, &matches?(&1, item, term)) end)
   end
+
+  defp matches?(%Ref{} = ref, item, term), do: contains_term?(value(ref, item), term)
+  defp matches?(condition, item, _term), do: eval(condition, item) == true
 
   defp contains_term?(nil, _term), do: false
   defp contains_term?(value, term), do: value |> to_text() |> String.downcase() |> String.contains?(term)

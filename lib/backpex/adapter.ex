@@ -12,9 +12,8 @@ defmodule Backpex.Adapter do
   `Backpex.Metric`), which end up in the query. Adapters don't get the fields or filters of the LiveResource, so an
   adapter for another data source only has to run queries.
 
-  Options and callbacks that only one adapter understands belong to it, e.g. the `:select` option of fields and
-  `Backpex.Adapters.Ecto.Field` belong to `Backpex.Adapters.Ecto`. An adapter adds options to fields with
-  `c:field_config_schema/0`.
+  Options that only one adapter understands belong to it, e.g. the `:options_query` of association fields belongs to
+  `Backpex.Adapters.Ecto`. An adapter adds options to fields with `c:field_config_schema/0`.
 
   ## `use Backpex.Adapter`
 
