@@ -63,7 +63,7 @@ defmodule Backpex.Query do
   """
   @type aggregate :: %{
           name: atom(),
-          aggregate: :count | {:count | :sum | :avg | :min | :max, atom()} | Expr.Native.t(),
+          aggregate: :count | {:count | :sum | :avg | :min | :max, atom() | Expr.t()} | Expr.Native.t(),
           where: Expr.t() | nil
         }
 
@@ -102,6 +102,8 @@ defmodule Backpex.Query do
             valid?: true
 
   @directions [:asc, :desc, :asc_nulls_first, :asc_nulls_last, :desc_nulls_first, :desc_nulls_last]
+  @aggregate_kinds [:count, :sum, :avg, :min, :max]
+  @value_structs [Expr.Ref, Expr.Call]
   @unset_keys [:filter, :search, :sort, :default_sort, :limit, :offset, :load, :computed, :aggregates]
 
   @doc """
@@ -344,7 +346,8 @@ defmodule Backpex.Query do
   @doc """
   Adds an aggregate that `c:Backpex.Adapter.aggregate/1` computes under `name` over the items of the query, e.g. the
   data of a metric. `aggregate` is `:count`, a tuple of `:count`, `:sum`, `:avg`, `:min` or `:max` and the name of a
-  field, or a `Backpex.Expr.Native` expression of the adapter.
+  field or an expression (e.g. `{:sum, expr(price * quantity)}`, see `Backpex.Expr`), or a `Backpex.Expr.Native`
+  expression of the adapter.
 
   ## Options
 
@@ -352,17 +355,24 @@ defmodule Backpex.Query do
   """
   @spec aggregate(t(), atom(), aggregate()[:aggregate], keyword()) :: t()
   def aggregate(%__MODULE__{} = query, name, aggregate, opts \\ []) when is_atom(name) do
-    check_aggregate!(aggregate)
+    aggregate = cast_aggregate!(query, aggregate)
     where = Expr.cast(opts[:where], &describe(query, &1))
 
     %{query | aggregates: Enum.concat(query.aggregates, [%{name: name, aggregate: aggregate, where: where}])}
   end
 
-  defp check_aggregate!(:count), do: :ok
-  defp check_aggregate!({kind, field}) when kind in [:count, :sum, :avg, :min, :max] and is_atom(field), do: :ok
-  defp check_aggregate!(%Expr.Native{}), do: :ok
+  defp cast_aggregate!(_query, :count), do: :count
 
-  defp check_aggregate!(aggregate) do
+  defp cast_aggregate!(_query, {kind, field} = aggregate) when kind in @aggregate_kinds and is_atom(field),
+    do: aggregate
+
+  defp cast_aggregate!(query, {kind, %struct{} = expression})
+       when kind in @aggregate_kinds and struct in @value_structs,
+       do: {kind, Expr.cast(expression, &describe(query, &1))}
+
+  defp cast_aggregate!(_query, %Expr.Native{} = aggregate), do: aggregate
+
+  defp cast_aggregate!(_query, aggregate) do
     raise ArgumentError, "expected an aggregate such as :count or {:sum, :field}, got: #{inspect(aggregate)}"
   end
 

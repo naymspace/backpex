@@ -810,6 +810,17 @@ defmodule Backpex.Adapters.EctoTest do
       end
     end
 
+    test "aggregates the values of expressions" do
+      Process.put({FakeRepo, :one}, 3)
+
+      assert %{value: 3} = metric(%{module: Value, aggregate: {:sum, expr(id * 2)}})
+      assert_received {:repo, :one, query}
+      assert Macro.to_string(query.select.expr) == "sum(&0.id() * ^0)"
+
+      metric(%{module: Value, aggregate: {:max, expr(user.name)}})
+      assert_received {:repo, :one, %{joins: [%{as: :backpex_user}]}}
+    end
+
     test "limits the items with the where condition of the metric" do
       metric(%{module: Value, aggregate: :count, where: expr(title == "Hello")})
 
@@ -894,6 +905,35 @@ defmodule Backpex.Adapters.EctoTest do
       query = [] |> Resource.items_query(%{}, UsesPostLive) |> ecto_query()
 
       assert [%{as: :backpex_user, qual: :left}] = query.joins
+    end
+
+    test "computes arithmetic, datetime_diff and to_string" do
+      defmodule ArithmeticPostLive do
+        @moduledoc false
+        use FakeLiveResource, schema: Backpex.Adapters.EctoTest.TestPost
+
+        def computed(_assigns) do
+          [
+            next_id: expr(id * 2 + 1),
+            age: expr(datetime_diff(^~U[2026-01-01 00:00:00Z], ^~U[2025-12-31 00:00:00Z], :hour)),
+            label: expr(to_string(id))
+          ]
+        end
+      end
+
+      query = [] |> Resource.items_query(%{}, ArithmeticPostLive) |> ecto_query()
+
+      assert %{select: %{expr: {:merge, _meta, [_item, {:%{}, _map_meta, values}]}}} = query
+      assert Macro.to_string(values[:next_id]) == "&0.id() * ^0 + ^1"
+      assert Macro.to_string(values[:age]) =~ "EXTRACT(EPOCH FROM"
+      assert Macro.to_string(values[:label]) =~ "CAST("
+    end
+
+    test "compares the values of expressions in filters" do
+      query = PostLive |> Query.new() |> Query.filter(expr(id * 2 > 10)) |> ecto_query()
+
+      assert [%{expr: expr}] = query.wheres
+      assert Macro.to_string(expr) == "&0.id() * ^0 > ^1"
     end
 
     test "preloads a related query with its computed values" do

@@ -249,6 +249,31 @@ defmodule Backpex.QueryTest do
                query |> Query.unset([:search]) |> Query.apply_to(@items) |> List.first()
     end
 
+    test "computes with numbers, datetimes and strings, with the nil rules of SQL" do
+      computed = %{
+        double: expr(likes * 2),
+        half: expr(likes / 2),
+        sum: expr(likes - 1 + 10),
+        ratio: expr(likes / ^2.0),
+        minutes: expr(datetime_diff(^~U[2026-01-01 10:30:59Z], ^~U[2026-01-01 08:00:00Z], :minute)),
+        text: expr(to_string(likes))
+      }
+
+      query = ArticleLive |> Query.new() |> Map.put(:computed, computed) |> Query.sort(id: :asc)
+
+      assert [
+               %{double: 6, half: 1, sum: 12, ratio: 1.5, minutes: 150, text: "3"},
+               %{double: nil, half: nil, sum: nil, ratio: nil, minutes: 150, text: nil},
+               %{double: 10, half: 2, sum: 14, text: "5"}
+             ] = Query.apply_to(query, @items)
+    end
+
+    test "compares the values of expressions" do
+      assert filtered(expr(likes * 2 > 7)) == [3]
+      assert filtered(expr(to_string(likes) == "3")) == [1]
+      assert filtered(expr(likes - 3 == id - 1)) == [1, 3]
+    end
+
     test "raises for a native expression" do
       query = %{Query.new(ArticleLive) | filter: Expr.native(Backpex.Adapters.Ecto, :fragment)}
 
@@ -280,6 +305,18 @@ defmodule Backpex.QueryTest do
                max: 3,
                none: nil
              }
+    end
+
+    test "aggregates the values of expressions" do
+      query =
+        ArticleLive
+        |> Query.new()
+        |> Query.aggregate(:double, {:sum, expr(likes * 2)})
+        |> Query.aggregate(:with_likes, {:count, expr(likes + 1)})
+        |> Query.aggregate(:min, {:min, expr(likes - 1)})
+
+      assert Query.aggregate_items(query, [%{likes: 3}, %{likes: nil}, %{likes: 5}]) ==
+               %{double: 16, with_likes: 2, min: 2}
     end
 
     test "adds decimals with Decimal" do

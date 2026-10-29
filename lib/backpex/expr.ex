@@ -49,6 +49,14 @@ defmodule Backpex.Expr do
 
     * `concat(parts, separator)` - joins the strings of the fields and strings in `parts` with the optional
       `separator`, e.g. `expr(concat([first_name, last_name], " "))`. Like `concat_ws` in SQL, it leaves out `nil`.
+    * `+`, `-`, `*` and `/` - compute with numbers, e.g. `expr(likes - dislikes)`. As in SQL, the division of two
+      integers is an integer, rounded towards zero, and a value with `nil` is `nil`.
+    * `datetime_diff(left, right, unit)` - the time from the datetime `right` to the datetime `left` as an integer of
+      whole `:second`, `:minute`, `:hour` or `:day` units, rounded towards zero, e.g.
+      `expr(datetime_diff(ends_at, starts_at, :minute))`.
+    * `to_string(value)` - the value as a string, e.g. `expr(to_string(likes))`.
+
+  Comparisons take values on both sides, e.g. `expr(likes - dislikes > 10)` or `expr(concat([street, city]) != "")`.
 
   ## Keyword lists
 
@@ -100,8 +108,9 @@ defmodule Backpex.Expr do
     An operator or a function applied to its arguments, see `Backpex.Expr`.
 
     `name` is one of `:==`, `:!=`, `:<`, `:<=`, `:>`, `:>=`, `:in`, `:is_nil`, `:contains`, `:starts_with`,
-    `:ends_with`, `:and`, `:or`, `:not` and `:concat`. `opts` holds the options of a function, e.g.
-    `ignore_case: true` or the `:separator` of `concat`.
+    `:ends_with`, `:and`, `:or`, `:not`, `:concat`, `:+`, `:-`, `:*`, `:/`, `:datetime_diff` and `:to_string`. `opts`
+    holds the options of a function, e.g. `ignore_case: true`, the `:separator` of `concat` or the `:unit` of
+    `datetime_diff`.
     """
 
     @enforce_keys [:name, :args]
@@ -141,6 +150,8 @@ defmodule Backpex.Expr do
 
   @comparisons [:==, :!=, :<, :<=, :>, :>=]
   @string_functions [:contains, :starts_with, :ends_with]
+  @arithmetic [:+, :-, :*, :/]
+  @datetime_units [:second, :minute, :hour, :day]
 
   @doc """
   Builds an expression, see the module documentation.
@@ -155,6 +166,19 @@ defmodule Backpex.Expr do
       iex> field = :status
       iex> expr(ref(^field) in ^["open", "pending"])
       %Backpex.Expr.Call{name: :in, args: [%Backpex.Expr.Ref{path: [], name: :status}, ["open", "pending"]]}
+
+      iex> import Backpex.Expr
+      iex> expr(likes - dislikes > 10)
+      %Backpex.Expr.Call{
+        name: :>,
+        args: [
+          %Backpex.Expr.Call{
+            name: :-,
+            args: [%Backpex.Expr.Ref{path: [], name: :likes}, %Backpex.Expr.Ref{path: [], name: :dislikes}]
+          },
+          10
+        ]
+      }
 
       iex> import Backpex.Expr
       iex> expr(exists(tags, name == "elixir"))
@@ -176,6 +200,28 @@ defmodule Backpex.Expr do
 
     call(operator, args)
   end
+
+  defp build({operator, _meta, [left, right]}, caller) when operator in @arithmetic do
+    call(operator, [build(left, caller), build(right, caller)])
+  end
+
+  defp build({:-, _meta, [number]}, _caller) when is_number(number), do: -number
+
+  defp build({:datetime_diff, meta, [left, right, unit]}, caller) do
+    if unit not in @datetime_units do
+      compile_error!(caller, meta, "expected the unit of datetime_diff/3 to be one of #{inspect(@datetime_units)}")
+    end
+
+    quote do
+      %Call{
+        name: :datetime_diff,
+        args: [unquote(build(left, caller)), unquote(build(right, caller))],
+        opts: [unit: unquote(unit)]
+      }
+    end
+  end
+
+  defp build({:to_string, _meta, [value]}, caller), do: call(:to_string, [build(value, caller)])
 
   defp build({:not, _meta, [expression]}, caller), do: call(:not, [build(expression, caller)])
   defp build({:is_nil, _meta, [field]}, caller), do: call(:is_nil, [build(field, caller)])
@@ -278,8 +324,8 @@ defmodule Backpex.Expr do
   defp path(_expression, _names), do: :error
 
   defp supported do
-    "Expressions support ==, !=, <, <=, >, >=, in, and, or, not, is_nil/1, contains/2, starts_with/2, ends_with/2, " <>
-      "exists/2, ref/1 and ref/2, see Backpex.Expr"
+    "Expressions support ==, !=, <, <=, >, >=, in, and, or, not, +, -, *, /, is_nil/1, contains/2, starts_with/2, " <>
+      "ends_with/2, exists/2, concat/1, concat/2, datetime_diff/3, to_string/1, ref/1 and ref/2, see Backpex.Expr"
   end
 
   defp show(expression), do: Macro.to_string(expression)
