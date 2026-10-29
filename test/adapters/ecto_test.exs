@@ -404,20 +404,23 @@ defmodule Backpex.Adapters.EctoTest do
     end
   end
 
-  # The query of the index view, see `Backpex.LiveResource.index_query/1`.
+  # The query of the index view, see `Backpex.LiveResource.index_query/2`.
   defp index_query(fields, query_options, live_resource \\ UserLive) do
     query_options = Map.merge(%{order_by: :id, order_direction: :asc, page: 1, per_page: 15}, Map.new(query_options))
 
     ecto_query(
-      Backpex.LiveResource.index_query(%{
-        live_resource: live_resource,
-        live_action: :index,
-        fields: fields,
-        filters: [],
-        filter_values: %{},
-        init_order: %{by: :id, direction: :asc},
-        query_options: query_options
-      })
+      Backpex.LiveResource.index_query(
+        %{
+          live_resource: live_resource,
+          live_action: :index,
+          fields: fields,
+          filters: [],
+          filter_values: %{},
+          init_order: %{by: :id, direction: :asc},
+          query_options: query_options
+        },
+        fields
+      )
     )
   end
 

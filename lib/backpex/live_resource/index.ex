@@ -993,7 +993,7 @@ defmodule Backpex.LiveResource.Index do
   defp assign_items(socket) do
     {:ok, items} =
       socket.assigns
-      |> LiveResource.index_query()
+      |> LiveResource.index_query(socket.assigns.fields)
       |> Resource.read()
 
     socket
