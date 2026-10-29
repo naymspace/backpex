@@ -137,6 +137,17 @@ defmodule Backpex.QueryTest do
     end
   end
 
+  describe "compute/3" do
+    test "checks the fields of a value that is a field or a path" do
+      assert ArticleLive |> Query.new() |> Query.compute(:author_name, expr(author.name)) |> Map.fetch!(:computed) ==
+               %{author_name: Expr.ref([:author], :name)}
+
+      assert_raise ArgumentError, ~r/unknown field :unknown/, fn ->
+        ArticleLive |> Query.new() |> Query.compute(:unknown, expr(unknown))
+      end
+    end
+  end
+
   describe "unset/2" do
     test "removes the given parts and keeps the others" do
       query =

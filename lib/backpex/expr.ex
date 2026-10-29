@@ -396,6 +396,7 @@ defmodule Backpex.Expr do
 
   defp cast_in(nil, _base, _describe), do: nil
   defp cast_in(%Native{} = expression, _base, _describe), do: expression
+  defp cast_in(%Ref{} = ref, base, describe), do: cast_arg(ref, base, describe)
 
   defp cast_in(%Exists{path: path, where: where} = expression, base, describe) do
     path = base ++ path
