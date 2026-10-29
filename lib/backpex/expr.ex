@@ -58,8 +58,8 @@ defmodule Backpex.Expr do
 
   Comparisons take values on both sides, e.g. `expr(likes - dislikes > 10)` or `expr(concat([street, city]) != "")`.
 
-  `aggregate/3` computes a value of related items, e.g. the number of the posts of a user or the name of the partner of
-  the primary contact.
+  `aggregate/3` computes a value of related items, e.g. the number of the posts of a user or the name of the author of
+  the newest comment.
 
   ## Keyword lists
 
@@ -429,7 +429,7 @@ defmodule Backpex.Expr do
 
   ## Options
 
-    * `:value` - an expression of the related items, e.g. `expr(amount)` or `expr(partner.name)`. Required for every kind
+    * `:value` - an expression of the related items, e.g. `expr(amount)` or `expr(author.name)`. Required for every kind
       except `:count`.
     * `:where` - an expression that limits the related items.
     * `:sort` - the order of the related items for `:first`, like `Backpex.Query.sort/2`.
@@ -438,7 +438,7 @@ defmodule Backpex.Expr do
 
       Backpex.Expr.aggregate(:count, :posts, where: expr(published == true))
 
-      Backpex.Expr.aggregate(:first, :partners_contacts, value: expr(partner.name), where: expr(primary == true))
+      Backpex.Expr.aggregate(:first, :comments, value: expr(author.name), sort: [inserted_at: :desc])
   """
   @spec aggregate(Aggregate.t() | atom(), atom() | [atom()], keyword()) :: Aggregate.t()
   def aggregate(kind, path, opts \\ []) when kind in [:first, :count, :sum, :avg, :min, :max] do

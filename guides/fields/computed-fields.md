@@ -56,13 +56,13 @@ def computed(_assigns) do
     published_count: aggregate(:count, :posts, where: expr(published == true)),
     total_likes: aggregate(:sum, :posts, value: expr(likes)),
     top_post: aggregate(:first, :posts, value: expr(title), sort: [likes: :desc]),
-    primary_partner: aggregate(:first, :partners_contacts, value: expr(partner.name), where: expr(primary == true))
+    last_commenter: aggregate(:first, [:posts, :comments], value: expr(author.name), sort: [inserted_at: :desc])
   ]
 end
 ```
 
 The path can go through several relationships, e.g. `[:posts, :tags]`, and the value through relationships to one item,
-e.g. `expr(partner.name)`. `Backpex.Adapters.Ecto` joins a subquery of the values by item, so an aggregate doesn't
+e.g. `expr(author.name)`. `Backpex.Adapters.Ecto` joins a subquery of the values by item, so an aggregate doesn't
 duplicate items. Aggregates that only differ in their `:value`, e.g. the title and the likes of the top post, share
 one subquery. The index view sorts by aggregates and searches them like any other computed value.
 
