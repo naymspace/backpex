@@ -193,18 +193,32 @@ defmodule Backpex.Query do
   end
 
   @doc """
-  Searches for `term` in the fields `targets`, given as names, paths such as `"author.name"` or `Backpex.Expr.Ref`s.
+  Searches for `term` in the `targets`. An item matches if any target matches:
+
+    * a field, given as a name, a path such as `"author.name"` or a `Backpex.Expr.Ref`, matches when its value
+      contains the term, ignoring the case.
+    * any other expression is a condition of its own, e.g. of a field with `c:Backpex.Field.search_condition/3`, and
+      matches when it is true. Its fields are checked and its values cast like the ones of `filter/2`.
+
   Removes the search for a blank term. Without targets, only an adapter with a search of its own, e.g. the full text
   search of `Backpex.Adapters.Ecto`, searches.
   """
-  @spec search(t(), String.t() | nil, [atom() | String.t() | Ref.t()]) :: t()
+  @spec search(t(), String.t() | nil, [atom() | String.t() | Ref.t() | Expr.t()]) :: t()
   def search(%__MODULE__{} = query, term, targets) when is_list(targets) do
     if is_nil(term) or String.trim(term) == "" do
       %{query | search: nil}
     else
-      %{query | search: %{term: term, targets: Enum.map(targets, &to_ref/1)}}
+      %{query | search: %{term: term, targets: Enum.map(targets, &search_target(query, &1))}}
     end
   end
+
+  defp search_target(%__MODULE__{resource: nil}, %struct{} = condition)
+       when struct in [Expr.Call, Expr.Exists, Expr.Native], do: condition
+
+  defp search_target(query, %struct{} = condition) when struct in [Expr.Call, Expr.Exists, Expr.Native],
+    do: Expr.cast(condition, &describe(query, &1))
+
+  defp search_target(_query, field), do: to_ref(field)
 
   @doc """
   Adds sorts, given as a keyword list or a list of tuples of a field and a direction, see `t:direction/0`. A field is a

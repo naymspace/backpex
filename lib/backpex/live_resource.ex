@@ -1045,7 +1045,7 @@ defmodule Backpex.LiveResource do
     filters = Map.get(assigns, :filters, [])
 
     query
-    |> Backpex.Query.search(search, Enum.map(searchable_fields, &field_ref/1))
+    |> Backpex.Query.search(search, Enum.map(searchable_fields, &search_target(&1, search)))
     |> filter_values(Map.get(assigns, :filter_values, %{}), filters, assigns)
   end
 
@@ -1056,6 +1056,13 @@ defmodule Backpex.LiveResource do
         config -> Backpex.Query.filter(query, Backpex.Filter.to_condition({name, config}, value, assigns))
       end
     end)
+  end
+
+  # The condition of `c:Backpex.Field.search_condition/3`, or the ref of the value the field shows.
+  defp search_target({_name, %{module: module}} = field, search) do
+    if is_binary(search) and Code.ensure_loaded?(module) and function_exported?(module, :search_condition, 3),
+      do: module.search_condition(field, field_ref(field), search),
+      else: field_ref(field)
   end
 
   @doc """

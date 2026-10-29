@@ -226,14 +226,30 @@ defmodule Backpex.Adapters.EctoTest do
 
         def display_field({name, _field_options}), do: name
 
-        def search_condition(schema_name, field_name, search_string) do
-          dynamic([{^schema_name, s}], field(s, ^field_name) == ^String.trim(search_string, "%"))
-        end
+        def search_condition(_field, ref, term), do: expr(ref(^ref.path, ^ref.name) == ^term)
       end
 
-      query = search_query("Ann", name: %{module: ExactSearchField})
+      fields = [name: %{module: ExactSearchField, searchable: true}]
+
+      query =
+        fields
+        |> Resource.items_query(%{live_action: :index}, UserLive)
+        |> Backpex.LiveResource.filter_query(%{query_options: %{search: "Ann"}, fields: fields, filters: []})
+        |> EctoAdapter.ecto_query()
 
       assert [%{expr: {:==, _meta, _args}, params: [{"Ann", _type}]}] = query.wheres
+    end
+
+    test "takes a native search condition of a field and ORs it with the other targets" do
+      condition = Expr.native(EctoAdapter, dynamic([item], fragment("upper(?)", item.name) == ^"ANN"))
+
+      query =
+        []
+        |> Resource.items_query(%{live_action: :index}, UserLive)
+        |> Query.search("Ann", [:title, condition])
+        |> EctoAdapter.ecto_query()
+
+      assert [%{expr: {:or, _meta, [{:ilike, _ilike_meta, _ilike}, {:==, _eq_meta, _eq}]}}] = query.wheres
     end
 
     test "searches the display field of an association field on the join of its path" do

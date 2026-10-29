@@ -213,6 +213,13 @@ defmodule Backpex.QueryTest do
       assert filtered(expr(not exists(tags, name == "fp"))) == [2]
     end
 
+    test "keeps the items for which a condition among the targets is true" do
+      query = ArticleLive |> Query.new() |> Query.search("zz", [:title, expr(likes > "4")])
+
+      assert query.search.targets == [Expr.ref(:title), expr(likes > 4)]
+      assert ids(query) == [3]
+    end
+
     test "searches every target for the term, ignoring the case and casting values to text" do
       query = ArticleLive |> Query.new() |> Query.search("e", [:title])
       assert ids(query) == [1, 2, 3]
