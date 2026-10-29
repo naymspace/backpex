@@ -529,7 +529,9 @@ defmodule Backpex.Adapters.Ecto do
 
   defp merge_computed(ecto_query, %Query{computed: computed}) when computed == %{}, do: ecto_query
 
-  defp merge_computed(ecto_query, %Query{computed: computed}) do
+  defp merge_computed(ecto_query, %Query{computed: computed} = query) do
+    ecto_query = Where.join_aggregates(ecto_query, aggregate_expressions(query))
+
     {values, ecto_query} =
       Enum.map_reduce(computed, ecto_query, fn {name, expression}, ecto_query ->
         {ecto_query, value} = Where.value(ecto_query, expression)
@@ -537,6 +539,16 @@ defmodule Backpex.Adapters.Ecto do
       end)
 
     select_merge(ecto_query, ^Map.new(values))
+  end
+
+  # The expressions whose aggregates share joins, see `Backpex.Adapters.Ecto.Where.join_aggregates/2`: the computed
+  # values, and the ones of related items that sorts and the search refer to.
+  defp aggregate_expressions(%Query{computed: computed, search: search} = query) do
+    sort_refs = query |> Query.sorts() |> Enum.map(fn {ref, _direction} -> ref end)
+    search_refs = if search, do: search.targets, else: []
+    related = Enum.flat_map(sort_refs ++ search_refs, fn ref -> query |> Query.computed_expr(ref) |> List.wrap() end)
+
+    Map.values(computed) ++ related
   end
 
   # --- QUERIES

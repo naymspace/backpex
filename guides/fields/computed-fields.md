@@ -63,7 +63,8 @@ end
 
 The path can go through several relationships, e.g. `[:posts, :tags]`, and the value through relationships to one item,
 e.g. `expr(partner.name)`. `Backpex.Adapters.Ecto` joins a subquery of the values by item, so an aggregate doesn't
-duplicate items. The index view sorts by aggregates and searches them like any other computed value.
+duplicate items. Aggregates that only differ in their `:value`, e.g. the title and the likes of the top post, share
+one subquery. The index view sorts by aggregates and searches them like any other computed value.
 
 ## Values of the database
 

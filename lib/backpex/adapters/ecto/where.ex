@@ -80,6 +80,28 @@ defmodule Backpex.Adapters.Ecto.Where do
     end
   end
 
+  @doc """
+  Returns the query with one left join for every group of aggregates of the expressions that share the relationships,
+  the kind, the `:where` and the `:sort`, e.g. the title and the likes of the post with the most likes. The values
+  of an aggregate of the expressions then come from the join of its group, see `value/2`.
+  """
+  def join_aggregates(query, expressions) do
+    query = Ecto.Queryable.to_query(query)
+    binding = {:root, schema(query)}
+
+    expressions
+    |> Enum.flat_map(&aggregates/1)
+    |> Enum.uniq()
+    |> Enum.group_by(&aggregate_group/1)
+    |> Enum.reduce(query, fn {_group, [aggregate | _rest] = aggregates}, query ->
+      join_aggregates(query, binding, group_name(binding, aggregate), aggregates)
+    end)
+  end
+
+  defp aggregates(%Aggregate{} = aggregate), do: [aggregate]
+  defp aggregates(%Call{args: args}), do: Enum.flat_map(args, &aggregates/1)
+  defp aggregates(_expression), do: []
+
   defp value(%Ref{} = ref, query, binding), do: field(ref, query, binding)
 
   defp value(%Call{name: operator, args: [left, right]}, query, binding) when operator in @arithmetic do
@@ -120,19 +142,24 @@ defmodule Backpex.Adapters.Ecto.Where do
   end
 
   # An aggregate is a subquery of the values of the related items by the primary key of the items, left joined to the
-  # items. Every aggregate with the same binding shares its join.
-  defp value(%Aggregate{kind: kind} = aggregate, query, {_kind, schema} = binding) do
-    primary_key = primary_key!(schema)
-    name = aggregate_name(binding, aggregate)
+  # items. An aggregate of a group of `join_aggregates/2` reads its value from the join of the group, others get a
+  # join of their own.
+  defp value(%Aggregate{kind: kind} = aggregate, query, binding) do
+    group_name = group_name(binding, aggregate)
 
-    query =
-      if has_named_binding?(query, name),
-        do: query,
-        else: join_aggregate(query, binding, name, aggregate_subquery(aggregate, schema, primary_key), primary_key)
+    {query, name} =
+      if has_named_binding?(query, group_name) do
+        {query, group_name}
+      else
+        name = aggregate_name(binding, aggregate)
+        {join_aggregates(query, binding, name, [aggregate]), name}
+      end
+
+    key = value_key(aggregate)
 
     case kind do
-      :count -> {query, dynamic([{^name, aggregate}], coalesce(aggregate.value, 0))}
-      _kind -> {query, dynamic([{^name, aggregate}], aggregate.value)}
+      :count -> {query, dynamic([{^name, aggregate}], coalesce(field(aggregate, ^key), 0))}
+      _kind -> {query, dynamic([{^name, aggregate}], field(aggregate, ^key))}
     end
   end
 
@@ -143,47 +170,60 @@ defmodule Backpex.Adapters.Ecto.Where do
     raise ArgumentError, "expected an expression such as a field or concat(...) as a value, got: #{inspect(value)}"
   end
 
-  defp aggregate_subquery(%Aggregate{path: path, where: where} = aggregate, schema, primary_key) do
+  defp join_aggregates(query, {_kind, schema} = binding, name, aggregates) do
+    if has_named_binding?(query, name) do
+      query
+    else
+      primary_key = primary_key!(schema)
+      join_aggregate(query, binding, name, aggregate_subquery(aggregates, schema, primary_key), primary_key)
+    end
+  end
+
+  # The values of aggregates of one group, by the primary key of the items.
+  defp aggregate_subquery([%Aggregate{path: path, where: where} = aggregate | _rest] = aggregates, schema, primary_key) do
     {subquery, target} = schema |> from() |> join_path(path, {:root, schema}, :inner)
     subquery = if where, do: where_in_binding(subquery, Expr.normalize(where), target), else: subquery
-    key = dynamic([item], field(item, ^primary_key))
 
-    aggregate_select(subquery, aggregate, target, key, primary_key)
+    {values, subquery} =
+      Enum.map_reduce(aggregates, subquery, fn aggregate, subquery ->
+        {subquery, value} = aggregate_value(aggregate, subquery, target)
+        {{value_key(aggregate), value}, subquery}
+      end)
+
+    select = Map.new([{:key, dynamic([item], field(item, ^primary_key))} | values])
+
+    aggregate_select(subquery, aggregate, target, select, primary_key)
   end
 
-  defp aggregate_select(subquery, %Aggregate{kind: :count}, _target, key, primary_key) do
-    subquery
-    |> group_by([item], field(item, ^primary_key))
-    |> select(^%{key: key, value: dynamic(count())})
-  end
+  defp aggregate_value(%Aggregate{kind: :count}, subquery, _target), do: {subquery, dynamic(count())}
+  defp aggregate_value(%Aggregate{kind: :first, value: value}, subquery, target), do: value(value, subquery, target)
 
-  # The value of the first related item of every item, after the sort: PostgreSQL keeps the first row of every primary
-  # key with `DISTINCT ON`.
-  defp aggregate_select(subquery, %Aggregate{kind: :first, value: value, sort: sort}, target, key, primary_key) do
+  defp aggregate_value(%Aggregate{kind: kind, value: value}, subquery, target) do
     {subquery, value} = value(value, subquery, target)
 
+    case kind do
+      :sum -> {subquery, dynamic(sum(^value))}
+      :avg -> {subquery, dynamic(avg(^value))}
+      :min -> {subquery, dynamic(min(^value))}
+      :max -> {subquery, dynamic(max(^value))}
+    end
+  end
+
+  # The values of the first related item of every item, after the sort: PostgreSQL keeps the first row of every primary
+  # key with `DISTINCT ON`.
+  defp aggregate_select(subquery, %Aggregate{kind: :first, sort: sort}, target, select, primary_key) do
     sort
     |> Enum.reduce(distinct(subquery, [item], field(item, ^primary_key)), fn {ref, direction}, subquery ->
       {subquery, field} = field(ref, subquery, target)
       order_by(subquery, ^[{direction, field}])
     end)
-    |> select(^%{key: key, value: value})
+    |> select(^select)
   end
 
-  defp aggregate_select(subquery, %Aggregate{kind: kind, value: value}, target, key, primary_key) do
-    {subquery, value} = value(value, subquery, target)
-
-    value =
-      case kind do
-        :sum -> dynamic(sum(^value))
-        :avg -> dynamic(avg(^value))
-        :min -> dynamic(min(^value))
-        :max -> dynamic(max(^value))
-      end
-
+  defp aggregate_select(subquery, _aggregate, _target, select, primary_key) do
     subquery
     |> group_by([item], field(item, ^primary_key))
-    |> select(^%{key: key, value: value})
+    |> select(^select)
   end
 
   defp join_aggregate(query, {:root, _schema}, name, subquery, primary_key) do
@@ -200,11 +240,26 @@ defmodule Backpex.Adapters.Ecto.Where do
     )
   end
 
+  # Aggregates of one group differ in their value only.
+  defp aggregate_group(%Aggregate{kind: kind, path: path, where: where, sort: sort}), do: {kind, path, where, sort}
+
   # The names come from the aggregates in the code of the LiveResource, so there are only as many as it has.
   # sobelow_skip ["DOS.StringToAtom"]
   defp aggregate_name({binding, _schema}, aggregate) do
     # credo:disable-for-next-line Credo.Check.Warning.UnsafeToAtom
     String.to_atom("backpex_aggregate_#{:erlang.phash2({binding, aggregate})}")
+  end
+
+  # sobelow_skip ["DOS.StringToAtom"]
+  defp group_name({binding, _schema}, aggregate) do
+    # credo:disable-for-next-line Credo.Check.Warning.UnsafeToAtom
+    String.to_atom("backpex_aggregates_#{:erlang.phash2({binding, aggregate_group(aggregate)})}")
+  end
+
+  # sobelow_skip ["DOS.StringToAtom"]
+  defp value_key(%Aggregate{value: value}) do
+    # credo:disable-for-next-line Credo.Check.Warning.UnsafeToAtom
+    String.to_atom("value_#{:erlang.phash2(value)}")
   end
 
   # A part of `concat` as text.
