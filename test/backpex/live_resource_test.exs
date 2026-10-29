@@ -48,6 +48,16 @@ defmodule Backpex.LiveResourceTest do
     def config(:order_nulls), do: :first
   end
 
+  defmodule IndexFieldsPostLive do
+    @moduledoc false
+    def adapter_config(:schema), do: Backpex.LiveResourceTest.TestPost
+    def config(:adapter), do: EctoAdapter
+    def config(:full_text_search), do: nil
+    def config(:primary_key), do: :id
+    def config(:order_nulls), do: :default
+    def fields(:index, _assigns), do: [title: %{module: Backpex.Fields.Text, label: "Title", searchable: true}]
+  end
+
   defmodule SelectFieldLive do
     @moduledoc false
     def config(:adapter), do: Backpex.Adapters.Ecto
@@ -152,19 +162,37 @@ defmodule Backpex.LiveResourceTest do
     end
   end
 
-  describe "index_query/1" do
+  describe "index_query/2" do
     defp index_query(live_resource, fields, order_by, init_order \\ %{by: :id, direction: :asc}) do
-      LiveResource.index_query(%{
-        live_resource: live_resource,
-        live_action: :index,
-        filters: [],
-        fields: fields,
-        init_order: init_order,
-        query_options: %{order_by: order_by, order_direction: :desc, page: 1, per_page: 15}
-      })
+      LiveResource.index_query(
+        %{
+          live_resource: live_resource,
+          live_action: :index,
+          filters: [],
+          fields: fields,
+          init_order: init_order,
+          query_options: %{order_by: order_by, order_direction: :desc, page: 1, per_page: 15}
+        },
+        fields
+      )
     end
 
     defp order_bys(query), do: query |> EctoAdapter.ecto_query() |> Map.fetch!(:order_bys) |> Enum.flat_map(& &1.expr)
+
+    test "index_query/1 has the index fields of the LiveResource, not the fields of a resource action" do
+      query =
+        LiveResource.index_query(%{
+          live_resource: IndexFieldsPostLive,
+          live_action: :resource_action,
+          filters: [],
+          fields: [file_name: %{module: Backpex.Fields.Text, label: "File name"}],
+          init_order: %{by: :id, direction: :asc},
+          query_options: %{order_by: :title, order_direction: :asc, page: 1, per_page: 15, search: "x"}
+        })
+
+      assert query.sort == [{Expr.ref(:title), :asc}]
+      assert query.search.targets == [Expr.ref(:title)]
+    end
 
     test "sorts by the init order when ordering by a column that is not a declared field" do
       # :id is the default init_order column, but a primary key is virtually never declared as a field. The order must
