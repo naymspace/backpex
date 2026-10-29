@@ -372,8 +372,8 @@ defmodule Backpex.Resource do
   @doc """
   Returns the query of the items that can be selected as the value of the association field `field`, e.g. the options
   of the select of a `Backpex.Fields.BelongsTo` field: the related items (`:from` is the name of the field) that match
-  the `:options_filter` of the field, with the options the adapter adds to the field (e.g. the `:options_query` of
-  `Backpex.Adapters.Ecto`).
+  the `:options_filter` of the field, sorted by its `:options_sort`, with the options the adapter adds to the field
+  (e.g. the `:options_query` of `Backpex.Adapters.Ecto`).
 
   Limit the options further with `Backpex.Query`, e.g. with `Backpex.Query.primary_in/2` or `Backpex.Query.search/3`,
   and read them with `read/1`.
@@ -384,6 +384,7 @@ defmodule Backpex.Resource do
     |> Query.new(%{assigns: assigns})
     |> Query.from([name])
     |> Query.filter(options_filter(field_options, assigns))
+    |> Query.sort(options_sort(field_options, assigns))
     |> put_field_options(field)
   end
 
@@ -391,6 +392,11 @@ defmodule Backpex.Resource do
     do: options_filter.(assigns)
 
   defp options_filter(field_options, _assigns), do: Map.get(field_options, :options_filter)
+
+  defp options_sort(%{options_sort: options_sort}, assigns) when is_function(options_sort, 1),
+    do: options_sort.(assigns) || []
+
+  defp options_sort(field_options, _assigns), do: Map.get(field_options, :options_sort, [])
 
   @doc """
   Returns the items of `options_query/3`, limited by these criteria:
