@@ -47,6 +47,13 @@ defmodule Backpex.Test.StubAdapter do
     {:ok, item}
   end
 
+  # A change with `refused?: true` is refused, like an invalid changeset.
+  def update({:changeset, item, %{refused?: true} = attrs} = change, _live_resource) do
+    send(self(), {:adapter, :update, item, attrs})
+
+    {:error, change}
+  end
+
   def update({:changeset, item, attrs}, _live_resource) do
     send(self(), {:adapter, :update, item, attrs})
 

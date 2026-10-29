@@ -461,6 +461,8 @@ defmodule Backpex.Resource do
   * `opts` (keyword list): A list of options:
     * `:authorization_action` (optional, default `:new`): The action to authorize against.
     * `:authorize?` (optional, default `true`): Set to `false` to skip authorization.
+    * `:before_save_fun` (optional): A function called with the change before the item is inserted, returning the
+      change to insert. Pass it to call `c:Backpex.LiveResource.on_item_creating/2`.
     * `:after_save_fun` (optional): A function called with the inserted item, returning `{:ok, item}`.
     * All remaining options are passed to `change/6`.
   """
@@ -486,6 +488,8 @@ defmodule Backpex.Resource do
   * `opts` (keyword list): A list of options:
     * `:authorization_action` (optional, default `:edit`): The action to authorize against.
     * `:authorize?` (optional, default `true`): Set to `false` to skip authorization.
+    * `:before_save_fun` (optional): A function called with the change before the item is updated, returning the
+      change to update. Pass it to call `c:Backpex.LiveResource.on_item_updating/2`.
     * `:after_save_fun` (optional): A function called with the updated item, returning `{:ok, item}`.
     * All remaining options are passed to `change/6`.
   """
@@ -496,12 +500,14 @@ defmodule Backpex.Resource do
   end
 
   defp persist_item(item, attrs, fields, assigns, live_resource, opts, action, event_name) do
+    {before_save_fun, opts} = Keyword.pop(opts, :before_save_fun, &Function.identity/1)
     {after_save_fun, opts} = Keyword.pop(opts, :after_save_fun, &{:ok, &1})
 
     adapter = live_resource.config(:adapter)
 
     item
     |> change(attrs, fields, assigns, live_resource, Keyword.put(opts, :action, action))
+    |> before_save(before_save_fun)
     |> then(fn changeset ->
       if action == :insert, do: adapter.insert(changeset, live_resource), else: adapter.update(changeset, live_resource)
     end)
@@ -627,6 +633,25 @@ defmodule Backpex.Resource do
     Keyword.new()
     |> Keyword.put(:assigns, assigns)
     |> Keyword.put(:target, target)
+  end
+
+  # A struct must come back as the same struct, so a hook that returns the socket, as `on_item_updated/2` does, or the
+  # item instead of the change fails here instead of being saved.
+  defp before_save(change, func) do
+    case {change, func.(change)} do
+      {%module{}, %module{} = result} ->
+        result
+
+      {%module{}, result} ->
+        raise ArgumentError, """
+        expected the function called before saving to return a #{inspect(module)}, got: #{inspect(result)}
+
+        on_item_creating/2 and on_item_updating/2 must return the change they receive.
+        """
+
+      {_change, result} ->
+        result
+    end
   end
 
   defp after_save({:ok, item}, func) do
