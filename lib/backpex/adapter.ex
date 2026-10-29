@@ -71,13 +71,14 @@ defmodule Backpex.Adapter do
     * `:filter` - the `:filter` of a query. Backpex also asks for `{:filter, operator}` with the operators of the
       expression, e.g. `{:filter, :contains}` or `{:filter, :exists}`, see `Backpex.Expr`.
     * `:search`, `:sort`, `:offset` and `:limit` - these parts of a query.
+    * `:computed` - the `:computed` values of a query. Backpex computes them before every other part.
     * `:load` - the relationships of the `:load` of a query.
     * `:count` and `:aggregate` - `c:count/1` and `c:aggregate/1`.
     * `:insert`, `:update` and `:delete` - writing items with `c:insert/2`, `c:update/2` and `c:update_all/3`, and
       `c:delete_all/2`. Without them, `Backpex.Authorization` denies the `:new`, `:edit` and `:delete` actions, so the
       views hide them. Backpex can't apply writes in memory.
 
-  Parts depend on the ones before them, in the order filter, search, sort, offset and limit. If the adapter doesn't
+  Parts depend on the ones before them, in the order computed, filter, search, sort, offset and limit. If the adapter doesn't
   run a part, Backpex applies it and every part after it in memory, e.g. the sort of a query whose filter the adapter
   doesn't run. Then the adapter gets the query without these parts.
 

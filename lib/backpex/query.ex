@@ -76,7 +76,7 @@ defmodule Backpex.Query do
           default_sort: [{Ref.t(), direction()}],
           limit: non_neg_integer() | nil,
           offset: non_neg_integer() | nil,
-          load: [atom() | {atom(), list()}],
+          load: [atom() | {atom(), list() | t()}],
           computed: %{atom() => term()},
           aggregates: [aggregate()],
           native: map(),
@@ -106,7 +106,7 @@ defmodule Backpex.Query do
 
   @doc """
   Returns a query of the items of the LiveResource. `context` describes what the query is run for, usually
-  `%{assigns: assigns}` with the assigns of the view. Adapters read it, e.g. for the `:item_query` of
+  `%{assigns: assigns}` with the assigns of the view. Adapters read it, e.g. for the `:options_query` of
   `Backpex.Adapters.Ecto`.
   """
   @spec new(module(), map()) :: t()
@@ -269,18 +269,77 @@ defmodule Backpex.Query do
 
   @doc """
   Loads the relationships into the items, given as names or nested like the preloads of Ecto, e.g.
-  `[:author, tags: [:category]]`.
+  `[:author, tags: [:category]]`. A relationship can also take a query of `related/1`, which sorts, filters, loads and
+  computes values of the related items, e.g. `[comments: Backpex.Query.related(sort: [inserted_at: :desc])]`.
   """
-  @spec load(t(), [atom() | {atom(), list()}]) :: t()
+  @spec load(t(), [atom() | {atom(), list() | t()}]) :: t()
   def load(%__MODULE__{} = query, relationships) when is_list(relationships),
     do: %{query | load: Enum.uniq(query.load ++ relationships)}
 
   @doc """
-  Lets the adapter compute the value `name` for every item, e.g. with a `Backpex.Expr.Native` expression.
+  Returns a query of related items to load with `load/2`. Takes the options `:filter` (an expression, see
+  `Backpex.Expr`), `:sort`, `:load` and `:computed` (a keyword list of names and expressions, see `compute/3`). The
+  expressions are not cast, as the query has no resource of its own.
+
+      Backpex.Query.related(
+        sort: [year: :asc],
+        computed: [full_name: expr(concat([first_name, last_name], " "))]
+      )
   """
-  @spec compute(t(), atom(), term()) :: t()
-  def compute(%__MODULE__{} = query, name, value) when is_atom(name),
-    do: %{query | computed: Map.put(query.computed, name, value)}
+  @spec related(keyword()) :: t()
+  def related(opts \\ []) when is_list(opts) do
+    query = %__MODULE__{
+      filter: opts |> Keyword.get(:filter) |> Expr.normalize(),
+      load: Keyword.get(opts, :load, []),
+      computed: opts |> Keyword.get(:computed, []) |> Map.new()
+    }
+
+    sort(query, Keyword.get(opts, :sort, []))
+  end
+
+  @doc """
+  Returns the expression of a computed value the ref names: a value of `:computed` for a ref without a path, or a value
+  of the `:computed` of the query of `related/1` the `:load` has for the path, with the path in front of its fields (see
+  `Backpex.Expr.prefix/2`). Returns `nil` for a ref of a field.
+  """
+  @spec computed_expr(t(), Ref.t()) :: Expr.t() | term() | nil
+  def computed_expr(%__MODULE__{computed: computed}, %Ref{path: [], name: name}), do: Map.get(computed, name)
+
+  def computed_expr(%__MODULE__{load: load}, %Ref{path: path, name: name}) do
+    case related_query(load, path) do
+      %__MODULE__{computed: %{^name => expression}} -> Expr.prefix(expression, path)
+      _other -> nil
+    end
+  end
+
+  defp related_query(load, [name]) do
+    case List.keyfind(load, name, 0) do
+      {^name, %__MODULE__{} = query} -> query
+      _other -> nil
+    end
+  end
+
+  defp related_query(load, [name | path]) do
+    case List.keyfind(load, name, 0) do
+      {^name, %__MODULE__{load: load}} -> related_query(load, path)
+      {^name, load} when is_list(load) -> related_query(load, path)
+      _other -> nil
+    end
+  end
+
+  @doc """
+  Lets the adapter compute the value `name` of an expression for every item and put it into the item, e.g.
+  `expr(concat([first_name, last_name], " "))`, see the [Values](`m:Backpex.Expr#module-values`) of `Backpex.Expr`.
+  Sorts, searches and refs of `computed_expr/2` refer to it by its name.
+
+  The fields of the expression are checked and its values cast like the ones of `filter/2`.
+  """
+  @spec compute(t(), atom(), Expr.t()) :: t()
+  def compute(%__MODULE__{resource: nil} = query, name, expression) when is_atom(name),
+    do: %{query | computed: Map.put(query.computed, name, Expr.normalize(expression))}
+
+  def compute(%__MODULE__{} = query, name, expression) when is_atom(name),
+    do: %{query | computed: Map.put(query.computed, name, Expr.cast(expression, &describe(query, &1)))}
 
   @doc """
   Adds an aggregate that `c:Backpex.Adapter.aggregate/1` computes under `name` over the items of the query, e.g. the
@@ -339,6 +398,7 @@ defmodule Backpex.Query do
   @spec apply_to(t(), list()) :: list()
   def apply_to(%__MODULE__{} = query, items) when is_list(items) do
     items
+    |> Runtime.compute(query.computed)
     |> Runtime.filter(query.filter)
     |> Runtime.search(query.search)
     |> Runtime.sort(sorts(query))

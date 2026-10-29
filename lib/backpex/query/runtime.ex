@@ -13,6 +13,29 @@ defmodule Backpex.Query.Runtime do
 
   @comparisons [:==, :!=, :<, :<=, :>, :>=]
 
+  ## Computed values
+
+  def compute(items, computed) when computed == %{}, do: items
+
+  def compute(items, computed) do
+    Enum.map(items, fn item ->
+      Enum.reduce(computed, item, fn {name, expression}, item -> Map.put(item, name, value_of(expression, item)) end)
+    end)
+  end
+
+  # The value of an expression for an item: a field, a string of `concat`, or the result of a condition.
+  defp value_of(%Ref{} = ref, item), do: value(ref, item)
+
+  defp value_of(%Call{name: :concat, args: parts, opts: opts}, item) do
+    parts
+    |> Enum.map(&value_of(&1, item))
+    |> Enum.reject(&is_nil/1)
+    |> Enum.map_join(Keyword.get(opts, :separator, ""), &to_text/1)
+  end
+
+  defp value_of(%struct{} = expression, item) when struct in [Call, Exists, Native], do: eval(expression, item)
+  defp value_of(value, _item), do: value
+
   ## Filter and search
 
   def filter(items, nil), do: items
@@ -224,17 +247,17 @@ defmodule Backpex.Query.Runtime do
   ## Aggregates
 
   def aggregate(items, %{aggregate: aggregate, where: where}) do
-    items |> filter(where) |> compute(aggregate)
+    items |> filter(where) |> aggregate_value(aggregate)
   end
 
-  defp compute(items, :count), do: length(items)
-  defp compute(items, {:count, field}), do: items |> values(field) |> length()
-  defp compute(items, {:sum, field}), do: items |> values(field) |> sum()
-  defp compute(items, {:avg, field}), do: items |> values(field) |> avg()
-  defp compute(items, {:min, field}), do: items |> values(field) |> extreme(:lt)
-  defp compute(items, {:max, field}), do: items |> values(field) |> extreme(:gt)
+  defp aggregate_value(items, :count), do: length(items)
+  defp aggregate_value(items, {:count, field}), do: items |> values(field) |> length()
+  defp aggregate_value(items, {:sum, field}), do: items |> values(field) |> sum()
+  defp aggregate_value(items, {:avg, field}), do: items |> values(field) |> avg()
+  defp aggregate_value(items, {:min, field}), do: items |> values(field) |> extreme(:lt)
+  defp aggregate_value(items, {:max, field}), do: items |> values(field) |> extreme(:gt)
 
-  defp compute(_items, aggregate) do
+  defp aggregate_value(_items, aggregate) do
     raise ArgumentError, "can't compute the aggregate #{inspect(aggregate)} of items in memory"
   end
 

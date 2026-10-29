@@ -22,22 +22,16 @@ defmodule Backpex.Adapters.Ecto.Field do
   """
 
   @doc """
-  Returns the schema of the column the field shows. Receives the field and the schema of the resource.
-
-  Without it, the adapter uses the schema of the association for association fields (see
-  `c:Backpex.Field.association?/1`) and the schema of the resource for any other field.
-  """
-  @callback schema(field :: tuple(), schema :: module()) :: module()
-
-  @doc """
   Returns the condition that compares the field to the search string, wrapped into `Ecto.Query.dynamic/2`.
 
-  Receives the name of the binding of the schema of the field (see `c:schema/2`), the name of the column and the search
-  string, which starts and ends with `%`. Without it, the adapter compares the column to the search string with `ilike`,
+  Receives the name of the binding of the column: the join of the association for an association field (see
+  `c:Backpex.Field.association?/1`), e.g. `:backpex_author`, or the binding of the schema of the resource, e.g. `:post`.
+  Then the name of the column (the `:display_field` of the field, or its name) and the search string, which starts and
+  ends with `%`. Without it, the adapter compares the column to the search string with `ilike`,
   and casts columns that are not strings to text first.
   """
   @callback search_condition(schema_name :: atom(), field_name :: atom(), search_string :: String.t()) ::
               Ecto.Query.dynamic_expr()
 
-  @optional_callbacks schema: 2, search_condition: 3
+  @optional_callbacks search_condition: 3
 end

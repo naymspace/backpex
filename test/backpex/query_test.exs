@@ -223,6 +223,21 @@ defmodule Backpex.QueryTest do
       assert ArticleLive |> Query.new() |> Query.sort(id: :desc) |> Query.offset(1) |> Query.limit(1) |> ids() == [2]
     end
 
+    test "computes values before it filters, searches and sorts by them" do
+      query =
+        ArticleLive
+        |> Query.new()
+        |> Query.compute(:label, expr(concat([title, author.name], " by ")))
+        |> Query.compute(:liked, expr(likes > 2))
+        |> Query.search("ann", [:label])
+        |> Query.sort(label: :desc)
+
+      assert [%{id: 1, label: "Elixir by Ann", liked: true}] = Query.apply_to(query, @items)
+
+      assert %{id: 2, label: "erlang", liked: nil} =
+               query |> Query.unset([:search]) |> Query.apply_to(@items) |> List.first()
+    end
+
     test "raises for a native expression" do
       query = %{Query.new(ArticleLive) | filter: Expr.native(Backpex.Adapters.Ecto, :fragment)}
 

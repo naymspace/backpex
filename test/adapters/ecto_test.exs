@@ -72,7 +72,7 @@ defmodule Backpex.Adapters.EctoTest do
   defmodule FakeLiveResource do
     @moduledoc false
     # Defines the `config/1` and `adapter_config/1` of a LiveResource of the `:schema` that reads with the `FakeRepo`.
-    # Takes the `:full_text_search` and an overridable `item_query/3`.
+    # Takes the `:full_text_search` and overridable `computed/1` and `load/1` callbacks.
     defmacro __using__(opts) do
       quote do
         @schema Keyword.fetch!(unquote(opts), :schema)
@@ -84,11 +84,11 @@ defmodule Backpex.Adapters.EctoTest do
         def config(:adapter), do: Backpex.Adapters.Ecto
         def adapter_config(:schema), do: @schema
         def adapter_config(:repo), do: Backpex.Adapters.EctoTest.FakeRepo
-        def adapter_config(:item_query), do: &__MODULE__.item_query/3
 
-        def item_query(query, _live_action, _assigns), do: query
+        def computed(_assigns), do: []
+        def load(_assigns), do: []
 
-        defoverridable item_query: 3
+        defoverridable computed: 1, load: 1
       end
     end
   end
@@ -108,14 +108,25 @@ defmodule Backpex.Adapters.EctoTest do
     use FakeLiveResource, schema: Backpex.Adapters.EctoTest.TestUser, full_text_search: :title
   end
 
-  defmodule TotalsUserLive do
+  defmodule ComputedUserLive do
     @moduledoc false
     use FakeLiveResource, schema: Backpex.Adapters.EctoTest.TestUser
 
-    # Joins a table that the schema of the resource doesn't describe.
-    def item_query(query, _live_action, _assigns) do
-      join(query, :left, [testuser: u], t in "totals", as: :totals, on: t.user_id == u.id)
+    # A native value named like the primary key, a native value and a value of `Backpex.Expr`.
+    def computed(_assigns) do
+      [
+        id: Expr.native(Backpex.Adapters.Ecto, dynamic([testuser: u], fragment("upper(?)", u.name))),
+        upper_name: Expr.native(Backpex.Adapters.Ecto, dynamic([testuser: u], fragment("UPPER(?)", u.name))),
+        label: expr(concat([name, title], " "))
+      ]
     end
+  end
+
+  defmodule AuthorPostLive do
+    @moduledoc false
+    use FakeLiveResource, schema: Backpex.Adapters.EctoTest.TestPost
+
+    def load(_assigns), do: [user: Query.related(computed: [label: expr(concat([title, name], ": "))])]
   end
 
   defmodule TestFilter do
@@ -193,17 +204,12 @@ defmodule Backpex.Adapters.EctoTest do
       assert search_query("", title: %{module: Backpex.Fields.Text}) == base_query()
     end
 
-    test "uses provided select expression for ilike" do
-      select_expr = dynamic([testuser: u], fragment("UPPER(?)", field(u, ^:name)))
+    test "searches a computed value as text" do
+      query = search_query("qux", [upper_name: %{module: Backpex.Fields.Text}], ComputedUserLive)
 
-      query = search_query("qux", name_display: %{module: Backpex.Fields.Text, select: select_expr})
-
-      assert [%{expr: ilike_expr}] = query.wheres
-      assert match?({:ilike, _, _}, ilike_expr)
-
-      expr_str = Macro.to_string(ilike_expr)
-      assert expr_str =~ "fragment"
-      assert expr_str =~ "UPPER("
+      assert [%{expr: {:ilike, _meta, [{:fragment, _fragment_meta, parts}, _search]}}] = query.wheres
+      assert [raw: "CAST(", expr: computed, raw: " AS TEXT)"] = parts
+      assert Macro.to_string(computed) =~ "UPPER("
     end
 
     test "casts a column that is not a string to text" do
@@ -211,19 +217,6 @@ defmodule Backpex.Adapters.EctoTest do
 
       assert [%{expr: {:ilike, _meta, [{:fragment, _fragment_meta, parts}, _search]}}] = query.wheres
       assert [raw: "CAST(", expr: _column, raw: " AS TEXT)"] = parts
-    end
-
-    test "casts a column of unknown type to text" do
-      # `age` of the custom alias may have another type than `age` of the resource, `total` is no column of it.
-      for field <- [
-            {:age, %{module: Backpex.Fields.Text, custom_alias: :totals}},
-            {:total, %{module: Backpex.Fields.Text}}
-          ] do
-        query = search_query("42", [field], TotalsUserLive)
-
-        assert [%{expr: {:ilike, _meta, [{:fragment, _fragment_meta, parts}, _search]}}] = query.wheres
-        assert [raw: "CAST(", expr: _column, raw: " AS TEXT)"] = parts
-      end
     end
 
     test "uses the search condition of the field module" do
@@ -243,10 +236,10 @@ defmodule Backpex.Adapters.EctoTest do
       assert [%{expr: {:==, _meta, _args}, params: [{"Ann", _type}]}] = query.wheres
     end
 
-    test "searches the display field of an association field on the binding of the association" do
+    test "searches the display field of an association field on the join of its path" do
       query = search_query("Ann", [user: %{module: Backpex.Fields.BelongsTo, display_field: :name}], PostLive)
 
-      assert [%{as: :testuser}] = query.joins
+      assert [%{as: :backpex_user}] = query.joins
       assert [%{expr: {:ilike, _meta, [column, _search]}}] = query.wheres
       assert Macro.to_string(column) == "&1.name()"
     end
@@ -308,29 +301,24 @@ defmodule Backpex.Adapters.EctoTest do
       end
     end
 
-    test "applies ordering with custom select expression" do
-      select_expr = dynamic([testuser: u], fragment("UPPER(?)", field(u, ^:name)))
-      fields = [name: %{module: Backpex.Fields.Text, select: select_expr, order_nulls: :first}]
+    test "orders by a computed value" do
+      fields = [upper_name: %{module: Backpex.Fields.Text, order_nulls: :first}]
 
-      query = index_query(fields, order_by: :name, order_direction: :asc)
+      query = index_query(fields, [order_by: :upper_name, order_direction: :asc], ComputedUserLive)
 
       assert %{order_bys: [%{expr: [{:asc_nulls_first, order_expression}]}]} = query
-
-      expr_str = Macro.to_string(order_expression)
-      assert expr_str =~ "fragment"
-      assert expr_str =~ "UPPER("
+      assert Macro.to_string(order_expression) =~ "UPPER("
     end
 
-    test "orders an association field by its display_field on its custom alias" do
-      fields = [
-        user: %{module: Backpex.Fields.BelongsTo, display_field: :name, custom_alias: :author, order_nulls: :last}
-      ]
+    test "orders an association field by a computed value of the related items in load/1" do
+      fields = [user: %{module: Backpex.Fields.BelongsTo, display_field: :label, order_nulls: :last}]
 
-      query = index_query(fields, [order_by: :user, order_direction: :desc], PostLive)
+      query = index_query(fields, [order_by: :user, order_direction: :desc], AuthorPostLive)
 
-      assert [%{as: :author}] = query.joins
+      assert [%{as: :backpex_user}] = query.joins
       assert %{order_bys: [%{expr: [{:desc_nulls_last, order_expression}]}]} = query
-      assert Macro.to_string(order_expression) == "&1.name()"
+      assert Macro.to_string(order_expression) =~ "concat_ws"
+      assert Macro.to_string(order_expression) =~ "&1.title()"
     end
 
     test "orders an association field by its display_field on the binding of the association" do
@@ -358,12 +346,11 @@ defmodule Backpex.Adapters.EctoTest do
       assert %{order_bys: [%{expr: [{:asc, _id}]}]} = sort_query(id: :asc_nulls_first)
     end
 
-    test "applies the nulls option to a field with a select expression named like the primary key" do
-      select = dynamic([testuser: u], fragment("upper(?)", u.name))
-      fields = [id: %{module: Backpex.Fields.Text, select: select, order_nulls: :first}]
+    test "applies the nulls option to a computed value named like the primary key" do
+      fields = [id: %{module: Backpex.Fields.Text, order_nulls: :first}]
 
-      assert %{order_bys: [%{expr: [{:asc_nulls_first, _select}]}]} =
-               index_query(fields, order_by: :id, order_direction: :asc)
+      assert %{order_bys: [%{expr: [{:asc_nulls_first, _computed}]}]} =
+               index_query(fields, [order_by: :id, order_direction: :asc], ComputedUserLive)
     end
 
     test "applies the nulls option to the primary key of an association" do
@@ -732,29 +719,25 @@ defmodule Backpex.Adapters.EctoTest do
       assert %{offset: %{params: [{10, :integer}]}, limit: %{params: [{5, :integer}]}} = query
     end
 
-    test "searches with the select expression of the field" do
-      select = dynamic([testuser: u], fragment("upper(?)", u.name))
-      field = {:user, %{module: Backpex.Fields.BelongsTo, display_field: :name, select: select}}
+    test "computes and searches the computed values of the relationship in load/1" do
+      field = {:user, %{module: Backpex.Fields.BelongsTo, display_field: :label}}
+
+      Resource.list_options(field, [search: "ann"], %{}, AuthorPostLive)
+
+      assert_received {:repo, :all, query}
+      assert %{select: %{expr: {:merge, _meta, [_item, {:%{}, _map_meta, [label: _label]}]}}} = query
+      assert [%{expr: {:ilike, _ilike_meta, [{:fragment, _fragment_meta, parts}, _search]}}] = query.wheres
+      assert [raw: "CAST(", expr: label, raw: " AS TEXT)"] = parts
+      assert Macro.to_string(label) =~ "concat_ws"
+    end
+
+    test "leaves the binding to the options query of the field, also for a search" do
+      options_query = fn query, _assigns -> from(u in query, as: :testuser, where: u.age > 18) end
+      field = {:user, %{module: Backpex.Fields.BelongsTo, display_field: :name, options_query: options_query}}
 
       Resource.list_options(field, [search: "ann"], %{}, PostLive)
 
-      assert_received {:repo, :all,
-                       %{
-                         from: %{as: :testuser},
-                         wheres: [%{expr: {:ilike, _meta, [{:fragment, _fragment_meta, _parts}, _search]}}]
-                       }}
-    end
-
-    test "leaves the binding to the options query of a field with a select expression unless it searches" do
-      select = dynamic([testuser: u], fragment("upper(?)", u.name))
-      options_query = fn query, _assigns -> from(u in query, as: :testuser, where: u.age > 18) end
-
-      field =
-        {:user, %{module: Backpex.Fields.BelongsTo, display_field: :name, select: select, options_query: options_query}}
-
-      Resource.list_options(field, [], %{}, PostLive)
-
-      assert_received {:repo, :all, %{from: %{as: :testuser}, wheres: [_age]}}
+      assert_received {:repo, :all, %{from: %{as: :testuser}, wheres: [_age, _search]}}
     end
 
     test "changes the key of the options with the assigns the options query depends on" do
@@ -822,7 +805,7 @@ defmodule Backpex.Adapters.EctoTest do
 
         assert %{value: 3} = metric(%{module: Value, aggregate: aggregate})
         assert_received {:repo, :one, query}
-        assert %{preloads: [], group_bys: [], joins: [%{as: :testuser}], wheres: [_search]} = query
+        assert %{preloads: [], group_bys: [], joins: [], wheres: [_search]} = query
         assert Macro.to_string(query.select.expr) == expected_select
       end
     end
@@ -850,15 +833,8 @@ defmodule Backpex.Adapters.EctoTest do
       assert %{order_bys: [], limit: nil, offset: nil, wheres: [_search]} = query
     end
 
-    test "drops an order of the item query from the aggregate" do
-      defmodule OrderedPostLive do
-        @moduledoc false
-        use FakeLiveResource, schema: Backpex.Adapters.EctoTest.TestPost
-
-        def item_query(query, _live_action, _assigns), do: order_by(query, :title)
-      end
-
-      query = Query.new(OrderedPostLive, %{assigns: %{live_action: :index}})
+    test "drops the default sort from the aggregate" do
+      query = PostLive |> Query.new(%{assigns: %{live_action: :index}}) |> Query.default_sort(title: :asc)
 
       Resource.metrics([value: %{module: Value, aggregate: :count}], query, %{live_action: :index})
 
@@ -891,8 +867,40 @@ defmodule Backpex.Adapters.EctoTest do
   end
 
   describe "field_config_schema/0" do
-    test "adds the select and custom_alias options to fields" do
-      assert [:select, :custom_alias] = Keyword.keys(EctoAdapter.field_config_schema())
+    test "adds no options to fields" do
+      assert EctoAdapter.field_config_schema() == []
+    end
+  end
+
+  describe "read/1 computed values and loads" do
+    test "merges the computed values into the selected items" do
+      query = [] |> Resource.items_query(%{}, ComputedUserLive) |> ecto_query()
+
+      assert %{select: %{expr: {:merge, _meta, [_item, {:%{}, _map_meta, values}]}}} = query
+      assert values |> Keyword.keys() |> Enum.sort() == [:id, :label, :upper_name]
+      assert Macro.to_string(values[:label]) =~ "concat_ws"
+    end
+
+    test "joins the paths a native computed value uses under their names" do
+      defmodule UsesPostLive do
+        @moduledoc false
+        use FakeLiveResource, schema: Backpex.Adapters.EctoTest.TestPost
+
+        def computed(_assigns) do
+          [label: Expr.native(EctoAdapter, dynamic([backpex_user: u], fragment("upper(?)", u.name)), uses: [:user])]
+        end
+      end
+
+      query = [] |> Resource.items_query(%{}, UsesPostLive) |> ecto_query()
+
+      assert [%{as: :backpex_user, qual: :left}] = query.joins
+    end
+
+    test "preloads a related query with its computed values" do
+      query = [] |> Resource.items_query(%{}, AuthorPostLive) |> ecto_query()
+
+      assert [user: %Ecto.Query{select: %{expr: {:merge, _meta, [_item, {:%{}, _map_meta, [label: _label]}]}}}] =
+               query.preloads
     end
   end
 

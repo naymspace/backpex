@@ -53,7 +53,7 @@ defmodule Backpex.Resource do
   alias Backpex.Query
 
   # Counts and aggregates cover all matching items, so these parts of a query don't apply.
-  @not_aggregated [:sort, :default_sort, :limit, :offset, :load, :computed]
+  @not_aggregated [:sort, :default_sort, :limit, :offset, :load]
 
   @doc """
   Returns the query of the items of the resource that Backpex reads with the given fields: the items of the
@@ -63,14 +63,21 @@ defmodule Backpex.Resource do
   """
   @spec items_query(list(), map(), module()) :: Query.t()
   def items_query(fields, assigns, live_resource) do
+    query =
+      live_resource
+      |> Query.new(%{assigns: assigns})
+      |> Query.filter(callback(live_resource, :scope, assigns, nil))
+      |> Query.load(callback(live_resource, :load, assigns, []))
+
     live_resource
-    |> Query.new(%{assigns: assigns})
-    |> Query.filter(scope(live_resource, assigns))
+    |> callback(:computed, assigns, [])
+    |> Enum.reduce(query, fn {name, expression}, query -> Query.compute(query, name, expression) end)
     |> put_fields(fields)
   end
 
-  defp scope(live_resource, assigns) do
-    if function_exported?(live_resource, :scope, 1), do: live_resource.scope(assigns)
+  # Fake LiveResources of tests may not define every callback.
+  defp callback(live_resource, name, assigns, default) do
+    if function_exported?(live_resource, name, 1), do: apply(live_resource, name, [assigns]), else: default
   end
 
   defp put_fields(query, fields) do
@@ -114,7 +121,14 @@ defmodule Backpex.Resource do
   end
 
   # The parts of a query, in the order in which they depend on each other, and their keys.
-  @stages [filter: [:filter], search: [:search], sort: [:sort, :default_sort], offset: [:offset], limit: [:limit]]
+  @stages [
+    computed: [:computed],
+    filter: [:filter],
+    search: [:search],
+    sort: [:sort, :default_sort],
+    offset: [:offset],
+    limit: [:limit]
+  ]
 
   # Splits the query into the query the adapter runs and the parts Backpex applies in memory (`:none` if the adapter
   # runs all): the first part the adapter doesn't support and every part after it.
@@ -131,10 +145,13 @@ defmodule Backpex.Resource do
       |> Query.load(memory_relationships(query, Keyword.keys(memory_stages)))
 
     memory_query =
-      if memory_stages == [], do: :none, else: Query.unset(query, [:load, :computed, :aggregates | adapter_keys])
+      if memory_stages == [], do: :none, else: Query.unset(query, [:load, :aggregates | adapter_keys])
 
     {adapter_query, memory_query}
   end
+
+  defp stage_supported?(%Query{computed: computed}, :computed, adapter, live_resource),
+    do: computed == %{} or supports?(adapter, live_resource, :computed)
 
   defp stage_supported?(%Query{filter: nil}, :filter, _adapter, _live_resource), do: true
 
@@ -177,6 +194,7 @@ defmodule Backpex.Resource do
   defp memory_relationships(query, memory_stages) do
     memory_stages
     |> Enum.flat_map(fn
+      :computed -> query.computed |> Map.values() |> Enum.flat_map(&paths/1)
       :filter -> paths(query.filter)
       :search -> if query.search, do: Enum.map(query.search.targets, & &1.path), else: []
       :sort -> query |> Query.sorts() |> Enum.map(fn {ref, _direction} -> ref.path end)
@@ -189,6 +207,7 @@ defmodule Backpex.Resource do
   defp paths(%Ref{path: path}), do: [path]
   defp paths(%Call{args: args}), do: Enum.flat_map(args, &paths/1)
   defp paths(%Exists{path: path, where: where}), do: [path | where |> paths() |> Enum.map(&(path ++ &1))]
+  defp paths(%Backpex.Expr.Native{uses: uses}), do: uses
   defp paths(_expression), do: []
 
   # The relationships to load for paths, nested like the preloads of Ecto, e.g. `[:author, tags: [:category]]`.
@@ -380,11 +399,25 @@ defmodule Backpex.Resource do
   """
   @spec options_query({atom(), map()}, map(), module()) :: Query.t()
   def options_query({name, field_options} = field, assigns, live_resource) do
+    query =
+      live_resource
+      |> Query.new(%{assigns: assigns})
+      |> Query.from([name])
+      |> Query.filter(options_filter(field_options, assigns))
+
+    # The computed values of the relationship in `load/1`, e.g. the `:display_field` of the field.
     live_resource
-    |> Query.new(%{assigns: assigns})
-    |> Query.from([name])
-    |> Query.filter(options_filter(field_options, assigns))
+    |> callback(:load, assigns, [])
+    |> related_computed(name)
+    |> Enum.reduce(query, fn {name, expression}, query -> Query.compute(query, name, expression) end)
     |> put_field_options(field)
+  end
+
+  defp related_computed(load, name) do
+    case List.keyfind(load, name, 0) do
+      {^name, %Query{computed: computed}} -> computed
+      _other -> %{}
+    end
   end
 
   defp options_filter(%{options_filter: options_filter}, assigns) when is_function(options_filter, 1),
@@ -499,7 +532,7 @@ defmodule Backpex.Resource do
   Re-reads a list of items from the data layer, keeping the order of the given list.
 
   Each item is fetched by its primary value through `get/4`, so the LiveResource's
-  [`item_query/3`](item-query.html) applies. An item that no longer exists — or that has left the
+  the `c:Backpex.LiveResource.scope/1` applies. An item that no longer exists — or that has left the
   query's scope — comes back as `nil` instead of being dropped, which keeps the result positionally
   aligned with the input and lets `Backpex.Authorization.authorize_all!/4` turn it into a
   `Backpex.NoResultsError`. A `nil` in the input stays `nil`.

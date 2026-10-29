@@ -122,7 +122,7 @@ defmodule Backpex.Field do
   ### Options
 
   These are general field options which can be used on every field. Check the field modules for field-specific options.
-  The adapter of the LiveResource may add options, e.g. `Backpex.Adapters.Ecto` adds `:select` and `:custom_alias`, see
+  The adapter of the LiveResource may add options, see
   `c:Backpex.Adapter.field_config_schema/0`.
 
   #{NimbleOptions.docs(@config_schema)}
