@@ -212,11 +212,9 @@ defmodule Backpex.Query do
     end
   end
 
-  defp search_target(%__MODULE__{resource: nil}, %struct{} = condition)
-       when struct in [Expr.Call, Expr.Exists, Expr.Native], do: condition
-
-  defp search_target(query, %struct{} = condition) when struct in [Expr.Call, Expr.Exists, Expr.Native],
-    do: Expr.cast(condition, &describe(query, &1))
+  defp search_target(query, %struct{} = condition) when struct in [Expr.Call, Expr.Exists, Expr.Native] do
+    if query.resource, do: Expr.cast(condition, &describe(query, &1)), else: condition
+  end
 
   defp search_target(_query, field), do: to_ref(field)
 
