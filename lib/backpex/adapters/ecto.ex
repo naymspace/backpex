@@ -512,11 +512,16 @@ defmodule Backpex.Adapters.Ecto do
   end
 
   # The expressions whose aggregates share joins, see `Backpex.Adapters.Ecto.Where.join_aggregates/2`: the computed
-  # values, and the ones of related items that sorts and the search refer to.
+  # values, the ones of related items that sorts and the search refer to, and the conditions of the search.
   defp aggregate_expressions(%Query{computed: computed, search: search} = query) do
-    sort_refs = query |> Query.sorts() |> Enum.map(fn {ref, _direction} -> ref end)
-    search_refs = if search, do: search.targets, else: []
-    related = Enum.flat_map(sort_refs ++ search_refs, fn ref -> query |> Query.computed_expr(ref) |> List.wrap() end)
+    sort_targets = query |> Query.sorts() |> Enum.map(fn {ref, _direction} -> ref end)
+    search_targets = if search, do: search.targets, else: []
+
+    related =
+      Enum.flat_map(sort_targets ++ search_targets, fn
+        %Ref{} = ref -> query |> Query.computed_expr(ref) |> List.wrap()
+        condition -> [condition]
+      end)
 
     Map.values(computed) ++ related
   end

@@ -240,6 +240,18 @@ defmodule Backpex.Adapters.EctoTest do
       assert [%{expr: {:==, _meta, _args}, params: [{"Ann", _type}]}] = query.wheres
     end
 
+    test "takes a search condition of a field with computed values" do
+      condition = Expr.native(EctoAdapter, dynamic([item], fragment("upper(?)", item.name) == ^"ANN"))
+
+      query =
+        []
+        |> Resource.items_query(%{live_action: :index}, ComputedUserLive)
+        |> Query.search("Ann", [:label, condition])
+        |> EctoAdapter.ecto_query()
+
+      assert [%{expr: {:or, _meta, [_label, _condition]}}] = query.wheres
+    end
+
     test "takes a native search condition of a field and ORs it with the other targets" do
       condition = Expr.native(EctoAdapter, dynamic([item], fragment("upper(?)", item.name) == ^"ANN"))
 
