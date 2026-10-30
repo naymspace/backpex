@@ -298,13 +298,12 @@ defmodule Backpex.HTML.Resource do
         filter = Keyword.get(assigns.filters, field)
 
         if filter do
-          label = Map.get(filter, :label, filter.module.label())
-
           %{
             key: Atom.to_string(field),
+            field: field,
             value: value,
             filter: filter,
-            label: label
+            label: Backpex.Filter.label({field, filter})
           }
         end
       end
@@ -335,7 +334,12 @@ defmodule Backpex.HTML.Resource do
     >
       {component(
         fn assigns -> badge.filter.module.render(assigns) end,
-        Map.merge(@backpex_context, %{value: badge.value}),
+        Map.merge(@backpex_context, %{
+          filter: {badge.field, badge.filter},
+          field: badge.field,
+          value: badge.value,
+          live_resource: @live_resource
+        }),
         {__ENV__.module, __ENV__.function, __ENV__.file, __ENV__.line}
       )}
     </.filter_badge>
@@ -467,7 +471,7 @@ defmodule Backpex.HTML.Resource do
       |> assign(
         :filter_fields,
         for {field, filter} <- assigns.filters do
-          label = Map.get(filter, :label, filter.module.label())
+          label = Backpex.Filter.label({field, filter})
           presets = Map.get(filter, :presets, [])
           # filter_options (from URL params or persisted filters) is always string-keyed. A value that
           # fails to cast to the filter's type has the wrong shape for its `render_form/1`, e.g. a string
@@ -501,6 +505,7 @@ defmodule Backpex.HTML.Resource do
         {component(
           fn assigns -> field_data.filter.module.render_form(assigns) end,
           Map.merge(@backpex_context, %{
+            filter: {field_data.field, field_data.filter},
             field: field_data.field,
             value: field_data.value,
             form: f,

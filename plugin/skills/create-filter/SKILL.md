@@ -121,7 +121,7 @@ defmodule MyAppWeb.Filters.PostCustom do
   def label, do: "Custom"
 
   @impl Backpex.Filter
-  def condition(field, value, _assigns), do: expr(ref(^field) == ^value)
+  def condition({field, _config}, value, _assigns), do: expr(ref(^field) == ^value)
 
   @impl Backpex.Filter
   def render(assigns) do
@@ -143,7 +143,7 @@ A filter never joins, selects distinct items or otherwise changes the query; the
 
 ```elixir
 @impl Backpex.Filter
-def condition(_field, tag_ids, _assigns), do: expr(exists(tags, id in ^tag_ids))
+def condition(_filter, tag_ids, _assigns), do: expr(exists(tags, id in ^tag_ids))
 ```
 
 If a filter needs a fragment of SQL, wrap an `Ecto.Query.dynamic/2` expression with `Backpex.Expr.native/2`. The filter then only works with `Backpex.Adapters.Ecto`.
@@ -152,7 +152,7 @@ If a filter needs a fragment of SQL, wrap an `Ecto.Query.dynamic/2` expression w
 import Ecto.Query
 
 @impl Backpex.Filter
-def condition(field, value, _assigns) do
+def condition({field, _config}, value, _assigns) do
   Backpex.Expr.native(Backpex.Adapters.Ecto, dynamic([x], fragment("lower(?)", field(x, ^field)) == ^value))
 end
 ```

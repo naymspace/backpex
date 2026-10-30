@@ -1,8 +1,48 @@
+# quokka:skip-module-directive-reordering
 defmodule Backpex.Filters.MultiSelect do
-  @moduledoc """
-  The multi select filter renders checkboxes for a given list of options, hence allowing the user to select multiple values.
+  @config_schema [
+    options: [
+      doc: "List of options as `{label, value}` tuples or function that receives the assigns and returns the list.",
+      type: {:or, [{:list, :any}, {:fun, 1}]},
+      required: true
+    ],
+    prompt: [
+      doc: """
+      The text of the dropdown button while no option is selected or function that receives the assigns. Defaults to
+      `"Select options..."`.
+      """,
+      type: {:or, [:string, {:fun, 1}]}
+    ]
+  ]
 
-  See the following example for an implementation of a multi select user filter.
+  @moduledoc """
+  The multi select filter renders checkboxes for a given list of options, hence allowing the user to select multiple
+  values. It keeps the items whose field has one of the selected values.
+
+  ## Filter-specific options
+
+  See `Backpex.Filter` for general filter options.
+
+  #{NimbleOptions.docs(@config_schema)}
+
+  ## Example
+
+      def filters do
+        [
+          user_id: %{
+            module: Backpex.Filters.MultiSelect,
+            label: "User",
+            prompt: "Select user ...",
+            options: fn _assigns -> MyApp.Accounts.list_user_options() end
+          }
+        ]
+      end
+
+  ## Reusable filter modules
+
+  To reuse a multi select filter in several LiveResources, define a module that implements the
+  `c:Backpex.Filters.Select.options/1` and `c:Backpex.Filters.Select.prompt/0` callbacks and use it as the `:module` of
+  the filter. The `:options` and `:prompt` options of the filter take precedence over the callbacks.
 
       defmodule MyAppWeb.Filters.MultiUserSelect do
         use Backpex.Filters.MultiSelect
@@ -10,11 +50,11 @@ defmodule Backpex.Filters.MultiSelect do
         @impl Backpex.Filter
         def label, do: "User"
 
-        @impl Backpex.Filters.MultiSelect
+        @impl Backpex.Filters.Select
         def prompt, do: "Select user ..."
 
-        @impl Backpex.Filters.MultiSelect
-        def options, do: [
+        @impl Backpex.Filters.Select
+        def options(_assigns), do: [
           {"John Doe", "acdd1860-65ce-4ed6-a37c-433851cf68d7"},
           {"Jane Doe", "9d78ce5e-9334-4a6c-a076-f1e72522de2"}
         ]
@@ -22,14 +62,16 @@ defmodule Backpex.Filters.MultiSelect do
 
   > #### `use Backpex.Filters.MultiSelect` {: .info}
   >
-  > When you `use Backpex.Filters.MultiSelect`, the `Backpex.Filters.MultiSelect` module will set `@behavior Backpex.Filters.Select`. In addition it will add a `render` and `render_form` function in order to display the corresponding filter.
-  > It will also implement the `c:Backpex.Filter.condition/3` callback to keep the items whose field has one of the
-  > selected values.
+  > When you `use Backpex.Filters.MultiSelect`, the `Backpex.Filters.MultiSelect` module will set
+  > `@behavior Backpex.Filters.Select`. In addition it will delegate the callbacks of `Backpex.Filter` to
+  > `Backpex.Filters.MultiSelect`, so you can override any of them.
   """
   use BackpexWeb, :filter
+  use Backpex.Filter, config_schema: @config_schema
 
-  import Backpex.Expr, only: [expr: 1]
   import Backpex.HTML.CoreComponents
+
+  alias Backpex.Filters.Select
 
   require Backpex
 
@@ -48,67 +90,111 @@ defmodule Backpex.Filters.MultiSelect do
       alias Backpex.Filters.MultiSelect, as: MultiSelectFilter
 
       @impl Backpex.Filter
-      def type(_assigns), do: {:array, :string}
+      def config_schema, do: MultiSelectFilter.module_config_schema(&options/1, &prompt/0)
 
       @impl Backpex.Filter
-      def changeset(changeset, field, assigns) do
-        MultiSelectFilter.changeset(changeset, field, options(assigns))
-      end
+      defdelegate type(filter, assigns), to: MultiSelectFilter
 
       @impl Backpex.Filter
-      defdelegate condition(field, value, assigns), to: MultiSelectFilter
+      defdelegate changeset(changeset, filter, assigns), to: MultiSelectFilter
 
       @impl Backpex.Filter
-      def render(assigns) do
-        assigns = assign(assigns, :options, options(assigns))
-        MultiSelectFilter.render(assigns)
-      end
+      defdelegate condition(filter, value, assigns), to: MultiSelectFilter
 
       @impl Backpex.Filter
-      def render_form(assigns) do
-        assigns =
-          assigns
-          |> assign(:options, options(assigns))
-          |> assign(:prompt, prompt())
+      defdelegate render(assigns), to: MultiSelectFilter
 
-        MultiSelectFilter.render_form(assigns)
-      end
+      @impl Backpex.Filter
+      defdelegate render_form(assigns), to: MultiSelectFilter
 
-      defoverridable type: 1, changeset: 3, condition: 3, render: 1, render_form: 1
+      defoverridable config_schema: 0, type: 2, changeset: 3, condition: 3, render: 1, render_form: 1
     end
   end
 
-  attr :value, :any, required: true
-  attr :options, :list, required: true
+  @doc false
+  # The config schema of a module that uses this module: its callbacks are the defaults of the options.
+  def module_config_schema(options_fun, prompt_fun) do
+    @config_schema
+    |> Keyword.update!(:options, &(&1 |> Keyword.delete(:required) |> Keyword.put(:default, options_fun)))
+    |> Keyword.update!(:prompt, &Keyword.put(&1, :default, fn _assigns -> prompt_fun.() end))
+  end
 
+  @impl Backpex.Filter
+  def type(_filter, _assigns), do: {:array, :string}
+
+  @doc """
+  Validates that all selected values exist in the options list.
+
+  Returns the changeset unchanged if all values are valid, or adds an error if any value is not found in options.
+  """
+  @impl Backpex.Filter
+  def changeset(changeset, {field, _config} = filter, assigns) do
+    valid_values = filter |> Select.options(assigns) |> Enum.map(fn {_label, value} -> to_string(value) end)
+
+    Ecto.Changeset.validate_change(changeset, field, fn _field, values ->
+      invalid_option_errors(values || [], valid_values, field)
+    end)
+  end
+
+  defp invalid_option_errors(values, valid_values, field) do
+    if Enum.all?(values, &(to_string(&1) in valid_values)),
+      do: [],
+      else: [{field, "contains invalid options"}]
+  end
+
+  @doc """
+  Returns the expression that keeps the items whose field has one of the selected values, or `nil` if no value is
+  selected.
+
+  ## Examples
+
+      iex> import Backpex.Expr
+      iex> Backpex.Filters.MultiSelect.condition({:status, %{}}, ["open", "pending"], %{}) ==
+      ...>   expr(status in ["open", "pending"])
+      true
+      iex> Backpex.Filters.MultiSelect.condition({:status, %{}}, [], %{})
+      nil
+
+  """
+  @impl Backpex.Filter
+  def condition(_filter, [], _assigns), do: nil
+  def condition({field, _config}, values, _assigns), do: expr(ref(^field) in ^values)
+
+  attr :filter, :any, required: true, doc: "the filter"
+  attr :value, :any, required: true, doc: "the selected values"
+
+  @impl Backpex.Filter
   def render(assigns) do
-    assigns = assign(assigns, :label, option_value_to_label(assigns.options, assigns.value))
+    assigns = assign(assigns, :label, option_value_to_label(Select.options(assigns.filter, assigns), assigns.value))
 
     ~H"""
     {@label}
     """
   end
 
-  attr :form, :any, required: true
-  attr :field, :atom, required: true
-  attr :value, :any, required: true
-  attr :options, :list, required: true
-  attr :prompt, :string, required: true
-  attr :errors, :list, default: []
+  attr :filter, :any, required: true, doc: "the filter"
+  attr :form, :any, required: true, doc: "the filter form"
+  attr :field, :atom, required: true, doc: "the name of the filter"
+  attr :value, :any, required: true, doc: "the selected values"
+  attr :live_resource, :atom, required: true, doc: "the LiveResource"
+  attr :errors, :list, default: [], doc: "the errors of the values"
 
+  @impl Backpex.Filter
   def render_form(assigns) do
     value = if is_nil(assigns.value), do: [], else: assigns.value
 
     trigger_text =
-      case assigns.value do
-        v when is_nil(v) or v == [] -> assigns.prompt
-        _prompt -> "#{Enum.count(assigns.value)} #{Backpex.__("selected", assigns.live_resource)}"
+      case value do
+        [] -> prompt(assigns.filter, assigns)
+        _value -> "#{Enum.count(value)} #{Backpex.__("selected", assigns.live_resource)}"
       end
 
     assigns =
       assigns
       |> assign(:value, value)
+      |> assign(:options, Select.options(assigns.filter, assigns))
       |> assign(:trigger_text, trigger_text)
+      |> assign_new(:errors, fn -> [] end)
 
     ~H"""
     <.dropdown id={"multi-select-#{@form[@field].id}"} class="mt-2 w-full">
@@ -144,40 +230,16 @@ defmodule Backpex.Filters.MultiSelect do
   end
 
   @doc """
-  Validates that all selected values exist in the options list.
-
-  Returns the changeset unchanged if all values are valid, or adds an error if any value is not found in options.
+  Returns the prompt of a multi select filter: its `:prompt` option, the result of it if it is a function, or
+  `"Select options..."`.
   """
-  def changeset(changeset, field, options) do
-    valid_values = Enum.map(options, fn {_label, value} -> to_string(value) end)
-
-    Ecto.Changeset.validate_change(changeset, field, fn _field, values ->
-      validate_subset(values || [], valid_values, field)
-    end)
+  def prompt({_name, config}, assigns) do
+    case Map.get(config, :prompt) do
+      nil -> Backpex.__("Select options...", assigns[:live_resource])
+      prompt when is_function(prompt, 1) -> prompt.(assigns)
+      prompt -> prompt
+    end
   end
-
-  defp validate_subset(values, valid_values, field) do
-    if Enum.all?(values, &(to_string(&1) in valid_values)),
-      do: [],
-      else: [{field, "contains invalid options"}]
-  end
-
-  @doc """
-  Returns the expression that keeps the items whose field has one of the selected values, or `nil` if no value is
-  selected.
-
-  ## Examples
-
-      iex> import Backpex.Expr
-      iex> Backpex.Filters.MultiSelect.condition(:status, ["open", "pending"], %{}) ==
-      ...>   expr(status in ["open", "pending"])
-      true
-      iex> Backpex.Filters.MultiSelect.condition(:status, [], %{})
-      nil
-
-  """
-  def condition(_field, [], _assigns), do: nil
-  def condition(field, values, _assigns), do: expr(ref(^field) in ^values)
 
   @doc """
   Converts a list of option values to their corresponding labels.

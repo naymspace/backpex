@@ -1162,15 +1162,16 @@ defmodule Backpex.LiveResource do
   @doc """
   Returns list of active filters.
 
-  Active filters are those defined in the LiveResource that the current user
-  has permission to use (based on the filter's `can?/1` callback).
+  Active filters are those defined in the LiveResource that the current user has permission to use, see
+  `Backpex.Filter.can?/2`. Their options are validated, see `Backpex.Filter.validate_config!/2`.
   """
   def active_filters(assigns) do
-    filters = assigns.live_resource.filters(assigns)
+    %{live_resource: live_resource} = assigns
 
-    Enum.filter(filters, fn {_key, option} ->
-      option.module.can?(assigns)
-    end)
+    assigns
+    |> live_resource.filters()
+    |> Enum.map(&Backpex.Filter.validate_config!(&1, live_resource))
+    |> Enum.filter(&Backpex.Filter.can?(&1, assigns))
   end
 
   defp maybe_to_atom(nil), do: nil

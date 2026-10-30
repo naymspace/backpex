@@ -11,8 +11,10 @@ defmodule DemoWeb.UserLive do
     init_order: &__MODULE__.init_order/1,
     persist: [:order, :filters, :columns, :metrics]
 
+  import Backpex.Expr, only: [expr: 1]
   import Ecto.Query, warn: false
 
+  alias Backpex.Filters.Select
   alias Backpex.Metrics.Value
 
   @impl Backpex.LiveResource
@@ -56,6 +58,26 @@ defmodule DemoWeb.UserLive do
     default_actions
     |> Keyword.delete(:delete)
     |> Enum.concat(user_soft_delete: %{module: DemoWeb.ItemActions.UserSoftDelete})
+  end
+
+  @impl Backpex.LiveResource
+  def filters do
+    [
+      role: %{
+        module: Select,
+        label: "Role",
+        options: [{"User", "user"}, {"Admin", "admin"}]
+      },
+      age: %{
+        module: Select,
+        label: "Age",
+        options: [{"Under 18", "minor"}, {"18 and older", "adult"}],
+        condition: fn
+          {field, _config}, "minor", _assigns -> expr(ref(^field) < 18)
+          {field, _config}, "adult", _assigns -> expr(ref(^field) >= 18)
+        end
+      }
+    ]
   end
 
   @impl Backpex.LiveResource

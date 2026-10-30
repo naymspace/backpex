@@ -1,6 +1,6 @@
 defmodule DemoWeb.Filters.PostCategorySelect do
   @moduledoc """
-  Implementation of the `Backpex.Filters.MultiSelect` behaviour.
+  A reusable select filter module, see `Backpex.Filters.Select`.
   """
 
   use Backpex.Filters.Select

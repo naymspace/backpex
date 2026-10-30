@@ -14,7 +14,6 @@ defmodule DemoWeb.ProductLive do
   alias Backpex.Metrics.Value
   alias Demo.Supplier
   alias DemoWeb.Endpoint
-  alias DemoWeb.Filters.ProductQuantityRange
   alias DemoWeb.Layouts
   alias DemoWeb.ShortLinkLive
   alias Phoenix.VerifiedRoutes
@@ -32,8 +31,9 @@ defmodule DemoWeb.ProductLive do
   def filters do
     [
       quantity: %{
-        module: ProductQuantityRange,
-        label: "QTY"
+        module: Backpex.Filters.Range,
+        label: "QTY",
+        type: :number
       }
     ]
   end

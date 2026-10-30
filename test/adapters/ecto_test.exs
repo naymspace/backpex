@@ -87,7 +87,7 @@ defmodule Backpex.Adapters.EctoTest do
     def can?(_assigns), do: true
 
     @impl Backpex.Filter
-    def condition(field, value, _assigns), do: expr(ref(^field) == ^value)
+    def condition({field, _config}, value, _assigns), do: expr(ref(^field) == ^value)
 
     @impl Backpex.Filter
     def render(assigns), do: assigns
@@ -107,7 +107,7 @@ defmodule Backpex.Adapters.EctoTest do
     def can?(_assigns), do: true
 
     @impl Backpex.Filter
-    def condition(field, %{"start" => start_val, "end" => end_val}, _assigns) do
+    def condition({field, _config}, %{"start" => start_val, "end" => end_val}, _assigns) do
       expr(ref(^field) >= ^start_val and ref(^field) <= ^end_val)
     end
 

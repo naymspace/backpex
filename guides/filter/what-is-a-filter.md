@@ -4,7 +4,7 @@ Filters are used to filter the data that is being displayed in the (index) view.
 
 Backpex allows you to define filters for your *LiveResources*. Backpex handles the filtering of the data for you as well as the UI for the filters. You just need to define the filters and Backpex will take care of the rest.
 
-Backpex ships with a set of default filters that can be used to filter the data. In addition to the default filters, you can create custom filters for more advanced use cases.
+Backpex ships with a set of generic filters that can be used to filter the data. Like fields, you configure them in your *LiveResource* without defining a module for each filter. In addition to the built-in filters, you can create custom filters for more advanced use cases.
 
 ## Key Features
 
@@ -40,7 +40,7 @@ Each built-in filter includes automatic validation:
 - **MultiSelect**: Validates all selected values exist in your options
 - **Range**: Validates date formats, number formats, and that start <= end
 
-You can click on each filter type to see its documentation and configuration options.
+You can click on each filter type to see its documentation and configuration options. The options every filter takes are listed in `Backpex.Filter`.
 
 We will go through how to define filters for a *LiveResource* in [the next section](how-to-add-a-filter.md).
 
