@@ -20,6 +20,7 @@ defmodule Backpex.Filters.RangeTest do
   end
 
   defmodule TestLiveResource do
+    def config(:adapter), do: Backpex.Adapters.Ecto
     def adapter_config(:schema), do: TestItem
   end
 

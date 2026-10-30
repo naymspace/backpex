@@ -84,10 +84,10 @@ defmodule Backpex.Fields.HasManyThrough do
   See the [readonly](/guides/fields/readonly.md) guide for details.
   """
   use Backpex.Field, config_schema: @config_schema
-  import Ecto.Query
   import Backpex.HTML.Layout, except: [ok: 1, noreply: 1]
   import PhoenixHTMLHelpers.Form, only: [hidden_inputs_for: 1]
   alias Backpex.LiveResource
+  alias Backpex.Resource
   alias Ecto.Changeset
   require Backpex
 
@@ -100,8 +100,7 @@ defmodule Backpex.Fields.HasManyThrough do
   end
 
   defp apply_action(socket, :form) do
-    schema = socket.assigns.live_resource.adapter_config(:schema)
-    association = association(schema, socket.assigns.name)
+    association = association(socket.assigns.live_resource, socket.assigns.name)
 
     socket
     |> assign_new(:association, fn -> association end)
@@ -111,30 +110,26 @@ defmodule Backpex.Fields.HasManyThrough do
   defp apply_action(socket, _type), do: socket
 
   # The options query may depend on other assigns, e.g. a value of the form. The options are loaded again whenever the
-  # resulting query changes.
+  # options key of the adapter changes.
   defp assign_options(socket) do
-    %{field_options: field_options, association: association} = socket.assigns
+    %{field: field, live_resource: live_resource} = socket.assigns
+    options_key = Resource.options_key(field, socket.assigns, live_resource)
 
-    query =
-      from(association.child.queryable)
-      |> maybe_options_query(field_options, socket.assigns)
-
-    if Map.get(socket.assigns, :options_base_query) == query do
+    if Map.fetch(socket.assigns, :options_key) == {:ok, options_key} do
       socket
     else
       socket
-      |> assign(:options_base_query, query)
+      |> assign(:options_key, options_key)
       |> load_options()
     end
   end
 
   defp load_options(socket) do
-    %{field_options: field_options, options_base_query: query} = socket.assigns
-    repo = socket.assigns.live_resource.adapter_config(:repo)
+    %{field: field, field_options: field_options, live_resource: live_resource} = socket.assigns
 
     display_field = Map.get(field_options, :display_field_form, Map.get(field_options, :display_field))
 
-    all_items = repo.all(query)
+    {:ok, all_items} = Resource.list_options(field, [], socket.assigns, live_resource)
 
     options = Enum.map(all_items, &{Map.get(&1, display_field), Map.get(&1, :id)})
 
@@ -151,8 +146,7 @@ defmodule Backpex.Fields.HasManyThrough do
   @impl Backpex.Field
   def render_value(assigns) do
     %{item: item, name: assoc_field_name} = assigns
-    schema = assigns.live_resource.adapter_config(:schema)
-    %{pivot: %{field: pivot_field}, child: %{field: child_field}} = association(schema, assoc_field_name)
+    %{pivot: %{field: pivot_field}, child: %{field: child_field}} = association(assigns.live_resource, assoc_field_name)
 
     listables =
       Map.get(item, pivot_field, [])
@@ -511,25 +505,18 @@ defmodule Backpex.Fields.HasManyThrough do
     end
   end
 
-  defp maybe_options_query(query, %{options_query: options_query} = _field_options, assigns),
-    do: options_query.(query, assigns)
-
-  defp maybe_options_query(query, _field_options, _assigns), do: query
-
-  defp association(parent_schema, field_name) do
-    assoc = parent_schema.__schema__(:association, field_name)
-    pivot = parent_schema.__schema__(:association, List.first(assoc.through))
-    child = pivot.queryable.__schema__(:association, List.last(assoc.through))
+  defp association(live_resource, field_name) do
+    %{through: through} = Resource.association(field_name, live_resource)
+    pivot = List.first(through)
+    child = List.last(through)
 
     %{
       pivot: %{
         field: pivot.field,
-        queryable: pivot.queryable,
         owner_key: child.owner_key
       },
       child: %{
         field: child.field,
-        queryable: child.queryable,
         owner_key: child.owner_key
       }
     }

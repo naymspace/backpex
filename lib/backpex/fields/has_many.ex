@@ -78,11 +78,9 @@ defmodule Backpex.Fields.HasMany do
   """
   use Backpex.Field, config_schema: @config_schema
 
-  import Ecto.Query
-
-  alias Backpex.Adapters.Ecto, as: EctoAdapter
   alias Backpex.Authorization
   alias Backpex.HTML.Form
+  alias Backpex.Resource
   alias Backpex.Router
 
   require Backpex
@@ -378,26 +376,18 @@ defmodule Backpex.Fields.HasMany do
   def association?(_field), do: true
 
   @impl Backpex.Field
-  def schema({name, _field_options}, schema) do
-    schema.__schema__(:association, name)
-    |> Map.get(:queryable)
-  end
-
-  @impl Backpex.Field
-  def before_changeset(changeset, attrs, _metadata, repo, field, assigns) do
+  def before_changeset(changeset, attrs, _metadata, _repo, field, assigns) do
     {field_name, field_options} = field
     validate_live_resource(field_name, field_options)
 
-    # TODO: do not rely on specific adapter
-    schema = field_options.live_resource.adapter_config(:schema)
     field_name_string = to_string(field_name)
 
-    new_assocs = get_new_assocs(attrs, field_name_string, schema, repo, field_options, assigns)
+    new_assocs = get_new_assocs(attrs, field_name_string, field, assigns)
 
     if is_nil(new_assocs) do
       changeset
     else
-      Ecto.Changeset.put_assoc(changeset, field_name, new_assocs)
+      Resource.put_assoc(changeset, field_name, new_assocs, assigns.live_resource)
     end
   end
 
@@ -407,34 +397,33 @@ defmodule Backpex.Fields.HasMany do
     end
   end
 
-  defp get_new_assocs(attrs, field_name_string, schema, repo, field_options, assigns) do
+  defp get_new_assocs(attrs, field_name_string, field, assigns) do
     cond do
       # It is important add empty maps when selecting or deselecting all items to force the list to be always present
       # in the changes. Otherwise it would not work if the item already contains all items ("select all") or
       # none items ("deselect all"). "Select all" selects the options, so the options query applies, as for the ids.
       Map.has_key?(attrs, field_name_string <> "_select_all") ->
-        [%{} | schema |> maybe_options_query(field_options, assigns) |> repo.all()]
+        {:ok, assocs} = Resource.list_options(field, [], assigns, assigns.live_resource)
+        [%{} | assocs]
 
       Map.has_key?(attrs, field_name_string <> "_deselect_all") ->
         [%{}]
 
       assoc_ids = Map.get(attrs, field_name_string) ->
-        get_assocs_by_ids(assoc_ids, schema, repo, field_options, assigns)
+        get_assocs_by_ids(assoc_ids, field, assigns)
 
       true ->
         nil
     end
   end
 
-  defp get_assocs_by_ids(assoc_ids, schema, repo, field_options, assigns) do
+  defp get_assocs_by_ids(assoc_ids, field, assigns) do
     case assoc_ids do
       ids when is_list(ids) and ids != [] ->
         filtered_ids = Enum.reject(ids, &(&1 == ""))
+        {:ok, assocs} = Resource.list_options(field, [ids: filtered_ids], assigns, assigns.live_resource)
 
-        schema
-        |> where([x], x.id in ^filtered_ids)
-        |> maybe_options_query(field_options, assigns)
-        |> repo.all()
+        assocs
 
       "" ->
         []
@@ -483,28 +472,20 @@ defmodule Backpex.Fields.HasMany do
   end
 
   # The options query may depend on other assigns, e.g. a value of the form. The options are loaded again whenever the
-  # resulting query changes.
+  # options key of the adapter changes.
   defp maybe_assign_options(socket) do
-    query = options_base_query(socket.assigns)
+    %{field: field, live_resource: live_resource} = socket.assigns
+    options_key = Resource.options_key(field, socket.assigns, live_resource)
 
-    if Map.get(socket.assigns, :options_base_query) == query do
+    if Map.fetch(socket.assigns, :options_key) == {:ok, options_key} do
       socket
     else
-      socket = assign(socket, options_base_query: query, offset: 0)
+      socket = assign(socket, options_key: options_key, offset: 0)
 
       socket
       |> assign(:options_count, count_options(socket.assigns))
       |> assign_options()
     end
-  end
-
-  defp options_base_query(assigns) do
-    %{field_options: field_options, name: name} = assigns
-    schema = assigns.live_resource.adapter_config(:schema)
-    %{queryable: queryable} = schema.__schema__(:association, name)
-
-    from(queryable, as: ^EctoAdapter.name_by_schema(queryable))
-    |> maybe_options_query(field_options, assigns)
   end
 
   defp assign_options(socket, other_options \\ []) do
@@ -521,54 +502,19 @@ defmodule Backpex.Fields.HasMany do
     |> assign(:show_more, show_more)
   end
 
-  defp options(assigns, opts) do
-    %{field: field, field_options: field_options, options_base_query: query} = assigns
-    repo = assigns.live_resource.adapter_config(:repo)
+  defp options(assigns, criteria) do
+    %{field: field, live_resource: live_resource} = assigns
+    {:ok, options} = Resource.list_options(field, criteria, assigns, live_resource)
 
-    query
-    |> maybe_search_query(query.from.as, field_options, display_field(field), Keyword.get(opts, :search))
-    |> maybe_offset_query(Keyword.get(opts, :offset))
-    |> maybe_limit_query(Keyword.get(opts, :limit))
-    |> repo.all()
-    |> Enum.map(fn item ->
+    Enum.map(options, fn item ->
       {Map.get(item, display_field_form(field)), item.id}
     end)
   end
 
-  defp maybe_limit_query(query, nil), do: query
-  defp maybe_limit_query(query, limit), do: query |> limit(^limit)
+  defp count_options(assigns, criteria \\ []) do
+    {:ok, count} = Resource.count_options(assigns.field, criteria, assigns, assigns.live_resource)
 
-  defp maybe_offset_query(query, nil), do: query
-  defp maybe_offset_query(query, offset), do: query |> offset(^offset)
-
-  defp maybe_options_query(query, %{options_query: options_query}, assigns), do: options_query.(query, assigns)
-  defp maybe_options_query(query, _field_options, _assigns), do: query
-
-  defp maybe_search_query(query, _schema_name, _field_options, _display_field, nil), do: query
-
-  defp maybe_search_query(query, schema_name, field_options, display_field, search_input) do
-    if String.trim(search_input) == "" do
-      query
-    else
-      search_input = "%#{search_input}%"
-      select = Map.get(field_options, :select)
-
-      if select do
-        where(query, ^dynamic(ilike(^select, ^search_input)))
-      else
-        where(query, [{^schema_name, schema_name}], ilike(field(schema_name, ^display_field), ^search_input))
-      end
-    end
-  end
-
-  defp count_options(assigns, opts \\ []) do
-    %{field: field, field_options: field_options, options_base_query: query} = assigns
-    repo = assigns.live_resource.adapter_config(:repo)
-
-    query
-    |> maybe_search_query(query.from.as, field_options, display_field(field), Keyword.get(opts, :search))
-    |> subquery()
-    |> repo.aggregate(:count)
+    count
   end
 
   def assign_selected(socket) do
@@ -607,16 +553,7 @@ defmodule Backpex.Fields.HasMany do
 
   defp fetch_from_db([], _socket), do: []
 
-  defp fetch_from_db(ids_to_fetch, socket) do
-    repo = socket.assigns.live_resource.adapter_config(:repo)
-
-    socket.assigns.options_base_query
-    |> where([x], x.id in ^ids_to_fetch)
-    |> repo.all()
-    |> Enum.map(fn item ->
-      {Map.get(item, display_field_form(socket.assigns.field)), item.id}
-    end)
-  end
+  defp fetch_from_db(ids_to_fetch, socket), do: options(socket.assigns, ids: ids_to_fetch)
 
   defp extract_selected_ids(value, primary_key) when is_list(value) and is_atom(primary_key) do
     Enum.reduce(value, [], fn

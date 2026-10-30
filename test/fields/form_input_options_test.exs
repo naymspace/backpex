@@ -5,14 +5,14 @@ defmodule Backpex.Fields.FormInputOptionsTest do
 
   alias Backpex.Fields
 
-  defmodule EmptyRepo do
+  defmodule EmptyAdapter do
     @moduledoc false
-    def all(_query), do: []
+    def list_options(_field, _criteria, _assigns, _live_resource), do: {:ok, []}
   end
 
   defmodule CategoryLive do
     @moduledoc false
-    def adapter_config(:repo), do: EmptyRepo
+    def config(:adapter), do: EmptyAdapter
   end
 
   defmodule ItemLive do
@@ -22,7 +22,6 @@ defmodule Backpex.Fields.FormInputOptionsTest do
 
   @belongs_to_assigns [
     live_resource: CategoryLive,
-    queryable: "categories",
     owner_key: :category_id,
     display_field_form: :name
   ]
@@ -185,6 +184,7 @@ defmodule Backpex.Fields.FormInputOptionsTest do
     assigns =
       [
         name: name,
+        field: {name, field_options},
         field_options: field_options,
         form: Phoenix.Component.to_form(%{}, as: :change),
         readonly: false,

@@ -69,6 +69,7 @@ defmodule Backpex.Fields.HasManyThroughTest do
 
   defmodule ParentLive do
     @moduledoc false
+    def config(:adapter), do: Backpex.Adapters.Ecto
     def adapter_config(:schema), do: Parent
     def adapter_config(:repo), do: ChildrenRepo
     def translate(msg), do: UntranslatedLive.translate(msg)
