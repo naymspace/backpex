@@ -59,9 +59,23 @@ defmodule Backpex.ExprTest do
              }
     end
 
+    test "builds arithmetic, datetime_diff and to_string, with values on both sides of comparisons" do
+      assert expr(likes + 1 > -2) ==
+               %Call{name: :>, args: [%Call{name: :+, args: [%Ref{name: :likes}, 1]}, -2]}
+
+      assert %Call{name: :/, args: [%Call{name: :*, args: [_likes, 2]}, %Ref{name: :views}]} =
+               expr(likes * 2 / views)
+
+      assert expr(datetime_diff(ends_at, starts_at, :minute)) ==
+               %Call{name: :datetime_diff, args: [%Ref{name: :ends_at}, %Ref{name: :starts_at}], opts: [unit: :minute]}
+
+      assert expr(to_string(likes) == "1") ==
+               %Call{name: :==, args: [%Call{name: :to_string, args: [%Ref{name: :likes}]}, "1"]}
+    end
+
     test "refuses unsupported expressions at compile time" do
       for {code, message} <- [
-            {"expr(likes + 1 > 2)", ~r/unsupported expression: likes \+ 1/},
+            {"expr(datetime_diff(a, b, :week) > 2)", ~r/expected the unit of datetime_diff\/3 to be one of/},
             {"expr(lower(title) == \"a\")", ~r/unsupported expression: lower\(title\)/},
             {"expr(exists(^path, a == 1))", ~r/expected a relationship such as tags/},
             {"expr(contains(title, \"a\", ^opts))", ~r/expected the options of contains\/3 to be a keyword list/}

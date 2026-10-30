@@ -112,8 +112,7 @@ def fields do
     show_likes: %{
         module: Backpex.Fields.Boolean,
         label: "Show likes",
-        # initialize the button based on the likes value
-        select: dynamic([post: p], fragment("? > 0", p.likes)),
+        # initialized from the computed value `show_likes: expr(likes > 0)`, see the computed fields guide
     },
     likes: %{
         module: Backpex.Fields.Number,

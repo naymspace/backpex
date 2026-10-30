@@ -137,6 +137,17 @@ defmodule Backpex.QueryTest do
     end
   end
 
+  describe "compute/3" do
+    test "checks the fields of a value that is a field or a path" do
+      assert ArticleLive |> Query.new() |> Query.compute(:author_name, expr(author.name)) |> Map.fetch!(:computed) ==
+               %{author_name: Expr.ref([:author], :name)}
+
+      assert_raise ArgumentError, ~r/unknown field :unknown/, fn ->
+        ArticleLive |> Query.new() |> Query.compute(:unknown, expr(unknown))
+      end
+    end
+  end
+
   describe "unset/2" do
     test "removes the given parts and keeps the others" do
       query =
@@ -202,6 +213,13 @@ defmodule Backpex.QueryTest do
       assert filtered(expr(not exists(tags, name == "fp"))) == [2]
     end
 
+    test "keeps the items for which a condition among the targets is true" do
+      query = ArticleLive |> Query.new() |> Query.search("zz", [:title, expr(likes > "4")])
+
+      assert query.search.targets == [Expr.ref(:title), expr(likes > 4)]
+      assert ids(query) == [3]
+    end
+
     test "searches every target for the term, ignoring the case and casting values to text" do
       query = ArticleLive |> Query.new() |> Query.search("e", [:title])
       assert ids(query) == [1, 2, 3]
@@ -221,6 +239,46 @@ defmodule Backpex.QueryTest do
       assert sorted.(published: :desc_nulls_last) == [1, 2, 3]
 
       assert ArticleLive |> Query.new() |> Query.sort(id: :desc) |> Query.offset(1) |> Query.limit(1) |> ids() == [2]
+    end
+
+    test "computes values before it filters, searches and sorts by them" do
+      query =
+        ArticleLive
+        |> Query.new()
+        |> Query.compute(:label, expr(concat([title, author.name], " by ")))
+        |> Query.compute(:liked, expr(likes > 2))
+        |> Query.search("ann", [:label])
+        |> Query.sort(label: :desc)
+
+      assert [%{id: 1, label: "Elixir by Ann", liked: true}] = Query.apply_to(query, @items)
+
+      assert %{id: 2, label: "erlang", liked: nil} =
+               query |> Query.unset([:search]) |> Query.apply_to(@items) |> List.first()
+    end
+
+    test "computes with numbers, datetimes and strings, with the nil rules of SQL" do
+      computed = %{
+        double: expr(likes * 2),
+        half: expr(likes / 2),
+        sum: expr(likes - 1 + 10),
+        ratio: expr(likes / ^2.0),
+        minutes: expr(datetime_diff(^~U[2026-01-01 10:30:59Z], ^~U[2026-01-01 08:00:00Z], :minute)),
+        text: expr(to_string(likes))
+      }
+
+      query = ArticleLive |> Query.new() |> Map.put(:computed, computed) |> Query.sort(id: :asc)
+
+      assert [
+               %{double: 6, half: 1, sum: 12, ratio: 1.5, minutes: 150, text: "3"},
+               %{double: nil, half: nil, sum: nil, ratio: nil, minutes: 150, text: nil},
+               %{double: 10, half: 2, sum: 14, text: "5"}
+             ] = Query.apply_to(query, @items)
+    end
+
+    test "compares the values of expressions" do
+      assert filtered(expr(likes * 2 > 7)) == [3]
+      assert filtered(expr(to_string(likes) == "3")) == [1]
+      assert filtered(expr(likes - 3 == id - 1)) == [1, 3]
     end
 
     test "raises for a native expression" do
@@ -254,6 +312,18 @@ defmodule Backpex.QueryTest do
                max: 3,
                none: nil
              }
+    end
+
+    test "aggregates the values of expressions" do
+      query =
+        ArticleLive
+        |> Query.new()
+        |> Query.aggregate(:double, {:sum, expr(likes * 2)})
+        |> Query.aggregate(:with_likes, {:count, expr(likes + 1)})
+        |> Query.aggregate(:min, {:min, expr(likes - 1)})
+
+      assert Query.aggregate_items(query, [%{likes: 3}, %{likes: nil}, %{likes: 5}]) ==
+               %{double: 16, with_likes: 2, min: 2}
     end
 
     test "adds decimals with Decimal" do

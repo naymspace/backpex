@@ -30,7 +30,8 @@ defmodule Backpex.Fields.HasMany do
     options_sort: [
       doc: """
       The order of the options, like `Backpex.Query.sort/2`, e.g. `[name: :asc]`, or a function that receives the assigns
-      and returns it. Its fields are fields of the related items. Works with every adapter.
+      and returns it. Its fields are fields or computed values of the related items, see `c:Backpex.LiveResource.load/1`.
+      Works with every adapter.
       """,
       type: {:or, [{:fun, 1}, {:list, :any}]}
     ],

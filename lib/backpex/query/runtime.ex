@@ -12,6 +12,48 @@ defmodule Backpex.Query.Runtime do
   alias Backpex.Expr.Ref
 
   @comparisons [:==, :!=, :<, :<=, :>, :>=]
+  @arithmetic [:+, :-, :*, :/]
+  @seconds %{second: 1, minute: 60, hour: 3600, day: 86_400}
+
+  ## Computed values
+
+  def compute(items, computed) when computed == %{}, do: items
+
+  def compute(items, computed) do
+    Enum.map(items, fn item ->
+      Enum.reduce(computed, item, fn {name, expression}, item -> Map.put(item, name, value_of(expression, item)) end)
+    end)
+  end
+
+  # The value of an expression for an item: a field, a string of `concat`, or the result of a condition.
+  defp value_of(%Ref{} = ref, item), do: value(ref, item)
+
+  defp value_of(%Call{name: :concat, args: parts, opts: opts}, item) do
+    parts
+    |> Enum.map(&value_of(&1, item))
+    |> Enum.reject(&is_nil/1)
+    |> Enum.map_join(Keyword.get(opts, :separator, ""), &to_text/1)
+  end
+
+  defp value_of(%Call{name: operator, args: [left, right]}, item) when operator in @arithmetic,
+    do: arithmetic(operator, value_of(left, item), value_of(right, item))
+
+  defp value_of(%Call{name: :datetime_diff, args: [left, right], opts: opts}, item) do
+    case {value_of(left, item), value_of(right, item)} do
+      {%module{} = left, %module{} = right} -> div(module.diff(left, right, :second), @seconds[opts[:unit]])
+      {_left, _right} -> nil
+    end
+  end
+
+  defp value_of(%Call{name: :to_string, args: [value]}, item) do
+    case value_of(value, item) do
+      nil -> nil
+      value -> to_text(value)
+    end
+  end
+
+  defp value_of(%struct{} = expression, item) when struct in [Call, Exists, Native], do: eval(expression, item)
+  defp value_of(value, _item), do: value
 
   ## Filter and search
 
@@ -24,8 +66,11 @@ defmodule Backpex.Query.Runtime do
   def search(items, %{term: term, targets: targets}) do
     term = String.downcase(term)
 
-    Enum.filter(items, fn item -> Enum.any?(targets, &contains_term?(value(&1, item), term)) end)
+    Enum.filter(items, fn item -> Enum.any?(targets, &matches?(&1, item, term)) end)
   end
+
+  defp matches?(%Ref{} = ref, item, term), do: contains_term?(value(ref, item), term)
+  defp matches?(condition, item, _term), do: eval(condition, item) == true
 
   defp contains_term?(nil, _term), do: false
   defp contains_term?(value, term), do: value |> to_text() |> String.downcase() |> String.contains?(term)
@@ -112,7 +157,34 @@ defmodule Backpex.Query.Runtime do
   def eval(expression, _item), do: raise(ArgumentError, "unsupported expression: #{inspect(expression)}")
 
   defp operand(%Ref{} = ref, item), do: value(ref, item)
+  defp operand(%Call{} = expression, item), do: value_of(expression, item)
   defp operand(value, _item), do: value
+
+  # As in SQL, a value with `nil` is `nil` and the division of two integers is an integer, rounded towards zero.
+  defp arithmetic(_operator, nil, _right), do: nil
+  defp arithmetic(_operator, _left, nil), do: nil
+  defp arithmetic(:/, left, right) when is_integer(left) and is_integer(right), do: div(left, right)
+
+  defp arithmetic(operator, %Decimal{} = left, right), do: decimal(operator, left, to_decimal(right))
+  defp arithmetic(operator, left, %Decimal{} = right), do: decimal(operator, to_decimal(left), right)
+
+  defp arithmetic(operator, left, right) do
+    case operator do
+      :+ -> left + right
+      :- -> left - right
+      :* -> left * right
+      :/ -> left / right
+    end
+  end
+
+  defp decimal(:+, left, right), do: Decimal.add(left, right)
+  defp decimal(:-, left, right), do: Decimal.sub(left, right)
+  defp decimal(:*, left, right), do: Decimal.mult(left, right)
+  defp decimal(:/, left, right), do: Decimal.div(left, right)
+
+  defp to_decimal(%Decimal{} = value), do: value
+  defp to_decimal(value) when is_float(value), do: Decimal.from_float(value)
+  defp to_decimal(value), do: Decimal.new(value)
 
   @doc false
   def value(%Ref{path: path, name: name}, item) do
@@ -224,17 +296,30 @@ defmodule Backpex.Query.Runtime do
   ## Aggregates
 
   def aggregate(items, %{aggregate: aggregate, where: where}) do
-    items |> filter(where) |> compute(aggregate)
+    items |> filter(where) |> aggregate_value(aggregate)
   end
 
-  defp compute(items, :count), do: length(items)
-  defp compute(items, {:count, field}), do: items |> values(field) |> length()
-  defp compute(items, {:sum, field}), do: items |> values(field) |> sum()
-  defp compute(items, {:avg, field}), do: items |> values(field) |> avg()
-  defp compute(items, {:min, field}), do: items |> values(field) |> extreme(:lt)
-  defp compute(items, {:max, field}), do: items |> values(field) |> extreme(:gt)
+  defp aggregate_value(items, :count), do: length(items)
 
-  defp compute(_items, aggregate) do
+  defp aggregate_value(items, {kind, %struct{} = expression}) when struct in [Ref, Call] do
+    values = items |> Enum.map(&value_of(expression, &1)) |> Enum.reject(&is_nil/1)
+
+    case kind do
+      :count -> length(values)
+      :sum -> sum(values)
+      :avg -> avg(values)
+      :min -> extreme(values, :lt)
+      :max -> extreme(values, :gt)
+    end
+  end
+
+  defp aggregate_value(items, {:count, field}), do: items |> values(field) |> length()
+  defp aggregate_value(items, {:sum, field}), do: items |> values(field) |> sum()
+  defp aggregate_value(items, {:avg, field}), do: items |> values(field) |> avg()
+  defp aggregate_value(items, {:min, field}), do: items |> values(field) |> extreme(:lt)
+  defp aggregate_value(items, {:max, field}), do: items |> values(field) |> extreme(:gt)
+
+  defp aggregate_value(_items, aggregate) do
     raise ArgumentError, "can't compute the aggregate #{inspect(aggregate)} of items in memory"
   end
 

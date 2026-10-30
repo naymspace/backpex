@@ -122,7 +122,7 @@ defmodule Backpex.Field do
   ### Options
 
   These are general field options which can be used on every field. Check the field modules for field-specific options.
-  The adapter of the LiveResource may add options, e.g. `Backpex.Adapters.Ecto` adds `:select` and `:custom_alias`, see
+  The adapter of the LiveResource may add options, see
   `c:Backpex.Adapter.field_config_schema/0`.
 
   #{NimbleOptions.docs(@config_schema)}
@@ -191,6 +191,30 @@ defmodule Backpex.Field do
   Determines whether the field is an association or not.
   """
   @callback association?(field :: tuple()) :: boolean()
+
+  @doc """
+  Returns the condition an item matches when the search of the index view finds it by this field, as an expression
+  (see `Backpex.Expr`). Without it, an item matches when the value the field shows contains the search term, ignoring
+  the case.
+
+  Receives the field, the `Backpex.Expr.Ref` of the value the field shows (see `Backpex.LiveResource.field_ref/1`) and
+  the search term as the user typed it. A condition of the database, e.g. on a formatted date, is a native expression
+  of the adapter, see `Backpex.Expr.native/3`:
+
+      import Backpex.Expr
+
+      @impl Backpex.Field
+      def search_condition(_field, ref, term), do: expr(starts_with(ref(^ref.path, ^ref.name), ^term))
+
+      @impl Backpex.Field
+      def search_condition(_field, %{path: [], name: name}, term) do
+        native(
+          Backpex.Adapters.Ecto,
+          dynamic([item], ilike(fragment("to_char(?, 'DD.MM.YYYY')", field(item, ^name)), ^"%\#{term}%"))
+        )
+      end
+  """
+  @callback search_condition(field :: tuple(), ref :: Backpex.Expr.Ref.t(), term :: String.t()) :: Backpex.Expr.t()
 
   @doc """
   This function will be called in the `FormComponent` and may be used to assign uploads.
@@ -294,6 +318,7 @@ defmodule Backpex.Field do
             ) :: String.t()
 
   @optional_callbacks render_index_form: 1,
+                      search_condition: 3,
                       index_assigns: 3,
                       index_editable_change: 3,
                       list_existing_files: 2,

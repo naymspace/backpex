@@ -80,7 +80,10 @@ defmodule Backpex.LiveResource do
           {:fun, 1},
           map: [
             by: [
-              doc: "The column used for ordering.",
+              doc: """
+              The field to order by: a field of the items, a computed value (see `c:computed/1`) or a path through
+              relationships to one item, e.g. `:"author.last_name"`.
+              """,
               type: :atom
             ],
             direction: [
@@ -259,7 +262,7 @@ defmodule Backpex.LiveResource do
   current user only. See `Backpex.Expr`.
 
   Backpex adds it to every query of the items: the index view, its count and metrics, the show and edit views, and the
-  items item actions are applied to. Unlike the `:item_query` of `Backpex.Adapters.Ecto`, it works with every adapter.
+  items item actions are applied to. It works with every adapter.
 
       import Backpex.Expr
 
@@ -267,6 +270,43 @@ defmodule Backpex.LiveResource do
       def scope(assigns), do: expr(user_id == ^assigns.current_user.id)
   """
   @callback scope(assigns :: map()) :: Backpex.Expr.t() | keyword() | nil
+
+  @doc """
+  Returns the relationships to load into the items of the resource, besides the ones of its association fields, e.g.
+  for the functions of fields that show related data. See `Backpex.Query.load/2` for the nested form and
+  `Backpex.Query.related/1` for sorting the related items or computing values of them:
+
+      @impl Backpex.LiveResource
+      def load(_assigns) do
+        [
+          comments: :author,
+          user: Backpex.Query.related(computed: [full_name: expr(concat([first_name, last_name], " "))])
+        ]
+      end
+
+  The computed values of a relationship also go into the options of its association field, so a
+  `Backpex.Fields.BelongsTo` field can show them with its `:display_field`, sort by them and search them.
+  """
+  @callback load(assigns :: map()) :: list()
+
+  @doc """
+  Returns values Backpex computes for every item of the resource, as a keyword list of names and expressions (see the
+  [Values](`m:Backpex.Expr#module-values`) of `Backpex.Expr`). A field with the same name shows the value, and the index
+  view sorts by it and searches it like any other field:
+
+      @impl Backpex.LiveResource
+      def computed(_assigns) do
+        [
+          full_name: expr(concat([first_name, last_name], " ")),
+          show_likes: expr(likes > 0),
+          author_name: expr(author.name)
+        ]
+      end
+
+  A value the expressions of `Backpex.Expr` can't describe, e.g. a fragment of SQL, is a native expression of the
+  adapter, see `Backpex.Expr.native/3`.
+  """
+  @callback computed(assigns :: map()) :: keyword()
 
   @doc """
   A optional keyword list of [filters](Backpex.Filter.html) to be used on the index view.
@@ -456,6 +496,12 @@ defmodule Backpex.LiveResource do
       def scope(_assigns), do: nil
 
       @impl Backpex.LiveResource
+      def load(_assigns), do: []
+
+      @impl Backpex.LiveResource
+      def computed(_assigns), do: []
+
+      @impl Backpex.LiveResource
       def filters, do: []
 
       @impl Backpex.LiveResource
@@ -486,6 +532,8 @@ defmodule Backpex.LiveResource do
       defoverridable can?: 3,
                      fields: 0,
                      scope: 1,
+                     load: 1,
+                     computed: 1,
                      filters: 0,
                      filters: 1,
                      layout: 1,
@@ -1037,7 +1085,7 @@ defmodule Backpex.LiveResource do
     filters = Map.get(assigns, :filters, [])
 
     query
-    |> Backpex.Query.search(search, Enum.map(searchable_fields, &field_ref/1))
+    |> Backpex.Query.search(search, Enum.map(searchable_fields, &search_target(&1, search)))
     |> filter_values(Map.get(assigns, :filter_values, %{}), filters, assigns)
   end
 
@@ -1048,6 +1096,13 @@ defmodule Backpex.LiveResource do
         config -> Backpex.Query.filter(query, Backpex.Filter.to_condition({name, config}, value, assigns))
       end
     end)
+  end
+
+  # The condition of `c:Backpex.Field.search_condition/3`, or the ref of the value the field shows.
+  defp search_target({_name, %{module: module}} = field, search) do
+    if is_binary(search) and Code.ensure_loaded?(module) and function_exported?(module, :search_condition, 3),
+      do: module.search_condition(field, field_ref(field), search),
+      else: field_ref(field)
   end
 
   @doc """

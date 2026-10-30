@@ -42,6 +42,22 @@ defmodule Backpex.Expr do
   matches: `expr(exists(tags, name == "elixir"))`. A path in `exists/2` may go through several relationships, e.g.
   `exists(comments.author, active == true)`.
 
+  ## Values
+
+  Expressions are values, too, e.g. the computed values of a LiveResource (see `c:Backpex.LiveResource.computed/1`): a
+  field such as `author.name`, a condition such as `likes > 0`, or a string of fields:
+
+    * `concat(parts, separator)` - joins the strings of the fields and strings in `parts` with the optional
+      `separator`, e.g. `expr(concat([first_name, last_name], " "))`. Like `concat_ws` in SQL, it leaves out `nil`.
+    * `+`, `-`, `*` and `/` - compute with numbers, e.g. `expr(likes - dislikes)`. As in SQL, the division of two
+      integers is an integer, rounded towards zero, and a value with `nil` is `nil`.
+    * `datetime_diff(left, right, unit)` - the time from the datetime `right` to the datetime `left` as an integer of
+      whole `:second`, `:minute`, `:hour` or `:day` units, rounded towards zero, e.g.
+      `expr(datetime_diff(ends_at, starts_at, :minute))`.
+    * `to_string(value)` - the value as a string, e.g. `expr(to_string(likes))`.
+
+  Comparisons take values on both sides, e.g. `expr(likes - dislikes > 10)` or `expr(concat([street, city]) != "")`.
+
   ## Keyword lists
 
   Wherever Backpex takes an expression, a keyword list stands for fields that equal values, e.g. `[published: true]` is
@@ -49,10 +65,13 @@ defmodule Backpex.Expr do
 
   ## Expressions of the adapter
 
-  An expression that only the adapter can express, e.g. a fragment of SQL, is wrapped with `native/2`. The adapter
+  An expression that only the adapter can express, e.g. a fragment of SQL, is wrapped with `native/3`. The adapter
   takes it as it is, and other adapters refuse it:
 
       Backpex.Expr.native(Backpex.Adapters.Ecto, dynamic([post], fragment("lower(?)", post.title) == ^title))
+
+  With `uses: [:author]`, a native expression reads the fields of related items. The adapter joins the relationships
+  first, see the adapter for how the expression refers to them.
 
   ## Checking and casting
 
@@ -89,7 +108,9 @@ defmodule Backpex.Expr do
     An operator or a function applied to its arguments, see `Backpex.Expr`.
 
     `name` is one of `:==`, `:!=`, `:<`, `:<=`, `:>`, `:>=`, `:in`, `:is_nil`, `:contains`, `:starts_with`,
-    `:ends_with`, `:and`, `:or` and `:not`. `opts` holds the options of a function, e.g. `ignore_case: true`.
+    `:ends_with`, `:and`, `:or`, `:not`, `:concat`, `:+`, `:-`, `:*`, `:/`, `:datetime_diff` and `:to_string`. `opts`
+    holds the options of a function, e.g. `ignore_case: true`, the `:separator` of `concat` or the `:unit` of
+    `datetime_diff`.
     """
 
     @enforce_keys [:name, :args]
@@ -112,13 +133,14 @@ defmodule Backpex.Expr do
 
   defmodule Native do
     @moduledoc """
-    An expression that only `adapter` understands, see `Backpex.Expr.native/2`.
+    An expression that only `adapter` understands, see `Backpex.Expr.native/3`. `uses` lists the paths of relationships
+    whose fields it reads.
     """
 
     @enforce_keys [:adapter, :expr]
-    defstruct adapter: nil, expr: nil
+    defstruct adapter: nil, expr: nil, uses: []
 
-    @type t :: %__MODULE__{adapter: module(), expr: term()}
+    @type t :: %__MODULE__{adapter: module(), expr: term(), uses: [[atom()]]}
   end
 
   @typedoc """
@@ -128,6 +150,8 @@ defmodule Backpex.Expr do
 
   @comparisons [:==, :!=, :<, :<=, :>, :>=]
   @string_functions [:contains, :starts_with, :ends_with]
+  @arithmetic [:+, :-, :*, :/]
+  @datetime_units [:second, :minute, :hour, :day]
 
   @doc """
   Builds an expression, see the module documentation.
@@ -142,6 +166,19 @@ defmodule Backpex.Expr do
       iex> field = :status
       iex> expr(ref(^field) in ^["open", "pending"])
       %Backpex.Expr.Call{name: :in, args: [%Backpex.Expr.Ref{path: [], name: :status}, ["open", "pending"]]}
+
+      iex> import Backpex.Expr
+      iex> expr(likes - dislikes > 10)
+      %Backpex.Expr.Call{
+        name: :>,
+        args: [
+          %Backpex.Expr.Call{
+            name: :-,
+            args: [%Backpex.Expr.Ref{path: [], name: :likes}, %Backpex.Expr.Ref{path: [], name: :dislikes}]
+          },
+          10
+        ]
+      }
 
       iex> import Backpex.Expr
       iex> expr(exists(tags, name == "elixir"))
@@ -163,6 +200,28 @@ defmodule Backpex.Expr do
 
     call(operator, args)
   end
+
+  defp build({operator, _meta, [left, right]}, caller) when operator in @arithmetic do
+    call(operator, [build(left, caller), build(right, caller)])
+  end
+
+  defp build({:-, _meta, [number]}, _caller) when is_number(number), do: -number
+
+  defp build({:datetime_diff, meta, [left, right, unit]}, caller) do
+    if unit not in @datetime_units do
+      compile_error!(caller, meta, "expected the unit of datetime_diff/3 to be one of #{inspect(@datetime_units)}")
+    end
+
+    quote do
+      %Call{
+        name: :datetime_diff,
+        args: [unquote(build(left, caller)), unquote(build(right, caller))],
+        opts: [unit: unquote(unit)]
+      }
+    end
+  end
+
+  defp build({:to_string, _meta, [value]}, caller), do: call(:to_string, [build(value, caller)])
 
   defp build({:not, _meta, [expression]}, caller), do: call(:not, [build(expression, caller)])
   defp build({:is_nil, _meta, [field]}, caller), do: call(:is_nil, [build(field, caller)])
@@ -195,6 +254,9 @@ defmodule Backpex.Expr do
     end
   end
 
+  defp build({:concat, meta, [parts]}, caller), do: build_concat(parts, "", meta, caller)
+  defp build({:concat, meta, [parts, separator]}, caller), do: build_concat(parts, separator, meta, caller)
+
   defp build({:ref, _meta, [name]}, caller), do: quote(do: Backpex.Expr.ref(unquote(build_name(name, caller))))
 
   defp build({:ref, _meta, [path, name]}, caller) do
@@ -226,6 +288,20 @@ defmodule Backpex.Expr do
 
   defp build(expression, caller), do: compile_error!(caller, [], "unsupported expression: #{show(expression)}")
 
+  defp build_concat(parts, separator, _meta, caller) when is_list(parts) do
+    quote do
+      %Call{
+        name: :concat,
+        args: unquote(build(parts, caller)),
+        opts: [separator: unquote(build(separator, caller))]
+      }
+    end
+  end
+
+  defp build_concat(parts, _separator, meta, caller) do
+    compile_error!(caller, meta, "expected a list of fields and strings in concat, got: #{show(parts)}")
+  end
+
   defp build_name({:^, _meta, [value]}, _caller), do: value
   defp build_name(name, _caller) when is_atom(name), do: name
 
@@ -248,8 +324,8 @@ defmodule Backpex.Expr do
   defp path(_expression, _names), do: :error
 
   defp supported do
-    "Expressions support ==, !=, <, <=, >, >=, in, and, or, not, is_nil/1, contains/2, starts_with/2, ends_with/2, " <>
-      "exists/2, ref/1 and ref/2, see Backpex.Expr"
+    "Expressions support ==, !=, <, <=, >, >=, in, and, or, not, +, -, *, /, is_nil/1, contains/2, starts_with/2, " <>
+      "ends_with/2, exists/2, concat/1, concat/2, datetime_diff/3, to_string/1, ref/1 and ref/2, see Backpex.Expr"
   end
 
   defp show(expression), do: Macro.to_string(expression)
@@ -318,8 +394,35 @@ defmodule Backpex.Expr do
   Wraps an expression that only `adapter` understands, see the
   [Expressions of the adapter](#module-expressions-of-the-adapter) section.
   """
-  @spec native(module(), term()) :: Native.t()
-  def native(adapter, expression) when is_atom(adapter), do: %Native{adapter: adapter, expr: expression}
+  @spec native(module(), term(), keyword()) :: Native.t()
+  def native(adapter, expression, opts \\ []) when is_atom(adapter) do
+    %Native{adapter: adapter, expr: expression, uses: opts |> Keyword.get(:uses, []) |> Enum.map(&List.wrap/1)}
+  end
+
+  @doc """
+  Returns the expression for the items at the end of `path`, e.g. a value of the related items of `[:author]` as a
+  value of the items: the paths of its refs start with `path`.
+
+      iex> import Backpex.Expr
+      iex> expr(concat([first_name, last_name], " ")) |> Backpex.Expr.prefix([:author])
+      %Backpex.Expr.Call{
+        name: :concat,
+        args: [%Backpex.Expr.Ref{path: [:author], name: :first_name}, %Backpex.Expr.Ref{path: [:author], name: :last_name}],
+        opts: [separator: " "]
+      }
+  """
+  @spec prefix(t(), [atom()]) :: t()
+  def prefix(expression, []), do: expression
+  def prefix(%Ref{path: own_path} = ref, path), do: %{ref | path: path ++ own_path}
+  def prefix(%Call{args: args} = call, path), do: %{call | args: Enum.map(args, &prefix_arg(&1, path))}
+  def prefix(%Exists{path: own_path} = exists, path), do: %{exists | path: path ++ own_path}
+
+  def prefix(%Native{} = expression, path) do
+    raise ArgumentError, "can't use the native expression #{inspect(expression)} for the items of #{inspect(path)}"
+  end
+
+  defp prefix_arg(%struct{} = expression, path) when struct in [Ref, Call, Exists, Native], do: prefix(expression, path)
+  defp prefix_arg(value, _path), do: value
 
   @doc """
   Checks the fields of the expression and casts the values compared to a field to the type of the field.
@@ -339,6 +442,7 @@ defmodule Backpex.Expr do
 
   defp cast_in(nil, _base, _describe), do: nil
   defp cast_in(%Native{} = expression, _base, _describe), do: expression
+  defp cast_in(%Ref{} = ref, base, describe), do: cast_arg(ref, base, describe)
 
   defp cast_in(%Exists{path: path, where: where} = expression, base, describe) do
     path = base ++ path
