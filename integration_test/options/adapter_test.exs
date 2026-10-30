@@ -37,7 +37,7 @@ defmodule Backpex.Integration.Options.AdapterTest do
     |> visit(~p"/admin/recording-notes")
     |> assert_has("td", text: "Listed note")
 
-    assert_received {:adapter_call, :list, RecordingNoteLive}
+    assert_received {:adapter_call, :read, RecordingNoteLive}
     assert_received {:adapter_call, :count, RecordingNoteLive}
   end
 
@@ -48,7 +48,7 @@ defmodule Backpex.Integration.Options.AdapterTest do
     |> visit(~p"/admin/recording-notes/#{note.id}/show")
     |> assert_has("dd", text: "Shown note")
 
-    assert_received {:adapter_call, :get, RecordingNoteLive}
+    assert_received {:adapter_call, :read, RecordingNoteLive}
   end
 
   test "the form view changes and inserts a new item through the adapter", %{conn: conn} do
@@ -72,7 +72,7 @@ defmodule Backpex.Integration.Options.AdapterTest do
     |> click_button("Save")
     |> assert_path(~p"/admin/recording-notes")
 
-    assert_received {:adapter_call, :get, RecordingNoteLive}
+    assert_received {:adapter_call, :read, RecordingNoteLive}
     assert_received {:adapter_call, :update, RecordingNoteLive}
     assert Repo.get!(Note, note.id).title == "New title"
   end

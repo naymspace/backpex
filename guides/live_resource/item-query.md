@@ -3,6 +3,20 @@
 It is possible to manipulate the query when fetching resources for `index`, `show` and `edit` view when using
 `Backpex.Adapters.Ecto`.
 
+> #### Scope {: .tip}
+>
+> To limit the items of a resource, e.g. to the posts of the current user, prefer the `c:Backpex.LiveResource.scope/1`
+> callback. It returns an expression (see `Backpex.Expr`) and works with every adapter:
+>
+> ```elixir
+> import Backpex.Expr
+>
+> @impl Backpex.LiveResource
+> def scope(assigns), do: expr(user_id == ^assigns.current_user.id)
+> ```
+>
+> Use `item_query` for what only an Ecto query can do, e.g. joins.
+
 In all queries we define a `from` query with a named binding to fetch all existing resources on `index` view or a specific resource on `show` / `edit` view.
 After that, we call the `item_query` function. By default it returns the incoming query.
 

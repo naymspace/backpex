@@ -224,8 +224,8 @@ defmodule Backpex.LiveResource do
   Enforcement is strict: a single unauthorized item in a selection raises `Backpex.ForbiddenError`
   instead of silently dropping that item.
 
-  Read operations (`:index`, `:show`) are enforced in the view layer only. `Backpex.Resource.list/4`,
-  `Backpex.Resource.get/4` and `Backpex.Resource.count/4` do not call this callback.
+  Read operations (`:index`, `:show`) are enforced in the view layer only. `Backpex.Resource.read/1`,
+  `Backpex.Resource.get/4` and `Backpex.Resource.count/1` do not call this callback.
 
   Return a boolean. Only `true` allows; `false` and `nil` deny, and any other value raises an
   `ArgumentError` instead of passing as truthy.
@@ -253,6 +253,20 @@ defmodule Backpex.LiveResource do
   """
   @callback render_resource_slot(assigns :: map(), action :: atom(), position :: atom()) ::
               %Rendered{}
+
+  @doc """
+  Returns an expression that every item of the resource matches, or `nil` for all items, e.g. to show the posts of the
+  current user only. See `Backpex.Expr`.
+
+  Backpex adds it to every query of the items: the index view, its count and metrics, the show and edit views, and the
+  items item actions are applied to. Unlike the `:item_query` of `Backpex.Adapters.Ecto`, it works with every adapter.
+
+      import Backpex.Expr
+
+      @impl Backpex.LiveResource
+      def scope(assigns), do: expr(user_id == ^assigns.current_user.id)
+  """
+  @callback scope(assigns :: map()) :: Backpex.Expr.t() | keyword() | nil
 
   @doc """
   A optional keyword list of [filters](Backpex.Filter.html) to be used on the index view.
@@ -439,6 +453,9 @@ defmodule Backpex.LiveResource do
       def fields, do: []
 
       @impl Backpex.LiveResource
+      def scope(_assigns), do: nil
+
+      @impl Backpex.LiveResource
       def filters, do: []
 
       @impl Backpex.LiveResource
@@ -468,6 +485,7 @@ defmodule Backpex.LiveResource do
 
       defoverridable can?: 3,
                      fields: 0,
+                     scope: 1,
                      filters: 0,
                      filters: 1,
                      layout: 1,
@@ -963,48 +981,89 @@ defmodule Backpex.LiveResource do
   def orderable?({_name, field_options}), do: Map.get(field_options, :orderable, true)
 
   @doc """
-  Builds the criteria of the index view from its assigns: the order, the page, the search and the active filters.
+  Builds the query of the index view from its assigns: the items of the resource (see `Backpex.Resource.items_query/3`)
+  that match the search and the active filters, in the current order, on the current page. See `Backpex.Query`.
 
-  `Backpex.Resource.list/4` takes them. Without `:pagination`, e.g. for an export, they select all items of the current
-  search and filters in the current order.
+  The query has the fields of the index view of the LiveResource, so it also works with the assigns of item actions and
+  resource actions, which have fields of their own, e.g. for an export. Remove the page with
+  `Backpex.Query.unset(query, [:limit, :offset])` to export all items of the current search and filters, or the order
+  with `:sort` and `:default_sort` to count them.
   """
-  def build_criteria(assigns) do
+  @spec index_query(map()) :: Backpex.Query.t()
+  def index_query(%{live_resource: live_resource} = assigns),
+    do: index_query(assigns, live_resource.fields(:index, assigns))
+
+  @doc """
+  Same as `index_query/1` with the given fields of the index view, e.g. the `:fields` of its assigns.
+  """
+  @spec index_query(map(), list()) :: Backpex.Query.t()
+  def index_query(assigns, fields) do
     %{
       live_resource: live_resource,
-      filters: filters,
       query_options: query_options,
-      init_order: init_order,
-      fields: fields
+      init_order: init_order
     } = assigns
 
-    # Get validated filter values from assigns, falling back to empty map
-    filter_values = Map.get(assigns, :filter_values, %{})
-
     field = Enum.find(fields, fn {name, _field_options} -> name == query_options.order_by end)
+    %{page: page, per_page: per_page} = query_options
 
-    order =
-      if orderable?(field) do
-        {field_name, field_options} = field
+    query =
+      fields
+      |> Resource.items_query(assigns, live_resource)
+      |> filter_query(Map.put(assigns, :fields, fields))
+      |> Backpex.Query.limit(per_page)
+      |> Backpex.Query.offset((page - 1) * per_page)
 
-        %{
-          by: field_options.module.display_field(field),
-          direction: query_options.order_direction,
-          field_name: field_name,
-          nulls: order_nulls(live_resource, field_options)
-        }
-      else
-        init_order
-        |> resolve_init_order(assigns)
-        |> Map.merge(%{field_name: nil, nulls: order_nulls(live_resource, %{})})
+    if orderable?(field) do
+      {_name, field_options} = field
+      direction = Backpex.Query.direction(query_options.order_direction, order_nulls(live_resource, field_options))
+
+      Backpex.Query.sort(query, [{field_ref(field), direction}])
+    else
+      %{by: by, direction: direction} = resolve_init_order(init_order, assigns)
+      direction = Backpex.Query.direction(direction, order_nulls(live_resource, %{}))
+
+      Backpex.Query.default_sort(query, [{by, direction}])
+    end
+  end
+
+  @doc """
+  Adds the search and the active filters of the index view to the query, e.g. to count the items of the index view.
+  """
+  @spec filter_query(Backpex.Query.t(), map()) :: Backpex.Query.t()
+  def filter_query(query, assigns) do
+    %{query_options: query_options, fields: fields} = assigns
+    {search, searchable_fields} = search_options(query_options, fields)
+    filters = Map.get(assigns, :filters, [])
+
+    query
+    |> Backpex.Query.search(search, Enum.map(searchable_fields, &field_ref/1))
+    |> filter_values(Map.get(assigns, :filter_values, %{}), filters, assigns)
+  end
+
+  defp filter_values(query, filter_values, filters, assigns) do
+    Enum.reduce(filter_values, query, fn {name, value}, query ->
+      case Keyword.get(filters, name) do
+        nil -> query
+        config -> Backpex.Query.filter(query, Backpex.Filter.to_condition({name, config}, value, assigns))
       end
+    end)
+  end
 
-    [
-      order: order,
-      pagination: %{page: query_options.page, size: query_options.per_page},
-      search: search_options(query_options, fields),
-      filter_values: filter_values,
-      filter_configs: filters
-    ]
+  @doc """
+  Returns the `Backpex.Expr.Ref` of the value a field shows, which the index view sorts and searches by: the field
+  itself, or the display field of the related items of an association field.
+  """
+  @spec field_ref({atom(), map()}) :: Backpex.Expr.Ref.t()
+  def field_ref({name, %{module: module} = field_options} = field) do
+    display_field =
+      if Code.ensure_loaded?(module) and function_exported?(module, :display_field, 1),
+        do: module.display_field(field) || name,
+        else: Map.get(field_options, :display_field, name)
+
+    if function_exported?(module, :association?, 1) and module.association?(field),
+      do: Backpex.Expr.ref([name], display_field),
+      else: Backpex.Expr.ref(display_field)
   end
 
   defp order_nulls(live_resource, field_options) do

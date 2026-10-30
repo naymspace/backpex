@@ -19,10 +19,25 @@ defmodule Backpex.Fields.HasMany do
       type: :boolean,
       default: true
     ],
+    options_filter: [
+      doc: """
+      An expression that the options match, see `Backpex.Expr`, or a function that receives the assigns and returns
+      one. Its fields are fields of the related items. Works with every adapter, e.g.
+      `fn assigns -> expr(team_id == ^assigns.current_user.team_id) end`.
+      """,
+      type: {:or, [{:fun, 1}, :any]}
+    ],
+    options_sort: [
+      doc: """
+      The order of the options, like `Backpex.Query.sort/2`, e.g. `[name: :asc]`, or a function that receives the assigns
+      and returns it. Its fields are fields of the related items. Works with every adapter.
+      """,
+      type: {:or, [{:fun, 1}, {:list, :any}]}
+    ],
     options_query: [
       doc: """
-      Manipulates the list of available options in the multi select. Receives the query of the adapter, an
-      `Ecto.Query` for `Backpex.Adapters.Ecto`, and the assigns, and returns a query.
+      Only for `Backpex.Adapters.Ecto`: manipulates the list of available options in the multi select. Receives the
+      `Ecto.Query` and the assigns, and returns a query.
 
       Defaults to `fn query, _assigns -> query end` which returns all entries.
       """,
