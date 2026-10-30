@@ -482,14 +482,17 @@ defmodule Backpex.Adapters.Ecto do
   Updates given items.
   """
   @impl Backpex.Adapter
-  def update_all(items, updates, live_resource) do
+  def update_all(items, changes, live_resource) do
     repo = live_resource.adapter_config(:repo)
     schema = live_resource.adapter_config(:schema)
     primary_key = live_resource.config(:primary_key)
 
-    schema
-    |> where([i], field(i, ^primary_key) in ^Enum.map(items, &Map.get(&1, primary_key)))
-    |> repo.update_all(updates)
+    {count, _items} =
+      schema
+      |> where([i], field(i, ^primary_key) in ^Enum.map(items, &Map.get(&1, primary_key)))
+      |> repo.update_all(set: Map.to_list(changes))
+
+    {:ok, count}
   end
 
   @doc """

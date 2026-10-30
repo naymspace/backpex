@@ -57,10 +57,31 @@ defmodule Backpex.Authorization do
 
   Only `true` allows. `false` and `nil` deny, and any other return value raises an `ArgumentError`:
   a policy result such as `{:error, :unauthorized}` is truthy and must never pass as permission.
+
+  `:new`, `:edit` and `:delete` are also denied, without calling `c:Backpex.LiveResource.can?/3`, if the adapter of
+  the LiveResource doesn't support `:insert`, `:update` or `:delete`, see `c:Backpex.Adapter.supports?/2`. So the
+  views hide the actions a read-only data source can't run.
   """
   @spec can?(module(), map(), atom(), map() | nil) :: boolean()
   def can?(live_resource, assigns, action, item)
       when is_atom(live_resource) and is_map(assigns) and not is_struct(assigns) and is_atom(action) do
+    adapter_supports?(live_resource, action) and permitted?(live_resource, assigns, action, item)
+  end
+
+  # The actions that write, and the feature of the adapter they need, see `c:Backpex.Adapter.supports?/2`.
+  @writes %{new: :insert, edit: :update, delete: :delete}
+
+  defp adapter_supports?(live_resource, action) do
+    with {:ok, feature} <- Map.fetch(@writes, action),
+         adapter = live_resource.config(:adapter),
+         true <- Code.ensure_loaded?(adapter) and function_exported?(adapter, :supports?, 2) do
+      adapter.supports?(live_resource, feature)
+    else
+      _no_write_or_no_supports -> true
+    end
+  end
+
+  defp permitted?(live_resource, assigns, action, item) do
     case live_resource.can?(assigns, action, item) do
       true ->
         true

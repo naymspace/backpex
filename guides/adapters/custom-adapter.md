@@ -12,7 +12,8 @@ items in memory with `Backpex.Query.apply_to/2`. So the smallest adapter only re
 
 The adapter below shows the rows of a CSV file. It describes the items with an `Ecto.Schema`, so Backpex can cast the
 values of filters and the forms could build changesets, and returns all rows from `c:Backpex.Adapter.read/1`. It
-supports no part of the query, so Backpex filters, searches, sorts and paginates the rows itself.
+supports no part of the query, so Backpex filters, searches, sorts and paginates the rows itself. It doesn't support
+writes either, so Backpex hides the actions to create, edit and delete rows and refuses them.
 
 ```elixir
 defmodule MyApp.CsvAdapter do
@@ -68,7 +69,7 @@ defmodule MyApp.CsvAdapter do
   def update(_changeset, _live_resource), do: {:error, :read_only}
 
   @impl Backpex.Adapter
-  def update_all(_items, _updates, _live_resource), do: {:error, :read_only}
+  def update_all(_items, _changes, _live_resource), do: {:error, :read_only}
 
   @impl Backpex.Adapter
   def delete_all(_items, _live_resource), do: {:error, :read_only}
@@ -92,7 +93,7 @@ defmodule MyApp.Country do
 end
 ```
 
-Use the adapter in a LiveResource and deny the actions that write:
+Use the adapter in a LiveResource:
 
 ```elixir
 defmodule MyAppWeb.CountryLive do
@@ -101,20 +102,27 @@ defmodule MyAppWeb.CountryLive do
     adapter_config: [path: "priv/countries.csv", schema: MyApp.Country],
     primary_key: :code
 
-  @impl Backpex.LiveResource
-  def can?(_assigns, action, _item), do: action in [:index, :show]
-
   # ...
 end
 ```
+
+The write callbacks only return errors, as Backpex never calls them: `Backpex.Authorization` denies the `:new`,
+`:edit` and `:delete` actions for an adapter that doesn't support `:insert`, `:update` and `:delete`.
 
 ## Running parts of the query
 
 To run parts of the query in the data source, e.g. a filter in the query string of an HTTP API, list them in the
 `:supports` option of `use Backpex.Adapter` or implement `c:Backpex.Adapter.supports?/2`. Backpex then leaves them to
 the adapter: `:filter` (with `{:filter, operator}` for single operators such as `:contains` or `:exists`), `:search`,
-`:sort`, `:offset`, `:limit`, `:load`, `:count` and `:aggregate`. A part the adapter doesn't support, and every part that
+`:sort`, `:offset`, `:limit`, `:load`, `:count` and `:aggregate`. `:insert`, `:update` and `:delete` enable the writes. A part the adapter doesn't support, and every part that
 depends on it, is applied in memory. For example, an adapter that sorts but can't filter gets a query without the
 filter and the sort, as the items have to be filtered before they are sorted.
+
+## Writing items
+
+Forms are built from an `Ecto.Changeset` for every data source: `c:Backpex.Adapter.change/6` returns one, e.g. from an
+embedded schema, and `c:Backpex.Adapter.insert/2` and `c:Backpex.Adapter.update/2` write the item it describes.
+`c:Backpex.Adapter.update_all/3` sets fields to values in many items, e.g. `%{deleted_at: now}`, and
+`c:Backpex.Adapter.delete_all/2` deletes items.
 
 See `Backpex.Adapters.Memory` for an adapter that keeps items in memory and writes them, too.
