@@ -19,9 +19,19 @@ When the user wants to add a filter:
 | Select | Single-value dropdown | `Backpex.Filters.Select` | `prompt/0`, `options/1` returning `{label, value}` tuples |
 | MultiSelect | Multi-value dropdown with checkboxes | `Backpex.Filters.MultiSelect` | `prompt/0`, `options/1` returning `{label, value}` tuples |
 | Range | Date, datetime, or number ranges | `Backpex.Filters.Range` | `type/0` returning `:date`, `:datetime`, or `:number` |
-| Custom | Anything else | `Backpex.Filter` | `query/4`, `render/1`, `render_form/1` |
+| Custom | Anything else | `Backpex.Filter` | `condition/3`, `render/1`, `render_form/1` |
 
-All built-in filters auto-implement `query/4`, `render/1`, and `render_form/1`. Do NOT re-implement those unless you need custom behavior.
+All built-in filters auto-implement `condition/3`, `render/1`, and `render_form/1`. Do NOT re-implement those unless you need custom behavior.
+
+Filters don't build queries. `condition/3` returns an expression built with `Backpex.Expr.expr/1` (imported by `use Backpex.Filter`) that the adapter turns into a query, or `nil` to keep all items:
+
+- Comparisons: `expr(ref(^field) == ^value)`, also `!=`, `<`, `<=`, `>`, `>=`; `ref(^field)` is the filtered field, `^` pins Elixir values, a bare name is another field (`expr(status == "open")`)
+- `in`, `is_nil/1`, `not`, `and`, `or`: `expr(ref(^field) in ^values or is_nil(ref(^field)))`
+- Strings: `contains/2`, `starts_with/2`, `ends_with/2`, with `ignore_case: true` as third argument
+- Related items: a path through to-one relationships (`expr(author.name == ^name)`), `exists/2` for to-many (`expr(exists(tags, id in ^ids))`)
+- `Backpex.Expr.all/1` and `any/1` combine expressions and drop `nil`; a keyword list such as `[published: true]` stands for equal fields
+
+The adapter casts values to the type of the field. `Backpex.Expr.native(Backpex.Adapters.Ecto, dynamic(...))` wraps an expression only the Ecto adapter understands.
 
 All filters have these overridable callbacks with defaults:
 - `label/0`: filter label (optional callback, can also be set in `filters/0` map)
@@ -32,13 +42,11 @@ All filters have these overridable callbacks with defaults:
 
 ## Boolean Filter
 
-Multiple options selectable via checkboxes, combined with OR. Predicates use `Ecto.Query.dynamic/2`.
+Multiple options selectable via checkboxes, combined with OR. Predicates are expressions.
 
 ```elixir
 defmodule MyAppWeb.Filters.PostPublished do
   use Backpex.Filters.Boolean
-
-  import Ecto.Query
 
   @impl Backpex.Filter
   def label, do: "Published?"
@@ -46,8 +54,8 @@ defmodule MyAppWeb.Filters.PostPublished do
   @impl Backpex.Filters.Boolean
   def options(_assigns) do
     [
-      %{label: "Published", key: "published", predicate: dynamic([x], x.published)},
-      %{label: "Not published", key: "not_published", predicate: dynamic([x], not x.published)}
+      %{label: "Published", key: "published", predicate: expr(published == true)},
+      %{label: "Not published", key: "not_published", predicate: expr(published == false)}
     ]
   end
 end
@@ -55,7 +63,7 @@ end
 
 ## Select Filter
 
-Single-value dropdown. Default `query/4` does `WHERE field = value`.
+Single-value dropdown. Default `condition/3` returns `expr(ref(^field) == ^value)`.
 
 ```elixir
 defmodule MyAppWeb.Filters.PostCategorySelect do
@@ -80,7 +88,7 @@ end
 
 ## MultiSelect Filter
 
-Same as Select but allows multiple values. Default `query/4` does `WHERE field IN values`. Uses `prompt/0` (implement with `@impl Backpex.Filters.Select`) and `options/1` (implement with `@impl Backpex.Filters.MultiSelect`). Note: MultiSelect internally sets `@behaviour Backpex.Filters.Select` for the prompt callback.
+Same as Select but allows multiple values. Default `condition/3` returns `expr(ref(^field) in ^values)`. Uses `prompt/0` (implement with `@impl Backpex.Filters.Select`) and `options/1` (implement with `@impl Backpex.Filters.MultiSelect`). Note: MultiSelect internally sets `@behaviour Backpex.Filters.Select` for the prompt callback.
 
 ## Range Filter
 
@@ -102,22 +110,18 @@ For dates use `def type, do: :date`. For datetimes use `def type, do: :datetime`
 
 ## Custom Filter
 
-Use `Backpex.Filter` directly when no built-in type fits. You must implement `query/4`, `render/1`, and `render_form/1`. Note: `use Backpex.Filter` does not import HEEx sigils. You need `use Phoenix.Component` for `~H` support.
+Use `Backpex.Filter` directly when no built-in type fits. You must implement `condition/3`, `render/1`, and `render_form/1`. Note: `use Backpex.Filter` does not import HEEx sigils. You need `use Phoenix.Component` for `~H` support.
 
 ```elixir
 defmodule MyAppWeb.Filters.PostCustom do
   use Phoenix.Component
   use Backpex.Filter
 
-  import Ecto.Query
-
   @impl Backpex.Filter
   def label, do: "Custom"
 
   @impl Backpex.Filter
-  def query(query, attribute, value, _assigns) do
-    where(query, [x], field(x, ^attribute) == ^value)
-  end
+  def condition(field, value, _assigns), do: expr(ref(^field) == ^value)
 
   @impl Backpex.Filter
   def render(assigns) do
@@ -130,6 +134,26 @@ defmodule MyAppWeb.Filters.PostCustom do
     <input type="text" name={@form[@field].name} value={@value} class="input input-sm" />
     """
   end
+end
+```
+
+### Related items and Ecto-only expressions
+
+A filter never joins, selects distinct items or otherwise changes the query; the adapter owns joins, order and pagination. To filter by an association (e.g. posts with one of the selected tags), use `exists/2`:
+
+```elixir
+@impl Backpex.Filter
+def condition(_field, tag_ids, _assigns), do: expr(exists(tags, id in ^tag_ids))
+```
+
+If a filter needs a fragment of SQL, wrap an `Ecto.Query.dynamic/2` expression with `Backpex.Expr.native/2`. The filter then only works with `Backpex.Adapters.Ecto`.
+
+```elixir
+import Ecto.Query
+
+@impl Backpex.Filter
+def condition(field, value, _assigns) do
+  Backpex.Expr.native(Backpex.Adapters.Ecto, dynamic([x], fragment("lower(?)", field(x, ^field)) == ^value))
 end
 ```
 
@@ -174,5 +198,6 @@ end
 - **Module naming**: `MyAppWeb.Filters.<Resource><FilterName>` (e.g. `MyAppWeb.Filters.PostPublished`)
 - **File location**: `lib/my_app_web/filters/<snake_case_name>.ex`
 - **The keyword list key** in `filters/0` must match the database column or foreign key
-- **Always `import Ecto.Query`** when using `dynamic/2` or writing custom queries
+- **Prefer `expr/1`** over native Ecto expressions; expressions work with every adapter
+- **`import Ecto.Query` yourself** when a filter builds queries, e.g. in `options/1`. The built-in filters don't import it
 - **Database queries in `options/1`** are fine since it runs at render time

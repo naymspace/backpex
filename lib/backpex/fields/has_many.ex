@@ -21,9 +21,10 @@ defmodule Backpex.Fields.HasMany do
     ],
     options_query: [
       doc: """
-      Manipulates the list of available options in the multi select.
+      Manipulates the list of available options in the multi select. Receives the query of the adapter, an
+      `Ecto.Query` for `Backpex.Adapters.Ecto`, and the assigns, and returns a query.
 
-      Defaults to `fn (query, _field) -> query end` which returns all entries.
+      Defaults to `fn query, _assigns -> query end` which returns all entries.
       """,
       type: {:fun, 2}
     ],
@@ -70,7 +71,7 @@ defmodule Backpex.Fields.HasMany do
           module: Backpex.Fields.HasMany,
           label: "Posts",
           display_field: :title,
-          options_query: &where(&1, [user], user.role == :admin),
+          options_query: fn query, _assigns -> where(query, [post], post.published) end,
           live_resource: DemoWeb.PostLive
         }
       ]
@@ -376,7 +377,7 @@ defmodule Backpex.Fields.HasMany do
   def association?(_field), do: true
 
   @impl Backpex.Field
-  def before_changeset(changeset, attrs, _metadata, _repo, field, assigns) do
+  def before_changeset(changeset, attrs, _metadata, field, assigns) do
     {field_name, field_options} = field
     validate_live_resource(field_name, field_options)
 

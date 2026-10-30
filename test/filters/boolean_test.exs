@@ -1,160 +1,68 @@
 defmodule Backpex.Filters.BooleanTest do
   use ExUnit.Case, async: true
 
-  import Ecto.Query
+  import Backpex.Expr, only: [expr: 1]
 
   alias Backpex.Filters.Boolean, as: BooleanFilter
 
   doctest BooleanFilter
 
-  defmodule TestItem do
-    use Ecto.Schema
+  defmodule OwnerFilter do
+    use Backpex.Filters.Boolean
 
-    @primary_key {:id, :id, autogenerate: false}
-    schema "items" do
-      field :published, :boolean
-      field :featured, :boolean
-      field :status, :string
-    end
+    @impl Backpex.Filter
+    def label, do: "Owner"
+
+    @impl Backpex.Filters.Boolean
+    def options(assigns), do: [%{label: "Mine", key: "mine", predicate: expr(user_id == ^assigns.user_id)}]
   end
 
   defp test_options do
     [
-      %{
-        label: "Published",
-        key: "published",
-        predicate: dynamic([x], x.published == true)
-      },
-      %{
-        label: "Not published",
-        key: "not_published",
-        predicate: dynamic([x], x.published == false)
-      },
-      %{
-        label: "Featured",
-        key: "featured",
-        predicate: dynamic([x], x.featured == true)
-      }
+      %{label: "Published", key: "published", predicate: expr(published == true)},
+      %{label: "Not published", key: "not_published", predicate: expr(published == false)},
+      %{label: "Featured", key: "featured", predicate: expr(featured == true)}
     ]
   end
 
-  defp atom_key_options do
-    [
-      %{label: "Published", key: :published, predicate: dynamic([x], x.published == true)},
-      %{label: "Featured", key: :featured, predicate: dynamic([x], x.featured == true)}
-    ]
-  end
-
-  defp mixed_key_options do
-    [
-      %{label: "Published", key: :published, predicate: dynamic([x], x.published == true)},
-      %{label: "Featured", key: "featured", predicate: dynamic([x], x.featured == true)}
-    ]
-  end
-
-  describe "query/5" do
-    test "returns original query when value is empty list" do
-      base_query = from(TestItem)
-
-      query = BooleanFilter.query(base_query, test_options(), :published, [], %{})
-
-      assert query == base_query
+  describe "condition/4" do
+    test "returns nil when no option is selected" do
+      assert BooleanFilter.condition(test_options(), :published, [], %{}) == nil
     end
 
-    test "applies single predicate when one option is selected" do
-      base_query = from(TestItem)
-
-      query = BooleanFilter.query(base_query, test_options(), :published, ["published"], %{})
-
-      assert [%{expr: where_expr}] = query.wheres
-      assert match?({:==, _, _}, where_expr)
+    test "returns the predicate of a single selected option" do
+      assert BooleanFilter.condition(test_options(), :published, ["published"], %{}) == expr(published == true)
     end
 
-    test "applies OR of predicates when multiple options are selected" do
-      base_query = from(TestItem)
+    test "combines the predicates of several selected options with :or" do
+      keys = ["published", "not_published", "featured"]
 
-      query = BooleanFilter.query(base_query, test_options(), :published, ["published", "featured"], %{})
-
-      assert [%{expr: where_expr}] = query.wheres
-      assert match?({:or, _, _}, where_expr)
+      assert BooleanFilter.condition(test_options(), :published, keys, %{}) ==
+               expr(published == true or published == false or featured == true)
     end
 
-    test "applies OR of all predicates when all options are selected" do
-      base_query = from(TestItem)
+    test "finds the predicates of options with atom keys" do
+      options = [
+        %{label: "Published", key: :published, predicate: expr(published == true)},
+        %{label: "Featured", key: :featured, predicate: expr(featured == true)}
+      ]
 
-      query =
-        BooleanFilter.query(
-          base_query,
-          test_options(),
-          :published,
-          ["published", "not_published", "featured"],
-          %{}
-        )
+      assert BooleanFilter.condition(options, :status, ["published"], %{}) == expr(published == true)
 
-      assert [%{expr: where_expr}] = query.wheres
-      assert match?({:or, _, _}, where_expr)
-    end
-
-    test "applies predicate of an option with an atom key" do
-      base_query = from(TestItem)
-
-      query = BooleanFilter.query(base_query, atom_key_options(), :published, ["published"], %{})
-
-      assert inspect(query) =~ "where: t0.published == true"
-    end
-
-    test "applies OR of predicates of options with atom keys" do
-      base_query = from(TestItem)
-
-      query = BooleanFilter.query(base_query, atom_key_options(), :published, ["published", "featured"], %{})
-
-      assert inspect(query) =~ "where: t0.published == true or t0.featured == true"
-    end
-
-    test "applies OR of predicates of options with mixed atom and string keys" do
-      base_query = from(TestItem)
-
-      query = BooleanFilter.query(base_query, mixed_key_options(), :published, ["published", "featured"], %{})
-      assert inspect(query) =~ "where: t0.published == true or t0.featured == true"
-
-      query = BooleanFilter.query(base_query, mixed_key_options(), :published, ["featured", "published"], %{})
-      assert inspect(query) =~ "where: t0.featured == true or t0.published == true"
+      assert BooleanFilter.condition(options, :status, ["published", "featured"], %{}) ==
+               expr(published == true or featured == true)
     end
 
     test "ignores selected keys without an option" do
-      base_query = from(TestItem)
-
-      query = BooleanFilter.query(base_query, test_options(), :published, ["featured", "unknown"], %{})
-
-      assert [%{params: []}] = query.wheres
-      assert inspect(query) =~ "where: t0.featured == true"
+      assert BooleanFilter.condition(test_options(), :published, ["featured", "unknown"], %{}) == expr(featured == true)
     end
 
-    test "returns original query when no selected key has an option" do
-      base_query = from(TestItem)
-
-      query = BooleanFilter.query(base_query, test_options(), :published, ["unknown", "other"], %{})
-
-      assert query == base_query
-    end
-  end
-
-  describe "maybe_query/2" do
-    test "returns original query when predicates is nil" do
-      base_query = from(TestItem)
-
-      query = BooleanFilter.maybe_query(nil, base_query)
-
-      assert query == base_query
+    test "returns nil when no selected key has an option" do
+      assert BooleanFilter.condition(test_options(), :published, ["unknown", "other"], %{}) == nil
     end
 
-    test "applies where clause when predicates are provided" do
-      base_query = from(TestItem)
-      predicate = dynamic([x], x.published == true)
-
-      query = BooleanFilter.maybe_query(predicate, base_query)
-
-      assert [%{expr: _where_expr}] = query.wheres
+    test "is the condition of a filter module, with the options for the assigns" do
+      assert OwnerFilter.condition(:owner, ["mine"], %{user_id: 1}) == expr(user_id == 1)
     end
   end
 

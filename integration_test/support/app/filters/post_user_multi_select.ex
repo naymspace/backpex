@@ -3,6 +3,8 @@ defmodule Backpex.Test.Filters.PostUserMultiSelect do
 
   use Backpex.Filters.MultiSelect
 
+  import Ecto.Query
+
   alias Backpex.Filters.Select
   alias Backpex.Test.Post
   alias Backpex.Test.Repo

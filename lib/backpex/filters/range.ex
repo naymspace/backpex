@@ -16,15 +16,17 @@ defmodule Backpex.Filters.Range do
 
   > #### Information {: .info}
   >
-  > Note that the query function is already implemented via `Backpex.Filters.Range`.
+  > Note that the condition is already implemented via `Backpex.Filters.Range`.
 
   > #### `use Backpex.Filters.Range` {: .info}
   >
   > When you `use Backpex.Filters.Range`, the `Backpex.Filters.Range` module will set `@behavior Backpex.Filters.Range`.
   > In addition it will add a `render` and `render_form` function in order to display the corresponding filter.
-  > It will also implement the `Backpex.Filter.query` function to define a range query.
+  > It will also implement the `c:Backpex.Filter.condition/3` callback to keep the items whose field is within the range.
   """
   use BackpexWeb, :filter
+
+  import Backpex.Expr, only: [expr: 1]
 
   require Backpex
 
@@ -51,8 +53,8 @@ defmodule Backpex.Filters.Range do
       end
 
       @impl Backpex.Filter
-      def query(query, attribute, params, assigns) do
-        RangeFilter.query(query, type(), attribute, params, assigns)
+      def condition(field, value, assigns) do
+        RangeFilter.condition(type(), field, value, assigns)
       end
 
       @impl Backpex.Filter
@@ -67,7 +69,7 @@ defmodule Backpex.Filters.Range do
         Backpex.Filters.Range.render_form(assigns)
       end
 
-      defoverridable type: 1, changeset: 3, query: 4, render: 1, render_form: 1
+      defoverridable type: 1, changeset: 3, condition: 3, render: 1, render_form: 1
     end
   end
 
@@ -148,11 +150,9 @@ defmodule Backpex.Filters.Range do
     LiveResource's schema (see below)
   - Start is not greater than end when both are provided
 
-  Pass the socket `assigns` to make the validation aware of the field's type: for a
-  `:number` filter on a field the schema (`adapter_config(:schema)` of
-  `assigns.live_resource`) declares as `:integer` or `:id`, decimal values such as
-  `"1.5"` are invalid. Without `assigns`, or if the type cannot be determined, any
-  number is valid.
+  Pass the socket `assigns` to make the validation aware of the field's type: for a `:number` filter on a field whose
+  type is `:integer` or `:id` (see `Backpex.Resource.field_type/2`), decimal values such as `"1.5"` are invalid.
+  Without `assigns`, or if the adapter doesn't know the type, any number is valid.
 
   A start or end value that is neither a string, a number nor a `Date`, e.g. a nested map from the URL, is a cast
   error: the `:map` type accepts it, but it does not have the shape of a range.
@@ -242,30 +242,38 @@ defmodule Backpex.Filters.Range do
     compare_values(:date, start_date, end_date)
   end
 
-  def query(query, type, attribute, %{"start" => start_at, "end" => end_at}, assigns) do
-    parse_type = parse_type(type, attribute, assigns)
+  @doc """
+  Returns the expression that keeps the items whose field is within the range, or `nil` if the range has no valid
+  boundary. See `maybe_parse_range/3` for how the boundaries are parsed. On an integer field, see `changeset/4`, the
+  boundaries of a `:number` range are parsed as integers.
 
-    {parse(parse_type, start_at), parse(parse_type, end_at, true)}
-    |> do_query(query, attribute)
+  ## Examples
+
+      iex> import Backpex.Expr
+      iex> Backpex.Filters.Range.condition(:number, :likes, %{"start" => "10", "end" => ""}, %{}) == expr(likes >= 10)
+      true
+      iex> Backpex.Filters.Range.condition(:number, :likes, %{"start" => "", "end" => "100"}, %{}) == expr(likes <= 100)
+      true
+      iex> Backpex.Filters.Range.condition(:date, :begins_at, %{"start" => "2024-01-01", "end" => "2024-12-31"}, %{}) ==
+      ...>   expr(begins_at >= "2024-01-01" and begins_at <= "2024-12-31")
+      true
+      iex> Backpex.Filters.Range.condition(:number, :likes, %{"start" => "", "end" => ""}, %{})
+      nil
+
+  """
+  def condition(type, field, %{"start" => start_at, "end" => end_at}, assigns) do
+    parse_type = parse_type(type, field, assigns)
+
+    start_at = parse(parse_type, start_at)
+    end_at = parse(parse_type, end_at, true)
+
+    Backpex.Expr.all([
+      start_at && expr(ref(^field) >= ^start_at),
+      end_at && expr(ref(^field) <= ^end_at)
+    ])
   end
 
-  def query(query, _type, _attribute, _params, _assigns) do
-    query
-  end
-
-  def do_query({nil, nil}, query, _attribute), do: query
-
-  def do_query({start_at, nil}, query, attribute) do
-    where(query, [x], field(x, ^attribute) >= ^start_at)
-  end
-
-  def do_query({nil, end_at}, query, attribute) do
-    where(query, [x], field(x, ^attribute) <= ^end_at)
-  end
-
-  def do_query({start_at, end_at}, query, attribute) do
-    where(query, [x], field(x, ^attribute) >= ^start_at and field(x, ^attribute) <= ^end_at)
-  end
+  def condition(_type, _field, _value, _assigns), do: nil
 
   @doc """
   Parses both start and end values for a range filter.

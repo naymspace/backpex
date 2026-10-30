@@ -6,43 +6,88 @@ defmodule Backpex.Metric do
   An example could be to show the current total of all orders received today. You may create your own metrics by
   implementing this behaviour.
 
+  ## Aggregates
+
+  A metric doesn't query its data itself. The adapter of the LiveResource computes it from the items on the index view,
+  after search and filters, with these options of the metric:
+
+    * `:aggregate` - `:count` for the number of items, or a tuple of `:count`, `:sum`, `:avg`, `:min` or `:max` and the
+      name of a field, e.g. `{:sum, :quantity}`.
+    * `:where` - an optional expression that limits the items, e.g. `[published: true]` or `expr(likes > 10)`. See
+      `Backpex.Expr`.
+
+  `Backpex.Adapters.Ecto` also takes a `:select` expression instead of an aggregate.
+
   ## Data of your own
 
-  By default, Backpex passes the query of the index view, after search and filters, to `c:query/3`. A metric module
-  that gets its data in another way, e.g. from a function of your context module, implements `c:data/2` instead.
-  Backpex then calls it with the metric and the assigns of the index view, so the metric can read the values of the
-  active filters from `:filter_values` and anything else the LiveView assigns, e.g. the current user:
+  A metric module that gets its data in another way, e.g. from a function of your context module, implements `c:data/3`.
+  Backpex then calls it instead of the adapter, with the criteria of the index view: the search under `:search`, and the
+  validated values and the configurations of the active filters under `:filter_values` and `:filter_configs`. These are
+  the criteria the adapter would compute the aggregate for.
+
+  The criteria don't limit the data by themselves. To get the items of the index view, after the `item_query` of
+  `Backpex.Adapters.Ecto`, the search and the filters, pass them to `Backpex.Resource.list/4` or
+  `Backpex.Resource.count/4`:
 
       @impl Backpex.Metric
-      def data(_metric, assigns), do: MyApp.Absences.vacation_balance(assigns.current_user, assigns.filter_values)
+      def data(_metric, criteria, assigns) do
+        {:ok, items} = Backpex.Resource.list(criteria, assigns.fields, assigns, assigns.live_resource)
+
+        items |> Enum.map(&MyApp.Orders.total/1) |> Enum.sum()
+      end
+
+  A metric that reads its data elsewhere has to limit it itself, e.g. with the search string from `criteria[:search]`,
+  the values of the filters from `criteria[:filter_values]` and the current user from the assigns.
   """
 
   alias Phoenix.LiveView.Rendered
+
+  @typedoc """
+  The aggregate a metric computes, see the [Aggregates](#module-aggregates) section.
+  """
+  @type aggregate :: :count | {:count | :sum | :avg | :min | :max, atom()}
 
   @doc """
   Used to render the metric as a heex template on the index views.
   """
   @callback render(assigns :: map()) :: %Rendered{}
 
-  @doc """
-  Queries the data of the metric. Only `Backpex.Adapters.Ecto` calls this callback, with the query of the items on the
-  index view, the `:select` option of the metric and its repo. Not called if the metric implements `c:data/2`.
-  """
-  @callback query(query :: Ecto.Queryable.t(), select :: any(), repo :: Ecto.Repo.t()) ::
-              Ecto.Schema.t() | term() | nil
-
-  @doc """
-  Returns the data of the metric in another way than from the query of the index view, see the
-  [Data of your own](#module-data-of-your-own) section.
-
-  Receives the metric and the assigns of the index view, which hold the validated values of the active filters under
-  `:filter_values`.
-  """
-  @callback data(metric :: map(), assigns :: map()) :: term()
-
   @callback format(data :: any(), format :: any()) :: term()
 
-  @optional_callbacks query: 3, data: 2
+  @doc """
+  Returns the data of the metric. Implement it to get the data in another way than with the `:aggregate` the adapter
+  computes, see the [Data of your own](#module-data-of-your-own) section.
+
+  Receives the metric, the criteria of the index view (the same criteria `c:Backpex.Adapter.metric/5` gets) and the
+  assigns of the index view.
+  """
+  @callback data(metric :: map(), criteria :: keyword(), assigns :: map()) :: term()
+
+  @optional_callbacks data: 3
+
+  # Backpex no longer calls `query/3` and `data/2`, so the adapter would compute other data than the metric did. Modules
+  # that only declare `@behaviour Backpex.Metric` are refused when Backpex computes the metric, see
+  # `Backpex.Resource.metric/5`.
+  @removed_callbacks [
+    {{:query, 3}, "metrics no longer query their data"},
+    {{:data, 2}, "Backpex calls data/3 with the criteria of the index view"}
+  ]
+
+  @doc false
+  defmacro __before_compile__(env) do
+    if not Module.defines?(env.module, {:data, 3}, :def) do
+      for {{name, arity}, hint} <- @removed_callbacks, Module.defines?(env.module, {name, arity}, :def) do
+        raise CompileError,
+          file: env.file,
+          description: """
+          #{inspect(env.module)} defines #{name}/#{arity}, but #{hint}. Implement Backpex.Metric.data/3 instead, see \
+          the guide on upgrading to v0.24.
+          """
+      end
+    end
+
+    :ok
+  end
 
   @doc """
   Determine if metrics are visible for given live_resource.
