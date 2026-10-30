@@ -40,7 +40,7 @@ defmodule Backpex.Test.RecordingAdapter do
   def new_item(assigns, live_resource), do: record(:new_item, live_resource, [assigns, live_resource])
 
   @impl Backpex.Adapter
-  def association(name, live_resource), do: record(:association, live_resource, [name, live_resource])
+  def describe(path, live_resource), do: record(:describe, live_resource, [path, live_resource])
 
   @impl Backpex.Adapter
   def list_options(field, criteria, assigns, live_resource),
@@ -57,9 +57,6 @@ defmodule Backpex.Test.RecordingAdapter do
   @impl Backpex.Adapter
   def options_key(field, assigns, live_resource),
     do: record(:options_key, live_resource, [field, assigns, live_resource])
-
-  @impl Backpex.Adapter
-  def field_type(name, live_resource), do: record(:field_type, live_resource, [name, live_resource])
 
   @impl Backpex.Adapter
   def insert(item, live_resource), do: record(:insert, live_resource, [item, live_resource])

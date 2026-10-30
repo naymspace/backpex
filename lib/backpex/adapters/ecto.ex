@@ -81,7 +81,8 @@ defmodule Backpex.Adapters.Ecto do
 
   ## Expressions
 
-  Fields of an expression are fields of the schema. A path through relationships to one item, such as `author.name`,
+  The adapter checks the fields of expressions and casts their values with `Backpex.Resource.cast_expr/2` and its
+  `describe/2`. Fields of an expression are fields of the schema. A path through relationships to one item, such as `author.name`,
   joins the relationships with left joins, which every expression with the same path shares. `exists/2` becomes a
   subquery of the primary keys of the items with a matching related item, so it doesn't duplicate items.
   `contains/2`, `starts_with/2` and `ends_with/2` become `like`, or `ilike` with `ignore_case: true`.
@@ -186,7 +187,7 @@ defmodule Backpex.Adapters.Ecto do
     |> exclude(:preload)
     |> exclude(:group_by)
     |> exclude(:order_by)
-    |> maybe_where(Map.get(metric, :where))
+    |> maybe_where(Map.get(metric, :where), live_resource)
     |> select(^metric_select(metric))
     |> repo.one()
     |> then(fn data -> {:ok, data} end)
@@ -220,17 +221,45 @@ defmodule Backpex.Adapters.Ecto do
   end
 
   @doc """
-  Returns the association `name` of the schema.
+  Returns the description of the schema of the resource, or of the schema at the end of the associations in `path`. See
+  `c:Backpex.Adapter.describe/2`.
   """
   @impl Backpex.Adapter
-  def association(name, live_resource) do
-    schema = live_resource.adapter_config(:schema)
-
-    case schema.__schema__(:association, name) do
-      nil -> nil
-      association -> association_info(schema, association)
-    end
+  def describe(path, live_resource) do
+    path
+    |> Enum.reduce_while(live_resource.adapter_config(:schema), fn name, schema ->
+      case schema.__schema__(:association, name) do
+        nil -> {:halt, nil}
+        association -> {:cont, related_schema(schema, association)}
+      end
+    end)
+    |> describe_schema()
   end
+
+  defp related_schema(_owner, %{related: related}), do: related
+
+  defp related_schema(owner, %Ecto.Association.HasThrough{through: through}) do
+    Enum.reduce(through, owner, fn name, schema -> related_schema(schema, schema.__schema__(:association, name)) end)
+  end
+
+  defp describe_schema(nil = _schema), do: nil
+
+  defp describe_schema(schema) do
+    %Backpex.Adapter.Description{
+      primary_key: schema.__schema__(:primary_key),
+      fields: :fields |> schema.__schema__() |> Map.new(&{&1, field_info(schema, &1)}),
+      relationships: :associations |> schema.__schema__() |> Map.new(&{&1, association_info(schema, &1)})
+    }
+  end
+
+  defp field_info(schema, name) do
+    type = schema.__schema__(:type, name)
+
+    %{type: type, primitive: Ecto.Type.type(type)}
+  end
+
+  defp association_info(owner, name) when is_atom(name),
+    do: association_info(owner, owner.__schema__(:association, name))
 
   defp association_info(owner, association) do
     %{
@@ -294,18 +323,6 @@ defmodule Backpex.Adapters.Ecto do
     |> subquery()
     |> repo.aggregate(:count)
     |> then(fn count -> {:ok, count} end)
-  end
-
-  @doc """
-  Returns the primitive Ecto type of the field of the schema, e.g. `:integer` for an `Ecto.Enum` of integers, or `nil`
-  if the schema has no such field. See `c:Backpex.Adapter.field_type/2`.
-  """
-  @impl Backpex.Adapter
-  def field_type(name, live_resource) do
-    case live_resource.adapter_config(:schema).__schema__(:type, name) do
-      nil -> nil
-      type -> Ecto.Type.type(type)
-    end
   end
 
   @doc """
@@ -396,7 +413,7 @@ defmodule Backpex.Adapters.Ecto do
     |> maybe_preload(associations, fields)
     |> maybe_merge_dynamic_fields(fields)
     |> apply_search(schema, full_text_search, criteria[:search])
-    |> apply_filters(criteria[:filter_values], criteria[:filter_configs], assigns)
+    |> apply_filters(criteria[:filter_values], criteria[:filter_configs], assigns, live_resource)
     |> apply_criteria(criteria, fields, schema)
   end
 
@@ -485,22 +502,28 @@ defmodule Backpex.Adapters.Ecto do
   Applies validated filters to the query.
 
   Receives a map of validated filter values and the filter configurations keyword list.
-  For each filter value, looks up the corresponding filter config and applies the condition the filter returns for the
-  already-validated and casted value, see `Backpex.Filter.to_condition/3`.
+  For each filter value, looks up the corresponding filter config and applies the expression the filter returns for the
+  already-validated and casted value, see `Backpex.Filter.to_condition/3`. With a `live_resource`, the fields of the
+  expressions are checked and their values cast to the types of the fields, see `Backpex.Resource.cast_expr/2`.
   """
-  def apply_filters(query, filter_values, filter_configs, assigns)
+  def apply_filters(query, filter_values, filter_configs, assigns, live_resource \\ nil)
+
+  def apply_filters(query, filter_values, filter_configs, assigns, live_resource)
       when is_map(filter_values) and is_list(filter_configs) do
     Enum.reduce(filter_values, query, fn {field, value}, acc ->
       case Keyword.get(filter_configs, field) do
         nil -> acc
-        config -> maybe_where(acc, Backpex.Filter.to_condition({field, config}, value, assigns))
+        config -> maybe_where(acc, Backpex.Filter.to_condition({field, config}, value, assigns), live_resource)
       end
     end)
   end
 
-  def apply_filters(query, _filter_values, _filter_configs, _assigns), do: query
+  def apply_filters(query, _filter_values, _filter_configs, _assigns, _live_resource), do: query
 
-  defp maybe_where(query, expression), do: Where.where_expr(query, expression)
+  defp maybe_where(query, expression, nil = _live_resource), do: Where.where_expr(query, expression)
+
+  defp maybe_where(query, expression, live_resource),
+    do: Where.where_expr(query, Backpex.Resource.cast_expr(expression, live_resource))
 
   def apply_criteria(query, [], _fields, _schema), do: query
 
