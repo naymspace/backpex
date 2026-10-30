@@ -138,24 +138,22 @@ defmodule Backpex.HTML.Resource do
       not Authorization.can?(live_resource, component_assigns, :edit, item) or
         Backpex.Field.readonly?(field_options, component_assigns)
 
-    assigns =
-      component_assigns
-      |> assign(assigns |> Map.get(:field_index_assigns, %{}) |> Map.get(name, %{}))
-      |> assign(:field, field)
-      |> assign(:field_options, field_options)
-      |> assign(:value, Map.get(item, name))
-      |> assign(:type, :index)
-      |> assign(:readonly, readonly)
-      |> assign(:primary_key, Map.get(item, live_resource.config(:primary_key)))
+    # The component is called as a function rather than with `<.live_component {assigns}>`, because spreading
+    # `assigns` in HEEx marks all assigns of the component as changed and breaks change tracking.
+    primary_key = Map.get(item, live_resource.config(:primary_key))
 
-    ~H"""
-    <.live_component
-      id={"resource_#{@name}_#{@primary_key}"}
-      module={@field_options.module}
-      type={@type}
-      {Map.drop(assigns, lv_reserved_assigns())}
-    />
-    """
+    component_assigns
+    |> assign(assigns |> Map.get(:field_index_assigns, %{}) |> Map.get(name, %{}))
+    |> assign(:field, field)
+    |> assign(:field_options, field_options)
+    |> assign(:value, Map.get(item, name))
+    |> assign(:type, :index)
+    |> assign(:readonly, readonly)
+    |> assign(:primary_key, primary_key)
+    |> assign(:id, "resource_#{name}_#{primary_key}")
+    |> assign(:module, field_options.module)
+    |> Map.drop(lv_reserved_assigns())
+    |> live_component()
   end
 
   defp field_component_assigns(%{backpex_context: %{}} = assigns, context) do
@@ -184,22 +182,15 @@ defmodule Backpex.HTML.Resource do
 
     readonly = Backpex.Field.readonly?(field_options, assigns)
 
-    assigns =
-      assigns
-      |> assign(:field, field)
-      |> assign(:field_options, field_options)
-      |> assign(:value, Map.get(item, name))
-      |> assign(:type, :index)
-      |> assign(:readonly, readonly)
-
-    ~H"""
-    <.live_component
-      id={@id}
-      module={@field_options.module}
-      type={@type}
-      {Map.drop(assigns, lv_reserved_assigns())}
-    />
-    """
+    assigns
+    |> assign(:field, field)
+    |> assign(:field_options, field_options)
+    |> assign(:value, Map.get(item, name))
+    |> assign(:type, :index)
+    |> assign(:readonly, readonly)
+    |> assign(:module, field_options.module)
+    |> Map.drop(lv_reserved_assigns())
+    |> live_component()
   end
 
   @doc """
@@ -219,29 +210,19 @@ defmodule Backpex.HTML.Resource do
 
     {_name, field_options} = field = Enum.find(fields, fn {field_name, _field_options} -> field_name == name end)
 
-    assigns =
-      assigns
-      |> assign(:field, field)
-      |> assign(:field_options, field_options)
-      |> assign(:type, :form)
-
     # this is needed to apply `:readonly` to individual fields in `Backpex.Fields.InlineCRUD`
-    assigns =
-      if assigns[:readonly] do
-        assigns
-      else
-        assign(assigns, :readonly, Backpex.Field.readonly?(field_options, assigns))
-      end
+    readonly = assigns[:readonly] || Backpex.Field.readonly?(field_options, assigns)
 
-    ~H"""
-    <.live_component
-      id={"resource_#{@form[@name].id}"}
-      module={@field_options.module}
-      lv_uploads={assigns[:uploads]}
-      type={@type}
-      {Map.drop(assigns, lv_reserved_assigns())}
-    />
-    """
+    assigns
+    |> assign(:field, field)
+    |> assign(:field_options, field_options)
+    |> assign(:type, :form)
+    |> assign(:readonly, readonly)
+    |> assign(:id, "resource_#{assigns.form[assigns.name].id}")
+    |> assign(:module, field_options.module)
+    |> assign(:lv_uploads, assigns[:uploads])
+    |> Map.drop(lv_reserved_assigns())
+    |> live_component()
   end
 
   @doc """
@@ -491,7 +472,7 @@ defmodule Backpex.HTML.Resource do
       )
 
     ~H"""
-    <.form :let={f} for={@form} id="filter-form" phx-change="change-filter" phx-submit="change-filter" class="space-y-5">
+    <.form for={@form} id="filter-form" phx-change="change-filter" phx-submit="change-filter" class="space-y-5">
       <.filter_form_field
         :for={field_data <- @filter_fields}
         live_resource={@live_resource}
@@ -504,7 +485,7 @@ defmodule Backpex.HTML.Resource do
           Map.merge(@backpex_context, %{
             field: field_data.field,
             value: field_data.value,
-            form: f,
+            form: @form,
             live_resource: @live_resource,
             errors: field_data.errors
           }),

@@ -126,7 +126,7 @@ defmodule Backpex.Fields.HasMany do
           <:separator>
             ,&nbsp;
           </:separator>
-          <.item item={item} {assigns} />
+          {item(assign(assigns, item: item))}
         </.intersperse>
       </div>
     </div>
