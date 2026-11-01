@@ -370,7 +370,7 @@ defmodule Backpex.HTML.Resource do
   def filter_dropdown(assigns) do
     ~H"""
     <.dropdown id="filter-dropdown">
-      <:trigger aria_label={Backpex.__("Filters", @live_resource)}>
+      <:trigger>
         <div class="indicator">
           <span :if={@filter_count > 0} class="indicator-item badge badge-sm badge-secondary rounded-selector">
             {@filter_count}
