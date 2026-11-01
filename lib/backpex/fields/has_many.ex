@@ -135,7 +135,13 @@ defmodule Backpex.Fields.HasMany do
 
   @impl Backpex.Field
   def render_form(assigns) do
-    assigns = assign(assigns, :help_text, Backpex.Field.help_text(assigns.field_options, assigns))
+    field_id = assigns.form[assigns.name].id
+    label_id = Map.get(assigns, :aria_labelledby) || "#{field_id}-label"
+
+    assigns =
+      assigns
+      |> assign(:labelledby, "#{label_id} #{field_id}-selection")
+      |> assign(:help_text, Backpex.Field.help_text(assigns.field_options, assigns))
 
     ~H"""
     <div id={"has-many-#{@name}"}>
@@ -155,9 +161,9 @@ defmodule Backpex.Fields.HasMany do
               Backpex.HTML.Form.readonly_input_class(@readonly),
               @readonly && @errors != [] && "border-error bg-error/10"
             ]}
-            aria_labelledby={Map.get(assigns, :aria_labelledby) || "#{@form[@name].id}-label"}
+            aria_labelledby={@labelledby}
           >
-            <div class="flex h-full w-full flex-wrap items-center gap-1 px-2">
+            <div id={"#{@form[@name].id}-selection"} class="flex h-full w-full flex-wrap items-center gap-1 px-2">
               <p :if={@selected == []} class="p-0.5 text-sm">{@prompt}</p>
               <.badge
                 :for={{label, value} <- @selected}
