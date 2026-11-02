@@ -72,6 +72,12 @@ defmodule Backpex.Integration.Index.FiltersTest do
       |> assert_has("td", text: "Tech Post")
       |> refute_has("td", text: "Sports Post")
     end
+
+    test "derives the select id from the id of the filter form", %{conn: conn} do
+      conn
+      |> visit(~p"/admin/posts")
+      |> assert_has("select#filter-form_category_id")
+    end
   end
 
   describe "multi select filter" do

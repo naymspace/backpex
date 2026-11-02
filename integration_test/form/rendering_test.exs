@@ -28,4 +28,10 @@ defmodule Backpex.Integration.Form.RenderingTest do
     |> assert_has("input[name='change[title]']")
     |> refute_has("input[name='change[likes]']")
   end
+
+  test "derives the input ids from the id of the form", %{conn: conn} do
+    conn
+    |> visit(~p"/admin/posts/new")
+    |> assert_has("input#resource-form_title[name='change[title]']")
+  end
 end

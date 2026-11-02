@@ -1,7 +1,6 @@
 defmodule Backpex.HTML.ResourceTest do
   use ExUnit.Case, async: true
 
-  import Phoenix.Component, only: [sigil_H: 2]
   import Phoenix.LiveViewTest
 
   alias Backpex.Filters.Select
@@ -271,12 +270,6 @@ defmodule Backpex.HTML.ResourceTest do
     end
   end
 
-  # Calls `resource_field/1` as a component embedded in a render tree, so that the live component it returns is
-  # actually rendered.
-  defp render_resource_field(assigns) do
-    ~H"{Resource.resource_field(assigns)}"
-  end
-
   describe "resource_field/1" do
     setup do
       readonly = fn %{item: item} -> item.locked end
@@ -291,7 +284,7 @@ defmodule Backpex.HTML.ResourceTest do
       test "evaluates readonly with the row item when called with a context #{description}", %{fields: fields} do
         for locked <- [true, false] do
           html =
-            render_component(&render_resource_field/1,
+            render_component(&Resource.resource_field/1,
               name: :title,
               item: %{id: 1, title: "Title", locked: locked},
               fields: fields,
@@ -307,7 +300,7 @@ defmodule Backpex.HTML.ResourceTest do
     test "passes the name and the row item of the field to can?/3 when called with a context", %{fields: fields} do
       item = %{id: 1, title: "Title", locked: false}
 
-      render_component(&render_resource_field/1,
+      render_component(&Resource.resource_field/1,
         name: :title,
         item: item,
         fields: fields,
@@ -319,7 +312,7 @@ defmodule Backpex.HTML.ResourceTest do
     end
 
     test "passes the reserved assigns of the context to can?/3", %{fields: fields} do
-      render_component(&render_resource_field/1,
+      render_component(&Resource.resource_field/1,
         name: :title,
         item: %{id: 1, title: "Title", locked: false},
         fields: fields,
@@ -332,11 +325,26 @@ defmodule Backpex.HTML.ResourceTest do
 
     test "evaluates readonly with the row item when called without a context", %{fields: fields} do
       html =
-        render_component(&render_resource_field/1,
+        render_component(&Resource.resource_field/1,
           name: :title,
           item: %{id: 1, title: "Title", locked: true},
           fields: fields,
           live_resource: ShowPanelLive
+        )
+
+      assert html =~ ~s(<span id="readonly">true</span>)
+    end
+  end
+
+  describe "resource_form_field/1" do
+    test "evaluates readonly with the field assigns of the form field" do
+      readonly = fn %{type: :form, field: {:title, _field_options}} -> true end
+
+      html =
+        render_component(&Resource.resource_form_field/1,
+          name: :title,
+          form: Phoenix.Component.to_form(%{}, as: :change),
+          fields: [title: %{module: ReadonlyField, label: "Title", readonly: readonly}]
         )
 
       assert html =~ ~s(<span id="readonly">true</span>)

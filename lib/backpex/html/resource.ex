@@ -138,8 +138,6 @@ defmodule Backpex.HTML.Resource do
       not Authorization.can?(live_resource, component_assigns, :edit, item) or
         Backpex.Field.readonly?(field_options, component_assigns)
 
-    # The component is called as a function rather than with `<.live_component {assigns}>`, because spreading
-    # `assigns` in HEEx marks all assigns of the component as changed and breaks change tracking.
     primary_key = Map.get(item, live_resource.config(:primary_key))
 
     component_assigns
@@ -153,7 +151,7 @@ defmodule Backpex.HTML.Resource do
     |> assign(:id, "resource_#{name}_#{primary_key}")
     |> assign(:module, field_options.module)
     |> Map.drop(lv_reserved_assigns())
-    |> live_component()
+    |> render_live_component()
   end
 
   defp field_component_assigns(%{backpex_context: %{}} = assigns, context) do
@@ -163,6 +161,14 @@ defmodule Backpex.HTML.Resource do
   end
 
   defp field_component_assigns(assigns, _context), do: Map.delete(assigns, :backpex_view_context)
+
+  # `live_component/1` drops `__changed__`, so a live component tracks the changes of its assigns itself. Wrapping it in
+  # a template keeps the return value of the public field components a `%Rendered{}`, e.g. for `render_component/2`.
+  defp render_live_component(component_assigns) do
+    assigns = %{__changed__: nil, component: live_component(component_assigns)}
+
+    ~H"{@component}"
+  end
 
   @doc """
   Renders an inlined field.
@@ -190,7 +196,7 @@ defmodule Backpex.HTML.Resource do
     |> assign(:readonly, readonly)
     |> assign(:module, field_options.module)
     |> Map.drop(lv_reserved_assigns())
-    |> live_component()
+    |> render_live_component()
   end
 
   @doc """
@@ -210,19 +216,22 @@ defmodule Backpex.HTML.Resource do
 
     {_name, field_options} = field = Enum.find(fields, fn {field_name, _field_options} -> field_name == name end)
 
+    assigns =
+      assigns
+      |> assign(:field, field)
+      |> assign(:field_options, field_options)
+      |> assign(:type, :form)
+
     # this is needed to apply `:readonly` to individual fields in `Backpex.Fields.InlineCRUD`
     readonly = assigns[:readonly] || Backpex.Field.readonly?(field_options, assigns)
 
     assigns
-    |> assign(:field, field)
-    |> assign(:field_options, field_options)
-    |> assign(:type, :form)
     |> assign(:readonly, readonly)
     |> assign(:id, "resource_#{assigns.form[assigns.name].id}")
     |> assign(:module, field_options.module)
     |> assign(:lv_uploads, assigns[:uploads])
     |> Map.drop(lv_reserved_assigns())
-    |> live_component()
+    |> render_live_component()
   end
 
   @doc """
@@ -472,7 +481,7 @@ defmodule Backpex.HTML.Resource do
       )
 
     ~H"""
-    <.form for={@form} id="filter-form" phx-change="change-filter" phx-submit="change-filter" class="space-y-5">
+    <.form :let={f} for={@form} id="filter-form" phx-change="change-filter" phx-submit="change-filter" class="space-y-5">
       <.filter_form_field
         :for={field_data <- @filter_fields}
         live_resource={@live_resource}
@@ -485,7 +494,7 @@ defmodule Backpex.HTML.Resource do
           Map.merge(@backpex_context, %{
             field: field_data.field,
             value: field_data.value,
-            form: @form,
+            form: f,
             live_resource: @live_resource,
             errors: field_data.errors
           }),
