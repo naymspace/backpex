@@ -138,24 +138,20 @@ defmodule Backpex.HTML.Resource do
       not Authorization.can?(live_resource, component_assigns, :edit, item) or
         Backpex.Field.readonly?(field_options, component_assigns)
 
-    assigns =
-      component_assigns
-      |> assign(assigns |> Map.get(:field_index_assigns, %{}) |> Map.get(name, %{}))
-      |> assign(:field, field)
-      |> assign(:field_options, field_options)
-      |> assign(:value, Map.get(item, name))
-      |> assign(:type, :index)
-      |> assign(:readonly, readonly)
-      |> assign(:primary_key, Map.get(item, live_resource.config(:primary_key)))
+    primary_key = Map.get(item, live_resource.config(:primary_key))
 
-    ~H"""
-    <.live_component
-      id={"resource_#{@name}_#{@primary_key}"}
-      module={@field_options.module}
-      type={@type}
-      {Map.drop(assigns, lv_reserved_assigns())}
-    />
-    """
+    component_assigns
+    |> assign(assigns |> Map.get(:field_index_assigns, %{}) |> Map.get(name, %{}))
+    |> assign(:field, field)
+    |> assign(:field_options, field_options)
+    |> assign(:value, Map.get(item, name))
+    |> assign(:type, :index)
+    |> assign(:readonly, readonly)
+    |> assign(:primary_key, primary_key)
+    |> assign(:id, "resource_#{name}_#{primary_key}")
+    |> assign(:module, field_options.module)
+    |> Map.drop(lv_reserved_assigns())
+    |> render_live_component()
   end
 
   defp field_component_assigns(%{backpex_context: %{}} = assigns, context) do
@@ -165,6 +161,14 @@ defmodule Backpex.HTML.Resource do
   end
 
   defp field_component_assigns(assigns, _context), do: Map.delete(assigns, :backpex_view_context)
+
+  # `live_component/1` drops `__changed__`, so a live component tracks the changes of its assigns itself. Wrapping it in
+  # a template keeps the return value of the public field components a `%Rendered{}`, e.g. for `render_component/2`.
+  defp render_live_component(component_assigns) do
+    assigns = %{__changed__: nil, component: live_component(component_assigns)}
+
+    ~H"{@component}"
+  end
 
   @doc """
   Renders an inlined field.
@@ -184,22 +188,15 @@ defmodule Backpex.HTML.Resource do
 
     readonly = Backpex.Field.readonly?(field_options, assigns)
 
-    assigns =
-      assigns
-      |> assign(:field, field)
-      |> assign(:field_options, field_options)
-      |> assign(:value, Map.get(item, name))
-      |> assign(:type, :index)
-      |> assign(:readonly, readonly)
-
-    ~H"""
-    <.live_component
-      id={@id}
-      module={@field_options.module}
-      type={@type}
-      {Map.drop(assigns, lv_reserved_assigns())}
-    />
-    """
+    assigns
+    |> assign(:field, field)
+    |> assign(:field_options, field_options)
+    |> assign(:value, Map.get(item, name))
+    |> assign(:type, :index)
+    |> assign(:readonly, readonly)
+    |> assign(:module, field_options.module)
+    |> Map.drop(lv_reserved_assigns())
+    |> render_live_component()
   end
 
   @doc """
@@ -226,22 +223,15 @@ defmodule Backpex.HTML.Resource do
       |> assign(:type, :form)
 
     # this is needed to apply `:readonly` to individual fields in `Backpex.Fields.InlineCRUD`
-    assigns =
-      if assigns[:readonly] do
-        assigns
-      else
-        assign(assigns, :readonly, Backpex.Field.readonly?(field_options, assigns))
-      end
+    readonly = assigns[:readonly] || Backpex.Field.readonly?(field_options, assigns)
 
-    ~H"""
-    <.live_component
-      id={"resource_#{@form[@name].id}"}
-      module={@field_options.module}
-      lv_uploads={assigns[:uploads]}
-      type={@type}
-      {Map.drop(assigns, lv_reserved_assigns())}
-    />
-    """
+    assigns
+    |> assign(:readonly, readonly)
+    |> assign(:id, "resource_#{assigns.form[assigns.name].id}")
+    |> assign(:module, field_options.module)
+    |> assign(:lv_uploads, assigns[:uploads])
+    |> Map.drop(lv_reserved_assigns())
+    |> render_live_component()
   end
 
   @doc """

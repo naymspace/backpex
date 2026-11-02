@@ -188,28 +188,30 @@ defmodule Backpex.Fields.HasManyThrough do
         <tbody class="text-base-content/75">
           <tr :for={{listable, index} <- Enum.with_index(@listables)}>
             <td :for={{name, field_options} = field <- action_fields(@field_options.child_fields, :index)}>
-              <.live_component
-                id={"child_table_#{name}_#{index}"}
-                module={field_options.module}
-                name={name}
-                field_options={field_options}
-                field={field}
-                value={Map.get(listable.child, name)}
-                type={:index}
-                {assigns}
-              />
+              {live_component(
+                assign(assigns,
+                  id: "child_table_#{name}_#{index}",
+                  module: field_options.module,
+                  name: name,
+                  field_options: field_options,
+                  field: field,
+                  value: Map.get(listable.child, name),
+                  type: :index
+                )
+              )}
             </td>
             <td :for={{name, field_options} = field <- action_fields(@field_options.pivot_fields, :index)}>
-              <.live_component
-                id={"pivot_table_#{name}_#{index}"}
-                module={field_options.module}
-                name={name}
-                field_options={field_options}
-                field={field}
-                value={Map.get(listable.pivot, name)}
-                type={:index}
-                {assigns}
-              />
+              {live_component(
+                assign(assigns,
+                  id: "pivot_table_#{name}_#{index}",
+                  module: field_options.module,
+                  name: name,
+                  field_options: field_options,
+                  field: field,
+                  value: Map.get(listable.pivot, name),
+                  type: :index
+                )
+              )}
             </td>
           </tr>
         </tbody>
@@ -291,24 +293,26 @@ defmodule Backpex.Fields.HasManyThrough do
                 class="border-b-[1px] border-base-content/10 last:border-b-0"
               >
                 <td :for={{name, field_options} <- action_fields(@field_options.child_fields, :index)}>
-                  <.live_component
-                    id={"child_table_#{name}_#{index}"}
-                    module={field_options.module}
-                    field_options={field_options}
-                    value={Map.get(listable.child, name)}
-                    type={:index}
-                    {assigns}
-                  />
+                  {live_component(
+                    assign(assigns,
+                      id: "child_table_#{name}_#{index}",
+                      module: field_options.module,
+                      field_options: field_options,
+                      value: Map.get(listable.child, name),
+                      type: :index
+                    )
+                  )}
                 </td>
                 <td :for={{name, field_options} <- action_fields(@field_options.pivot_fields, :index)}>
-                  <.live_component
-                    id={"pivot_table_#{name}_#{index}"}
-                    module={field_options.module}
-                    field_options={field_options}
-                    value={Map.get(listable.pivot, name)}
-                    type={:index}
-                    {assigns}
-                  />
+                  {live_component(
+                    assign(assigns,
+                      id: "pivot_table_#{name}_#{index}",
+                      module: field_options.module,
+                      field_options: field_options,
+                      value: Map.get(listable.pivot, name),
+                      type: :index
+                    )
+                  )}
                 </td>
                 <td :if={not @readonly}>
                   <div class="flex items-center space-x-2">
@@ -368,13 +372,9 @@ defmodule Backpex.Fields.HasManyThrough do
               options={@options}
               readonly={@readonly}
             />
-            <.pivot_field
-              :for={{name, _field_options} <- @field_options.pivot_fields}
-              name={name}
-              form={e}
-              readonly={@readonly}
-              {assigns}
-            />
+            <%= for {name, _field_options} <- @field_options.pivot_fields do %>
+              {pivot_field(assign(assigns, name: name, form: e, readonly: @readonly))}
+            <% end %>
           </div>
           <div class="bg-base-200 flex justify-end space-x-4 px-6 py-3">
             <button
@@ -485,20 +485,14 @@ defmodule Backpex.Fields.HasManyThrough do
       assigns.field_options.pivot_fields
       |> Keyword.get(name)
 
-    assigns =
-      assigns
-      |> assign(:name, name)
-      |> assign(:field_options, field_options)
-
-    ~H"""
-    <.live_component
-      id={"pivot_modal_#{@name}_#{@form.index}"}
-      module={@field_options.module}
-      lv_uploads={assigns[:uploads]}
-      type={:form}
-      {assigns}
-    />
-    """
+    assigns
+    |> assign(:name, name)
+    |> assign(:field_options, field_options)
+    |> assign(:id, "pivot_modal_#{name}_#{assigns.form.index}")
+    |> assign(:module, field_options.module)
+    |> assign(:lv_uploads, assigns[:uploads])
+    |> assign(:type, :form)
+    |> live_component()
   end
 
   defp put_assoc(key, value) do
