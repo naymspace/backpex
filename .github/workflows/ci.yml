@@ -143,7 +143,7 @@ jobs:
     timeout-minutes: 20
     services:
       postgres:
-        image: postgres:18.6@sha256:3a4264520e121176619f54ff867d12774bc81e95e7b84db58d63bccdb6144b81
+        image: postgres:18.6@sha256:bd5dfa494a5a259704365813dbfa5fa6b3e69be7348d43b547f540c730478583
         env:
           POSTGRES_PASSWORD: postgres
         ports:
