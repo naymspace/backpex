@@ -16,9 +16,10 @@ defmodule Backpex.Fields.BelongsTo do
     ],
     options_query: [
       doc: """
-      Manipulates the list of available options in the select.
+      Manipulates the list of available options in the select. Receives the query of the adapter, an `Ecto.Query` for
+      `Backpex.Adapters.Ecto`, and the assigns, and returns a query.
 
-      Defaults to `fn (query, _field) -> query end` which returns all entries.
+      Defaults to `fn query, _assigns -> query end` which returns all entries.
       """,
       type: {:fun, 2}
     ],
@@ -54,7 +55,7 @@ defmodule Backpex.Fields.BelongsTo do
           module: Backpex.Fields.BelongsTo,
           label: "Username",
           display_field: :username,
-          options_query: &where(&1, [user], user.role == :admin),
+          options_query: fn query, _assigns -> where(query, [user], user.role == :admin) end,
           live_resource: DemoWeb.UserLive
         }
       ]

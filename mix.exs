@@ -295,6 +295,7 @@ defmodule Backpex.MixProject do
       Fields: ~r/Backpex\.Field.?/,
       Actions: ~r/Backpex\.(ItemAction|ResourceAction).?/,
       Filters: ~r/Backpex\.Filter.?/,
+      Expressions: ~r/Backpex\.Expr.?/,
       Metrics: ~r/Backpex\.Metric.?/,
       Preferences: ~r/Backpex\.Preferences.*/,
       Testing: ~r/Backpex\.Testing/

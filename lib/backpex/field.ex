@@ -42,10 +42,6 @@ defmodule Backpex.Field do
       doc: "A function to overwrite the template used in forms. It should take `assigns` and return a HEEX template.",
       type: {:fun, 1}
     ],
-    custom_alias: [
-      doc: "A custom alias for the field.",
-      type: :atom
-    ],
     align: [
       doc: "Align the field value on index views.",
       type: {:in, [:left, :center, :right]}
@@ -99,20 +95,6 @@ defmodule Backpex.Field do
       """,
       type: {:or, [:string, {:fun, 1}]}
     ],
-    select: [
-      doc: """
-      Define a dynamic select query expression for this field. Only used by `Backpex.Adapters.Ecto`.
-
-      ### Example
-
-          full_name: %{
-            module: Backpex.Fields.Text,
-            label: "Full Name",
-            select: dynamic([user: u], fragment("concat(?, ' ', ?)", u.first_name, u.last_name)),
-          }
-      """,
-      type: {:struct, Ecto.Query.DynamicExpr}
-    ],
     only: [
       doc: "Define the only views where this field should be visible.",
       type: {:list, {:in, [:new, :edit, :show, :index]}}
@@ -140,6 +122,8 @@ defmodule Backpex.Field do
   ### Options
 
   These are general field options which can be used on every field. Check the field modules for field-specific options.
+  The adapter of the LiveResource may add options, e.g. `Backpex.Adapters.Ecto` adds `:select` and `:custom_alias`, see
+  `c:Backpex.Adapter.field_config_schema/0`.
 
   #{NimbleOptions.docs(@config_schema)}
 
@@ -204,15 +188,6 @@ defmodule Backpex.Field do
   @callback display_field(field :: tuple()) :: atom()
 
   @doc """
-  The schema to be used in queries. Only `Backpex.Adapters.Ecto` calls this callback.
-
-  Without it, the adapter uses the schema of the association for association fields (see `c:association?/1`) and the
-  schema of the resource for any other field. The function will receive the field definition and the schema defined in
-  the resource configuration.
-  """
-  @callback schema(field :: tuple(), schema :: atom()) :: atom()
-
-  @doc """
   Determines whether the field is an association or not.
   """
   @callback association?(field :: tuple()) :: boolean()
@@ -226,40 +201,14 @@ defmodule Backpex.Field do
   @doc """
   This function is called before the changeset function is called. This allows fields to modify the changeset.
   The `Backpex.Fields.HasMany` uses this callback to put the linked associations into the changeset.
-
-  `Backpex.Adapters.Ecto` calls this callback and passes its repo.
   """
   @callback before_changeset(
-              changeset :: Socket.t(),
+              changeset :: Ecto.Changeset.t(),
               attrs :: map(),
               metadata :: keyword(),
-              repo :: module(),
               field :: tuple(),
               assigns :: map()
             ) :: Ecto.Changeset.t()
-
-  @doc """
-  Defines the search condition. Only `Backpex.Adapters.Ecto` calls this callback. The function has to return a query
-  wrapped into a `Ecto.Query.dynamic/2` which is then passed into a `Ecto.Query.where/3`.
-
-  Without it, the adapter compares the column to the search string with `ilike`, and casts columns that are not
-  strings to text first.
-
-  ## Example
-
-  The function could return the following query to search the value of the field from its first character on.
-
-      dynamic(
-        [{^schema_name, schema_name}],
-        ilike(schema_name |> field(^field_name), ^String.trim_leading(search_string, "%"))
-      )
-  """
-  @callback search_condition(
-              schema_name :: binary(),
-              field_name :: binary(),
-              search_string :: binary()
-            ) ::
-              Ecto.Query.dynamic_expr()
 
   @doc """
   Returns the files of the item as a list of strings.
@@ -345,8 +294,6 @@ defmodule Backpex.Field do
             ) :: String.t()
 
   @optional_callbacks render_index_form: 1,
-                      schema: 2,
-                      search_condition: 3,
                       index_assigns: 3,
                       index_editable_change: 3,
                       list_existing_files: 2,
@@ -380,10 +327,11 @@ defmodule Backpex.Field do
       def config_schema, do: @config_schema
 
       @doc false
-      def validate_config!({name, options} = _field, live_resource) do
+      def validate_config!({name, options} = _field, live_resource, adapter_schema \\ []) do
         field_options = Keyword.new(options)
+        schema = Backpex.Field.default_config_schema() ++ adapter_schema ++ @config_schema
 
-        case NimbleOptions.validate(field_options, Backpex.Field.default_config_schema() ++ @config_schema) do
+        case NimbleOptions.validate(field_options, schema) do
           {:ok, validated_options} ->
             validated_options
 
@@ -398,7 +346,17 @@ defmodule Backpex.Field do
     end
   end
 
-  defmacro __before_compile__(_env) do
+  defmacro __before_compile__(env) do
+    # Backpex no longer calls `before_changeset/6`, so a field that still defines it would silently lose its changes.
+    if Module.defines?(env.module, {:before_changeset, 6}, :def) do
+      raise CompileError,
+        file: env.file,
+        description: """
+        #{inspect(env.module)} defines before_changeset/6, but the callback no longer receives the repo. Implement \
+        before_changeset/5 instead, see the guide on upgrading to v0.24.
+        """
+    end
+
     quote generated: true do
       @impl Phoenix.LiveComponent
       def render(%{type: :index} = assigns) do
@@ -430,7 +388,7 @@ defmodule Backpex.Field do
       def assign_uploads(_field, socket), do: socket
 
       @impl Backpex.Field
-      def before_changeset(changeset, _attrs, _metadata, _repo, _field, _assigns), do: changeset
+      def before_changeset(changeset, _attrs, _metadata, _field, _assigns), do: changeset
     end
   end
 

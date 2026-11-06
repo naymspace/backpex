@@ -18,6 +18,9 @@ defmodule Backpex.Test.RecordingAdapter do
   def validate_config!(config), do: EctoAdapter.validate_config!(config)
 
   @impl Backpex.Adapter
+  def field_config_schema, do: EctoAdapter.field_config_schema()
+
+  @impl Backpex.Adapter
   def get(primary_value, fields, assigns, live_resource),
     do: record(:get, live_resource, [primary_value, fields, assigns, live_resource])
 

@@ -249,6 +249,22 @@ defmodule Backpex.FieldTest do
     end
   end
 
+  describe "use Backpex.Field" do
+    test "refuses to compile a field that still defines before_changeset/6" do
+      code = """
+      defmodule Backpex.FieldTest.RepoField do
+        use Backpex.Field
+
+        def before_changeset(changeset, _attrs, _metadata, _repo, _field, _assigns), do: changeset
+      end
+      """
+
+      assert_raise CompileError, ~r/defines before_changeset\/6, but the callback no longer receives the repo/, fn ->
+        Code.compile_string(code)
+      end
+    end
+  end
+
   describe "Backpex.Fields.Boolean.render_index_form/1" do
     test "disables the toggle of a readonly field, as browsers ignore readonly on checkboxes" do
       html =
