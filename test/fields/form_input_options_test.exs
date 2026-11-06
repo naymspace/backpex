@@ -7,7 +7,7 @@ defmodule Backpex.Fields.FormInputOptionsTest do
 
   defmodule EmptyAdapter do
     @moduledoc false
-    def list_options(_field, _criteria, _assigns, _live_resource), do: {:ok, []}
+    def read(_query), do: {:ok, []}
   end
 
   defmodule CategoryLive do

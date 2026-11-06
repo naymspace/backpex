@@ -767,13 +767,15 @@ defmodule Backpex.LiveResource.Index do
       )
       |> maybe_put_search(PaginationValidation.validate_search(params))
 
-    count_criteria = [
-      search: LiveResource.search_options(query_options, fields),
-      filter_values: filter_values,
-      filter_configs: filters
-    ]
+    filter_assigns =
+      Map.merge(socket.assigns, %{query_options: query_options, filter_values: filter_values, filters: filters})
 
-    {:ok, item_count} = Resource.count(count_criteria, fields, socket.assigns, live_resource)
+    {:ok, item_count} =
+      fields
+      |> Resource.items_query(filter_assigns, live_resource)
+      |> LiveResource.filter_query(filter_assigns)
+      |> Resource.count()
+
     total_pages = LiveResource.calculate_total_pages(item_count, query_options.per_page)
 
     # Clamp page to valid range now that we know total_pages
@@ -939,21 +941,21 @@ defmodule Backpex.LiveResource.Index do
   end
 
   defp count_items(socket) do
-    %{live_resource: live_resource, query_options: query_options, fields: fields} = socket.assigns
+    {:ok, item_count} = socket |> filtered_query() |> Resource.count()
 
-    filters = LiveResource.active_filters(socket.assigns)
-
-    # Use the already-validated filter_values from assigns
-    filter_values = Map.get(socket.assigns, :filter_values, %{})
-
-    count_criteria = [
-      search: LiveResource.search_options(query_options, fields),
-      filter_values: filter_values,
-      filter_configs: filters
-    ]
-
-    {:ok, item_count} = Resource.count(count_criteria, fields, socket.assigns, live_resource)
     item_count
+  end
+
+  # The items of the index view on all pages: after the search and the already-validated filter values, except the ones
+  # of the `ignored` filters.
+  defp filtered_query(socket, ignored \\ []) do
+    %{live_resource: live_resource, fields: fields} = socket.assigns
+    filters = socket.assigns |> LiveResource.active_filters() |> Keyword.drop(ignored)
+    assigns = Map.put(socket.assigns, :filters, filters)
+
+    fields
+    |> Resource.items_query(socket.assigns, live_resource)
+    |> LiveResource.filter_query(assigns)
   end
 
   defp refresh_items(socket, item_count \\ nil) do
@@ -972,49 +974,39 @@ defmodule Backpex.LiveResource.Index do
   end
 
   defp maybe_assign_metrics(socket) do
-    %{
-      live_resource: live_resource,
-      query_options: query_options,
-      metric_visibility: metric_visibility,
-      fields: fields
-    } = socket.assigns
+    %{live_resource: live_resource, metric_visibility: metric_visibility} = socket.assigns
+    metrics = live_resource.metrics()
 
-    filters = LiveResource.active_filters(socket.assigns)
-
-    # Use the already-validated filter_values from assigns
-    filter_values = Map.get(socket.assigns, :filter_values, %{})
-
-    criteria = [
-      search: LiveResource.search_options(query_options, fields),
-      filter_values: filter_values,
-      filter_configs: filters
-    ]
+    data =
+      if metrics != [] and Backpex.Metric.metrics_visible?(metric_visibility, live_resource),
+        do: metrics_data(socket, metrics),
+        else: %{}
 
     metrics =
-      socket.assigns.live_resource.metrics()
-      |> Enum.map(fn {key, metric} ->
-        case Backpex.Metric.metrics_visible?(metric_visibility, live_resource) do
-          true ->
-            {:ok, data} = Resource.metric(metric, criteria, fields, socket.assigns, live_resource)
-
-            {key, Map.put(metric, :data, data)}
-
-          _visible ->
-            {key, metric}
+      Enum.map(metrics, fn {key, metric} ->
+        case Map.fetch(data, key) do
+          {:ok, data} -> {key, Map.put(metric, :data, data)}
+          :error -> {key, metric}
         end
       end)
 
-    socket
-    |> assign(metrics: metrics)
+    assign(socket, metrics: metrics)
+  end
+
+  # The metrics that ignore the same filters share a query, see the `:ignore_filters` option of `Backpex.Metric`.
+  defp metrics_data(socket, metrics) do
+    metrics
+    |> Enum.group_by(fn {_key, metric} -> Map.get(metric, :ignore_filters, []) end)
+    |> Enum.reduce(%{}, fn {ignored, metrics}, data ->
+      Map.merge(data, Resource.metrics(metrics, filtered_query(socket, ignored), socket.assigns))
+    end)
   end
 
   defp assign_items(socket) do
-    %{assigns: %{live_resource: live_resource, fields: fields} = assigns} = socket
-
     {:ok, items} =
-      assigns
-      |> LiveResource.build_criteria()
-      |> Resource.list(fields, assigns, live_resource)
+      socket.assigns
+      |> LiveResource.index_query(socket.assigns.fields)
+      |> Resource.read()
 
     socket
     |> assign(:items, items)

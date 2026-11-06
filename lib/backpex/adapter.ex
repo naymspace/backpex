@@ -6,9 +6,10 @@ defmodule Backpex.Adapter do
   calls no repo and doesn't inspect schemas. LiveResources read and write data only through the callbacks of this
   behaviour, mostly via `Backpex.Resource`. Forms still use changesets.
 
-  Filters and metrics describe the data they need, and the adapter turns that into queries: filters return expressions
-  (see `Backpex.Expr`), metrics name an aggregate (see `Backpex.Metric`). The `:options_query` option of
-  association fields receives the query of the adapter.
+  Backpex builds a `Backpex.Query` for every read, and the adapter runs it with `c:read/1`, `c:count/1` and
+  `c:aggregate/1`. Filters return expressions (see `Backpex.Expr`) and metrics name an aggregate (see
+  `Backpex.Metric`), which end up in the query. Adapters don't get the fields or filters of the LiveResource, so an
+  adapter for another data source only has to run queries.
 
   Options and callbacks that only one adapter understands belong to it, e.g. the `:select` option of fields and
   `Backpex.Adapters.Ecto.Field` belong to `Backpex.Adapters.Ecto`. An adapter adds options to fields with
@@ -56,50 +57,40 @@ defmodule Backpex.Adapter do
   @callback field_config_schema() :: keyword()
 
   @doc """
-  Gets a database record with the given primary key value.
+  Puts the options the adapter adds to fields (see `c:field_config_schema/0`) into the query, e.g. the `:select` option
+  of `Backpex.Adapters.Ecto` as a computed value. Keep the data for later in the `:native` field of the query, see
+  `Backpex.Query.put_native/3`.
 
-  Should return `nil` if no result was found.
+  Backpex calls it with every field of the LiveResource when it builds a query of the items of the resource, and with
+  an association field when it builds the query of the options of the field. Then the `:from` of the query is the name
+  of the field.
+
+  Optional: adapters that add no options to fields don't need it, as `c:read/1`, `c:count/1` and `c:aggregate/1` only
+  get the query.
   """
-  @callback get(primary_value :: term(), fields :: list(), assigns :: map(), live_resource :: module()) ::
-              {:ok, struct() | nil} | {:error, term()}
+  @callback put_field_options(query :: Backpex.Query.t(), field :: {atom(), map()}) :: Backpex.Query.t()
 
   @doc """
-  Returns a list of items by given criteria.
+  Returns the items of the query, see `Backpex.Query`: the items at the end of its `:from`, that match its `:filter`
+  and `:search`, sorted by `Backpex.Query.sorts/1`, after its `:offset` and up to its `:limit`, with the relationships
+  of its `:load` and the values of its `:computed`.
 
-  The criteria may contain:
-
-    * `:search` - a tuple of the search string and the searchable fields.
-    * `:filter_values` and `:filter_configs` - the validated values and the configurations of the active filters. Keep
-      the items that match the expression of every filter, see `Backpex.Filter.to_condition/3` and `Backpex.Expr`.
-    * `:order` - a map with the keys `:by` (the column to order by), `:direction` (`:asc` or `:desc`), `:field_name`
-      (the name of the field that is ordered by, or `nil`) and `:nulls` (`:default`, `:first`, `:last` or `:smallest`).
-    * `:pagination` - a map with the keys `:page` and `:size`.
+  Backpex calls it only with valid queries, so an item that doesn't exist results in an empty list.
   """
-  @callback list(criteria :: keyword(), fields :: list(), assigns :: map(), live_resource :: module()) :: {:ok, list()}
+  @callback read(query :: Backpex.Query.t()) :: {:ok, list()} | {:error, term()}
 
   @doc """
-  Gets the total count of the current live_resource.
-  Possibly being constrained the item query and the search- and filter options.
+  Returns the number of items the query matches. Backpex removes the sorts, the limit, the offset and the relationships
+  to load before, see `Backpex.Query.unset/2`.
   """
-  @callback count(criteria :: keyword(), fields :: list(), assigns :: map(), live_resource :: module()) ::
-              {:ok, non_neg_integer()}
+  @callback count(query :: Backpex.Query.t()) :: {:ok, non_neg_integer()} | {:error, term()}
 
   @doc """
-  Returns the data of a metric, such as the sum of a column, for the items matching the given criteria.
-
-  Receives the same criteria as `c:count/4`. Computes the `:aggregate` of the metric over the items that also match its
-  `:where` expression, see `Backpex.Metric`. The data covers all matching items, so ignore `:order`, `:pagination` and
-  `:limit`. Backpex doesn't call it for a metric whose module implements
-  `c:Backpex.Metric.data/3`.
+  Returns a map of the names of the `:aggregates` of the query to their values, e.g. the data of metrics. Each aggregate
+  covers the items the query matches that also match its `:where` expression. Backpex removes the sorts, the limit, the
+  offset and the relationships to load before.
   """
-  @callback metric(
-              metric :: map(),
-              criteria :: keyword(),
-              fields :: list(),
-              assigns :: map(),
-              live_resource :: module()
-            ) ::
-              {:ok, term()}
+  @callback aggregate(query :: Backpex.Query.t()) :: {:ok, %{atom() => term()}} | {:error, term()}
 
   @doc """
   Returns a new item that has not been saved yet, e.g. for the form of the `:new` action.
@@ -116,51 +107,6 @@ defmodule Backpex.Adapter do
   `Backpex.Resource.describe/2` to call it.
   """
   @callback describe(path :: [atom()], live_resource :: module()) :: Backpex.Adapter.Description.t() | nil
-
-  @doc """
-  Returns the items that can be selected as the value of the association field `field`, e.g. the options of the select
-  of a `Backpex.Fields.BelongsTo` field.
-
-  The `:options_query` of the field and the following criteria limit the items:
-
-    * `:ids` - only the items with these primary values. Values that are no valid primary value are ignored.
-    * `:search` - only the items whose display field contains this string. Ignored if it is `nil`.
-    * `:offset` and `:limit` - skip and limit the items.
-
-  The `assigns` are passed to the `:options_query` of the field.
-  """
-  @callback list_options(field :: tuple(), criteria :: keyword(), assigns :: map(), live_resource :: module()) ::
-              {:ok, list()}
-
-  @doc """
-  Returns the items of `c:list_options/4` for many assigns at once, e.g. for the index form of a
-  `Backpex.Fields.BelongsTo` field in every row of the index view.
-
-  Receives a map of keys to assigns and returns a map of the same keys to the items `c:list_options/4` returns for
-  each assigns. Implement it to load equal items only once. Without it, `Backpex.Resource.list_options_by_key/4` calls
-  `c:list_options/4` for every key.
-  """
-  @callback list_options_by_key(
-              field :: tuple(),
-              criteria :: keyword(),
-              assigns_by_key :: map(),
-              live_resource :: module()
-            ) :: {:ok, map()}
-
-  @doc """
-  Returns the number of items `c:list_options/4` returns for the given criteria, ignoring `:offset` and `:limit`.
-  """
-  @callback count_options(field :: tuple(), criteria :: keyword(), assigns :: map(), live_resource :: module()) ::
-              {:ok, non_neg_integer()}
-
-  @doc """
-  Returns a term that changes whenever the items `c:list_options/4` returns for the assigns may change, e.g. the query
-  of the options after the `:options_query` of the field. Association fields compare it to load their options again,
-  e.g. when the `:options_query` depends on a value of the form. Backpex doesn't look into the term.
-
-  Without it, `Backpex.Resource.options_key/3` returns `nil`, so the fields load their options once.
-  """
-  @callback options_key(field :: tuple(), assigns :: map(), live_resource :: module()) :: term()
 
   @doc """
   Inserts given item.
@@ -204,5 +150,5 @@ defmodule Backpex.Adapter do
   """
   @callback delete_all(items :: list(struct()), live_resource :: module()) :: {:ok, term()} | {:error, term()}
 
-  @optional_callbacks field_config_schema: 0, list_options_by_key: 4, options_key: 3
+  @optional_callbacks field_config_schema: 0, put_field_options: 2
 end
