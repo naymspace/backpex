@@ -26,6 +26,7 @@ defmodule Backpex.MixProject do
       aliases: aliases(),
       gettext: gettext(),
       test_coverage: test_coverage(),
+      usage_rules: usage_rules(),
 
       # Hex.pm
       hex: [cooldown: "3d"],
@@ -58,6 +59,19 @@ defmodule Backpex.MixProject do
     ]
   end
 
+  # `mix usage_rules.sync` links the rules of these packages at the end of CODING_STANDARDS.md. It only sees dev
+  # dependencies, so CODING_STANDARDS.md links the rules of the test-only `phoenix_test_playwright` by hand.
+  defp usage_rules do
+    [
+      file: "CODING_STANDARDS.md",
+      usage_rules: [
+        {:phoenix, link: :markdown, except: [:elixir]},
+        {:igniter, link: :markdown},
+        {:sobelow, link: :markdown}
+      ]
+    ]
+  end
+
   defp deps do
     [
       # development
@@ -71,7 +85,7 @@ defmodule Backpex.MixProject do
       {:phx_new, "~> 1.8", only: :test, runtime: false},
       {:esbuild, "~> 0.10", only: :dev},
       {:quokka, "~> 2.9", only: [:dev, :test], runtime: false},
-      {:usage_rules, "~> 0.1", only: [:dev]},
+      {:usage_rules, "~> 1.3", only: [:dev]},
 
       # core
       {:nimble_options, "~> 1.1"},
@@ -112,7 +126,7 @@ defmodule Backpex.MixProject do
 
   defp package do
     [
-      files: ~w(assets/js package.json lib priv .formatter.exs mix.exs README.md LICENSE.md),
+      files: ~w(assets/js package.json lib priv .formatter.exs mix.exs README.md LICENSE.md usage-rules.md),
       maintainers: ["Florian Arens", "Phil-Bastian Berndt", "Simon Hansen"],
       licenses: ["MIT"],
       links: %{
