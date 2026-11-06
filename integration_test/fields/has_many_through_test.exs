@@ -77,6 +77,41 @@ defmodule Backpex.Integration.Fields.HasManyThroughTest do
       assert linked_addresses(user) == [german.id]
     end
 
+    test "refuses a child that is not an option through the entries of the add and remove buttons", %{
+      conn: conn,
+      american: american
+    } do
+      user = insert(:user)
+
+      conn
+      |> visit(~p"/admin/user-relation-options/#{user.id}/edit")
+      |> unwrap(fn view ->
+        form_component = Phoenix.LiveViewTest.with_target(view, "#form-component")
+        entry = %{"0" => %{"address_id" => american.id, "type" => "billing"}}
+
+        Phoenix.LiveViewTest.render_change(form_component, "validate", %{
+          "change" => %{"users_addresses" => entry},
+          "_target" => ["change", "users_addresses"]
+        })
+
+        # Both buttons put the entries of the validated changeset into the assocs of the form.
+        view
+        |> Phoenix.LiveViewTest.element("button[phx-click='new-relational']")
+        |> Phoenix.LiveViewTest.render_click()
+
+        view
+        |> Phoenix.LiveViewTest.element("button[phx-click='detach-relational'][phx-value-index='1']")
+        |> Phoenix.LiveViewTest.render_click()
+
+        Phoenix.LiveViewTest.render_submit(form_component, "save", %{
+          "change" => %{"username" => "after"},
+          "save-type" => "save"
+        })
+      end)
+
+      assert linked_addresses(user) == []
+    end
+
     test "keeps a linked child that is not an option", %{conn: conn, american: american} do
       user = insert(:user, users_addresses: [%UsersAddresses{address_id: american.id, type: :billing}])
       [link] = user.users_addresses

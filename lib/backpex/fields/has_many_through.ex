@@ -477,16 +477,19 @@ defmodule Backpex.Fields.HasManyThrough do
   def association?(_field), do: true
 
   # The pivot entries come from the client, so the form links only options of the select, or the children the item is
-  # already linked to. The item may stay linked to a child that is no longer an option.
+  # already linked to. The item may stay linked to a child that is no longer an option. The entries reach the changeset
+  # through the params and through the assocs of the form, which the buttons of the field build from earlier params.
   @impl Backpex.Field
   def before_changeset(changeset, attrs, _metadata, repo, {name, field_options} = _field, assigns) do
     %{pivot: pivot, child: child} = association(assigns.live_resource.adapter_config(:schema), name)
     linked_ids = changeset.data |> Map.get(pivot.field) |> linked_ids(child.owner_key)
+    stored_entries = assigns |> Map.get(:assocs, []) |> Keyword.get(pivot.field, [])
 
     submitted_ids =
       attrs
       |> Map.get(Atom.to_string(pivot.field))
       |> submitted_ids(child.owner_key)
+      |> Enum.concat(stored_ids(stored_entries, child.owner_key))
       |> cast_ids(child.queryable.__schema__(:type, :id))
 
     with {:ok, ids} <- submitted_ids,
@@ -512,6 +515,17 @@ defmodule Backpex.Fields.HasManyThrough do
   end
 
   defp submitted_ids(_entries, _owner_key), do: []
+
+  # The entries the buttons put into the assocs: changesets, the linked structs and empty maps for new entries.
+  defp stored_ids(entries, owner_key) do
+    entries
+    |> Enum.reject(&match?(%Changeset{action: action} when action in [:delete, :replace], &1))
+    |> Enum.map(fn
+      %Changeset{} = changeset -> Changeset.get_field(changeset, owner_key)
+      entry -> Map.get(entry, owner_key)
+    end)
+    |> Enum.reject(&(&1 in [nil, ""]))
+  end
 
   defp cast_ids(ids, type) do
     Enum.reduce_while(ids, {:ok, []}, fn id, {:ok, acc} ->
