@@ -55,6 +55,8 @@ File.rm_rf!(Backpex.Test.Uploads.dir())
       {Phoenix.PubSub, name: Backpex.Test.AppPubSub},
       # The PubSub server of `Backpex.Test.PubSubNoteLive`, which configures its own.
       Supervisor.child_spec({Phoenix.PubSub, name: OptionsPubSub}, id: OptionsPubSub),
+      # The notes of `Backpex.Test.MemoryNoteLive`.
+      {Backpex.Adapters.Memory, name: Backpex.Test.MemoryNotes},
       Endpoint
     ],
     strategy: :one_for_one

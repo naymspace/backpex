@@ -2,8 +2,9 @@ defmodule Backpex.Test.AdapterConformance do
   @moduledoc """
   The tests every `Backpex.Adapter` has to pass, run against the adapter of a LiveResource.
 
-  They call the adapter callbacks with the queries (see `Backpex.Query`) and assigns the views of Backpex build, so an
-  adapter that passes them works with the index, show and form views. Use it in a test module that defines `insert_item/1`, which stores an
+  They read with the queries (see `Backpex.Query`) and assigns the views of Backpex build, through `Backpex.Resource`
+  like the views, so an adapter that passes them works with the index, show and form views. `Backpex.Resource` applies
+  the parts of a query the adapter doesn't support in memory, see `c:Backpex.Adapter.supports?/2`. Use it in a test module that defines `insert_item/1`, which stores an
   item with the given attributes, and `new_item/0`, which returns an unsaved item:
 
       defmodule Backpex.Integration.Adapters.EctoAdapterTest do
@@ -90,7 +91,7 @@ defmodule Backpex.Test.AdapterConformance do
             |> Backpex.Query.aggregate(:first, {:min, @field})
             |> Backpex.Query.aggregate(:bravos, :count, where: [{@field, "Bravo"}])
 
-          assert adapter(@live_resource).aggregate(query) == {:ok, %{total: 3, first: "Alpha", bravos: 1}}
+          assert Backpex.Resource.aggregate(query) == {:ok, %{total: 3, first: "Alpha", bravos: 1}}
         end
       end
 
@@ -159,7 +160,7 @@ defmodule Backpex.Test.AdapterConformance do
   def list_values(live_resource, field, query_options) do
     query = live_resource |> assigns(query_options) |> Backpex.LiveResource.index_query()
 
-    {:ok, items} = adapter(live_resource).read(query)
+    {:ok, items} = Backpex.Resource.read(query)
 
     Enum.map(items, &Map.fetch!(&1, field))
   end
@@ -172,7 +173,7 @@ defmodule Backpex.Test.AdapterConformance do
       |> Backpex.LiveResource.index_query()
       |> Backpex.Query.unset([:sort, :default_sort, :limit, :offset, :load])
 
-    {:ok, count} = adapter(live_resource).count(query)
+    {:ok, count} = Backpex.Resource.count(query)
 
     count
   end
@@ -188,7 +189,7 @@ defmodule Backpex.Test.AdapterConformance do
       |> Backpex.Query.primary(primary_value)
       |> Backpex.Query.limit(1)
 
-    {:ok, items} = adapter(live_resource).read(query)
+    {:ok, items} = Backpex.Resource.read(query)
     items
   end
 
