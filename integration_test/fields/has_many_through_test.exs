@@ -51,6 +51,62 @@ defmodule Backpex.Integration.Fields.HasManyThroughTest do
     end
   end
 
+  # The addresses of `Backpex.Test.UserRelationOptionsLive` have an `options_query` that only offers German addresses.
+  describe "options_query on save" do
+    setup do
+      %{german: insert(:address, country: :de), american: insert(:address, country: :us)}
+    end
+
+    test "refuses to link a child that is not an option", %{conn: conn, american: american} do
+      user = insert(:user)
+
+      conn
+      |> visit(~p"/admin/user-relation-options/#{user.id}/edit")
+      |> save(%{users_addresses: %{"0" => %{address_id: american.id, type: "billing"}}})
+
+      assert linked_addresses(user) == []
+    end
+
+    test "links a child that is an option", %{conn: conn, german: german} do
+      user = insert(:user)
+
+      conn
+      |> visit(~p"/admin/user-relation-options/#{user.id}/edit")
+      |> save(%{users_addresses: %{"0" => %{address_id: german.id, type: "billing"}}})
+
+      assert linked_addresses(user) == [german.id]
+    end
+
+    test "keeps a linked child that is not an option", %{conn: conn, american: american} do
+      user = insert(:user, users_addresses: [%UsersAddresses{address_id: american.id, type: :billing}])
+      [link] = user.users_addresses
+
+      conn
+      |> visit(~p"/admin/user-relation-options/#{user.id}/edit")
+      |> save(%{username: "after", users_addresses: %{"0" => %{id: link.id, address_id: american.id, type: "billing"}}})
+
+      assert %User{username: "after"} = Repo.get!(User, user.id)
+      assert linked_addresses(user) == [american.id]
+    end
+  end
+
+  # A crafted client can send any value, not only the options of the select.
+  defp save(session, params) do
+    unwrap(session, fn view ->
+      view
+      |> Phoenix.LiveViewTest.form("#resource-form")
+      |> Phoenix.LiveViewTest.put_submitter("button[value=save]")
+      |> Phoenix.LiveViewTest.render_submit(%{change: params})
+    end)
+  end
+
+  defp linked_addresses(user) do
+    user
+    |> Repo.preload(:users_addresses, force: true)
+    |> Map.fetch!(:users_addresses)
+    |> Enum.map(& &1.address_id)
+  end
+
   defp field do
     {:addresses,
      %{

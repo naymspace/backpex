@@ -21,7 +21,8 @@ defmodule Backpex.Fields.HasMany do
     ],
     options_query: [
       doc: """
-      Manipulates the list of available options in the multi select.
+      Manipulates the list of available options in the multi select. The form links only options, so the options query
+      also limits which records the field can link.
 
       Defaults to `fn (query, _field) -> query end` which returns all entries.
       """,

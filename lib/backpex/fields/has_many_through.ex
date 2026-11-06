@@ -30,7 +30,9 @@ defmodule Backpex.Fields.HasManyThrough do
     ],
     options_query: [
       doc: """
-      Manipulates the list of available options in the select. Can be used to select additional data for the `display_field` option or to limit the available entries.",
+      Manipulates the list of available options in the select. Can be used to select additional data for the
+      `display_field` option or to limit the available entries. The form links only options or the records the item is
+      already linked to, so the options query also limits which records the field can link.
 
       Defaults to `fn (query, _field) -> query end` which returns all entries.
       """,
@@ -473,6 +475,68 @@ defmodule Backpex.Fields.HasManyThrough do
 
   @impl Backpex.Field
   def association?(_field), do: true
+
+  # The pivot entries come from the client, so the form links only options of the select, or the children the item is
+  # already linked to. The item may stay linked to a child that is no longer an option.
+  @impl Backpex.Field
+  def before_changeset(changeset, attrs, _metadata, repo, {name, field_options} = _field, assigns) do
+    %{pivot: pivot, child: child} = association(assigns.live_resource.adapter_config(:schema), name)
+    linked_ids = changeset.data |> Map.get(pivot.field) |> linked_ids(child.owner_key)
+
+    submitted_ids =
+      attrs
+      |> Map.get(Atom.to_string(pivot.field))
+      |> submitted_ids(child.owner_key)
+      |> cast_ids(child.queryable.__schema__(:type, :id))
+
+    with {:ok, ids} <- submitted_ids,
+         true <- options?(ids -- linked_ids, child.queryable, repo, field_options, assigns) do
+      changeset
+    else
+      # Ecto's message and metadata for a value outside the allowed ones, so the error translation of the app applies.
+      _invalid -> Changeset.add_error(changeset, pivot.field, "is invalid", validation: :inclusion)
+    end
+  end
+
+  defp linked_ids(entries, owner_key) when is_list(entries), do: Enum.map(entries, &Map.get(&1, owner_key))
+  defp linked_ids(_not_loaded, _owner_key), do: []
+
+  # The form sends the pivot entries as a map of indexes to params, a client may send a list.
+  defp submitted_ids(entries, owner_key) when is_map(entries), do: submitted_ids(Map.values(entries), owner_key)
+
+  defp submitted_ids(entries, owner_key) when is_list(entries) do
+    entries
+    |> Enum.filter(&is_map/1)
+    |> Enum.map(&Map.get(&1, Atom.to_string(owner_key)))
+    |> Enum.reject(&(&1 in [nil, ""]))
+  end
+
+  defp submitted_ids(_entries, _owner_key), do: []
+
+  defp cast_ids(ids, type) do
+    Enum.reduce_while(ids, {:ok, []}, fn id, {:ok, acc} ->
+      case Ecto.Type.cast(type, id) do
+        {:ok, id} -> {:cont, {:ok, [id | acc]}}
+        :error -> {:halt, :error}
+      end
+    end)
+  end
+
+  defp options?([], _queryable, _repo, _field_options, _assigns), do: true
+
+  defp options?(ids, queryable, repo, field_options, assigns) do
+    ids = Enum.uniq(ids)
+
+    option_ids =
+      queryable
+      |> from()
+      |> maybe_options_query(field_options, assigns)
+      |> where([option], option.id in ^ids)
+      |> repo.all()
+      |> Enum.map(& &1.id)
+
+    Enum.all?(ids, &(&1 in option_ids))
+  end
 
   attr :name, :atom, required: true
   attr :form, :any, required: true
