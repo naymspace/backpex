@@ -68,6 +68,19 @@ def param_keys({name, _field_options}, _assigns) do
 end
 ```
 
+If the form of the field submits rows of nested params, e.g. through `inputs_for`, return `{key, keys}` for them. The
+form then keeps only the given keys in each row, as `Backpex.Fields.InlineCRUD` does for the child fields an admin may
+edit:
+
+```elixir
+@impl Backpex.Field
+def param_keys({name, _field_options}, _assigns) do
+  [{Atom.to_string(name), ["id", "street", "city"]}]
+end
+```
+
+A field with an `upload_key` keeps the hidden input of the upload UI without returning it.
+
 ## Add field option validation
 
 With Backpex v0.9 we are validating field options. This ensures that only field options that are actually used by the field can be defined in the field options map. So if your custom field requires certain field options, make sure you define them.

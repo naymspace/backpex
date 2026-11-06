@@ -280,13 +280,36 @@ defmodule Backpex.Fields.InlineCRUD do
   def association?({_name, %{type: :assoc}} = _field), do: true
   def association?({_name, %{type: :embed}} = _field), do: false
 
-  # The form submits the order and the dropped entries for the `:sort_param` and `:drop_param` of the changeset.
+  # The form submits the rows, and the order and the dropped rows for the `:sort_param` and `:drop_param` of the
+  # changeset. A row keeps only the params of the child fields the admin may edit, as the form renders only these.
   @impl Backpex.Field
-  def param_keys({name, _field_options}, _assigns) do
-    name = Atom.to_string(name)
+  def param_keys({name, field_options}, assigns) do
+    name_string = Atom.to_string(name)
 
-    [name, name <> "_order", name <> "_delete"]
+    [{name_string, row_keys(name, field_options, assigns)}, name_string <> "_order", name_string <> "_delete"]
   end
+
+  # `inputs_for` adds the primary key and the persistent id of each row.
+  defp row_keys(name, field_options, assigns) do
+    child_keys =
+      field_options.child_fields
+      |> validated_fields(name)
+      |> Backpex.LiveResource.fields_by_action(assigns.live_action)
+      |> Backpex.LiveResource.fields_by_can(assigns)
+      |> Enum.reject(fn {_name, child_options} -> Backpex.Field.readonly?(child_options, assigns) end)
+      |> Enum.flat_map(fn {_name, child_options} = child -> child_options.module.param_keys(child, assigns) end)
+
+    primary_keys =
+      field_options
+      |> child_schema(assigns.live_resource.adapter_config(:schema), name)
+      |> then(& &1.__schema__(:primary_key))
+      |> Enum.map(&Atom.to_string/1)
+
+    ["_persistent_id" | primary_keys] ++ child_keys
+  end
+
+  defp child_schema(%{type: :embed}, schema, name), do: schema.__schema__(:embed, name).related
+  defp child_schema(%{type: :assoc}, schema, name), do: schema.__schema__(:association, name).related
 
   @impl Backpex.Field
   def schema({name, _field_options}, schema) do

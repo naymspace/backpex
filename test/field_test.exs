@@ -93,7 +93,33 @@ defmodule Backpex.FieldTest do
     end
   end
 
+  # A field whose form submits rows of nested params, as `Backpex.Fields.InlineCRUD` does.
+  defmodule RowsField do
+    def param_keys({name, _field_options}, _assigns), do: [{Atom.to_string(name), ["id", "label"]}]
+  end
+
   describe "editable_changes/3" do
+    test "keeps only the keys of a field in its rows of nested params" do
+      fields = [links: %{module: RowsField, label: "Links"}]
+      row = %{"id" => "1", "label" => "Blog", "_unused_label" => "", "url" => "https://forged.example.com"}
+      kept_row = Map.delete(row, "url")
+
+      assert Field.editable_changes(%{"links" => %{"0" => row}, "_unused_links" => ""}, fields, %{}) ==
+               %{"links" => %{"0" => kept_row}, "_unused_links" => ""}
+
+      assert Field.editable_changes(%{"links" => [row]}, fields, %{}) == %{"links" => [kept_row]}
+    end
+
+    test "keeps whether the admin used the upload input of a field with an upload key" do
+      fields = [avatar: %{module: Text, label: "Avatar", upload_key: :avatar}]
+      change = %{"avatar_used_input" => "false", "_unused_avatar" => ""}
+
+      assert Field.editable_changes(change, fields, %{}) == change
+
+      assert Field.drop_readonly_changes(change, [avatar: %{module: Text, readonly: true, upload_key: :avatar}], %{}) ==
+               %{"_unused_avatar" => ""}
+    end
+
     test "drops the params of readonly fields and of no field" do
       fields = UpstreamPrices.fields()
       change = %{"name" => "Backpack", "upstream_price" => "100", "override_price" => "200", "role" => "admin"}

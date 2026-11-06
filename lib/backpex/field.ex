@@ -205,8 +205,15 @@ defmodule Backpex.Field do
   through a field it doesn't see. Defaults to the name of the field. Override it when the form of the field submits
   other or more params, as `Backpex.Fields.BelongsTo` submits the foreign key, e.g. `["user_id"]`. The function
   receives the field definition and the assigns of the form.
+
+  A field whose form submits rows of nested params returns `{key, keys}` for them, e.g. `{"addresses", ["id", "street"]}`.
+  The form then keeps only the given keys in each row of the param `key`, which may be a list or a map of rows. A key in
+  `keys` may again be such a tuple. `Backpex.Fields.InlineCRUD` returns its rows this way.
+
+  The hidden input of the upload UI of a field with an `upload_key`, `"<name>_used_input"`, is kept without being returned
+  here.
   """
-  @callback param_keys(field :: tuple(), assigns :: map()) :: [String.t()]
+  @callback param_keys(field :: tuple(), assigns :: map()) :: [String.t() | {String.t(), list()}]
 
   @doc """
   The field to be displayed on index views. In most cases this is the name / key configured in the corresponding field definition.
@@ -564,16 +571,17 @@ defmodule Backpex.Field do
   Takes the changes of the fields an admin may edit from the given change map.
 
   Takes a map of string-keyed form params, a keyword list of field definitions, and assigns. Returns the params that
-  `c:param_keys/2` of a field that is not readonly returns, and their `_unused_` params of LiveView. The form gets the
-  fields of the current action that `can?` allows, so the params of every other field are dropped as well.
+  `c:param_keys/2` of a field that is not readonly returns, and their `_unused_` params of LiveView. The rows of nested
+  params keep only their keys. The form gets the fields of the current action that `can?` allows, so the params of
+  every other field are dropped as well.
   """
   def editable_changes(change, fields, assigns) do
     keys =
       fields
       |> Enum.reject(fn {_name, options} -> readonly?(options, assigns) end)
-      |> Enum.flat_map(fn {_name, options} = field -> options.module.param_keys(field, assigns) end)
+      |> Enum.flat_map(&submitted_keys(&1, assigns))
 
-    Map.take(change, keys ++ Enum.map(keys, &("_unused_" <> &1)))
+    take_params(change, keys)
   end
 
   @doc """
@@ -586,10 +594,49 @@ defmodule Backpex.Field do
     read_only =
       fields
       |> Enum.filter(fn {_name, options} -> readonly?(options, assigns) end)
-      |> Enum.flat_map(fn {_name, options} = field -> options.module.param_keys(field, assigns) end)
+      |> Enum.flat_map(&submitted_keys(&1, assigns))
+      |> Enum.map(&param_name/1)
 
     Map.drop(change, read_only)
   end
+
+  # The upload UI submits whether the admin used the upload input, for every field with an upload key.
+  defp submitted_keys({name, field_options} = field, assigns) do
+    used_input = if upload_key(field), do: ["#{name}_used_input"], else: []
+
+    field_options.module.param_keys(field, assigns) ++ used_input
+  end
+
+  defp take_params(params, keys) do
+    Enum.reduce(keys, %{}, fn key, acc ->
+      name = param_name(key)
+
+      acc
+      |> take_param(params, "_unused_" <> name, name)
+      |> take_param(params, name, key)
+    end)
+  end
+
+  defp take_param(acc, params, name, key) do
+    case Map.fetch(params, name) do
+      {:ok, value} -> Map.put(acc, name, take_rows(value, key))
+      :error -> acc
+    end
+  end
+
+  # The rows of nested params, e.g. of `inputs_for`, come as a list or as a map of indexes to rows.
+  defp take_rows(rows, {_name, keys}) when is_list(rows), do: Enum.map(rows, &take_row(&1, keys))
+
+  defp take_rows(rows, {_name, keys}) when is_map(rows),
+    do: Map.new(rows, fn {index, row} -> {index, take_row(row, keys)} end)
+
+  defp take_rows(value, _key), do: value
+
+  defp take_row(row, keys) when is_map(row), do: take_params(row, keys)
+  defp take_row(value, _keys), do: value
+
+  defp param_name({name, _keys}), do: name
+  defp param_name(name), do: name
 
   def translate_error_fun(%{translate_error: translate_error}, _assigns) when is_function(translate_error, 1),
     do: translate_error
