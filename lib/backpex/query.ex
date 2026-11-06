@@ -103,7 +103,7 @@ defmodule Backpex.Query do
 
   @directions [:asc, :desc, :asc_nulls_first, :asc_nulls_last, :desc_nulls_first, :desc_nulls_last]
   @aggregate_kinds [:count, :sum, :avg, :min, :max]
-  @value_structs [Expr.Ref, Expr.Call]
+  @value_structs [Expr.Ref, Expr.Call, Expr.Aggregate]
   @unset_keys [:filter, :search, :sort, :default_sort, :limit, :offset, :load, :computed, :aggregates]
 
   @doc """

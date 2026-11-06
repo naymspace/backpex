@@ -6,6 +6,7 @@ defmodule Backpex.Query.Runtime do
   # unknown, and an item is only kept if its expression is `true`. Sorting puts `nil` last when ascending and first when
   # descending, as PostgreSQL does, unless the direction says otherwise.
 
+  alias Backpex.Expr.Aggregate
   alias Backpex.Expr.Call
   alias Backpex.Expr.Exists
   alias Backpex.Expr.Native
@@ -49,6 +50,16 @@ defmodule Backpex.Query.Runtime do
     case value_of(value, item) do
       nil -> nil
       value -> to_text(value)
+    end
+  end
+
+  defp value_of(%Aggregate{kind: kind, path: path, value: value, where: where, sort: sort}, item) do
+    related = item |> related(path) |> filter(where)
+
+    case kind do
+      :count -> length(related)
+      :first -> related |> sort(sort) |> List.first() |> then(&(&1 && value_of(value, &1)))
+      kind -> related |> Enum.map(&value_of(value, &1)) |> Enum.reject(&is_nil/1) |> aggregate_values(kind)
     end
   end
 
@@ -157,7 +168,7 @@ defmodule Backpex.Query.Runtime do
   def eval(expression, _item), do: raise(ArgumentError, "unsupported expression: #{inspect(expression)}")
 
   defp operand(%Ref{} = ref, item), do: value(ref, item)
-  defp operand(%Call{} = expression, item), do: value_of(expression, item)
+  defp operand(%struct{} = expression, item) when struct in [Call, Aggregate], do: value_of(expression, item)
   defp operand(value, _item), do: value
 
   # As in SQL, a value with `nil` is `nil` and the division of two integers is an integer, rounded towards zero.
@@ -301,16 +312,10 @@ defmodule Backpex.Query.Runtime do
 
   defp aggregate_value(items, :count), do: length(items)
 
-  defp aggregate_value(items, {kind, %struct{} = expression}) when struct in [Ref, Call] do
+  defp aggregate_value(items, {kind, %struct{} = expression}) when struct in [Ref, Call, Aggregate] do
     values = items |> Enum.map(&value_of(expression, &1)) |> Enum.reject(&is_nil/1)
 
-    case kind do
-      :count -> length(values)
-      :sum -> sum(values)
-      :avg -> avg(values)
-      :min -> extreme(values, :lt)
-      :max -> extreme(values, :gt)
-    end
+    if kind == :count, do: length(values), else: aggregate_values(values, kind)
   end
 
   defp aggregate_value(items, {:count, field}), do: items |> values(field) |> length()
@@ -324,6 +329,11 @@ defmodule Backpex.Query.Runtime do
   end
 
   defp values(items, field), do: items |> Enum.map(&Map.get(&1, field)) |> Enum.reject(&is_nil/1)
+
+  defp aggregate_values(values, :sum), do: sum(values)
+  defp aggregate_values(values, :avg), do: avg(values)
+  defp aggregate_values(values, :min), do: extreme(values, :lt)
+  defp aggregate_values(values, :max), do: extreme(values, :gt)
 
   # As in SQL, the sum, average, minimum and maximum of no values is `nil`.
   defp sum([]), do: nil

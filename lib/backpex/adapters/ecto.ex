@@ -88,6 +88,7 @@ defmodule Backpex.Adapters.Ecto do
   import Ecto.Query
 
   alias Backpex.Adapters.Ecto.Where
+  alias Backpex.Expr.Aggregate
   alias Backpex.Expr.Call
   alias Backpex.Expr.Native
   alias Backpex.Expr.Ref
@@ -184,7 +185,7 @@ defmodule Backpex.Adapters.Ecto do
     do: aggregate_dynamic(ecto_query, {kind, Backpex.Expr.ref(field)})
 
   defp aggregate_dynamic(ecto_query, {kind, %struct{} = expression})
-       when kind in [:count, :sum, :avg, :min, :max] and struct in [Ref, Call] do
+       when kind in [:count, :sum, :avg, :min, :max] and struct in [Ref, Call, Aggregate] do
     {ecto_query, value} = Where.value(ecto_query, expression)
 
     case kind do
@@ -498,7 +499,9 @@ defmodule Backpex.Adapters.Ecto do
 
   defp merge_computed(ecto_query, %Query{computed: computed}) when computed == %{}, do: ecto_query
 
-  defp merge_computed(ecto_query, %Query{computed: computed}) do
+  defp merge_computed(ecto_query, %Query{computed: computed} = query) do
+    ecto_query = Where.join_aggregates(ecto_query, aggregate_expressions(query))
+
     {values, ecto_query} =
       Enum.map_reduce(computed, ecto_query, fn {name, expression}, ecto_query ->
         {ecto_query, value} = Where.value(ecto_query, expression)
@@ -506,6 +509,21 @@ defmodule Backpex.Adapters.Ecto do
       end)
 
     select_merge(ecto_query, ^Map.new(values))
+  end
+
+  # The expressions whose aggregates share joins, see `Backpex.Adapters.Ecto.Where.join_aggregates/2`: the computed
+  # values, the ones of related items that sorts and the search refer to, and the conditions of the search.
+  defp aggregate_expressions(%Query{computed: computed, search: search} = query) do
+    sort_targets = query |> Query.sorts() |> Enum.map(fn {ref, _direction} -> ref end)
+    search_targets = if search, do: search.targets, else: []
+
+    related =
+      Enum.flat_map(sort_targets ++ search_targets, fn
+        %Ref{} = ref -> query |> Query.computed_expr(ref) |> List.wrap()
+        condition -> [condition]
+      end)
+
+    Map.values(computed) ++ related
   end
 
   # --- QUERIES
