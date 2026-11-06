@@ -28,48 +28,6 @@ defmodule Backpex.Adapters.Ecto do
       """,
       type: {:fun, 3},
       default: &__MODULE__.default_changeset/3
-    ],
-    item_query: [
-      doc: """
-      The function that can be used to modify the ecto query. It will be used when resources are being fetched. This
-      happens on `index`, `edit` and `show` view. In most cases this function will be used to filter items on `index`
-      view based on certain criteria, but it may also be used to join other tables on `edit` or `show` view.
-
-      This function should accept the following parameters:
-
-      - `query` - `Ecto.Query.t()`
-      - `live_action` - `atom()`
-      - `assigns` - `map()`
-
-      It should return an `Ecto.Queryable`. It is recommended to build your `item_query` on top of the incoming query.
-      Otherwise you will likely get binding errors.
-      """,
-      type: {:fun, 3},
-      default: &__MODULE__.default_item_query/3
-    ]
-  ]
-
-  @field_config_schema [
-    select: [
-      doc: """
-      A dynamic query expression that selects the value of the field.
-
-      ### Example
-
-          full_name: %{
-            module: Backpex.Fields.Text,
-            label: "Full Name",
-            select: dynamic([user: u], fragment("concat(?, ' ', ?)", u.first_name, u.last_name)),
-          }
-      """,
-      type: {:struct, Ecto.Query.DynamicExpr}
-    ],
-    custom_alias: [
-      doc: """
-      The name of the binding of the association of the field in queries. Also see the
-      [custom alias](/guides/fields/custom-alias.md) guide.
-      """,
-      type: :atom
     ]
   ]
 
@@ -82,34 +40,40 @@ defmodule Backpex.Adapters.Ecto do
   ## Expressions
 
   The adapter checks the fields of expressions and casts their values with `Backpex.Resource.cast_expr/2` and its
-  `describe/2`. Fields of an expression are fields of the schema. A path through relationships to one item, such as `author.name`,
-  joins the relationships with left joins, which every expression with the same path shares. `exists/2` becomes a
-  subquery of the primary keys of the items with a matching related item, so it doesn't duplicate items.
-  `contains/2`, `starts_with/2` and `ends_with/2` become `like`, or `ilike` with `ignore_case: true`.
+  `describe/2`. Fields of an expression are fields of the schema. A path through relationships to one item, such as
+  `author.name`, joins the relationships with left joins, which every expression with the same path shares. The joins
+  are named after their path, e.g. `:backpex_author` for `author` and `:backpex_author__company` for `author.company`.
+  `exists/2` becomes a subquery of the primary keys of the items with a matching related item, so it doesn't duplicate
+  items. `contains/2`, `starts_with/2` and `ends_with/2` become `like`, or `ilike` with `ignore_case: true`, and
+  `concat/2` becomes `concat_ws`.
 
-  `Backpex.Expr.native/2` takes an `Ecto.Query.dynamic/2` expression for this adapter, e.g. for a fragment of SQL. Its
-  positional binding is the schema of the resource:
+  `Backpex.Expr.native/3` takes an `Ecto.Query.dynamic/2` expression for this adapter, e.g. for a fragment of SQL. Its
+  positional binding is the schema of the resource, which is also named after the schema, e.g. `:post` for
+  `MyApp.Post`. With `uses: [:author]`, the expression can use the join of a path by its name:
 
       Backpex.Expr.native(Backpex.Adapters.Ecto, dynamic([post], fragment("lower(?)", post.title) == ^title))
 
+      Backpex.Expr.native(
+        Backpex.Adapters.Ecto,
+        dynamic([backpex_author: a], fragment("concat_ws(' ', ?, ?)", a.first_name, a.last_name)),
+        uses: [:author]
+      )
+
+  Computed values (see `c:Backpex.LiveResource.computed/1`) are merged into the selected items, so their names have to
+  be fields of the schema, e.g. `field :full_name, :string, virtual: true`. The relationships
+  to load (see `c:Backpex.LiveResource.load/1`) are preloaded. A query of `Backpex.Query.related/1` becomes the preload
+  query of its relationship.
+
   These options and callbacks take Ecto queries, so only this adapter understands them:
 
-    * the field options below and the `adapter_config` option `:item_query`
     * the `:options_query` option of association fields, which receives an `Ecto.Query`
     * the `:select` option of metrics, an `Ecto.Query.dynamic/2` expression to select instead of an aggregate
-    * the callbacks of `Backpex.Adapters.Ecto.Field`
 
   ## Search
 
   Searchable fields are compared to the search string with `ilike`. Columns that are not strings, such as numbers or
-  dates, are cast to text first. A field can build its own condition with
-  `c:Backpex.Adapters.Ecto.Field.search_condition/3`.
-
-  ## Field options
-
-  This adapter adds these options to all fields:
-
-  #{NimbleOptions.docs(@field_config_schema)}
+  dates, and computed values are cast to text first. A field can return its own condition with
+  `c:Backpex.Field.search_condition/3`.
 
   ## `adapter_config`
 
@@ -120,10 +84,11 @@ defmodule Backpex.Adapters.Ecto do
   > The `Backpex.Adapters.Ecto` is still under development and may change in future updates.
   """
 
-  use Backpex.Adapter, config_schema: @config_schema, field_config_schema: @field_config_schema
+  use Backpex.Adapter, config_schema: @config_schema
   import Ecto.Query
 
   alias Backpex.Adapters.Ecto.Where
+  alias Backpex.Expr.Call
   alias Backpex.Expr.Native
   alias Backpex.Expr.Ref
   alias Backpex.Query
@@ -131,98 +96,23 @@ defmodule Backpex.Adapters.Ecto do
   @doc false
   def default_changeset(item, attrs, _metadata), do: Ecto.Changeset.cast(item, attrs, [])
 
-  @doc false
-  def default_item_query(query, _live_action, _assigns), do: query
-
   @doc """
-  Takes the options this adapter adds to fields (`:select` and `:custom_alias`), the `:options_query` of association
-  fields and the callbacks of `Backpex.Adapters.Ecto.Field` into the query, see
-  `c:Backpex.Adapter.put_field_options/2`.
+  Takes the `:options_query` of association fields into the query, see `c:Backpex.Adapter.put_field_options/2`.
   """
   @impl Backpex.Adapter
-  def put_field_options(%Query{from: [], resource: live_resource} = query, {_name, field_options} = field) do
-    schema = live_resource.adapter_config(:schema)
-    ref = Backpex.LiveResource.field_ref(field)
-
-    query =
-      if field_options.module.association?(field) do
-        association = fetch_association!(schema, field)
-        put_association(query, association, field)
-      else
-        maybe_compute(query, field)
-      end
-
-    query
-    |> update_native(:order_exprs, &Map.put(&1, ref, order_expr(field, schema)))
-    |> update_native(:search_exprs, &Map.put(&1, ref, fn search -> search_condition(field, schema, search) end))
-  end
-
   def put_field_options(%Query{from: [name], resource: live_resource} = query, {name, field_options} = field) do
     schema = live_resource.adapter_config(:schema)
     queryable = association_queryable(schema, field)
-    display_field = Map.get(field_options, :display_field)
-
     assigns = Map.get(query.context, :assigns, %{})
 
-    search_expr =
-      case Map.get(field_options, :select) do
-        nil -> fn search -> dynamic([option], ilike(field(option, ^display_field), ^search)) end
-        select -> fn search -> dynamic(ilike(^select, ^search)) end
-      end
-
-    # The options query runs when the query is read, as its binding is only named for a search with a `:select`, see
-    # `options_base/2`. The query it returns now is part of the key of the query, so the key changes with the assigns
-    # the options query depends on.
+    # The options query runs when the query is read. The query it returns now is part of the key of the query, so the
+    # key changes with the assigns the options query depends on.
     query
     |> Query.put_native(:options_query, Map.get(field_options, :options_query))
     |> Query.put_native(:options_key, maybe_options_query(from(queryable), field_options, assigns))
-    |> Query.put_native(:options_select?, Map.has_key?(field_options, :select))
-    |> update_native(:search_exprs, &Map.put(&1, Backpex.Expr.ref(display_field), search_expr))
   end
 
   def put_field_options(%Query{} = query, _field), do: query
-
-  defp update_native(query, key, fun), do: Query.put_native(query, key, fun.(Map.get(query.native, key, %{})))
-
-  defp put_association(query, association, {name, field_options}) do
-    association =
-      case field_options do
-        %{custom_alias: custom_alias} -> association |> Map.from_struct() |> Map.put(:custom_alias, custom_alias)
-        _other -> Map.from_struct(association)
-      end
-
-    query
-    |> update_native(:associations, &Map.put(&1, name, association))
-    |> update_native(:preloads, &Map.put(&1, name, preload_select(association, field_options)))
-  end
-
-  defp preload_select(association, %{display_field: display_field, select: select}) do
-    queryable = Map.get(association, :queryable)
-    custom_alias = Map.get(association, :custom_alias, name_by_schema(queryable))
-
-    queryable
-    |> from(as: ^custom_alias)
-    |> select_merge(^%{display_field => select})
-  end
-
-  defp preload_select(_association, _field_options), do: nil
-
-  # A field with a `:select` and without a `:display_field` gets its value from the expression.
-  defp maybe_compute(query, {name, %{select: select} = field_options})
-       when not is_map_key(field_options, :display_field),
-       do: Query.compute(query, name, Backpex.Expr.native(__MODULE__, select))
-
-  defp maybe_compute(query, _field), do: query
-
-  # The expression a field is ordered by: its `:select`, or the column it shows in the binding of its schema.
-  defp order_expr({_name, %{select: select}}, _schema), do: {:select, select}
-
-  defp order_expr(field, schema) do
-    binding = binding_name(field, schema)
-    %{name: column} = Backpex.LiveResource.field_ref(field)
-
-    {:column, dynamic([{^binding, item}], field(item, ^column))}
-  end
 
   @doc """
   Returns the items of the query, see `c:Backpex.Adapter.read/1`.
@@ -274,26 +164,39 @@ defmodule Backpex.Adapters.Ecto do
 
     {:ok,
      Map.new(aggregates, fn %{name: name, aggregate: aggregate, where: where} ->
+       {ecto_query, value} = aggregate_dynamic(base, aggregate)
+
        data =
-         base
+         ecto_query
          |> Where.where_expr(where)
-         |> select(^aggregate_dynamic(aggregate))
+         |> select(^value)
          |> repo.one()
 
        {name, data}
      end)}
   end
 
-  # An aggregate, see `t:Backpex.Metric.aggregate/0`.
-  defp aggregate_dynamic(%Native{adapter: __MODULE__, expr: expression}), do: expression
-  defp aggregate_dynamic(:count), do: dynamic(count())
-  defp aggregate_dynamic({:count, field}) when is_atom(field), do: dynamic([item], count(field(item, ^field)))
-  defp aggregate_dynamic({:sum, field}) when is_atom(field), do: dynamic([item], sum(field(item, ^field)))
-  defp aggregate_dynamic({:avg, field}) when is_atom(field), do: dynamic([item], avg(field(item, ^field)))
-  defp aggregate_dynamic({:min, field}) when is_atom(field), do: dynamic([item], min(field(item, ^field)))
-  defp aggregate_dynamic({:max, field}) when is_atom(field), do: dynamic([item], max(field(item, ^field)))
+  # An aggregate, see `t:Backpex.Metric.aggregate/0`, with the query and the joins its value needs.
+  defp aggregate_dynamic(ecto_query, %Native{adapter: __MODULE__, expr: expression}), do: {ecto_query, expression}
+  defp aggregate_dynamic(ecto_query, :count), do: {ecto_query, dynamic(count())}
 
-  defp aggregate_dynamic(aggregate) do
+  defp aggregate_dynamic(ecto_query, {kind, field}) when is_atom(field),
+    do: aggregate_dynamic(ecto_query, {kind, Backpex.Expr.ref(field)})
+
+  defp aggregate_dynamic(ecto_query, {kind, %struct{} = expression})
+       when kind in [:count, :sum, :avg, :min, :max] and struct in [Ref, Call] do
+    {ecto_query, value} = Where.value(ecto_query, expression)
+
+    case kind do
+      :count -> {ecto_query, dynamic(count(^value))}
+      :sum -> {ecto_query, dynamic(sum(^value))}
+      :avg -> {ecto_query, dynamic(avg(^value))}
+      :min -> {ecto_query, dynamic(min(^value))}
+      :max -> {ecto_query, dynamic(max(^value))}
+    end
+  end
+
+  defp aggregate_dynamic(_ecto_query, aggregate) do
     raise ArgumentError, "expected an aggregate such as :count or {:sum, :field}, got: #{inspect(aggregate)}"
   end
 
@@ -375,48 +278,6 @@ defmodule Backpex.Adapters.Ecto do
     do: options_query.(query, assigns)
 
   defp maybe_options_query(query, _field_options, _assigns), do: query
-
-  # A `:select` refers to the binding named after the schema, so the options are named for a search with it. Otherwise
-  # the binding is unnamed, as the options query of the field may name its own binding.
-  defp options_base(queryable, %Query{search: %{targets: [_target | _targets]}, native: %{options_select?: true}}),
-    do: from(queryable, as: ^name_by_schema(queryable))
-
-  defp options_base(queryable, _query), do: from(queryable)
-
-  defp search_condition({_name, %{select: select} = _field_options}, _schema, search_string) do
-    dynamic(ilike(^select, ^search_string))
-  end
-
-  defp search_condition({name, field_options} = field, schema, search_string) do
-    queryable = field_queryable(field, schema)
-    field_name = Map.get(field_options, :display_field, name)
-    schema_name = Map.get(field_options, :custom_alias, name_by_schema(queryable))
-
-    if callback?(field_options.module, :search_condition, 3) do
-      dynamic(^field_options.module.search_condition(schema_name, field_name, search_string))
-    else
-      field_options
-      |> column_queryable(queryable, schema)
-      |> default_search_condition(schema_name, field_name, search_string)
-    end
-  end
-
-  # The schema of the resource doesn't describe the columns of a custom alias, e.g. of a join in the `item_query`.
-  defp column_queryable(%{custom_alias: _custom_alias}, schema, schema), do: nil
-  defp column_queryable(_field_options, queryable, _schema), do: queryable
-
-  # PostgreSQL only supports `ilike` on text, so other columns are cast to text. A column of unknown type is cast as
-  # well, as casting a text column to text changes nothing.
-  defp default_search_condition(queryable, schema_name, field_name, search_string) do
-    if string_field?(queryable, field_name) do
-      dynamic([{^schema_name, schema_name}], ilike(field(schema_name, ^field_name), ^search_string))
-    else
-      dynamic(
-        [{^schema_name, schema_name}],
-        ilike(fragment("CAST(? AS TEXT)", field(schema_name, ^field_name)), ^search_string)
-      )
-    end
-  end
 
   defp string_field?(nil = _queryable, _field_name), do: false
 
@@ -573,15 +434,6 @@ defmodule Backpex.Adapters.Ecto do
     end
   end
 
-  # The schema of the column a field shows. For an association field, this is the schema of the associated items.
-  defp field_queryable({_name, %{module: module}} = field, schema) do
-    cond do
-      callback?(module, :schema, 2) -> module.schema(field, schema)
-      module.association?(field) -> association_queryable(schema, field)
-      true -> schema
-    end
-  end
-
   defp association_queryable(schema, field) do
     related_queryable(schema, fetch_association!(schema, field))
   end
@@ -591,36 +443,6 @@ defmodule Backpex.Adapters.Ecto do
   end
 
   defp related_queryable(_owner, %{queryable: queryable}), do: queryable
-
-  # The named binding of the column a field shows, see `maybe_join/2`.
-  defp binding_name({_name, %{custom_alias: custom_alias}}, _schema), do: custom_alias
-  defp binding_name(field, schema), do: name_by_schema(field_queryable(field, schema))
-
-  defp callback?(module, function, arity) do
-    Code.ensure_loaded?(module) and function_exported?(module, function, arity)
-  end
-
-  defp maybe_join(query, []), do: query
-
-  defp maybe_join(query, associations) do
-    Enum.reduce(associations, query, fn
-      %{queryable: queryable, owner_key: owner_key, cardinality: :one} = association, query ->
-        custom_alias = Map.get(association, :custom_alias, name_by_schema(queryable))
-
-        if has_named_binding?(query, custom_alias) do
-          query
-        else
-          from(item in query,
-            left_join: b in ^queryable,
-            as: ^custom_alias,
-            on: field(item, ^owner_key) == field(b, ^get_primary_key_field(queryable))
-          )
-        end
-
-      _relation, query ->
-        query
-    end)
-  end
 
   def get_primary_key_field(schema)
 
@@ -650,30 +472,40 @@ defmodule Backpex.Adapters.Ecto do
     raise ArgumentError, "Compound primary keys are not supported. Please use a single primary key."
   end
 
-  defp maybe_preload(query, [], _preloads), do: query
+  # The preloads of the relationships to load, nested like them. A query of `Backpex.Query.related/1` becomes the
+  # preload query of its relationship.
+  defp preloads(schema, load) do
+    Enum.map(load, fn
+      name when is_atom(name) ->
+        name
 
-  defp maybe_preload(query, load, preloads) do
-    preload_items =
-      Enum.map(load, fn name ->
-        case Map.get(preloads, name) do
-          nil -> name
-          preload_query -> {name, preload_query}
-        end
-      end)
+      {name, %Query{} = related} ->
+        {name, related_ecto_query(path_queryable(schema, [name]), related)}
 
-    preload(query, ^preload_items)
+      {name, nested} ->
+        {name, preloads(path_queryable(schema, [name]), List.wrap(nested))}
+    end)
   end
 
-  defp merge_computed(query, computed) do
-    Enum.reduce(computed, query, fn
-      {name, %Native{adapter: __MODULE__, expr: %Ecto.Query.DynamicExpr{} = expression}}, query ->
-        select_merge(query, ^%{name => expression})
+  defp related_ecto_query(schema, %Query{} = related) do
+    schema
+    |> from(as: ^name_by_schema(schema))
+    |> merge_computed(related)
+    |> Where.where_expr(related.filter)
+    |> apply_sorts(related, schema)
+    |> preload(^preloads(schema, related.load))
+  end
 
-      {name, value}, _query ->
-        raise ArgumentError,
-              "expected the computed value #{inspect(name)} to be a native expression of #{inspect(__MODULE__)}, " <>
-                "got: #{inspect(value)}"
-    end)
+  defp merge_computed(ecto_query, %Query{computed: computed}) when computed == %{}, do: ecto_query
+
+  defp merge_computed(ecto_query, %Query{computed: computed}) do
+    {values, ecto_query} =
+      Enum.map_reduce(computed, ecto_query, fn {name, expression}, ecto_query ->
+        {ecto_query, value} = Where.value(ecto_query, expression)
+        {{name, value}, ecto_query}
+      end)
+
+    select_merge(ecto_query, ^Map.new(values))
   end
 
   # --- QUERIES
@@ -687,17 +519,12 @@ defmodule Backpex.Adapters.Ecto do
 
   # The query of the items of the resource.
   defp to_ecto_query(%Query{from: []} = query) do
-    %{resource: live_resource, native: native, context: context} = query
-    schema = live_resource.adapter_config(:schema)
-    item_query = live_resource.adapter_config(:item_query)
-    assigns = Map.get(context, :assigns, %{})
+    schema = query.resource.adapter_config(:schema)
 
     schema
     |> from(as: ^name_by_schema(schema))
-    |> item_query.(Map.get(assigns, :live_action), assigns)
-    |> maybe_join(native |> Map.get(:associations, %{}) |> Map.values())
-    |> maybe_preload(query.load, Map.get(native, :preloads, %{}))
-    |> merge_computed(query.computed)
+    |> preload(^preloads(schema, query.load))
+    |> merge_computed(query)
     |> Where.where_expr(query.filter)
     |> apply_search(query, schema)
     |> apply_sorts(query, schema)
@@ -710,14 +537,23 @@ defmodule Backpex.Adapters.Ecto do
     assigns = Map.get(query.context, :assigns, %{})
 
     queryable
-    |> options_base(query)
+    |> from()
     |> maybe_options_query(%{options_query: Map.get(query.native, :options_query)}, assigns)
     |> Ecto.Queryable.to_query()
-    |> maybe_preload(query.load, %{})
+    |> preload(^preloads(queryable, query.load))
+    |> merge_computed(query)
     |> Where.where_expr(query.filter)
     |> apply_search(query, queryable)
     |> apply_sorts(query, queryable)
     |> apply_offset_limit(query)
+  end
+
+  # The expression of a ref: a computed value of the query, or the column of a field.
+  defp resolve(ecto_query, %Query{} = query, ref) do
+    case Query.computed_expr(query, ref) do
+      nil -> {:column, Where.field(ecto_query, ref)}
+      expression -> {:computed, Where.value(ecto_query, expression)}
+    end
   end
 
   defp apply_search(ecto_query, %Query{search: nil}, _schema), do: ecto_query
@@ -743,16 +579,18 @@ defmodule Backpex.Adapters.Ecto do
   # An item matches if any target contains the search term, ignoring the case.
   defp search_targets(ecto_query, %Query{search: %{targets: []}}, _schema), do: ecto_query
 
-  defp search_targets(ecto_query, %Query{search: %{term: term, targets: targets}, native: native}, schema) do
+  defp search_targets(ecto_query, %Query{search: %{term: term, targets: targets}} = query, schema) do
     pattern = "%#{term}%"
-    search_exprs = Map.get(native, :search_exprs, %{})
 
+    # A field contains the term, any other target is a condition of its own.
     {conditions, ecto_query} =
-      Enum.map_reduce(targets, ecto_query, fn ref, ecto_query ->
-        case Map.fetch(search_exprs, ref) do
-          {:ok, search_expr} -> {search_expr.(pattern), ecto_query}
-          :error -> ref_search(ecto_query, ref, schema, pattern)
-        end
+      Enum.map_reduce(targets, ecto_query, fn
+        %Ref{} = ref, ecto_query ->
+          ref_search(ecto_query, query, ref, schema, pattern)
+
+        condition, ecto_query ->
+          {ecto_query, condition} = Where.value(ecto_query, condition)
+          {condition, ecto_query}
       end)
 
     condition = Enum.reduce(conditions, fn condition, acc -> dynamic(^acc or ^condition) end)
@@ -760,35 +598,33 @@ defmodule Backpex.Adapters.Ecto do
     where(ecto_query, ^condition)
   end
 
-  # Searches the column of a ref, cast to text unless it is a string.
-  defp ref_search(ecto_query, %Ref{path: path, name: name} = ref, schema, pattern) do
-    {ecto_query, column} = Where.field(ecto_query, ref)
+  # Searches the column of a ref, cast to text unless it is a string, or a computed value as text.
+  defp ref_search(ecto_query, query, %Ref{path: path, name: name} = ref, schema, pattern) do
+    case resolve(ecto_query, query, ref) do
+      {:column, {ecto_query, column}} ->
+        if string_field?(path_queryable(schema, path), name),
+          do: {dynamic(ilike(^column, ^pattern)), ecto_query},
+          else: {dynamic(ilike(fragment("CAST(? AS TEXT)", ^column), ^pattern)), ecto_query}
 
-    if string_field?(path_queryable(schema, path), name),
-      do: {dynamic(ilike(^column, ^pattern)), ecto_query},
-      else: {dynamic(ilike(fragment("CAST(? AS TEXT)", ^column), ^pattern)), ecto_query}
+      {:computed, {ecto_query, value}} ->
+        {dynamic(ilike(fragment("CAST(? AS TEXT)", ^value), ^pattern)), ecto_query}
+    end
   end
 
   defp path_queryable(schema, path) do
     Enum.reduce(path, schema, fn name, schema -> related_queryable(schema, fetch_association!(schema, {name, %{}})) end)
   end
 
-  defp apply_sorts(ecto_query, %Query{native: native} = query, schema) do
-    order_exprs = Map.get(native, :order_exprs, %{})
-
+  defp apply_sorts(ecto_query, %Query{} = query, schema) do
     query
     |> Query.sorts()
     |> Enum.reduce(ecto_query, fn {ref, direction}, ecto_query ->
-      case Map.fetch(order_exprs, ref) do
-        {:ok, {:select, expression}} ->
-          order_by(ecto_query, ^[{direction, expression}])
+      case resolve(ecto_query, query, ref) do
+        {:column, {ecto_query, column}} ->
+          order_by(ecto_query, ^[{column_direction(ref, direction, schema), column}])
 
-        {:ok, {:column, expression}} ->
-          order_by(ecto_query, ^[{column_direction(ref, direction, schema), expression}])
-
-        :error ->
-          {ecto_query, expression} = Where.field(ecto_query, ref)
-          order_by(ecto_query, ^[{column_direction(ref, direction, schema), expression}])
+        {:computed, {ecto_query, value}} ->
+          order_by(ecto_query, ^[{direction, value}])
       end
     end)
   end

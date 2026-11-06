@@ -5,8 +5,7 @@ defmodule DemoWeb.UserLive do
       schema: Demo.User,
       repo: Demo.Repo,
       update_changeset: &Demo.User.changeset/3,
-      create_changeset: &Demo.User.changeset/3,
-      item_query: &__MODULE__.item_query/3
+      create_changeset: &Demo.User.changeset/3
     ],
     init_order: &__MODULE__.init_order/1,
     persist: [:order, :filters, :columns, :metrics]
@@ -32,10 +31,11 @@ defmodule DemoWeb.UserLive do
   @impl Backpex.LiveResource
   def can?(_assigns, _action, _item), do: true
 
-  def item_query(query, _live_action, _assigns) do
-    from u in query,
-      where: is_nil(u.deleted_at)
-  end
+  @impl Backpex.LiveResource
+  def scope(_assigns), do: expr(is_nil(deleted_at))
+
+  @impl Backpex.LiveResource
+  def computed(_assigns), do: [full_name: expr(concat([first_name, last_name], " "))]
 
   def init_order(_assigns) do
     %{by: :username, direction: :asc}
@@ -120,7 +120,6 @@ defmodule DemoWeb.UserLive do
         label: "Full Name",
         searchable: true,
         except: [:edit, :new],
-        select: dynamic([user: u], fragment("concat(?, ' ', ?)", u.first_name, u.last_name)),
         panel: :names
       },
       first_name: %{

@@ -15,6 +15,7 @@ defmodule Backpex.Test.PostLive do
     persist: [:order, :filters, :columns],
     context_assigns: []
 
+  import Backpex.Expr
   import Ecto.Query, warn: false
 
   alias Backpex.LiveResource
@@ -32,6 +33,12 @@ defmodule Backpex.Test.PostLive do
 
   @impl LiveResource
   def layout(_assigns), do: {Layouts, :admin}
+
+  # The full name of the author is a computed value of the loaded user, which the user field shows, sorts by and
+  # searches, and which its options get, too.
+  @impl LiveResource
+  def load(_assigns),
+    do: [user: Backpex.Query.related(computed: [full_name: expr(concat([first_name, last_name], " "))])]
 
   @impl LiveResource
   def singular_name, do: "Post"
@@ -72,14 +79,8 @@ defmodule Backpex.Test.PostLive do
         module: Backpex.Fields.BelongsTo,
         label: "Author",
         display_field: :full_name,
-        select: dynamic([user: u], fragment("concat(?, ' ', ?)", u.first_name, u.last_name)),
-        options_query: fn query, _assigns ->
-          query
-          |> where([user], is_nil(user.deleted_at))
-          |> select_merge([user], %{
-            full_name: fragment("concat(?, ' ', ?)", user.first_name, user.last_name)
-          })
-        end,
+        searchable: true,
+        options_filter: expr(is_nil(deleted_at)),
         index_editable: true,
         live_resource: UserLive
       },

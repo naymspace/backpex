@@ -12,9 +12,8 @@ defmodule Backpex.Adapter do
   `Backpex.Metric`), which end up in the query. Adapters don't get the fields or filters of the LiveResource, so an
   adapter for another data source only has to run queries.
 
-  Options and callbacks that only one adapter understands belong to it, e.g. the `:select` option of fields and
-  `Backpex.Adapters.Ecto.Field` belong to `Backpex.Adapters.Ecto`. An adapter adds options to fields with
-  `c:field_config_schema/0`.
+  Options that only one adapter understands belong to it, e.g. the `:options_query` of association fields belongs to
+  `Backpex.Adapters.Ecto`. An adapter adds options to fields with `c:field_config_schema/0`.
 
   ## `use Backpex.Adapter`
 
@@ -71,13 +70,14 @@ defmodule Backpex.Adapter do
     * `:filter` - the `:filter` of a query. Backpex also asks for `{:filter, operator}` with the operators of the
       expression, e.g. `{:filter, :contains}` or `{:filter, :exists}`, see `Backpex.Expr`.
     * `:search`, `:sort`, `:offset` and `:limit` - these parts of a query.
+    * `:computed` - the `:computed` values of a query. Backpex computes them before every other part.
     * `:load` - the relationships of the `:load` of a query.
     * `:count` and `:aggregate` - `c:count/1` and `c:aggregate/1`.
     * `:insert`, `:update` and `:delete` - writing items with `c:insert/2`, `c:update/2` and `c:update_all/3`, and
       `c:delete_all/2`. Without them, `Backpex.Authorization` denies the `:new`, `:edit` and `:delete` actions, so the
       views hide them. Backpex can't apply writes in memory.
 
-  Parts depend on the ones before them, in the order filter, search, sort, offset and limit. If the adapter doesn't
+  Parts depend on the ones before them, in the order computed, filter, search, sort, offset and limit. If the adapter doesn't
   run a part, Backpex applies it and every part after it in memory, e.g. the sort of a query whose filter the adapter
   doesn't run. Then the adapter gets the query without these parts.
 
@@ -122,8 +122,9 @@ defmodule Backpex.Adapter do
   @callback read(query :: Backpex.Query.t()) :: {:ok, list()} | {:error, term()}
 
   @doc """
-  Returns the number of items the query matches. Backpex removes the sorts, the limit, the offset and the relationships
-  to load before, see `Backpex.Query.unset/2`.
+  Returns the number of items the query matches. Backpex removes the sorts, the limit and the offset before, see
+  `Backpex.Query.unset/2`. The `:load` stays, as the search and the filters may refer to computed values of related
+  items (see `Backpex.Query.computed_expr/2`), but the adapter doesn't need to load the relationships.
 
   Optional: without it, or if `c:supports?/2` doesn't support `:count`, Backpex counts the items of `c:read/1`.
   """
@@ -131,8 +132,8 @@ defmodule Backpex.Adapter do
 
   @doc """
   Returns a map of the names of the `:aggregates` of the query to their values, e.g. the data of metrics. Each aggregate
-  covers the items the query matches that also match its `:where` expression. Backpex removes the sorts, the limit, the
-  offset and the relationships to load before.
+  covers the items the query matches that also match its `:where` expression. Backpex removes the sorts, the limit and
+  the offset before, and keeps the `:load` as for `c:count/1`.
 
   Optional: without it, or if `c:supports?/2` doesn't support `:aggregate`, Backpex computes the aggregates from the
   items of `c:read/1`.

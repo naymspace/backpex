@@ -63,7 +63,7 @@ defmodule Backpex.Query do
   """
   @type aggregate :: %{
           name: atom(),
-          aggregate: :count | {:count | :sum | :avg | :min | :max, atom()} | Expr.Native.t(),
+          aggregate: :count | {:count | :sum | :avg | :min | :max, atom() | Expr.t()} | Expr.Native.t(),
           where: Expr.t() | nil
         }
 
@@ -76,7 +76,7 @@ defmodule Backpex.Query do
           default_sort: [{Ref.t(), direction()}],
           limit: non_neg_integer() | nil,
           offset: non_neg_integer() | nil,
-          load: [atom() | {atom(), list()}],
+          load: [atom() | {atom(), list() | t()}],
           computed: %{atom() => term()},
           aggregates: [aggregate()],
           native: map(),
@@ -102,11 +102,13 @@ defmodule Backpex.Query do
             valid?: true
 
   @directions [:asc, :desc, :asc_nulls_first, :asc_nulls_last, :desc_nulls_first, :desc_nulls_last]
+  @aggregate_kinds [:count, :sum, :avg, :min, :max]
+  @value_structs [Expr.Ref, Expr.Call]
   @unset_keys [:filter, :search, :sort, :default_sort, :limit, :offset, :load, :computed, :aggregates]
 
   @doc """
   Returns a query of the items of the LiveResource. `context` describes what the query is run for, usually
-  `%{assigns: assigns}` with the assigns of the view. Adapters read it, e.g. for the `:item_query` of
+  `%{assigns: assigns}` with the assigns of the view. Adapters read it, e.g. for the `:options_query` of
   `Backpex.Adapters.Ecto`.
   """
   @spec new(module(), map()) :: t()
@@ -191,18 +193,30 @@ defmodule Backpex.Query do
   end
 
   @doc """
-  Searches for `term` in the fields `targets`, given as names, paths such as `"author.name"` or `Backpex.Expr.Ref`s.
+  Searches for `term` in the `targets`. An item matches if any target matches:
+
+    * a field, given as a name, a path such as `"author.name"` or a `Backpex.Expr.Ref`, matches when its value
+      contains the term, ignoring the case.
+    * any other expression is a condition of its own, e.g. of a field with `c:Backpex.Field.search_condition/3`, and
+      matches when it is true. Its fields are checked and its values cast like the ones of `filter/2`.
+
   Removes the search for a blank term. Without targets, only an adapter with a search of its own, e.g. the full text
   search of `Backpex.Adapters.Ecto`, searches.
   """
-  @spec search(t(), String.t() | nil, [atom() | String.t() | Ref.t()]) :: t()
+  @spec search(t(), String.t() | nil, [atom() | String.t() | Ref.t() | Expr.t()]) :: t()
   def search(%__MODULE__{} = query, term, targets) when is_list(targets) do
     if is_nil(term) or String.trim(term) == "" do
       %{query | search: nil}
     else
-      %{query | search: %{term: term, targets: Enum.map(targets, &to_ref/1)}}
+      %{query | search: %{term: term, targets: Enum.map(targets, &search_target(query, &1))}}
     end
   end
+
+  defp search_target(query, %struct{} = condition) when struct in [Expr.Call, Expr.Exists, Expr.Native] do
+    if query.resource, do: Expr.cast(condition, &describe(query, &1)), else: condition
+  end
+
+  defp search_target(_query, field), do: to_ref(field)
 
   @doc """
   Adds sorts, given as a keyword list or a list of tuples of a field and a direction, see `t:direction/0`. A field is a
@@ -269,23 +283,83 @@ defmodule Backpex.Query do
 
   @doc """
   Loads the relationships into the items, given as names or nested like the preloads of Ecto, e.g.
-  `[:author, tags: [:category]]`.
+  `[:author, tags: [:category]]`. A relationship can also take a query of `related/1`, which sorts, filters, loads and
+  computes values of the related items, e.g. `[comments: Backpex.Query.related(sort: [inserted_at: :desc])]`.
   """
-  @spec load(t(), [atom() | {atom(), list()}]) :: t()
+  @spec load(t(), [atom() | {atom(), list() | t()}]) :: t()
   def load(%__MODULE__{} = query, relationships) when is_list(relationships),
     do: %{query | load: Enum.uniq(query.load ++ relationships)}
 
   @doc """
-  Lets the adapter compute the value `name` for every item, e.g. with a `Backpex.Expr.Native` expression.
+  Returns a query of related items to load with `load/2`. Takes the options `:filter` (an expression, see
+  `Backpex.Expr`), `:sort`, `:load` and `:computed` (a keyword list of names and expressions, see `compute/3`). The
+  expressions are not cast, as the query has no resource of its own.
+
+      Backpex.Query.related(
+        sort: [year: :asc],
+        computed: [full_name: expr(concat([first_name, last_name], " "))]
+      )
   """
-  @spec compute(t(), atom(), term()) :: t()
-  def compute(%__MODULE__{} = query, name, value) when is_atom(name),
-    do: %{query | computed: Map.put(query.computed, name, value)}
+  @spec related(keyword()) :: t()
+  def related(opts \\ []) when is_list(opts) do
+    query = %__MODULE__{
+      filter: opts |> Keyword.get(:filter) |> Expr.normalize(),
+      load: Keyword.get(opts, :load, []),
+      computed: opts |> Keyword.get(:computed, []) |> Map.new()
+    }
+
+    sort(query, Keyword.get(opts, :sort, []))
+  end
+
+  @doc """
+  Returns the expression of a computed value the ref names: a value of `:computed` for a ref without a path, or a value
+  of the `:computed` of the query of `related/1` the `:load` has for the path, with the path in front of its fields (see
+  `Backpex.Expr.prefix/2`). Returns `nil` for a ref of a field.
+  """
+  @spec computed_expr(t(), Ref.t()) :: Expr.t() | term() | nil
+  def computed_expr(%__MODULE__{computed: computed}, %Ref{path: [], name: name}), do: Map.get(computed, name)
+
+  def computed_expr(%__MODULE__{load: load}, %Ref{path: path, name: name}) do
+    case related_query(load, path) do
+      %__MODULE__{computed: %{^name => expression}} -> Expr.prefix(expression, path)
+      _other -> nil
+    end
+  end
+
+  defp related_query(load, [name]) do
+    case List.keyfind(load, name, 0) do
+      {^name, %__MODULE__{} = query} -> query
+      _other -> nil
+    end
+  end
+
+  defp related_query(load, [name | path]) do
+    case List.keyfind(load, name, 0) do
+      {^name, %__MODULE__{load: load}} -> related_query(load, path)
+      {^name, load} when is_list(load) -> related_query(load, path)
+      _other -> nil
+    end
+  end
+
+  @doc """
+  Lets the adapter compute the value `name` of an expression for every item and put it into the item, e.g.
+  `expr(concat([first_name, last_name], " "))`, see the [Values](`m:Backpex.Expr#module-values`) of `Backpex.Expr`.
+  Sorts, searches and refs of `computed_expr/2` refer to it by its name.
+
+  The fields of the expression are checked and its values cast like the ones of `filter/2`.
+  """
+  @spec compute(t(), atom(), Expr.t()) :: t()
+  def compute(%__MODULE__{resource: nil} = query, name, expression) when is_atom(name),
+    do: %{query | computed: Map.put(query.computed, name, Expr.normalize(expression))}
+
+  def compute(%__MODULE__{} = query, name, expression) when is_atom(name),
+    do: %{query | computed: Map.put(query.computed, name, Expr.cast(expression, &describe(query, &1)))}
 
   @doc """
   Adds an aggregate that `c:Backpex.Adapter.aggregate/1` computes under `name` over the items of the query, e.g. the
   data of a metric. `aggregate` is `:count`, a tuple of `:count`, `:sum`, `:avg`, `:min` or `:max` and the name of a
-  field, or a `Backpex.Expr.Native` expression of the adapter.
+  field or an expression (e.g. `{:sum, expr(price * quantity)}`, see `Backpex.Expr`), or a `Backpex.Expr.Native`
+  expression of the adapter.
 
   ## Options
 
@@ -293,17 +367,24 @@ defmodule Backpex.Query do
   """
   @spec aggregate(t(), atom(), aggregate()[:aggregate], keyword()) :: t()
   def aggregate(%__MODULE__{} = query, name, aggregate, opts \\ []) when is_atom(name) do
-    check_aggregate!(aggregate)
+    aggregate = cast_aggregate!(query, aggregate)
     where = Expr.cast(opts[:where], &describe(query, &1))
 
     %{query | aggregates: Enum.concat(query.aggregates, [%{name: name, aggregate: aggregate, where: where}])}
   end
 
-  defp check_aggregate!(:count), do: :ok
-  defp check_aggregate!({kind, field}) when kind in [:count, :sum, :avg, :min, :max] and is_atom(field), do: :ok
-  defp check_aggregate!(%Expr.Native{}), do: :ok
+  defp cast_aggregate!(_query, :count), do: :count
 
-  defp check_aggregate!(aggregate) do
+  defp cast_aggregate!(_query, {kind, field} = aggregate) when kind in @aggregate_kinds and is_atom(field),
+    do: aggregate
+
+  defp cast_aggregate!(query, {kind, %struct{} = expression})
+       when kind in @aggregate_kinds and struct in @value_structs,
+       do: {kind, Expr.cast(expression, &describe(query, &1))}
+
+  defp cast_aggregate!(_query, %Expr.Native{} = aggregate), do: aggregate
+
+  defp cast_aggregate!(_query, aggregate) do
     raise ArgumentError, "expected an aggregate such as :count or {:sum, :field}, got: #{inspect(aggregate)}"
   end
 
@@ -339,6 +420,7 @@ defmodule Backpex.Query do
   @spec apply_to(t(), list()) :: list()
   def apply_to(%__MODULE__{} = query, items) when is_list(items) do
     items
+    |> Runtime.compute(query.computed)
     |> Runtime.filter(query.filter)
     |> Runtime.search(query.search)
     |> Runtime.sort(sorts(query))

@@ -12,7 +12,8 @@ defmodule Backpex.Metric do
   after search and filters, with these options of the metric:
 
     * `:aggregate` - `:count` for the number of items, or a tuple of `:count`, `:sum`, `:avg`, `:min` or `:max` and the
-      name of a field, e.g. `{:sum, :quantity}`.
+      name of a field or an expression, e.g. `{:sum, :quantity}` or `{:sum, expr(price * quantity)}`, see
+      `Backpex.Expr`.
     * `:where` - an optional expression that limits the items, e.g. `[published: true]` or `expr(likes > 10)`. See
       `Backpex.Expr`.
 
@@ -49,7 +50,7 @@ defmodule Backpex.Metric do
   @typedoc """
   The aggregate a metric computes, see the [Aggregates](#module-aggregates) section.
   """
-  @type aggregate :: :count | {:count | :sum | :avg | :min | :max, atom()}
+  @type aggregate :: :count | {:count | :sum | :avg | :min | :max, atom() | Backpex.Expr.t()}
 
   @doc """
   Used to render the metric as a heex template on the index views.

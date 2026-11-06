@@ -17,6 +17,11 @@ defmodule Backpex.Adapters.Ecto.Where do
   @comparisons [:==, :!=, :<, :<=, :>, :>=]
   @flipped %{:== => :==, :!= => :!=, :< => :>, :<= => :>=, :> => :<, :>= => :<=}
   @string_functions [:contains, :starts_with, :ends_with]
+  @arithmetic [:+, :-, :*, :/]
+  @seconds %{second: 1, minute: 60, hour: 3600, day: 86_400}
+
+  # An expression that stands for a value, e.g. in a comparison such as `likes - dislikes > 10`.
+  defguardp value_expression?(arg) when is_struct(arg, Call) or is_struct(arg, Native)
 
   @doc """
   Adds the expression to the query as a `where` clause. Keeps the query for a `nil` expression.
@@ -51,9 +56,95 @@ defmodule Backpex.Adapters.Ecto.Where do
     field(ref, query, {:root, schema(query)})
   end
 
-  # A binding is `{:root, schema}` for the first binding or `{name, schema}` for a named one.
-  defp to_dynamic(%Native{adapter: Backpex.Adapters.Ecto, expr: %Ecto.Query.DynamicExpr{} = expression}, query, _b),
-    do: {query, expression}
+  @doc """
+  Returns the query with the joins the expression needs and a dynamic expression of its value, e.g. of a computed
+  value: a field, `concat`, a condition or a native expression.
+  """
+  def value(query, expression) do
+    query = Ecto.Queryable.to_query(query)
+
+    value(expression, query, {:root, schema(query)})
+  end
+
+  @doc """
+  Returns the query with the left joins of the relationships of `path` and the name of the binding at its end, e.g.
+  `:backpex_author` for `[:author]`, or `nil` for an empty path.
+  """
+  def binding(query, path) do
+    query = Ecto.Queryable.to_query(query)
+
+    case join_path(query, path, {:root, schema(query)}, :left) do
+      {query, {:root, _schema}} -> {query, nil}
+      {query, {name, _schema}} -> {query, name}
+    end
+  end
+
+  defp value(%Ref{} = ref, query, binding), do: field(ref, query, binding)
+
+  defp value(%Call{name: operator, args: [left, right]}, query, binding) when operator in @arithmetic do
+    {query, left} = operand(left, query, binding)
+    {query, right} = operand(right, query, binding)
+
+    {query, arithmetic(operator, left, right)}
+  end
+
+  defp value(%Call{name: :datetime_diff, args: [left, right], opts: opts}, query, binding) do
+    {query, left} = operand(left, query, binding)
+    {query, right} = operand(right, query, binding)
+    seconds = Map.fetch!(@seconds, Keyword.fetch!(opts, :unit))
+
+    # An integer, so that e.g. its sum is an integer, too.
+    {query, dynamic(fragment("CAST(TRUNC(EXTRACT(EPOCH FROM (? - ?)) / ?) AS integer)", ^left, ^right, ^seconds))}
+  end
+
+  defp value(%Call{name: :to_string, args: [value]}, query, binding) do
+    {query, value} = operand(value, query, binding)
+
+    {query, dynamic(fragment("CAST(? AS TEXT)", ^value))}
+  end
+
+  defp value(%Call{name: :concat, args: parts, opts: opts}, query, binding) do
+    separator = Keyword.get(opts, :separator, "")
+
+    {texts, query} = Enum.map_reduce(parts, query, &text(&1, &2, binding))
+
+    # `concat_ws` leaves out NULL. Joining the parts one by one, an empty string of the parts before stands for NULL.
+    joined =
+      Enum.reduce(texts, nil, fn
+        text, nil -> text
+        text, joined -> dynamic(fragment("concat_ws(?, NULLIF(?, ''), ?)", ^separator, ^joined, ^text))
+      end)
+
+    {query, joined || dynamic(fragment("''"))}
+  end
+
+  defp value(%struct{} = expression, query, binding) when struct in [Call, Exists, Native],
+    do: to_dynamic(expression, query, binding)
+
+  defp value(value, _query, _binding) do
+    raise ArgumentError, "expected an expression such as a field or concat(...) as a value, got: #{inspect(value)}"
+  end
+
+  # A part of `concat` as text.
+  defp text(part, query, _binding) when is_binary(part), do: {dynamic(fragment("CAST(? AS TEXT)", ^part)), query}
+
+  defp text(part, query, binding) do
+    {query, value} = value(part, query, binding)
+
+    {dynamic(fragment("CAST(? AS TEXT)", ^value)), query}
+  end
+
+  # A binding is `{:root, schema}` for the first binding or `{name, schema}` for a named one. A native expression gets
+  # the joins of the paths it uses.
+  defp to_dynamic(
+         %Native{adapter: Backpex.Adapters.Ecto, expr: %Ecto.Query.DynamicExpr{} = expression, uses: uses},
+         query,
+         binding
+       ) do
+    query = Enum.reduce(uses, query, fn path, query -> query |> join_path(path, binding, :left) |> elem(0) end)
+
+    {query, expression}
+  end
 
   defp to_dynamic(%Native{} = expression, _query, _binding) do
     raise ArgumentError,
@@ -88,6 +179,14 @@ defmodule Backpex.Adapters.Ecto.Where do
     {query, field} = field(ref, query, binding)
 
     {query, dynamic(is_nil(^field))}
+  end
+
+  defp to_dynamic(%Call{name: operator, args: [left, right]}, query, binding)
+       when operator in @comparisons and (value_expression?(left) or value_expression?(right)) do
+    {query, left} = operand(left, query, binding)
+    {query, right} = operand(right, query, binding)
+
+    {query, compare_fields(operator, left, right)}
   end
 
   defp to_dynamic(%Call{name: operator, args: [%Ref{} = left, %Ref{} = right]}, query, binding)
@@ -158,6 +257,23 @@ defmodule Backpex.Adapters.Ecto.Where do
     {query, condition} = to_dynamic(expression, query, binding)
 
     where(query, ^condition)
+  end
+
+  # A side of a comparison or of arithmetic: a field, a value expression or a value, which Ecto takes as a parameter.
+  defp operand(%Ref{} = ref, query, binding), do: field(ref, query, binding)
+
+  defp operand(%struct{} = expression, query, binding) when struct in [Call, Native],
+    do: value(expression, query, binding)
+
+  defp operand(value, query, _binding), do: {query, value}
+
+  defp arithmetic(operator, left, right) do
+    case operator do
+      :+ -> dynamic(^left + ^right)
+      :- -> dynamic(^left - ^right)
+      :* -> dynamic(^left * ^right)
+      :/ -> dynamic(^left / ^right)
+    end
   end
 
   defp field(ref, query, binding) do
