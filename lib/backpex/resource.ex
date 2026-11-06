@@ -33,6 +33,10 @@ defmodule Backpex.Resource do
 
   Both options are consumed here and never reach `change/6`.
 
+  Before the authorization, every mutation checks that the adapter supports the write (`:insert`, `:update` or
+  `:delete`, see `c:Backpex.Adapter.supports?/2`) and raises an `ArgumentError` otherwise, also with another
+  `:authorization_action` or `authorize?: false`.
+
   For lists (`update_all/5`, `delete_all/4`) the check is strict: a single unauthorized item makes
   the whole call raise. A `nil` entry (a stale or forged item id) raises `Backpex.NoResultsError`.
   An empty list passes without calling the adapter's authorization.
@@ -554,6 +558,7 @@ defmodule Backpex.Resource do
   """
   def delete_all(items, assigns, live_resource, opts \\ [])
       when is_list(items) and is_map(assigns) and not is_struct(assigns) and is_atom(live_resource) do
+    ensure_supported!(live_resource, :delete)
     _opts = authorize_items!(items, assigns, live_resource, opts, :delete)
 
     adapter = live_resource.config(:adapter)
@@ -593,6 +598,7 @@ defmodule Backpex.Resource do
     * All remaining options are passed to `change/6`.
   """
   def insert(item, attrs, fields, assigns, live_resource, opts \\ []) do
+    ensure_supported!(live_resource, :insert)
     opts = authorize_item!(nil, assigns, live_resource, opts, :new)
 
     persist_item(item, attrs, fields, assigns, live_resource, opts, :insert, "created")
@@ -620,6 +626,7 @@ defmodule Backpex.Resource do
     * All remaining options are passed to `change/6`.
   """
   def update(item, attrs, fields, assigns, live_resource, opts \\ []) do
+    ensure_supported!(live_resource, :update)
     opts = authorize_item!(item, assigns, live_resource, opts, :edit)
 
     persist_item(item, attrs, fields, assigns, live_resource, opts, :update, "updated")
@@ -651,7 +658,8 @@ defmodule Backpex.Resource do
   ## Parameters
 
   * `items` (list): A list of structs, each representing an entity to be updated.
-  * `updates` (list): A list of updates passed to Ecto `update_all` function.
+  * `changes` (map): The fields to set and their values, e.g. `%{deleted_at: now}`. A keyword list works, too. The
+    fields are checked against the description of the resource and the values cast to their types.
   * `assigns` (map): The current assigns of the socket. Passed to `c:Backpex.LiveResource.can?/3`.
   * `live_resource` (module): The `Backpex.LiveResource` module.
   * `opts` (keyword list): A list of options:
@@ -659,20 +667,64 @@ defmodule Backpex.Resource do
     * `:authorization_action` (optional, default `:edit`): The action to authorize against.
     * `:authorize?` (optional, default `true`): Set to `false` to skip authorization.
   """
-  def update_all(items, updates, assigns, live_resource, opts \\ [])
+  def update_all(items, changes, assigns, live_resource, opts \\ [])
       when is_list(items) and is_map(assigns) and not is_struct(assigns) and is_atom(live_resource) do
+    ensure_supported!(live_resource, :update)
     opts = authorize_items!(items, assigns, live_resource, opts, :edit)
 
     event_name = Keyword.get(opts, :event_name, "updated")
     adapter = live_resource.config(:adapter)
 
-    case adapter.update_all(items, updates, live_resource) do
-      {_count_, nil} ->
+    case adapter.update_all(items, cast_changes!(changes, live_resource), live_resource) do
+      {:ok, _count} ->
         Enum.each(items, fn item -> broadcast({:ok, item}, event_name, live_resource) end)
         {:ok, items}
 
       _error ->
         :error
+    end
+  end
+
+  # The changes of `update_all/5` as a map, with the values cast to the types of their fields.
+  defp cast_changes!(changes, live_resource) when is_list(changes) do
+    if Keyword.keyword?(changes) and changes |> Keyword.keys() |> Enum.any?(&(&1 in [:set, :inc, :push, :pull])) do
+      raise ArgumentError, """
+      expected the changes as a map of fields and values, e.g. %{deleted_at: now}, got: #{inspect(changes)}
+
+      update_all/5 no longer takes the updates of Ecto.Repo.update_all/3, see the guide on upgrading to v0.24.
+      """
+    end
+
+    changes |> Map.new() |> cast_changes!(live_resource)
+  end
+
+  defp cast_changes!(changes, live_resource) when is_map(changes) do
+    %{fields: fields} = describe([], live_resource)
+
+    Map.new(changes, fn {name, value} ->
+      case Map.fetch(fields, name) do
+        {:ok, %{type: type}} -> {name, cast_change!(type, name, value)}
+        :error -> raise ArgumentError, "unknown field #{inspect(name)} in the changes of update_all/5"
+      end
+    end)
+  end
+
+  defp cast_change!(_type, _name, nil), do: nil
+
+  defp cast_change!(type, name, value) do
+    case Backpex.Expr.cast_value(type, value) do
+      {:ok, value} -> value
+      :error -> raise ArgumentError, "can't cast #{inspect(value)} to the type of #{inspect(name)} in update_all/5"
+    end
+  end
+
+  # A write the adapter doesn't support never reaches it, whatever the authorization action, see
+  # `c:Backpex.Adapter.supports?/2`.
+  defp ensure_supported!(live_resource, feature) do
+    adapter = live_resource.config(:adapter)
+
+    if not supports?(adapter, live_resource, feature) do
+      raise ArgumentError, "#{inspect(adapter)} doesn't support #{inspect(feature)}, see Backpex.Adapter.supports?/2"
     end
   end
 

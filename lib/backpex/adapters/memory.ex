@@ -30,8 +30,8 @@ defmodule Backpex.Adapters.Memory do
   A `Backpex.Adapter` that keeps the items of a LiveResource in memory, e.g. for prototypes, tests or data that comes
   from a file or another service.
 
-  It only returns all items. It supports no part of a `Backpex.Query` (see `c:Backpex.Adapter.supports?/2`), so Backpex
-  filters, searches, sorts, paginates and aggregates the items itself with `Backpex.Query.apply_to/2`. Relationships
+  It only returns all items. It supports no part of a `Backpex.Query`, only writes (see `c:Backpex.Adapter.supports?/2`),
+  so Backpex filters, searches, sorts, paginates and aggregates the items itself with `Backpex.Query.apply_to/2`. Relationships
   are not supported.
 
   Start a store for the items in your supervision tree and name it in the `adapter_config`:
@@ -61,7 +61,7 @@ defmodule Backpex.Adapters.Memory do
   > The `Backpex.Adapters.Memory` is still under development and may change in future updates.
   """
 
-  use Backpex.Adapter, config_schema: @config_schema, supports: []
+  use Backpex.Adapter, config_schema: @config_schema, supports: [:insert, :update, :delete]
   use Agent
 
   alias Backpex.Query
@@ -147,8 +147,7 @@ defmodule Backpex.Adapters.Memory do
   end
 
   @impl Backpex.Adapter
-  def update_all(items, updates, live_resource) do
-    changes = Keyword.get(updates, :set, [])
+  def update_all(items, changes, live_resource) do
     primary_key = live_resource.config(:primary_key)
     values = MapSet.new(items, &Map.fetch!(&1, primary_key))
 
@@ -158,7 +157,7 @@ defmodule Backpex.Adapters.Memory do
     |> Agent.get_and_update(fn stored ->
       {stored, count} = Enum.map_reduce(stored, 0, &update_item(&1, &2, values, primary_key, changes))
 
-      {{count, nil}, stored}
+      {{:ok, count}, stored}
     end)
   end
 

@@ -263,6 +263,7 @@ defmodule Backpex.HTML.ResourceTest do
 
   defmodule ShowPanelLive do
     @moduledoc false
+    def config(:adapter), do: Backpex.Adapters.Ecto
     def config(:primary_key), do: :id
 
     def can?(assigns, :edit, _item) do
