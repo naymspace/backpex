@@ -4,7 +4,8 @@ Backpex provides a simple search feature that allows you to search for records i
 
 > #### Info {: .info}
 >
-> Note that fields are searched using a case-insensitive `ilike` query.
+> Note that fields are searched using a case-insensitive `ilike` query. Columns that are not strings, such as numbers or
+> dates, are cast to text first.
 
 ## Configuration
 

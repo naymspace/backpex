@@ -25,7 +25,8 @@ defmodule Backpex.Metric do
   @callback render(assigns :: map()) :: %Rendered{}
 
   @doc """
-  Returns the data of the metric from the query of the index view. Not called if the metric implements `c:data/2`.
+  Queries the data of the metric. Only `Backpex.Adapters.Ecto` calls this callback, with the query of the items on the
+  index view, the `:select` option of the metric and its repo. Not called if the metric implements `c:data/2`.
   """
   @callback query(query :: Ecto.Queryable.t(), select :: any(), repo :: Ecto.Repo.t()) ::
               Ecto.Schema.t() | term() | nil
