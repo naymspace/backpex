@@ -117,7 +117,7 @@ defmodule Backpex.FormComponent do
     %{live_resource: live_resource, fields: fields, item: item} = socket.assigns
 
     target = Enum.at(target, 1)
-    assocs = Map.get(socket.assigns, :assocs, [])
+    assocs = editable_assocs(socket.assigns)
 
     change =
       change
@@ -268,7 +268,7 @@ defmodule Backpex.FormComponent do
 
     # Through `Backpex.__`, so the text is in `backpex.pot` with the field's other upload texts.
     message = Backpex.__("remove the files that can't be uploaded", live_resource)
-    changeset = Resource.change(item, params, fields, assigns, live_resource, assocs: Map.get(assigns, :assocs, []))
+    changeset = Resource.change(item, params, fields, assigns, live_resource, assocs: editable_assocs(assigns))
     changeset = Enum.reduce(names, changeset, &Ecto.Changeset.add_error(&2, &1, message))
     form = Component.to_form(changeset, as: :change)
 
@@ -284,7 +284,7 @@ defmodule Backpex.FormComponent do
     %{assigns: %{live_resource: live_resource, fields: fields, item: item, live_action: live_action} = assigns} = socket
 
     opts = [
-      assocs: Map.get(assigns, :assocs, []),
+      assocs: editable_assocs(assigns),
       before_save_fun: &live_resource.on_item_creating(socket, &1),
       after_save_fun: fn item ->
         handle_uploads(socket, item)
@@ -332,7 +332,7 @@ defmodule Backpex.FormComponent do
     } = socket.assigns
 
     opts = [
-      assocs: Map.get(socket.assigns, :assocs, []),
+      assocs: editable_assocs(socket.assigns),
       before_save_fun: &live_resource.on_item_updating(socket, &1),
       after_save_fun: fn item ->
         handle_uploads(socket, item)
@@ -387,7 +387,7 @@ defmodule Backpex.FormComponent do
     # while the form was open cannot be used.
     Authorization.authorize!(live_resource, assigns, assigns.resource_action_id, nil)
 
-    assocs = Map.get(assigns, :assocs, [])
+    assocs = editable_assocs(assigns)
     params = editable_changes(params, fields, assigns)
 
     result =
@@ -532,6 +532,16 @@ defmodule Backpex.FormComponent do
   # change afterwards, as the server builds their params.
   defp editable_changes(change, fields, assigns) do
     Field.editable_changes(change, fields, assigns)
+  end
+
+  # The assocs come from the events of fields, e.g. the buttons of a `Backpex.Fields.HasManyThrough` field, which a
+  # crafted client can send for any rendered field. Only the assocs of the fields the admin may edit are applied.
+  defp editable_assocs(%{fields: fields} = assigns) do
+    assocs = Map.get(assigns, :assocs, [])
+    params = Map.new(assocs, fn {key, value} -> {Atom.to_string(key), value} end)
+    editable = editable_changes(params, fields, assigns)
+
+    Enum.filter(assocs, fn {key, _value} -> Map.has_key?(editable, Atom.to_string(key)) end)
   end
 
   # The upload change of a field may also change the params of a readonly field.

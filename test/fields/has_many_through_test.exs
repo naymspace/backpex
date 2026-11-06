@@ -5,6 +5,7 @@ defmodule Backpex.Fields.HasManyThroughTest do
 
   alias Backpex.Fields.HasManyThrough
   alias Ecto.Changeset
+  alias Phoenix.LiveView.Socket
 
   defmodule Child do
     @moduledoc false
@@ -132,6 +133,18 @@ defmodule Backpex.Fields.HasManyThroughTest do
 
   # The invalid pivot gets no `note` param, so its input counts as unused and shows no error text. Rendering an error
   # text would print a warning about the missing `:error_translator_function` configuration.
+  describe "handle_event/3" do
+    test "ignores the buttons of a readonly field" do
+      socket = %Socket{assigns: %{__changed__: %{}, readonly: true}}
+
+      for {event, params} <- [{"new-relational", %{}}, {"detach-relational", %{"index" => "0"}}] do
+        assert HasManyThrough.handle_event(event, params, socket) == {:noreply, socket}
+      end
+
+      refute_received {:put_assoc, _assoc}
+    end
+  end
+
   describe "render_form/1" do
     test "marks the invalid relation when the rows are sorted" do
       # Zulu is attached first and valid, Alpha second and invalid; sorted by name, Alpha comes first.
@@ -232,7 +245,7 @@ defmodule Backpex.Fields.HasManyThroughTest do
     test "detaching marks a saved relation for deletion and removes an unsaved one", %{library: library} do
       [saved, other_saved] = library.shelvings
       changeset = library |> Changeset.change() |> Changeset.put_assoc(:shelvings, [saved, other_saved, %{}])
-      {:ok, socket} = changeset |> books_assigns() |> HasManyThrough.update(%Phoenix.LiveView.Socket{})
+      {:ok, socket} = changeset |> books_assigns() |> HasManyThrough.update(%Socket{})
 
       HasManyThrough.handle_event("detach-relational", %{"index" => "0"}, socket)
       assert_received {:put_assoc, {:shelvings, [%{action: :delete, data: %{id: 10}}, %{data: %{id: 11}}, _new]}}

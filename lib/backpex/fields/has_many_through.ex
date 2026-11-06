@@ -406,6 +406,13 @@ defmodule Backpex.Fields.HasManyThrough do
     """
   end
 
+  # A readonly field renders no buttons to add or detach entries, but a crafted client can still send their events.
+  @impl Phoenix.LiveComponent
+  def handle_event(event, _params, %{assigns: %{readonly: true}} = socket)
+      when event in ["new-relational", "detach-relational"] do
+    noreply(socket)
+  end
+
   @impl Phoenix.LiveComponent
   def handle_event("new-relational", _params, socket) do
     %{changeset: changeset, association: association} = socket.assigns

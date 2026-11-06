@@ -22,8 +22,9 @@ defmodule Backpex.FormComponentTest do
     def on_item_updated(_socket, item), do: send(self(), {:on_item_updated, item})
     def return_to(_socket, _assigns, _live_action, _form_action, _item), do: "/items"
 
-    def change(_item, attrs, _fields, _assigns, _live_resource, _opts) do
+    def change(_item, attrs, _fields, _assigns, _live_resource, opts) do
       send(self(), {:change, attrs})
+      send(self(), {:assocs, Keyword.get(opts, :assocs)})
       Ecto.Changeset.change({%{}, %{title: :string, images: {:array, :string}, docs: {:array, :string}}})
     end
 
@@ -69,6 +70,28 @@ defmodule Backpex.FormComponentTest do
 
       assert FormComponent.handle_event("unknown", %{}, socket) == {:noreply, socket}
       assert FormComponent.handle_event("cancel-entry", %{}, socket) == {:noreply, socket}
+    end
+
+    test "applies only the assocs of the fields the admin may edit" do
+      fields = [
+        tags: %{module: Backpex.Fields.Text, label: "Tags", readonly: true},
+        notes: %{module: Backpex.Fields.Text, label: "Notes"}
+      ]
+
+      # The assocs come from the events of fields, which a crafted client can send for a readonly field too.
+      socket =
+        Phoenix.Component.assign(%Socket{}, %{
+          fields: fields,
+          item: %{},
+          live_resource: ChangeLive,
+          live_action: :edit,
+          removed_uploads: [],
+          assocs: [tags: [%{id: 1}], notes: [%{id: 2}], unknown: [%{id: 3}]]
+        })
+
+      FormComponent.handle_event("validate", %{"change" => %{}, "_target" => ["change", "notes"]}, socket)
+
+      assert_received {:assocs, [notes: [%{id: 2}]]}
     end
 
     test "drops the changes of readonly fields on a save without params" do
