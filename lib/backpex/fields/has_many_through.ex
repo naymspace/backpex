@@ -474,6 +474,14 @@ defmodule Backpex.Fields.HasManyThrough do
   @impl Backpex.Field
   def association?(_field), do: true
 
+  # The form submits the entries of the pivot association.
+  @impl Backpex.Field
+  def param_keys({name, _field_options}, assigns) do
+    %{pivot: %{field: pivot_field}} = association(assigns.live_resource.adapter_config(:schema), name)
+
+    [Atom.to_string(pivot_field)]
+  end
+
   attr :name, :atom, required: true
   attr :form, :any, required: true
   attr :readonly, :boolean, default: false

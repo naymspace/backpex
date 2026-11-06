@@ -93,7 +93,7 @@ defmodule Backpex.FormComponent do
 
     change =
       change
-      |> drop_readonly_changes(fields, assigns)
+      |> editable_changes(fields, assigns)
       |> put_upload_change(socket, :validate)
 
     metadata = Resource.build_changeset_metadata(socket.assigns, target)
@@ -121,7 +121,7 @@ defmodule Backpex.FormComponent do
 
     change =
       change
-      |> drop_readonly_changes(fields, socket.assigns)
+      |> editable_changes(fields, socket.assigns)
       |> put_upload_change(socket, :validate)
 
     opts = [target: target, assocs: assocs]
@@ -204,6 +204,7 @@ defmodule Backpex.FormComponent do
 
     change =
       change
+      |> editable_changes(fields, assigns)
       |> put_upload_change(socket, :insert)
       |> drop_readonly_changes(fields, assigns)
       |> drop_unused_changes()
@@ -387,7 +388,7 @@ defmodule Backpex.FormComponent do
     Authorization.authorize!(live_resource, assigns, assigns.resource_action_id, nil)
 
     assocs = Map.get(assigns, :assocs, [])
-    params = drop_readonly_changes(params, fields, assigns)
+    params = editable_changes(params, fields, assigns)
 
     result =
       item
@@ -461,7 +462,7 @@ defmodule Backpex.FormComponent do
   defp run_form_item_action(socket, action, action_key, selected_items, return_to, params) do
     %{assigns: %{fields: fields} = assigns} = socket
 
-    params = drop_readonly_changes(params, fields, assigns)
+    params = editable_changes(params, fields, assigns)
 
     result =
       if ItemAction.has_form?(action) do
@@ -526,6 +527,14 @@ defmodule Backpex.FormComponent do
 
   defp find_upload_field(_fields, _upload_key), do: nil
 
+  # The params come from the client. Only the params of the fields the admin may edit reach the changeset, so a crafted
+  # client can't change a value through a field that is hidden from the admin or readonly. Uploads are put into the
+  # change afterwards, as the server builds their params.
+  defp editable_changes(change, fields, assigns) do
+    Field.editable_changes(change, fields, assigns)
+  end
+
+  # The upload change of a field may also change the params of a readonly field.
   defp drop_readonly_changes(change, fields, assigns) do
     Field.drop_readonly_changes(change, fields, assigns)
   end

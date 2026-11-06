@@ -383,6 +383,14 @@ defmodule Backpex.Fields.HasMany do
   @impl Backpex.Field
   def association?(_field), do: true
 
+  # The "Select all" and "Deselect all" buttons submit their own params.
+  @impl Backpex.Field
+  def param_keys({name, _field_options}, _assigns) do
+    name = Atom.to_string(name)
+
+    [name, name <> "_select_all", name <> "_deselect_all"]
+  end
+
   @impl Backpex.Field
   def schema({name, _field_options}, schema) do
     schema.__schema__(:association, name)

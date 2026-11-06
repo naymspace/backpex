@@ -280,6 +280,14 @@ defmodule Backpex.Fields.InlineCRUD do
   def association?({_name, %{type: :assoc}} = _field), do: true
   def association?({_name, %{type: :embed}} = _field), do: false
 
+  # The form submits the order and the dropped entries for the `:sort_param` and `:drop_param` of the changeset.
+  @impl Backpex.Field
+  def param_keys({name, _field_options}, _assigns) do
+    name = Atom.to_string(name)
+
+    [name, name <> "_order", name <> "_delete"]
+  end
+
   @impl Backpex.Field
   def schema({name, _field_options}, schema) do
     schema.__schema__(:association, name)

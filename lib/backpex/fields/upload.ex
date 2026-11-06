@@ -777,6 +777,14 @@ defmodule Backpex.Fields.Upload do
     """
   end
 
+  # The form submits whether the admin used the upload input.
+  @impl Backpex.Field
+  def param_keys({name, _field_options}, _assigns) do
+    name = Atom.to_string(name)
+
+    [name, name <> "_used_input"]
+  end
+
   @impl Backpex.Field
   def assign_uploads({_name, field_options} = field, socket) do
     upload_key = Backpex.Field.upload_key(field)

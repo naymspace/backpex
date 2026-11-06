@@ -198,6 +198,17 @@ defmodule Backpex.Field do
   @callback index_editable_change(field :: tuple(), value :: any(), assigns :: map()) :: map() | :error
 
   @doc """
+  Returns the keys of the form params the field submits, e.g. `["title"]`.
+
+  The form passes only the params of the fields an admin may edit to the changeset: fields of the current action that
+  `can?` allows and that are not readonly. Backpex drops every other param, so a crafted client can't change a value
+  through a field it doesn't see. Defaults to the name of the field. Override it when the form of the field submits
+  other or more params, as `Backpex.Fields.BelongsTo` submits the foreign key, e.g. `["user_id"]`. The function
+  receives the field definition and the assigns of the form.
+  """
+  @callback param_keys(field :: tuple(), assigns :: map()) :: [String.t()]
+
+  @doc """
   The field to be displayed on index views. In most cases this is the name / key configured in the corresponding field definition.
   In fields with associations this value often differs from the name / key. The function will receive the field definition.
   """
@@ -427,6 +438,9 @@ defmodule Backpex.Field do
       def association?(_field), do: false
 
       @impl Backpex.Field
+      def param_keys({name, _field_options} = _field, _assigns), do: [Atom.to_string(name)]
+
+      @impl Backpex.Field
       def assign_uploads(_field, socket), do: socket
 
       @impl Backpex.Field
@@ -547,16 +561,32 @@ defmodule Backpex.Field do
   def upload_key(_field), do: nil
 
   @doc """
+  Takes the changes of the fields an admin may edit from the given change map.
+
+  Takes a map of string-keyed form params, a keyword list of field definitions, and assigns. Returns the params that
+  `c:param_keys/2` of a field that is not readonly returns, and their `_unused_` params of LiveView. The form gets the
+  fields of the current action that `can?` allows, so the params of every other field are dropped as well.
+  """
+  def editable_changes(change, fields, assigns) do
+    keys =
+      fields
+      |> Enum.reject(fn {_name, options} -> readonly?(options, assigns) end)
+      |> Enum.flat_map(fn {_name, options} = field -> options.module.param_keys(field, assigns) end)
+
+    Map.take(change, keys ++ Enum.map(keys, &("_unused_" <> &1)))
+  end
+
+  @doc """
   Drops readonly field changes from the given change map.
 
-  Takes a map of string-keyed form params, a keyword list of field definitions,
-  and assigns. Returns the change map with readonly field keys removed.
+  Takes a map of string-keyed form params, a keyword list of field definitions, and assigns. Returns the change map
+  without the params that `c:param_keys/2` of a readonly field returns.
   """
   def drop_readonly_changes(change, fields, assigns) do
     read_only =
       fields
       |> Enum.filter(fn {_name, options} -> readonly?(options, assigns) end)
-      |> Enum.map(fn {name, _options} -> Atom.to_string(name) end)
+      |> Enum.flat_map(fn {_name, options} = field -> options.module.param_keys(field, assigns) end)
 
     Map.drop(change, read_only)
   end

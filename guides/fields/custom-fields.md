@@ -53,6 +53,21 @@ The `render_form/1` function returns markup that is used to render a form on `ed
 
 See `Backpex.Field` for more information on the available callback functions. For example, you can implement `render_index_form/1` to make the field editable in the index view.
 
+## Form params
+
+The form passes only the params of the fields an admin may edit to the changeset and drops all others. A field submits
+the param of its name by default, e.g. `change[my_field]`. If `render_form/1` renders inputs under other names, return
+all of them from `c:Backpex.Field.param_keys/2`:
+
+```elixir
+@impl Backpex.Field
+def param_keys({name, _field_options}, _assigns) do
+  name = Atom.to_string(name)
+
+  [name, name <> "_confirmation"]
+end
+```
+
 ## Add field option validation
 
 With Backpex v0.9 we are validating field options. This ensures that only field options that are actually used by the field can be defined in the field options map. So if your custom field requires certain field options, make sure you define them.

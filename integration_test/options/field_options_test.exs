@@ -5,6 +5,8 @@ defmodule Backpex.Integration.Options.FieldOptionsTest do
   """
   use Backpex.ConnCase, async: true
 
+  import Phoenix.LiveViewTest, only: [form: 2, put_submitter: 2, render_submit: 2]
+
   alias Backpex.Test.Sample
 
   describe "default" do
@@ -74,6 +76,28 @@ defmodule Backpex.Integration.Options.FieldOptionsTest do
       |> visit(~p"/admin/field-options-samples/#{sample.id}/edit")
       |> assert_has("input[name='change[email]'][value='visible@example.com']")
     end
+
+    test "saves no value a crafted client sends for the field on the new form", %{conn: conn} do
+      conn
+      |> visit(~p"/admin/field-options-samples/new")
+      |> save(%{text: "New", email: "forged@example.com"})
+
+      assert %Sample{email: nil} = Repo.get_by!(Sample, text: "New")
+    end
+  end
+
+  describe "only" do
+    # The url field has `only: [:index, :show]`.
+    test "saves no value a crafted client sends for the field on the edit form", %{conn: conn} do
+      sample = insert(:sample, text: "Before", url: "https://example.com")
+
+      conn
+      |> visit(~p"/admin/field-options-samples/#{sample.id}/edit")
+      |> refute_has("input[name='change[url]']")
+      |> save(%{text: "After", url: "https://forged.example.com"})
+
+      assert %Sample{text: "After", url: "https://example.com"} = Repo.get!(Sample, sample.id)
+    end
   end
 
   describe "render_form" do
@@ -96,5 +120,15 @@ defmodule Backpex.Integration.Options.FieldOptionsTest do
 
       assert Repo.get!(Sample, sample.id).textarea == "New text"
     end
+  end
+
+  # A crafted client can send params for any field, not only for the inputs of the form.
+  defp save(session, params) do
+    unwrap(session, fn view ->
+      view
+      |> form("#resource-form")
+      |> put_submitter("button[value=save]")
+      |> render_submit(%{change: params})
+    end)
   end
 end

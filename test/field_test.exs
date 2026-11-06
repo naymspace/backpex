@@ -93,6 +93,29 @@ defmodule Backpex.FieldTest do
     end
   end
 
+  describe "editable_changes/3" do
+    test "drops the params of readonly fields and of no field" do
+      fields = UpstreamPrices.fields()
+      change = %{"name" => "Backpack", "upstream_price" => "100", "override_price" => "200", "role" => "admin"}
+
+      assert Field.editable_changes(change, fields, %{}) == %{"name" => "Backpack", "override_price" => "200"}
+    end
+
+    test "keeps the unused params of LiveView of the fields" do
+      fields = UpstreamPrices.fields()
+      change = %{"name" => "", "_unused_name" => "", "_unused_role" => ""}
+
+      assert Field.editable_changes(change, fields, %{}) == %{"name" => "", "_unused_name" => ""}
+    end
+
+    test "keeps the params a field submits besides its name" do
+      fields = [tags: %{module: Backpex.Fields.HasMany, label: "Tags"}]
+      change = %{"tags" => ["1"], "tags_select_all" => "", "tags_deselect_all" => "", "tags_other" => ""}
+
+      assert Field.editable_changes(change, fields, %{}) == Map.delete(change, "tags_other")
+    end
+  end
+
   describe "readonly?/2" do
     test "returns true for boolean true" do
       assert Field.readonly?(%{readonly: true}, %{}) == true
