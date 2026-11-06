@@ -54,6 +54,13 @@ defmodule Backpex.Expr do
 
       Backpex.Expr.native(Backpex.Adapters.Ecto, dynamic([post], fragment("lower(?)", post.title) == ^title))
 
+  ## Checking and casting
+
+  `cast/2` checks the fields of an expression against the description of the resource (see
+  `c:Backpex.Adapter.describe/2`) and casts the values to the types of the fields, so an adapter gets e.g. `10` for
+  `expr(likes >= "10")`. Adapters call it through `Backpex.Resource.cast_expr/2` before they turn an expression into a
+  query. It raises for unknown fields and relationships, so a typo in a filter fails with a clear message.
+
   ## Building expressions
 
   `expr/1` returns the structs `Backpex.Expr.Ref`, `Backpex.Expr.Call`, `Backpex.Expr.Exists` and
@@ -313,6 +320,97 @@ defmodule Backpex.Expr do
   """
   @spec native(module(), term()) :: Native.t()
   def native(adapter, expression) when is_atom(adapter), do: %Native{adapter: adapter, expr: expression}
+
+  @doc """
+  Checks the fields of the expression and casts the values compared to a field to the type of the field.
+
+  `describe` returns the `Backpex.Adapter.Description` of the items at the end of a path of relationships, or `nil` if
+  there is no such path, e.g. `&Backpex.Resource.describe(&1, live_resource)`. The values of comparisons and of `in`
+  are cast to the `:type` of their field. A value that can't be cast is kept as it is, so the adapter decides about it.
+  The values of `contains/2`, `starts_with/2` and `ends_with/2` are kept, as they are parts of strings.
+
+  Raises an `ArgumentError` for an unknown field or relationship and for a path through a relationship to many items.
+  Native expressions are kept as they are.
+  """
+  @spec cast(t() | keyword() | nil, ([atom()] -> Backpex.Adapter.Description.t() | nil)) :: t() | nil
+  def cast(expression, describe) when is_function(describe, 1) do
+    expression |> normalize() |> cast_in([], describe)
+  end
+
+  defp cast_in(nil, _base, _describe), do: nil
+  defp cast_in(%Native{} = expression, _base, _describe), do: expression
+
+  defp cast_in(%Exists{path: path, where: where} = expression, base, describe) do
+    path = base ++ path
+    description!(path, describe)
+
+    %{expression | where: where |> normalize() |> cast_in(path, describe)}
+  end
+
+  defp cast_in(%Call{name: name, args: [%Ref{} = ref, value]} = call, base, describe) when name in @comparisons do
+    %{call | args: [ref, cast_value(field!(ref, base, describe), value)]}
+  end
+
+  defp cast_in(%Call{name: name, args: [value, %Ref{} = ref]} = call, base, describe) when name in @comparisons do
+    %{call | args: [cast_value(field!(ref, base, describe), value), ref]}
+  end
+
+  defp cast_in(%Call{name: :in, args: [%Ref{} = ref, values]} = call, base, describe) when is_list(values) do
+    field = field!(ref, base, describe)
+
+    %{call | args: [ref, Enum.map(values, &cast_value(field, &1))]}
+  end
+
+  defp cast_in(%Call{args: args} = call, base, describe) do
+    %{call | args: Enum.map(args, &cast_arg(&1, base, describe))}
+  end
+
+  defp cast_arg(%Ref{} = ref, base, describe) do
+    field!(ref, base, describe)
+    ref
+  end
+
+  defp cast_arg(%struct{} = expression, base, describe) when struct in [Call, Exists, Native],
+    do: cast_in(expression, base, describe)
+
+  defp cast_arg(value, _base, _describe), do: value
+
+  # The field of the ref, after checking that its path goes through relationships to one item.
+  defp field!(%Ref{path: path, name: name}, base, describe) do
+    path
+    |> Enum.with_index()
+    |> Enum.each(fn {relationship, index} ->
+      case description!(base ++ Enum.take(path, index), describe).relationships do
+        %{^relationship => %{cardinality: :one}} ->
+          :ok
+
+        %{^relationship => _many} ->
+          raise ArgumentError,
+                "expected #{inspect(relationship)} to be a relationship to one item in the path of " <>
+                  "#{inspect(name)}, use exists(#{relationship}, ...) for a relationship to many items"
+
+        _relationships ->
+          raise ArgumentError, "unknown relationship #{inspect(relationship)} in the path of #{inspect(name)}"
+      end
+    end)
+
+    %{fields: fields} = description!(base ++ path, describe)
+
+    Map.get(fields, name) || raise ArgumentError, "unknown field #{inspect(name)} in #{inspect(base ++ path)}"
+  end
+
+  defp description!(path, describe) do
+    describe.(path) || raise ArgumentError, "unknown relationship path #{inspect(path)}"
+  end
+
+  defp cast_value(_field, nil), do: nil
+
+  defp cast_value(%{type: type}, value) do
+    case Ecto.Changeset.cast({%{}, %{value: type}}, %{value: value}, [:value], empty_values: []) do
+      %{valid?: true} = changeset -> Ecto.Changeset.get_field(changeset, :value)
+      _changeset -> value
+    end
+  end
 
   @doc """
   Returns the expression for an expression, a keyword list of fields and values, or `nil`. Raises for anything else,

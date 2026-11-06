@@ -107,18 +107,15 @@ defmodule Backpex.Adapter do
   @callback new_item(assigns :: map(), live_resource :: module()) :: struct()
 
   @doc """
-  Returns the association `name` of the resource, or `nil` if the resource has no such association.
+  Returns the description of the items of the resource: their primary key, fields and relationships, see
+  `Backpex.Adapter.Description`. With a `path` of relationships, e.g. `[:author]`, returns the description of the related
+  items at its end. Returns `nil` if there is no such path.
 
-  The returned map contains:
-
-    * `:field` - the name of the association.
-    * `:cardinality` - `:one` or `:many`.
-    * `:owner_key` - the key of the resource the association is based on, e.g. `:user_id` for a `belongs_to :user`
-      association.
-    * `:through` - for an association through other associations, the associations it goes through, in order, as maps
-      with the same keys. An empty list for any other association.
+  Backpex checks and casts expressions with it (see `Backpex.Expr.cast/2`), finds the key of a relationship for
+  association fields and tells integer fields from others, e.g. in `Backpex.Filters.Range`. Use
+  `Backpex.Resource.describe/2` to call it.
   """
-  @callback association(name :: atom(), live_resource :: module()) :: map() | nil
+  @callback describe(path :: [atom()], live_resource :: module()) :: Backpex.Adapter.Description.t() | nil
 
   @doc """
   Returns the items that can be selected as the value of the association field `field`, e.g. the options of the select
@@ -207,13 +204,5 @@ defmodule Backpex.Adapter do
   """
   @callback delete_all(items :: list(struct()), live_resource :: module()) :: {:ok, term()} | {:error, term()}
 
-  @doc """
-  Returns the primitive type of the field `name` of the items, e.g. `:integer` or `:string`, or `nil` if it is unknown.
-  `Backpex.Filters.Range` uses it to refuse decimal boundaries for integer fields.
-
-  Without it, `Backpex.Resource.field_type/2` returns `nil`.
-  """
-  @callback field_type(name :: atom(), live_resource :: module()) :: atom() | nil
-
-  @optional_callbacks field_config_schema: 0, list_options_by_key: 4, options_key: 3, field_type: 2
+  @optional_callbacks field_config_schema: 0, list_options_by_key: 4, options_key: 3
 end

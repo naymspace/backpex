@@ -71,6 +71,7 @@ defmodule Backpex.Adapters.EctoTest do
     @moduledoc false
     def config(:primary_key), do: :id
     def config(:full_text_search), do: nil
+    def config(:adapter), do: EctoAdapter
     def adapter_config(:schema), do: TestPost
     def adapter_config(:repo), do: FakeRepo
     def adapter_config(:item_query), do: &EctoAdapter.default_item_query/3
@@ -699,20 +700,30 @@ defmodule Backpex.Adapters.EctoTest do
     end
   end
 
-  describe "association/2" do
-    test "returns a belongs_to association" do
-      assert EctoAdapter.association(:user, PostLive) ==
-               %{field: :user, cardinality: :one, owner_key: :user_id, through: []}
+  describe "describe/2" do
+    test "describes the primary key, the fields with their types and the associations of the schema" do
+      assert %Backpex.Adapter.Description{primary_key: [:id], fields: fields, relationships: relationships} =
+               EctoAdapter.describe([], PostLive)
+
+      assert fields.title == %{type: :string, primitive: :string}
+      assert fields.user_id == %{type: :id, primitive: :id}
+      assert relationships.user == %{field: :user, cardinality: :one, owner_key: :user_id, through: []}
+      assert Map.keys(relationships) |> Enum.sort() == [:post_tags, :tags, :user]
     end
 
-    test "returns the associations a through association goes through" do
-      assert %{field: :tags, cardinality: :many, through: [pivot, child]} = EctoAdapter.association(:tags, PostLive)
+    test "describes the associations a through association goes through" do
+      %{relationships: %{tags: tags}} = EctoAdapter.describe([], PostLive)
+
+      assert %{field: :tags, cardinality: :many, through: [pivot, child]} = tags
       assert %{field: :post_tags, cardinality: :many, owner_key: :id} = pivot
       assert %{field: :tag, cardinality: :one, owner_key: :tag_id} = child
     end
 
-    test "returns nil for a field that is not an association" do
-      assert EctoAdapter.association(:title, PostLive) == nil
+    test "describes the schema at the end of a path, also through a through association" do
+      assert %{fields: %{age: %{type: :integer}}} = EctoAdapter.describe([:user], PostLive)
+      assert %{fields: %{name: %{type: :string}}, relationships: %{}} = EctoAdapter.describe([:tags], PostLive)
+      assert EctoAdapter.describe([:title], PostLive) == nil
+      assert EctoAdapter.describe([:user, :unknown], PostLive) == nil
     end
   end
 
