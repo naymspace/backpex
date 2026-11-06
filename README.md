@@ -1,4 +1,5 @@
 [![CI](https://github.com/naymspace/backpex/actions/workflows/ci.yml/badge.svg)](https://github.com/naymspace/backpex/actions/workflows/ci.yml)
+[![Coverage](https://codecov.io/gh/naymspace/backpex/branch/develop/graph/badge.svg)](https://codecov.io/gh/naymspace/backpex)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://github.com/naymspace/backpex/blob/develop/LICENSE.md)
 [![Hex](https://img.shields.io/hexpm/v/backpex.svg)](https://hex.pm/packages/backpex)
 [![Hex Docs](https://img.shields.io/badge/hex-docs-green)](https://hexdocs.pm/backpex)
