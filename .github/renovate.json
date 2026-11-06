@@ -36,7 +36,7 @@
       "security"
     ]
   },
-  "constraints": { "erlang": "27" },
+  "constraints": { "erlang": "29" },
   "packageRules": [
     {
       "description": "Set Mix versioning strategy to update-lockfile",
