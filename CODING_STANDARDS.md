@@ -36,6 +36,8 @@ Solve interaction in HEEx and LiveView first; a `phx-hook` is for behaviour that
 ## Tests
 
 - CONTRIBUTING.md › Testing has the commands, the test app and its fixtures.
+- A bug fix starts with a test that fails on `develop` for that reason, in the existing test module of the area; then the fix. A purely visual fix (spacing, colour, alignment) shows before/after screenshots in the PR instead of a test.
+- Test at the lowest layer that fails: `test/` when the logic runs without a LiveView or the database, `integration_test/` when it needs them, `:e2e` only for what needs a browser (hooks, keyboard, accessibility, themes).
 - Browser tests (`Backpex.E2ECase`) run on PhoenixTest.Playwright; read `deps/phoenix_test_playwright/usage-rules.md` before writing one. The generated block below cannot link it, since the package is a test-only dependency.
 - Library tests live in parallel directories, e.g. `test/html/` (`Backpex.HTML.FormTest`) and `test/backpex/html/` (`Backpex.HTML.LayoutTest`). Run `grep -rn "defmodule <Name>" test integration_test` before adding a test file and extend the module that exists: a second module of the same name makes `mix test` fail depending on load order.
 

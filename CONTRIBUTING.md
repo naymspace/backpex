@@ -22,6 +22,7 @@ All types of contributions are encouraged and valued. See the [Table of Contents
 - [Your First Code Contribution](#your-first-code-contribution)
 - [Styleguides](#styleguide)
 - [Commit Messages](#commit-messages)
+- [Pull Requests](#pull-requests)
 
 ## Code of Conduct
 
@@ -275,6 +276,12 @@ We value clear and informative commit messages. While we don't have strict rules
 - Use the body to explain what and why, not how.
 
 > Note: We may squash commits before merging. Ensure each commit represents a logical unit of change, but don't worry too much about having a perfect commit history.
+
+### Pull Requests
+
+- Open pull requests against `develop`.
+- Add one label from `.github/release.yml`. The label picks the section of the release notes the pull request appears in: `breaking-change`, `feature`, `enhancement`, `bug`, `documentation`, `dependencies`, `demo`, or `ignore-for-release` to leave it out.
+- Show UI changes with before and after screenshots, and changes to motion or timing with a short video.
 
 ## Attribution
 
