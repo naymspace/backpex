@@ -1,8 +1,41 @@
+# quokka:skip-module-directive-reordering
 defmodule Backpex.Filters.Range do
-  @moduledoc """
-  The range filter renders two input fields of the same type. Backpex offers the `:date`, `:datetime` and the `number` type.
+  @config_schema [
+    type: [
+      doc: "The type of the range, which defines the rendered input fields.",
+      type: {:in, [:date, :datetime, :number]},
+      required: true
+    ]
+  ]
 
-  See the following example for an implementation of a date range filter.
+  @moduledoc """
+  The range filter renders two input fields of the same type. Backpex offers the `:date`, `:datetime` and the `:number`
+  type. It keeps the items whose field is within the range.
+
+  ## Filter-specific options
+
+  See `Backpex.Filter` for general filter options.
+
+  #{NimbleOptions.docs(@config_schema)}
+
+  ## Example
+
+  See the following example for a date range filter.
+
+      def filters do
+        [
+          begins_at: %{
+            module: Backpex.Filters.Range,
+            label: "Date Range (begins at)",
+            type: :date
+          }
+        ]
+      end
+
+  ## Reusable filter modules
+
+  To reuse a range filter in several LiveResources, define a module that implements the `c:type/0` callback and use it
+  as the `:module` of the filter. The `:type` option of the filter takes precedence over the callback.
 
       defmodule MyAppWeb.Filters.DateRange do
         use Backpex.Filters.Range
@@ -14,19 +47,14 @@ defmodule Backpex.Filters.Range do
         def label, do: "Date Range (begins at)"
       end
 
-  > #### Information {: .info}
-  >
-  > Note that the condition is already implemented via `Backpex.Filters.Range`.
-
   > #### `use Backpex.Filters.Range` {: .info}
   >
   > When you `use Backpex.Filters.Range`, the `Backpex.Filters.Range` module will set `@behavior Backpex.Filters.Range`.
-  > In addition it will add a `render` and `render_form` function in order to display the corresponding filter.
-  > It will also implement the `c:Backpex.Filter.condition/3` callback to keep the items whose field is within the range.
+  > In addition it will delegate the callbacks of `Backpex.Filter` to `Backpex.Filters.Range`, so you can override any
+  > of them.
   """
   use BackpexWeb, :filter
-
-  import Backpex.Expr, only: [expr: 1]
+  use Backpex.Filter, config_schema: @config_schema
 
   require Backpex
 
@@ -45,36 +73,108 @@ defmodule Backpex.Filters.Range do
       alias Backpex.Filters.Range, as: RangeFilter
 
       @impl Backpex.Filter
-      def type(_assigns), do: :map
+      def config_schema, do: RangeFilter.module_config_schema(&type/0)
 
       @impl Backpex.Filter
-      def changeset(changeset, field, assigns) do
-        RangeFilter.changeset(changeset, field, type(), assigns)
-      end
+      defdelegate type(filter, assigns), to: RangeFilter
 
       @impl Backpex.Filter
-      def condition(field, value, assigns) do
-        RangeFilter.condition(type(), field, value, assigns)
-      end
+      defdelegate changeset(changeset, filter, assigns), to: RangeFilter
 
       @impl Backpex.Filter
-      def render(assigns) do
-        RangeFilter.render(assigns)
-      end
+      defdelegate condition(filter, value, assigns), to: RangeFilter
 
       @impl Backpex.Filter
-      def render_form(assigns) do
-        type = RangeFilter.render_type(type())
-        assigns = assign(assigns, :type, type)
-        Backpex.Filters.Range.render_form(assigns)
-      end
+      defdelegate render(assigns), to: RangeFilter
 
-      defoverridable type: 1, changeset: 3, condition: 3, render: 1, render_form: 1
+      @impl Backpex.Filter
+      defdelegate render_form(assigns), to: RangeFilter
+
+      defoverridable config_schema: 0, type: 2, changeset: 3, condition: 3, render: 1, render_form: 1
     end
   end
 
-  attr :value, :map, required: true
+  @doc false
+  # The config schema of a module that uses this module: its callback is the default of the type.
+  def module_config_schema(type_fun) do
+    Keyword.update!(@config_schema, :type, &(&1 |> Keyword.delete(:required) |> Keyword.put(:default, type_fun.())))
+  end
 
+  @impl Backpex.Filter
+  def type(_filter, _assigns), do: :map
+
+  @doc """
+  Validates range filter values based on the type of the range.
+
+  Validates that:
+  - Date values are valid ISO 8601 dates (for :date and :datetime types)
+  - Number values are valid integers or floats (for :number type)
+  - Number values are integers if the filtered field is an integer field, see `Backpex.Resource.field_type/2`
+  - Start is not greater than end when both are provided
+
+  A start or end value that is neither a string, a number nor a `Date`, e.g. a nested map from the URL, is a cast
+  error: the `:map` type accepts it, but it does not have the shape of a range.
+  """
+  @impl Backpex.Filter
+  def changeset(changeset, {field, config} = _filter, assigns) do
+    parse_type = parse_type(config.type, field, assigns)
+
+    Ecto.Changeset.validate_change(changeset, field, fn _field, value ->
+      if boundaries_castable?(value),
+        do: validate_range(value, parse_type, field),
+        else: [{field, {"is invalid", [type: :map, validation: :cast]}}]
+    end)
+  end
+
+  defp boundaries_castable?(value) when is_map(value) do
+    Enum.all?(["start", "end"], &boundary_castable?(Map.get(value, &1)))
+  end
+
+  defp boundaries_castable?(_value), do: true
+
+  defp boundary_castable?(value) when is_nil(value) or is_binary(value) or is_number(value), do: true
+  defp boundary_castable?(%Date{}), do: true
+  defp boundary_castable?(_value), do: false
+
+  @doc """
+  Returns the expression that keeps the items whose field is within the range, or `nil` if the range has no valid
+  boundary. See `maybe_parse_range/3` for how the boundaries are parsed. On an integer field, see `changeset/3`, the
+  boundaries of a `:number` range are parsed as integers.
+
+  ## Examples
+
+      iex> import Backpex.Expr
+      iex> Backpex.Filters.Range.condition({:likes, %{type: :number}}, %{"start" => "10", "end" => ""}, %{}) ==
+      ...>   expr(likes >= 10)
+      true
+      iex> Backpex.Filters.Range.condition({:likes, %{type: :number}}, %{"start" => "", "end" => "100"}, %{}) ==
+      ...>   expr(likes <= 100)
+      true
+      iex> Backpex.Filters.Range.condition({:begins_at, %{type: :date}}, %{"start" => "2024-01-01", "end" => "2024-12-31"}, %{}) ==
+      ...>   expr(begins_at >= "2024-01-01" and begins_at <= "2024-12-31")
+      true
+      iex> Backpex.Filters.Range.condition({:likes, %{type: :number}}, %{"start" => "", "end" => ""}, %{})
+      nil
+
+  """
+  @impl Backpex.Filter
+  def condition({field, config} = _filter, %{"start" => start_at, "end" => end_at}, assigns) do
+    parse_type = parse_type(config.type, field, assigns)
+
+    start_at = parse(parse_type, start_at)
+    end_at = parse(parse_type, end_at, true)
+
+    Backpex.Expr.all([
+      start_at && expr(ref(^field) >= ^start_at),
+      end_at && expr(ref(^field) <= ^end_at)
+    ])
+  end
+
+  def condition(_filter, _value, _assigns), do: nil
+
+  attr :value, :map, required: true, doc: "the range"
+
+  @impl Backpex.Filter
   def render(assigns) do
     assigns =
       assigns
@@ -88,14 +188,22 @@ defmodule Backpex.Filters.Range do
     """
   end
 
-  attr :form, :any, required: true
-  attr :field, :atom, required: true
-  attr :value, :any, required: true
-  attr :type, :atom, required: true
-  attr :live_resource, :atom, required: true
-  attr :errors, :list, default: []
+  attr :filter, :any, required: true, doc: "the filter"
+  attr :form, :any, required: true, doc: "the filter form"
+  attr :field, :atom, required: true, doc: "the name of the filter"
+  attr :value, :any, required: true, doc: "the range"
+  attr :live_resource, :atom, required: true, doc: "the LiveResource"
+  attr :errors, :list, default: [], doc: "the errors of the range"
 
+  @impl Backpex.Filter
   def render_form(assigns) do
+    {_name, config} = assigns.filter
+
+    assigns =
+      assigns
+      |> assign(:type, render_type(config.type))
+      |> assign_new(:errors, fn -> [] end)
+
     ~H"""
     <.inputs_for :let={f} field={@form[@field]}>
       <.range_input_set form={f} type={@type} value={@value} live_resource={@live_resource} errors={@errors} />
@@ -139,43 +247,6 @@ defmodule Backpex.Filters.Range do
     </div>
     """
   end
-
-  @doc """
-  Validates range filter values based on the filter type.
-
-  Validates that:
-  - Date values are valid ISO 8601 dates (for :date and :datetime types)
-  - Number values are valid integers or floats (for :number type)
-  - Number values are integers if the filtered field is an integer field of the
-    LiveResource's schema (see below)
-  - Start is not greater than end when both are provided
-
-  Pass the socket `assigns` to make the validation aware of the field's type: for a `:number` filter on a field whose
-  type is `:integer` or `:id` (see `Backpex.Resource.field_type/2`), decimal values such as `"1.5"` are invalid.
-  Without `assigns`, or if the adapter doesn't know the type, any number is valid.
-
-  A start or end value that is neither a string, a number nor a `Date`, e.g. a nested map from the URL, is a cast
-  error: the `:map` type accepts it, but it does not have the shape of a range.
-  """
-  def changeset(changeset, field, range_type, assigns \\ %{}) do
-    parse_type = parse_type(range_type, field, assigns)
-
-    Ecto.Changeset.validate_change(changeset, field, fn _field, value ->
-      if boundaries_castable?(value),
-        do: validate_range(value, parse_type, field),
-        else: [{field, {"is invalid", [type: :map, validation: :cast]}}]
-    end)
-  end
-
-  defp boundaries_castable?(value) when is_map(value) do
-    Enum.all?(["start", "end"], &boundary_castable?(Map.get(value, &1)))
-  end
-
-  defp boundaries_castable?(_value), do: true
-
-  defp boundary_castable?(value) when is_nil(value) or is_binary(value) or is_number(value), do: true
-  defp boundary_castable?(%Date{}), do: true
-  defp boundary_castable?(_value), do: false
 
   defp validate_range(nil, _type, _field), do: []
   defp validate_range(%{"start" => "", "end" => ""}, _type, _field), do: []
@@ -241,39 +312,6 @@ defmodule Backpex.Filters.Range do
     end_date = String.slice(end_val, 0, 10)
     compare_values(:date, start_date, end_date)
   end
-
-  @doc """
-  Returns the expression that keeps the items whose field is within the range, or `nil` if the range has no valid
-  boundary. See `maybe_parse_range/3` for how the boundaries are parsed. On an integer field, see `changeset/4`, the
-  boundaries of a `:number` range are parsed as integers.
-
-  ## Examples
-
-      iex> import Backpex.Expr
-      iex> Backpex.Filters.Range.condition(:number, :likes, %{"start" => "10", "end" => ""}, %{}) == expr(likes >= 10)
-      true
-      iex> Backpex.Filters.Range.condition(:number, :likes, %{"start" => "", "end" => "100"}, %{}) == expr(likes <= 100)
-      true
-      iex> Backpex.Filters.Range.condition(:date, :begins_at, %{"start" => "2024-01-01", "end" => "2024-12-31"}, %{}) ==
-      ...>   expr(begins_at >= "2024-01-01" and begins_at <= "2024-12-31")
-      true
-      iex> Backpex.Filters.Range.condition(:number, :likes, %{"start" => "", "end" => ""}, %{})
-      nil
-
-  """
-  def condition(type, field, %{"start" => start_at, "end" => end_at}, assigns) do
-    parse_type = parse_type(type, field, assigns)
-
-    start_at = parse(parse_type, start_at)
-    end_at = parse(parse_type, end_at, true)
-
-    Backpex.Expr.all([
-      start_at && expr(ref(^field) >= ^start_at),
-      end_at && expr(ref(^field) <= ^end_at)
-    ])
-  end
-
-  def condition(_type, _field, _value, _assigns), do: nil
 
   @doc """
   Parses both start and end values for a range filter.

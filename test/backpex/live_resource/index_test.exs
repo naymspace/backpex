@@ -267,21 +267,21 @@ defmodule Backpex.LiveResource.IndexTest do
 
   defmodule FilterLive do
     @moduledoc false
-    def filters(_assigns), do: [published: %{module: VisibleFilter}]
+    def filters(_assigns), do: [published: %{module: VisibleFilter, label: "Published"}]
   end
 
   describe "assign_active_filters/1" do
     test "evaluates the filters with the assigns of the render" do
       assigns = %{__changed__: %{}, live_resource: FilterLive, filters: [], show_filter: true}
 
-      assert %{filters: [published: %{module: VisibleFilter}], __changed__: changed} =
+      assert %{filters: [published: %{module: VisibleFilter, label: "Published"}], __changed__: changed} =
                Index.assign_active_filters(assigns)
 
       assert Map.has_key?(changed, :filters)
     end
 
     test "keeps the filters unchanged when they are the same" do
-      filters = [published: %{module: VisibleFilter}]
+      filters = [published: %{module: VisibleFilter, label: "Published"}]
       assigns = %{__changed__: %{}, live_resource: FilterLive, filters: filters, show_filter: true}
 
       assert %{filters: ^filters, __changed__: changed} = Index.assign_active_filters(assigns)

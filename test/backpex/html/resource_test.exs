@@ -26,9 +26,9 @@ defmodule Backpex.HTML.ResourceTest do
 
     def label, do: "Marker"
 
-    def type(_assigns), do: :string
+    def type(_filter, _assigns), do: :string
 
-    def changeset(changeset, _field, _assigns), do: changeset
+    def changeset(changeset, _filter, _assigns), do: changeset
 
     def render_form(assigns) do
       ~H"""
@@ -62,6 +62,31 @@ defmodule Backpex.HTML.ResourceTest do
         )
 
       assert html =~ ~s(<span id="marker">assigns</span>)
+    end
+
+    test "renders a generic filter with the options of its configuration" do
+      status = %{
+        module: Select,
+        label: "Status",
+        prompt: "Any status",
+        options: fn assigns -> assigns.status_options end
+      }
+
+      html =
+        render_component(&Resource.resource_filters/1,
+          live_resource: ContextLive,
+          search_placeholder: "Search",
+          filters: [status: status],
+          query_options: %{filters: %{"status" => "closed"}},
+          filter_values: %{status: "closed"},
+          backpex_context: %{status_options: [{"Open", "open"}, {"Closed", "closed"}]}
+        )
+
+      assert html =~ ~s(<option value="">Any status</option>)
+      assert html =~ ~s(<option selected value="closed">Closed</option>)
+      assert html =~ ~s(<option value="open">Open</option>)
+      # The badge of the applied filter shows the label of the selected option.
+      assert html =~ ~r/Status.*Closed/s
     end
   end
 
@@ -108,7 +133,7 @@ defmodule Backpex.HTML.ResourceTest do
 
   defmodule SelectFilter do
     @moduledoc false
-    use Backpex.Filters.Select
+    use Select
 
     @impl Backpex.Filter
     def label, do: "Category"
@@ -121,12 +146,19 @@ defmodule Backpex.HTML.ResourceTest do
   end
 
   describe "resource_filters/1 with filter values from the URL or persisted filters" do
-    @filters [
-      published: %{module: BooleanFilter},
-      user_id: %{module: MultiSelectFilter},
-      likes: %{module: RangeFilter},
-      category: %{module: SelectFilter}
-    ]
+    # The index view validates the filters, which puts the callbacks of the filter modules as the defaults of their
+    # options.
+    defp filters do
+      Enum.map(
+        [
+          published: %{module: BooleanFilter},
+          user_id: %{module: MultiSelectFilter},
+          likes: %{module: RangeFilter},
+          category: %{module: SelectFilter}
+        ],
+        &Backpex.Filter.validate_config!(&1, ContextLive)
+      )
+    end
 
     @wrong_shapes [
       %{"published" => "published"},
@@ -140,7 +172,7 @@ defmodule Backpex.HTML.ResourceTest do
     ]
 
     defp render_filters(raw_filters, opts \\ []) do
-      changeset = Backpex.FilterValidation.build_changeset(raw_filters, @filters, %{})
+      changeset = Backpex.FilterValidation.build_changeset(raw_filters, filters(), %{})
 
       form_assigns =
         if Keyword.get(opts, :filter_form, true),
@@ -155,7 +187,7 @@ defmodule Backpex.HTML.ResourceTest do
         [
           live_resource: ContextLive,
           search_placeholder: "Search",
-          filters: @filters,
+          filters: filters(),
           query_options: %{filters: raw_filters},
           filter_values: Backpex.FilterValidation.valid_values(changeset)
         ] ++ form_assigns

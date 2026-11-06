@@ -9,8 +9,8 @@ defmodule Backpex.Filters.SelectTest do
 
   describe "condition/3" do
     test "keeps the items whose field equals the value" do
-      assert SelectFilter.condition(:status, "open", %{}) == expr(status == "open")
-      assert SelectFilter.condition(:priority, 1, %{}) == expr(priority == 1)
+      assert SelectFilter.condition({:status, %{}}, "open", %{}) == expr(status == "open")
+      assert SelectFilter.condition({:priority, %{}}, 1, %{}) == expr(priority == 1)
     end
   end
 
@@ -22,7 +22,7 @@ defmodule Backpex.Filters.SelectTest do
     test "validates selected value exists in options (atom)" do
       changeset = {%{}, %{status: :string}} |> Ecto.Changeset.cast(%{status: "open"}, [:status])
 
-      result = SelectFilter.changeset(changeset, :status, test_options())
+      result = SelectFilter.changeset(changeset, {:status, %{options: test_options()}}, %{})
 
       assert result.valid?
     end
@@ -30,7 +30,7 @@ defmodule Backpex.Filters.SelectTest do
     test "validates selected value exists in options (string)" do
       changeset = {%{}, %{status: :string}} |> Ecto.Changeset.cast(%{status: "pending"}, [:status])
 
-      result = SelectFilter.changeset(changeset, :status, test_options())
+      result = SelectFilter.changeset(changeset, {:status, %{options: test_options()}}, %{})
 
       assert result.valid?
     end
@@ -38,7 +38,7 @@ defmodule Backpex.Filters.SelectTest do
     test "returns error for invalid option value" do
       changeset = {%{}, %{status: :string}} |> Ecto.Changeset.cast(%{status: "invalid"}, [:status])
 
-      result = SelectFilter.changeset(changeset, :status, test_options())
+      result = SelectFilter.changeset(changeset, {:status, %{options: test_options()}}, %{})
 
       refute result.valid?
       assert Keyword.has_key?(result.errors, :status)
@@ -47,7 +47,7 @@ defmodule Backpex.Filters.SelectTest do
     test "accepts nil value" do
       changeset = {%{}, %{status: :string}} |> Ecto.Changeset.cast(%{}, [:status])
 
-      result = SelectFilter.changeset(changeset, :status, test_options())
+      result = SelectFilter.changeset(changeset, {:status, %{options: test_options()}}, %{})
 
       assert result.valid?
     end
@@ -55,7 +55,7 @@ defmodule Backpex.Filters.SelectTest do
     test "accepts empty string value" do
       changeset = {%{}, %{status: :string}} |> Ecto.Changeset.cast(%{status: ""}, [:status])
 
-      result = SelectFilter.changeset(changeset, :status, test_options())
+      result = SelectFilter.changeset(changeset, {:status, %{options: test_options()}}, %{})
 
       assert result.valid?
     end

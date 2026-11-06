@@ -1,13 +1,52 @@
+# quokka:skip-module-directive-reordering
 defmodule Backpex.Filters.Boolean do
+  @config_schema [
+    options: [
+      doc: """
+      List of options or function that receives the assigns and returns the list. An option is a map with a `:label`,
+      a `:key` and a `:predicate`, the expression of the items the option keeps, see `Backpex.Expr`.
+      """,
+      type: {:or, [{:list, :map}, {:fun, 1}]},
+      required: true
+    ]
+  ]
+
   @moduledoc """
   The boolean filter renders one checkbox per given option, hence multiple options can apply at the same time.
-  Instead of implementing a `condition/3` callback, you need to define a predicate for each option. A predicate is an
-  expression, see `Backpex.Expr`.
+  Instead of implementing a condition, you define a predicate for each option. A predicate is an expression, see
+  `Backpex.Expr`.
 
   If none is selected, the filter keeps all items. If multiple options are selected, it keeps the items that match any
   of their predicates.
 
-  See the following example for an implementation of a boolean filter for a published field.
+  ## Filter-specific options
+
+  See `Backpex.Filter` for general filter options.
+
+  #{NimbleOptions.docs(@config_schema)}
+
+  ## Example
+
+  See the following example for a boolean filter for a published field. The LiveResource imports `Backpex.Expr` to use
+  `expr/1`.
+
+      def filters do
+        [
+          published: %{
+            module: Backpex.Filters.Boolean,
+            label: "Published?",
+            options: [
+              %{label: "Published", key: "published", predicate: expr(published == true)},
+              %{label: "Not published", key: "not_published", predicate: expr(published == false)}
+            ]
+          }
+        ]
+      end
+
+  ## Reusable filter modules
+
+  To reuse a boolean filter in several LiveResources, define a module that implements the `c:options/1` callback and use
+  it as the `:module` of the filter. The `:options` option of the filter takes precedence over the callback.
 
       defmodule MyAppWeb.Filters.EventPublished do
         use Backpex.Filters.Boolean
@@ -18,16 +57,8 @@ defmodule Backpex.Filters.Boolean do
         @impl Backpex.Filters.Boolean
         def options(_assigns) do
           [
-            %{
-              label: "Published",
-              key: "published",
-              predicate: expr(published == true)
-            },
-            %{
-              label: "Not published",
-              key: "not_published",
-              predicate: expr(published == false)
-            }
+            %{label: "Published", key: "published", predicate: expr(published == true)},
+            %{label: "Not published", key: "not_published", predicate: expr(published == false)}
           ]
         end
       end
@@ -35,10 +66,11 @@ defmodule Backpex.Filters.Boolean do
   > #### `use Backpex.Filters.Boolean` {: .info}
   >
   > When you `use Backpex.Filters.Boolean`, the `Backpex.Filters.Boolean` module will set `@behavior Backpex.Filters.Boolean`.
-  > In addition it will add a `render` and `render_form` function in order to display the corresponding filter.
-  > It will also implement the `c:Backpex.Filter.condition/3` callback to combine the predicates of the selected options.
+  > In addition it will delegate the callbacks of `Backpex.Filter` to `Backpex.Filters.Boolean`, so you can override
+  > any of them.
   """
   use BackpexWeb, :filter
+  use Backpex.Filter, config_schema: @config_schema
 
   @doc """
   The list of options for the select filter.
@@ -58,61 +90,117 @@ defmodule Backpex.Filters.Boolean do
       alias Backpex.Filters.Boolean, as: BooleanFilter
 
       @impl Backpex.Filter
-      def type(_assigns), do: {:array, :string}
+      def config_schema, do: BooleanFilter.module_config_schema(&options/1)
 
       @impl Backpex.Filter
-      def changeset(changeset, field, assigns) do
-        BooleanFilter.changeset(changeset, field, options(assigns))
-      end
+      defdelegate type(filter, assigns), to: BooleanFilter
 
       @impl Backpex.Filter
-      def condition(field, value, assigns) do
-        assigns
-        |> options()
-        |> BooleanFilter.condition(field, value, assigns)
-      end
+      defdelegate changeset(changeset, filter, assigns), to: BooleanFilter
 
       @impl Backpex.Filter
-      def render(assigns) do
-        assigns = assign(assigns, :options, options(assigns))
-        BooleanFilter.render(assigns)
-      end
+      defdelegate condition(filter, value, assigns), to: BooleanFilter
 
       @impl Backpex.Filter
-      def render_form(assigns) do
-        assigns = assign(assigns, :options, options(assigns))
-        BooleanFilter.render_form(assigns)
-      end
+      defdelegate render(assigns), to: BooleanFilter
 
-      defoverridable type: 1, changeset: 3, condition: 3, render: 1, render_form: 1
+      @impl Backpex.Filter
+      defdelegate render_form(assigns), to: BooleanFilter
+
+      defoverridable config_schema: 0, type: 2, changeset: 3, condition: 3, render: 1, render_form: 1
     end
   end
 
-  attr :value, :any, required: true
-  attr :options, :list, required: true
+  @doc false
+  # The config schema of a module that uses this module: its callback is the default of the options.
+  def module_config_schema(options_fun) do
+    Keyword.update!(@config_schema, :options, &(&1 |> Keyword.delete(:required) |> Keyword.put(:default, options_fun)))
+  end
 
+  @impl Backpex.Filter
+  def type(_filter, _assigns), do: {:array, :string}
+
+  @doc """
+  Validates that all selected values exist in the options list.
+
+  Returns the changeset unchanged if all values are valid, or adds an error if any value is not found in options.
+  """
+  @impl Backpex.Filter
+  def changeset(changeset, {field, _config} = filter, assigns) do
+    valid_keys = filter |> options(assigns) |> Enum.map(fn %{key: k} -> to_string(k) end)
+
+    Ecto.Changeset.validate_change(changeset, field, fn _field, values ->
+      invalid_option_errors(values || [], valid_keys, field)
+    end)
+  end
+
+  defp invalid_option_errors(values, valid_keys, field) do
+    if Enum.all?(values, &(to_string(&1) in valid_keys)),
+      do: [],
+      else: [{field, "contains invalid options"}]
+  end
+
+  @doc """
+  Returns the expression for the keys of the selected options: the predicate of a single option, the predicates of
+  several options combined with `or`, or `nil` if no option is selected.
+
+  ## Examples
+
+      iex> import Backpex.Expr
+      iex> options = [
+      ...>   %{label: "Published", key: "published", predicate: expr(published == true)},
+      ...>   %{label: "Featured", key: "featured", predicate: expr(featured == true)}
+      ...> ]
+      iex> filter = {:status, %{options: options}}
+      iex> Backpex.Filters.Boolean.condition(filter, [], %{})
+      nil
+      iex> Backpex.Filters.Boolean.condition(filter, ["published"], %{}) == expr(published == true)
+      true
+      iex> Backpex.Filters.Boolean.condition(filter, ["published", "featured"], %{}) ==
+      ...>   expr(published == true or featured == true)
+      true
+
+  """
+  @impl Backpex.Filter
+  def condition(_filter, [], _assigns), do: nil
+
+  def condition(filter, keys, assigns) do
+    predicates = filter |> options(assigns) |> predicates()
+
+    keys
+    |> Enum.map(&Map.get(predicates, to_string(&1)))
+    |> Enum.reject(&is_nil/1)
+    |> Backpex.Expr.any()
+  end
+
+  attr :filter, :any, required: true, doc: "the filter"
+  attr :value, :any, required: true, doc: "the keys of the selected options"
+
+  @impl Backpex.Filter
   def render(assigns) do
-    assigns = assign(assigns, :label, option_value_to_label(assigns.options, assigns.value))
+    assigns = assign(assigns, :label, option_value_to_label(options(assigns.filter, assigns), assigns.value))
 
     ~H"""
     {@label}
     """
   end
 
-  attr :form, :any, required: true
-  attr :field, :atom, required: true
-  attr :value, :any, required: true
-  attr :options, :list, required: true
-  attr :errors, :list, default: []
+  attr :filter, :any, required: true, doc: "the filter"
+  attr :form, :any, required: true, doc: "the filter form"
+  attr :field, :atom, required: true, doc: "the name of the filter"
+  attr :value, :any, required: true, doc: "the keys of the selected options"
+  attr :errors, :list, default: [], doc: "the errors of the value"
 
+  @impl Backpex.Filter
   def render_form(assigns) do
     value = if is_nil(assigns.value), do: [], else: assigns.value
-    options = Enum.map(assigns.options, fn %{label: l, key: k} -> {l, k} end)
+    options = assigns.filter |> options(assigns) |> Enum.map(fn %{label: l, key: k} -> {l, k} end)
 
     assigns =
       assigns
       |> assign(:value, value)
       |> assign(:options, options)
+      |> assign_new(:errors, fn -> [] end)
 
     ~H"""
     <div class="mt-2 flex flex-col space-y-2">
@@ -138,53 +226,13 @@ defmodule Backpex.Filters.Boolean do
   end
 
   @doc """
-  Validates that all selected values exist in the options list.
-
-  Returns the changeset unchanged if all values are valid, or adds an error if any value is not found in options.
+  Returns the options of a boolean filter: its `:options` option, or the result of it if it is a function.
   """
-  def changeset(changeset, field, options) do
-    valid_keys = Enum.map(options, fn %{key: k} -> to_string(k) end)
-
-    Ecto.Changeset.validate_change(changeset, field, fn _field, values ->
-      validate_subset(values || [], valid_keys, field)
-    end)
-  end
-
-  defp validate_subset(values, valid_keys, field) do
-    if Enum.all?(values, &(to_string(&1) in valid_keys)),
-      do: [],
-      else: [{field, "contains invalid options"}]
-  end
-
-  @doc """
-  Returns the expression for the keys of the selected options: the predicate of a single option, the predicates of
-  several options combined with `or`, or `nil` if no option is selected.
-
-  ## Examples
-
-      iex> import Backpex.Expr
-      iex> options = [
-      ...>   %{label: "Published", key: "published", predicate: expr(published == true)},
-      ...>   %{label: "Featured", key: "featured", predicate: expr(featured == true)}
-      ...> ]
-      iex> Backpex.Filters.Boolean.condition(options, :status, [], %{})
-      nil
-      iex> Backpex.Filters.Boolean.condition(options, :status, ["published"], %{}) == expr(published == true)
-      true
-      iex> Backpex.Filters.Boolean.condition(options, :status, ["published", "featured"], %{}) ==
-      ...>   expr(published == true or featured == true)
-      true
-
-  """
-  def condition(_options, _field, [], _assigns), do: nil
-
-  def condition(options, _field, keys, _assigns) do
-    predicates = predicates(options)
-
-    keys
-    |> Enum.map(&Map.get(predicates, to_string(&1)))
-    |> Enum.reject(&is_nil/1)
-    |> Backpex.Expr.any()
+  def options({_name, config}, assigns) do
+    case Map.fetch!(config, :options) do
+      options when is_function(options, 1) -> options.(assigns)
+      options -> options
+    end
   end
 
   @doc """
