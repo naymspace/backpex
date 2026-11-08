@@ -1,0 +1,5 @@
+# Config of hadolint, which lints the Dockerfile in CI. See CONTRIBUTING.md › Dockerfile.
+ignored:
+  # Pinning apt package versions breaks the build whenever Ubuntu replaces a version in its archive. The base images
+  # are pinned and updated by Renovate instead.
+  - DL3008
