@@ -39,13 +39,13 @@ jobs:
             otp: "27.3"
 
           - elixir: "1.18"
-            otp: "28.0"
+            otp: "28.5"
 
           - elixir: "1.19"
-            otp: "28.1"
+            otp: "28.5"
 
           - elixir: "1.20"
-            otp: "29.0"
+            otp: "29.1"
 
     # The integration tests run once, on the latest Elixir, in the test-integration job.
     env:
