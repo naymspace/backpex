@@ -191,8 +191,16 @@ defmodule Backpex.FormComponent do
     handle_form_item_action(socket, change)
   end
 
-  def handle_event("save", %{"change" => change, "save-type" => save_type}, socket) do
+  # `save-type` is the name of the submit buttons, so it is missing when the form is submitted without one, e.g. by
+  # `form.requestSubmit()`. Such a submit saves the values like the default `:save` form action.
+  def handle_event("save", %{"change" => change} = params, socket) do
     %{assigns: %{live_action: live_action, fields: fields} = assigns} = socket
+
+    form_action =
+      case params do
+        %{"save-type" => save_type} -> form_action(socket, save_type)
+        _params -> :save
+      end
 
     change =
       change
@@ -200,13 +208,14 @@ defmodule Backpex.FormComponent do
       |> drop_readonly_changes(fields, assigns)
       |> drop_unused_changes()
 
-    save(socket, live_action, change, form_action(socket, save_type))
+    save(socket, live_action, change, form_action)
   end
 
   def handle_event("save", _params, %{assigns: %{action_type: :item}} = socket) do
     handle_form_item_action(socket, %{})
   end
 
+  # A form without any `change` params, e.g. one that only has upload fields.
   def handle_event("save", _params, socket) do
     %{assigns: %{live_action: live_action, fields: fields} = assigns} = socket
 

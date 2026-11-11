@@ -27,6 +27,20 @@ defmodule Backpex.Integration.ResourceActions.FormTest do
     end
   end
 
+  # A submit without a submitter, e.g. `form.requestSubmit()` in a hook, sends the values without `save-type`.
+  describe "without a submitter" do
+    test "runs the action with the submitted values", %{conn: conn} do
+      conn
+      |> visit(~p"/admin/users/invite/resource-action")
+      |> unwrap(fn view ->
+        view
+        |> form("#resource-form", change: %{users: ["user_id_alex"], text: "Hello"})
+        |> render_submit()
+      end)
+      |> assert_has("div", text: "An email has been successfully sent to the specified users.")
+    end
+  end
+
   # The browser doesn't submit a form while a file input has refused files, but a save event can still reach the server.
   describe "with an upload field that has refused files" do
     test "refuses the save", %{conn: conn} do
