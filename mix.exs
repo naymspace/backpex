@@ -94,12 +94,12 @@ defmodule Backpex.MixProject do
       # phoenix
       {:phoenix, ">= 1.7.6 and < 1.9.0"},
       {:phoenix_html, "~> 4.1"},
-      {:phoenix_html_helpers, "~> 1.0"},
       {:phoenix_live_view, "~> 1.1"},
 
       # adapters
       {:ecto, "~> 3.6"},
-      {:postgrex, ">= 0.0.0"},
+      # Only names a struct that `Backpex.ItemActions.Delete` matches on, so apps bring it themselves.
+      {:postgrex, ">= 0.0.0", optional: true},
       {:phoenix_ecto, "~> 4.4"},
 
       # generators
@@ -260,6 +260,7 @@ defmodule Backpex.MixProject do
       "guides/translations/translations.md",
 
       # Upgrade Guides
+      "guides/upgrading/v0.24.md",
       "guides/upgrading/v0.23.md",
       "guides/upgrading/v0.22.md",
       "guides/upgrading/v0.21.md",
