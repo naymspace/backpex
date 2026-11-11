@@ -20,6 +20,23 @@ defmodule Backpex.Integration.ItemActions.DeleteTest do
     |> assert_has("div", text: "Category has been deleted successfully.", exact: true)
   end
 
+  test "clears the selection after deleting the item of a row", %{conn: conn, category: category} do
+    selected = insert(:category, name: "Phoenix")
+
+    conn
+    |> visit(~p"/admin/categories")
+    |> check("Select item with id: #{selected.id}")
+    |> unwrap(fn view ->
+      view
+      |> Phoenix.LiveViewTest.element(~s|[id="item-action-delete-#{category.id}"]|)
+      |> Phoenix.LiveViewTest.render_click()
+    end)
+    |> confirm()
+    |> refute_has("td", text: "Elixir", exact: true)
+    |> assert_has("td", text: "Phoenix", exact: true)
+    |> refute_has("table input[type='checkbox'][checked]")
+  end
+
   test "deletes the item from the show view", %{conn: conn, category: category} do
     conn
     |> visit(~p"/admin/categories/#{category.id}/show")

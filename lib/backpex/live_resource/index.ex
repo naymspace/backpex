@@ -163,7 +163,11 @@ defmodule Backpex.LiveResource.Index do
     # during render. 404 also keeps the event from confirming whether an id exists.
     item = find_item_by_primary_value(items, item_id, live_resource) || raise(Backpex.NoResultsError)
 
+    # The action runs on its row only, and everything that describes or gates it reads
+    # `selected_items`. The admin's own selection is kept aside, so cancelling the confirm modal can
+    # bring it back.
     socket
+    |> remember_selection()
     |> assign(selected_items: [item])
     |> maybe_handle_item_action(key)
   end
@@ -278,6 +282,7 @@ defmodule Backpex.LiveResource.Index do
     |> assign(:item, nil)
     |> assign(:changeset, nil)
     |> assign(:action_to_confirm, nil)
+    |> restore_selection()
     |> noreply()
   end
 
@@ -358,8 +363,39 @@ defmodule Backpex.LiveResource.Index do
       |> assign(action_to_confirm: nil)
       |> assign(selected_items: [])
       |> assign(select_all: false)
+      |> assign(selection_before_row_action: nil)
       |> noreply()
     end)
+  end
+
+  # Remembers the primary values of the selection a row action is about to replace. An action that
+  # is opened while a remembered selection is waiting keeps that one: the current selection is then
+  # the row of the first action, not what the admin selected.
+  defp remember_selection(%{assigns: %{selection_before_row_action: nil}} = socket) do
+    %{selected_items: selected_items, live_resource: live_resource} = socket.assigns
+
+    primary_values = Enum.map(selected_items, &to_string(LiveResource.primary_value(&1, live_resource)))
+
+    assign(socket, :selection_before_row_action, primary_values)
+  end
+
+  defp remember_selection(socket), do: socket
+
+  # Nothing was remembered for an action for the selected rows, which keeps its selection.
+  defp restore_selection(%{assigns: %{selection_before_row_action: nil}} = socket), do: socket
+
+  # The rows are taken from `items`, so a row that changed while the modal was open is restored
+  # with its current values and one that is gone is left out.
+  defp restore_selection(socket) do
+    %{selection_before_row_action: primary_values, items: items, live_resource: live_resource} = socket.assigns
+
+    selected_items =
+      Enum.filter(items, &(to_string(LiveResource.primary_value(&1, live_resource)) in primary_values))
+
+    socket
+    |> assign(:selected_items, selected_items)
+    |> assign(:select_all, selected_items != [] and length(selected_items) == length(selectable_items(socket.assigns)))
+    |> assign(:selection_before_row_action, nil)
   end
 
   defp selectable_items(assigns) do
@@ -800,6 +836,7 @@ defmodule Backpex.LiveResource.Index do
     |> assign(:action_to_confirm, nil)
     |> assign(:selected_items, [])
     |> assign(:select_all, false)
+    |> assign(:selection_before_row_action, nil)
     |> maybe_redirect_to_default_filters()
     |> assign_items()
     |> maybe_assign_metrics()

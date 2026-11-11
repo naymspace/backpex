@@ -2,7 +2,7 @@ defmodule Backpex.Integration.ItemActions.DuplicateTest do
   use Backpex.ConnCase, async: true
 
   import Ecto.Query, only: [where: 3]
-  import Phoenix.LiveViewTest, only: [render_hook: 3]
+  import Phoenix.LiveViewTest, only: [render: 1, render_click: 3, render_hook: 3]
 
   alias Backpex.Test.Tag
 
@@ -33,6 +33,90 @@ defmodule Backpex.Integration.ItemActions.DuplicateTest do
       |> cancel()
       |> assert_path(~p"/admin/tags")
       |> assert_has("table tbody tr", count: 1)
+    end
+  end
+
+  # A row action runs on its row, so the view puts the row into the selection while the dialog is open.
+  describe "cancelling on the index view" do
+    setup do
+      %{phoenix: insert(:tag, name: "Phoenix"), ecto: insert(:tag, name: "Ecto")}
+    end
+
+    test "selects nothing if nothing was selected", %{conn: conn, tag: tag} do
+      conn
+      |> visit(~p"/admin/tags")
+      |> click_button("Duplicate Elixir")
+      |> assert_has("div", text: "Duplicate", exact: true)
+      |> cancel()
+      |> refute_has("#select-input-#{tag.id}[checked]")
+      |> refute_has("table input[type='checkbox'][checked]")
+      |> assert_has("button[phx-value-action-key='delete'][disabled]:not([phx-value-item-id])")
+    end
+
+    test "restores the rows that were selected", %{conn: conn, tag: tag, phoenix: phoenix, ecto: ecto} do
+      conn
+      |> visit(~p"/admin/tags")
+      |> check("Select item with id: #{phoenix.id}")
+      |> check("Select item with id: #{ecto.id}")
+      |> click_button("Duplicate Elixir")
+      |> assert_has("div", text: "Duplicate", exact: true)
+      |> cancel()
+      |> assert_has("#select-input-#{phoenix.id}[checked]")
+      |> assert_has("#select-input-#{ecto.id}[checked]")
+      |> refute_has("#select-input-#{tag.id}[checked]")
+      |> refute_has("thead input[type='checkbox'][checked]")
+      |> refute_has("button[phx-value-action-key='delete'][disabled]:not([phx-value-item-id])")
+    end
+
+    test "restores a selection of all rows", %{conn: conn, tag: tag, phoenix: phoenix, ecto: ecto} do
+      conn
+      |> visit(~p"/admin/tags")
+      |> check("Select all items")
+      |> click_button("Duplicate Elixir")
+      |> assert_has("div", text: "Duplicate", exact: true)
+      |> cancel()
+      |> assert_has("thead input[type='checkbox'][checked]")
+      |> assert_has("#select-input-#{tag.id}[checked]")
+      |> assert_has("#select-input-#{phoenix.id}[checked]")
+      |> assert_has("#select-input-#{ecto.id}[checked]")
+    end
+
+    test "leaves out a selected row that was deleted while the dialog was open", %{
+      conn: conn,
+      phoenix: phoenix,
+      ecto: ecto
+    } do
+      session =
+        conn
+        |> visit(~p"/admin/tags")
+        |> check("Select item with id: #{phoenix.id}")
+        |> check("Select item with id: #{ecto.id}")
+        |> click_button("Duplicate Elixir")
+        |> assert_has("div", text: "Duplicate", exact: true)
+
+      Repo.delete!(ecto)
+
+      session
+      |> unwrap(fn view ->
+        send(view.pid, {"backpex:deleted", ecto})
+        render(view)
+      end)
+      |> cancel()
+      |> assert_has("#select-input-#{phoenix.id}[checked]")
+      |> refute_has("#select-input-#{ecto.id}")
+      |> assert_has("table tbody input[type='checkbox'][checked]", count: 1)
+    end
+
+    test "keeps the selection of an action for the selected rows", %{conn: conn, tag: tag, phoenix: phoenix} do
+      conn
+      |> visit(~p"/admin/tags")
+      |> check("Select item with id: #{phoenix.id}")
+      # The rows have a "Delete" button, too, so the test sends the event of the one above the table.
+      |> unwrap(&render_click(&1, "item-action", %{"action-key" => "delete"}))
+      |> assert_has("#action-confirm-modal")
+      |> cancel()
+      |> assert_has("#select-input-#{phoenix.id}[checked]")
+      |> refute_has("#select-input-#{tag.id}[checked]")
     end
   end
 
