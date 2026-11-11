@@ -89,6 +89,18 @@ defmodule Backpex.Integration.Index.IndexEditTest do
              end) > 0
     end
 
+    test "does not load the options again when an item of another page changes", %{conn: conn} do
+      # A page holds 15 posts.
+      posts = insert_list(16, :post)
+      {:ok, view, _html} = live(conn, index_path(conn))
+      [off_page_post] = Enum.reject(posts, &has_element?(view, "#index-form-user-#{&1.id}"))
+
+      assert count_queries("users", fn ->
+               send(view.pid, {"backpex:updated", off_page_post})
+               render(view)
+             end) == 0
+    end
+
     test "saves the change and shows the updated item", %{conn: conn} do
       post = insert(:post)
       other_user = insert(:user)
