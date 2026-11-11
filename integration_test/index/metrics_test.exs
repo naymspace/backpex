@@ -12,5 +12,6 @@ defmodule Backpex.Integration.Index.MetricsTest do
     |> assert_has("table tbody tr", count: 3)
     |> assert_has(".card-body", text: "Total likes 1600 likes", exact: true)
     |> assert_has(".card-body", text: "Published Posts 2", exact: true)
+    |> assert_has(".card-body", text: "Posts 3", exact: true)
   end
 end

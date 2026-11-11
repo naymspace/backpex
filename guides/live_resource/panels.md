@@ -17,7 +17,7 @@ def panels do
 end
 ```
 
-The example above will define a panel with the identifier `contact` and the label `Contact`.
+The example above will define a panel with the identifier `contact` and the label `Contact`. The label has to be a string, anything else raises a configuration error when the view loads.
 
 ## Usage
 

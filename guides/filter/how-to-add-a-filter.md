@@ -75,6 +75,10 @@ def filters, do: [
 ]
 ```
 
+## Filter Options
+
+Besides `:module` and `:label`, the filter map takes `:default` (the value the filter is applied with when the index view is opened without filter params) and `:presets` (see [Filter Presets](filter-presets.md)). Backpex validates the maps when the index view loads and raises a configuration error for any other key, e.g. a typo. See the Configuration section of `Backpex.Filter` for all options.
+
 ## Filter Validation
 
 Built-in filters automatically validate their values. For custom filters, you can add validation via the `changeset/3` callback. See the [Filter Validation Guide](filter-validation.md) for details.
