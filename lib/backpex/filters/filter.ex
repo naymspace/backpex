@@ -174,10 +174,13 @@ defmodule Backpex.Filter do
 
   @optional_callbacks label: 0
 
+  # Compiled once: `NimbleOptions.validate/2` validates a keyword list schema itself on every call.
+  @compiled_config_schema NimbleOptions.new!(@config_schema)
+
   @doc false
   def validate_configs!(filters, live_resource) do
     Backpex.LiveResource.Config.validate_each!(filters, "filter", "filters/1", live_resource, fn options ->
-      NimbleOptions.validate(options, @config_schema)
+      NimbleOptions.validate(options, @compiled_config_schema)
     end)
   end
 

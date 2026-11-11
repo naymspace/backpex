@@ -245,6 +245,9 @@ defmodule Backpex.ItemAction do
     end
   end
 
+  # Compiled once: `NimbleOptions.validate/2` validates a keyword list schema itself on every call.
+  @compiled_config_schema NimbleOptions.new!(@config_schema)
+
   @doc false
   def validate_configs!(item_actions, live_resource) do
     Backpex.LiveResource.Config.validate_each!(
@@ -252,7 +255,7 @@ defmodule Backpex.ItemAction do
       "item action",
       "item_actions/1",
       live_resource,
-      &NimbleOptions.validate(&1, @config_schema)
+      &NimbleOptions.validate(&1, @compiled_config_schema)
     )
   end
 

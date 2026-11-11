@@ -5,7 +5,8 @@ defmodule Backpex.LiveResource.Config do
   # `panels/0`, as `Backpex.Field` does for `fields/0`. The schemas live in the modules that document them:
   # `Backpex.Filter`, `Backpex.Metric`, `Backpex.ItemAction` and `Backpex.ResourceAction`.
 
-  @panels_schema [*: [type: :string]]
+  # Compiled once: `NimbleOptions.validate/2` validates a keyword list schema itself on every call.
+  @panels_schema NimbleOptions.new!(*: [type: :string])
 
   @doc """
   Validates a keyword list of configuration maps and returns it unchanged.
