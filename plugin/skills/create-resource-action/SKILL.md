@@ -131,7 +131,7 @@ def resource_actions do
 end
 ```
 
-The keyword key (e.g. `:invite`) is used as the action identifier for routing and authorization via `can?/3`.
+The keyword key (e.g. `:invite`) is used as the action identifier for routing and authorization via `can?/3`. `:module` is the only key of the map: Backpex validates it when the index view loads and raises a configuration error for any other key.
 
 ## Key Differences From Item Actions
 

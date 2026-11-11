@@ -1,6 +1,33 @@
 defmodule Backpex.ItemAction do
+  @config_schema [
+    module: [
+      doc: "The item action module, which implements the `Backpex.ItemAction` behaviour.",
+      type: :atom,
+      required: true
+    ],
+    only: [
+      doc: """
+      The placements the item action is shown in: `:row` (each row of the index table), `:index` (above the index
+      table, for the selected items) and `:show` (the show view). Shown in all placements by default.
+      """,
+      type: {:list, {:in, [:row, :index, :show]}}
+    ],
+    except: [
+      doc: "The placements the item action is not shown in. Ignored if `:only` is set.",
+      type: {:list, {:in, [:row, :index, :show]}}
+    ]
+  ]
+
   @moduledoc """
   Behaviour implemented by all item actions.
+
+  ## Configuration
+
+  `c:Backpex.LiveResource.item_actions/1` returns a keyword list with one map per item action. The key is the key of
+  the action, passed to `c:Backpex.LiveResource.can?/3`. The map takes these options, any other key raises a
+  configuration error when the index or show view loads:
+
+  #{NimbleOptions.docs(@config_schema)}
   """
   import Phoenix.Component
 
@@ -216,6 +243,17 @@ defmodule Backpex.ItemAction do
       true ->
         :ok
     end
+  end
+
+  @doc false
+  def validate_configs!(item_actions, live_resource) do
+    Backpex.LiveResource.Config.validate_each!(
+      item_actions,
+      "item action",
+      "item_actions/1",
+      live_resource,
+      &NimbleOptions.validate(&1, @config_schema)
+    )
   end
 
   @doc """

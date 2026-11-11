@@ -13,7 +13,7 @@ defmodule Backpex.LiveResource.Show do
     socket
     |> Backpex.LiveResource.maybe_subscribe_to_pubsub(live_resource)
     |> assign(:live_resource, live_resource)
-    |> assign(:panels, live_resource.panels())
+    |> assign(:panels, Backpex.LiveResource.Config.validate_panels!(live_resource.panels(), live_resource))
     |> assign(:fluid?, live_resource.config(:fluid?))
     |> assign(:fields, live_resource.fields(:show, socket.assigns))
     |> assign(:page_title, live_resource.singular_name())
@@ -72,7 +72,13 @@ defmodule Backpex.LiveResource.Show do
   end
 
   defp assign_item_actions(socket) do
-    item_actions = ItemAction.default_actions() |> socket.assigns.live_resource.item_actions()
+    %{live_resource: live_resource} = socket.assigns
+
+    item_actions =
+      ItemAction.default_actions()
+      |> live_resource.item_actions()
+      |> ItemAction.validate_configs!(live_resource)
+
     assign(socket, :item_actions, item_actions)
   end
 

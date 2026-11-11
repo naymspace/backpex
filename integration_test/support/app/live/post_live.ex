@@ -126,7 +126,9 @@ defmodule Backpex.Test.PostLive do
         label: "Published Posts",
         select: dynamic([p], count(fragment("CASE WHEN ? = TRUE THEN 1 ELSE NULL END", p.published))),
         format: &Integer.to_string/1
-      }
+      },
+      # Without the optional `:format`.
+      post_count: %{module: Value, label: "Posts", select: dynamic([p], count(p.id))}
     ]
   end
 end
