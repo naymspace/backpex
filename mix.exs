@@ -153,7 +153,7 @@ defmodule Backpex.MixProject do
   defp lint do
     unlock_unused = if @integration_tests, do: ["deps.unlock --unused"], else: []
 
-    ["compile --warning-as-errors"] ++ unlock_unused ++ ["format", "credo", "test"]
+    ["compile --warnings-as-errors"] ++ unlock_unused ++ ["format", "credo", "test"]
   end
 
   defp docs do
