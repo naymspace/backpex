@@ -69,7 +69,7 @@ defmodule Backpex.Fields.BelongsTo do
   def update(assigns, socket) do
     %{name: name, field: field} = assigns
     schema = assigns.live_resource.adapter_config(:schema)
-    %{queryable: queryable, owner_key: owner_key} = schema.__schema__(:association, name)
+    %{queryable: queryable, owner_key: owner_key, related_key: related_key} = schema.__schema__(:association, name)
 
     display_field = display_field(field)
     display_field_form = display_field_form(field, display_field)
@@ -78,6 +78,7 @@ defmodule Backpex.Fields.BelongsTo do
     |> assign(assigns)
     |> assign(queryable: queryable)
     |> assign(owner_key: owner_key)
+    |> assign(related_key: related_key)
     |> assign(display_field: display_field)
     |> assign(display_field_form: display_field_form)
     |> ok()
@@ -122,7 +123,7 @@ defmodule Backpex.Fields.BelongsTo do
 
     assigns =
       assigns
-      |> assign(:options, assigns |> options_query() |> load_options())
+      |> assign(:options, assigns |> options_query() |> load_options(assigns.related_key))
       |> assign(:owner_key, owner_key)
       |> assign_prompt(field_options)
 
@@ -154,7 +155,8 @@ defmodule Backpex.Fields.BelongsTo do
   def index_assigns({name, field_options} = field, items, assigns) do
     if Backpex.Field.index_editable_enabled?(field_options, assigns) do
       %{live_resource: live_resource} = assigns
-      %{queryable: queryable} = live_resource.adapter_config(:schema).__schema__(:association, name)
+      association = live_resource.adapter_config(:schema).__schema__(:association, name)
+      %{queryable: queryable, related_key: related_key} = association
 
       field_assigns =
         Map.merge(assigns, %{
@@ -171,7 +173,7 @@ defmodule Backpex.Fields.BelongsTo do
           {LiveResource.primary_value(item, live_resource), options_query(item_assigns)}
         end)
 
-      options_by_query = options_queries |> Map.values() |> Enum.uniq() |> Map.new(&{&1, load_options(&1)})
+      options_by_query = options_queries |> Map.values() |> Enum.uniq() |> Map.new(&{&1, load_options(&1, related_key)})
 
       %{index_form_options: Map.new(options_queries, fn {key, query} -> {key, Map.fetch!(options_by_query, query)} end)}
     else
@@ -186,7 +188,7 @@ defmodule Backpex.Fields.BelongsTo do
     options =
       case assigns do
         %{index_form_options: %{^primary_value => options}} -> options
-        _assigns -> assigns |> options_query() |> load_options()
+        _assigns -> assigns |> options_query() |> load_options(assigns.related_key)
       end
 
     assigns =
@@ -204,7 +206,7 @@ defmodule Backpex.Fields.BelongsTo do
           field={@form[:value]}
           options={@options}
           prompt={@prompt}
-          value={if @valid, do: @value && Map.get(@value, :id), else: @form[:value].value}
+          value={if @valid, do: @value && Map.get(@value, @related_key), else: @form[:value].value}
           input_class={[
             "select select-sm",
             @valid && "not-hover:select-ghost",
@@ -224,14 +226,15 @@ defmodule Backpex.Fields.BelongsTo do
   def index_editable_change({name, _field_options} = field, value, assigns) do
     association = assigns.live_resource.adapter_config(:schema).__schema__(:association, name)
 
-    if option?(field, association.queryable, value, assigns), do: %{association.owner_key => value}, else: :error
+    if option?(field, association, value, assigns), do: %{association.owner_key => value}, else: :error
   end
 
   # The value comes from the client, so only an option of the select, or no option, is saved.
-  defp option?(_field, _queryable, value, _assigns) when value in [nil, ""], do: true
+  defp option?(_field, _association, value, _assigns) when value in [nil, ""], do: true
 
-  defp option?(field, queryable, value, assigns) do
-    type = queryable.__schema__(:type, :id)
+  defp option?(field, association, value, assigns) do
+    %{queryable: queryable, related_key: related_key} = association
+    type = queryable.__schema__(:type, related_key)
 
     case Ecto.Type.cast(type, value) do
       {:ok, id} ->
@@ -241,7 +244,7 @@ defmodule Backpex.Fields.BelongsTo do
           |> options_query()
 
         query
-        |> where([option], option.id == ^id)
+        |> where([option], field(option, ^related_key) == ^id)
         |> repo.exists?()
 
       _error ->
@@ -278,10 +281,11 @@ defmodule Backpex.Fields.BelongsTo do
     {live_resource.adapter_config(:repo), query, assigns.display_field_form}
   end
 
-  defp load_options({repo, query, display_field}) do
+  # The value of an option is the key of the related item that the foreign key references.
+  defp load_options({repo, query, display_field}, related_key) do
     query
     |> repo.all()
-    |> Enum.map(&{Map.get(&1, display_field), Map.get(&1, :id)})
+    |> Enum.map(&{Map.get(&1, display_field), Map.get(&1, related_key)})
   end
 
   defp assign_link(assigns) do

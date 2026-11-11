@@ -53,6 +53,48 @@ defmodule Backpex.Fields.HasManyThroughTest do
     end
   end
 
+  # A child whose key is `isbn`, while its pivot has an `id`.
+  defmodule Book do
+    @moduledoc false
+    use Ecto.Schema
+
+    @primary_key {:isbn, :string, autogenerate: false}
+    schema "books" do
+      field :title, :string
+    end
+  end
+
+  defmodule Shelving do
+    @moduledoc false
+    use Ecto.Schema
+
+    schema "shelvings" do
+      field :shelf, :string
+      belongs_to :library, Backpex.Fields.HasManyThroughTest.Library
+      belongs_to :book, Book, foreign_key: :book_isbn, references: :isbn, type: :string
+    end
+  end
+
+  defmodule Library do
+    @moduledoc false
+    use Ecto.Schema
+
+    schema "libraries" do
+      has_many :shelvings, Shelving, on_replace: :delete
+      has_many :books, through: [:shelvings, :book]
+    end
+  end
+
+  defmodule BooksRepo do
+    @moduledoc false
+    def all(_query) do
+      [
+        Ecto.put_meta(%Book{isbn: "isbn-1", title: "Dune"}, state: :loaded),
+        Ecto.put_meta(%Book{isbn: "isbn-2", title: "Emma"}, state: :loaded)
+      ]
+    end
+  end
+
   defmodule UntranslatedLive do
     @moduledoc false
     def translate({msg, opts}) do
@@ -71,6 +113,20 @@ defmodule Backpex.Fields.HasManyThroughTest do
     @moduledoc false
     def adapter_config(:schema), do: Parent
     def adapter_config(:repo), do: ChildrenRepo
+    def translate(msg), do: UntranslatedLive.translate(msg)
+  end
+
+  defmodule BookLive do
+    @moduledoc false
+    def config(:primary_key), do: :isbn
+    def singular_name, do: "Book"
+    def translate(msg), do: UntranslatedLive.translate(msg)
+  end
+
+  defmodule LibraryLive do
+    @moduledoc false
+    def adapter_config(:schema), do: Library
+    def adapter_config(:repo), do: BooksRepo
     def translate(msg), do: UntranslatedLive.translate(msg)
   end
 
@@ -139,6 +195,79 @@ defmodule Backpex.Fields.HasManyThroughTest do
       assert rows(html) == [{"Alpha", false}, {"Zulu", false}]
     end
   end
+
+  describe "a child whose key differs from the key of the pivot" do
+    setup do
+      shelvings = [
+        loaded_pivot(%Shelving{id: 10, book_isbn: "isbn-1", shelf: "A"}),
+        loaded_pivot(%Shelving{id: 11, book_isbn: "isbn-2", shelf: "B"})
+      ]
+
+      %{library: Ecto.put_meta(%Library{id: 1, shelvings: shelvings}, state: :loaded)}
+    end
+
+    test "render_form/1 renders the keys of the children as option values", %{library: library} do
+      html = library |> Changeset.change() |> render_books_form()
+
+      assert rows(html) == [{"Dune", false}, {"Emma", false}]
+
+      for index <- 0..1 do
+        options = html |> LazyHTML.from_fragment() |> LazyHTML.query("#edit-relational-modal-#{index} select option")
+
+        assert LazyHTML.attribute(options, "value") == ["", "isbn-1", "isbn-2"]
+      end
+    end
+
+    test "render_form/1 keeps the other relations after a saved relation was detached", %{library: library} do
+      [detached, kept] = library.shelvings
+
+      changeset =
+        library
+        |> Changeset.change()
+        |> Changeset.put_assoc(:shelvings, [%{Changeset.change(detached) | action: :delete}, Changeset.change(kept)])
+
+      assert changeset |> render_books_form() |> rows() == [{"Emma", false}]
+    end
+
+    test "detaching marks a saved relation for deletion and removes an unsaved one", %{library: library} do
+      [saved, other_saved] = library.shelvings
+      changeset = library |> Changeset.change() |> Changeset.put_assoc(:shelvings, [saved, other_saved, %{}])
+      {:ok, socket} = changeset |> books_assigns() |> HasManyThrough.update(%Phoenix.LiveView.Socket{})
+
+      HasManyThrough.handle_event("detach-relational", %{"index" => "0"}, socket)
+      assert_received {:put_assoc, {:shelvings, [%{action: :delete, data: %{id: 10}}, %{data: %{id: 11}}, _new]}}
+
+      HasManyThrough.handle_event("detach-relational", %{"index" => "2"}, socket)
+      assert_received {:put_assoc, {:shelvings, [%{data: %{id: 10}}, %{data: %{id: 11}}]}}
+    end
+  end
+
+  defp books_assigns(changeset) do
+    field_options = %{
+      module: HasManyThrough,
+      label: "Books",
+      display_field: :title,
+      live_resource: BookLive,
+      child_fields: [title: %{module: Backpex.Fields.Text, label: "Title"}],
+      pivot_fields: [shelf: %{module: Backpex.Fields.Text, label: "Shelf"}]
+    }
+
+    %{
+      id: "has-many-through",
+      name: :books,
+      field: {:books, field_options},
+      field_options: field_options,
+      form: Phoenix.Component.to_form(changeset),
+      changeset: changeset,
+      live_resource: LibraryLive,
+      live_action: :edit,
+      hide_label: false,
+      readonly: false,
+      type: :form
+    }
+  end
+
+  defp render_books_form(changeset), do: render_component(HasManyThrough, books_assigns(changeset))
 
   defp changeset(parent, pivot_params) do
     parent

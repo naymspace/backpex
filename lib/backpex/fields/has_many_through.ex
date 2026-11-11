@@ -136,7 +136,8 @@ defmodule Backpex.Fields.HasManyThrough do
 
     all_items = repo.all(query)
 
-    options = Enum.map(all_items, &{Map.get(&1, display_field), Map.get(&1, :id)})
+    related_key = socket.assigns.association.child.related_key
+    options = Enum.map(all_items, &{Map.get(&1, display_field), Map.get(&1, related_key)})
 
     live_resource = field_options.live_resource
     singular_name = live_resource.singular_name()
@@ -225,15 +226,14 @@ defmodule Backpex.Fields.HasManyThrough do
     %{field: assoc_field} = assigns = assign_fallback_child_fields(assigns)
     %{form: form, changeset: changeset, association: association, all_items: all_items} = assigns
     {_assoc_field_name, assoc_field_options} = assoc_field
-    primary_key = assoc_field_options.live_resource.config(:primary_key)
-    editables = editables(form, changeset, association, primary_key)
+    editables = editables(form, changeset, association, pivot_primary_key(association, assoc_field_options))
 
     listables =
       editables
       |> Enum.map(fn editable ->
         edited = Changeset.apply_changes(editable.source)
         relational_id = Map.get(edited, association.child.owner_key)
-        item = Enum.filter(all_items, &(Map.get(&1, primary_key) == relational_id)) |> List.first()
+        item = Enum.filter(all_items, &(Map.get(&1, association.child.related_key) == relational_id)) |> List.first()
         item = if is_nil(item), do: %{}, else: item
 
         %{
@@ -428,7 +428,7 @@ defmodule Backpex.Fields.HasManyThrough do
     existing = get_change_or_field(changeset, association.pivot.field)
     {to_delete, rest} = List.pop_at(existing, index)
 
-    primary_key = field_options.live_resource.config(:primary_key)
+    primary_key = pivot_primary_key(association, field_options)
 
     updated =
       if Changeset.change(to_delete).data |> Map.get(primary_key) == nil do
@@ -524,9 +524,19 @@ defmodule Backpex.Fields.HasManyThrough do
       child: %{
         field: child.field,
         queryable: child.queryable,
-        owner_key: child.owner_key
+        owner_key: child.owner_key,
+        related_key: child.related_key
       }
     }
+  end
+
+  # The key that tells whether a pivot item is saved. Pivot schemas with a composite primary key or without one are not
+  # supported: for them the primary key of the child LiveResource is read from the pivot item, as it was for all pivots.
+  defp pivot_primary_key(association, field_options) do
+    case association.pivot.queryable.__schema__(:primary_key) do
+      [primary_key] -> primary_key
+      _other -> field_options.live_resource.config(:primary_key)
+    end
   end
 
   defp editables(form, changeset, association, primary_key) do

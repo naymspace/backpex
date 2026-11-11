@@ -436,9 +436,10 @@ defmodule Backpex.Fields.HasMany do
     case assoc_ids do
       ids when is_list(ids) and ids != [] ->
         filtered_ids = Enum.reject(ids, &(&1 == ""))
+        primary_key = field_options.live_resource.config(:primary_key)
 
         schema
-        |> where([x], x.id in ^filtered_ids)
+        |> where([x], field(x, ^primary_key) in ^filtered_ids)
         |> maybe_options_query(field_options, assigns)
         |> repo.all()
 
@@ -530,6 +531,7 @@ defmodule Backpex.Fields.HasMany do
   defp options(assigns, opts) do
     %{field: field, field_options: field_options, options_base_query: query} = assigns
     repo = assigns.live_resource.adapter_config(:repo)
+    primary_key = primary_key(field)
 
     query
     |> maybe_search_query(query.from.as, field_options, display_field(field), Keyword.get(opts, :search))
@@ -537,7 +539,7 @@ defmodule Backpex.Fields.HasMany do
     |> maybe_limit_query(Keyword.get(opts, :limit))
     |> repo.all()
     |> Enum.map(fn item ->
-      {Map.get(item, display_field_form(field)), item.id}
+      {Map.get(item, display_field_form(field)), Map.fetch!(item, primary_key)}
     end)
   end
 
@@ -578,10 +580,7 @@ defmodule Backpex.Fields.HasMany do
   end
 
   def assign_selected(socket) do
-    {field_name, field_options} = socket.assigns.field
-    validate_live_resource(field_name, field_options)
-
-    primary_key = field_options.live_resource.config(:primary_key)
+    primary_key = primary_key(socket.assigns.field)
 
     selected_ids = extract_selected_ids(socket.assigns.form[socket.assigns.name].value, primary_key)
     selected_items = fetch_selected_items(socket, selected_ids)
@@ -615,13 +614,21 @@ defmodule Backpex.Fields.HasMany do
 
   defp fetch_from_db(ids_to_fetch, socket) do
     repo = socket.assigns.live_resource.adapter_config(:repo)
+    primary_key = primary_key(socket.assigns.field)
 
     socket.assigns.options_base_query
-    |> where([x], x.id in ^ids_to_fetch)
+    |> where([x], field(x, ^primary_key) in ^ids_to_fetch)
     |> repo.all()
     |> Enum.map(fn item ->
-      {Map.get(item, display_field_form(socket.assigns.field)), item.id}
+      {Map.get(item, display_field_form(socket.assigns.field)), Map.fetch!(item, primary_key)}
     end)
+  end
+
+  # The primary key of the related items, as configured in their LiveResource.
+  defp primary_key({field_name, field_options} = _field) do
+    validate_live_resource(field_name, field_options)
+
+    field_options.live_resource.config(:primary_key)
   end
 
   defp extract_selected_ids(value, primary_key) when is_list(value) and is_atom(primary_key) do
