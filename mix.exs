@@ -296,7 +296,7 @@ defmodule Backpex.MixProject do
       Actions: ~r/guides\/actions\/.?/,
       Authorization: ~r/guides\/authorization\/.?/,
       Searching: ~r/guides\/searching\/.?/,
-      "Custom Labels and Translations": ~r/guides\/custom_labels_and_translations\/.?/,
+      Translations: ~r/guides\/translations\/.?/,
       "Upgrade Guides": ~r{guides/upgrading/.*}
     ]
   end
