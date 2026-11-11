@@ -74,6 +74,8 @@ To add field option validation pass a config schema to `use Backpex.Field`.
 use Backpex.Field, config_schema: @config_schema
 ```
 
+The schema is compiled together with the field module, so an invalid schema fails the compilation of the field.
+
 You can then access your custom option safely in your field.
 
 ```elixir

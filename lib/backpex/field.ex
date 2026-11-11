@@ -358,6 +358,10 @@ defmodule Backpex.Field do
     quote bind_quoted: [opts: opts] do
       @config_schema opts[:config_schema] || []
 
+      # Compiled once, when the field module is compiled. `NimbleOptions.validate/2` compiles a schema given as a
+      # keyword list on every call, which made up most of the time spent validating a field configuration.
+      @compiled_config_schema NimbleOptions.new!(Backpex.Field.default_config_schema() ++ @config_schema)
+
       @before_compile Backpex.Field
       @behaviour Backpex.Field
 
@@ -374,7 +378,7 @@ defmodule Backpex.Field do
       def validate_config!({name, options} = _field, live_resource) do
         field_options = Keyword.new(options)
 
-        case NimbleOptions.validate(field_options, Backpex.Field.default_config_schema() ++ @config_schema) do
+        case NimbleOptions.validate(field_options, @compiled_config_schema) do
           {:ok, validated_options} ->
             validated_options
 

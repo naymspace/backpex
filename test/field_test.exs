@@ -21,6 +21,49 @@ defmodule Backpex.FieldTest do
     end
   end
 
+  describe "validate_config!/2" do
+    defmodule CustomField do
+      use Backpex.Field, config_schema: [custom_option: [type: :string, default: "custom default"]]
+
+      @impl Backpex.Field
+      def render_value(assigns), do: ~H""
+
+      @impl Backpex.Field
+      def render_form(assigns), do: ~H""
+    end
+
+    test "returns the options with the defaults of the default and the field schema" do
+      validated = CustomField.validate_config!({:name, %{module: CustomField, label: "Name"}}, __MODULE__)
+
+      assert validated[:label] == "Name"
+      assert validated[:readonly] == false
+      assert validated[:custom_option] == "custom default"
+    end
+
+    test "raises a configuration error that names the field and the given owner" do
+      field = {:name, %{module: CustomField, label: "Name", custom_option: 1}}
+
+      error = assert_raise RuntimeError, fn -> CustomField.validate_config!(field, __MODULE__) end
+
+      assert error.message =~ ~s(Configuration error for field "name" in "#{__MODULE__}".)
+      assert error.message =~ "invalid value for :custom_option option"
+    end
+
+    test "an invalid config schema fails when the field module is compiled" do
+      assert_raise ArgumentError, ~r/invalid NimbleOptions schema/, fn ->
+        defmodule InvalidSchemaField do
+          use Backpex.Field, config_schema: [custom_option: [type: :not_a_type]]
+
+          @impl Backpex.Field
+          def render_value(assigns), do: ~H""
+
+          @impl Backpex.Field
+          def render_form(assigns), do: ~H""
+        end
+      end
+    end
+  end
+
   describe "drop_readonly_changes/3" do
     test "readonly fields are correctly filtered from LiveResource fields" do
       fields = UpstreamPrices.fields()
