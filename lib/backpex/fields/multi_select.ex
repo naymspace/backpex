@@ -56,7 +56,6 @@ defmodule Backpex.Fields.MultiSelect do
       assigns.field_options[:not_found_text] || Backpex.__("No options found", assigns.live_resource)
     )
     |> assign(:prompt, prompt(assigns, assigns.field_options))
-    |> assign(:search_input, "")
     |> assign_options()
     |> assign_selected()
     |> maybe_assign_form()
@@ -127,8 +126,9 @@ defmodule Backpex.Fields.MultiSelect do
 
     show_select_all = length(selected) != length(options)
 
+    # The search lives in the component only, so it has to survive the updates the form triggers, e.g. on validate.
     socket
-    |> assign(:search_input, "")
+    |> assign_new(:search_input, fn -> "" end)
     |> assign(:show_select_all, show_select_all)
     |> assign_filtered_options()
   end

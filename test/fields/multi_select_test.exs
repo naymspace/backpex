@@ -16,6 +16,13 @@ defmodule Backpex.Fields.MultiSelectTest do
   ]
 
   defp mount(options, selected, form_name \\ :change, field_options \\ %{}) do
+    socket = %Phoenix.LiveView.Socket{assigns: %{__changed__: %{}, myself: %Phoenix.LiveComponent.CID{cid: 1}}}
+
+    update(socket, options, selected, form_name, field_options)
+  end
+
+  # The form updates the field on each of its renders, e.g. after a validate.
+  defp update(socket, options, selected, form_name \\ :change, field_options \\ %{}) do
     assigns = %{
       field_options: Map.merge(%{module: MultiSelect, label: "Users", options: options}, field_options),
       form: Phoenix.Component.to_form(%{"users" => selected}, as: form_name),
@@ -27,10 +34,15 @@ defmodule Backpex.Fields.MultiSelectTest do
       type: :form
     }
 
-    socket = %Phoenix.LiveView.Socket{assigns: %{__changed__: %{}, myself: %Phoenix.LiveComponent.CID{cid: 1}}}
-
     {:ok, socket} = MultiSelect.update(assigns, socket)
     socket
+  end
+
+  defp search_value(socket) do
+    socket
+    |> render()
+    |> LazyHTML.query("input[type=search]")
+    |> LazyHTML.attribute("value")
   end
 
   defp search(socket, search_input) do
@@ -120,6 +132,28 @@ defmodule Backpex.Fields.MultiSelectTest do
       assert render(socket) |> LazyHTML.text() =~ "No options found"
     end
 
+    test "is kept when the form updates the field" do
+      socket = mount(@options, []) |> search("o") |> update(@options, ["bob"])
+
+      assert search_value(socket) == ["o"]
+      assert rendered_labels(socket) == ["Bob", "Carol"]
+      assert socket.assigns.selected == [{"Bob", "bob"}]
+    end
+
+    test "is kept for grouped options when the form updates the field" do
+      socket = mount(@grouped_options, []) |> search("car") |> update(@grouped_options, ["carol", "alex"])
+
+      assert search_value(socket) == ["car"]
+      assert rendered_labels(socket) == ["Carol"]
+      assert submitted_users(socket) |> Enum.sort() == ["alex", "carol"]
+    end
+
+    test "filters the options the form passes with an update" do
+      socket = mount(@options, []) |> search("o") |> update([{"Bob", "bob"}, {"Otto", "otto"}, {"Dave", "dave"}], [])
+
+      assert rendered_labels(socket) == ["Bob", "Otto"]
+    end
+
     test "keeps selected options that are hidden by the search in the form params" do
       socket = mount(@options, ["alex", "carol"]) |> search("bob")
 
@@ -158,6 +192,16 @@ defmodule Backpex.Fields.MultiSelectTest do
 
       assert document |> LazyHTML.text() =~ "Nobody here"
       refute document |> LazyHTML.text() =~ "No options found"
+    end
+  end
+
+  describe "readonly" do
+    test "shows the selected options without the search" do
+      socket = mount(@options, ["alex"]) |> search("bob") |> update(@options, ["alex"])
+      document = render(%{socket | assigns: Map.put(socket.assigns, :readonly, true)})
+
+      assert document |> LazyHTML.query(".badge") |> LazyHTML.text() |> String.trim() == "Alex"
+      assert document |> LazyHTML.query("input") |> Enum.empty?()
     end
   end
 
