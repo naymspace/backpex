@@ -11,7 +11,7 @@ Backpex's own idioms for the library code in `lib/`, `assets/js/`, `guides/` and
 ## Public API and docs
 
 - A public function without `@doc false` is API. Public functions that only other Backpex modules call get `@doc false` (e.g. `Backpex.__/2`, `validate_config!/2`).
-- CI builds the docs with `mix docs --warnings-as-errors`, which `mix lint` leaves out: every reference in `@doc`, `@moduledoc` and the guides must resolve. A new guide goes into `extras` in `mix.exs`.
+- CI builds the docs with `mix docs --warnings-as-errors`, which `mix lint` leaves out (`mix ci` runs it): every reference in `@doc`, `@moduledoc` and the guides must resolve. A new guide goes into `extras` in `mix.exs`.
 
 ## Breaking changes
 

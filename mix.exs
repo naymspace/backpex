@@ -140,6 +140,7 @@ defmodule Backpex.MixProject do
   defp aliases do
     [
       lint: lint(),
+      ci: ci(),
       "assets.build": [
         "esbuild module",
         "esbuild main"
@@ -154,6 +155,20 @@ defmodule Backpex.MixProject do
     unlock_unused = if @integration_tests, do: ["deps.unlock --unused"], else: []
 
     ["compile --warning-as-errors"] ++ unlock_unused ++ ["format", "credo", "test"]
+  end
+
+  # The checks of the CI job `test` that `lint` leaves out, cheap ones first. `assets.check` needs `esbuild`, which only
+  # the `dev` environment has, so it runs in a `dev` subprocess; the first run compiles the dependencies for `dev`.
+  defp ci do
+    [
+      "lint",
+      "cmd bun run lint:standard",
+      "cmd bun run test:js",
+      "gettext.extract --check-up-to-date",
+      "sobelow --config",
+      "docs --warnings-as-errors",
+      "cmd env MIX_ENV=dev mix assets.check"
+    ]
   end
 
   defp docs do

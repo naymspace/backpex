@@ -26,5 +26,5 @@ Backpex is the library in the repository root; `demo/` is a Phoenix app that use
   - Accessibility, themes and mobile width.
   - A fixture of the test app covers the new case.
   - User docs: a change to public API or behaviour updates every place users read about it: the moduledoc, the guide in `guides/`, `usage-rules.md`, the skill in `plugin/skills/` for that area, and for a breaking change the upgrade guide (CODING_STANDARDS.md › Breaking changes).
-- Run `MIX_ENV=test mix lint`: it compiles, formats, runs credo and the tests, so the `postgres` service must run. After demo changes, also run `docker compose exec -T app bun run lint`.
+- Run `MIX_ENV=test mix lint`: it compiles, formats, runs credo and the tests, so the `postgres` service must run. `MIX_ENV=test mix ci` adds the other checks of the CI job `test` (JS lint and tests, gettext, sobelow, docs, assets); run it before opening a PR. After demo changes, also run `docker compose exec -T app bun run lint`.
 - Check UI changes in the demo with the Chrome DevTools MCP at mobile, tablet and desktop widths, and read the console. An empty database gets data from the seed command in CONTRIBUTING.md › Setting up your development environment.
