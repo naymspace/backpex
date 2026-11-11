@@ -167,6 +167,10 @@ jobs:
         # Part of the cache keys, so caches don't carry over to a new Ubuntu version behind ubuntu-latest
         run: echo "RUNNER_IMAGE=$ImageOS" >> "$GITHUB_ENV"
 
+      - name: Set Playwright version
+        # Keys the browser cache. The browsers only change with this version, not with every lockfile change.
+        run: echo "PLAYWRIGHT_VERSION=$(jq -r .devDependencies.playwright package.json)" >> "$GITHUB_ENV"
+
       - uses: erlef/setup-beam@54075bcc5e249e4758d363f27d099f55d843f124 # v1.24.1
         with:
           version-file: .tool-versions
@@ -217,7 +221,7 @@ jobs:
         id: playwright-cache
         with:
           path: ~/.cache/ms-playwright
-          key: ${{ runner.os }}-${{ env.RUNNER_IMAGE }}-playwright-${{ hashFiles('bun.lock') }}
+          key: ${{ runner.os }}-${{ env.RUNNER_IMAGE }}-playwright-${{ env.PLAYWRIGHT_VERSION }}
           restore-keys: |
             ${{ runner.os }}-${{ env.RUNNER_IMAGE }}-playwright-
 
@@ -230,7 +234,9 @@ jobs:
 
       - name: Install Playwright
         if: steps.playwright-cache.outputs.cache-hit != 'true'
-        run: bun run e2e:install
+        # With a cache miss, `--with-deps` needs apt, which fails when the runner can't resolve the Ubuntu mirrors.
+        # The runner image already has the system libraries (a cache hit skips this step), so retry without apt.
+        run: bun run e2e:install || bun x playwright install chromium --only-shell
 
       - name: Build the assets of the browser tests
         run: bun run e2e:assets
@@ -322,6 +328,10 @@ jobs:
         # Part of the cache keys, so caches don't carry over to a new Ubuntu version behind ubuntu-latest
         run: echo "RUNNER_IMAGE=$ImageOS" >> "$GITHUB_ENV"
 
+      - name: Set Playwright version
+        # Keys the browser cache. The browsers only change with this version, not with every lockfile change.
+        run: echo "PLAYWRIGHT_VERSION=$(jq -r .devDependencies.playwright demo/package.json)" >> "$GITHUB_ENV"
+
       - parallel:
           - name: Setup beam
             uses: erlef/setup-beam@54075bcc5e249e4758d363f27d099f55d843f124 # v1.24.1
@@ -367,7 +377,7 @@ jobs:
             id: playwright-cache
             with:
               path: ~/.cache/ms-playwright
-              key: ${{ runner.os }}-${{ env.RUNNER_IMAGE }}-playwright-${{ hashFiles('demo/bun.lock') }}
+              key: ${{ runner.os }}-${{ env.RUNNER_IMAGE }}-playwright-${{ env.PLAYWRIGHT_VERSION }}
               restore-keys: |
                 ${{ runner.os }}-${{ env.RUNNER_IMAGE }}-playwright-
 
@@ -458,7 +468,9 @@ jobs:
       - name: Install playwright
         if: steps.playwright-cache.outputs.cache-hit != 'true'
         working-directory: demo
-        run: bun x playwright install chromium --with-deps --only-shell
+        # With a cache miss, `--with-deps` needs apt, which fails when the runner can't resolve the Ubuntu mirrors.
+        # The runner image already has the system libraries (a cache hit skips this step), so retry without apt.
+        run: bun x playwright install chromium --with-deps --only-shell || bun x playwright install chromium --only-shell
 
       - name: Run playwright test
         working-directory: demo
