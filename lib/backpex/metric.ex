@@ -86,6 +86,13 @@ defmodule Backpex.Metric do
 
   @optional_callbacks query: 3, data: 2, config_schema: 0
 
+  # `:select` is required when Backpex gets the data with `c:query/3`.
+  @query_config_schema put_in(@config_schema, [:select, :required], true)
+
+  # Compiled once: `NimbleOptions.validate/2` validates a keyword list schema itself on every call.
+  @compiled_config_schema NimbleOptions.new!(@config_schema)
+  @compiled_query_config_schema NimbleOptions.new!(@query_config_schema)
+
   @doc false
   def validate_configs!(metrics, live_resource) do
     Backpex.LiveResource.Config.validate_each!(metrics, "metric", "metrics/0", live_resource, &validate_config/1)
@@ -95,18 +102,34 @@ defmodule Backpex.Metric do
     module = options[:module]
     loaded? = is_atom(module) and Code.ensure_loaded?(module)
 
-    base_schema =
-      if loaded? and function_exported?(module, :data, 2),
-        do: @config_schema,
-        else: put_in(@config_schema, [:select, :required], true)
+    data? = loaded? and function_exported?(module, :data, 2)
 
     if loaded? and function_exported?(module, :config_schema, 0) do
-      NimbleOptions.validate(options, Keyword.merge(base_schema, module.config_schema()))
+      base_schema = if data?, do: @config_schema, else: @query_config_schema
+
+      NimbleOptions.validate(options, compiled_module_schema(module, base_schema))
     else
       # The module receives the map and has no schema for its own options, so unknown keys are not rejected.
       options
-      |> Keyword.take(Keyword.keys(base_schema))
-      |> NimbleOptions.validate(base_schema)
+      |> Keyword.take(Keyword.keys(@config_schema))
+      |> NimbleOptions.validate(if(data?, do: @compiled_config_schema, else: @compiled_query_config_schema))
+    end
+  end
+
+  # The schema of a metric module is only known at runtime, so the compiled schema is kept in a persistent term. It
+  # is compiled again when `c:config_schema/0` returns another schema, e.g. after the module was recompiled.
+  defp compiled_module_schema(module, base_schema) do
+    schema = Keyword.merge(base_schema, module.config_schema())
+    key = {__MODULE__, module}
+
+    case :persistent_term.get(key, nil) do
+      {^schema, compiled_schema} ->
+        compiled_schema
+
+      _other ->
+        compiled_schema = NimbleOptions.new!(schema)
+        :persistent_term.put(key, {schema, compiled_schema})
+        compiled_schema
     end
   end
 
