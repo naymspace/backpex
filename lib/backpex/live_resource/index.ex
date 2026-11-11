@@ -935,8 +935,15 @@ defmodule Backpex.LiveResource.Index do
     Enum.any?(filters, fn {_key, config} -> Map.has_key?(config, :default) end)
   end
 
+  # Navigates to the current live action, so the URL of a resource action keeps its modal open.
   defp redirect_to_default_filters(socket) do
-    %{live_resource: live_resource, query_options: query_options, params: params, filters: filters} = socket.assigns
+    %{
+      live_resource: live_resource,
+      live_action: live_action,
+      query_options: query_options,
+      params: params,
+      filters: filters
+    } = socket.assigns
 
     default_filter_options =
       filters
@@ -944,7 +951,7 @@ defmodule Backpex.LiveResource.Index do
       |> Map.new(fn {key, filter_config} -> {Atom.to_string(key), filter_config.default} end)
 
     options = Map.put(query_options, :filters, default_filter_options)
-    to = Router.get_path(socket, live_resource, params, :index, options)
+    to = Router.get_path(socket, live_resource, params, live_action, options)
     LiveView.push_navigate(socket, to: to)
   end
 
