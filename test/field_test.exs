@@ -163,7 +163,7 @@ defmodule Backpex.FieldTest do
     # Only the author with the id 1 is an option.
     def exists?(query) do
       send(self(), {:exists?, query})
-      Enum.any?(query.wheres, &match?([{1, _type}], &1.params))
+      Enum.any?(query.wheres, &match?([{[1], _type}], &1.params))
     end
   end
 

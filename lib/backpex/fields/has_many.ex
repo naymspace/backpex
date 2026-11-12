@@ -23,6 +23,10 @@ defmodule Backpex.Fields.HasMany do
       doc: """
       Manipulates the list of available options in the multi select.
 
+      The form of the field also checks the submitted records against the options query: it links only options. A
+      linked record that is no longer an option is unlinked when the form is saved. The check only runs for a field
+      that is part of the form and not readonly, so the options query is no replacement for a check in your changeset.
+
       Defaults to `fn (query, _field) -> query end` which returns all entries.
       """,
       type: {:fun, 2}
