@@ -16,8 +16,11 @@ defmodule Backpex.Fields.BelongsTo do
     ],
     options_query: [
       doc: """
-      Manipulates the list of available options in the select. The form and the index form save only an option, no
-      option, or the value the item already has, so the options query also limits which records the field can be set to.
+      Manipulates the list of available options in the select.
+
+      The form and the index form of the field also check the submitted value against the options query: they save an
+      option or no option, and the form also the value the item already has. The check only runs for a field that is
+      part of the form and not readonly, so the options query is no replacement for a check in your changeset.
 
       Defaults to `fn (query, _field) -> query end` which returns all entries.
       """,
@@ -64,6 +67,7 @@ defmodule Backpex.Fields.BelongsTo do
   use Backpex.Field, config_schema: @config_schema
   import Ecto.Query
   alias Backpex.Authorization
+  alias Backpex.Fields.OptionsQuery
   alias Backpex.Router
 
   @impl Phoenix.LiveComponent
@@ -239,7 +243,7 @@ defmodule Backpex.Fields.BelongsTo do
 
     with {:ok, value} <- Map.fetch(attrs, Atom.to_string(owner_key)),
          false <- current_value?(changeset.data, owner_key, value),
-         false <- option?(field, association, value, assigns) do
+         false <- option?(field, association, value, OptionsQuery.put_submitted_form(assigns, changeset, attrs)) do
       # Ecto's message and metadata for a value outside the allowed ones, so the error translation of the app applies.
       Ecto.Changeset.add_error(changeset, owner_key, "is invalid", validation: :inclusion)
     else
@@ -252,6 +256,9 @@ defmodule Backpex.Fields.BelongsTo do
 
     Ecto.Type.cast(type, value) == {:ok, Map.get(data, owner_key)}
   end
+
+  # The item of a resource action is a map by default. It has no current value, so the value has to be an option.
+  defp current_value?(_data, _owner_key, _value), do: false
 
   # The value comes from the client, so only an option of the select, or no option, is saved.
   defp option?(_field, _association, value, _assigns) when value in [nil, ""], do: true
@@ -272,7 +279,7 @@ defmodule Backpex.Fields.BelongsTo do
           |> options_query()
 
         query
-        |> where([option], field(option, ^related_key) == ^id)
+        |> OptionsQuery.with_ids(queryable, related_key, [id])
         |> repo.exists?()
 
       _error ->

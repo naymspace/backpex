@@ -63,6 +63,8 @@ defmodule Backpex.Integration.Fields.HasManyThroughTest do
       conn
       |> visit(~p"/admin/user-relation-options/#{user.id}/edit")
       |> save(%{users_addresses: %{"0" => %{address_id: american.id, type: "billing"}}})
+      # The error belongs to the field, not to one of its rows, so the field shows it.
+      |> assert_has("#resource-form p.text-error", text: "is invalid", exact: true)
 
       assert linked_addresses(user) == []
     end
@@ -110,6 +112,69 @@ defmodule Backpex.Integration.Fields.HasManyThroughTest do
       end)
 
       assert linked_addresses(user) == []
+    end
+
+    # The assocs of the form can be older than the params, which replace them in the changeset.
+    test "ignores the entries of the add and remove buttons when the params have entries", %{
+      conn: conn,
+      german: german,
+      american: american
+    } do
+      user = insert(:user)
+
+      conn
+      |> visit(~p"/admin/user-relation-options/#{user.id}/edit")
+      |> unwrap(fn view ->
+        form_component = Phoenix.LiveViewTest.with_target(view, "#form-component")
+
+        Phoenix.LiveViewTest.render_change(form_component, "validate", %{
+          "change" => %{"users_addresses" => %{"0" => %{"address_id" => american.id, "type" => "billing"}}},
+          "_target" => ["change", "users_addresses"]
+        })
+
+        view
+        |> Phoenix.LiveViewTest.element("button[phx-click='new-relational']")
+        |> Phoenix.LiveViewTest.render_click()
+
+        Phoenix.LiveViewTest.render_submit(form_component, "save", %{
+          "change" => %{"users_addresses" => %{"0" => %{"address_id" => german.id, "type" => "billing"}}},
+          "save-type" => "save"
+        })
+      end)
+
+      assert linked_addresses(user) == [german.id]
+    end
+
+    # After a click on the add button, a linked child is in the params and in the assocs of the form.
+    test "links an option next to a linked child that is not an option after a click on the add button", %{
+      conn: conn,
+      german: german,
+      american: american
+    } do
+      user = insert(:user, users_addresses: [%UsersAddresses{address_id: american.id, type: :billing}])
+      [link] = user.users_addresses
+
+      conn
+      |> visit(~p"/admin/user-relation-options/#{user.id}/edit")
+      |> unwrap(fn view ->
+        view
+        |> Phoenix.LiveViewTest.element("button[phx-click='new-relational']")
+        |> Phoenix.LiveViewTest.render_click()
+
+        view
+        |> Phoenix.LiveViewTest.with_target("#form-component")
+        |> Phoenix.LiveViewTest.render_submit("save", %{
+          "change" => %{
+            "users_addresses" => %{
+              "0" => %{"id" => link.id, "address_id" => american.id, "type" => "billing"},
+              "1" => %{"address_id" => german.id, "type" => "billing"}
+            }
+          },
+          "save-type" => "save"
+        })
+      end)
+
+      assert user |> linked_addresses() |> Enum.sort() == Enum.sort([american.id, german.id])
     end
 
     test "keeps a linked child that is not an option", %{conn: conn, american: american} do

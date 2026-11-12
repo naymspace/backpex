@@ -31,8 +31,11 @@ defmodule Backpex.Fields.HasManyThrough do
     options_query: [
       doc: """
       Manipulates the list of available options in the select. Can be used to select additional data for the
-      `display_field` option or to limit the available entries. The form links only options or the records the item is
-      already linked to, so the options query also limits which records the field can link.
+      `display_field` option or to limit the available entries.
+
+      The form of the field also checks the submitted records against the options query: it links only options and
+      keeps the records the item is already linked to. The check only runs for a field that is part of the form and not
+      readonly, so the options query is no replacement for a check in your changeset.
 
       Defaults to `fn (query, _field) -> query end` which returns all entries.
       """,
@@ -89,6 +92,7 @@ defmodule Backpex.Fields.HasManyThrough do
   import Ecto.Query
   import Backpex.HTML.Layout, except: [ok: 1, noreply: 1]
   import PhoenixHTMLHelpers.Form, only: [hidden_inputs_for: 1]
+  alias Backpex.Fields.OptionsQuery
   alias Backpex.LiveResource
   alias Ecto.Changeset
   require Backpex
@@ -259,6 +263,7 @@ defmodule Backpex.Fields.HasManyThrough do
       |> assign(owner_key: association.child.owner_key)
       |> assign(relational_title: relational_title)
       |> assign(association: association)
+      |> assign(errors: field_errors(form[association.pivot.field], assoc_field_options, assigns))
       |> assign_new(:newest_relational, fn -> nil end)
 
     ~H"""
@@ -390,6 +395,9 @@ defmodule Backpex.Fields.HasManyThrough do
           </div>
         </.modal>
 
+        <%!-- The errors of the rows are in their modals. These are the ones of the field, e.g. a record that is no option. --%>
+        <Backpex.HTML.Form.error :for={msg <- @errors} class="mb-4">{msg}</Backpex.HTML.Form.error>
+
         <button
           disabled={@readonly}
           type="button"
@@ -449,6 +457,12 @@ defmodule Backpex.Fields.HasManyThrough do
     {:noreply, socket}
   end
 
+  defp field_errors(form_field, field_options, assigns) do
+    translate_error_fun = Backpex.Field.translate_error_fun(field_options, assigns)
+
+    Backpex.HTML.Form.translate_form_errors(form_field.errors, translate_error_fun)
+  end
+
   defp action_fields(fields, action) do
     # Currently, the fields are only filtered by action, not by the fields `can?` option.
     # See https://github.com/naymspace/backpex/pull/1271
@@ -478,22 +492,22 @@ defmodule Backpex.Fields.HasManyThrough do
 
   # The pivot entries come from the client, so the form links only options of the select, or the children the item is
   # already linked to. The item may stay linked to a child that is no longer an option. The entries reach the changeset
-  # through the params and through the assocs of the form, which the buttons of the field build from earlier params.
+  # through the params or, when the params have no entries, through the assocs of the form, which the buttons of the
+  # field build from earlier params. `cast_assoc` replaces the entries of the assocs with the ones of the params.
   @impl Backpex.Field
   def before_changeset(changeset, attrs, _metadata, repo, {name, field_options} = _field, assigns) do
     %{pivot: pivot, child: child} = association(assigns.live_resource.adapter_config(:schema), name)
     linked_ids = changeset.data |> Map.get(pivot.field) |> linked_ids(child.owner_key)
-    stored_entries = assigns |> Map.get(:assocs, []) |> Keyword.get(pivot.field, [])
+    assigns = OptionsQuery.put_submitted_form(assigns, changeset, attrs)
 
     submitted_ids =
-      attrs
-      |> Map.get(Atom.to_string(pivot.field))
-      |> submitted_ids(child.owner_key)
-      |> Enum.concat(stored_ids(stored_entries, child.owner_key))
-      |> cast_ids(child.queryable.__schema__(:type, :id))
+      case Map.fetch(attrs, Atom.to_string(pivot.field)) do
+        {:ok, entries} -> submitted_ids(entries, child.owner_key)
+        :error -> assigns |> Map.get(:assocs, []) |> Keyword.get(pivot.field, []) |> stored_ids(child.owner_key)
+      end
 
-    with {:ok, ids} <- submitted_ids,
-         true <- options?(ids -- linked_ids, child.queryable, repo, field_options, assigns) do
+    with {:ok, ids} <- cast_ids(submitted_ids, child.queryable.__schema__(:type, child.related_key)),
+         true <- options?(Enum.uniq(ids) -- linked_ids, child, repo, field_options, assigns) do
       changeset
     else
       # Ecto's message and metadata for a value outside the allowed ones, so the error translation of the app applies.
@@ -536,20 +550,22 @@ defmodule Backpex.Fields.HasManyThrough do
     end)
   end
 
-  defp options?([], _queryable, _repo, _field_options, _assigns), do: true
+  defp options?([], _child, _repo, _field_options, _assigns), do: true
 
-  defp options?(ids, queryable, repo, field_options, assigns) do
-    ids = Enum.uniq(ids)
+  defp options?(ids, child, repo, field_options, assigns) do
+    %{queryable: queryable, related_key: related_key} = child
 
     option_ids =
       queryable
       |> from()
       |> maybe_options_query(field_options, assigns)
-      |> where([option], option.id in ^ids)
+      |> OptionsQuery.with_ids(queryable, related_key, ids)
+      |> exclude(:select)
+      |> exclude(:preload)
+      |> select([option], field(option, ^related_key))
       |> repo.all()
-      |> Enum.map(& &1.id)
 
-    Enum.all?(ids, &(&1 in option_ids))
+    ids -- option_ids == []
   end
 
   attr :name, :atom, required: true

@@ -83,6 +83,14 @@ defmodule Backpex.Integration.Fields.BelongsToTest do
 
       assert Repo.get!(Product, product.id).featured_short_link_key == other_link.short_key
     end
+
+    test "refuses to save a key that no related item has", %{conn: conn, product: product, link: link} do
+      conn
+      |> visit(~p"/admin/product-short-links/#{product.id}/edit")
+      |> save(%{featured_short_link_key: "missing"})
+
+      assert Repo.get!(Product, product.id).featured_short_link_key == link.short_key
+    end
   end
 
   # A crafted client can send any value, not only the options of the select.
