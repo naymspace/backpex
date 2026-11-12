@@ -301,6 +301,14 @@ defmodule Backpex.Fields.BelongsTo do
   @impl Backpex.Field
   def association?(_field), do: true
 
+  # The select submits the foreign key of the association.
+  @impl Backpex.Field
+  def param_keys({name, _field_options}, assigns) do
+    %{owner_key: owner_key} = assigns.live_resource.adapter_config(:schema).__schema__(:association, name)
+
+    [Atom.to_string(owner_key)]
+  end
+
   defp display_field_form({_name, field_options} = _field, display_field) do
     Map.get(field_options, :display_field_form, display_field)
   end

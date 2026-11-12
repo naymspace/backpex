@@ -3,6 +3,8 @@ defmodule Backpex.Test.UserRelationOptionsLive do
   A LiveResource of users whose relation fields set the options that `Backpex.Test.UserLive` leaves at their defaults:
   `display_field_form` of `Backpex.Fields.HasMany`, and `sort_by` and an `options_query` that only offers German
   addresses of `Backpex.Fields.HasManyThrough`.
+
+  The `url` child field of `Backpex.Fields.InlineCRUD` is readonly.
   """
   use Backpex.LiveResource,
     adapter_config: [
@@ -48,6 +50,16 @@ defmodule Backpex.Test.UserRelationOptionsLive do
             label: "Address Type",
             options: [Shipping: "shipping", Billing: "billing"]
           }
+        ]
+      },
+      social_links: %{
+        module: Backpex.Fields.InlineCRUD,
+        label: "Social links",
+        type: :embed,
+        only: [:new, :edit],
+        child_fields: [
+          label: %{module: Backpex.Fields.Text, label: "Label"},
+          url: %{module: Backpex.Fields.Text, label: "URL", readonly: true}
         ]
       }
     ]

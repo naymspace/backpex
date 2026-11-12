@@ -416,6 +416,13 @@ defmodule Backpex.Fields.HasManyThrough do
     """
   end
 
+  # A readonly field renders no buttons to add or detach entries, but a crafted client can still send their events.
+  @impl Phoenix.LiveComponent
+  def handle_event(event, _params, %{assigns: %{readonly: true}} = socket)
+      when event in ["new-relational", "detach-relational"] do
+    noreply(socket)
+  end
+
   @impl Phoenix.LiveComponent
   def handle_event("new-relational", _params, socket) do
     %{changeset: changeset, association: association} = socket.assigns
@@ -566,6 +573,27 @@ defmodule Backpex.Fields.HasManyThrough do
       |> repo.all()
 
     ids -- option_ids == []
+  end
+
+  # The form submits the entries of the pivot association. An entry keeps only the params of its inputs: the primary
+  # key of the pivot, the select of the related item and the pivot fields.
+  @impl Backpex.Field
+  def param_keys({name, field_options}, assigns) do
+    %{pivot: pivot} = association(assigns.live_resource.adapter_config(:schema), name)
+
+    pivot_keys =
+      field_options
+      |> Map.get(:pivot_fields, [])
+      |> Enum.flat_map(fn {_name, pivot_options} = pivot_field ->
+        pivot_options.module.param_keys(pivot_field, assigns)
+      end)
+
+    entry_keys =
+      [pivot.owner_key | pivot.queryable.__schema__(:primary_key)]
+      |> Enum.map(&Atom.to_string/1)
+      |> Enum.concat(pivot_keys)
+
+    [{Atom.to_string(pivot.field), entry_keys}]
   end
 
   attr :name, :atom, required: true

@@ -1,7 +1,7 @@
 defmodule Backpex.Test.SampleFieldOptionsLive do
   @moduledoc """
   A LiveResource of samples whose fields set options that `Backpex.Test.SampleLive` leaves at their defaults: `readonly`
-  of `Backpex.Fields.Checkgroup` and `external` of `Backpex.Fields.Upload`.
+  of `Backpex.Fields.Checkgroup` and `Backpex.Fields.BelongsTo`, and `external` of `Backpex.Fields.Upload`.
 
   The upload goes to a pretend object storage: `presign_upload/2` returns the metadata a client uploader would use, and
   `consume_upload/4` only accepts that metadata, so the save fails if the upload was not external.
@@ -31,6 +31,13 @@ defmodule Backpex.Test.SampleFieldOptionsLive do
         module: Backpex.Fields.Checkgroup,
         label: "Checkgroup",
         options: [{"Read", "read"}, {"Write", "write"}],
+        readonly: true
+      },
+      category: %{
+        module: Backpex.Fields.BelongsTo,
+        label: "Category",
+        display_field: :name,
+        live_resource: Backpex.Test.CategoryLive,
         readonly: true
       },
       upload: %{

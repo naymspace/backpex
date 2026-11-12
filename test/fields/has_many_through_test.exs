@@ -5,6 +5,7 @@ defmodule Backpex.Fields.HasManyThroughTest do
 
   alias Backpex.Fields.HasManyThrough
   alias Ecto.Changeset
+  alias Phoenix.LiveView.Socket
 
   defmodule Child do
     @moduledoc false
@@ -130,6 +131,38 @@ defmodule Backpex.Fields.HasManyThroughTest do
     def translate(msg), do: UntranslatedLive.translate(msg)
   end
 
+  describe "param_keys/2" do
+    test "returns the pivot association with the keys of the inputs of an entry" do
+      field = {:children, %{pivot_fields: [note: %{module: Backpex.Fields.Text, label: "Note"}]}}
+
+      assert HasManyThrough.param_keys(field, %{live_resource: ParentLive}) == [{"pivots", ["child_id", "id", "note"]}]
+
+      assert HasManyThrough.param_keys({:children, %{}}, %{live_resource: ParentLive}) == [
+               {"pivots", ["child_id", "id"]}
+             ]
+    end
+
+    test "lets no other column of the pivot through the form" do
+      fields = [children: %{module: HasManyThrough, pivot_fields: [note: %{module: Backpex.Fields.Text}]}]
+      entry = %{"id" => "1", "child_id" => "2", "note" => "Blue", "parent_id" => "9"}
+
+      assert Backpex.Field.editable_changes(%{"pivots" => %{"0" => entry}}, fields, %{live_resource: ParentLive}) ==
+               %{"pivots" => %{"0" => Map.delete(entry, "parent_id")}}
+    end
+  end
+
+  describe "handle_event/3" do
+    test "ignores the buttons of a readonly field" do
+      socket = %Socket{assigns: %{__changed__: %{}, readonly: true}}
+
+      for {event, params} <- [{"new-relational", %{}}, {"detach-relational", %{"index" => "0"}}] do
+        assert HasManyThrough.handle_event(event, params, socket) == {:noreply, socket}
+      end
+
+      refute_received {:put_assoc, _assoc}
+    end
+  end
+
   # The invalid pivot gets no `note` param, so its input counts as unused and shows no error text. Rendering an error
   # text would print a warning about the missing `:error_translator_function` configuration.
   describe "render_form/1" do
@@ -232,7 +265,7 @@ defmodule Backpex.Fields.HasManyThroughTest do
     test "detaching marks a saved relation for deletion and removes an unsaved one", %{library: library} do
       [saved, other_saved] = library.shelvings
       changeset = library |> Changeset.change() |> Changeset.put_assoc(:shelvings, [saved, other_saved, %{}])
-      {:ok, socket} = changeset |> books_assigns() |> HasManyThrough.update(%Phoenix.LiveView.Socket{})
+      {:ok, socket} = changeset |> books_assigns() |> HasManyThrough.update(%Socket{})
 
       HasManyThrough.handle_event("detach-relational", %{"index" => "0"}, socket)
       assert_received {:put_assoc, {:shelvings, [%{action: :delete, data: %{id: 10}}, %{data: %{id: 11}}, _new]}}

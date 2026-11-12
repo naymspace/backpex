@@ -53,6 +53,41 @@ The `render_form/1` function returns markup that is used to render a form on `ed
 
 See `Backpex.Field` for more information on the available callback functions. For example, you can implement `render_index_form/1` to make the field editable in the index view.
 
+## Form params
+
+The form passes only the params of the fields an admin may edit to the changeset and drops all others. A field submits
+the param of its name by default, e.g. `change[my_field]`. If `render_form/1` renders inputs under other names, return
+all of them from `c:Backpex.Field.param_keys/2`:
+
+```elixir
+@impl Backpex.Field
+def param_keys({name, _field_options}, _assigns) do
+  name = Atom.to_string(name)
+
+  [name, name <> "_confirmation"]
+end
+```
+
+If the form of the field submits rows of nested params, e.g. through `inputs_for`, return `{key, keys}` for them. The
+form then keeps only the given keys in each row, as `Backpex.Fields.InlineCRUD` does for the child fields an admin may
+edit. The param may be a list of rows, a map of indexes to rows, or the one row of a single nested object
+(`embeds_one`, `has_one`).
+
+```elixir
+@impl Backpex.Field
+def param_keys({name, _field_options}, _assigns) do
+  name = Atom.to_string(name)
+
+  [{name, ["id", "_persistent_id", "street", "city"]}, name <> "_order", name <> "_delete"]
+end
+```
+
+`inputs_for` submits the primary key and `_persistent_id` with each row, so return both. The example also returns the
+params of the `:sort_param` and `:drop_param` of `Ecto.Changeset.cast_assoc/3` and `Ecto.Changeset.cast_embed/3`,
+here `<name>_order` and `<name>_delete`: leave them out if the form doesn't submit them.
+
+A field with an `upload_key` keeps the hidden input of the upload UI without returning it.
+
 ## Add field option validation
 
 With Backpex v0.9 we are validating field options. This ensures that only field options that are actually used by the field can be defined in the field options map. So if your custom field requires certain field options, make sure you define them.

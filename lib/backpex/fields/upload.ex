@@ -777,6 +777,10 @@ defmodule Backpex.Fields.Upload do
     """
   end
 
+  # The form submits no param of the name of the field: `put_upload_change` builds it on the server.
+  @impl Backpex.Field
+  def param_keys(_field, _assigns), do: []
+
   @impl Backpex.Field
   def assign_uploads({_name, field_options} = field, socket) do
     upload_key = Backpex.Field.upload_key(field)

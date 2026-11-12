@@ -74,7 +74,7 @@ end
 
 - `fields/0` returns a keyword list of `name: %{module: Backpex.Fields.<Type>, label: "..."}`. Built-in types: `Text`, `Textarea`, `Number`, `Currency`, `Email`, `URL`, `Boolean`, `Date`, `DateTime`, `Time`, `Select`, `MultiSelect`, `Checkgroup`, `Upload`, `BelongsTo`, `HasMany`, `HasManyThrough`, `InlineCRUD`.
 - Options shared by all fields are in `Backpex.Field` (e.g. `searchable`, `orderable`, `only`/`except` with `:new`, `:edit`, `:show`, `:index`, `visible`, `can?`, `readonly`, `panel`, `index_editable`, `select` for computed values, `help_text`, `default`); options of a type are in its module docs. An unknown or mistyped option raises with the field and LiveResource name.
-- A custom field does `use Backpex.Field, config_schema: @config_schema` with a NimbleOptions schema and implements `render_value/1` and `render_form/1` ([custom fields guide](https://hexdocs.pm/backpex/custom-fields.html)).
+- A custom field does `use Backpex.Field, config_schema: @config_schema` with a NimbleOptions schema and implements `render_value/1` and `render_form/1` ([custom fields guide](https://hexdocs.pm/backpex/custom-fields.html)). The form passes only the params of the fields an admin may edit to the changeset; a field whose form submits params under other names than its own returns them from `param_keys/2`.
 
 ## Filters, actions and metrics
 
