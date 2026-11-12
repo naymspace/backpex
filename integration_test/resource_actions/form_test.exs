@@ -3,6 +3,36 @@ defmodule Backpex.Integration.ResourceActions.FormTest do
 
   import Phoenix.LiveViewTest
 
+  # Posts have a `published` filter with the default `["published"]`, which the index puts into the URL.
+  describe "opened by its URL on a resource with a default filter" do
+    setup do
+      insert(:post, title: "Published Post", published: true)
+      insert(:post, title: "Draft Post", published: false)
+      :ok
+    end
+
+    test "opens the modal over the index with the default filter", %{conn: conn} do
+      query_params = %{
+        "filters" => %{"published" => ["published"]},
+        "order_by" => "id",
+        "order_direction" => "asc",
+        "per_page" => "15",
+        "page" => "1"
+      }
+
+      conn
+      |> visit(~p"/admin/posts/notify/resource-action")
+      |> assert_path(~p"/admin/posts/notify/resource-action", query_params: query_params)
+      |> assert_has("#resource-action-modal div", text: "Send email")
+      |> assert_has("table tbody tr", count: 1)
+      |> assert_has("td", text: "Published Post")
+      |> click_link("Cancel")
+      |> assert_path(~p"/admin/posts", query_params: query_params)
+      |> refute_has("#resource-action-modal")
+      |> assert_has("table tbody tr", count: 1)
+    end
+  end
+
   describe "with a multi select field" do
     test "keeps the selected options when searching before the submit", %{conn: conn} do
       conn
