@@ -17,9 +17,14 @@
  * Parts are looked up by `data-part` when needed instead of in `mounted()`,
  * as a patch can re-create them while the hook stays mounted.
  *
- * Document and window listeners only exist while the popup is open, so pages
- * with many comboboxes don't pay an event-handler tax for closed ones.
+ * The popup is a manual popover in the top layer, so nothing clips it, and
+ * Floating UI keeps it next to the control.
+ *
+ * Document listeners and the positioning only exist while the popup is open,
+ * so pages with many comboboxes don't pay an event-handler tax for closed
+ * ones.
  */
+import { autoUpdate, computePosition, flip, offset, shift, size } from '@floating-ui/dom'
 
 const TYPEAHEAD_RESET_MS = 500
 const POPUP_OFFSET = 4
@@ -97,35 +102,6 @@ export function typeaheadIndex (labels, enabled, buffer, current) {
   return -1
 }
 
-/**
- * Where to place the popup next to the control, all values in viewport
- * pixels.
- *
- * It opens below the control, or above when the popup does not fit below and
- * there is more room above. It is never taller than the room on that side
- * (`maxHeight`), at least as wide as the control and kept inside the viewport
- * horizontally.
- *
- * - `anchor`: the control's rect (`top`, `bottom`, `left`, `width`)
- * - `popup`: the popup's natural size (`width`, `height`)
- * - `viewport`: `width` and `height`
- */
-export function computePopupPosition ({ anchor, popup, viewport, offset = POPUP_OFFSET, margin = VIEWPORT_MARGIN }) {
-  const spaceBelow = Math.max(0, viewport.height - anchor.bottom - offset - margin)
-  const spaceAbove = Math.max(0, anchor.top - offset - margin)
-  const placement = popup.height <= spaceBelow || spaceBelow >= spaceAbove ? 'bottom' : 'top'
-  const maxHeight = placement === 'bottom' ? spaceBelow : spaceAbove
-  const height = Math.min(popup.height, maxHeight)
-  const top = placement === 'bottom' ? anchor.bottom + offset : anchor.top - offset - height
-
-  const maxWidth = Math.max(0, viewport.width - 2 * margin)
-  const minWidth = Math.min(anchor.width, maxWidth)
-  const width = Math.min(Math.max(popup.width, minWidth), maxWidth)
-  const left = Math.max(margin, Math.min(anchor.left, viewport.width - margin - width))
-
-  return { placement, top, left, minWidth, maxWidth, maxHeight }
-}
-
 function isPrintableKey (event) {
   return event.key.length === 1 && !event.ctrlKey && !event.metaKey && !event.altKey
 }
@@ -144,6 +120,8 @@ export default {
     this.lastPushedQuery = ''
     this.closeOnFocusMove = false
     this.openController = null
+    this.stopAutoUpdate = null
+    this.popupMaxHeight = Infinity
     this.controller = new AbortController()
 
     const options = { signal: this.controller.signal }
@@ -183,7 +161,9 @@ export default {
       this.filterOptions()
       const active = this.optionByValue(this.activeValue)
       this.setActive(active && this.isNavigable(active) ? this.activeValue : this.firstNavigableValue(), { scroll: false })
-      this.position()
+      // The patch may have removed the inline position or re-created the
+      // control or the popup.
+      this.startPositioning()
     }
 
     this.el.toggleAttribute('data-loading', this.searchPending)
@@ -193,6 +173,7 @@ export default {
   destroyed () {
     this.controller.abort()
     this.openController?.abort()
+    this.stopPositioning()
     clearTimeout(this.typeaheadTimer)
     clearTimeout(this.searchTimer)
   },
@@ -266,7 +247,6 @@ export default {
     this.writeInputs(values)
     this.renderSelection(values)
     this.syncOptions(values)
-    if (this.isOpen) this.position()
     this.notify(values)
   },
   writeInputs (values) {
@@ -389,10 +369,20 @@ export default {
     this.attachOpenListeners()
 
     const selected = this.selectedValues().map((value) => this.optionByValue(value)).find((option) => option && this.isNavigable(option))
-    this.position()
-    this.setActive(selected ? selected.dataset.value : this.firstNavigableValue(), { scroll: true })
+    this.setActive(selected ? selected.dataset.value : this.firstNavigableValue(), { scroll: false })
     this.syncOpenState()
     this.part('search')?.focus({ preventScroll: true })
+
+    // The popup's own maximum height comes from its classes; read it before
+    // the positioning limits the height to the room next to the control.
+    popup.style.maxHeight = ''
+    const maxHeight = parseFloat(getComputedStyle(popup).maxHeight)
+    this.popupMaxHeight = Number.isNaN(maxHeight) ? Infinity : maxHeight
+
+    // Scroll to the active option once the popup has its final height.
+    this.startPositioning().then(() => {
+      if (this.isOpen) this.activeOption()?.scrollIntoView({ block: 'nearest' })
+    })
   },
   close ({ focus = false } = {}) {
     if (!this.isOpen) return
@@ -400,6 +390,7 @@ export default {
     this.closeOnFocusMove = false
     this.openController?.abort()
     this.openController = null
+    this.stopPositioning()
 
     // Move focus before hiding the popup, as hiding the focused search input
     // would drop focus to the body.
@@ -438,39 +429,60 @@ export default {
     const signal = this.openController.signal
 
     document.addEventListener('pointerdown', (event) => this.handleDocumentPointerdown(event), { capture: true, signal })
-    // Capture, as scroll events don't bubble and any scroll container may
-    // move the control.
-    document.addEventListener('scroll', (event) => this.handleScroll(event), { capture: true, passive: true, signal })
-    window.addEventListener('resize', () => this.position(), { passive: true, signal })
   },
-  // The popup is in the top layer and fixed to the viewport, so it follows the
-  // control by hand.
-  position () {
+
+  // Position
+
+  // Keeps the popup next to the control while it is open: `autoUpdate`
+  // repositions it when an ancestor scrolls, the window resizes, or the
+  // control or the popup change their size or place. Returns the promise of
+  // the first positioning.
+  startPositioning () {
+    this.stopPositioning()
+
     const popup = this.part('popup')
     const control = this.part('control')
-    if (!this.isOpen || !popup || !control) return
+    if (!this.isOpen || !popup || !control) return Promise.resolve()
 
-    const anchor = control.getBoundingClientRect()
-    const viewport = { width: document.documentElement.clientWidth, height: document.documentElement.clientHeight }
-    const maxWidth = Math.max(0, viewport.width - 2 * VIEWPORT_MARGIN)
-
-    // Measure the natural size at the top left corner, limited only by the
-    // classes of the popup.
-    Object.assign(popup.style, {
-      top: '0px',
-      left: '0px',
-      minWidth: `${Math.min(anchor.width, maxWidth)}px`,
-      maxWidth: `${maxWidth}px`,
-      maxHeight: ''
+    let first = null
+    this.stopAutoUpdate = autoUpdate(control, popup, () => {
+      const positioned = this.position(control, popup)
+      first ??= positioned
     })
-    const cssMaxHeight = parseFloat(getComputedStyle(popup).maxHeight)
-    const size = popup.getBoundingClientRect()
-
-    const position = computePopupPosition({ anchor, popup: { width: size.width, height: size.height }, viewport })
-    const maxHeight = Number.isNaN(cssMaxHeight) ? position.maxHeight : Math.min(cssMaxHeight, position.maxHeight)
-
-    Object.assign(popup.style, { top: `${position.top}px`, left: `${position.left}px`, maxHeight: `${maxHeight}px` })
-    popup.dataset.placement = position.placement
+    return first ?? Promise.resolve()
+  },
+  stopPositioning () {
+    this.stopAutoUpdate?.()
+    this.stopAutoUpdate = null
+  },
+  // The popup opens below the control and flips above it when it does not
+  // fit below. It is at least as wide as the control, stays inside the
+  // viewport and is never taller than the room on its side.
+  position (control, popup) {
+    return computePosition(control, popup, {
+      strategy: 'fixed',
+      placement: 'bottom-start',
+      middleware: [
+        offset(POPUP_OFFSET),
+        flip({ padding: VIEWPORT_MARGIN }),
+        shift({ padding: VIEWPORT_MARGIN }),
+        size({
+          padding: VIEWPORT_MARGIN,
+          apply: ({ availableWidth, availableHeight, rects }) => {
+            const maxWidth = Math.max(0, availableWidth)
+            Object.assign(popup.style, {
+              minWidth: `${Math.min(rects.reference.width, maxWidth)}px`,
+              maxWidth: `${maxWidth}px`,
+              maxHeight: `${Math.max(0, Math.min(availableHeight, this.popupMaxHeight))}px`
+            })
+          }
+        })
+      ]
+    }).then(({ x, y, placement }) => {
+      if (!this.isOpen) return
+      Object.assign(popup.style, { left: `${x}px`, top: `${y}px` })
+      popup.dataset.placement = placement.split('-')[0]
+    })
   },
 
   // Active option
@@ -536,7 +548,6 @@ export default {
 
     this.filterOptions()
     this.setActive(this.firstNavigableValue())
-    this.position()
   },
   pushSearch (query) {
     const seq = ++this.searchSeq
@@ -708,11 +719,6 @@ export default {
     // The label toggles the popup through the trigger.
     if (target.closest?.(`label[for="${this.part('trigger')?.id}"]`)) return
     this.close()
-  },
-  handleScroll (event) {
-    // Scrolling the listbox doesn't move the control.
-    if (this.part('popup')?.contains(event.target)) return
-    this.position()
   },
   hasFocusableSlotContent () {
     const popup = this.part('popup')

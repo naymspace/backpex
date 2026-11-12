@@ -1,7 +1,6 @@
 import { afterEach, beforeEach, describe, expect, test } from 'bun:test'
 
 import Combobox, {
-  computePopupPosition,
   matchesQuery,
   nextEnabledIndex,
   normalizeText,
@@ -107,78 +106,6 @@ describe('typeaheadIndex', () => {
   })
 })
 
-describe('computePopupPosition', () => {
-  const viewport = { width: 1000, height: 800 }
-  const anchor = (top, left = 100, width = 300, height = 40) => ({ top, bottom: top + height, left, width })
-
-  test('opens below the control when the popup fits', () => {
-    const position = computePopupPosition({ anchor: anchor(100), popup: { width: 200, height: 300 }, viewport })
-
-    expect(position).toEqual({
-      placement: 'bottom',
-      top: 144,
-      left: 100,
-      minWidth: 300,
-      maxWidth: 984,
-      maxHeight: 800 - 140 - 4 - 8
-    })
-  })
-
-  test('flips above when there is not enough room below and more above', () => {
-    const position = computePopupPosition({ anchor: anchor(600), popup: { width: 300, height: 300 }, viewport })
-
-    expect(position.placement).toBe('top')
-    expect(position.maxHeight).toBe(600 - 4 - 8)
-    // The bottom of the popup sits the offset above the control.
-    expect(position.top + 300).toBe(600 - 4)
-  })
-
-  test('stays below when it does not fit on either side but below has more room', () => {
-    const position = computePopupPosition({ anchor: anchor(300), popup: { width: 300, height: 900 }, viewport })
-
-    expect(position.placement).toBe('bottom')
-    expect(position.maxHeight).toBe(800 - 340 - 4 - 8)
-    expect(position.top).toBe(344)
-  })
-
-  test('limits a popup flipped above to the room above', () => {
-    const position = computePopupPosition({ anchor: anchor(500), popup: { width: 300, height: 900 }, viewport })
-
-    expect(position.placement).toBe('top')
-    expect(position.maxHeight).toBe(488)
-    expect(position.top).toBe(8)
-  })
-
-  test('keeps the popup inside the viewport horizontally', () => {
-    const right = computePopupPosition({ anchor: anchor(100, 900, 80), popup: { width: 300, height: 100 }, viewport })
-    expect(right.left).toBe(1000 - 8 - 300)
-
-    const left = computePopupPosition({ anchor: anchor(100, -50, 200), popup: { width: 200, height: 100 }, viewport })
-    expect(left.left).toBe(8)
-  })
-
-  test('is at least as wide as the control but never wider than the viewport', () => {
-    const narrow = { width: 360, height: 640 }
-    const position = computePopupPosition({ anchor: anchor(100, 16, 328), popup: { width: 600, height: 100 }, viewport: narrow })
-
-    expect(position.minWidth).toBe(328)
-    expect(position.maxWidth).toBe(344)
-    expect(position.left).toBe(8)
-
-    const wideControl = computePopupPosition({ anchor: anchor(100, 0, 500), popup: { width: 100, height: 100 }, viewport: narrow })
-    expect(wideControl.minWidth).toBe(344)
-  })
-
-  test('never reports a negative maximum height for a control outside the viewport', () => {
-    const below = computePopupPosition({ anchor: anchor(900), popup: { width: 100, height: 100 }, viewport })
-    expect(below.maxHeight).toBeGreaterThanOrEqual(0)
-
-    const above = computePopupPosition({ anchor: anchor(-200), popup: { width: 100, height: 100 }, viewport })
-    expect(above.placement).toBe('bottom')
-    expect(above.maxHeight).toBeGreaterThanOrEqual(0)
-  })
-})
-
 // The hook's DOM behaviour is covered by the browser tests. These cover what a
 // browser test cannot observe deterministically: timers and the order in which
 // search replies arrive.
@@ -281,32 +208,30 @@ describe('BackpexCombobox server search', () => {
     expect(hook.el.hasAttribute('data-loading')).toBe(false)
   })
 
-  test('destroyed() removes the document and window listeners of an open popup', () => {
-    const target = () => ({
+  test('destroyed() removes the document listener and stops the positioning of an open popup', () => {
+    const realDocument = globalThis.document
+    globalThis.document = {
       listeners: [],
       addEventListener (type, listener, { signal }) {
         const entry = { type }
         this.listeners.push(entry)
         signal.addEventListener('abort', () => { this.listeners = this.listeners.filter((e) => e !== entry) })
       }
-    })
-    const realDocument = globalThis.document
-    const realWindow = globalThis.window
-    globalThis.document = target()
-    globalThis.window = target()
+    }
 
     try {
       const hook = mountHook()
+      let stopped = 0
       hook.attachOpenListeners()
-      expect(document.listeners.map((l) => l.type)).toEqual(['pointerdown', 'scroll'])
-      expect(window.listeners.map((l) => l.type)).toEqual(['resize'])
+      hook.stopAutoUpdate = () => { stopped++ }
+      expect(document.listeners.map((l) => l.type)).toEqual(['pointerdown'])
 
       hook.destroyed()
       expect(document.listeners).toEqual([])
-      expect(window.listeners).toEqual([])
+      expect(stopped).toBe(1)
+      expect(hook.stopAutoUpdate).toBe(null)
     } finally {
       globalThis.document = realDocument
-      globalThis.window = realWindow
     }
   })
 

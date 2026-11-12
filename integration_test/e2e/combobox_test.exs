@@ -420,9 +420,9 @@ defmodule Backpex.E2E.ComboboxTest do
     test "keep the chosen value when the server renders the value it had, like a native select", %{conn: conn} do
       conn
       |> visit_fixture()
-      |> select("#native-restricted", "Allowed", from: "Native restricted")
+      |> select("#native-restricted", "Native restricted", option: "Allowed")
       |> assert_has("#changes", text: "Changes: 1")
-      |> select("#native-restricted", "Rejected", from: "Native restricted")
+      |> select("#native-restricted", "Native restricted", option: "Rejected")
       |> assert_has("#changes", text: "Changes: 2")
       |> last_change(&assert(&1["combobox"]["native_restricted"] == "rejected"))
       |> evaluate("document.getElementById('native-restricted').value", &assert(&1 == "rejected"))
@@ -590,6 +590,36 @@ defmodule Backpex.E2E.ComboboxTest do
         """,
         &assert(&1 == [true, true, true])
       )
+    end
+
+    test "follows the control when the layout shifts without a scroll or resize", %{conn: conn} do
+      id = "combobox_country"
+
+      # `[top of the control, popup touches the control below or above it, popup starts at its left edge]`
+      geometry = """
+      (() => {
+        const control = document.querySelector('##{id} [data-part=control]').getBoundingClientRect()
+        const popup = document.getElementById('#{id}-popup').getBoundingClientRect()
+        const below = Math.abs(popup.top - control.bottom - 4) < 1
+        const above = Math.abs(control.top - popup.bottom - 4) < 1
+        return [Math.round(control.top), below || above, Math.abs(popup.left - control.left) < 1]
+      })()
+      """
+
+      conn
+      |> visit_fixture()
+      |> open(id)
+      |> evaluate(poll_js("#{geometry}[1]"), &assert/1)
+      |> evaluate(geometry, fn [top, true, true] -> send(self(), {:control_top, top}) end)
+      |> evaluate("""
+      document.getElementById('combobox-form').insertAdjacentHTML('beforebegin', '<div id="shift" style="height: 120px"></div>')
+      """)
+      |> assert_has("#shift")
+      |> evaluate(poll_js("#{geometry}[1]"), &assert/1)
+      |> evaluate(geometry, fn [top, true, true] ->
+        assert_received {:control_top, top_before}
+        assert top >= top_before + 120
+      end)
     end
 
     test "keeps the height of a native input of its size with and without a value", %{conn: conn} do
