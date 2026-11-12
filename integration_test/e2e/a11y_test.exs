@@ -12,6 +12,7 @@ defmodule Backpex.E2E.A11yTest do
     {"/admin/film-reviews", :film_review, :id, [:index, :new, :show, :edit]},
     {"/admin/short-links", :short_link, :short_key, [:index, :new, :show, :edit]},
     {"/admin/samples", :sample, :id, [:index, :new, :show, :edit]},
+    {"/admin/index-edit-samples", :sample, :id, [:index]},
     {"/admin/posts", :post, :id, [:index, :new, :show, :edit]},
     {"/admin/categories", :category, :id, [:index, :new, :show, :edit]},
     {"/admin/tags", :tag, :id, [:index, :new, :show, :edit]},

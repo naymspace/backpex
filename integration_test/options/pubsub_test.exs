@@ -1,7 +1,8 @@
 defmodule Backpex.Integration.Options.PubSubTest do
   @moduledoc """
   Checks the `pubsub` option: `Backpex.Test.PubSubNoteLive` broadcasts its events on the configured server and topic,
-  and its index view reloads on events of that topic only.
+  and its index view reloads on events of that topic only. Also checks which adapter calls the index and show views make
+  for a `"backpex:updated"` event, with `Backpex.Test.RecordingNoteLive`.
   """
   use Backpex.ConnCase, async: true
 
@@ -9,6 +10,7 @@ defmodule Backpex.Integration.Options.PubSubTest do
 
   alias Backpex.Test.Note
   alias Backpex.Test.PubSubNoteLive
+  alias Backpex.Test.RecordingAdapter
 
   @server Backpex.Test.OptionsPubSub
   @topic "options-notes"
@@ -67,5 +69,88 @@ defmodule Backpex.Integration.Options.PubSubTest do
 
     Phoenix.PubSub.broadcast(@server, @topic, {"backpex:created", note})
     assert render(view) =~ "Inserted behind the view"
+  end
+
+  describe "an updated event" do
+    setup do
+      test_pid = self()
+      handler_id = {__MODULE__, make_ref()}
+
+      # As in `Backpex.Integration.Options.AdapterTest`: only the adapter calls of this test's LiveViews are forwarded.
+      :telemetry.attach(
+        handler_id,
+        RecordingAdapter.event(),
+        fn _event, _measurements, metadata, _config ->
+          if test_pid in [metadata.pid | metadata.callers], do: send(test_pid, {:adapter_call, metadata.function})
+        end,
+        nil
+      )
+
+      on_exit(fn -> :telemetry.detach(handler_id) end)
+    end
+
+    test "of an item on the page of the index view reads the item and shows its new values", %{conn: conn} do
+      note = insert(:note, title: "Old title")
+      {:ok, view, _html} = live(conn, ~p"/admin/recording-notes")
+      flush_adapter_calls()
+
+      note = note |> Ecto.Changeset.change(title: "New title") |> Repo.update!()
+      send(view.pid, {"backpex:updated", note})
+
+      assert render(view) =~ "New title"
+      assert_received {:adapter_call, :get}
+    end
+
+    test "of an item on another page of the index view counts the items without reading the item", %{conn: conn} do
+      # A page holds 15 notes. The titles have the same length, so none is part of another.
+      notes = for number <- 10..25, do: insert(:note, title: "Paged note #{number}")
+      {:ok, view, html} = live(conn, ~p"/admin/recording-notes")
+      [off_page_note] = Enum.reject(notes, &(html =~ &1.title))
+      flush_adapter_calls()
+
+      off_page_note = off_page_note |> Ecto.Changeset.change(title: "New title") |> Repo.update!()
+      send(view.pid, {"backpex:updated", off_page_note})
+
+      refute render(view) =~ "New title"
+      assert_received {:adapter_call, :count}
+      refute_received {:adapter_call, :get}
+      refute_received {:adapter_call, :list}
+    end
+
+    test "of the shown item reads it again and shows its new values", %{conn: conn} do
+      note = insert(:note, title: "Old title")
+      {:ok, view, _html} = live(conn, ~p"/admin/recording-notes/#{note.id}/show")
+      flush_adapter_calls()
+
+      note = note |> Ecto.Changeset.change(title: "New title") |> Repo.update!()
+      send(view.pid, {"backpex:updated", note})
+
+      assert render(view) =~ "New title"
+      assert_received {:adapter_call, :get}
+    end
+
+    test "of another item makes no adapter call in the show view", %{conn: conn} do
+      note = insert(:note, title: "Shown title")
+      other_note = insert(:note)
+      {:ok, view, _html} = live(conn, ~p"/admin/recording-notes/#{note.id}/show")
+      flush_adapter_calls()
+
+      # Changed without an event of its own, so the new title only shows up if the view reads its item again.
+      note |> Ecto.Changeset.change(title: "Changed unannounced") |> Repo.update!()
+      send(view.pid, {"backpex:updated", other_note})
+
+      html = render(view)
+      assert html =~ "Shown title"
+      refute html =~ "Changed unannounced"
+      refute_received {:adapter_call, _function}
+    end
+  end
+
+  defp flush_adapter_calls do
+    receive do
+      {:adapter_call, _function} -> flush_adapter_calls()
+    after
+      0 -> :ok
+    end
   end
 end

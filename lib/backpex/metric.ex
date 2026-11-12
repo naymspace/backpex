@@ -6,6 +6,8 @@ defmodule Backpex.Metric do
   An example could be to show the current total of all orders received today. You may create your own metrics by
   implementing this behaviour.
 
+  See the [Metrics](metrics.md) guide for how to add metrics to a LiveResource.
+
   ## Data of your own
 
   By default, Backpex passes the query of the index view, after search and filters, to `c:query/3`. A metric module

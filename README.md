@@ -1,4 +1,4 @@
-[![CI](https://github.com/naymspace/backpex/actions/workflows/ci.yml/badge.svg)](https://github.com/naymspace/backpex/actions/workflows/ci.yml)
+[![Coverage](https://codecov.io/gh/naymspace/backpex/branch/develop/graph/badge.svg)](https://codecov.io/gh/naymspace/backpex)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://github.com/naymspace/backpex/blob/develop/LICENSE.md)
 [![Hex](https://img.shields.io/hexpm/v/backpex.svg)](https://hex.pm/packages/backpex)
 [![Hex Docs](https://img.shields.io/badge/hex-docs-green)](https://hexdocs.pm/backpex)
@@ -98,7 +98,7 @@ end
 
 - 🔍 **[Search](https://hexdocs.pm/backpex/basic-search.html)** across fields, or PostgreSQL [full-text search](https://hexdocs.pm/backpex/full-text-search.html) on a generated column.
 - 🎛️ **[Filters](https://hexdocs.pm/backpex/what-is-a-filter.html)**: Boolean, Select, MultiSelect and Range, with [presets](https://hexdocs.pm/backpex/filter-presets.html), validated URL params and [custom filters](https://hexdocs.pm/backpex/custom-filter.html).
-- 📈 **Metrics**: value metrics such as sums or averages above the index table, computed for the current search and filters.
+- 📈 **[Metrics](https://hexdocs.pm/backpex/metrics.html)**: value metrics such as sums or averages above the index table, computed for the current search and filters.
 - 🗂️ **Column toggles**: users show and hide columns and metrics on the index view.
 - ↕️ **[Ordering](https://hexdocs.pm/backpex/ordering.html)** and **[pagination](https://hexdocs.pm/backpex/pagination.html)** with configurable defaults.
 
