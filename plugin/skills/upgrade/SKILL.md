@@ -55,7 +55,7 @@ All upgrade guides are at `guides/upgrading/` in the Backpex repository (also av
 
 2. **Bump the dependency** in `mix.exs`:
    ```elixir
-   {:backpex, "~> 0.23.0"} # the minor version you upgrade to
+   {:backpex, "~> 0.24.0"} # the minor version you upgrade to
    ```
 
 3. **Run `mix deps.get`** to fetch the new version.
