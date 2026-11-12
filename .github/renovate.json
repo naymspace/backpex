@@ -30,7 +30,13 @@
     "minimumReleaseAge": "14 days"
   },
   "internalChecksFilter": "strict",
-  "constraints": { "erlang": "^27" },
+  "osvVulnerabilityAlerts": true,
+  "vulnerabilityAlerts": {
+    "addLabels": [
+      "security"
+    ]
+  },
+  "constraints": { "erlang": "29" },
   "packageRules": [
     {
       "description": "Set Mix versioning strategy to update-lockfile",

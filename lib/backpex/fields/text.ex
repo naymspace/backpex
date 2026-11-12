@@ -46,7 +46,7 @@ defmodule Backpex.Fields.Text do
         <BackpexForm.input
           type="text"
           field={@form[@name]}
-          placeholder={@field_options[:placeholder]}
+          placeholder={Backpex.Field.placeholder(@field_options, assigns)}
           translate_error_fun={Backpex.Field.translate_error_fun(@field_options, assigns)}
           help_text={Backpex.Field.help_text(@field_options, assigns)}
           phx-debounce={Backpex.Field.debounce(@field_options, assigns)}
@@ -70,7 +70,7 @@ defmodule Backpex.Fields.Text do
           id={"index-form-input-#{@name}-#{LiveResource.primary_value(@item, @live_resource)}"}
           type="text"
           field={@form[:value]}
-          placeholder={@field_options[:placeholder]}
+          placeholder={Backpex.Field.placeholder(@field_options, assigns)}
           input_class={["input input-sm", @valid && "not-hover:input-ghost", !@valid && "input-error bg-error/10"]}
           phx-debounce="100"
           readonly={@readonly}

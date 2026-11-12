@@ -11,27 +11,17 @@ if Code.ensure_loaded?(Igniter) do
 
     @doc """
     Gets the Phoenix PubSub module from the application configuration.
+
+    Falls back to `MyApp.PubSub`, the module Phoenix generates, when the endpoint
+    configuration is not loaded.
     """
     def pubsub_module(igniter) do
       web_module = Phoenix.web_module(igniter)
       endpoint_module = Module.safe_concat(web_module, Endpoint)
       app_name = IgniterApp.app_name(igniter)
 
-      Application.get_env(app_name, endpoint_module)[:pubsub_server]
-    end
-
-    @doc """
-    Checks if a specific string exists within a module's source code.
-    """
-    def exists_in_module?(igniter, module, line) do
-      case IgniterModule.find_module(igniter, module) do
-        {:ok, {igniter, source, _zipper}} ->
-          {:ok, {igniter, string_in_source?(source, line)}}
-
-        {:error, igniter} ->
-          Mix.shell().warning("Could not find module #{inspect(module)}")
-          {:error, igniter}
-      end
+      Application.get_env(app_name, endpoint_module)[:pubsub_server] ||
+        IgniterModule.module_name(igniter, "PubSub")
     end
 
     @doc """
@@ -70,12 +60,14 @@ if Code.ensure_loaded?(Igniter) do
     end
 
     @doc """
-    Gets the web folder path for the Phoenix application.
+    Gets the web folder path for the Phoenix application, e.g. `lib/my_app_web`.
     """
     def web_folder_path(igniter) do
+      web_module = Phoenix.web_module(igniter)
+
       igniter
-      |> IgniterApp.app_name()
-      |> Mix.Phoenix.web_path()
+      |> IgniterModule.proper_location(web_module)
+      |> Path.rootname()
     end
 
     @doc """

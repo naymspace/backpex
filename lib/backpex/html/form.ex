@@ -426,7 +426,10 @@ defmodule Backpex.HTML.Form do
   attr :hide_search, :boolean, default: false, doc: "if search should be hidden"
   attr :hide_errors, :boolean, default: false, doc: "if errors should be hidden"
   attr :live_resource, :atom, default: nil, doc: "the live resource module"
-  attr :aria_labelledby, :string, doc: "accessible labelledby for screen readers added to the trigger element"
+
+  attr :aria_labelledby, :string,
+    default: nil,
+    doc: "accessible labelledby for screen readers added to the trigger element"
 
   def multi_select(assigns) do
     errors = if Phoenix.Component.used_input?(assigns.field), do: assigns.field.errors, else: []
@@ -445,8 +448,7 @@ defmodule Backpex.HTML.Form do
     <div>
       <.dropdown id={"multi-select-#{@field.id}"} class="w-full" readonly={@readonly}>
         <:trigger
-          aria_label={@prompt}
-          aria_labelledby={Map.get(assigns, :aria_labelledby)}
+          aria_labelledby={Enum.join(List.wrap(@aria_labelledby) ++ ["#{@field.id}-selection"], " ")}
           class={[
             "block h-fit w-full p-2",
             not @readonly && "input",
@@ -457,7 +459,7 @@ defmodule Backpex.HTML.Form do
             @readonly && @errors != [] && "border-error bg-error/10"
           ]}
         >
-          <div class="flex h-full w-full flex-wrap items-center gap-1 px-2">
+          <div id={"#{@field.id}-selection"} class="flex h-full w-full flex-wrap items-center gap-1 px-2">
             <p :if={@selected == []} class="p-0.5 text-sm">{@prompt}</p>
             <.multi_select_badge
               :for={{label, value} <- @selected}
@@ -582,7 +584,7 @@ defmodule Backpex.HTML.Form do
     ~H"""
     <button
       type="button"
-      class={["text-primary text-sm underline hover:cursor-pointer", @class]}
+      class={["link text-sm", @class]}
       phx-click="toggle-select-all"
       phx-value-field-name={@field.name}
       phx-target={@event_target}
@@ -652,7 +654,7 @@ defmodule Backpex.HTML.Form do
     ~H"""
     <button
       type="button"
-      class="text-primary mb-2 text-sm underline hover:cursor-pointer"
+      class="link mb-2 text-sm"
       phx-click="show-more"
       phx-target={@event_target}
     >

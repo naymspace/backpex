@@ -15,7 +15,9 @@ defmodule Backpex.Fields.InlineCRUD do
       - `Backpex.Fields.InlineCRUD`
       - `Backpex.Fields.Upload`
 
-      You can add additional classes to child field inputs by setting the class option in the list of `child_fields`.
+      You can add additional classes to the table cell of a child field (in the header row and in every entry row) by
+      setting the class option in the list of `child_fields`. Use it for widths like `w-1/3`. Flex classes like `grow`
+      have no effect on a table cell, and display classes like `hidden` break the row.
       The class can be a string or a function that takes the assigns and must return a string.
       """,
       type: :keyword_list,
@@ -95,6 +97,12 @@ defmodule Backpex.Fields.InlineCRUD do
   When the field is readonly, each nested row's child fields render as readonly, the per-row delete
   button is hidden entirely, and the add-row control is hidden entirely. See the
   [readonly](/guides/fields/readonly.md) guide for details.
+
+  A child field can be readonly on its own, and the form drops the params of a readonly child field and of one its
+  `can?` hides. For this decision, `readonly` and `can?` of a child field get the assigns of the whole form once, not
+  the assigns of a row. A function that decides by the row (`assigns.form` is the form of the row while the child
+  field renders) can show a row as readonly whose params are still saved, so decide by assigns that are the same for
+  every row.
   """
   use Backpex.Field, config_schema: @config_schema
 
@@ -196,7 +204,22 @@ defmodule Backpex.Fields.InlineCRUD do
           <Layout.input_label id={"inline-crud-label-#{@name}"} as="span" text={@field_options[:label]} />
         </:label>
 
-        <div class="flex flex-col">
+        <%!-- Not the `table` class: daisyUI's table component adds a font size, a radius and border spacing. --%>
+        <div class="[display:table] w-full">
+          <div :if={@row_count > 0} class="table-row">
+            <div
+              :for={{child_field_name, child_field_options} <- @child_fields}
+              id={"inline-crud-header-label-#{@name}-#{child_field_name}"}
+              class={[
+                "table-cell pr-4 pb-2 align-bottom text-xs last:pr-0",
+                child_field_class(child_field_options, assigns)
+              ]}
+            >
+              {child_field_options.label}
+            </div>
+            <div :if={not @readonly} class="table-cell" />
+          </div>
+
           <.inputs_for :let={f_nested} field={@form[@name]}>
             <input
               type="hidden"
@@ -207,18 +230,11 @@ defmodule Backpex.Fields.InlineCRUD do
               disabled={@readonly}
             />
 
-            <div class="mb-3 flex items-start gap-x-4">
+            <div class="table-row">
               <div
                 :for={{child_field_name, child_field_options} <- @child_fields}
-                class={child_field_class(child_field_options, assigns)}
+                class={["table-cell pr-4 pb-3 align-top last:pr-0", child_field_class(child_field_options, assigns)]}
               >
-                <div
-                  :if={f_nested.index == 0}
-                  id={"inline-crud-header-label-#{@name}-#{child_field_name}"}
-                  class="mb-2 text-xs"
-                >
-                  {child_field_options.label}
-                </div>
                 {Backpex.HTML.Resource.resource_form_field(
                   assign(assigns,
                     hide_label: true,
@@ -230,7 +246,7 @@ defmodule Backpex.Fields.InlineCRUD do
                 )}
               </div>
 
-              <div :if={not @readonly} class={if f_nested.index == 0, do: "mt-5", else: nil}>
+              <div :if={not @readonly} class="table-cell w-px pb-3 align-top">
                 <button
                   type="button"
                   name={"change[#{@name}_delete][]"}
@@ -270,6 +286,46 @@ defmodule Backpex.Fields.InlineCRUD do
   def association?({_name, %{type: :assoc}} = _field), do: true
   def association?({_name, %{type: :embed}} = _field), do: false
 
+  # The form submits the rows, and the order and the dropped rows for the `:sort_param` and `:drop_param` of the
+  # changeset. A row keeps only the params of the child fields the admin may edit, as the form renders only these.
+  @impl Backpex.Field
+  def param_keys({name, field_options}, assigns) do
+    name_string = Atom.to_string(name)
+
+    [{name_string, row_keys(name, field_options, assigns)}, name_string <> "_order", name_string <> "_delete"]
+  end
+
+  # `inputs_for` adds the primary key and the persistent id of each row.
+  defp row_keys(name, field_options, assigns) do
+    child_keys =
+      field_options.child_fields
+      |> validated_fields(name)
+      |> Backpex.LiveResource.fields_by_action(assigns.live_action)
+      |> Backpex.LiveResource.fields_by_can(assigns)
+      |> Enum.reject(fn {_name, child_options} -> Backpex.Field.readonly?(child_options, assigns) end)
+      |> Enum.flat_map(fn {_name, child_options} = child -> child_options.module.param_keys(child, assigns) end)
+
+    ["_persistent_id" | primary_keys(assigns, name)] ++ child_keys
+  end
+
+  # The schema of the rows comes from the changeset of the form, as the form of a resource action or an item action
+  # works on the `base_schema/1` of the action, not on the schema of the LiveResource.
+  defp primary_keys(%{changeset: %Ecto.Changeset{types: types}}, name) do
+    case Map.get(types, name) do
+      {tag, %{related: related}} when tag in [:embed, :assoc] -> related_primary_keys(related)
+      {:parameterized, {Ecto.Embedded, %{related: related}}} -> related_primary_keys(related)
+      _type -> []
+    end
+  end
+
+  defp primary_keys(_assigns, _name), do: []
+
+  defp related_primary_keys(related) do
+    :primary_key
+    |> related.__schema__()
+    |> Enum.map(&Atom.to_string/1)
+  end
+
   @impl Backpex.Field
   def schema({name, _field_options}, schema) do
     schema.__schema__(:association, name)
@@ -301,7 +357,7 @@ defmodule Backpex.Fields.InlineCRUD do
 
   defp child_field_class(%{class: class} = _child_field_options, assigns) when is_function(class), do: class.(assigns)
   defp child_field_class(%{class: class} = _child_field_options, _assigns) when is_binary(class), do: class
-  defp child_field_class(_child_field_options, _assigns), do: "flex-1"
+  defp child_field_class(_child_field_options, _assigns), do: nil
 
   defp assign_form_errors(socket) do
     %{assigns: %{form: form, name: name, field_options: field_options}} = socket
