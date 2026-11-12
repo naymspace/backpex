@@ -1,7 +1,7 @@
 defmodule Backpex.MixProject do
   use Mix.Project
 
-  @version "0.23.0"
+  @version "0.24.0"
 
   @source_url "https://github.com/naymspace/backpex"
   @changelog_url "https://github.com/naymspace/backpex/releases"
@@ -140,6 +140,7 @@ defmodule Backpex.MixProject do
   defp aliases do
     [
       lint: lint(),
+      ci: ci(),
       "assets.build": [
         "esbuild module",
         "esbuild main"
@@ -153,7 +154,21 @@ defmodule Backpex.MixProject do
   defp lint do
     unlock_unused = if @integration_tests, do: ["deps.unlock --unused"], else: []
 
-    ["compile --warning-as-errors"] ++ unlock_unused ++ ["format", "credo", "test"]
+    ["compile --warnings-as-errors"] ++ unlock_unused ++ ["format", "credo", "test"]
+  end
+
+  # The checks of the CI job `test` that `lint` leaves out, cheap ones first. `assets.check` needs `esbuild`, which only
+  # the `dev` environment has, so it runs in a `dev` subprocess; the first run compiles the dependencies for `dev`.
+  defp ci do
+    [
+      "lint",
+      "cmd bun run lint:standard",
+      "cmd bun run test:js",
+      "gettext.extract --check-up-to-date",
+      "sobelow --config",
+      "docs --warnings-as-errors",
+      "cmd env MIX_ENV=dev mix assets.check"
+    ]
   end
 
   defp docs do
@@ -216,6 +231,7 @@ defmodule Backpex.MixProject do
       "guides/live_resource/hooks.md",
       "guides/live_resource/navigation.md",
       "guides/live_resource/panels.md",
+      "guides/live_resource/metrics.md",
       "guides/live_resource/fluid-layout.md",
       "guides/live_resource/listen-to-pubsub-events.md",
       "guides/live_resource/additional-classes-for-index-table-rows.md",
@@ -261,6 +277,7 @@ defmodule Backpex.MixProject do
 
       # Upgrade Guides
       "guides/upgrading/v0.25.md",
+      "guides/upgrading/v0.24.md",
       "guides/upgrading/v0.23.md",
       "guides/upgrading/v0.22.md",
       "guides/upgrading/v0.21.md",
@@ -297,7 +314,7 @@ defmodule Backpex.MixProject do
       Actions: ~r/guides\/actions\/.?/,
       Authorization: ~r/guides\/authorization\/.?/,
       Searching: ~r/guides\/searching\/.?/,
-      "Custom Labels and Translations": ~r/guides\/custom_labels_and_translations\/.?/,
+      Translations: ~r/guides\/translations\/.?/,
       "Upgrade Guides": ~r{guides/upgrading/.*}
     ]
   end

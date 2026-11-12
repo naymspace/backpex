@@ -29,10 +29,18 @@ defmodule Backpex.LiveResource.Show do
     |> noreply()
   end
 
-  def handle_info({"backpex:updated", _item}, socket) do
-    socket
-    |> assign_item()
-    |> noreply()
+  # The topic carries the events of all items of the resource. Only an update of the shown item is read.
+  def handle_info({"backpex:updated", updated_item}, socket) do
+    %{live_resource: live_resource, item: item} = socket.assigns
+    primary_value = &to_string(Backpex.LiveResource.primary_value(&1, live_resource))
+
+    if primary_value.(updated_item) == primary_value.(item) do
+      socket
+      |> assign_item()
+      |> noreply()
+    else
+      noreply(socket)
+    end
   end
 
   def handle_info(_event, socket) do

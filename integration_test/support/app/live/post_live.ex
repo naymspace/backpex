@@ -2,7 +2,7 @@ defmodule Backpex.Test.PostLive do
   @moduledoc """
   Posts, the LiveResource with the most options: a filter of every kind with defaults and presets, value metrics,
   `persist`, a `context_assigns` list, the "Save & Continue editing" button and a custom form action, an index editable
-  BelongsTo field with an `options_query`, a HasMany field and a field with a `visible` function.
+  BelongsTo field with an `options_query`, a HasMany field, a field with a `visible` function and a resource action.
   """
   use Backpex.LiveResource,
     adapter_config: [
@@ -38,6 +38,9 @@ defmodule Backpex.Test.PostLive do
 
   @impl LiveResource
   def plural_name, do: "Posts"
+
+  @impl LiveResource
+  def resource_actions, do: [notify: %{module: Backpex.Test.ResourceActions.Email}]
 
   @impl LiveResource
   def filters do

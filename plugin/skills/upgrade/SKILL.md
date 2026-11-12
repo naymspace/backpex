@@ -14,7 +14,7 @@ You are an expert at upgrading Backpex versions. When the user wants to upgrade,
 
 ## Finding the Current Version
 
-Check `mix.exs` for the Backpex dependency:
+Check `mix.exs` for the Backpex dependency (the version below is an example):
 
 ```elixir
 {:backpex, "~> 0.19.0"}
@@ -26,6 +26,7 @@ All upgrade guides are at `guides/upgrading/` in the Backpex repository (also av
 
 | Version | File |
 |---------|------|
+| 0.25 | `guides/upgrading/v0.25.md` |
 | 0.24 | `guides/upgrading/v0.24.md` |
 | 0.23 | `guides/upgrading/v0.23.md` |
 | 0.22 | `guides/upgrading/v0.22.md` |
@@ -55,7 +56,7 @@ All upgrade guides are at `guides/upgrading/` in the Backpex repository (also av
 
 2. **Bump the dependency** in `mix.exs`:
    ```elixir
-   {:backpex, "~> 0.19.0"}
+   {:backpex, "~> 0.24.0"} # the minor version you upgrade to
    ```
 
 3. **Run `mix deps.get`** to fetch the new version.

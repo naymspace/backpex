@@ -277,8 +277,8 @@ defmodule Backpex.LiveResource do
   @callback layout(assigns :: map()) :: {module(), atom()} | (map() -> Rendered.t())
 
   @doc """
-  A list of metrics shown on the index view of your resource. See the Configuration section of `Backpex.Metric` for
-  the options of a metric.
+  A list of metrics shown on the index view of your resource. See the [Metrics](metrics.md) guide and the
+  Configuration section of `Backpex.Metric` for the options of a metric.
   """
   @callback metrics() :: keyword()
 

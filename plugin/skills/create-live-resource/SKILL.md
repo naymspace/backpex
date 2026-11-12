@@ -92,7 +92,7 @@ The `item_query` function must build on the incoming `query` argument (use `from
 | `filters/0` | `[]` | Filter definitions |
 | `filters/1` | delegates to `filters/0` | Assigns-aware variant for dynamic filters |
 | `panels/0` | `[]` | Field grouping: `[key: "Label"]` |
-| `metrics/0` | `[]` | Index page metrics: `[key: %{module: Backpex.Metrics.Value, label: "Total", select: dynamic(...)}]`, optional `:format` and `:class` |
+| `metrics/0` | `[]` | Index page metrics: `[key: %{module: Backpex.Metrics.Value, label: "Total", select: dynamic(...)}]`, optional `:format` and `:class`, see the [metrics guide](https://hexdocs.pm/backpex/metrics.html) |
 | `resource_actions/0` | `[]` | Resource-level actions |
 | `item_actions/1` | returns default_actions unchanged | Modify default item actions |
 | `on_item_creating/2` | returns the change | `fn socket, change -> change`, before the item is created; add an error to cancel |

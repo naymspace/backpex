@@ -30,7 +30,12 @@ defmodule Backpex.Fields.HasManyThrough do
     ],
     options_query: [
       doc: """
-      Manipulates the list of available options in the select. Can be used to select additional data for the `display_field` option or to limit the available entries.",
+      Manipulates the list of available options in the select. Can be used to select additional data for the
+      `display_field` option or to limit the available entries.
+
+      The form of the field also checks the submitted records against the options query: it links only options and
+      keeps the records the item is already linked to. The check only runs for a field that is part of the form and not
+      readonly, so the options query is no replacement for a check in your changeset.
 
       Defaults to `fn (query, _field) -> query end` which returns all entries.
       """,
@@ -87,6 +92,7 @@ defmodule Backpex.Fields.HasManyThrough do
   import Ecto.Query
   import Backpex.HTML.Layout, except: [ok: 1, noreply: 1]
   import PhoenixHTMLHelpers.Form, only: [hidden_inputs_for: 1]
+  alias Backpex.Fields.OptionsQuery
   alias Backpex.LiveResource
   alias Ecto.Changeset
   require Backpex
@@ -136,7 +142,8 @@ defmodule Backpex.Fields.HasManyThrough do
 
     all_items = repo.all(query)
 
-    options = Enum.map(all_items, &{Map.get(&1, display_field), Map.get(&1, :id)})
+    related_key = socket.assigns.association.child.related_key
+    options = Enum.map(all_items, &{Map.get(&1, display_field), Map.get(&1, related_key)})
 
     live_resource = field_options.live_resource
     singular_name = live_resource.singular_name()
@@ -225,15 +232,14 @@ defmodule Backpex.Fields.HasManyThrough do
     %{field: assoc_field} = assigns = assign_fallback_child_fields(assigns)
     %{form: form, changeset: changeset, association: association, all_items: all_items} = assigns
     {_assoc_field_name, assoc_field_options} = assoc_field
-    primary_key = assoc_field_options.live_resource.config(:primary_key)
-    editables = editables(form, changeset, association, primary_key)
+    editables = editables(form, changeset, association, pivot_primary_key(association, assoc_field_options))
 
     listables =
       editables
       |> Enum.map(fn editable ->
         edited = Changeset.apply_changes(editable.source)
         relational_id = Map.get(edited, association.child.owner_key)
-        item = Enum.filter(all_items, &(Map.get(&1, primary_key) == relational_id)) |> List.first()
+        item = Enum.filter(all_items, &(Map.get(&1, association.child.related_key) == relational_id)) |> List.first()
         item = if is_nil(item), do: %{}, else: item
 
         %{
@@ -257,6 +263,7 @@ defmodule Backpex.Fields.HasManyThrough do
       |> assign(owner_key: association.child.owner_key)
       |> assign(relational_title: relational_title)
       |> assign(association: association)
+      |> assign(errors: field_errors(form[association.pivot.field], assoc_field_options, assigns))
       |> assign_new(:newest_relational, fn -> nil end)
 
     ~H"""
@@ -388,6 +395,9 @@ defmodule Backpex.Fields.HasManyThrough do
           </div>
         </.modal>
 
+        <%!-- The errors of the rows are in their modals. These are the ones of the field, e.g. a record that is no option. --%>
+        <Backpex.HTML.Form.error :for={msg <- @errors} class="mb-4">{msg}</Backpex.HTML.Form.error>
+
         <button
           disabled={@readonly}
           type="button"
@@ -404,6 +414,13 @@ defmodule Backpex.Fields.HasManyThrough do
       </Layout.field_container>
     </div>
     """
+  end
+
+  # A readonly field renders no buttons to add or detach entries, but a crafted client can still send their events.
+  @impl Phoenix.LiveComponent
+  def handle_event(event, _params, %{assigns: %{readonly: true}} = socket)
+      when event in ["new-relational", "detach-relational"] do
+    noreply(socket)
   end
 
   @impl Phoenix.LiveComponent
@@ -428,7 +445,7 @@ defmodule Backpex.Fields.HasManyThrough do
     existing = get_change_or_field(changeset, association.pivot.field)
     {to_delete, rest} = List.pop_at(existing, index)
 
-    primary_key = field_options.live_resource.config(:primary_key)
+    primary_key = pivot_primary_key(association, field_options)
 
     updated =
       if Changeset.change(to_delete).data |> Map.get(primary_key) == nil do
@@ -445,6 +462,12 @@ defmodule Backpex.Fields.HasManyThrough do
     put_assoc(association.pivot.field, updated)
 
     {:noreply, socket}
+  end
+
+  defp field_errors(form_field, field_options, assigns) do
+    translate_error_fun = Backpex.Field.translate_error_fun(field_options, assigns)
+
+    Backpex.HTML.Form.translate_form_errors(form_field.errors, translate_error_fun)
   end
 
   defp action_fields(fields, action) do
@@ -473,6 +496,105 @@ defmodule Backpex.Fields.HasManyThrough do
 
   @impl Backpex.Field
   def association?(_field), do: true
+
+  # The pivot entries come from the client, so the form links only options of the select, or the children the item is
+  # already linked to. The item may stay linked to a child that is no longer an option. The entries reach the changeset
+  # through the params or, when the params have no entries, through the assocs of the form, which the buttons of the
+  # field build from earlier params. `cast_assoc` replaces the entries of the assocs with the ones of the params.
+  @impl Backpex.Field
+  def before_changeset(changeset, attrs, _metadata, repo, {name, field_options} = _field, assigns) do
+    %{pivot: pivot, child: child} = association(assigns.live_resource.adapter_config(:schema), name)
+    linked_ids = changeset.data |> Map.get(pivot.field) |> linked_ids(child.owner_key)
+    assigns = OptionsQuery.put_submitted_form(assigns, changeset, attrs)
+
+    submitted_ids =
+      case Map.fetch(attrs, Atom.to_string(pivot.field)) do
+        {:ok, entries} -> submitted_ids(entries, child.owner_key)
+        :error -> assigns |> Map.get(:assocs, []) |> Keyword.get(pivot.field, []) |> stored_ids(child.owner_key)
+      end
+
+    with {:ok, ids} <- cast_ids(submitted_ids, child.queryable.__schema__(:type, child.related_key)),
+         true <- options?(Enum.uniq(ids) -- linked_ids, child, repo, field_options, assigns) do
+      changeset
+    else
+      # Ecto's message and metadata for a value outside the allowed ones, so the error translation of the app applies.
+      _invalid -> Changeset.add_error(changeset, pivot.field, "is invalid", validation: :inclusion)
+    end
+  end
+
+  defp linked_ids(entries, owner_key) when is_list(entries), do: Enum.map(entries, &Map.get(&1, owner_key))
+  defp linked_ids(_not_loaded, _owner_key), do: []
+
+  # The form sends the pivot entries as a map of indexes to params, a client may send a list.
+  defp submitted_ids(entries, owner_key) when is_map(entries), do: submitted_ids(Map.values(entries), owner_key)
+
+  defp submitted_ids(entries, owner_key) when is_list(entries) do
+    entries
+    |> Enum.filter(&is_map/1)
+    |> Enum.map(&Map.get(&1, Atom.to_string(owner_key)))
+    |> Enum.reject(&(&1 in [nil, ""]))
+  end
+
+  defp submitted_ids(_entries, _owner_key), do: []
+
+  # The entries the buttons put into the assocs: changesets, the linked structs and empty maps for new entries.
+  defp stored_ids(entries, owner_key) do
+    entries
+    |> Enum.reject(&match?(%Changeset{action: action} when action in [:delete, :replace], &1))
+    |> Enum.map(fn
+      %Changeset{} = changeset -> Changeset.get_field(changeset, owner_key)
+      entry -> Map.get(entry, owner_key)
+    end)
+    |> Enum.reject(&(&1 in [nil, ""]))
+  end
+
+  defp cast_ids(ids, type) do
+    Enum.reduce_while(ids, {:ok, []}, fn id, {:ok, acc} ->
+      case Ecto.Type.cast(type, id) do
+        {:ok, id} -> {:cont, {:ok, [id | acc]}}
+        :error -> {:halt, :error}
+      end
+    end)
+  end
+
+  defp options?([], _child, _repo, _field_options, _assigns), do: true
+
+  defp options?(ids, child, repo, field_options, assigns) do
+    %{queryable: queryable, related_key: related_key} = child
+
+    option_ids =
+      queryable
+      |> from()
+      |> maybe_options_query(field_options, assigns)
+      |> OptionsQuery.with_ids(queryable, related_key, ids)
+      |> exclude(:select)
+      |> exclude(:preload)
+      |> select([option], field(option, ^related_key))
+      |> repo.all()
+
+    ids -- option_ids == []
+  end
+
+  # The form submits the entries of the pivot association. An entry keeps only the params of its inputs: the primary
+  # key of the pivot, the select of the related item and the pivot fields.
+  @impl Backpex.Field
+  def param_keys({name, field_options}, assigns) do
+    %{pivot: pivot} = association(assigns.live_resource.adapter_config(:schema), name)
+
+    pivot_keys =
+      field_options
+      |> Map.get(:pivot_fields, [])
+      |> Enum.flat_map(fn {_name, pivot_options} = pivot_field ->
+        pivot_options.module.param_keys(pivot_field, assigns)
+      end)
+
+    entry_keys =
+      [pivot.owner_key | pivot.queryable.__schema__(:primary_key)]
+      |> Enum.map(&Atom.to_string/1)
+      |> Enum.concat(pivot_keys)
+
+    [{Atom.to_string(pivot.field), entry_keys}]
+  end
 
   attr :name, :atom, required: true
   attr :form, :any, required: true
@@ -524,9 +646,19 @@ defmodule Backpex.Fields.HasManyThrough do
       child: %{
         field: child.field,
         queryable: child.queryable,
-        owner_key: child.owner_key
+        owner_key: child.owner_key,
+        related_key: child.related_key
       }
     }
+  end
+
+  # The key that tells whether a pivot item is saved. Pivot schemas with a composite primary key or without one are not
+  # supported: for them the primary key of the child LiveResource is read from the pivot item, as it was for all pivots.
+  defp pivot_primary_key(association, field_options) do
+    case association.pivot.queryable.__schema__(:primary_key) do
+      [primary_key] -> primary_key
+      _other -> field_options.live_resource.config(:primary_key)
+    end
   end
 
   defp editables(form, changeset, association, primary_key) do

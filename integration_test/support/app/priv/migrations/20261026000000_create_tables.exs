@@ -74,6 +74,10 @@ defmodule Backpex.Test.Repo.Migrations.CreateTables do
       timestamps()
     end
 
+    alter table(:products) do
+      add(:featured_short_link_key, references(:short_links, column: :short_key, type: :string))
+    end
+
     create table(:invoices) do
       add(:company, :string, null: false)
       add(:amount, :bigint, null: false)
