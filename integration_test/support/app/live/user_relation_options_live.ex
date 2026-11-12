@@ -1,7 +1,8 @@
 defmodule Backpex.Test.UserRelationOptionsLive do
   @moduledoc """
   A LiveResource of users whose relation fields set the options that `Backpex.Test.UserLive` leaves at their defaults:
-  `display_field_form` of `Backpex.Fields.HasMany` and `sort_by` of `Backpex.Fields.HasManyThrough`.
+  `display_field_form` of `Backpex.Fields.HasMany`, and `sort_by` and an `options_query` that only offers German
+  addresses of `Backpex.Fields.HasManyThrough`.
 
   The `url` child field of `Backpex.Fields.InlineCRUD` is readonly.
   """
@@ -12,6 +13,8 @@ defmodule Backpex.Test.UserRelationOptionsLive do
       update_changeset: &Backpex.Test.User.changeset/3,
       create_changeset: &Backpex.Test.User.changeset/3
     ]
+
+  import Ecto.Query
 
   @impl Backpex.LiveResource
   def layout(_assigns), do: {Backpex.Test.Layouts, :admin}
@@ -40,6 +43,7 @@ defmodule Backpex.Test.UserRelationOptionsLive do
         except: [:index],
         live_resource: Backpex.Test.AddressLive,
         sort_by: [:city],
+        options_query: fn query, _assigns -> where(query, [address], address.country == :de) end,
         pivot_fields: [
           type: %{
             module: Backpex.Fields.Select,
