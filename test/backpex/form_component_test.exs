@@ -6,11 +6,61 @@ defmodule Backpex.FormComponentTest do
   alias Backpex.FormComponentTest.PubSub
   alias Phoenix.LiveView.Socket
 
+  defmodule Membership do
+    use Ecto.Schema
+
+    schema "memberships" do
+      field :role, :string
+      belongs_to :user, Backpex.FormComponentTest.User
+      belongs_to :team, Backpex.FormComponentTest.Team
+    end
+  end
+
+  defmodule Team do
+    use Ecto.Schema
+
+    schema "teams" do
+      field :name, :string
+    end
+  end
+
+  defmodule User do
+    use Ecto.Schema
+
+    schema "users" do
+      has_many :memberships, Membership
+      has_many :teams, through: [:memberships, :team]
+      has_many :former_memberships, Membership
+      has_many :former_teams, through: [:former_memberships, :team]
+    end
+  end
+
+  # An action with a form that reports the params of its changeset to the test.
+  defmodule RenameAction do
+    def fields, do: [title: %{module: Backpex.Fields.Text, label: "Title"}]
+
+    def changeset(item, params, _metadata) do
+      send(self(), {:action_change, params})
+      Ecto.Changeset.cast(item, params, [:title, :role])
+    end
+
+    def handle(socket, data) do
+      send(self(), {:handled, data})
+      {:ok, socket}
+    end
+
+    def handle(socket, _items, data), do: handle(socket, data)
+  end
+
   # A LiveResource whose adapter reports the params of a changeset to the test instead of building one from a schema,
   # and saves an item without a database.
   defmodule ChangeLive do
     def config(:adapter), do: __MODULE__
     def config(:save_and_continue_button?), do: false
+    def config(:primary_key), do: :id
+    def adapter_config(:schema), do: User
+    def fields, do: []
+    def get(id, _fields, _assigns, _live_resource), do: {:ok, %{id: id}}
     def translate({msg, _opts}), do: msg
     def can?(_assigns, _action, _item), do: true
     def singular_name, do: "Item"
@@ -22,8 +72,9 @@ defmodule Backpex.FormComponentTest do
     def on_item_updated(_socket, item), do: send(self(), {:on_item_updated, item})
     def return_to(_socket, _assigns, _live_action, _form_action, _item), do: "/items"
 
-    def change(_item, attrs, _fields, _assigns, _live_resource, _opts) do
+    def change(_item, attrs, _fields, _assigns, _live_resource, opts) do
       send(self(), {:change, attrs})
+      send(self(), {:assocs, Keyword.get(opts, :assocs)})
       Ecto.Changeset.change({%{}, %{title: :string, images: {:array, :string}, docs: {:array, :string}}})
     end
 
@@ -69,6 +120,50 @@ defmodule Backpex.FormComponentTest do
 
       assert FormComponent.handle_event("unknown", %{}, socket) == {:noreply, socket}
       assert FormComponent.handle_event("cancel-entry", %{}, socket) == {:noreply, socket}
+    end
+
+    test "applies only the assocs of the fields the admin may edit" do
+      fields = [
+        tags: %{module: Backpex.Fields.Text, label: "Tags", readonly: true},
+        notes: %{module: Backpex.Fields.Text, label: "Notes"}
+      ]
+
+      # The assocs come from the events of fields, which a crafted client can send for a readonly field too.
+      socket =
+        Phoenix.Component.assign(%Socket{}, %{
+          fields: fields,
+          item: %{},
+          live_resource: ChangeLive,
+          live_action: :edit,
+          removed_uploads: [],
+          assocs: [tags: [%{id: 1}], notes: [%{id: 2}], unknown: [%{id: 3}]]
+        })
+
+      FormComponent.handle_event("validate", %{"change" => %{}, "_target" => ["change", "notes"]}, socket)
+
+      assert_received {:assocs, [notes: [%{id: 2}]]}
+    end
+
+    # The assoc of a `Backpex.Fields.HasManyThrough` field has the key of the pivot association, not of the field.
+    test "applies only the assocs of the HasManyThrough fields the admin may edit" do
+      fields = [
+        teams: %{module: Backpex.Fields.HasManyThrough, label: "Teams"},
+        former_teams: %{module: Backpex.Fields.HasManyThrough, label: "Former teams", readonly: true}
+      ]
+
+      socket =
+        Phoenix.Component.assign(%Socket{}, %{
+          fields: fields,
+          item: %{},
+          live_resource: ChangeLive,
+          live_action: :edit,
+          removed_uploads: [],
+          assocs: [memberships: [%{}], former_memberships: [%{}], teams: [%{}]]
+        })
+
+      FormComponent.handle_event("validate", %{"change" => %{}, "_target" => ["change", "memberships"]}, socket)
+
+      assert_received {:assocs, [memberships: [%{}]]}
     end
 
     test "drops the changes of readonly fields on a save without params" do
@@ -209,6 +304,64 @@ defmodule Backpex.FormComponentTest do
       %Socket{}
       |> Phoenix.Component.assign(fields: [], item: %{}, live_resource: ChangeLive, live_action: live_action)
       |> Phoenix.Component.assign(removed_uploads: [])
+      |> Phoenix.Component.assign(assigns)
+    end
+  end
+
+  # The changesets of the actions cast `role`, which the form of the action has no field for.
+  describe "handle_event/3 of an action" do
+    @forged %{"title" => "New", "role" => "admin"}
+
+    test "validates an item action with the params of its fields only" do
+      socket = action_socket(action_type: :item, action_to_confirm: %{key: :rename, module: RenameAction})
+
+      FormComponent.handle_event("validate", %{"change" => @forged, "_target" => ["change", "title"]}, socket)
+
+      assert_received {:action_change, %{"title" => "New"} = change}
+      refute Map.has_key?(change, "role")
+    end
+
+    test "runs an item action with the params of its fields only" do
+      socket =
+        action_socket(
+          action_type: :item,
+          action_to_confirm: %{key: :rename, module: RenameAction},
+          selected_items: [%{id: 1}]
+        )
+
+      assert {:noreply, _socket} = FormComponent.handle_event("save", %{"change" => @forged}, socket)
+
+      assert_received {:handled, %{title: "New"} = data}
+      refute Map.has_key?(data, :role)
+    end
+
+    test "runs a resource action with the params of its fields only" do
+      socket =
+        action_socket(
+          live_action: :resource_action,
+          resource_action: %{module: RenameAction},
+          resource_action_id: :rename,
+          item: %{}
+        )
+
+      params = %{"change" => @forged, "save-type" => "save"}
+
+      assert {:noreply, _socket} = FormComponent.handle_event("save", params, socket)
+
+      assert_received {:change, change}
+      assert change == %{"title" => "New"}
+    end
+
+    defp action_socket(assigns) do
+      %Socket{}
+      |> Phoenix.Component.assign(
+        fields: RenameAction.fields(),
+        action_item: {%{}, %{title: :string, role: :string}},
+        live_resource: ChangeLive,
+        live_action: :index,
+        return_to: "/items",
+        removed_uploads: []
+      )
       |> Phoenix.Component.assign(assigns)
     end
   end

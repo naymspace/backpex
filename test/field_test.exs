@@ -21,6 +21,49 @@ defmodule Backpex.FieldTest do
     end
   end
 
+  describe "validate_config!/2" do
+    defmodule CustomField do
+      use Backpex.Field, config_schema: [custom_option: [type: :string, default: "custom default"]]
+
+      @impl Backpex.Field
+      def render_value(assigns), do: ~H""
+
+      @impl Backpex.Field
+      def render_form(assigns), do: ~H""
+    end
+
+    test "returns the options with the defaults of the default and the field schema" do
+      validated = CustomField.validate_config!({:name, %{module: CustomField, label: "Name"}}, __MODULE__)
+
+      assert validated[:label] == "Name"
+      assert validated[:readonly] == false
+      assert validated[:custom_option] == "custom default"
+    end
+
+    test "raises a configuration error that names the field and the given owner" do
+      field = {:name, %{module: CustomField, label: "Name", custom_option: 1}}
+
+      error = assert_raise RuntimeError, fn -> CustomField.validate_config!(field, __MODULE__) end
+
+      assert error.message =~ ~s(Configuration error for field "name" in "#{__MODULE__}".)
+      assert error.message =~ "invalid value for :custom_option option"
+    end
+
+    test "an invalid config schema fails when the field module is compiled" do
+      assert_raise ArgumentError, ~r/invalid NimbleOptions schema/, fn ->
+        defmodule InvalidSchemaField do
+          use Backpex.Field, config_schema: [custom_option: [type: :not_a_type]]
+
+          @impl Backpex.Field
+          def render_value(assigns), do: ~H""
+
+          @impl Backpex.Field
+          def render_form(assigns), do: ~H""
+        end
+      end
+    end
+  end
+
   describe "drop_readonly_changes/3" do
     test "readonly fields are correctly filtered from LiveResource fields" do
       fields = UpstreamPrices.fields()
@@ -47,6 +90,77 @@ defmodule Backpex.FieldTest do
       # As admin - secret should remain
       filtered = Field.drop_readonly_changes(change, fields, %{role: :admin})
       assert filtered == %{"name" => "Test", "secret" => "hidden"}
+    end
+  end
+
+  # A field whose form submits rows of nested params, as `Backpex.Fields.InlineCRUD` does.
+  defmodule RowsField do
+    def param_keys({name, _field_options}, _assigns), do: [{Atom.to_string(name), ["id", "label"]}]
+  end
+
+  describe "editable_changes/3" do
+    test "keeps only the keys of a field in its rows of nested params" do
+      fields = [links: %{module: RowsField, label: "Links"}]
+      row = %{"id" => "1", "label" => "Blog", "_unused_label" => "", "url" => "https://forged.example.com"}
+      kept_row = Map.delete(row, "url")
+
+      assert Field.editable_changes(%{"links" => %{"0" => row}, "_unused_links" => ""}, fields, %{}) ==
+               %{"links" => %{"0" => kept_row}, "_unused_links" => ""}
+
+      assert Field.editable_changes(%{"links" => [row]}, fields, %{}) == %{"links" => [kept_row]}
+    end
+
+    test "keeps only the keys of a field in the one row of a single nested object" do
+      fields = [links: %{module: RowsField, label: "Links"}]
+      row = %{"id" => "1", "label" => "Blog", "url" => "https://forged.example.com"}
+
+      assert Field.editable_changes(%{"links" => row}, fields, %{}) == %{"links" => %{"id" => "1", "label" => "Blog"}}
+
+      # A row whose values are all maps is one row as well, unless its keys are the indexes of rows.
+      assert Field.editable_changes(%{"links" => %{"url" => %{"host" => "forged.example.com"}}}, fields, %{}) ==
+               %{"links" => %{}}
+    end
+
+    test "drops the param of the name of an upload field, which the server builds" do
+      fields = [avatar: %{module: Backpex.Fields.Upload, label: "Avatar", upload_key: :avatar}]
+      change = %{"avatar" => "forged.png", "avatar_used_input" => "true"}
+
+      assert Field.editable_changes(change, fields, %{}) == %{"avatar_used_input" => "true"}
+
+      readonly_fields = [avatar: %{module: Backpex.Fields.Upload, upload_key: :avatar, readonly: true}]
+
+      assert Field.drop_readonly_changes(change, readonly_fields, %{}) == %{}
+    end
+
+    test "keeps whether the admin used the upload input of a field with an upload key" do
+      fields = [avatar: %{module: Text, label: "Avatar", upload_key: :avatar}]
+      change = %{"avatar_used_input" => "false", "_unused_avatar" => ""}
+
+      assert Field.editable_changes(change, fields, %{}) == change
+
+      assert Field.drop_readonly_changes(change, [avatar: %{module: Text, readonly: true, upload_key: :avatar}], %{}) ==
+               %{"_unused_avatar" => ""}
+    end
+
+    test "drops the params of readonly fields and of no field" do
+      fields = UpstreamPrices.fields()
+      change = %{"name" => "Backpack", "upstream_price" => "100", "override_price" => "200", "role" => "admin"}
+
+      assert Field.editable_changes(change, fields, %{}) == %{"name" => "Backpack", "override_price" => "200"}
+    end
+
+    test "keeps the unused params of LiveView of the fields" do
+      fields = UpstreamPrices.fields()
+      change = %{"name" => "", "_unused_name" => "", "_unused_role" => ""}
+
+      assert Field.editable_changes(change, fields, %{}) == %{"name" => "", "_unused_name" => ""}
+    end
+
+    test "keeps the params a field submits besides its name" do
+      fields = [tags: %{module: Backpex.Fields.HasMany, label: "Tags"}]
+      change = %{"tags" => ["1"], "tags_select_all" => "", "tags_deselect_all" => "", "tags_other" => ""}
+
+      assert Field.editable_changes(change, fields, %{}) == Map.delete(change, "tags_other")
     end
   end
 
@@ -120,7 +234,7 @@ defmodule Backpex.FieldTest do
     # Only the author with the id 1 is an option.
     def exists?(query) do
       send(self(), {:exists?, query})
-      Enum.any?(query.wheres, &match?([{1, _type}], &1.params))
+      Enum.any?(query.wheres, &match?([{[1], _type}], &1.params))
     end
   end
 

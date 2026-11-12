@@ -21,14 +21,14 @@ defmodule Mix.Tasks.Backpex.Install.Docs do
     ## What this installer does:
 
     - Sets up [Global Configuration](installation.html#global-configuration) by configuring the PubSub server
-    - Adds [Backpex Hooks](installation.html#backpex-hooks) to your app.js or app.ts file (auto-detected)
+    - Adds [Backpex Hooks](installation.html#backpex-hooks-and-connect-params) to your app.js or app.ts file (auto-detected)
     - Installs [daisyUI](installation.html#daisyui) via npm (with your permission)
     - Sets up the [formatter configuration](installation.html#setup-formatter)
     - Adds [Backpex files to Tailwind content](installation.html#add-files-to-tailwind-content)
     - Adds `import Backpex.Router`, `backpex_routes()` and a `live_session` with `Backpex.InitAssigns` to an `/admin` scope in your router
     - Creates a default admin layout
     - Checks for and offers to remove the [default background color](installation.html#remove-default-background-color)
-    - Checks for and offers to remove the [@tailwindcss/forms plugin](installation.html#remove-tailwindcssforms-plugin)
+    - Checks for and offers to remove the [@tailwindcss/forms plugin](installation.html#remove-tailwindcss-forms-plugin)
 
     ## Example
 

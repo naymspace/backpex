@@ -1,7 +1,9 @@
 defmodule Backpex.Test.FieldOptionsSampleLive do
   @moduledoc """
   Samples whose fields use the options every field shares: `default` (text, number and the category, which is looked up
-  by the name "Default Category"), `can?` (email, only on the show and edit views) and `render_form` (textarea).
+  by the name "Default Category"), `can?` (email, only on the show and edit views; boolean, not on the edit view),
+  `only` (url, only on the index and show views), `except` (date, not on the new and edit views) and `render_form`
+  (textarea).
   """
   use Backpex.LiveResource,
     adapter_config: [
@@ -40,6 +42,9 @@ defmodule Backpex.Test.FieldOptionsSampleLive do
         label: "Email",
         can?: fn assigns -> assigns.live_action in [:show, :edit] end
       },
+      boolean: %{module: Backpex.Fields.Boolean, label: "Boolean", can?: fn assigns -> assigns.live_action != :edit end},
+      url: %{module: Backpex.Fields.URL, label: "URL", only: [:index, :show]},
+      date: %{module: Backpex.Fields.Date, label: "Date", except: [:new, :edit]},
       textarea: %{module: Backpex.Fields.Textarea, label: "Textarea", render_form: &render_custom_textarea/1}
     ]
   end
