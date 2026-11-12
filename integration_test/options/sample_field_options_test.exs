@@ -38,6 +38,22 @@ defmodule Backpex.Integration.Options.SampleFieldOptionsTest do
     end
   end
 
+  describe "readonly of Backpex.Fields.BelongsTo" do
+    test "disables the select and keeps the stored value on save", %{conn: conn} do
+      [category, other_category] = insert_pair(:category)
+      sample = insert(:sample, text: "Before", category: category)
+
+      conn
+      |> visit(~p"/admin/sample-field-options/#{sample.id}/edit")
+      |> assert_has("select[name='change[category_id]'][disabled]")
+      # A crafted client can still send a value for the disabled select.
+      |> save(%{text: "After", category_id: other_category.id})
+
+      assert %Sample{text: "After", category_id: category_id} = Repo.get!(Sample, sample.id)
+      assert category_id == category.id
+    end
+  end
+
   describe "external of Backpex.Fields.Upload" do
     test "gives the client the metadata of the presign function", %{conn: conn} do
       conn

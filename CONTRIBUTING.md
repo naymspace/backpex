@@ -189,7 +189,7 @@ We value concise, readable, and high-quality code. While we don't have a formal 
 #### General Guidelines
 
 - Follow the official Elixir Guidelines.
-- Use `mix format` before committing your code.
+- Use `mix format` before committing your code. `MIX_ENV=test mix lint` compiles, formats and runs Credo and the tests. `MIX_ENV=test mix ci` runs `lint` and then the other checks of the CI job `test`: `bun run lint:standard`, `bun run test:js`, `mix gettext.extract --check-up-to-date`, `mix sobelow --config`, `mix docs --warnings-as-errors` and `mix assets.check`. It needs the database of the tests, `bun install`, and compiles the dependencies for `dev` once for `assets.check`.
 - Keep functions small and focused on a single responsibility.
 - Use meaningful variable and function names.
 - Prefer pattern matching in function heads over conditional logic in the function body.

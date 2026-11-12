@@ -38,7 +38,7 @@ In your `mix.exs`:
 defp deps do
   [
     ...
-    {:backpex, "~> 0.19"}
+    {:backpex, "~> 0.23"}
   ]
 end
 ```

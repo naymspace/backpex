@@ -32,5 +32,6 @@ defmodule Backpex.Test.Sample do
     sample
     |> cast(attrs, @fields)
     |> validate_required([:text])
+    |> validate_format(:email, ~r/@/)
   end
 end

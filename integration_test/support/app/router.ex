@@ -35,6 +35,7 @@ defmodule Backpex.Test.Router do
       live_resources "/notes", Backpex.Test.NoteLive
       live_resources "/post-relation-options", Backpex.Test.PostRelationOptionsLive
       live_resources "/user-relation-options", Backpex.Test.UserRelationOptionsLive
+      live_resources "/product-short-links", Backpex.Test.ProductShortLinksLive, except: [:new]
       live_resources "/sample-field-options", Backpex.Test.SampleFieldOptionsLive
       live_resources "/recording-notes", Backpex.Test.RecordingNoteLive
       live_resources "/paged-notes", Backpex.Test.PagedNoteLive
@@ -45,6 +46,7 @@ defmodule Backpex.Test.Router do
       live_resources "/order-nulls-smallest-users", Backpex.Test.OrderNullsSmallestUserLive
       live_resources "/field-options-samples", Backpex.Test.FieldOptionsSampleLive
       live_resources "/display-options-samples", Backpex.Test.DisplayOptionsSampleLive
+      live_resources "/index-edit-samples", Backpex.Test.IndexEditSampleLive
       live_resources "/fluid-notes", Backpex.Test.FluidNoteLive
       live_resources "/on-mount-module-notes", Backpex.Test.OnMountModuleNoteLive
       live_resources "/on-mount-tuple-notes", Backpex.Test.OnMountTupleNoteLive
