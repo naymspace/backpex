@@ -82,7 +82,7 @@ export default {
       const target = this.focusedBeforeUpdate.isConnected
         ? this.focusedBeforeUpdate
         : this.focusedBeforeUpdate.id && this.el.querySelector(`#${this.focusedBeforeUpdate.id}`)
-      target?.focus()
+      if (target) target.focus()
     }
     this.focusedBeforeUpdate = null
   },

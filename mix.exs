@@ -1,11 +1,17 @@
 defmodule Backpex.MixProject do
   use Mix.Project
 
-  @version "0.23.0"
+  @version "0.24.0"
 
   @source_url "https://github.com/naymspace/backpex"
   @changelog_url "https://github.com/naymspace/backpex/releases"
   @website_url "https://backpex.live"
+
+  # The integration tests in `integration_test` run the LiveResources of a test app against PostgreSQL and in a browser.
+  # Their dependencies need Elixir 1.19, so older versions of Elixir only run the unit tests in `test`.
+  # `INTEGRATION_TESTS=false` leaves them out on any version, with their dependencies and support code. CI runs them
+  # once, on the latest Elixir, and sets it for the other versions.
+  @integration_tests Version.match?(System.version(), ">= 1.19.0") and System.get_env("INTEGRATION_TESTS") != "false"
 
   def project do
     [
@@ -13,11 +19,14 @@ defmodule Backpex.MixProject do
       version: @version,
       elixir: "~> 1.16",
       elixirc_paths: elixirc_paths(Mix.env()),
+      test_paths: test_paths(),
       compilers: [:phoenix_live_view] ++ Mix.compilers(),
       start_permanent: Mix.env() == :prod,
       deps: deps(),
       aliases: aliases(),
       gettext: gettext(),
+      test_coverage: test_coverage(),
+      usage_rules: usage_rules(),
 
       # Hex.pm
       hex: [cooldown: "3d"],
@@ -32,8 +41,36 @@ defmodule Backpex.MixProject do
     ]
   end
 
-  defp elixirc_paths(:test), do: ["lib", "test/support"]
+  defp test_paths do
+    if @integration_tests, do: ["test", "integration_test"], else: ["test"]
+  end
+
+  defp elixirc_paths(:test) do
+    if @integration_tests, do: ["lib", "test/support", "integration_test/support"], else: ["lib", "test/support"]
+  end
+
   defp elixirc_paths(_), do: ["lib"]
+
+  # The threshold is the floor of the merged coverage of the unit and browser tests in CI. Raise it when coverage grows.
+  defp test_coverage do
+    [
+      summary: [threshold: 90],
+      ignore_modules: [~r/^Backpex\.(Test\.|ConnCase|DataCase|E2ECase)/]
+    ]
+  end
+
+  # `mix usage_rules.sync` links the rules of these packages at the end of CODING_STANDARDS.md. It only sees dev
+  # dependencies, so CODING_STANDARDS.md links the rules of the test-only `phoenix_test_playwright` by hand.
+  defp usage_rules do
+    [
+      file: "CODING_STANDARDS.md",
+      usage_rules: [
+        {:phoenix, link: :markdown, except: [:elixir]},
+        {:igniter, link: :markdown},
+        {:sobelow, link: :markdown}
+      ]
+    ]
+  end
 
   defp deps do
     [
@@ -46,9 +83,9 @@ defmodule Backpex.MixProject do
       {:sobelow, ">= 0.0.0", only: [:dev, :test]},
       {:lazy_html, ">= 0.0.0", only: :test},
       {:phx_new, "~> 1.8", only: :test, runtime: false},
-      {:esbuild, "~> 0.2", only: :dev},
+      {:esbuild, "~> 0.10", only: :dev},
       {:quokka, "~> 2.9", only: [:dev, :test], runtime: false},
-      {:usage_rules, "~> 0.1", only: [:dev]},
+      {:usage_rules, "~> 1.3", only: [:dev]},
 
       # core
       {:nimble_options, "~> 1.1"},
@@ -68,12 +105,28 @@ defmodule Backpex.MixProject do
       # generators
       {:igniter, "~> 0.8", optional: true},
       {:igniter_js, "~> 0.5", optional: true}
-    ]
+    ] ++ integration_test_deps()
+  end
+
+  defp integration_test_deps do
+    if @integration_tests do
+      [
+        {:ecto_sql, "~> 3.10", only: :test},
+        {:bandit, "~> 1.14", only: :test},
+        {:phoenix_test, "~> 0.13.0", only: :test, runtime: false},
+        {:phoenix_test_playwright, "~> 0.19.0", only: :test, runtime: false},
+        {:a11y_audit, "~> 0.5.0", only: :test},
+        {:ex_machina, "~> 2.8", only: :test},
+        {:money, "~> 1.14", only: :test}
+      ]
+    else
+      []
+    end
   end
 
   defp package do
     [
-      files: ~w(assets/js package.json lib priv .formatter.exs mix.exs README.md LICENSE.md),
+      files: ~w(assets/js package.json lib priv .formatter.exs mix.exs README.md LICENSE.md usage-rules.md),
       maintainers: ["Florian Arens", "Phil-Bastian Berndt", "Simon Hansen"],
       licenses: ["MIT"],
       links: %{
@@ -86,13 +139,35 @@ defmodule Backpex.MixProject do
 
   defp aliases do
     [
-      lint: ["compile --warning-as-errors", "deps.unlock --unused", "format", "credo", "test"],
+      lint: lint(),
+      ci: ci(),
       "assets.build": [
         "esbuild module",
         "esbuild main"
       ],
       "assets.watch": "esbuild module --watch",
       "assets.check": ["assets.build", "cmd ./scripts/check_assets.sh"]
+    ]
+  end
+
+  # Without the integration tests, the lock still holds their dependencies, which `deps.unlock --unused` would remove.
+  defp lint do
+    unlock_unused = if @integration_tests, do: ["deps.unlock --unused"], else: []
+
+    ["compile --warnings-as-errors"] ++ unlock_unused ++ ["format", "credo", "test"]
+  end
+
+  # The checks of the CI job `test` that `lint` leaves out, cheap ones first. `assets.check` needs `esbuild`, which only
+  # the `dev` environment has, so it runs in a `dev` subprocess; the first run compiles the dependencies for `dev`.
+  defp ci do
+    [
+      "lint",
+      "cmd bun run lint:standard",
+      "cmd bun run test:js",
+      "gettext.extract --check-up-to-date",
+      "sobelow --config",
+      "docs --warnings-as-errors",
+      "cmd env MIX_ENV=dev mix assets.check"
     ]
   end
 
@@ -156,6 +231,7 @@ defmodule Backpex.MixProject do
       "guides/live_resource/hooks.md",
       "guides/live_resource/navigation.md",
       "guides/live_resource/panels.md",
+      "guides/live_resource/metrics.md",
       "guides/live_resource/fluid-layout.md",
       "guides/live_resource/listen-to-pubsub-events.md",
       "guides/live_resource/additional-classes-for-index-table-rows.md",
@@ -200,6 +276,7 @@ defmodule Backpex.MixProject do
       "guides/translations/translations.md",
 
       # Upgrade Guides
+      "guides/upgrading/v0.24.md",
       "guides/upgrading/v0.23.md",
       "guides/upgrading/v0.22.md",
       "guides/upgrading/v0.21.md",
@@ -236,7 +313,7 @@ defmodule Backpex.MixProject do
       Actions: ~r/guides\/actions\/.?/,
       Authorization: ~r/guides\/authorization\/.?/,
       Searching: ~r/guides\/searching\/.?/,
-      "Custom Labels and Translations": ~r/guides\/custom_labels_and_translations\/.?/,
+      Translations: ~r/guides\/translations\/.?/,
       "Upgrade Guides": ~r{guides/upgrading/.*}
     ]
   end
@@ -249,7 +326,8 @@ defmodule Backpex.MixProject do
       Actions: ~r/Backpex\.(ItemAction|ResourceAction).?/,
       Filters: ~r/Backpex\.Filter.?/,
       Metrics: ~r/Backpex\.Metric.?/,
-      Preferences: ~r/Backpex\.Preferences.*/
+      Preferences: ~r/Backpex\.Preferences.*/,
+      Testing: ~r/Backpex\.Testing/
     ]
   end
 

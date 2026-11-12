@@ -223,4 +223,14 @@ describe('BackpexDropdown', () => {
     expect(isOpen(root)).toBe(false)
     expect(document.activeElement).toBe(newTrigger)
   })
+
+  test('skips restoring focus to an element without id that a patch removed', () => {
+    const { root, trigger } = editableDropdown()
+    const hook = mountHook(root)
+    const option = new FakeElement('')
+    root.children = [trigger, new FakeElement('dd-menu', [option])]
+    option.focus()
+
+    expect(() => patch(hook, [trigger, new FakeElement('dd-menu')])).not.toThrow()
+  })
 })

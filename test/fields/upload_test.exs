@@ -235,6 +235,32 @@ defmodule Backpex.Fields.UploadTest do
       end
     end
 
+    test "labels the files with file_label", %{field_options: field_options, socket: socket} do
+      field_options = Map.put(field_options, :file_label, &String.upcase/1)
+      socket = Upload.assign_uploads({:images, field_options}, socket)
+
+      assert socket.assigns.uploaded_files == [images: [{"old.png", "OLD.PNG"}]]
+
+      html = render_assigned_form(socket, field_options, false)
+
+      assert html =~ ~s(aria-label="Remove OLD.PNG")
+      refute html =~ ~s(aria-label="Remove old.png")
+    end
+
+    test "configures an external upload with the external function", %{field_options: field_options, socket: socket} do
+      presign_upload = fn _entry, socket -> {:ok, %{uploader: "S3"}, socket} end
+
+      socket = Upload.assign_uploads({:images, Map.put(field_options, :external, presign_upload)}, socket)
+
+      assert socket.assigns.uploads.images.external == presign_upload
+    end
+
+    test "configures an upload to the LiveView without external", %{field_options: field_options, socket: socket} do
+      socket = Upload.assign_uploads({:images, field_options}, socket)
+
+      assert socket.assigns.uploads.images.external == false
+    end
+
     test "lists the files of a readonly field once on each update", %{field_options: field_options, socket: socket} do
       field = {:images, Map.put(field_options, :readonly, true)}
 
@@ -270,6 +296,25 @@ defmodule Backpex.Fields.UploadTest do
         refute html =~ "phx-drop-target"
         refute html =~ "cancel-existing-entry"
       end
+    end
+  end
+
+  describe "render_value/1" do
+    test "labels the files with file_label" do
+      field_options = %{module: Upload, list_existing_files: & &1.images, file_label: &String.upcase/1}
+
+      html = render_component(&Upload.render_value/1, field: {:images, field_options}, item: %{images: ["old.png"]})
+
+      assert html =~ "OLD.PNG"
+      refute html =~ "old.png"
+    end
+
+    test "shows the file names without file_label" do
+      field_options = %{module: Upload, list_existing_files: & &1.images}
+
+      html = render_component(&Upload.render_value/1, field: {:images, field_options}, item: %{images: ["old.png"]})
+
+      assert html =~ "old.png"
     end
   end
 

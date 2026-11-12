@@ -54,7 +54,8 @@ retain their error colors.
 Text-like inputs keep native `readonly` behavior: they remain keyboard-focusable,
 retain a visible focus outline, and allow text selection and copying. Controls that
 cannot use native `readonly` remain disabled or render as non-interactive groups.
-The visual treatment does not change which values are submitted with the form.
+The visual treatment does not change which values are submitted with the form, but Backpex drops the params of a
+readonly field on save, so a crafted client can't change its value either.
 
 ## Configuration
 
