@@ -7,6 +7,7 @@ defmodule Backpex.E2E.A11yTest do
     {"/admin/users", :user, :id, [:index, :new, :show, :edit]},
     {"/admin/addresses", :address, :id, [:index, :new, :show, :edit]},
     {"/admin/products", :product, :id, [:index, :new, :show, :edit]},
+    {"/admin/product-short-links", :product, :id, [:index, :show, :edit]},
     {"/admin/invoices", :invoice, :id, [:index]},
     {"/admin/film-reviews", :film_review, :id, [:index, :new, :show, :edit]},
     {"/admin/short-links", :short_link, :short_key, [:index, :new, :show, :edit]},

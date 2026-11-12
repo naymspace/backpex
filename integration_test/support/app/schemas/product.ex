@@ -18,6 +18,11 @@ defmodule Backpex.Test.Product do
 
     has_many :short_links, ShortLink, on_replace: :delete, on_delete: :delete_all
 
+    belongs_to :featured_short_link, ShortLink,
+      foreign_key: :featured_short_link_key,
+      references: :short_key,
+      type: :string
+
     timestamps()
   end
 
@@ -33,5 +38,14 @@ defmodule Backpex.Test.Product do
       drop_param: :short_links_delete
     )
     |> validate_required(@required_fields)
+  end
+
+  @doc """
+  The changeset of `Backpex.Test.ProductShortLinksLive`, whose relation fields put the short links themselves.
+  """
+  def relations_changeset(product, attrs, _metadata \\ []) do
+    product
+    |> cast(attrs, [:name, :featured_short_link_key])
+    |> validate_required([:name])
   end
 end

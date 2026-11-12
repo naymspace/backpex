@@ -8,6 +8,7 @@ defmodule Backpex.Integration.Index.IndexEditTest do
 
   alias Backpex.Fields.BelongsTo
   alias Backpex.Test.Post
+  alias Backpex.Test.Product
   alias Backpex.Test.Sample
   alias Backpex.Test.User
 
@@ -288,6 +289,52 @@ defmodule Backpex.Integration.Index.IndexEditTest do
       session
       |> assert_has("#index-form-user-#{post.id} option[selected]", count: 1)
       |> assert_has("#index-form-user-#{post.id} option[selected][value='#{other_user.id}']")
+    end
+  end
+
+  # The featured short link of `Backpex.Test.ProductShortLinksLive` is an index editable BelongsTo field of
+  # `Backpex.Test.ShortLink`, whose key is `short_key`.
+  describe "index editable belongs to field of a related schema whose key is not id" do
+    setup do
+      link = insert(:short_link, short_key: "docs", url: "https://docs.example.com/")
+      insert(:short_link, short_key: "blog", url: "https://blog.example.com/")
+
+      %{product: insert(:product, featured_short_link: link)}
+    end
+
+    test "renders the keys as option values, saves the change and shows the updated item", context do
+      %{conn: conn, product: product} = context
+      form = "#index-form-featured_short_link-#{product.id}"
+
+      session =
+        conn
+        |> visit(~p"/admin/product-short-links")
+        |> assert_has("#{form} option[selected][value='docs']")
+        |> select("#index-form-input-featured_short_link-#{product.id}", "Featured Short Link",
+          option: "https://blog.example.com/"
+        )
+
+      assert Repo.get!(Product, product.id).featured_short_link_key == "blog"
+
+      session
+      |> assert_has("#{form} option[selected]", count: 1)
+      |> assert_has("#{form} option[selected][value='blog']")
+    end
+
+    test "saves an option and refuses a value that is not an option" do
+      field_options = %{
+        module: BelongsTo,
+        label: "Featured Short Link",
+        display_field: :url,
+        options_query: fn query, _assigns -> where(query, [link], link.short_key != "docs") end
+      }
+
+      field = {:featured_short_link, field_options}
+      assigns = %{live_resource: Backpex.Test.ProductShortLinksLive, field_options: field_options}
+
+      assert BelongsTo.index_editable_change(field, "blog", assigns) == %{featured_short_link_key: "blog"}
+      assert BelongsTo.index_editable_change(field, "docs", assigns) == :error
+      assert BelongsTo.index_editable_change(field, "unknown", assigns) == :error
     end
   end
 
