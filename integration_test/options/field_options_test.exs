@@ -84,6 +84,16 @@ defmodule Backpex.Integration.Options.FieldOptionsTest do
 
       assert %Sample{email: nil} = Repo.get_by!(Sample, text: "New")
     end
+
+    # The boolean field has a `can?` that is false on the edit view.
+    test "saves no value a crafted client sends for the field on the edit form", %{conn: conn, sample: sample} do
+      conn
+      |> visit(~p"/admin/field-options-samples/#{sample.id}/edit")
+      |> refute_has("input[name='change[boolean]']")
+      |> save(%{text: "After", boolean: "true"})
+
+      assert %Sample{text: "After", boolean: false} = Repo.get!(Sample, sample.id)
+    end
   end
 
   describe "only" do
@@ -97,6 +107,20 @@ defmodule Backpex.Integration.Options.FieldOptionsTest do
       |> save(%{text: "After", url: "https://forged.example.com"})
 
       assert %Sample{text: "After", url: "https://example.com"} = Repo.get!(Sample, sample.id)
+    end
+  end
+
+  describe "except" do
+    # The date field has `except: [:new, :edit]`.
+    test "saves no value a crafted client sends for the field on the edit form", %{conn: conn} do
+      sample = insert(:sample, text: "Before", date: ~D[2024-01-01])
+
+      conn
+      |> visit(~p"/admin/field-options-samples/#{sample.id}/edit")
+      |> refute_has("input[name='change[date]']")
+      |> save(%{text: "After", date: "2030-12-31"})
+
+      assert %Sample{text: "After", date: ~D[2024-01-01]} = Repo.get!(Sample, sample.id)
     end
   end
 

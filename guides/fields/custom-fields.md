@@ -70,14 +70,21 @@ end
 
 If the form of the field submits rows of nested params, e.g. through `inputs_for`, return `{key, keys}` for them. The
 form then keeps only the given keys in each row, as `Backpex.Fields.InlineCRUD` does for the child fields an admin may
-edit:
+edit. The param may be a list of rows, a map of indexes to rows, or the one row of a single nested object
+(`embeds_one`, `has_one`).
 
 ```elixir
 @impl Backpex.Field
 def param_keys({name, _field_options}, _assigns) do
-  [{Atom.to_string(name), ["id", "street", "city"]}]
+  name = Atom.to_string(name)
+
+  [{name, ["id", "_persistent_id", "street", "city"]}, name <> "_order", name <> "_delete"]
 end
 ```
+
+`inputs_for` submits the primary key and `_persistent_id` with each row, so return both. The example also returns the
+params of the `:sort_param` and `:drop_param` of `Ecto.Changeset.cast_assoc/3` and `Ecto.Changeset.cast_embed/3`,
+here `<name>_order` and `<name>_delete`: leave them out if the form doesn't submit them.
 
 A field with an `upload_key` keeps the hidden input of the upload UI without returning it.
 

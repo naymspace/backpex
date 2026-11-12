@@ -110,6 +110,28 @@ defmodule Backpex.FieldTest do
       assert Field.editable_changes(%{"links" => [row]}, fields, %{}) == %{"links" => [kept_row]}
     end
 
+    test "keeps only the keys of a field in the one row of a single nested object" do
+      fields = [links: %{module: RowsField, label: "Links"}]
+      row = %{"id" => "1", "label" => "Blog", "url" => "https://forged.example.com"}
+
+      assert Field.editable_changes(%{"links" => row}, fields, %{}) == %{"links" => %{"id" => "1", "label" => "Blog"}}
+
+      # A row whose values are all maps is one row as well, unless its keys are the indexes of rows.
+      assert Field.editable_changes(%{"links" => %{"url" => %{"host" => "forged.example.com"}}}, fields, %{}) ==
+               %{"links" => %{}}
+    end
+
+    test "drops the param of the name of an upload field, which the server builds" do
+      fields = [avatar: %{module: Backpex.Fields.Upload, label: "Avatar", upload_key: :avatar}]
+      change = %{"avatar" => "forged.png", "avatar_used_input" => "true"}
+
+      assert Field.editable_changes(change, fields, %{}) == %{"avatar_used_input" => "true"}
+
+      readonly_fields = [avatar: %{module: Backpex.Fields.Upload, upload_key: :avatar, readonly: true}]
+
+      assert Field.drop_readonly_changes(change, readonly_fields, %{}) == %{}
+    end
+
     test "keeps whether the admin used the upload input of a field with an upload key" do
       fields = [avatar: %{module: Text, label: "Avatar", upload_key: :avatar}]
       change = %{"avatar_used_input" => "false", "_unused_avatar" => ""}

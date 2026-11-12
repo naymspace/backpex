@@ -131,8 +131,26 @@ defmodule Backpex.Fields.HasManyThroughTest do
     def translate(msg), do: UntranslatedLive.translate(msg)
   end
 
-  # The invalid pivot gets no `note` param, so its input counts as unused and shows no error text. Rendering an error
-  # text would print a warning about the missing `:error_translator_function` configuration.
+  describe "param_keys/2" do
+    test "returns the pivot association with the keys of the inputs of an entry" do
+      field = {:children, %{pivot_fields: [note: %{module: Backpex.Fields.Text, label: "Note"}]}}
+
+      assert HasManyThrough.param_keys(field, %{live_resource: ParentLive}) == [{"pivots", ["child_id", "id", "note"]}]
+
+      assert HasManyThrough.param_keys({:children, %{}}, %{live_resource: ParentLive}) == [
+               {"pivots", ["child_id", "id"]}
+             ]
+    end
+
+    test "lets no other column of the pivot through the form" do
+      fields = [children: %{module: HasManyThrough, pivot_fields: [note: %{module: Backpex.Fields.Text}]}]
+      entry = %{"id" => "1", "child_id" => "2", "note" => "Blue", "parent_id" => "9"}
+
+      assert Backpex.Field.editable_changes(%{"pivots" => %{"0" => entry}}, fields, %{live_resource: ParentLive}) ==
+               %{"pivots" => %{"0" => Map.delete(entry, "parent_id")}}
+    end
+  end
+
   describe "handle_event/3" do
     test "ignores the buttons of a readonly field" do
       socket = %Socket{assigns: %{__changed__: %{}, readonly: true}}
@@ -145,6 +163,8 @@ defmodule Backpex.Fields.HasManyThroughTest do
     end
   end
 
+  # The invalid pivot gets no `note` param, so its input counts as unused and shows no error text. Rendering an error
+  # text would print a warning about the missing `:error_translator_function` configuration.
   describe "render_form/1" do
     test "marks the invalid relation when the rows are sorted" do
       # Zulu is attached first and valid, Alpha second and invalid; sorted by name, Alpha comes first.

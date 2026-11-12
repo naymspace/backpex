@@ -481,12 +481,25 @@ defmodule Backpex.Fields.HasManyThrough do
   @impl Backpex.Field
   def association?(_field), do: true
 
-  # The form submits the entries of the pivot association.
+  # The form submits the entries of the pivot association. An entry keeps only the params of its inputs: the primary
+  # key of the pivot, the select of the related item and the pivot fields.
   @impl Backpex.Field
-  def param_keys({name, _field_options}, assigns) do
-    %{pivot: %{field: pivot_field}} = association(assigns.live_resource.adapter_config(:schema), name)
+  def param_keys({name, field_options}, assigns) do
+    %{pivot: pivot} = association(assigns.live_resource.adapter_config(:schema), name)
 
-    [Atom.to_string(pivot_field)]
+    pivot_keys =
+      field_options
+      |> Map.get(:pivot_fields, [])
+      |> Enum.flat_map(fn {_name, pivot_options} = pivot_field ->
+        pivot_options.module.param_keys(pivot_field, assigns)
+      end)
+
+    entry_keys =
+      [pivot.owner_key | pivot.queryable.__schema__(:primary_key)]
+      |> Enum.map(&Atom.to_string/1)
+      |> Enum.concat(pivot_keys)
+
+    [{Atom.to_string(pivot.field), entry_keys}]
   end
 
   attr :name, :atom, required: true

@@ -32,5 +32,12 @@ The above example will show the `inserted_at` field only in the show view.
 
 The form passes only the params of the fields an admin may edit to the changeset: the fields of the current view that
 `can?` allows and that are not readonly. Backpex drops the params of every other field, also of the fields that `only`
-and `except` leave out of the view, so a crafted client can't change a value through a field the admin doesn't see.
+and `except` leave out of the view, so a crafted client can't change a value through a field that `can?`, `only`,
+`except` or `readonly` keeps from the admin.
+
+> #### Warning {: .warning}
+>
+> The `visible` option is no access control: it only hides the input, and the form still saves a value that a crafted
+> client sends for the field. Use `can?` or `readonly` to keep an admin from changing a field.
+
 A field that submits params under other names than its own returns them from `c:Backpex.Field.param_keys/2`.

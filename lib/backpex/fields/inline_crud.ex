@@ -97,6 +97,12 @@ defmodule Backpex.Fields.InlineCRUD do
   When the field is readonly, each nested row's child fields render as readonly, the per-row delete
   button is hidden entirely, and the add-row control is hidden entirely. See the
   [readonly](/guides/fields/readonly.md) guide for details.
+
+  A child field can be readonly on its own, and the form drops the params of a readonly child field and of one its
+  `can?` hides. For this decision, `readonly` and `can?` of a child field get the assigns of the whole form once, not
+  the assigns of a row. A function that decides by the row (`assigns.form` is the form of the row while the child
+  field renders) can show a row as readonly whose params are still saved, so decide by assigns that are the same for
+  every row.
   """
   use Backpex.Field, config_schema: @config_schema
 
@@ -299,17 +305,26 @@ defmodule Backpex.Fields.InlineCRUD do
       |> Enum.reject(fn {_name, child_options} -> Backpex.Field.readonly?(child_options, assigns) end)
       |> Enum.flat_map(fn {_name, child_options} = child -> child_options.module.param_keys(child, assigns) end)
 
-    primary_keys =
-      field_options
-      |> child_schema(assigns.live_resource.adapter_config(:schema), name)
-      |> then(& &1.__schema__(:primary_key))
-      |> Enum.map(&Atom.to_string/1)
-
-    ["_persistent_id" | primary_keys] ++ child_keys
+    ["_persistent_id" | primary_keys(assigns, name)] ++ child_keys
   end
 
-  defp child_schema(%{type: :embed}, schema, name), do: schema.__schema__(:embed, name).related
-  defp child_schema(%{type: :assoc}, schema, name), do: schema.__schema__(:association, name).related
+  # The schema of the rows comes from the changeset of the form, as the form of a resource action or an item action
+  # works on the `base_schema/1` of the action, not on the schema of the LiveResource.
+  defp primary_keys(%{changeset: %Ecto.Changeset{types: types}}, name) do
+    case Map.get(types, name) do
+      {tag, %{related: related}} when tag in [:embed, :assoc] -> related_primary_keys(related)
+      {:parameterized, {Ecto.Embedded, %{related: related}}} -> related_primary_keys(related)
+      _type -> []
+    end
+  end
+
+  defp primary_keys(_assigns, _name), do: []
+
+  defp related_primary_keys(related) do
+    :primary_key
+    |> related.__schema__()
+    |> Enum.map(&Atom.to_string/1)
+  end
 
   @impl Backpex.Field
   def schema({name, _field_options}, schema) do
