@@ -4,6 +4,7 @@ defmodule Backpex.Preferences.Adapters.SessionTest do
   alias Backpex.Preferences.Adapters.Session
   alias Backpex.Preferences.Context
   alias Backpex.Preferences.Keys
+  alias Plug.Session.COOKIE
 
   describe "client_namespace/2" do
     test "uses the Phoenix session namespace independently of application scope" do
@@ -143,6 +144,76 @@ defmodule Backpex.Preferences.Adapters.SessionTest do
 
       assert ExUnit.CaptureLog.with_log(fn -> Session.put(ctx, Keys.theme(), "dark", max_bytes: 16) end)
              |> elem(0) == {:error, :too_large}
+    end
+  end
+
+  describe "put/4 size budget against the real cookie store" do
+    # What a `phx.gen.auth` app keeps in the session next to Backpex's subtree.
+    @host_session %{
+      "_csrf_token" => String.duplicate("c", 24),
+      "user_token" => :binary.copy(<<0xAB>>, 32)
+    }
+
+    @secret_key_base String.duplicate("s", 64)
+    @sixty_days 60 * 24 * 60 * 60
+
+    # Production-like `Plug.Session` options: a typical endpoint key plus the
+    # attributes that lengthen the `Set-Cookie` header.
+    @cookie_options [
+      [key: "_my_app_web_key", signing_salt: "signing1", same_site: "Lax", secure: true, max_age: @sixty_days],
+      [
+        key: "_my_app_web_key",
+        signing_salt: "signing1",
+        encryption_salt: "encrypt1",
+        same_site: "Lax",
+        secure: true,
+        max_age: @sixty_days
+      ],
+      [
+        key: "_my_app_web_key",
+        signing_salt: "signing1",
+        same_site: "Lax",
+        secure: true,
+        max_age: @sixty_days,
+        domain: "admin.example.com"
+      ]
+    ]
+
+    test "the largest accepted write still fits in the Set-Cookie header Plug sends" do
+      ctx = %{Context.from_mount(@host_session) | source: :controller}
+      {:put_session, key, value} = largest_accepted_write(ctx)
+      session = Map.put(@host_session, key, value)
+
+      for opts <- @cookie_options do
+        header = set_cookie_header(session, opts)
+
+        assert byte_size(header) <= 4096,
+               "#{byte_size(header)} byte Set-Cookie header with #{inspect(Keyword.delete(opts, :signing_salt))}"
+      end
+    end
+
+    defp largest_accepted_write(ctx) do
+      ExUnit.CaptureLog.with_log(fn -> largest_accepted_write(ctx, 0, 4096, nil) end) |> elem(0)
+    end
+
+    # Binary search for the longest value `put/4` still accepts.
+    defp largest_accepted_write(_ctx, low, high, best) when low > high, do: best
+
+    defp largest_accepted_write(ctx, low, high, best) do
+      size = div(low + high, 2)
+
+      case Session.put(ctx, Keys.theme(), String.duplicate("x", size), []) do
+        {:ok, effect} -> largest_accepted_write(ctx, size + 1, high, effect)
+        {:error, :too_large} -> largest_accepted_write(ctx, low, size - 1, best)
+      end
+    end
+
+    defp set_cookie_header(session, opts) do
+      store_opts = opts |> Keyword.take([:signing_salt, :encryption_salt]) |> COOKIE.init()
+      value = COOKIE.put(%Plug.Conn{secret_key_base: @secret_key_base}, nil, session, store_opts)
+      cookie_opts = opts |> Keyword.take([:same_site, :secure, :max_age, :domain]) |> Map.new()
+
+      Plug.Conn.Cookies.encode(opts[:key], Map.put(cookie_opts, :value, value))
     end
   end
 end

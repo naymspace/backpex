@@ -98,6 +98,42 @@ defmodule Backpex.HTML.LayoutTest do
       assert length(Regex.scan(~r/phx-hook="BackpexDropdown"/, html)) == 1
       assert length(Regex.scan(~r/phx-hook="BackpexThemeSelector"/, html)) == 1
     end
+
+    test "keeps the theme radios keyboard focusable" do
+      # Regression: the radios carried Tailwind's `hidden` (display: none),
+      # which removed them from the tab order and the accessibility tree, so
+      # keyboard and screen reader users could not pick a theme.
+      html =
+        render_component(&Layout.theme_selector/1,
+          current_theme: "dark",
+          label: "Theme",
+          themes: [{"Light", "light"}, {"Dark", "dark"}]
+        )
+
+      radios = Regex.scan(~r/<input[^>]*type="radio"[^>]*>/, html) |> List.flatten()
+
+      assert length(radios) == 2
+
+      # The radios form one named group for assistive technology.
+      assert html =~
+               ~r/<form\s+id="backpex-theme-selector-form"[^>]*>\s*<ul\s+role="radiogroup"\s+aria-label="Theme"/
+
+      # The list items step out of the way so the radios belong to the group.
+      assert length(Regex.scan(~r/<li\s+role="none"/, html)) == 2
+
+      for radio <- radios do
+        assert radio =~ ~r/name="theme-selector"/
+        assert radio =~ ~r/class="[^"]*\bsr-only\b[^"]*"/
+        refute radio =~ ~r/class="[^"]*\bhidden\b[^"]*"/
+        refute radio =~ ~r/tabindex="-1"/
+      end
+
+      assert Enum.any?(radios, &(&1 =~ ~r/value="dark"/ and &1 =~ ~r/\schecked/))
+
+      # The visually hidden radio is wrapped by its label, which shows the
+      # keyboard focus instead.
+      assert html =~ ~r/<label[^>]*class="[^"]*has-focus-visible:outline[^"]*"[^>]*>\s*<input[^>]*value="light"/
+    end
   end
 
   describe "preferences_root/1" do
@@ -241,6 +277,25 @@ defmodule Backpex.HTML.LayoutTest do
 
       assert html =~ ~r/<li data-sidebar-item>/
     end
+  end
+
+  describe "modal/1" do
+    test "gives the close button an accessible name" do
+      # The close button only contains an aria-hidden icon and receives the
+      # focus when the modal opens, so it needs the label as its name.
+      assert close_button_label(id: "test-modal") == ["Close modal"]
+      assert close_button_label(id: "test-modal", close_label: "Modal schließen") == ["Modal schließen"]
+    end
+  end
+
+  defp close_button_label(attrs) do
+    inner_block = [%{__slot__: :inner_block, inner_block: fn _assigns, _arg -> "Content" end}]
+
+    (&Layout.modal/1)
+    |> render_component(Keyword.put(attrs, :inner_block, inner_block))
+    |> LazyHTML.from_fragment()
+    |> LazyHTML.query("#test-modal-box button[type=button]")
+    |> LazyHTML.attribute("aria-label")
   end
 
   defp sidebar_section(assigns) do

@@ -23,6 +23,10 @@ defmodule Backpex.Fields.HasMany do
       doc: """
       Manipulates the list of available options in the multi select.
 
+      The form of the field also checks the submitted records against the options query: it links only options. A
+      linked record that is no longer an option is unlinked when the form is saved. The check only runs for a field
+      that is part of the form and not readonly, so the options query is no replacement for a check in your changeset.
+
       Defaults to `fn (query, _field) -> query end` which returns all entries.
       """,
       type: {:fun, 2}
@@ -108,9 +112,7 @@ defmodule Backpex.Fields.HasMany do
       field_options[:not_found_text] || Backpex.__("No options found", socket.assigns.live_resource)
     end)
     |> assign_new(:search_input, fn -> "" end)
-    |> assign_new(:offset, fn -> 0 end)
-    |> assign_new(:options_count, fn -> count_options(assigns) end)
-    |> assign_initial_options()
+    |> maybe_assign_options()
     |> assign_selected()
     |> assign_form_errors()
   end
@@ -128,7 +130,7 @@ defmodule Backpex.Fields.HasMany do
           <:separator>
             ,&nbsp;
           </:separator>
-          <.item item={item} {assigns} />
+          {item(assign(assigns, item: item))}
         </.intersperse>
       </div>
     </div>
@@ -137,7 +139,13 @@ defmodule Backpex.Fields.HasMany do
 
   @impl Backpex.Field
   def render_form(assigns) do
-    assigns = assign(assigns, :help_text, Backpex.Field.help_text(assigns.field_options, assigns))
+    field_id = assigns.form[assigns.name].id
+    label_id = Map.get(assigns, :aria_labelledby) || "#{field_id}-label"
+
+    assigns =
+      assigns
+      |> assign(:labelledby, "#{label_id} #{field_id}-selection")
+      |> assign(:help_text, Backpex.Field.help_text(assigns.field_options, assigns))
 
     ~H"""
     <div id={"has-many-#{@name}"}>
@@ -157,9 +165,9 @@ defmodule Backpex.Fields.HasMany do
               Backpex.HTML.Form.readonly_input_class(@readonly),
               @readonly && @errors != [] && "border-error bg-error/10"
             ]}
-            aria_labelledby={Map.get(assigns, :aria_labelledby) || "#{@form[@name].id}-label"}
+            aria_labelledby={@labelledby}
           >
-            <div class="flex h-full w-full flex-wrap items-center gap-1 px-2">
+            <div id={"#{@form[@name].id}-selection"} class="flex h-full w-full flex-wrap items-center gap-1 px-2">
               <p :if={@selected == []} class="p-0.5 text-sm">{@prompt}</p>
               <.badge
                 :for={{label, value} <- @selected}
@@ -191,6 +199,7 @@ defmodule Backpex.Fields.HasMany do
                 :if={Enum.any?(@options)}
                 live_resource={@live_resource}
                 name={@name}
+                form={@form}
                 all_selected={@all_selected}
               />
 
@@ -282,28 +291,30 @@ defmodule Backpex.Fields.HasMany do
   attr :live_resource, :atom, required: true
   attr :all_selected, :boolean, required: true
   attr :name, :string, required: true
+  attr :form, Phoenix.HTML.Form, required: true
 
   defp toggle_all(assigns) do
-    hidden_input_name =
-      if assigns.all_selected, do: "change[#{assigns.name}_deselect_all]", else: "change[#{assigns.name}_select_all]"
-
-    button_text =
+    {param, button_text} =
       if assigns.all_selected,
-        do: Backpex.__("Deselect all", assigns.live_resource),
-        else: Backpex.__("Select all", assigns.live_resource)
+        do: {"#{assigns.name}_deselect_all", Backpex.__("Deselect all", assigns.live_resource)},
+        else: {"#{assigns.name}_select_all", Backpex.__("Select all", assigns.live_resource)}
 
     assigns =
       assigns
-      |> assign(:hidden_input_name, hidden_input_name)
+      |> assign(:button_name, PhoenixForm.input_name(assigns.form, param))
       |> assign(:button_text, button_text)
 
+    # LiveView sends the button's name with the change event it dispatches, as for any other form input.
     ~H"""
-    <label class={@class}>
-      <input type="checkbox" class="hidden" name={@hidden_input_name} value="" tabindex="-1" aria-hidden="true" />
-      <div role="button" class="text-primary cursor-pointer text-sm underline">
-        {@button_text}
-      </div>
-    </label>
+    <button
+      type="button"
+      name={@button_name}
+      value=""
+      phx-click={JS.dispatch("change")}
+      class={["link block text-sm", @class]}
+    >
+      {@button_text}
+    </button>
     """
   end
 
@@ -342,7 +353,7 @@ defmodule Backpex.Fields.HasMany do
       type="button"
       phx-click="show-more"
       phx-target={@event_target}
-      class="text-primary mb-2 cursor-pointer text-sm underline"
+      class="link mb-2 text-sm"
     >
       {Backpex.__("Show more", @live_resource)}
     </button>
@@ -375,6 +386,14 @@ defmodule Backpex.Fields.HasMany do
 
   @impl Backpex.Field
   def association?(_field), do: true
+
+  # The "Select all" and "Deselect all" buttons submit their own params.
+  @impl Backpex.Field
+  def param_keys({name, _field_options}, _assigns) do
+    name = Atom.to_string(name)
+
+    [name, name <> "_select_all", name <> "_deselect_all"]
+  end
 
   @impl Backpex.Field
   def schema({name, _field_options}, schema) do
@@ -429,9 +448,10 @@ defmodule Backpex.Fields.HasMany do
     case assoc_ids do
       ids when is_list(ids) and ids != [] ->
         filtered_ids = Enum.reject(ids, &(&1 == ""))
+        primary_key = field_options.live_resource.config(:primary_key)
 
         schema
-        |> where([x], x.id in ^filtered_ids)
+        |> where([x], field(x, ^primary_key) in ^filtered_ids)
         |> maybe_options_query(field_options, assigns)
         |> repo.all()
 
@@ -481,9 +501,30 @@ defmodule Backpex.Fields.HasMany do
     assign(assigns, :link, link)
   end
 
-  defp assign_initial_options(%{assigns: %{options: _options}} = socket), do: socket
+  # The options query may depend on other assigns, e.g. a value of the form. The options are loaded again whenever the
+  # resulting query changes.
+  defp maybe_assign_options(socket) do
+    query = options_base_query(socket.assigns)
 
-  defp assign_initial_options(socket), do: assign_options(socket)
+    if Map.get(socket.assigns, :options_base_query) == query do
+      socket
+    else
+      socket = assign(socket, options_base_query: query, offset: 0)
+
+      socket
+      |> assign(:options_count, count_options(socket.assigns))
+      |> assign_options()
+    end
+  end
+
+  defp options_base_query(assigns) do
+    %{field_options: field_options, name: name} = assigns
+    schema = assigns.live_resource.adapter_config(:schema)
+    %{queryable: queryable} = schema.__schema__(:association, name)
+
+    from(queryable, as: ^EctoAdapter.name_by_schema(queryable))
+    |> maybe_options_query(field_options, assigns)
+  end
 
   defp assign_options(socket, other_options \\ []) do
     %{assigns: %{field_options: field_options, search_input: search_input, offset: offset} = assigns} = socket
@@ -500,23 +541,17 @@ defmodule Backpex.Fields.HasMany do
   end
 
   defp options(assigns, opts) do
-    %{field: field, field_options: field_options, name: name} = assigns
+    %{field: field, field_options: field_options, options_base_query: query} = assigns
     repo = assigns.live_resource.adapter_config(:repo)
-    schema = assigns.live_resource.adapter_config(:schema)
-    %{queryable: queryable} = schema.__schema__(:association, name)
+    primary_key = primary_key(field)
 
-    display_field = display_field(field)
-
-    schema_name = EctoAdapter.name_by_schema(queryable)
-
-    from(queryable, as: ^schema_name)
-    |> maybe_options_query(field_options, assigns)
-    |> maybe_search_query(schema_name, field_options, display_field, Keyword.get(opts, :search))
+    query
+    |> maybe_search_query(query.from.as, field_options, display_field(field), Keyword.get(opts, :search))
     |> maybe_offset_query(Keyword.get(opts, :offset))
     |> maybe_limit_query(Keyword.get(opts, :limit))
     |> repo.all()
     |> Enum.map(fn item ->
-      {Map.get(item, display_field_form(field)), item.id}
+      {Map.get(item, display_field_form(field)), Map.fetch!(item, primary_key)}
     end)
   end
 
@@ -547,41 +582,31 @@ defmodule Backpex.Fields.HasMany do
   end
 
   defp count_options(assigns, opts \\ []) do
-    %{field: field, field_options: field_options, name: name} = assigns
+    %{field: field, field_options: field_options, options_base_query: query} = assigns
     repo = assigns.live_resource.adapter_config(:repo)
-    schema = assigns.live_resource.adapter_config(:schema)
-    display_field = display_field(field)
 
-    %{queryable: queryable} = schema.__schema__(:association, name)
-    schema_name = EctoAdapter.name_by_schema(queryable)
-
-    from(queryable, as: ^schema_name)
-    |> maybe_options_query(field_options, assigns)
-    |> maybe_search_query(schema_name, field_options, display_field, Keyword.get(opts, :search))
+    query
+    |> maybe_search_query(query.from.as, field_options, display_field(field), Keyword.get(opts, :search))
     |> subquery()
     |> repo.aggregate(:count)
   end
 
   def assign_selected(socket) do
-    {field_name, field_options} = socket.assigns.field
-    validate_live_resource(field_name, field_options)
-
-    primary_key = field_options.live_resource.config(:primary_key)
+    primary_key = primary_key(socket.assigns.field)
 
     selected_ids = extract_selected_ids(socket.assigns.form[socket.assigns.name].value, primary_key)
     selected_items = fetch_selected_items(socket, selected_ids)
 
+    # Items that are no longer options, e.g. because a value the options query depends on changed, are deselected.
     socket
     |> assign(:selected, selected_items)
-    |> assign(:selected_ids, selected_ids)
+    |> assign(:selected_ids, Enum.map(selected_items, fn {_label, id} -> id end))
     |> assign(:all_selected, length(selected_items) == socket.assigns.options_count)
   end
 
   defp fetch_selected_items(socket, selected_ids) do
-    schema = socket.assigns.live_resource.adapter_config(:schema)
-    %{queryable: queryable} = schema.__schema__(:association, socket.assigns.name)
     {from_options, to_fetch} = separate_selected_items(selected_ids, socket.assigns.options)
-    from_db = fetch_from_db(to_fetch, queryable, socket)
+    from_db = fetch_from_db(to_fetch, socket)
 
     from_options ++ from_db
   end
@@ -597,18 +622,25 @@ defmodule Backpex.Fields.HasMany do
     end)
   end
 
-  defp fetch_from_db([], _queryable, _socket), do: []
+  defp fetch_from_db([], _socket), do: []
 
-  defp fetch_from_db(ids_to_fetch, queryable, socket) do
+  defp fetch_from_db(ids_to_fetch, socket) do
     repo = socket.assigns.live_resource.adapter_config(:repo)
+    primary_key = primary_key(socket.assigns.field)
 
-    queryable
-    |> where([x], x.id in ^ids_to_fetch)
-    |> maybe_options_query(socket.assigns.field_options, socket.assigns)
+    socket.assigns.options_base_query
+    |> where([x], field(x, ^primary_key) in ^ids_to_fetch)
     |> repo.all()
     |> Enum.map(fn item ->
-      {Map.get(item, display_field_form(socket.assigns.field)), item.id}
+      {Map.get(item, display_field_form(socket.assigns.field)), Map.fetch!(item, primary_key)}
     end)
+  end
+
+  # The primary key of the related items, as configured in their LiveResource.
+  defp primary_key({field_name, field_options} = _field) do
+    validate_live_resource(field_name, field_options)
+
+    field_options.live_resource.config(:primary_key)
   end
 
   defp extract_selected_ids(value, primary_key) when is_list(value) and is_atom(primary_key) do

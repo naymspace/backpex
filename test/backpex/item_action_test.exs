@@ -3,9 +3,9 @@ defmodule Backpex.ItemActionTest do
   use ExUnit.Case, async: false
 
   alias Backpex.ItemAction
-  alias Backpex.ItemActions.Delete
   alias Backpex.Test.LiveResources.AllowAll
   alias Backpex.Test.LiveResources.NoAdmins
+  alias Backpex.Test.NotLoadedItemAction
   alias Phoenix.LiveView.Socket
 
   defmodule EchoAction do
@@ -196,12 +196,12 @@ defmodule Backpex.ItemActionTest do
 
   describe "has_confirm_modal?/1" do
     test "detects confirm/1 on a module that is not loaded yet" do
-      :code.purge(Delete)
-      :code.delete(Delete)
-      :code.purge(Delete)
-      refute :code.is_loaded(Delete)
+      :code.purge(NotLoadedItemAction)
+      :code.delete(NotLoadedItemAction)
+      :code.purge(NotLoadedItemAction)
+      refute :code.is_loaded(NotLoadedItemAction)
 
-      assert ItemAction.has_confirm_modal?(%{module: Delete})
+      assert ItemAction.has_confirm_modal?(%{module: NotLoadedItemAction})
     end
   end
 end

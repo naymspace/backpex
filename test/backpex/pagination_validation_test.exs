@@ -3,6 +3,8 @@ defmodule Backpex.PaginationValidationTest do
 
   alias Backpex.PaginationValidation
 
+  doctest Backpex.PaginationValidation
+
   @default_opts [
     per_page_default: 15,
     per_page_options: [15, 50, 100],
@@ -166,6 +168,41 @@ defmodule Backpex.PaginationValidationTest do
                order_by: :id,
                order_direction: :asc
              }
+    end
+
+    test "returns defaults for page and per_page values that are not a string or integer" do
+      # `?per_page[a]=b` decodes to a map, e.g. from a tampered `select-page-size` event patched into the URL.
+      for value <- [%{"a" => "b"}, ["15"]] do
+        result = PaginationValidation.build(%{"page" => value, "per_page" => value}, @default_opts)
+
+        assert %{page: 1, per_page: 15} = result
+      end
+    end
+  end
+
+  describe "validate_search/1" do
+    test "returns a string search term unchanged" do
+      for search <- ["hello", "R&D 100%", " padded ", "  "] do
+        assert PaginationValidation.validate_search(%{"search" => search}) == search
+      end
+    end
+
+    test "returns an empty search for a missing term or one that is not a string" do
+      # `?search[a]=b` decodes to a map; it used to reach the adapter and raise in the dead render.
+      for params <- [
+            %{},
+            %{"search" => nil},
+            %{"search" => ""},
+            Plug.Conn.Query.decode("search[a]=b"),
+            %{"search" => ["a"]},
+            %{"search" => 1}
+          ] do
+        assert PaginationValidation.validate_search(params) == ""
+      end
+    end
+
+    test "ignores other params" do
+      assert PaginationValidation.validate_search(%{"search" => "hello", "page" => %{"a" => "b"}}) == "hello"
     end
   end
 

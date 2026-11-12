@@ -71,6 +71,13 @@ The example above will show the `likes` field only to users with the `admin` rol
 >
 > Note that hidden fields are not exempt from validation by Backpex itself and the visible function is not executed on `:index`.
 
+> #### Warning {: .warning}
+>
+> `visible` is no access control. It only hides the input: the form still saves a value that a crafted client sends
+> for a field that `visible` hides, so in the example above a user without the `admin` role can still change the
+> likes. To keep users from changing a field, use `can?` (see below) or [`readonly`](/guides/fields/readonly.md), whose params
+> Backpex drops on save.
+
 ## Visibility with `can?`
 
 In addition to the `visible` option, we provide a `can?` option that you can use to determine the visibility of a field.

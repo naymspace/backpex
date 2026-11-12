@@ -36,7 +36,15 @@ defmodule Backpex.PreferencesController do
   `422 {ok: false, error: %{key: _, reason: "too_large"}}` — see the size limit
   section of `Backpex.Preferences.Adapters.Session`. The refusal is the
   designed outcome, not a bug: the alternative is a `CookieOverflowError` 500
-  on this and every later request.
+  that loses the write, which the JS hook then keeps replaying as a pending
+  write on later page loads.
+
+  Only atom reasons are sent to the client verbatim. Any other reason, such as
+  an exception an adapter raised (`{:exception, exception}`) or a tagged tuple
+  like `{:invalid_scope, fields}`, surfaces as
+  `422 {ok: false, error: %{key: _, reason: "adapter_error"}}`. Those terms can
+  contain internals (queries, table or constraint names, scope fields), so the
+  details are only written to the server log.
 
   Single-write `:unscoped` is treated as a no-op rather than an error:
   the response is `200 {ok: false, error: %{reason: "unscoped"}}` and no
@@ -115,6 +123,11 @@ defmodule Backpex.PreferencesController do
   end
 
   defp format_error({key, reason}), do: %{key: key, reason: format_reason(reason)}
+
+  # Only atom reasons are part of the client contract. Any other term (a
+  # rescued adapter exception, an adapter's tagged tuple) can carry internals
+  # such as SQL, table and constraint names or scope fields, so the client
+  # gets a fixed string. The full reason is in the server log.
   defp format_reason(reason) when is_atom(reason), do: Atom.to_string(reason)
-  defp format_reason(reason), do: inspect(reason)
+  defp format_reason(_reason), do: "adapter_error"
 end

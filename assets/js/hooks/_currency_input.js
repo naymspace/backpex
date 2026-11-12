@@ -41,9 +41,9 @@ export default {
     this.mask.destroy()
   },
   rawValue (value) {
-    return value
-      .replace(this.el.dataset.unit || '', '')
-      .trim()
-      .replace(new RegExp(`\\${this.el.dataset.thousandsSeparator}`, 'g'), '')
+    const thousandsSeparator = this.el.dataset.thousandsSeparator
+    const unitless = value.replace(this.el.dataset.unit || '', '').trim()
+
+    return thousandsSeparator ? unitless.replaceAll(thousandsSeparator, '') : unitless
   }
 }

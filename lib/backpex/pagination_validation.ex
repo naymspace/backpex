@@ -1,6 +1,6 @@
 defmodule Backpex.PaginationValidation do
   @moduledoc """
-  Validates pagination and sorting parameters from URL params.
+  Validates pagination, sorting and search parameters from URL params.
 
   Ensures invalid URL params don't crash the application and fall back
   to sensible defaults.
@@ -11,6 +11,7 @@ defmodule Backpex.PaginationValidation do
     * `per_page` - Items per page (must be in allowed options)
     * `order_by` - Field to sort by (must be in orderable fields)
     * `order_direction` - Sort direction (must be :asc or :desc)
+    * `search` - Search term (string, defaults to `""`), see `validate_search/1`
 
   """
 
@@ -79,6 +80,38 @@ defmodule Backpex.PaginationValidation do
     sorting = validate_sorting(params, orderable_fields, init_order)
 
     Map.merge(defaults, pagination) |> Map.merge(sorting)
+  end
+
+  @doc """
+  Validates the search term from URL params.
+
+  Returns the term unchanged, including surrounding whitespace, or `""` if it is missing or not a string
+  (e.g. `?search[a]=b` decodes to a map).
+
+  ## Examples
+
+      iex> Backpex.PaginationValidation.validate_search(%{"search" => "R&D 100%"})
+      "R&D 100%"
+
+      iex> Backpex.PaginationValidation.validate_search(%{"search" => %{"a" => "b"}})
+      ""
+
+      iex> Backpex.PaginationValidation.validate_search(%{})
+      ""
+
+  """
+  def validate_search(params) do
+    types = %{search: :string}
+    defaults = %{search: ""}
+
+    filtered = params |> Map.take(["search"]) |> Map.reject(fn {_k, v} -> is_nil(v) end)
+
+    # Without `empty_values: []`, `cast/4` would turn a whitespace-only term into `nil`.
+    changeset = cast({defaults, types}, filtered, [:search], empty_values: [])
+
+    changeset
+    |> extract_valid_values(defaults)
+    |> Map.fetch!(:search)
   end
 
   @doc """

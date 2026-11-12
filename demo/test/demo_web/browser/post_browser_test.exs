@@ -15,6 +15,18 @@ defmodule DemoWeb.Browser.PostBrowserTest do
       |> visit(~p"/admin/posts")
       |> assert_a11y()
     end
+
+    test "a11y with the filter dropdown and its multi select open", %{conn: conn} do
+      insert_list(3, :post)
+
+      conn
+      |> visit(~p"/admin/posts")
+      |> assert_has("body .phx-connected")
+      |> press("#filter-dropdown-trigger", "Enter")
+      |> press("#filter-dropdown-menu [id^=multi-select-][id$=-trigger]", "Enter")
+      |> assert_has("#filter-dropdown-menu input[name='filters[user_id][]']", count: 3)
+      |> assert_a11y()
+    end
   end
 
   describe "posts show" do
@@ -41,6 +53,19 @@ defmodule DemoWeb.Browser.PostBrowserTest do
     test "a11y", %{conn: conn} do
       conn
       |> visit(~p"/admin/posts/new")
+      |> assert_a11y()
+    end
+
+    test "a11y with the tags dropdown open", %{conn: conn} do
+      insert_list(3, :tag)
+
+      conn
+      |> visit(~p"/admin/posts/new")
+      |> assert_has("body .phx-connected")
+      |> press("#has-many-dropdown-tags-trigger", "Enter")
+      |> assert_has("#has-many-dropdown-tags-menu input[name='change[tags][]']", count: 3)
+      |> assert_a11y()
+      |> evaluate("document.documentElement.dataset.theme = 'dark'")
       |> assert_a11y()
     end
   end

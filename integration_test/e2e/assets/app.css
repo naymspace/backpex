@@ -1,0 +1,20 @@
+/* The stylesheet of the test app, set up like the one of the demo and built by `bun run e2e:assets`. */
+@import "tailwindcss" source(none);
+
+@plugin "./heroicons.cjs";
+
+@plugin "daisyui" {
+  themes: light --default, dark, cupcake;
+}
+
+@source "../../../lib/**/*.*ex";
+@source "../../../assets/js/hooks/**/*.*js";
+@source "../../support/app/**/*.ex";
+
+:root {
+  --sidebar-width: 16rem;
+}
+
+@custom-variant phx-click-loading (.phx-click-loading&, .phx-click-loading &);
+@custom-variant phx-submit-loading (.phx-submit-loading&, .phx-submit-loading &);
+@custom-variant phx-change-loading (.phx-change-loading&, .phx-change-loading &);

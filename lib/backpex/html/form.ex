@@ -404,6 +404,9 @@ defmodule Backpex.HTML.Form do
 
   @doc """
   Renders a searchable multi select.
+
+  Selected values whose options are not in `options` (e.g. because they are hidden by the search) are rendered as
+  hidden inputs, so they are still submitted with the form. Callers must not render their own inputs for them.
   """
   @doc type: :component
 
@@ -423,19 +426,29 @@ defmodule Backpex.HTML.Form do
   attr :hide_search, :boolean, default: false, doc: "if search should be hidden"
   attr :hide_errors, :boolean, default: false, doc: "if errors should be hidden"
   attr :live_resource, :atom, default: nil, doc: "the live resource module"
-  attr :aria_labelledby, :string, doc: "accessible labelledby for screen readers added to the trigger element"
+
+  attr :aria_labelledby, :string,
+    default: nil,
+    doc: "accessible labelledby for screen readers added to the trigger element"
 
   def multi_select(assigns) do
     errors = if Phoenix.Component.used_input?(assigns.field), do: assigns.field.errors, else: []
     translate_error_fun = Map.get(assigns.field_options, :translate_error, &Function.identity/1)
-    assigns = assign(assigns, :errors, translate_form_errors(errors, translate_error_fun))
+    rendered_values = option_values(assigns.options)
+
+    hidden_values =
+      for {_label, value} <- assigns.selected, value not in rendered_values, uniq: true, do: value
+
+    assigns =
+      assigns
+      |> assign(:errors, translate_form_errors(errors, translate_error_fun))
+      |> assign(:hidden_values, hidden_values)
 
     ~H"""
     <div>
       <.dropdown id={"multi-select-#{@field.id}"} class="w-full" readonly={@readonly}>
         <:trigger
-          aria_label={@prompt}
-          aria_labelledby={Map.get(assigns, :aria_labelledby)}
+          aria_labelledby={Enum.join(List.wrap(@aria_labelledby) ++ ["#{@field.id}-selection"], " ")}
           class={[
             "block h-fit w-full p-2",
             not @readonly && "input",
@@ -446,7 +459,7 @@ defmodule Backpex.HTML.Form do
             @readonly && @errors != [] && "border-error bg-error/10"
           ]}
         >
-          <div class="flex h-full w-full flex-wrap items-center gap-1 px-2">
+          <div id={"#{@field.id}-selection"} class="flex h-full w-full flex-wrap items-center gap-1 px-2">
             <p :if={@selected == []} class="p-0.5 text-sm">{@prompt}</p>
             <.multi_select_badge
               :for={{label, value} <- @selected}
@@ -487,6 +500,16 @@ defmodule Backpex.HTML.Form do
             <%!-- Hidden input to make sure the change is always present, even if no options are selected --%>
             <input type="hidden" name={@field.name} value="" tabindex="-1" aria-hidden="true" />
 
+            <%!-- Hidden inputs to keep selected values that are not rendered as options (e.g. hidden by the search) --%>
+            <input
+              :for={value <- @hidden_values}
+              type="hidden"
+              name={@field.name <> "[]"}
+              value={value}
+              tabindex="-1"
+              aria-hidden="true"
+            />
+
             <%!-- Options --%>
             <div class="mt-2 w-full">
               <.multi_select_option
@@ -511,6 +534,13 @@ defmodule Backpex.HTML.Form do
     """
   end
 
+  defp option_values(options) do
+    Enum.flat_map(options, fn
+      {_label, value} when is_list(value) or is_map(value) -> Enum.map(value, fn {_label, val} -> val end)
+      {_label, value} -> [value]
+    end)
+  end
+
   attr :live_resource, :atom, required: true
   attr :readonly, :boolean, default: false
   attr :label, :string, required: true
@@ -527,13 +557,16 @@ defmodule Backpex.HTML.Form do
     ~H"""
     <div class="badge badge-sm badge-soft badge-primary pointer-events-auto pr-0">
       {@label}
+      <%!--
+        aria-hidden on purpose: this is a mouse-only shortcut inside the trigger, which is already a button. Keyboard and
+        screen reader users deselect via the option checkboxes in the menu, so those must stay keyboard-reachable.
+      --%>
       <div
         class="flex cursor-pointer items-center pr-2"
-        role="button"
         phx-click="toggle-option"
         phx-value-id={@value}
         phx-target={@event_target}
-        aria-label={Backpex.__({"Unselect %{label}", %{label: @label}}, @live_resource)}
+        aria-hidden="true"
       >
         <.icon name="hero-x-mark" class="size-4 scale-105 hover:scale-110" />
       </div>
@@ -551,7 +584,7 @@ defmodule Backpex.HTML.Form do
     ~H"""
     <button
       type="button"
-      class={["text-primary text-sm underline hover:cursor-pointer", @class]}
+      class={["link text-sm", @class]}
       phx-click="toggle-select-all"
       phx-value-field-name={@field.name}
       phx-target={@event_target}
@@ -621,7 +654,7 @@ defmodule Backpex.HTML.Form do
     ~H"""
     <button
       type="button"
-      class="text-primary mb-2 text-sm underline hover:cursor-pointer"
+      class="link mb-2 text-sm"
       phx-click="show-more"
       phx-target={@event_target}
     >

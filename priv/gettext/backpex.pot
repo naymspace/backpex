@@ -92,6 +92,10 @@ msgid "Delete"
 msgstr ""
 
 #, elixir-autogen, elixir-format
+msgid "Delete entry %{index}"
+msgstr ""
+
+#, elixir-autogen, elixir-format
 msgid "Deselect all"
 msgstr ""
 
@@ -285,10 +289,6 @@ msgstr ""
 
 #, elixir-autogen, elixir-format
 msgid "unacceptable file type"
-msgstr ""
-
-#, elixir-autogen, elixir-format
-msgid "Unselect %{label}"
 msgstr ""
 
 #, elixir-autogen, elixir-format

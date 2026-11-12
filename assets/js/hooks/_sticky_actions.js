@@ -5,8 +5,6 @@
  */
 export default {
   mounted () {
-    this.sticky = this.el.querySelector('.sticky')
-
     this.observer = new IntersectionObserver(
       ([entry]) => {
         this.stuck = entry.intersectionRatio < 1
@@ -24,6 +22,7 @@ export default {
     this.observer.disconnect()
   },
   toggleStuckAttribute () {
-    this.sticky.toggleAttribute('stuck', this.stuck)
+    // Query on every call: patches (e.g. toggling columns) can replace the sticky cell.
+    this.el.querySelector('.sticky')?.toggleAttribute('stuck', this.stuck === true)
   }
 }

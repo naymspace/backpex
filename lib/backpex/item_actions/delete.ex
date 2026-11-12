@@ -42,6 +42,54 @@ defmodule Backpex.ItemActions.Delete do
 
   @impl Backpex.ItemAction
   def handle(socket, items, _data) do
+    case before_delete(socket, items) do
+      :ok ->
+        delete(socket, items)
+
+      {:error, message} ->
+        socket
+        |> clear_flash()
+        |> put_flash(:error, message)
+        |> stay_on_show_view(items)
+        |> ok()
+    end
+  end
+
+  # The show view navigates to the index view after an item action unless the action navigated itself. When the
+  # deletion is refused, the item still exists, so the user stays on its show view.
+  defp stay_on_show_view(%{assigns: %{live_action: :show}} = socket, [item]) do
+    %{live_resource: live_resource, params: params} = socket.assigns
+    path = Router.get_path(socket, live_resource, params, :show, item, Map.take(params, ["return_to"]))
+
+    push_patch(socket, to: path)
+  end
+
+  defp stay_on_show_view(socket, _items), do: socket
+
+  # Stops at the first item that may not be deleted, as none of the items are deleted then.
+  defp before_delete(socket, items) do
+    %{live_resource: live_resource} = socket.assigns
+
+    Enum.reduce_while(items, :ok, fn item, :ok ->
+      case live_resource.on_item_deleting(socket, item) do
+        :ok ->
+          {:cont, :ok}
+
+        {:error, message} = error when is_binary(message) ->
+          {:halt, error}
+
+        other ->
+          raise ArgumentError, """
+          Invalid return value from #{inspect(live_resource)}.on_item_deleting/2.
+
+          Expected: :ok or {:error, message}, where message is a string
+          Got: #{inspect(other)}
+          """
+      end
+    end)
+  end
+
+  defp delete(socket, items) do
     %{live_resource: live_resource} = socket.assigns
 
     # Backpex only calls `handle/3` once `Backpex.ItemAction.authorize_fresh!/3` has re-read these

@@ -15,6 +15,17 @@ defmodule DemoWeb.Browser.AddressBrowserTest do
       |> visit(~p"/admin/addresses")
       |> assert_a11y()
     end
+
+    test "delete confirmation modal a11y", %{conn: conn} do
+      address = insert(:address)
+
+      conn
+      |> visit(~p"/admin/addresses")
+      |> assert_has("body .phx-connected")
+      |> click("#item-action-delete-#{address.id}")
+      |> assert_has("#action-confirm-modal[open]")
+      |> assert_a11y()
+    end
   end
 
   describe "addresses show" do

@@ -367,6 +367,152 @@ defmodule Backpex.PreferencesControllerTest do
     end
   end
 
+  describe "update/2 through Plug.Session's cookie store" do
+    @session_opts Plug.Session.init(
+                    store: :cookie,
+                    key: "_my_app_web_key",
+                    signing_salt: "signing1",
+                    same_site: "Lax",
+                    secure: true,
+                    max_age: 60 * 24 * 60 * 60
+                  )
+
+    test "answers near the cookie cap with 200 or 422, never CookieOverflowError" do
+      # Sweep across the budget boundary: every write must either fit in the
+      # Set-Cookie header Plug sends or be refused before it gets there.
+      statuses =
+        for size <- 2_700..3_000//5 do
+          conn =
+            capture_log_result(fn ->
+              cookie_session_conn()
+              |> PreferencesController.update(%{"key" => Keys.theme(), "value" => String.duplicate("x", size)})
+            end)
+
+          case conn.status do
+            200 ->
+              assert [cookie] = Plug.Conn.get_resp_header(conn, "set-cookie")
+              assert byte_size(cookie) <= 4096
+
+            422 ->
+              assert Jason.decode!(conn.resp_body)["error"] == %{"key" => Keys.theme(), "reason" => "too_large"}
+          end
+
+          conn.status
+        end
+
+      assert 200 in statuses
+      assert 422 in statuses
+    end
+
+    defp cookie_session_conn do
+      conn(:post, "/backpex_preferences")
+      |> Map.put(:secret_key_base, String.duplicate("s", 64))
+      |> Plug.Session.call(@session_opts)
+      |> Plug.Conn.fetch_session()
+      |> Plug.Conn.put_session("_csrf_token", String.duplicate("c", 24))
+      |> Plug.Conn.put_session("user_token", :binary.copy(<<0xAB>>, 32))
+      |> Plug.Conn.put_private(:phoenix_endpoint, __MODULE__)
+      |> Plug.Conn.put_req_header("content-type", "application/json")
+    end
+  end
+
+  describe "update/2 when the adapter fails with a non-atom reason" do
+    defmodule AdapterInternalsError do
+      defexception [:message, :query]
+    end
+
+    defmodule CrashingAdapter do
+      @moduledoc false
+      @behaviour Adapter
+
+      @impl Adapter
+      def get(_ctx, _key, _opts), do: {:ok, :not_found}
+
+      @impl Adapter
+      def get_map(_ctx, _prefix, _opts), do: {:ok, %{}}
+
+      @impl Adapter
+      def put(_ctx, _key, _value, _opts) do
+        raise AdapterInternalsError,
+          message: "invalid byte sequence for encoding UTF8",
+          query: ~s|SELECT count(*) FROM "backpex_preferences"|
+      end
+    end
+
+    defmodule TupleReasonAdapter do
+      @moduledoc false
+      @behaviour Adapter
+
+      @impl Adapter
+      def get(_ctx, _key, _opts), do: {:ok, :not_found}
+
+      @impl Adapter
+      def get_map(_ctx, _prefix, _opts), do: {:ok, %{}}
+
+      @impl Adapter
+      def put(_ctx, _key, _value, _opts), do: {:error, {:invalid_scope, [:tenant_id]}}
+    end
+
+    setup do
+      prior = Application.get_env(:backpex, Backpex.Preferences)
+
+      Application.put_env(:backpex, Backpex.Preferences,
+        adapters: [
+          {"crash.*", CrashingAdapter, []},
+          {"tuple.*", TupleReasonAdapter, []},
+          {:default, Session, []}
+        ]
+      )
+
+      on_exit(fn ->
+        case prior do
+          nil -> Application.delete_env(:backpex, Backpex.Preferences)
+          value -> Application.put_env(:backpex, Backpex.Preferences, value)
+        end
+      end)
+
+      :ok
+    end
+
+    test "an adapter exception reaches the client only as adapter_error", %{conn: conn} do
+      {conn, log} =
+        ExUnit.CaptureLog.with_log(fn ->
+          PreferencesController.update(conn, %{"key" => "crash.thing", "value" => "x"})
+        end)
+
+      assert conn.status == 422
+
+      assert Jason.decode!(conn.resp_body) == %{
+               "ok" => false,
+               "error" => %{"key" => "crash.thing", "reason" => "adapter_error"}
+             }
+
+      refute conn.resp_body =~ "AdapterInternalsError"
+      refute conn.resp_body =~ "invalid byte sequence"
+      refute conn.resp_body =~ "backpex_preferences"
+
+      # The detail stays available to operators.
+      assert log =~ "AdapterInternalsError"
+      assert log =~ "invalid byte sequence"
+    end
+
+    test "a non-atom error reason reaches the client only as adapter_error", %{conn: conn} do
+      {conn, log} =
+        ExUnit.CaptureLog.with_log(fn ->
+          PreferencesController.update(conn, %{"key" => "tuple.thing", "value" => "x"})
+        end)
+
+      assert conn.status == 422
+
+      assert Jason.decode!(conn.resp_body) == %{
+               "ok" => false,
+               "error" => %{"key" => "tuple.thing", "reason" => "adapter_error"}
+             }
+
+      assert log =~ "{:invalid_scope, [:tenant_id]}"
+    end
+  end
+
   defp capture_log_result(fun) do
     {result, _log} = ExUnit.CaptureLog.with_log(fun)
     result
