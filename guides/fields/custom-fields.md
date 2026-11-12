@@ -53,6 +53,43 @@ The `render_form/1` function returns markup that is used to render a form on `ed
 
 See `Backpex.Field` for more information on the available callback functions. For example, you can implement `render_index_form/1` to make the field editable in the index view.
 
+## Select with search
+
+For a select with search, multiple selection or custom option markup, render `Backpex.HTML.Combobox.combobox/1`
+instead of an input. It submits its value like a native select, so the field needs no event handlers:
+
+```elixir
+@impl Backpex.Field
+def render_form(assigns) do
+  ~H"""
+  <div>
+    <Layout.field_container>
+      <:label>
+        <Layout.input_label
+          id={"#{@form[@name].id}-label"}
+          for={"#{@form[@name].id}-trigger"}
+          text={@field_options[:label]}
+        />
+      </:label>
+      <Backpex.HTML.Combobox.combobox
+        field={@form[@name]}
+        options={@field_options[:options]}
+        readonly={@readonly}
+        live_resource={@live_resource}
+        translate_error_fun={Backpex.Field.translate_error_fun(@field_options, assigns)}
+        help_text={Backpex.Field.help_text(@field_options, assigns)}
+        aria-labelledby={"#{@form[@name].id}-label"}
+      />
+    </Layout.field_container>
+  </div>
+  """
+end
+```
+
+The label of the field is outside the combobox here, so `aria-labelledby` names it and `for` points to the button of
+the combobox, whose id is the id of the form field followed by `-trigger`. See `Backpex.HTML.Combobox` for multiple
+selection, server search and the slots.
+
 ## Form params
 
 The form passes only the params of the fields an admin may edit to the changeset and drops all others. A field submits

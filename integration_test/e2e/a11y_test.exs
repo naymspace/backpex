@@ -77,6 +77,40 @@ defmodule Backpex.E2E.A11yTest do
     |> assert_a11y()
   end
 
+  test "the combobox fixture with closed and open comboboxes in light and dark mode", %{conn: conn} do
+    open = fn conn, id ->
+      conn
+      |> click("##{id}-trigger")
+      |> assert_has("##{id}-trigger[aria-expanded=true]")
+    end
+
+    conn
+    |> visit(~p"/admin/combobox")
+    |> assert_has("body .phx-connected")
+    |> open.("combobox_tags")
+    |> click("#combobox_tags-listbox [data-part=option][data-value=Elixir]")
+    |> assert_has("#combobox_tags-value [data-part=badge]")
+    |> click("h1")
+    |> assert_a11y()
+    |> evaluate("document.documentElement.dataset.theme = 'dark'")
+    |> assert_a11y()
+    |> evaluate("document.documentElement.dataset.theme = 'light'")
+    # Grouped options with a disabled one, and an active option.
+    |> open.("combobox_fruit")
+    |> press("#combobox_fruit-popup [data-part=search]", "ArrowDown")
+    |> assert_a11y()
+    |> evaluate("document.documentElement.dataset.theme = 'dark'")
+    |> assert_a11y()
+    # Badges and options disabled by max.
+    |> open.("combobox_tags")
+    |> click("#combobox_tags-listbox [data-part=option][data-value=Phoenix]")
+    |> click("#combobox_tags-listbox [data-part=option][data-value=Ecto]")
+    |> assert_has("#combobox_tags-listbox [data-part=option][aria-disabled=true]", count: 4)
+    |> assert_a11y()
+    |> evaluate("document.documentElement.dataset.theme = 'light'")
+    |> assert_a11y()
+  end
+
   test "pagination with a placeholder for skipped pages", %{conn: conn} do
     insert_list(100, :film_review)
 

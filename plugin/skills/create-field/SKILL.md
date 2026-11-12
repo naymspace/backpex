@@ -200,3 +200,4 @@ end
 - **Always declare `@config_schema`** before `use Backpex.Field` for custom field-specific options
 - **Use `Layout.field_container`** and `Layout.input_label`  in `render_form/1` for consistent form layout
 - **Use `BackpexForm.input`** for standard input rendering with error handling
+- **Use `Backpex.HTML.Combobox.combobox`** for a select with search, multiple selection or custom option markup; it takes `field` and `options` and submits like a native select (see its module docs and the custom fields guide)

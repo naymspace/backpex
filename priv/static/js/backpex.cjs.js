@@ -29,6 +29,7 @@ module.exports = __toCommonJS(backpex_exports);
 var hooks_exports = {};
 __export(hooks_exports, {
   BackpexCancelEntry: () => cancel_entry_default,
+  BackpexCombobox: () => combobox_default,
   BackpexCurrencyInput: () => currency_input_default,
   BackpexDragHover: () => drag_hover_default,
   BackpexDropdown: () => dropdown_default,
@@ -57,6 +58,580 @@ var cancel_entry_default = {
     if (this.form) {
       this.el.dispatchEvent(new Event("input", { bubbles: true }));
     }
+  }
+};
+
+// js/hooks/_combobox.js
+var TYPEAHEAD_RESET_MS = 500;
+var POPUP_OFFSET = 4;
+var VIEWPORT_MARGIN = 8;
+var FOCUSABLE = "a[href], button, input, select, textarea, [tabindex]";
+function normalizeText(text) {
+  return String(text ?? "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+}
+function matchesQuery(label, query) {
+  const needle = normalizeText(query).trim();
+  return needle === "" || normalizeText(label).includes(needle);
+}
+function nextEnabledIndex(enabled, current, direction) {
+  const indexes = enabled.flatMap((isEnabled, index) => isEnabled ? [index] : []);
+  if (indexes.length === 0) return -1;
+  const first = indexes[0];
+  const last = indexes[indexes.length - 1];
+  switch (direction) {
+    case "first":
+      return first;
+    case "last":
+      return last;
+    case "next":
+      if (current < 0) return first;
+      return indexes.find((index) => index > current) ?? (enabled[current] ? current : last);
+    case "previous":
+      if (current < 0) return last;
+      return indexes.findLast((index) => index < current) ?? (enabled[current] ? current : first);
+    default:
+      return current;
+  }
+}
+function typeaheadIndex(labels, enabled, buffer, current) {
+  const normalized = normalizeText(buffer);
+  if (normalized === "") return -1;
+  const repeated = [...normalized].every((char) => char === normalized[0]);
+  const prefix = repeated ? normalized[0] : normalized;
+  const start = repeated || current < 0 ? current + 1 : current;
+  const count = labels.length;
+  for (let step = 0; step < count; step++) {
+    const index = (start + step) % count;
+    if (enabled[index] && normalizeText(labels[index]).startsWith(prefix)) return index;
+  }
+  return -1;
+}
+function computePopupPosition({ anchor, popup, viewport, offset = POPUP_OFFSET, margin = VIEWPORT_MARGIN }) {
+  const spaceBelow = Math.max(0, viewport.height - anchor.bottom - offset - margin);
+  const spaceAbove = Math.max(0, anchor.top - offset - margin);
+  const placement = popup.height <= spaceBelow || spaceBelow >= spaceAbove ? "bottom" : "top";
+  const maxHeight = placement === "bottom" ? spaceBelow : spaceAbove;
+  const height = Math.min(popup.height, maxHeight);
+  const top = placement === "bottom" ? anchor.bottom + offset : anchor.top - offset - height;
+  const maxWidth = Math.max(0, viewport.width - 2 * margin);
+  const minWidth = Math.min(anchor.width, maxWidth);
+  const width = Math.min(Math.max(popup.width, minWidth), maxWidth);
+  const left = Math.max(margin, Math.min(anchor.left, viewport.width - margin - width));
+  return { placement, top, left, minWidth, maxWidth, maxHeight };
+}
+function isPrintableKey(event) {
+  return event.key.length === 1 && !event.ctrlKey && !event.metaKey && !event.altKey;
+}
+var combobox_default = {
+  mounted() {
+    this.isOpen = false;
+    this.query = "";
+    this.activeValue = null;
+    this.labels = /* @__PURE__ */ new Map();
+    this.typeahead = "";
+    this.typeaheadTimer = null;
+    this.searchTimer = null;
+    this.searchSeq = 0;
+    this.searchPending = false;
+    this.lastPushedQuery = "";
+    this.closeOnFocusMove = false;
+    this.openController = null;
+    this.controller = new AbortController();
+    const options = { signal: this.controller.signal };
+    this.el.addEventListener("click", (event) => this.handleClick(event), options);
+    this.el.addEventListener("mousedown", (event) => this.handleMousedown(event), options);
+    this.el.addEventListener("pointermove", (event) => this.handlePointermove(event), options);
+    this.el.addEventListener("keydown", (event) => this.handleKeydown(event), options);
+    this.el.addEventListener("keyup", (event) => this.handleKeyup(event), options);
+    this.el.addEventListener("focusout", (event) => this.handleFocusout(event), options);
+    this.el.addEventListener("focusin", () => {
+      if (this.isOpen) this.syncOpenState();
+    }, options);
+    this.el.addEventListener("input", (event) => this.handleSearchEvent(event), options);
+    this.el.addEventListener("change", (event) => this.handleSearchEvent(event), options);
+    this.el.addEventListener("combobox:open", () => this.open(), options);
+    this.el.addEventListener("combobox:close", () => this.close(), options);
+    this.el.addEventListener("combobox:clear", () => this.setSelection([]), options);
+    this.el.addEventListener("combobox:select-all", () => this.selectAll(), options);
+    this.rememberLabels();
+  },
+  updated() {
+    this.rememberLabels();
+    this.syncOptions(this.selectedValues());
+    if (this.isOpen) {
+      const popup = this.part("popup");
+      if (!popup) {
+        this.close();
+        return;
+      }
+      if (!popup.matches(":popover-open")) popup.showPopover();
+      const search = this.part("search");
+      if (search && search.value !== this.query) search.value = this.query;
+      this.filterOptions();
+      const active = this.optionByValue(this.activeValue);
+      this.setActive(active && this.isNavigable(active) ? this.activeValue : this.firstNavigableValue(), { scroll: false });
+      this.position();
+    }
+    this.el.toggleAttribute("data-loading", this.searchPending);
+    this.part("listbox")?.toggleAttribute("aria-busy", this.searchPending);
+    this.syncOpenState();
+  },
+  destroyed() {
+    this.controller.abort();
+    this.openController?.abort();
+    clearTimeout(this.typeaheadTimer);
+    clearTimeout(this.searchTimer);
+  },
+  // Parts
+  part(name) {
+    return this.el.querySelector(`[data-part="${name}"]`);
+  },
+  options() {
+    const listbox = this.part("listbox");
+    return listbox ? Array.from(listbox.querySelectorAll('[data-part="option"]')) : [];
+  },
+  optionByValue(value) {
+    if (value === null) return null;
+    return this.options().find((option) => option.dataset.value === value) || null;
+  },
+  activeOption() {
+    return this.optionByValue(this.activeValue);
+  },
+  isMultiple() {
+    return this.el.hasAttribute("data-multiple");
+  },
+  max() {
+    const max = parseInt(this.el.dataset.max, 10);
+    return Number.isNaN(max) ? Infinity : max;
+  },
+  isServerSearch() {
+    return this.el.hasAttribute("data-on-search");
+  },
+  isVisible(option) {
+    return !option.hidden && !option.closest('[data-part="group"]')?.hidden;
+  },
+  isNavigable(option) {
+    return this.isVisible(option) && option.getAttribute("aria-disabled") !== "true";
+  },
+  firstNavigableValue() {
+    return this.options().find((option) => this.isNavigable(option))?.dataset.value ?? null;
+  },
+  label(value) {
+    return this.labels.get(value) ?? value;
+  },
+  // Remembers the label of every value the hook has seen, so it can label a
+  // badge whose option the server no longer renders, e.g. after a search.
+  rememberLabels() {
+    for (const option of this.options()) this.labels.set(option.dataset.value, option.dataset.label);
+    for (const badge of this.el.querySelectorAll('[data-part="badge"]')) {
+      const label = badge.querySelector('[data-part="badge-label"]');
+      if (label) this.labels.set(badge.dataset.value, label.textContent);
+    }
+    const anchor = this.part("anchor");
+    const valueLabel = this.part("value-label");
+    if (!this.isMultiple() && anchor?.value && valueLabel && !valueLabel.hidden) {
+      this.labels.set(anchor.value, valueLabel.textContent);
+    }
+  },
+  // Selection
+  selectedValues() {
+    const anchor = this.part("anchor");
+    if (!anchor) return [];
+    if (!this.isMultiple()) return anchor.value === "" ? [] : [anchor.value];
+    return Array.from(this.part("inputs").querySelectorAll('input[type="hidden"]'), (input) => input.value);
+  },
+  setSelection(values) {
+    const current = this.selectedValues();
+    if (values.length === current.length && values.every((value, index) => value === current[index])) return;
+    this.writeInputs(values);
+    this.renderSelection(values);
+    this.syncOptions(values);
+    if (this.isOpen) this.position();
+    this.notify(values);
+  },
+  writeInputs(values) {
+    const anchor = this.part("anchor");
+    if (!anchor) return;
+    if (!this.isMultiple()) {
+      anchor.value = values[0] ?? "";
+      return;
+    }
+    const container = this.part("inputs");
+    const existing = Array.from(container.querySelectorAll('input[type="hidden"]'));
+    this.reconcile(container, existing, values, (input) => input.value, (value) => {
+      const input = document.createElement("input");
+      input.type = "hidden";
+      input.name = `${anchor.name}[]`;
+      input.value = value;
+      if (anchor.hasAttribute("form")) input.setAttribute("form", anchor.getAttribute("form"));
+      return input;
+    });
+  },
+  renderSelection(values) {
+    const placeholder = this.part("placeholder");
+    if (placeholder) placeholder.hidden = values.length > 0;
+    const clear = this.part("clear");
+    if (clear) clear.hidden = values.length === 0;
+    if (!this.isMultiple()) {
+      const valueLabel = this.part("value-label");
+      if (!valueLabel) return;
+      valueLabel.hidden = values.length === 0;
+      valueLabel.textContent = values.length === 0 ? "" : this.label(values[0]);
+      return;
+    }
+    const container = this.part("value");
+    const template = this.part("badge-template");
+    if (!container || !template) return;
+    const existing = Array.from(container.querySelectorAll('[data-part="badge"]'));
+    this.reconcile(container, existing, values, (badge) => badge.dataset.value, (value) => {
+      const badge = template.content.firstElementChild.cloneNode(true);
+      badge.dataset.value = value;
+      badge.querySelector('[data-part="badge-label"]').textContent = this.label(value);
+      return badge;
+    });
+  },
+  // Makes the children of `container` one element per value, in order. It
+  // keeps the elements of values that stay selected instead of re-creating
+  // them, so the patch that follows the change finds them as rendered.
+  reconcile(container, elements, values, valueOf, create) {
+    const byValue = new Map(elements.map((element) => [valueOf(element), element]));
+    for (const element of elements) {
+      if (!values.includes(valueOf(element))) element.remove();
+    }
+    for (const value of values) container.appendChild(byValue.get(value) ?? create(value));
+  },
+  // Marks the selected options and, once `max` values are selected, disables
+  // the others. Options the server disabled keep `data-disabled`.
+  syncOptions(values) {
+    const maxReached = this.isMultiple() && values.length >= this.max();
+    for (const option of this.options()) {
+      const selected = values.includes(option.dataset.value);
+      option.setAttribute("aria-selected", String(selected));
+      const disabled = option.hasAttribute("data-disabled") || maxReached && !selected;
+      if (disabled) option.setAttribute("aria-disabled", "true");
+      else option.removeAttribute("aria-disabled");
+    }
+  },
+  notify(values) {
+    const anchor = this.part("anchor");
+    anchor.dispatchEvent(new window.Event("input", { bubbles: true }));
+    anchor.dispatchEvent(new window.Event("change", { bubbles: true }));
+    const value = this.isMultiple() ? values : values[0] ?? "";
+    this.el.dispatchEvent(new window.CustomEvent("combobox:change", { bubbles: true, detail: { value } }));
+  },
+  choose(option) {
+    if (!option || option.getAttribute("aria-disabled") === "true") return;
+    const value = option.dataset.value;
+    const values = this.selectedValues();
+    if (!this.isMultiple()) {
+      this.setSelection([value]);
+      this.close({ focus: true });
+      return;
+    }
+    this.setActive(value, { scroll: false });
+    this.setSelection(values.includes(value) ? values.filter((v) => v !== value) : [...values, value]);
+  },
+  remove(value) {
+    this.setSelection(this.selectedValues().filter((v) => v !== value));
+  },
+  selectAll() {
+    if (!this.isMultiple()) return;
+    const values = this.selectedValues();
+    const room = this.max() - values.length;
+    if (room <= 0) return;
+    const added = this.options().filter((option) => this.isNavigable(option) && !values.includes(option.dataset.value)).map((option) => option.dataset.value).slice(0, room);
+    this.setSelection([...values, ...added]);
+  },
+  // Open state
+  open() {
+    const popup = this.part("popup");
+    if (this.isOpen || !popup) return;
+    this.isOpen = true;
+    if (!popup.matches(":popover-open")) popup.showPopover();
+    this.attachOpenListeners();
+    const selected = this.selectedValues().map((value) => this.optionByValue(value)).find((option) => option && this.isNavigable(option));
+    this.position();
+    this.setActive(selected ? selected.dataset.value : this.firstNavigableValue(), { scroll: true });
+    this.syncOpenState();
+    this.part("search")?.focus({ preventScroll: true });
+  },
+  close({ focus = false } = {}) {
+    if (!this.isOpen) return;
+    this.isOpen = false;
+    this.closeOnFocusMove = false;
+    this.openController?.abort();
+    this.openController = null;
+    if (focus) this.part("trigger")?.focus();
+    const popup = this.part("popup");
+    if (popup?.matches(":popover-open")) popup.hidePopover();
+    this.typeahead = "";
+    clearTimeout(this.typeaheadTimer);
+    this.setActive(null);
+    this.resetQuery();
+    this.syncOpenState();
+  },
+  toggle() {
+    if (this.isOpen) this.close({ focus: true });
+    else this.open();
+  },
+  syncOpenState() {
+    const trigger = this.part("trigger");
+    const search = this.part("search");
+    trigger?.setAttribute("aria-expanded", String(this.isOpen));
+    search?.setAttribute("aria-expanded", String(this.isOpen));
+    this.el.toggleAttribute("data-open", this.isOpen);
+    const owner = search && document.activeElement !== trigger ? search : trigger;
+    const active = this.isOpen && this.activeOption();
+    trigger?.removeAttribute("aria-activedescendant");
+    search?.removeAttribute("aria-activedescendant");
+    if (owner && active && this.isVisible(active)) owner.setAttribute("aria-activedescendant", active.id);
+  },
+  attachOpenListeners() {
+    this.openController = new AbortController();
+    const signal = this.openController.signal;
+    document.addEventListener("pointerdown", (event) => this.handleDocumentPointerdown(event), { capture: true, signal });
+    document.addEventListener("scroll", (event) => this.handleScroll(event), { capture: true, passive: true, signal });
+    window.addEventListener("resize", () => this.position(), { passive: true, signal });
+  },
+  // The popup is in the top layer and fixed to the viewport, so it follows the
+  // control by hand.
+  position() {
+    const popup = this.part("popup");
+    const control = this.part("control");
+    if (!this.isOpen || !popup || !control) return;
+    const anchor = control.getBoundingClientRect();
+    const viewport = { width: document.documentElement.clientWidth, height: document.documentElement.clientHeight };
+    const maxWidth = Math.max(0, viewport.width - 2 * VIEWPORT_MARGIN);
+    Object.assign(popup.style, {
+      top: "0px",
+      left: "0px",
+      minWidth: `${Math.min(anchor.width, maxWidth)}px`,
+      maxWidth: `${maxWidth}px`,
+      maxHeight: ""
+    });
+    const cssMaxHeight = parseFloat(getComputedStyle(popup).maxHeight);
+    const size = popup.getBoundingClientRect();
+    const position = computePopupPosition({ anchor, popup: { width: size.width, height: size.height }, viewport });
+    const maxHeight = Number.isNaN(cssMaxHeight) ? position.maxHeight : Math.min(cssMaxHeight, position.maxHeight);
+    Object.assign(popup.style, { top: `${position.top}px`, left: `${position.left}px`, maxHeight: `${maxHeight}px` });
+    popup.dataset.placement = position.placement;
+  },
+  // Active option
+  setActive(value, { scroll = true } = {}) {
+    this.activeValue = value;
+    for (const option of this.options()) option.toggleAttribute("data-active", value !== null && option.dataset.value === value);
+    const active = this.activeOption();
+    if (active && scroll) active.scrollIntoView({ block: "nearest" });
+    this.syncOpenState();
+  },
+  moveActive(direction) {
+    const options = this.options();
+    const enabled = options.map((option) => this.isNavigable(option));
+    const current = options.findIndex((option) => option.dataset.value === this.activeValue);
+    const index = nextEnabledIndex(enabled, current, direction);
+    if (index >= 0) this.setActive(options[index].dataset.value);
+  },
+  typeaheadKey(key) {
+    clearTimeout(this.typeaheadTimer);
+    this.typeahead += key;
+    this.typeaheadTimer = setTimeout(() => {
+      this.typeahead = "";
+    }, TYPEAHEAD_RESET_MS);
+    this.open();
+    const options = this.options();
+    const index = typeaheadIndex(
+      options.map((option) => option.dataset.label),
+      options.map((option) => this.isNavigable(option)),
+      this.typeahead,
+      options.findIndex((option) => option.dataset.value === this.activeValue)
+    );
+    if (index >= 0) this.setActive(options[index].dataset.value);
+  },
+  // Search
+  // Hides the options that don't match the query (local search only), the
+  // groups without a visible option, and shows the empty state when no option
+  // is visible.
+  filterOptions() {
+    const local = !this.isServerSearch();
+    for (const option of this.options()) {
+      if (local) option.hidden = !matchesQuery(option.dataset.label, this.query);
+    }
+    for (const group of this.el.querySelectorAll('[data-part="group"]')) {
+      group.hidden = !Array.from(group.querySelectorAll('[data-part="option"]')).some((option) => !option.hidden);
+    }
+    const empty = this.part("empty");
+    if (empty) empty.hidden = this.options().some((option) => this.isVisible(option));
+  },
+  search(query) {
+    this.query = query;
+    if (this.isServerSearch()) {
+      clearTimeout(this.searchTimer);
+      const debounce = parseInt(this.el.dataset.searchDebounce, 10);
+      this.searchTimer = setTimeout(() => this.pushSearch(query), Number.isNaN(debounce) ? 0 : debounce);
+      return;
+    }
+    this.filterOptions();
+    this.setActive(this.firstNavigableValue());
+    this.position();
+  },
+  pushSearch(query) {
+    const seq = ++this.searchSeq;
+    this.lastPushedQuery = query;
+    this.setSearchPending(true);
+    const event = this.el.dataset.onSearch;
+    const payload = { query, id: this.el.id };
+    const target = this.el.getAttribute("phx-target");
+    const result = target ? this.pushEventTo(target, event, payload) : this.pushEvent(event, payload);
+    const done = () => {
+      if (seq === this.searchSeq) this.setSearchPending(false);
+    };
+    if (result && typeof result.then === "function") result.then(done, done);
+    else done();
+  },
+  setSearchPending(pending) {
+    this.searchPending = pending;
+    this.el.toggleAttribute("data-loading", pending);
+    this.part("listbox")?.toggleAttribute("aria-busy", pending);
+  },
+  resetQuery() {
+    clearTimeout(this.searchTimer);
+    const search = this.part("search");
+    if (search) search.value = "";
+    if (this.query === "" && this.lastPushedQuery === "") return;
+    this.query = "";
+    if (!this.isServerSearch()) this.filterOptions();
+    else if (this.lastPushedQuery !== "") this.pushSearch("");
+  },
+  // Event handlers
+  handleClick(event) {
+    const target = event.target;
+    const remove = target.closest('[data-part="badge-remove"]');
+    if (remove) {
+      this.remove(remove.closest('[data-part="badge"]').dataset.value);
+      this.part("trigger")?.focus();
+      return;
+    }
+    if (target.closest('[data-part="clear"]')) {
+      this.setSelection([]);
+      this.part("trigger")?.focus();
+      return;
+    }
+    if (target.closest('[data-part="trigger"]')) {
+      this.toggle();
+      return;
+    }
+    const option = target.closest('[data-part="option"]');
+    if (option && this.part("listbox")?.contains(option)) this.choose(option);
+  },
+  // Keeps focus on the trigger or the search input when clicking an option,
+  // a badge's remove control or the popup's background; otherwise the click
+  // would blur them and close the popup.
+  handleMousedown(event) {
+    const target = event.target;
+    if (target.closest('[data-part="badge-remove"]')) {
+      event.preventDefault();
+      return;
+    }
+    if (this.part("popup")?.contains(target) && !target.closest(FOCUSABLE)) event.preventDefault();
+  },
+  handlePointermove(event) {
+    const option = event.target.closest('[data-part="option"]');
+    if (!this.isOpen || !option || !this.isNavigable(option)) return;
+    if (option.dataset.value !== this.activeValue) this.setActive(option.dataset.value, { scroll: false });
+  },
+  handleKeydown(event) {
+    if (event.isComposing) return;
+    const trigger = this.part("trigger");
+    const search = this.part("search");
+    const onTrigger = event.target === trigger;
+    const onSearch = search !== null && event.target === search;
+    if (event.key === "Escape") {
+      if (!this.isOpen) return;
+      event.preventDefault();
+      event.stopPropagation();
+      this.close({ focus: true });
+      return;
+    }
+    if (event.key === "Tab") {
+      if (this.isOpen && !this.hasFocusableSlotContent()) this.closeOnFocusMove = true;
+      return;
+    }
+    if (!onTrigger && !onSearch) return;
+    switch (event.key) {
+      case "ArrowDown":
+      case "ArrowUp":
+        event.preventDefault();
+        if (!this.isOpen) this.open();
+        else this.moveActive(event.key === "ArrowDown" ? "next" : "previous");
+        return;
+      case "Home":
+      case "End":
+        if (!this.isOpen || onSearch) return;
+        event.preventDefault();
+        this.moveActive(event.key === "Home" ? "first" : "last");
+        return;
+      case "Enter":
+        event.preventDefault();
+        if (!this.isOpen) this.open();
+        else this.choose(this.activeOption());
+        return;
+      case " ":
+        if (onSearch) return;
+        event.preventDefault();
+        if (this.typeahead !== "") this.typeaheadKey(" ");
+        else if (!this.isOpen) this.open();
+        else this.choose(this.activeOption());
+        return;
+      case "Backspace":
+      case "Delete":
+        if (!onTrigger) return;
+        event.preventDefault();
+        if (this.isMultiple()) this.setSelection(this.selectedValues().slice(0, -1));
+        else if (this.part("clear")) this.setSelection([]);
+        return;
+      default:
+        if (!onTrigger || !isPrintableKey(event)) return;
+        if (search) this.open();
+        else {
+          event.preventDefault();
+          this.typeaheadKey(event.key);
+        }
+    }
+  },
+  // A button activates on the keyup of Space; keydown already handled it.
+  handleKeyup(event) {
+    if (event.key === " " && event.target === this.part("trigger")) event.preventDefault();
+  },
+  handleFocusout(event) {
+    if (!this.isOpen) return;
+    const next = event.relatedTarget;
+    if (this.closeOnFocusMove || next && !this.el.contains(next)) this.close();
+  },
+  // The search input has no name and must not reach LiveView's form handling,
+  // which would send `phx-change` for every keystroke.
+  handleSearchEvent(event) {
+    const search = this.part("search");
+    if (!search || event.target !== search) return;
+    event.stopPropagation();
+    if (event.type === "input") this.search(search.value);
+  },
+  handleDocumentPointerdown(event) {
+    const target = event.target;
+    if (this.el.contains(target)) return;
+    if (target.closest?.(`label[for="${this.part("trigger")?.id}"]`)) return;
+    this.close();
+  },
+  handleScroll(event) {
+    if (this.part("popup")?.contains(event.target)) return;
+    this.position();
+  },
+  hasFocusableSlotContent() {
+    const popup = this.part("popup");
+    if (!popup) return false;
+    const search = this.part("search");
+    return Array.from(popup.querySelectorAll(FOCUSABLE)).some(
+      (element) => element !== search && !element.disabled && element.getAttribute("tabindex") !== "-1"
+    );
   }
 };
 
