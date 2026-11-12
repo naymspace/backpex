@@ -82,6 +82,7 @@ These are provided by `use Backpex.Field` and can be overridden as needed:
 @callback association?(field)          # Default: false
 @callback assign_uploads(field, socket) # Default: returns socket unchanged
 @callback before_changeset(changeset, attrs, metadata, repo, field, assigns) # 6-arity
+@callback param_keys(field, assigns)   # Default: [field name]; return every param name render_form submits
 @callback search_condition(schema_name :: binary(), field_name :: binary(), search_string :: binary()) # Default: ilike
 ```
 

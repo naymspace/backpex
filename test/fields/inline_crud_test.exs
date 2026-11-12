@@ -150,4 +150,72 @@ defmodule Backpex.Fields.InlineCRUDTest do
       end
     end
   end
+
+  # The form of a resource action or an item action works on the base schema of the action, so the rows are looked up in
+  # the changeset of the form and no LiveResource with that schema is needed.
+  describe "param_keys/2" do
+    for {name, type, primary_key} <- [{:links, :embed, "id"}, {:suppliers, :assoc, "id"}] do
+      test "returns the keys of the rows of #{name} from the changeset of the form" do
+        child_fields = [
+          label: %{module: Backpex.Fields.Text, label: "Label"},
+          url: %{module: Backpex.Fields.Text, label: "URL", readonly: true}
+        ]
+
+        field = {unquote(name), %{type: unquote(type), child_fields: child_fields}}
+        assigns = %{changeset: Ecto.Changeset.change(product()), live_action: :resource_action}
+        name = Atom.to_string(unquote(name))
+
+        assert InlineCRUD.param_keys(field, assigns) ==
+                 [{name, ["_persistent_id", unquote(primary_key), "label"]}, name <> "_order", name <> "_delete"]
+      end
+    end
+
+    test "returns no primary key for rows the changeset has no schema for" do
+      field = {:links, %{type: :embed, child_fields: [label: %{module: Backpex.Fields.Text, label: "Label"}]}}
+      assigns = %{changeset: Ecto.Changeset.change({%{}, %{links: {:array, :map}}}), live_action: :resource_action}
+
+      assert InlineCRUD.param_keys(field, assigns) == [
+               {"links", ["_persistent_id", "label"]},
+               "links_order",
+               "links_delete"
+             ]
+    end
+  end
+
+  describe "class of a child field" do
+    test "is added to the header and every cell of the child field's column only" do
+      child_fields = [
+        label: %{module: Backpex.Fields.Text, label: "Label", class: "w-1/3"},
+        url: %{module: Backpex.Fields.Text, label: "URL"}
+      ]
+
+      html = render_form(:links, child_fields: child_fields)
+
+      assert column_classes(html, "w-1\\/3") == {["inline-crud-header-label-links-label"], ["label", "label"]}
+    end
+
+    test "can be the result of a function" do
+      child_fields = [
+        label: %{module: Backpex.Fields.Text, label: "Label"},
+        url: %{module: Backpex.Fields.Text, label: "URL", class: fn %{readonly: false} -> "w-2/3" end}
+      ]
+
+      html = render_form(:links, child_fields: child_fields)
+
+      assert column_classes(html, "w-2\\/3") == {["inline-crud-header-label-links-url"], ["url", "url"]}
+    end
+  end
+
+  # Returns the ids of the header cells and the child field names of the inputs in the row cells with the class.
+  defp column_classes(html, class) do
+    header_ids = html |> LazyHTML.query("div.table-cell.#{class}[id]") |> LazyHTML.attribute("id")
+
+    input_fields =
+      html
+      |> LazyHTML.query("div.table-row > div.table-cell.#{class} input[type=text]")
+      |> LazyHTML.attribute("name")
+      |> Enum.map(&(Regex.run(~r/\[(\w+)\]$/, &1, capture: :all_but_first) |> hd()))
+
+    {header_ids, input_fields}
+  end
 end

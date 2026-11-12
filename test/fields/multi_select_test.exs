@@ -15,9 +15,9 @@ defmodule Backpex.Fields.MultiSelectTest do
     {"Editors", [{"Carol", "carol"}, {"Dave", "dave"}]}
   ]
 
-  defp mount(options, selected, form_name \\ :change) do
+  defp mount(options, selected, form_name \\ :change, field_options \\ %{}) do
     assigns = %{
-      field_options: %{module: MultiSelect, label: "Users", options: options},
+      field_options: Map.merge(%{module: MultiSelect, label: "Users", options: options}, field_options),
       form: Phoenix.Component.to_form(%{"users" => selected}, as: form_name),
       hide_label: false,
       item: %{},
@@ -58,6 +58,13 @@ defmodule Backpex.Fields.MultiSelectTest do
     |> URI.encode_query()
     |> Plug.Conn.Query.decode()
     |> get_in(["change", "users"])
+  end
+
+  defp prompt_text(document) do
+    document
+    |> LazyHTML.query("[aria-haspopup] p")
+    |> LazyHTML.text()
+    |> String.trim()
   end
 
   defp render(socket) do
@@ -118,6 +125,39 @@ defmodule Backpex.Fields.MultiSelectTest do
 
       assert rendered_labels(socket) == ["Bob"]
       assert submitted_users(socket) |> Enum.sort() == ["alex", "carol"]
+    end
+  end
+
+  describe "prompt" do
+    test "is shown while no option is selected" do
+      document = mount(@options, [], :change, %{prompt: "Pick users"}) |> render()
+
+      assert prompt_text(document) == "Pick users"
+      refute LazyHTML.text(document) =~ "Select options..."
+    end
+
+    test "can be a function that receives the assigns" do
+      prompt = fn assigns -> "Pick #{String.downcase(assigns.field_options.label)}" end
+      document = mount(@options, [], :change, %{prompt: prompt}) |> render()
+
+      assert prompt_text(document) == "Pick users"
+    end
+
+    test "defaults to Backpex's text" do
+      assert mount(@options, []) |> render() |> prompt_text() == "Select options..."
+    end
+  end
+
+  describe "not_found_text" do
+    test "is shown when no option matches the search" do
+      socket = mount(@options, [], :change, %{not_found_text: "Nobody here"})
+
+      refute render(socket) |> LazyHTML.text() =~ "Nobody here"
+
+      document = socket |> search("zzz") |> render()
+
+      assert document |> LazyHTML.text() =~ "Nobody here"
+      refute document |> LazyHTML.text() =~ "No options found"
     end
   end
 
