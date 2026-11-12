@@ -336,6 +336,21 @@ defmodule Backpex.HTML.ResourceTest do
     end
   end
 
+  describe "resource_form_field/1" do
+    test "evaluates readonly with the field assigns of the form field" do
+      readonly = fn %{type: :form, field: {:title, _field_options}} -> true end
+
+      html =
+        render_component(&Resource.resource_form_field/1,
+          name: :title,
+          form: Phoenix.Component.to_form(%{}, as: :change),
+          fields: [title: %{module: ReadonlyField, label: "Title", readonly: readonly}]
+        )
+
+      assert html =~ ~s(<span id="readonly">true</span>)
+    end
+  end
+
   defmodule AssignIconAction do
     @moduledoc false
     use Phoenix.Component

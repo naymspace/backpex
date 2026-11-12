@@ -198,6 +198,25 @@ defmodule Backpex.Field do
   @callback index_editable_change(field :: tuple(), value :: any(), assigns :: map()) :: map() | :error
 
   @doc """
+  Returns the keys of the form params the field submits, e.g. `["title"]`.
+
+  The form passes only the params of the fields an admin may edit to the changeset: fields of the current action that
+  `can?` allows and that are not readonly. Backpex drops every other param, so a crafted client can't change a value
+  that no such field submits. Defaults to the name of the field. Override it when the form of the field submits
+  other or more params, as `Backpex.Fields.BelongsTo` submits the foreign key, e.g. `["user_id"]`. The function
+  receives the field definition and the assigns of the form.
+
+  A field whose form submits rows of nested params returns `{key, keys}` for them, e.g. `{"addresses", ["id", "street"]}`.
+  The form then keeps only the given keys in each row of the param `key`. The param may be a list of rows, a map of
+  indexes to rows, or the one row of a single nested object (`embeds_one`, `has_one`). A key in `keys` may again be such
+  a tuple. `Backpex.Fields.InlineCRUD` and `Backpex.Fields.HasManyThrough` return their rows this way.
+
+  The hidden input of the upload UI of a field with an `upload_key`, `"<name>_used_input"`, is kept without being returned
+  here. `Backpex.Fields.Upload` returns no other key, as the server builds the param of its name from the uploads.
+  """
+  @callback param_keys(field :: tuple(), assigns :: map()) :: [String.t() | {String.t(), list()}]
+
+  @doc """
   The field to be displayed on index views. In most cases this is the name / key configured in the corresponding field definition.
   In fields with associations this value often differs from the name / key. The function will receive the field definition.
   """
@@ -382,6 +401,10 @@ defmodule Backpex.Field do
     quote bind_quoted: [opts: opts] do
       @config_schema opts[:config_schema] || []
 
+      # Compiled once, when the field module is compiled. `NimbleOptions.validate/2` compiles a schema given as a
+      # keyword list on every call, which made up most of the time spent validating a field configuration.
+      @compiled_config_schema NimbleOptions.new!(Backpex.Field.default_config_schema() ++ @config_schema)
+
       @before_compile Backpex.Field
       @behaviour Backpex.Field
 
@@ -398,7 +421,7 @@ defmodule Backpex.Field do
       def validate_config!({name, options} = _field, live_resource) do
         field_options = Keyword.new(options)
 
-        case NimbleOptions.validate(field_options, Backpex.Field.default_config_schema() ++ @config_schema) do
+        case NimbleOptions.validate(field_options, @compiled_config_schema) do
           {:ok, validated_options} ->
             validated_options
 
@@ -445,6 +468,9 @@ defmodule Backpex.Field do
 
       @impl Backpex.Field
       def association?(_field), do: false
+
+      @impl Backpex.Field
+      def param_keys({name, _field_options} = _field, _assigns), do: [Atom.to_string(name)]
 
       @impl Backpex.Field
       def assign_uploads(_field, socket), do: socket
@@ -567,19 +593,84 @@ defmodule Backpex.Field do
   def upload_key(_field), do: nil
 
   @doc """
+  Takes the changes of the fields an admin may edit from the given change map.
+
+  Takes a map of string-keyed form params, a keyword list of field definitions, and assigns. Returns the params that
+  `c:param_keys/2` of a field that is not readonly returns, and their `_unused_` params of LiveView. The rows of nested
+  params keep only their keys. The form gets the fields of the current action that `can?` allows, so the params of
+  every other field are dropped as well.
+  """
+  def editable_changes(change, fields, assigns) do
+    keys =
+      fields
+      |> Enum.reject(fn {_name, options} -> readonly?(options, assigns) end)
+      |> Enum.flat_map(&submitted_keys(&1, assigns))
+
+    take_params(change, keys)
+  end
+
+  @doc """
   Drops readonly field changes from the given change map.
 
-  Takes a map of string-keyed form params, a keyword list of field definitions,
-  and assigns. Returns the change map with readonly field keys removed.
+  Takes a map of string-keyed form params, a keyword list of field definitions, and assigns. Returns the change map
+  without the param of the name of a readonly field and the params that its `c:param_keys/2` returns.
   """
   def drop_readonly_changes(change, fields, assigns) do
     read_only =
       fields
       |> Enum.filter(fn {_name, options} -> readonly?(options, assigns) end)
-      |> Enum.map(fn {name, _options} -> Atom.to_string(name) end)
+      |> Enum.flat_map(fn {name, _options} = field -> [Atom.to_string(name) | submitted_keys(field, assigns)] end)
+      |> Enum.map(&param_name/1)
 
     Map.drop(change, read_only)
   end
+
+  # The upload UI submits whether the admin used the upload input, for every field with an upload key.
+  defp submitted_keys({name, field_options} = field, assigns) do
+    used_input = if upload_key(field), do: ["#{name}_used_input"], else: []
+
+    field_options.module.param_keys(field, assigns) ++ used_input
+  end
+
+  defp take_params(params, keys) do
+    Enum.reduce(keys, %{}, fn key, acc ->
+      name = param_name(key)
+
+      acc
+      |> take_param(params, "_unused_" <> name, name)
+      |> take_param(params, name, key)
+    end)
+  end
+
+  defp take_param(acc, params, name, key) do
+    case Map.fetch(params, name) do
+      {:ok, value} -> Map.put(acc, name, take_rows(value, key))
+      :error -> acc
+    end
+  end
+
+  # Nested params, e.g. of `inputs_for`, come as a list of rows, as a map of indexes to rows, or as the one row of a
+  # single nested object.
+  defp take_rows(rows, {_name, keys}) when is_list(rows), do: Enum.map(rows, &take_row(&1, keys))
+
+  defp take_rows(rows, {_name, keys}) when is_map(rows) do
+    if indexed_rows?(rows),
+      do: Map.new(rows, fn {index, row} -> {index, take_row(row, keys)} end),
+      else: take_params(rows, keys)
+  end
+
+  defp take_rows(value, _key), do: value
+
+  # Forms index their rows with integers. Every other map is one row, so its keys are filtered as well.
+  defp indexed_rows?(rows) do
+    Enum.all?(rows, fn {index, row} -> is_map(row) and match?({_integer, ""}, Integer.parse(to_string(index))) end)
+  end
+
+  defp take_row(row, keys) when is_map(row), do: take_params(row, keys)
+  defp take_row(value, _keys), do: value
+
+  defp param_name({name, _keys}), do: name
+  defp param_name(name), do: name
 
   def translate_error_fun(%{translate_error: translate_error}, _assigns) when is_function(translate_error, 1),
     do: translate_error
@@ -671,6 +762,7 @@ defmodule Backpex.Field do
     %{assigns: %{item: item, fields: fields, live_resource: live_resource} = assigns} = socket
 
     opts = [
+      before_save_fun: &live_resource.on_item_updating(socket, &1),
       after_save_fun: fn item ->
         live_resource.on_item_updated(socket, item)
 
