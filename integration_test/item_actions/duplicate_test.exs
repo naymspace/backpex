@@ -27,6 +27,20 @@ defmodule Backpex.Integration.ItemActions.DuplicateTest do
       |> assert_has("dd", text: "Elixir Copy", exact: true)
     end
 
+    test "duplicates the item of the row while another row is selected", %{conn: conn} do
+      phoenix = insert(:tag, name: "Phoenix")
+
+      conn
+      |> visit(~p"/admin/tags")
+      |> check("Select item with id: #{phoenix.id}")
+      |> click_button("Duplicate Elixir")
+      |> assert_has("#resource-form input[name='change[name]'][value='Elixir']")
+      |> submit_duplicate()
+      |> assert_has("dd", text: "Elixir", exact: true)
+
+      assert Tag |> where([t], t.name == "Elixir") |> Repo.aggregate(:count) == 2
+    end
+
     test "creates nothing on cancel", %{conn: conn} do
       conn
       |> open_from_index()
@@ -36,7 +50,7 @@ defmodule Backpex.Integration.ItemActions.DuplicateTest do
     end
   end
 
-  # A row action runs on its row, so the view puts the row into the selection while the dialog is open.
+  # A row action runs on its row, and the selection of the table is left as it is.
   describe "cancelling on the index view" do
     setup do
       %{phoenix: insert(:tag, name: "Phoenix"), ecto: insert(:tag, name: "Ecto")}
@@ -53,13 +67,16 @@ defmodule Backpex.Integration.ItemActions.DuplicateTest do
       |> assert_has("button[phx-value-action-key='delete'][disabled]:not([phx-value-item-id])")
     end
 
-    test "restores the rows that were selected", %{conn: conn, tag: tag, phoenix: phoenix, ecto: ecto} do
+    test "keeps the rows that were selected", %{conn: conn, tag: tag, phoenix: phoenix, ecto: ecto} do
       conn
       |> visit(~p"/admin/tags")
       |> check("Select item with id: #{phoenix.id}")
       |> check("Select item with id: #{ecto.id}")
       |> click_button("Duplicate Elixir")
       |> assert_has("div", text: "Duplicate", exact: true)
+      |> assert_has("#select-input-#{phoenix.id}[checked]")
+      |> assert_has("#select-input-#{ecto.id}[checked]")
+      |> refute_has("#select-input-#{tag.id}[checked]")
       |> cancel()
       |> assert_has("#select-input-#{phoenix.id}[checked]")
       |> assert_has("#select-input-#{ecto.id}[checked]")
@@ -68,7 +85,7 @@ defmodule Backpex.Integration.ItemActions.DuplicateTest do
       |> refute_has("button[phx-value-action-key='delete'][disabled]:not([phx-value-item-id])")
     end
 
-    test "restores a selection of all rows", %{conn: conn, tag: tag, phoenix: phoenix, ecto: ecto} do
+    test "keeps a selection of all rows", %{conn: conn, tag: tag, phoenix: phoenix, ecto: ecto} do
       conn
       |> visit(~p"/admin/tags")
       |> check("Select all items")

@@ -20,20 +20,28 @@ defmodule Backpex.Integration.ItemActions.DeleteTest do
     |> assert_has("div", text: "Category has been deleted successfully.", exact: true)
   end
 
-  test "clears the selection after deleting the item of a row", %{conn: conn, category: category} do
-    selected = insert(:category, name: "Phoenix")
+  test "deletes only the item of a row while other rows are selected", %{conn: conn, category: category} do
+    phoenix = insert(:category, name: "Phoenix")
+    ecto = insert(:category, name: "Ecto")
 
     conn
     |> visit(~p"/admin/categories")
-    |> check("Select item with id: #{selected.id}")
+    |> check("Select item with id: #{phoenix.id}")
+    |> check("Select item with id: #{ecto.id}")
     |> unwrap(fn view ->
       view
       |> Phoenix.LiveViewTest.element(~s|[id="item-action-delete-#{category.id}"]|)
       |> Phoenix.LiveViewTest.render_click()
     end)
+    |> assert_has("#action-confirm-modal", text: "Are you sure you want to delete the item?")
+    # The table behind the modal keeps the selection and does not select the row of the action.
+    |> assert_has("#select-input-#{phoenix.id}[checked]")
+    |> assert_has("#select-input-#{ecto.id}[checked]")
+    |> refute_has("#select-input-#{category.id}[checked]")
     |> confirm()
     |> refute_has("td", text: "Elixir", exact: true)
     |> assert_has("td", text: "Phoenix", exact: true)
+    |> assert_has("td", text: "Ecto", exact: true)
     |> refute_has("table input[type='checkbox'][checked]")
   end
 
