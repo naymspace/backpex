@@ -227,15 +227,11 @@ defmodule Backpex.Testing do
   # value, which its hook adds in the browser. `Phoenix.LiveViewTest.form/3` only fills in inputs the form renders, so
   # the values of these fields are sent with the event instead.
   defp split_selections(view, form_selector, params) do
-    names =
-      view
-      |> element(form_selector)
-      |> render()
-      |> LazyHTML.from_fragment()
-      |> LazyHTML.query(~s|[data-part="root"][data-multiple] input[data-part="anchor"]|)
-      |> LazyHTML.attribute("name")
-
-    {selections, params} = Enum.split_with(params, fn {key, _value} -> "change[#{key}]" in names end)
+    {selections, params} =
+      Enum.split_with(params, fn {key, _value} ->
+        anchor = ~s|[data-part="root"][data-multiple] input[data-part="anchor"][name="change[#{escape(key)}]"]|
+        has_element?(view, "#{form_selector} #{anchor}")
+      end)
 
     {Map.new(params), Map.new(selections)}
   end
