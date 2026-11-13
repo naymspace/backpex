@@ -91,7 +91,6 @@ defmodule Backpex.Fields.HasManyThrough do
   use Backpex.Field, config_schema: @config_schema
   import Ecto.Query
   import Backpex.HTML.Layout, except: [ok: 1, noreply: 1]
-  import PhoenixHTMLHelpers.Form, only: [hidden_inputs_for: 1]
   alias Backpex.Fields.OptionsQuery
   alias Backpex.LiveResource
   alias Ecto.Changeset
@@ -369,7 +368,13 @@ defmodule Backpex.Fields.HasManyThrough do
           close_label={Backpex.__("Close modal", @live_resource)}
         >
           <div class="py-3">
-            {hidden_inputs_for(e)}
+            <input
+              :for={{key, value} <- e.hidden}
+              id={Phoenix.HTML.Form.input_id(e, key)}
+              name={Phoenix.HTML.Form.input_name(e, key)}
+              type="hidden"
+              value={value}
+            />
             <.select_relational_field
               form={e}
               hide_label={@hide_label}
