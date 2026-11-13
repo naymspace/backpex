@@ -1,8 +1,9 @@
 defmodule Backpex.Test.UserLive do
   @moduledoc """
   Users with integer primary keys. They have an `item_query` that hides soft-deleted users, an `init_order` function,
-  a `can?/3` that denies the item action `Backpex.Test.ItemActions.UserSoftDelete` for admins, two resource actions, a
-  panel, an index editable field, a HasManyThrough field with a pivot field and an InlineCRUD field of an embed.
+  a `can?/3` that denies the item action `Backpex.Test.ItemActions.UserSoftDelete` for admins and `:edit` for the user
+  named "locked", an `on_item_updated/2` that reports to the test, two resource actions, a panel, an index editable
+  field, a HasManyThrough field with a pivot field and an InlineCRUD field of an embed.
   """
   use Backpex.LiveResource,
     adapter_config: [
@@ -27,7 +28,16 @@ defmodule Backpex.Test.UserLive do
 
   @impl Backpex.LiveResource
   def can?(_assigns, :user_soft_delete, item), do: item.role != :admin
+  def can?(_assigns, :edit, %{username: "locked"}), do: false
   def can?(_assigns, _action, _item), do: true
+
+  # Sends the `item` assign of the socket and the saved item to the test that started the LiveView.
+  @impl Backpex.LiveResource
+  def on_item_updated(socket, item) do
+    for pid <- Process.get(:"$callers", []), do: send(pid, {:on_item_updated, socket.assigns[:item], item})
+
+    socket
+  end
 
   def item_query(query, _live_action, _assigns) do
     from u in query, where: is_nil(u.deleted_at)

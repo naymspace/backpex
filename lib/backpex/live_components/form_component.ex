@@ -324,6 +324,11 @@ defmodule Backpex.FormComponent do
   end
 
   defp handle_save(socket, :edit, params, form_action) do
+    # The item in the assigns is the snapshot taken when the form was mounted, and the form may have been open for a
+    # long time. It is read again, so `Backpex.Resource.update/6` authorizes `:edit` for the current record and builds
+    # the changeset on it. The hooks and the changeset receive the current record as the `item` assign as well.
+    socket = assign(socket, :item, current_item!(socket))
+
     %{
       live_resource: live_resource,
       item: item,
@@ -424,6 +429,17 @@ defmodule Backpex.FormComponent do
 
         Resource Actions must return {:ok, socket} or {:error, changeset}.
         """
+    end
+  end
+
+  # An item that was deleted or has left the scope of the `item_query` is gone for the LiveResource, as it is when the
+  # form is mounted.
+  defp current_item!(socket) do
+    %{live_resource: live_resource, item: item, fields: fields} = socket.assigns
+
+    case Resource.reload([item], fields, socket.assigns, live_resource) do
+      [nil] -> raise Backpex.NoResultsError
+      [current_item] -> current_item
     end
   end
 
