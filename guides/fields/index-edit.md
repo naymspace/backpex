@@ -74,7 +74,7 @@ def index_editable_change({name, _field_options}, value, _assigns), do: %{name =
 def index_editable_change({name, _field_options}, value, _assigns), do: %{name => String.trim(value)}
 ```
 
-Index forms that send their own event to the field component with `phx-target={@myself}` and save it with `Backpex.Field.handle_index_editable/3` keep working. They save with the assigns of the field component, which only include the listed assigns when `:context_assigns` is a list.
+Index forms that send their own event to the field component with `phx-target={@myself}` and save it with `Backpex.Field.handle_index_editable/3` keep working. They save with the assigns of the field component, which only include the listed assigns when `:context_assigns` is a list. `Backpex.Field.handle_index_editable/3` reads the item again before it saves, so an `item_query` then receives these assigns as well: list every assign it reads.
 
 ## Loading data for all rows at once
 

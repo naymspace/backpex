@@ -360,6 +360,41 @@ defmodule Backpex.FieldTest do
 
       assert_not_saved(socket)
     end
+
+    # The item of the field component is the one that was rendered, the store of the adapter holds the current one.
+    test "saves the change on the item as it is now, not as it was rendered" do
+      current_item = %{id: 1, title: "Changed elsewhere", likes: 2}
+      socket = %{id: 1, title: "Before", likes: 1} |> field_socket() |> put_current_item(1, current_item)
+
+      assert {:noreply, socket} = Field.handle_index_editable(socket, "After", %{title: "After"})
+
+      assert_received {:can?, :edit, %{item: ^current_item}}
+      assert_received {:on_item_updating, %Socket{assigns: %{item: ^current_item}}, ^current_item}
+      assert_received {:adapter, :update, ^current_item, %{title: "After"}}
+      assert socket.assigns.valid
+    end
+
+    test "saves nothing for an item that is gone or has left the scope of the item query" do
+      socket = %{id: 1, title: "Before"} |> field_socket() |> put_current_item(1, nil)
+
+      assert_not_saved(socket)
+      refute_received {:can?, :edit, _assigns}
+    end
+
+    test "saves nothing for an item the user may no longer edit" do
+      socket = %{id: 1, title: "Before", role: :user} |> field_socket() |> put_current_item(1, %{id: 1, role: :admin})
+      socket = %{socket | assigns: %{socket.assigns | live_resource: Backpex.Test.LiveResources.NoAdmins}}
+
+      assert_not_saved(socket)
+    end
+
+    test "saves nothing for a field that is readonly for the item as it is now" do
+      item = %{id: 1, title: "Before", locked: false}
+      field_options = %{index_editable: true, readonly: &Map.get(&1.item, :locked)}
+      socket = item |> field_socket(field_options) |> put_current_item(1, %{item | locked: true})
+
+      assert_not_saved(socket)
+    end
   end
 
   describe "Backpex.Fields.Boolean.render_index_form/1" do
@@ -399,8 +434,14 @@ defmodule Backpex.FieldTest do
         fields: [],
         field_options: field_options,
         live_action: :index,
-        live_resource: InlineEditLive
+        live_resource: InlineEditLive,
+        # The store that `Backpex.Test.StubAdapter.get/4` reads the item from.
+        stub_records: %{item.id => item}
       }
     }
+  end
+
+  defp put_current_item(socket, id, item) do
+    %{socket | assigns: %{socket.assigns | stub_records: %{id => item}}}
   end
 end
