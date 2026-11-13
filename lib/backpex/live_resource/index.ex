@@ -165,13 +165,15 @@ defmodule Backpex.LiveResource.Index do
     # during render. 404 also keeps the event from confirming whether an id exists.
     item = find_item_by_primary_value(items, item_id, live_resource) || raise(Backpex.NoResultsError)
 
+    # The action runs on its row only. The row is kept apart from `selected_items`, so the table
+    # behind the confirm modal keeps showing what the admin selected, and cancelling leaves it as is.
     socket
-    |> assign(selected_items: [item])
-    |> maybe_handle_item_action(key)
+    |> assign(:row_action_items, [item])
+    |> maybe_handle_item_action(key, [item])
   end
 
   def handle_event("item-action", %{"action-key" => key}, socket) do
-    maybe_handle_item_action(socket, key)
+    maybe_handle_item_action(socket, key, socket.assigns.selected_items)
   end
 
   # The value is client-controlled. It is patched into the URL as is and validated like any other URL param in
@@ -280,6 +282,7 @@ defmodule Backpex.LiveResource.Index do
     |> assign(:item, nil)
     |> assign(:changeset, nil)
     |> assign(:action_to_confirm, nil)
+    |> assign(:row_action_items, nil)
     |> noreply()
   end
 
@@ -342,19 +345,24 @@ defmodule Backpex.LiveResource.Index do
   # LiveView, like in `Backpex.LiveResource.Show` and `Backpex.LiveResource.Form`.
   def handle_event(_event, _params, socket), do: noreply(socket)
 
-  defp maybe_handle_item_action(socket, key) do
-    items = socket.assigns.selected_items
+  # The callbacks of an item action read its items from `selected_items`, e.g. `c:Backpex.ItemAction.base_schema/1`.
+  # The items of a row action are not the selection of the table, so they take its place while the action is set up,
+  # and the confirm modal gets them from `row_action_items`.
+  defp maybe_handle_item_action(socket, key, items) do
+    selection = socket.assigns.selected_items
+    socket = assign(socket, :selected_items, items)
 
     case ItemAction.resolve_item_action!(socket, key, items) do
-      {:confirm, key, action} -> open_action_confirm_modal(socket, action, key)
+      {:confirm, key, action} -> open_action_confirm_modal(socket, action, key, selection)
       {:dispatch, key, action} -> handle_item_action(socket, action, key, items)
     end
   end
 
-  defp open_action_confirm_modal(socket, action, key) do
+  defp open_action_confirm_modal(socket, action, key, selection) do
     socket
     |> ItemAction.assign_action_changeset(action)
     |> assign(:action_to_confirm, Map.put(action, :key, key))
+    |> assign(:selected_items, selection)
     |> noreply()
   end
 
@@ -364,6 +372,7 @@ defmodule Backpex.LiveResource.Index do
       |> assign(action_to_confirm: nil)
       |> assign(selected_items: [])
       |> assign(select_all: false)
+      |> assign(row_action_items: nil)
       |> noreply()
     end)
   end
@@ -594,25 +603,28 @@ defmodule Backpex.LiveResource.Index do
     saves?
   end
 
-  # An updated item that is neither on this page nor selected is not read, as nothing shown holds its values. It may
-  # still have left or entered the scope of this view, so the items are counted as for a removed row.
+  # An updated item that is neither on this page, selected nor in an open row action is not read, as nothing shown holds
+  # its values. It may still have left or entered the scope of this view, so the items are counted as for a removed row.
   defp update_item(socket, item) do
     %{live_resource: live_resource, items: items, selected_items: selected_items} = socket.assigns
+    row_action_items = socket.assigns.row_action_items || []
 
     primary_value = LiveResource.primary_value(item, live_resource)
 
     if find_item_by_primary_value(items, primary_value, live_resource) ||
-         find_item_by_primary_value(selected_items, primary_value, live_resource) do
+         find_item_by_primary_value(selected_items, primary_value, live_resource) ||
+         find_item_by_primary_value(row_action_items, primary_value, live_resource) do
       reload_item(socket, primary_value)
     else
       refresh_items_after_removal(socket, primary_value)
     end
   end
 
-  # The selection caches whole records, so a row that changed elsewhere has to be replaced there
-  # too — otherwise the confirm dialog and every preflight `can?/3` keep describing the old values.
-  # This is a UI nicety only: `Backpex.ItemAction.authorize_fresh!/3` re-reads the selection before
-  # the execution gate either way.
+  # The selection and the items of an open row action cache whole records, so a row that changed
+  # elsewhere has to be replaced there too — otherwise the confirm dialog and every preflight
+  # `can?/3` keep describing the old values. This is a UI nicety only:
+  # `Backpex.ItemAction.authorize_fresh!/3` re-reads the selection before the execution gate either
+  # way.
   defp reload_item(socket, primary_value) do
     %{live_resource: live_resource, fields: fields} = socket.assigns
 
@@ -633,6 +645,7 @@ defmodule Backpex.LiveResource.Index do
         |> drop_index_edits(primary_value)
         |> assign_field_index_assigns()
         |> assign(:selected_items, replace.(socket.assigns.selected_items))
+        |> update(:row_action_items, &(&1 && replace.(&1)))
     end
   end
 
@@ -676,20 +689,23 @@ defmodule Backpex.LiveResource.Index do
     end)
   end
 
-  # Drops a vanished row from the selection and keeps `select_all` in step with it, so the toolbar
-  # does not claim everything is selected once the selection shrank.
+  # Drops a vanished row from the selection and from the items of an open row action, and keeps
+  # `select_all` in step with the selection, so the toolbar does not claim everything is selected
+  # once the selection shrank.
   defp drop_selected_item(socket, primary_value) do
     %{selected_items: selected_items, live_resource: live_resource} = socket.assigns
 
     primary_value_str = to_string(primary_value)
 
-    remaining =
-      Enum.reject(selected_items, fn item ->
-        to_string(LiveResource.primary_value(item, live_resource)) == primary_value_str
-      end)
+    drop = fn items ->
+      Enum.reject(items, &(to_string(LiveResource.primary_value(&1, live_resource)) == primary_value_str))
+    end
+
+    remaining = drop.(selected_items)
 
     socket
     |> assign(:selected_items, remaining)
+    |> update(:row_action_items, &(&1 && drop.(&1)))
     |> assign(:select_all, remaining != [] and length(remaining) == length(selectable_items(socket.assigns)))
   end
 
@@ -820,6 +836,7 @@ defmodule Backpex.LiveResource.Index do
     |> assign(:action_to_confirm, nil)
     |> assign(:selected_items, [])
     |> assign(:select_all, false)
+    |> assign(:row_action_items, nil)
     |> maybe_redirect_to_default_filters()
     |> assign_items()
     |> maybe_assign_metrics()
