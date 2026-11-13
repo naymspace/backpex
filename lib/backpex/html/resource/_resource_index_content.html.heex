@@ -12,8 +12,11 @@
   |> live_component()}
 </.modal>
 
+<%!-- A row action runs on its row, while the table behind the modal keeps the selection. --%>
 <%= if Map.get(assigns, :action_to_confirm) do %>
-  {Backpex.HTML.ItemAction.action_confirm_modal(assigns)}
+  {assigns
+  |> assign(:selected_items, Map.get(assigns, :row_action_items) || @selected_items)
+  |> Backpex.HTML.ItemAction.action_confirm_modal()}
 <% end %>
 
 {@live_resource.render_resource_slot(assigns, :index, :before_page_title)}

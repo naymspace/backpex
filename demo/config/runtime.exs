@@ -14,10 +14,13 @@ config :demo, Demo.Repo,
   port: get_env("DB_PORT", "5432") |> to_integer(),
   pool_size: get_env("DB_POOL_SIZE", "5") |> to_integer()
 
+# The LiveDashboard is open in dev and test unless DASHBOARD_AUTH_ENABLED is "true". In prod it always requires
+# the basic auth credentials from DASHBOARD_AUTH_USERNAME and DASHBOARD_AUTH_PASSWORD; while one of them is
+# missing, DemoWeb.DashboardAuthPlug answers every request to the dashboard with 404.
 config :demo, DemoWeb.DashboardAuthPlug,
-  enabled: get_env("DASHBOARD_AUTH_ENABLED", "false") |> to_existing_atom(),
-  username: get_env("DASHBOARD_AUTH_USERNAME", "backpex"),
-  password: get_env("DASHBOARD_AUTH_PASSWORD", "backpex")
+  required: config_env() == :prod or get_env("DASHBOARD_AUTH_ENABLED") == "true",
+  username: get_env("DASHBOARD_AUTH_USERNAME"),
+  password: get_env("DASHBOARD_AUTH_PASSWORD")
 
 config :demo, DemoWeb.Endpoint,
   http: [

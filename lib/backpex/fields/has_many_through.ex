@@ -446,25 +446,28 @@ defmodule Backpex.Fields.HasManyThrough do
   def handle_event("detach-relational", %{"index" => index}, socket) do
     %{changeset: changeset, association: association, field_options: field_options} = socket.assigns
 
-    index = String.to_integer(index)
     existing = get_change_or_field(changeset, association.pivot.field)
-    {to_delete, rest} = List.pop_at(existing, index)
 
-    primary_key = pivot_primary_key(association, field_options)
+    # `index` is client-controlled. An index that is not a position in the list is ignored.
+    with true <- is_binary(index),
+         {index, ""} when index >= 0 <- Integer.parse(index),
+         {to_delete, rest} when to_delete != nil <- List.pop_at(existing, index) do
+      primary_key = pivot_primary_key(association, field_options)
 
-    updated =
-      if Changeset.change(to_delete).data |> Map.get(primary_key) == nil do
-        rest
-      else
-        # mark item for deletion in changeset
-        List.replace_at(
-          existing,
-          index,
-          %{Changeset.change(to_delete) | action: :delete}
-        )
-      end
+      updated =
+        if Changeset.change(to_delete).data |> Map.get(primary_key) == nil do
+          rest
+        else
+          # mark item for deletion in changeset
+          List.replace_at(
+            existing,
+            index,
+            %{Changeset.change(to_delete) | action: :delete}
+          )
+        end
 
-    put_assoc(association.pivot.field, updated)
+      put_assoc(association.pivot.field, updated)
+    end
 
     {:noreply, socket}
   end

@@ -22,6 +22,31 @@ defmodule Backpex.Integration.ItemActions.DeleteTest do
     |> assert_has("div", text: "Category has been deleted successfully.", exact: true)
   end
 
+  test "deletes only the item of a row while other rows are selected", %{conn: conn, category: category} do
+    phoenix = insert(:category, name: "Phoenix")
+    ecto = insert(:category, name: "Ecto")
+
+    conn
+    |> visit(~p"/admin/categories")
+    |> check("Select item with id: #{phoenix.id}")
+    |> check("Select item with id: #{ecto.id}")
+    |> unwrap(fn view ->
+      view
+      |> Phoenix.LiveViewTest.element(~s|[id="item-action-delete-#{category.id}"]|)
+      |> Phoenix.LiveViewTest.render_click()
+    end)
+    |> assert_has("#action-confirm-modal", text: "Are you sure you want to delete the item?")
+    # The table behind the modal keeps the selection and does not select the row of the action.
+    |> assert_has("#select-input-#{phoenix.id}[checked]")
+    |> assert_has("#select-input-#{ecto.id}[checked]")
+    |> refute_has("#select-input-#{category.id}[checked]")
+    |> confirm()
+    |> refute_has("td", text: "Elixir", exact: true)
+    |> assert_has("td", text: "Phoenix", exact: true)
+    |> assert_has("td", text: "Ecto", exact: true)
+    |> refute_has("table input[type='checkbox'][checked]")
+  end
+
   test "deletes the item from the show view", %{conn: conn, category: category} do
     conn
     |> visit(~p"/admin/categories/#{category.id}/show")
@@ -95,6 +120,52 @@ defmodule Backpex.Integration.ItemActions.DeleteTest do
 
       assert Repo.aggregate(Address, :count) == 2
     end
+  end
+
+  describe "an update of the shown item while the confirmation dialog is open" do
+    test "leaves the index view as the place the action returns to", %{conn: conn, category: category} do
+      conn
+      |> visit(~p"/admin/categories/#{category.id}/show")
+      |> click_button("Delete")
+      |> receive_update(category)
+      |> confirm()
+      |> assert_path(~p"/admin/categories")
+      |> assert_has("div", text: "Category has been deleted successfully.", exact: true)
+
+      refute Repo.get(Category, category.id)
+    end
+
+    test "leaves the return_to param as the place the action returns to", %{conn: conn, category: category} do
+      conn
+      |> visit(~p"/admin/categories/#{category.id}/show?return_to=/admin/tags")
+      |> click_button("Delete")
+      |> receive_update(category)
+      |> confirm()
+      |> assert_path(~p"/admin/tags")
+
+      refute Repo.get(Category, category.id)
+    end
+
+    test "lets the edit link return to the show view after cancelling", %{conn: conn, category: category} do
+      show_path = ~p"/admin/categories/#{category.id}/show"
+      edit_path = ~p"/admin/categories/#{category.id}/edit?#{[return_to: show_path]}"
+
+      conn
+      |> visit(show_path)
+      |> click_button("Delete")
+      |> receive_update(category)
+      |> unwrap(&Phoenix.LiveViewTest.render_click(&1, "cancel-action-confirm"))
+      |> refute_has("#resource-form")
+      |> assert_has("a[href='#{edit_path}']")
+    end
+  end
+
+  # Sends the event `Backpex.Resource.update/5` broadcasts to the views of the resource.
+  defp receive_update(session, item) do
+    unwrap(session, fn view ->
+      send(view.pid, {"backpex:updated", item})
+      Phoenix.LiveViewTest.render(view)
+    end)
   end
 
   defp confirm(session) do
