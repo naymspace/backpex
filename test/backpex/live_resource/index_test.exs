@@ -337,6 +337,7 @@ defmodule Backpex.LiveResource.IndexTest do
             fields: @fields,
             items: [item],
             selected_items: [],
+            row_action_items: nil,
             index_edits: %{},
             current_user: :user,
             stub_records: %{item.id => item}

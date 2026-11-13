@@ -20,6 +20,7 @@ defmodule Backpex.LiveResource.Show do
     |> assign(:params, params)
     |> assign_item_actions()
     |> assign_item()
+    |> assign_return_to()
     |> ok()
   end
 
@@ -29,7 +30,8 @@ defmodule Backpex.LiveResource.Show do
     |> noreply()
   end
 
-  # The topic carries the events of all items of the resource. Only an update of the shown item is read.
+  # The topic carries the events of all items of the resource. Only an update of the shown item is read. `:return_to`
+  # stays as it is: while the confirmation dialog of an item action is open, it is where the action leads afterwards.
   def handle_info({"backpex:updated", updated_item}, socket) do
     %{live_resource: live_resource, item: item} = socket.assigns
     primary_value = &to_string(Backpex.LiveResource.primary_value(&1, live_resource))
@@ -54,6 +56,7 @@ defmodule Backpex.LiveResource.Show do
   def handle_event("cancel-action-confirm", _params, socket) do
     socket
     |> assign_item()
+    |> assign_return_to()
     |> assign(:changeset, nil)
     |> assign(:action_to_confirm, nil)
     |> noreply()
@@ -74,9 +77,15 @@ defmodule Backpex.LiveResource.Show do
 
     Authorization.authorize!(live_resource, socket.assigns, :show, item)
 
-    socket
-    |> assign(:item, item)
-    |> assign(:return_to, return_to(socket, Router.get_path(socket, live_resource, params, :show, item)))
+    assign(socket, :item, item)
+  end
+
+  # Where links of the show view lead back to, e.g. the edit form. An open confirmation dialog of an item action
+  # replaces it, see `open_action_confirm_modal/3`.
+  defp assign_return_to(socket) do
+    %{live_resource: live_resource, params: params, item: item} = socket.assigns
+
+    assign(socket, :return_to, return_to(socket, Router.get_path(socket, live_resource, params, :show, item)))
   end
 
   defp assign_item_actions(socket) do

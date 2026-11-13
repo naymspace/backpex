@@ -352,4 +352,36 @@ defmodule Backpex.Fields.HasManyThroughTest do
       {name, error?}
     end)
   end
+
+  describe "detach-relational" do
+    setup do
+      pivot = Ecto.put_meta(%Pivot{id: 10, child_id: 1, note: "a"}, state: :loaded)
+      changeset = Changeset.change(%Parent{id: 1, pivots: [pivot]})
+
+      socket = %Socket{
+        assigns: %{
+          __changed__: %{},
+          changeset: changeset,
+          association: %{pivot: %{field: :pivots, queryable: Pivot}},
+          field_options: %{live_resource: ChildLive}
+        }
+      }
+
+      %{socket: socket}
+    end
+
+    test "marks an existing relation for deletion", %{socket: socket} do
+      assert {:noreply, _socket} = HasManyThrough.handle_event("detach-relational", %{"index" => "0"}, socket)
+
+      assert_received {:put_assoc, {:pivots, [%Changeset{action: :delete}]}}
+    end
+
+    test "ignores an index that is not an integer or out of range", %{socket: socket} do
+      for index <- ["abc", "0x", "", "5", "-3", 1, nil] do
+        assert {:noreply, _socket} = HasManyThrough.handle_event("detach-relational", %{"index" => index}, socket)
+      end
+
+      refute_received {:put_assoc, _}
+    end
+  end
 end
