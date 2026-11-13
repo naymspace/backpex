@@ -63,6 +63,7 @@ defmodule Backpex.HTML.ComboboxTest do
             [key: "Keyword", value: "keyword", disabled: true],
             %{label: "Map", value: 7},
             :hr,
+            {:hr, nil},
             {"Group", [{"In group", "in_group"}, "Bare"]},
             {"Map group", %{"Mapped" => "mapped"}}
           ]
@@ -87,6 +88,13 @@ defmodule Backpex.HTML.ComboboxTest do
       assert texts(doc, "[aria-labelledby=choice-group-0-label] [data-part=option]") == ["In group", "Bare"]
       # A disabled option is marked as disabled by the server, so the hook can tell it from one disabled by `max`.
       assert attribute(doc, "[data-part=option][data-disabled]", "data-value") == ["keyword"]
+    end
+
+    test "puts the options of a group inside a group into the outer group" do
+      doc = render_combobox(options: [{"Outer", [{"Inner", [{"Nested", "nested"}]}, {"Direct", "direct"}]}])
+
+      assert texts(doc, "[data-part=group-label]") == ["Outer"]
+      assert texts(doc, "[aria-labelledby=choice-group-0-label] [data-part=option]") == ["Nested", "Direct"]
     end
 
     test "accepts a keyword list of label and value, like a native select" do
@@ -420,6 +428,39 @@ defmodule Backpex.HTML.ComboboxTest do
         doc = render_combobox(options: [], size: size)
         assert attribute(doc, "[data-part=control]", "class") |> hd() =~ "input-#{size}"
       end
+    end
+
+    test "scales the badges and the clear button with the size" do
+      classes =
+        for size <- ~w(xs sm md lg xl) do
+          doc = render_combobox(options: ~w(a b), value: ~w(a), multiple: true, clearable: true, size: size)
+          [badge] = attribute(doc, "[data-part=badge]", "class")
+          [clear] = attribute(doc, "[data-part=clear]", "class")
+
+          badge_size = badge |> String.split() |> Enum.find(&(&1 in ~w(badge-xs badge-sm badge-md badge-lg)))
+          clear_size = clear |> String.split() |> Enum.find(&String.starts_with?(&1, "size-"))
+
+          {badge_size, clear_size}
+        end
+
+      assert classes == [
+               {"badge-xs", "size-4"},
+               {"badge-xs", "size-5"},
+               {"badge-sm", "size-6"},
+               {"badge-md", "size-7"},
+               {"badge-lg", "size-8"}
+             ]
+    end
+
+    test "renders without a name, so the value is not submitted" do
+      doc =
+        (&Combobox.combobox/1)
+        |> render_component(id: "choice", options: ~w(a b), value: "a")
+        |> LazyHTML.from_fragment()
+
+      assert attribute(doc, "[data-part=anchor]", "name") == []
+      assert texts(doc, "[data-part=value-label]") == ["a"]
+      assert submitted_params(doc) == %{}
     end
 
     test "passes aria attributes to the trigger, form to the inputs and the rest to the root" do
