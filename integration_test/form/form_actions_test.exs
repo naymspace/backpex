@@ -20,8 +20,8 @@ defmodule Backpex.Integration.Form.FormActionsTest do
         |> visit(~p"/admin/posts/new")
         |> fill_in("Title", with: "Continue Post")
         |> fill_in("Body", with: "Body")
-        |> select("Author", option: "#{user.first_name} #{user.last_name}")
-        |> select("Category", option: category.name)
+        |> set_combobox("change[user_id]", user.id)
+        |> set_combobox("change[category_id]", category.id)
         |> click_button("Save & Continue editing")
 
       post = Repo.get_by!(Post, title: "Continue Post")

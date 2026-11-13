@@ -30,6 +30,11 @@ defmodule Backpex.Fields.BelongsTo do
       doc: "The text to be displayed when no option is selected or function that receives the assigns.",
       type: {:or, [:string, {:fun, 1}]}
     ],
+    searchable_options: [
+      doc: "Whether the select has a search input that filters the options.",
+      type: :boolean,
+      default: false
+    ],
     debounce: [
       doc: "Timeout value (in milliseconds), \"blur\" or function that receives the assigns.",
       type: {:or, [:pos_integer, :string, {:fun, 1}]}
@@ -42,6 +47,11 @@ defmodule Backpex.Fields.BelongsTo do
 
   @moduledoc """
   A field for handling a `belongs_to` relation.
+
+  The form and the index form render a `Backpex.HTML.Combobox.combobox/1` with all options of the `options_query`. The
+  `prompt` is shown while no option is selected, and a field with a `prompt` has a button that clears the selection.
+  Without a `prompt` the select has no empty state, like a native select: it selects its first option while the item
+  has no value.
 
   ## Field-specific options
 
@@ -68,6 +78,7 @@ defmodule Backpex.Fields.BelongsTo do
   import Ecto.Query
   alias Backpex.Authorization
   alias Backpex.Fields.OptionsQuery
+  alias Backpex.HTML.Combobox
   alias Backpex.Router
 
   @impl Phoenix.LiveComponent
@@ -130,26 +141,29 @@ defmodule Backpex.Fields.BelongsTo do
       assigns
       |> assign(:options, assigns |> options_query() |> load_options(assigns.related_key))
       |> assign(:owner_key, owner_key)
+      |> assign(:label_id, "#{assigns.form[owner_key].id}-label")
       |> assign_prompt(field_options)
 
     ~H"""
     <div>
       <Layout.field_container>
         <:label :if={not @hide_label} align={Backpex.Field.align_label(@field_options, assigns)}>
-          <Layout.input_label for={@form[@owner_key]} text={@field_options[:label]} />
+          <Layout.input_label id={@label_id} for={"#{@form[@owner_key].id}-trigger"} text={@field_options[:label]} />
         </:label>
-        <BackpexForm.input
-          type="select"
+        <Combobox.combobox
           field={@form[@owner_key]}
+          value={selected_value(@form[@owner_key].value, @options, @prompt)}
           options={@options}
-          prompt={@prompt}
+          placeholder={@prompt}
+          clearable={@prompt != nil}
+          searchable={@field_options[:searchable_options] == true}
           readonly={@readonly}
-          disabled={@readonly}
           translate_error_fun={Backpex.Field.translate_error_fun(@field_options, assigns)}
           help_text={Backpex.Field.help_text(@field_options, assigns)}
+          live_resource={@live_resource}
           phx-debounce={Backpex.Field.debounce(@field_options, assigns)}
           phx-throttle={Backpex.Field.throttle(@field_options, assigns)}
-          aria-labelledby={Map.get(assigns, :aria_labelledby)}
+          {Backpex.Field.label_attrs(assigns, @label_id)}
         />
       </Layout.field_container>
     </div>
@@ -205,21 +219,29 @@ defmodule Backpex.Fields.BelongsTo do
     ~H"""
     <div>
       <BackpexForm.index_form form={@form} name={@name} item={@item} live_resource={@live_resource} class="relative">
-        <BackpexForm.input
+        <Combobox.combobox
           id={"index-form-input-#{@name}-#{LiveResource.primary_value(@item, @live_resource)}"}
-          type="select"
           field={@form[:value]}
           options={@options}
-          prompt={@prompt}
-          value={if @valid, do: @value && Map.get(@value, @related_key), else: @form[:value].value}
+          placeholder={@prompt}
+          clearable={@prompt != nil}
+          searchable={@field_options[:searchable_options] == true}
+          value={
+            selected_value(
+              if(@valid, do: @value && Map.get(@value, @related_key), else: @form[:value].value),
+              @options,
+              @prompt
+            )
+          }
+          size="sm"
           input_class={[
-            "select select-sm",
-            @valid && "not-hover:select-ghost",
-            !@valid &&
-              "select-error text-error-content bg-error/10 [&.select::picker(select)]:bg-base-100 [&.select::picker(select)]:text-base-content"
+            "input min-w-32 h-auto min-h-(--size) w-full py-1",
+            @valid && "not-hover:input-ghost",
+            !@valid && "input-error bg-error/10"
           ]}
           disabled={@readonly}
           hide_errors
+          live_resource={@live_resource}
           aria-label={@field_options[:label]}
         />
       </BackpexForm.index_form>
@@ -308,6 +330,10 @@ defmodule Backpex.Fields.BelongsTo do
 
     [Atom.to_string(owner_key)]
   end
+
+  # Like a native select, a select without a prompt has no empty state: without a value it selects its first option.
+  defp selected_value(value, [{_label, first} | _options], nil = _prompt) when value in [nil, ""], do: first
+  defp selected_value(value, _options, _prompt), do: value
 
   defp display_field_form({_name, field_options} = _field, display_field) do
     Map.get(field_options, :display_field_form, display_field)

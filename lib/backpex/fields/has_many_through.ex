@@ -28,6 +28,11 @@ defmodule Backpex.Fields.HasManyThrough do
       doc: "List to map additional data of the pivot table to Backpex fields.",
       type: :keyword_list
     ],
+    searchable_options: [
+      doc: "Whether the select of the related record has a search input that filters the options.",
+      type: :boolean,
+      default: false
+    ],
     options_query: [
       doc: """
       Manipulates the list of available options in the select. Can be used to select additional data for the
@@ -93,6 +98,7 @@ defmodule Backpex.Fields.HasManyThrough do
   import Backpex.HTML.Layout, except: [ok: 1, noreply: 1]
   import PhoenixHTMLHelpers.Form, only: [hidden_inputs_for: 1]
   alias Backpex.Fields.OptionsQuery
+  alias Backpex.HTML.Combobox
   alias Backpex.LiveResource
   alias Ecto.Changeset
   require Backpex
@@ -148,11 +154,10 @@ defmodule Backpex.Fields.HasManyThrough do
     live_resource = field_options.live_resource
     singular_name = live_resource.singular_name()
 
-    prompt = {Backpex.__({"Choose %{resource} ...", %{resource: singular_name}}, live_resource), nil}
-
     socket
     |> assign(:all_items, all_items)
-    |> assign(:options, [prompt | options])
+    |> assign(:options, options)
+    |> assign(:prompt, Backpex.__({"Choose %{resource} ...", %{resource: singular_name}}, live_resource))
   end
 
   @impl Backpex.Field
@@ -374,10 +379,12 @@ defmodule Backpex.Fields.HasManyThrough do
               form={e}
               hide_label={@hide_label}
               label={@field_options.live_resource.singular_name()}
-              field_options={@field}
               owner_key={@owner_key}
               options={@options}
+              prompt={@prompt}
+              searchable={@field_options[:searchable_options] == true}
               readonly={@readonly}
+              live_resource={@live_resource}
             />
             <%= for {name, _field_options} <- @field_options.pivot_fields do %>
               {pivot_field(assign(assigns, name: name, form: e, readonly: @readonly))}
@@ -699,26 +706,30 @@ defmodule Backpex.Fields.HasManyThrough do
   attr :form, :any, required: true
   attr :hide_label, :boolean, required: true
   attr :label, :string, required: true
-  attr :field_options, :any, required: true
   attr :owner_key, :atom, required: true
   attr :options, :list, required: true
+  attr :prompt, :string, required: true
+  attr :searchable, :boolean, required: true
   attr :readonly, :boolean, default: false
+  attr :live_resource, :atom, required: true
 
   defp select_relational_field(assigns) do
+    assigns = assign(assigns, :label_id, "#{assigns.form[assigns.owner_key].id}-label")
+
     ~H"""
     <Layout.field_container>
       <:label :if={not @hide_label}>
-        <Layout.input_label for={@form[@owner_key]} text={@label} />
+        <Layout.input_label id={@label_id} for={"#{@form[@owner_key].id}-trigger"} text={@label} />
       </:label>
-      <BackpexForm.input
-        type="select"
+      <Combobox.combobox
         field={@form[@owner_key]}
         options={@options}
-        disabled={@readonly}
-        aria-disabled={@readonly}
-        translate_error_fun={Backpex.Field.translate_error_fun(@field_options, assigns)}
-        phx-debounce={Backpex.Field.debounce(@field_options, assigns)}
-        phx-throttle={Backpex.Field.throttle(@field_options, assigns)}
+        placeholder={@prompt}
+        searchable={@searchable}
+        readonly={@readonly}
+        live_resource={@live_resource}
+        aria-labelledby={not @hide_label && @label_id}
+        aria-label={@hide_label && @label}
       />
     </Layout.field_container>
     """

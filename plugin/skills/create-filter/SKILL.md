@@ -16,8 +16,8 @@ When the user wants to add a filter:
 | Type | Use for | `use` module | Key callbacks |
 |------|---------|-------------|---------------|
 | Boolean | Checkbox predicates (published yes/no) | `Backpex.Filters.Boolean` | `options/1` returning `%{label, key, predicate}` maps |
-| Select | Single-value dropdown | `Backpex.Filters.Select` | `prompt/0`, `options/1` returning `{label, value}` tuples |
-| MultiSelect | Multi-value dropdown with checkboxes | `Backpex.Filters.MultiSelect` | `prompt/0`, `options/1` returning `{label, value}` tuples |
+| Select | Single-value select | `Backpex.Filters.Select` | `prompt/0`, `options/1` returning `{label, value}` tuples |
+| MultiSelect | Searchable select for multiple values | `Backpex.Filters.MultiSelect` | `prompt/0`, `options/1` returning `{label, value}` tuples |
 | Range | Date, datetime, or number ranges | `Backpex.Filters.Range` | `type/0` returning `:date`, `:datetime`, or `:number` |
 | Custom | Anything else | `Backpex.Filter` | `query/4`, `render/1`, `render_form/1` |
 

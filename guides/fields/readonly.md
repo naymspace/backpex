@@ -30,30 +30,29 @@ These fields render the browser's native `readonly` attribute on their input, so
 
 Native `readonly` does not apply to these control types, so they render as `disabled` instead:
 
-- `Backpex.Fields.Select`
 - `Backpex.Fields.Boolean` — renders as a disabled toggle
-- `Backpex.Fields.BelongsTo`
 
 **Custom readonly rendering**
 
 A few fields need tailored behavior beyond a single attribute:
 
-- `Backpex.Fields.MultiSelect` — dropdown is rendered as a labelled, non-interactive group; selected badges lose the remove control
-- `Backpex.Fields.HasMany` — dropdown is rendered as a labelled, non-interactive group; selected badges lose the remove control
+- `Backpex.Fields.Select` and `Backpex.Fields.BelongsTo` — the combobox shows the value, but has no popup and no clear button. It stays keyboard-focusable and announces itself as readonly (`aria-readonly`).
+- `Backpex.Fields.MultiSelect` and `Backpex.Fields.HasMany` — the combobox shows the selected badges without their remove control and has no popup. It stays keyboard-focusable and announces itself as readonly (`aria-readonly`).
 - `Backpex.Fields.Upload` — the drop target and "Upload a file" link are disabled, the cancel/remove buttons on pending and existing entries are hidden, and the existing-file list is still displayed so users can see what is attached. The server refuses uploads for a field that is readonly when the form opens, as it gets no upload config. On save, new and removed files of a readonly field are ignored, also when the field turned readonly while the form was open.
 - `Backpex.Fields.InlineCRUD` — nested row fields become readonly, and the per-row delete button and the add-row control are hidden entirely.
-- `Backpex.Fields.HasManyThrough` — the Actions column (edit/remove buttons) is hidden, the "new relational" button is disabled, and pivot and select inputs inside the modal are rendered as disabled.
+- `Backpex.Fields.HasManyThrough` — the Actions column (edit/remove buttons) is hidden, the "new relational" button is disabled, and the pivot fields and the select inside the modal are rendered readonly.
 
 ## Appearance and accessibility
 
 Readonly inputs use the active theme's `base-200` background, `base-300` border, and
-`base-content` text color. Native selects and custom dropdowns use the same treatment,
+`base-content` text color. Comboboxes use the same treatment,
 so non-editable values remain readable in light and dark themes. Validation errors
 retain their error colors.
 
 Text-like inputs keep native `readonly` behavior: they remain keyboard-focusable,
-retain a visible focus outline, and allow text selection and copying. Controls that
-cannot use native `readonly` remain disabled or render as non-interactive groups.
+retain a visible focus outline, and allow text selection and copying. A readonly
+combobox remains keyboard-focusable as well. Controls that cannot use native
+`readonly` remain disabled.
 The visual treatment does not change which values are submitted with the form, but Backpex drops the params of a
 readonly field on save, so a crafted client can't change its value either.
 

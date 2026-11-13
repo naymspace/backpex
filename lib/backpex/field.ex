@@ -681,6 +681,17 @@ defmodule Backpex.Field do
     default
   end
 
+  @doc false
+  # The attributes that name a form control that takes no `<label for>`, e.g. a combobox: the ids of its label
+  # elements, or the label as text when the form renders no label for the field.
+  def label_attrs(assigns, label_id) do
+    case assigns do
+      %{aria_labelledby: ids} when is_binary(ids) -> %{"aria-labelledby": ids}
+      %{hide_label: true} -> %{"aria-label": assigns.field_options[:label]}
+      _assigns -> %{"aria-labelledby": label_id}
+    end
+  end
+
   @doc """
   Returns a map of types from a list of fields used for the Ecto changeset.
   """

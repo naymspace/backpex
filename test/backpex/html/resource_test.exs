@@ -196,9 +196,12 @@ defmodule Backpex.HTML.ResourceTest do
 
         refute html =~ ~s(<p class="text-error)
         assert html =~ ~r/value="published"\s+checked/
-        assert html =~ "1 selected"
         assert html =~ ~s(value="5")
-        assert html =~ ~s(<option selected value="news">)
+
+        # The comboboxes of the multi select and the select filter submit their values with these inputs.
+        document = LazyHTML.from_fragment(html)
+        assert document |> LazyHTML.query(~s|input[name="filters[user_id][]"][value="a"]|) |> Enum.count() == 1
+        assert document |> LazyHTML.query(~s|input[name="filters[category]"][value="news"]|) |> Enum.count() == 1
       end
     end
   end

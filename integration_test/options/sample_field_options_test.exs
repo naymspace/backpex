@@ -39,14 +39,15 @@ defmodule Backpex.Integration.Options.SampleFieldOptionsTest do
   end
 
   describe "readonly of Backpex.Fields.BelongsTo" do
-    test "disables the select and keeps the stored value on save", %{conn: conn} do
+    test "renders the select without a popup and keeps the stored value on save", %{conn: conn} do
       [category, other_category] = insert_pair(:category)
       sample = insert(:sample, text: "Before", category: category)
 
       conn
       |> visit(~p"/admin/sample-field-options/#{sample.id}/edit")
-      |> assert_has("select[name='change[category_id]'][disabled]")
-      # A crafted client can still send a value for the disabled select.
+      |> assert_has("#resource-form_category_id-trigger[aria-readonly=true]")
+      |> refute_has("#resource-form_category_id [role=listbox]")
+      # A readonly combobox still submits its value, and a crafted client can send another one.
       |> save(%{text: "After", category_id: other_category.id})
 
       assert %Sample{text: "After", category_id: category_id} = Repo.get!(Sample, sample.id)
