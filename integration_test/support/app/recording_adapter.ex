@@ -21,42 +21,22 @@ defmodule Backpex.Test.RecordingAdapter do
   def field_config_schema, do: EctoAdapter.field_config_schema()
 
   @impl Backpex.Adapter
-  def get(primary_value, fields, assigns, live_resource),
-    do: record(:get, live_resource, [primary_value, fields, assigns, live_resource])
+  def put_field_options(query, field), do: record(:put_field_options, query.resource, [query, field])
 
   @impl Backpex.Adapter
-  def list(criteria, fields, assigns, live_resource),
-    do: record(:list, live_resource, [criteria, fields, assigns, live_resource])
+  def read(query), do: record(:read, query.resource, [query])
 
   @impl Backpex.Adapter
-  def count(criteria, fields, assigns, live_resource),
-    do: record(:count, live_resource, [criteria, fields, assigns, live_resource])
+  def count(query), do: record(:count, query.resource, [query])
 
   @impl Backpex.Adapter
-  def metric(metric, criteria, fields, assigns, live_resource),
-    do: record(:metric, live_resource, [metric, criteria, fields, assigns, live_resource])
+  def aggregate(query), do: record(:aggregate, query.resource, [query])
 
   @impl Backpex.Adapter
   def new_item(assigns, live_resource), do: record(:new_item, live_resource, [assigns, live_resource])
 
   @impl Backpex.Adapter
   def describe(path, live_resource), do: record(:describe, live_resource, [path, live_resource])
-
-  @impl Backpex.Adapter
-  def list_options(field, criteria, assigns, live_resource),
-    do: record(:list_options, live_resource, [field, criteria, assigns, live_resource])
-
-  @impl Backpex.Adapter
-  def list_options_by_key(field, criteria, assigns_by_key, live_resource),
-    do: record(:list_options_by_key, live_resource, [field, criteria, assigns_by_key, live_resource])
-
-  @impl Backpex.Adapter
-  def count_options(field, criteria, assigns, live_resource),
-    do: record(:count_options, live_resource, [field, criteria, assigns, live_resource])
-
-  @impl Backpex.Adapter
-  def options_key(field, assigns, live_resource),
-    do: record(:options_key, live_resource, [field, assigns, live_resource])
 
   @impl Backpex.Adapter
   def insert(item, live_resource), do: record(:insert, live_resource, [item, live_resource])

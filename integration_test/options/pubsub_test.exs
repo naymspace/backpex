@@ -98,7 +98,7 @@ defmodule Backpex.Integration.Options.PubSubTest do
       send(view.pid, {"backpex:updated", note})
 
       assert render(view) =~ "New title"
-      assert_received {:adapter_call, :get}
+      assert_received {:adapter_call, :read}
     end
 
     test "of an item on another page of the index view counts the items without reading the item", %{conn: conn} do
@@ -113,8 +113,7 @@ defmodule Backpex.Integration.Options.PubSubTest do
 
       refute render(view) =~ "New title"
       assert_received {:adapter_call, :count}
-      refute_received {:adapter_call, :get}
-      refute_received {:adapter_call, :list}
+      refute_received {:adapter_call, :read}
     end
 
     test "of the shown item reads it again and shows its new values", %{conn: conn} do
@@ -126,7 +125,7 @@ defmodule Backpex.Integration.Options.PubSubTest do
       send(view.pid, {"backpex:updated", note})
 
       assert render(view) =~ "New title"
-      assert_received {:adapter_call, :get}
+      assert_received {:adapter_call, :read}
     end
 
     test "of another item makes no adapter call in the show view", %{conn: conn} do

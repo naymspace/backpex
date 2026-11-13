@@ -7,11 +7,7 @@ defmodule Backpex.Integration.Adapters.EctoExpressionsTest do
   alias Backpex.Test.Post
   alias Backpex.Test.PostLive
   alias Backpex.Test.User
-
-  defmodule ExpressionFilter do
-    @moduledoc false
-    def condition(_field, expression, _assigns), do: expression
-  end
+  alias Backpex.Test.UserLive
 
   setup do
     ann = insert(:user, username: "ann", first_name: "Ann", last_name: "Ann")
@@ -82,7 +78,7 @@ defmodule Backpex.Integration.Adapters.EctoExpressionsTest do
 
     test "join a path once for every expression that uses it" do
       query =
-        filter_query(Post, [
+        filter_query(PostLive, [
           expr(user.username == "ann"),
           expr(user.age == 30 or user.first_name == "Ann")
         ])
@@ -136,15 +132,15 @@ defmodule Backpex.Integration.Adapters.EctoExpressionsTest do
 
   describe "with the LiveResource" do
     test "casts the values to the types of the fields of its description" do
-      assert titles(expr(likes > "100"), PostLive) == ["100% Elixir"]
-      assert titles(expr(user.role == "user" and user.age == "30"), PostLive) == ["100% Elixir"]
+      assert titles(expr(likes > "100")) == ["100% Elixir"]
+      assert titles(expr(user.role == "user" and user.age == "30")) == ["100% Elixir"]
     end
 
     test "raises for unknown fields and paths through relationships to many items" do
-      assert_raise ArgumentError, ~r/unknown field :unknown/, fn -> titles(expr(unknown == 1), PostLive) end
+      assert_raise ArgumentError, ~r/unknown field :unknown/, fn -> titles(expr(unknown == 1)) end
 
       assert_raise ArgumentError, ~r/:tags to be a relationship to one item/, fn ->
-        titles(expr(tags.name == "elixir"), PostLive)
+        titles(expr(tags.name == "elixir"))
       end
     end
 
@@ -158,19 +154,18 @@ defmodule Backpex.Integration.Adapters.EctoExpressionsTest do
     end
   end
 
-  defp titles(expression, live_resource \\ nil) do
-    Post |> filter_query([expression], live_resource) |> Repo.all() |> Enum.map(& &1.title) |> Enum.sort()
+  defp titles(expression) do
+    PostLive |> filter_query([expression]) |> Repo.all() |> Enum.map(& &1.title) |> Enum.sort()
   end
 
   defp usernames(expression) do
-    User |> filter_query([expression]) |> Repo.all() |> Enum.map(& &1.username) |> Enum.sort()
+    UserLive |> filter_query([expression]) |> Repo.all() |> Enum.map(& &1.username) |> Enum.sort()
   end
 
-  defp filter_query(schema, expressions, live_resource \\ nil) do
-    names = Enum.take([:first, :second, :third], length(expressions))
-    configs = Enum.map(names, &{&1, %{module: ExpressionFilter}})
-    query = from(schema)
-
-    EctoAdapter.apply_filters(query, names |> Enum.zip(expressions) |> Map.new(), configs, %{}, live_resource)
+  defp filter_query(live_resource, expressions) do
+    live_resource
+    |> Backpex.Query.new()
+    |> then(&Enum.reduce(expressions, &1, fn expression, query -> Backpex.Query.filter(query, expression) end))
+    |> EctoAdapter.ecto_query()
   end
 end
