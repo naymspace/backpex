@@ -129,4 +129,26 @@ defmodule Backpex.Integration.Options.RelationFieldOptionsTest do
       |> render_change(%{"tags_search" => search})
     end)
   end
+
+  describe "readonly child field of Backpex.Fields.InlineCRUD" do
+    test "saves the editable child fields and keeps the readonly one", %{conn: conn} do
+      user = insert(:user)
+      [link] = user.social_links
+
+      conn
+      |> visit(~p"/admin/user-relation-options/#{user.id}/edit")
+      |> assert_has("input[name='change[social_links][0][url]'][readonly]")
+      # A crafted client can still send a value for the readonly input.
+      |> unwrap(fn view ->
+        view
+        |> Phoenix.LiveViewTest.form("#resource-form")
+        |> Phoenix.LiveViewTest.put_submitter("button[value=save]")
+        |> Phoenix.LiveViewTest.render_submit(%{
+          change: %{social_links: %{"0" => %{id: link.id, label: "Blog", url: "https://forged.example.com"}}}
+        })
+      end)
+
+      assert [%{label: "Blog", url: "https://example.com/"}] = Repo.reload!(user).social_links
+    end
+  end
 end

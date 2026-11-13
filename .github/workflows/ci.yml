@@ -257,6 +257,18 @@ jobs:
             exit $status
           }
 
+      - name: Convert the merged coverage to LCOV
+        run: MIX_ENV=test mix run --no-start scripts/coverage_lcov.exs
+
+      - name: Upload the coverage to Codecov
+        uses: codecov/codecov-action@303a32d7a59b442fa8d48b6a1cc6825c09c847a5 # v7.1.1
+        with:
+          # Pull requests from forks get no secrets and upload without a token, which Codecov may rate limit.
+          token: ${{ secrets.CODECOV_TOKEN }}
+          files: cover/lcov.info
+          disable_search: true
+          fail_ci_if_error: ${{ github.event.pull_request.head.repo.fork != true }}
+
       - name: Check the merged coverage
         run: MIX_ENV=test mix test.coverage
 

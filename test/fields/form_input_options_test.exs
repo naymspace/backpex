@@ -24,6 +24,7 @@ defmodule Backpex.Fields.FormInputOptionsTest do
     live_resource: CategoryLive,
     queryable: "categories",
     owner_key: :category_id,
+    related_key: :id,
     display_field_form: :name
   ]
 
