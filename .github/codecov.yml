@@ -1,0 +1,9 @@
+# The coverage threshold is enforced by `mix test.coverage` in CI (see mix.exs), so Codecov's checks only inform.
+coverage:
+  status:
+    project:
+      default:
+        informational: true
+    patch:
+      default:
+        informational: true

@@ -88,5 +88,27 @@ defmodule Backpex.Integration.Index.HardeningTest do
     end
   end
 
+  test "ignores events without the params they need", %{conn: conn} do
+    insert(:post, title: "Alpha Post")
+
+    {:ok, view, _html} = live(conn, ~p"/admin/posts?#{%{"filters" => %{"published" => ["published"]}}}")
+
+    for event <- ~w[update-selected-items clear-filter toggle_column item-action] do
+      render_hook(view, event, %{})
+      assert Process.alive?(view.pid)
+    end
+
+    assert render(view) =~ "Alpha Post"
+  end
+
+  test "ignores an assoc message while no changeset is assigned", %{conn: conn} do
+    {:ok, view, _html} = live(conn, ~p"/admin/posts?#{%{"filters" => %{"published" => ["published"]}}}")
+
+    send(view.pid, {:put_assoc, {:tags, []}})
+
+    assert render(view)
+    assert Process.alive?(view.pid)
+  end
+
   defp rows(html), do: html |> LazyHTML.from_document() |> LazyHTML.query("table tbody tr") |> Enum.count()
 end

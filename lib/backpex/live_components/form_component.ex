@@ -93,7 +93,7 @@ defmodule Backpex.FormComponent do
 
     change =
       change
-      |> drop_readonly_changes(fields, assigns)
+      |> editable_changes(fields, assigns)
       |> put_upload_change(socket, :validate)
 
     metadata = Resource.build_changeset_metadata(socket.assigns, target)
@@ -117,11 +117,11 @@ defmodule Backpex.FormComponent do
     %{live_resource: live_resource, fields: fields, item: item} = socket.assigns
 
     target = Enum.at(target, 1)
-    assocs = Map.get(socket.assigns, :assocs, [])
+    assocs = editable_assocs(socket.assigns)
 
     change =
       change
-      |> drop_readonly_changes(fields, socket.assigns)
+      |> editable_changes(fields, socket.assigns)
       |> put_upload_change(socket, :validate)
 
     opts = [target: target, assocs: assocs]
@@ -191,22 +191,32 @@ defmodule Backpex.FormComponent do
     handle_form_item_action(socket, change)
   end
 
-  def handle_event("save", %{"change" => change, "save-type" => save_type}, socket) do
+  # `save-type` is the name of the submit buttons, so it is missing when the form is submitted without one, e.g. by
+  # `form.requestSubmit()`. Such a submit saves the values like the default `:save` form action.
+  def handle_event("save", %{"change" => change} = params, socket) do
     %{assigns: %{live_action: live_action, fields: fields} = assigns} = socket
+
+    form_action =
+      case params do
+        %{"save-type" => save_type} -> form_action(socket, save_type)
+        _params -> :save
+      end
 
     change =
       change
+      |> editable_changes(fields, assigns)
       |> put_upload_change(socket, :insert)
       |> drop_readonly_changes(fields, assigns)
       |> drop_unused_changes()
 
-    save(socket, live_action, change, form_action(socket, save_type))
+    save(socket, live_action, change, form_action)
   end
 
   def handle_event("save", _params, %{assigns: %{action_type: :item}} = socket) do
     handle_form_item_action(socket, %{})
   end
 
+  # A form without any `change` params, e.g. one that only has upload fields.
   def handle_event("save", _params, socket) do
     %{assigns: %{live_action: live_action, fields: fields} = assigns} = socket
 
@@ -258,7 +268,7 @@ defmodule Backpex.FormComponent do
 
     # Through `Backpex.__`, so the text is in `backpex.pot` with the field's other upload texts.
     message = Backpex.__("remove the files that can't be uploaded", live_resource)
-    changeset = Resource.change(item, params, fields, assigns, live_resource, assocs: Map.get(assigns, :assocs, []))
+    changeset = Resource.change(item, params, fields, assigns, live_resource, assocs: editable_assocs(assigns))
     changeset = Enum.reduce(names, changeset, &Ecto.Changeset.add_error(&2, &1, message))
     form = Component.to_form(changeset, as: :change)
 
@@ -274,7 +284,7 @@ defmodule Backpex.FormComponent do
     %{assigns: %{live_resource: live_resource, fields: fields, item: item, live_action: live_action} = assigns} = socket
 
     opts = [
-      assocs: Map.get(assigns, :assocs, []),
+      assocs: editable_assocs(assigns),
       before_save_fun: &live_resource.on_item_creating(socket, &1),
       after_save_fun: fn item ->
         handle_uploads(socket, item)
@@ -322,7 +332,7 @@ defmodule Backpex.FormComponent do
     } = socket.assigns
 
     opts = [
-      assocs: Map.get(socket.assigns, :assocs, []),
+      assocs: editable_assocs(socket.assigns),
       before_save_fun: &live_resource.on_item_updating(socket, &1),
       after_save_fun: fn item ->
         handle_uploads(socket, item)
@@ -377,8 +387,9 @@ defmodule Backpex.FormComponent do
     # while the form was open cannot be used.
     Authorization.authorize!(live_resource, assigns, assigns.resource_action_id, nil)
 
-    assocs = Map.get(assigns, :assocs, [])
-    params = drop_readonly_changes(params, fields, assigns)
+    # The "save" event has already kept only the params of the editable fields. Filtering them again would drop the
+    # params that `put_upload_change` built afterwards, as an upload field submits none (`param_keys/2` is empty).
+    assocs = editable_assocs(assigns)
 
     result =
       item
@@ -452,7 +463,7 @@ defmodule Backpex.FormComponent do
   defp run_form_item_action(socket, action, action_key, selected_items, return_to, params) do
     %{assigns: %{fields: fields} = assigns} = socket
 
-    params = drop_readonly_changes(params, fields, assigns)
+    params = editable_changes(params, fields, assigns)
 
     result =
       if ItemAction.has_form?(action) do
@@ -517,6 +528,24 @@ defmodule Backpex.FormComponent do
 
   defp find_upload_field(_fields, _upload_key), do: nil
 
+  # The params come from the client. Only the params of the fields the admin may edit reach the changeset, so a crafted
+  # client can't change a value through a field that is hidden from the admin or readonly. Uploads are put into the
+  # change afterwards, as the server builds their params.
+  defp editable_changes(change, fields, assigns) do
+    Field.editable_changes(change, fields, assigns)
+  end
+
+  # The assocs come from the events of fields, e.g. the buttons of a `Backpex.Fields.HasManyThrough` field, which a
+  # crafted client can send for any rendered field. Only the assocs of the fields the admin may edit are applied.
+  defp editable_assocs(%{fields: fields} = assigns) do
+    assocs = Map.get(assigns, :assocs, [])
+    params = Map.new(assocs, fn {key, value} -> {Atom.to_string(key), value} end)
+    editable = editable_changes(params, fields, assigns)
+
+    Enum.filter(assocs, fn {key, _value} -> Map.has_key?(editable, Atom.to_string(key)) end)
+  end
+
+  # The upload change of a field may also change the params of a readonly field.
   defp drop_readonly_changes(change, fields, assigns) do
     Field.drop_readonly_changes(change, fields, assigns)
   end

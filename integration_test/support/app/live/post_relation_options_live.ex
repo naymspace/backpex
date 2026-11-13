@@ -3,6 +3,7 @@ defmodule Backpex.Test.PostRelationOptionsLive do
   A LiveResource of posts whose relation fields set the options that `Backpex.Test.PostLive` leaves at their defaults:
   `display_field_form` of `Backpex.Fields.BelongsTo` and `link_assocs`, `prompt` and `not_found_text` of
   `Backpex.Fields.HasMany`.
+  Its resource action `Backpex.Test.ResourceActions.AssignAuthor` has a BelongsTo field.
   """
   use Backpex.LiveResource,
     adapter_config: [
@@ -20,6 +21,11 @@ defmodule Backpex.Test.PostRelationOptionsLive do
 
   @impl Backpex.LiveResource
   def plural_name, do: "Posts"
+
+  @impl Backpex.LiveResource
+  def resource_actions do
+    [assign_author: %{module: Backpex.Test.ResourceActions.AssignAuthor}]
+  end
 
   @impl Backpex.LiveResource
   def fields do

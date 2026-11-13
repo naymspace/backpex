@@ -189,21 +189,26 @@ defmodule Backpex.Fields.MultiSelect do
 
     options = flatten_options(options)
 
-    clicked_item = Enum.find(options, fn {_label, value} -> value == id end)
+    # `id` is client-controlled. An id that matches no option is ignored instead of being put into the selection.
+    case Enum.find(options, fn {_label, value} -> value == id end) do
+      nil ->
+        noreply(socket)
 
-    new_selected =
-      if clicked_item in selected do
-        selected -- [clicked_item]
-      else
-        [clicked_item] ++ selected
-      end
+      clicked_item ->
+        new_selected =
+          if clicked_item in selected do
+            selected -- [clicked_item]
+          else
+            [clicked_item] ++ selected
+          end
 
-    show_select_all = length(new_selected) != length(options)
+        show_select_all = length(new_selected) != length(options)
 
-    socket
-    |> assign(:selected, new_selected)
-    |> assign(:show_select_all, show_select_all)
-    |> noreply()
+        socket
+        |> assign(:selected, new_selected)
+        |> assign(:show_select_all, show_select_all)
+        |> noreply()
+    end
   end
 
   @impl Phoenix.LiveComponent

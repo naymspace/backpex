@@ -104,7 +104,9 @@ defmodule Backpex.LiveResource.Index do
   end
 
   # credo:disable-for-this-file Credo.Check.Design.DuplicatedCode
-  def handle_info({:put_assoc, {key, value} = _assoc}, socket) do
+  # Without a changeset (no modal is open) there is nothing to put the association into: the message falls through to
+  # the catch-all clause.
+  def handle_info({:put_assoc, {key, value} = _assoc}, %{assigns: %{changeset: %Ecto.Changeset{}}} = socket) do
     changeset = Ecto.Changeset.put_assoc(socket.assigns.changeset, key, value)
     assocs = Map.get(socket.assigns, :assocs, []) |> Keyword.put(key, value)
 
@@ -338,6 +340,10 @@ defmodule Backpex.LiveResource.Index do
     |> maybe_assign_metrics()
     |> noreply()
   end
+
+  # The params are client-controlled. An event without the params its handler needs is ignored instead of crashing the
+  # LiveView, like in `Backpex.LiveResource.Show` and `Backpex.LiveResource.Form`.
+  def handle_event(_event, _params, socket), do: noreply(socket)
 
   # The callbacks of an item action read its items from `selected_items`, e.g. `c:Backpex.ItemAction.base_schema/1`.
   # The items of a row action are not the selection of the table, so they take its place while the action is set up,
@@ -597,15 +603,30 @@ defmodule Backpex.LiveResource.Index do
     saves?
   end
 
+  # An updated item that is neither on this page, selected nor in an open row action is not read, as nothing shown holds
+  # its values. It may still have left or entered the scope of this view, so the items are counted as for a removed row.
+  defp update_item(socket, item) do
+    %{live_resource: live_resource, items: items, selected_items: selected_items} = socket.assigns
+    row_action_items = socket.assigns.row_action_items || []
+
+    primary_value = LiveResource.primary_value(item, live_resource)
+
+    if find_item_by_primary_value(items, primary_value, live_resource) ||
+         find_item_by_primary_value(selected_items, primary_value, live_resource) ||
+         find_item_by_primary_value(row_action_items, primary_value, live_resource) do
+      reload_item(socket, primary_value)
+    else
+      refresh_items_after_removal(socket, primary_value)
+    end
+  end
+
   # The selection and the items of an open row action cache whole records, so a row that changed
   # elsewhere has to be replaced there too — otherwise the confirm dialog and every preflight
   # `can?/3` keep describing the old values. This is a UI nicety only:
   # `Backpex.ItemAction.authorize_fresh!/3` re-reads the selection before the execution gate either
   # way.
-  defp update_item(socket, item) do
+  defp reload_item(socket, primary_value) do
     %{live_resource: live_resource, fields: fields} = socket.assigns
-
-    primary_value = LiveResource.primary_value(item, live_resource)
 
     case Resource.get(primary_value, fields, socket.assigns, live_resource) do
       {:ok, nil} ->
@@ -641,7 +662,8 @@ defmodule Backpex.LiveResource.Index do
   # the record was ever in this view's scope: with a scoped item query most of them never were, and
   # a full refresh for each would re-run the list and metrics queries for nothing. Recount instead,
   # and refresh only when the count moved — the row was on another page, so the total, the metrics
-  # and possibly the rows on this page have shifted.
+  # and possibly the rows on this page have shifted. An updated row that is not on this page is
+  # handled the same way, as the update may have moved it out of or into the scope.
   defp refresh_items_after_removal(socket, primary_value) do
     %{items: items, live_resource: live_resource, item_count: item_count} = socket.assigns
 
@@ -950,8 +972,15 @@ defmodule Backpex.LiveResource.Index do
     Enum.any?(filters, fn {_key, config} -> Map.has_key?(config, :default) end)
   end
 
+  # Navigates to the current live action, so the URL of a resource action keeps its modal open.
   defp redirect_to_default_filters(socket) do
-    %{live_resource: live_resource, query_options: query_options, params: params, filters: filters} = socket.assigns
+    %{
+      live_resource: live_resource,
+      live_action: live_action,
+      query_options: query_options,
+      params: params,
+      filters: filters
+    } = socket.assigns
 
     default_filter_options =
       filters
@@ -959,7 +988,7 @@ defmodule Backpex.LiveResource.Index do
       |> Map.new(fn {key, filter_config} -> {Atom.to_string(key), filter_config.default} end)
 
     options = Map.put(query_options, :filters, default_filter_options)
-    to = Router.get_path(socket, live_resource, params, :index, options)
+    to = Router.get_path(socket, live_resource, params, live_action, options)
     LiveView.push_navigate(socket, to: to)
   end
 

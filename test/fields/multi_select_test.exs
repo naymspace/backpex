@@ -186,4 +186,15 @@ defmodule Backpex.Fields.MultiSelectTest do
       assert submitted_users(socket) == ["carol"]
     end
   end
+
+  describe "toggle-option" do
+    test "ignores an id that matches no option" do
+      socket = mount(@options, ["alex"])
+
+      {:noreply, socket} = MultiSelect.handle_event("toggle-option", %{"id" => "nobody"}, socket)
+
+      assert socket.assigns.selected == [{"Alex", "alex"}]
+      assert submitted_users(socket) == ["alex"]
+    end
+  end
 end
