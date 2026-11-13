@@ -577,8 +577,10 @@ defmodule Backpex.HTML.Combobox do
   defp trigger_labelledby(id, label_ids, _aria_label), do: "#{label_ids} #{id}-value"
 
   defp describedby(assigns, extra) do
+    errors_shown? = assigns.errors != [] and not assigns.hide_errors
+
     ids = [
-      (assigns.errors != [] and not assigns.hide_errors) && "#{assigns.id}-errors",
+      errors_shown? && "#{assigns.id}-errors",
       assigns.help_text && "#{assigns.id}-help",
       extra
     ]
