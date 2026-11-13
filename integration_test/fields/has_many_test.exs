@@ -5,6 +5,7 @@ defmodule Backpex.Integration.Fields.HasManyTest do
 
   alias Backpex.Fields.HasMany
   alias Backpex.Test.Post
+  alias Backpex.Test.PostLive
   alias Backpex.Test.ShortLink
   alias Phoenix.LiveView.Socket
   alias Phoenix.LiveViewTest
@@ -54,7 +55,10 @@ defmodule Backpex.Integration.Fields.HasManyTest do
       changeset =
         %Post{tags: []}
         |> Ecto.Changeset.change()
-        |> HasMany.before_changeset(%{"tags_select_all" => ""}, [], Repo, field(), %{form: form(%Post{tags: []}, "r")})
+        |> HasMany.before_changeset(%{"tags_select_all" => ""}, [], Repo, field(), %{
+          form: form(%Post{tags: []}, "r"),
+          live_resource: PostLive
+        })
 
       assert for(%{action: :update, data: tag} <- changeset.changes.tags, do: tag.name) == ["rust"]
     end
@@ -158,7 +162,7 @@ defmodule Backpex.Integration.Fields.HasManyTest do
       name: :tags,
       field: field,
       field_options: field_options,
-      live_resource: Backpex.Test.PostLive,
+      live_resource: PostLive,
       form: form
     }
 

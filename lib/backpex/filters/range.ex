@@ -446,19 +446,11 @@ defmodule Backpex.Filters.Range do
   defp parse_type(type, _field, _assigns), do: type
 
   defp integer_field?(field, %{live_resource: live_resource}) when is_atom(live_resource) do
-    with true <- function_exported?(live_resource, :adapter_config, 1),
-         schema when is_atom(schema) <- live_resource.adapter_config(:schema),
-         true <- Code.ensure_loaded?(schema) and function_exported?(schema, :__schema__, 2) do
-      integer_type?(schema.__schema__(:type, field))
-    else
-      _other -> false
-    end
+    function_exported?(live_resource, :config, 1) and
+      Backpex.Resource.field_type(field, live_resource) in [:integer, :id]
   end
 
   defp integer_field?(_field, _assigns), do: false
-
-  defp integer_type?(nil), do: false
-  defp integer_type?(type), do: Ecto.Type.type(type) in [:integer, :id]
 
   defp parse(type, value, is_end? \\ false)
 

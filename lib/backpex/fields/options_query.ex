@@ -1,8 +1,7 @@
 defmodule Backpex.Fields.OptionsQuery do
   @moduledoc false
-  # What the relation fields share to check submitted values against their `options_query`.
-
-  import Ecto.Query
+  # What the relation fields share to check submitted values against their `options_query`. The adapter limits the
+  # options to the submitted ids, see the `:ids` criterion of `c:Backpex.Adapter.list_options/4`.
 
   alias Phoenix.HTML.Form
 
@@ -20,22 +19,16 @@ defmodule Backpex.Fields.OptionsQuery do
   def put_submitted_form(assigns, _changeset, _attrs), do: assigns
 
   @doc """
-  Limits the options query to the options whose `key` is one of the given ids.
+  Tells whether a submitted value is the stored value `stored`.
 
-  The database applies a `where` before `limit` and `offset`, so a query with one of them keeps them in a subquery.
-  Otherwise a record the select doesn't offer would count as an option.
+  The form renders a stored value as a string, so the client submits it the same way. A value in any other spelling,
+  e.g. with a leading zero, counts as another value and has to be an option.
   """
-  def with_ids(%Ecto.Query{limit: nil, offset: nil} = query, _queryable, key, ids) do
-    where(query, [option], field(option, ^key) in ^ids)
+  def same_value?(nil = _stored, _value), do: false
+
+  def same_value?(stored, value) when is_binary(value) or is_integer(value) do
+    to_string(stored) == to_string(value)
   end
 
-  def with_ids(query, queryable, key, ids) do
-    option_ids =
-      query
-      |> exclude(:select)
-      |> exclude(:preload)
-      |> select([option], field(option, ^key))
-
-    where(queryable, [option], field(option, ^key) in ^ids and field(option, ^key) in subquery(option_ids))
-  end
+  def same_value?(_stored, _value), do: false
 end
