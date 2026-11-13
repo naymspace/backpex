@@ -104,7 +104,9 @@ defmodule Backpex.LiveResource.Index do
   end
 
   # credo:disable-for-this-file Credo.Check.Design.DuplicatedCode
-  def handle_info({:put_assoc, {key, value} = _assoc}, socket) do
+  # Without a changeset (no modal is open) there is nothing to put the association into: the message falls through to
+  # the catch-all clause.
+  def handle_info({:put_assoc, {key, value} = _assoc}, %{assigns: %{changeset: %Ecto.Changeset{}}} = socket) do
     changeset = Ecto.Changeset.put_assoc(socket.assigns.changeset, key, value)
     assocs = Map.get(socket.assigns, :assocs, []) |> Keyword.put(key, value)
 
@@ -335,6 +337,10 @@ defmodule Backpex.LiveResource.Index do
     |> maybe_assign_metrics()
     |> noreply()
   end
+
+  # The params are client-controlled. An event without the params its handler needs is ignored instead of crashing the
+  # LiveView, like in `Backpex.LiveResource.Show` and `Backpex.LiveResource.Form`.
+  def handle_event(_event, _params, socket), do: noreply(socket)
 
   defp maybe_handle_item_action(socket, key) do
     items = socket.assigns.selected_items
