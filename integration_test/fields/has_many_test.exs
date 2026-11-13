@@ -60,6 +60,52 @@ defmodule Backpex.Integration.Fields.HasManyTest do
     end
   end
 
+  # The combobox of the form pushes the text of its search input as "search" and "Show more" is a button below its
+  # options. The tags are elixir, erlang and rust.
+  describe "the options of the form" do
+    test "are searched on the server by the display field" do
+      socket = update_field(%Socket{}, form(%Post{tags: []}, ""))
+
+      assert option_labels(socket) == ~w[elixir erlang rust]
+
+      {:noreply, socket} = HasMany.handle_event("search", %{"query" => "RL", "id" => "change_tags"}, socket)
+
+      assert option_labels(socket) == ~w[erlang]
+
+      # The combobox pushes an empty search when its popup closes.
+      {:noreply, socket} = HasMany.handle_event("search", %{"query" => "", "id" => "change_tags"}, socket)
+
+      assert option_labels(socket) == ~w[elixir erlang rust]
+    end
+
+    test "are loaded page by page, and a search starts at the first page again" do
+      socket = update_field(%Socket{}, form(%Post{tags: []}, ""), %{query_limit: 2})
+
+      assert option_labels(socket) == ~w[elixir erlang]
+      assert socket.assigns.show_more
+
+      {:noreply, socket} = HasMany.handle_event("show-more", %{}, socket)
+
+      assert option_labels(socket) == ~w[elixir erlang rust]
+      refute socket.assigns.show_more
+
+      {:noreply, socket} = HasMany.handle_event("search", %{"query" => "e", "id" => "change_tags"}, socket)
+
+      assert option_labels(socket) == ~w[elixir erlang]
+      refute socket.assigns.show_more
+    end
+
+    test "keep a selected item that the search does not find", %{tags: tags} do
+      socket = update_field(%Socket{}, form(%Post{tags: [tags["rust"]]}, ""))
+
+      {:noreply, socket} = HasMany.handle_event("search", %{"query" => "eli", "id" => "change_tags"}, socket)
+      socket = update_field(socket, form(%Post{tags: [tags["rust"]]}, ""))
+
+      assert option_labels(socket) == ~w[elixir]
+      assert socket.assigns.selected == [{"rust", tags["rust"].id}]
+    end
+  end
+
   # `Backpex.Test.ProductShortLinksLive` has a HasMany field of `Backpex.Test.ShortLink`, whose key is `short_key`.
   describe "a related schema whose key is not id" do
     setup do
@@ -75,10 +121,11 @@ defmodule Backpex.Integration.Fields.HasManyTest do
 
       conn
       |> visit(~p"/admin/product-short-links/#{product.id}/edit")
-      |> assert_has("#has-many-short_links input[type=checkbox][value='#{link.short_key}'][checked]")
-      |> assert_has("#has-many-short_links input[type=checkbox][value='#{other_link.short_key}']:not([checked])")
-      |> assert_has("#has-many-short_links .badge span", text: "https://docs.example.com/", exact: true)
-      |> refute_has("#has-many-short_links .badge span", text: "https://blog.example.com/")
+      |> assert_has("#has-many-short_links [role=option][data-value='#{link.short_key}'][aria-selected=true]")
+      |> assert_has("#has-many-short_links [role=option][data-value='#{other_link.short_key}'][aria-selected=false]")
+      |> assert_has("#has-many-short_links input[name='change[short_links][]'][value='#{link.short_key}']")
+      |> assert_has("#has-many-short_links [data-part=badge-label]", text: "https://docs.example.com/", exact: true)
+      |> refute_has("#has-many-short_links [data-part=badge-label]", text: "https://blog.example.com/")
     end
 
     test "selects a current item that is not among the loaded options", context do
@@ -112,13 +159,11 @@ defmodule Backpex.Integration.Fields.HasManyTest do
 
     test "saves a changed selection", %{conn: conn, product: product, other_link: other_link} do
       {:ok, view, _html} = LiveViewTest.live(conn, ~p"/admin/product-short-links/#{product.id}/edit")
-      form = LiveViewTest.form(view, "#resource-form", change: %{short_links: ["", other_link.short_key]})
-
-      html = LiveViewTest.render_change(form, %{"_target" => ["change", "short_links"]})
-      badges = html |> LazyHTML.from_fragment() |> LazyHTML.query(".badge span")
+      html = set_combobox(view, "change[short_links]", [other_link.short_key])
+      badges = html |> LazyHTML.from_fragment() |> LazyHTML.query("#has-many-short_links [data-part=badge-label]")
       assert LazyHTML.text(badges) == "https://blog.example.com/"
 
-      LiveViewTest.render_submit(form, %{"save-type" => "save"})
+      view |> LiveViewTest.form("#resource-form") |> LiveViewTest.render_submit(%{"save-type" => "save"})
       LiveViewTest.assert_redirect(view, ~p"/admin/product-short-links")
 
       short_keys = from(link in ShortLink, where: link.product_id == ^product.id, select: link.short_key)
@@ -150,8 +195,10 @@ defmodule Backpex.Integration.Fields.HasManyTest do
     |> Phoenix.Component.to_form(as: :change)
   end
 
-  defp update_field(socket, form) do
-    {_name, field_options} = field = field()
+  defp update_field(socket, form, options \\ %{}) do
+    {name, field_options} = field()
+    field_options = Map.merge(field_options, options)
+    field = {name, field_options}
 
     assigns = %{
       type: :form,

@@ -10,6 +10,11 @@ defmodule Backpex.Fields.Select do
       doc: "The text to be displayed when no option is selected or function that receives the assigns.",
       type: {:or, [:string, {:fun, 1}]}
     ],
+    searchable_options: [
+      doc: "Whether the select has a search input that filters the options.",
+      type: :boolean,
+      default: false
+    ],
     debounce: [
       doc: "Timeout value (in milliseconds), \"blur\" or function that receives the assigns.",
       type: {:or, [:pos_integer, :string, {:fun, 1}]}
@@ -22,6 +27,10 @@ defmodule Backpex.Fields.Select do
 
   @moduledoc """
   A field for handling a select value.
+
+  The form and the index form render a `Backpex.HTML.Combobox.combobox/1`. The `prompt` is shown while no option is
+  selected, and a field with a `prompt` has a button that clears the selection. Without a `prompt` the select has no
+  empty state, like a native select: it selects its first option while the item has no value.
 
   ## Field-specific options
 
@@ -44,6 +53,8 @@ defmodule Backpex.Fields.Select do
   """
   use Backpex.Field, config_schema: @config_schema
 
+  alias Backpex.HTML.Combobox
+
   @impl Backpex.Field
   def render_value(assigns) do
     options = get_options(assigns)
@@ -65,26 +76,29 @@ defmodule Backpex.Fields.Select do
     assigns =
       assigns
       |> assign(:options, options)
+      |> assign(:label_id, "#{assigns.form[assigns.name].id}-label")
       |> assign_prompt(assigns.field_options)
 
     ~H"""
     <div>
       <Layout.field_container>
         <:label :if={not @hide_label} align={Backpex.Field.align_label(@field_options, assigns)}>
-          <Layout.input_label for={@form[@name]} text={@field_options[:label]} />
+          <Layout.input_label id={@label_id} for={"#{@form[@name].id}-trigger"} text={@field_options[:label]} />
         </:label>
-        <BackpexForm.input
-          type="select"
+        <Combobox.combobox
           field={@form[@name]}
+          value={selected_value(@form[@name].value, @options, @prompt)}
           options={@options}
-          prompt={@prompt}
+          placeholder={@prompt}
+          clearable={@prompt != nil}
+          searchable={@field_options[:searchable_options] == true}
           readonly={@readonly}
-          disabled={@readonly}
           translate_error_fun={Backpex.Field.translate_error_fun(@field_options, assigns)}
           help_text={Backpex.Field.help_text(@field_options, assigns)}
+          live_resource={@live_resource}
           phx-debounce={Backpex.Field.debounce(@field_options, assigns)}
           phx-throttle={Backpex.Field.throttle(@field_options, assigns)}
-          aria-labelledby={Map.get(assigns, :aria_labelledby)}
+          {Backpex.Field.label_attrs(assigns, @label_id)}
         />
       </Layout.field_container>
     </div>
@@ -104,20 +118,23 @@ defmodule Backpex.Fields.Select do
     ~H"""
     <div>
       <BackpexForm.index_form form={@form} name={@name} item={@item} live_resource={@live_resource} class="relative">
-        <BackpexForm.input
+        <Combobox.combobox
           id={"index-form-input-#{@name}-#{LiveResource.primary_value(@item, @live_resource)}"}
-          type="select"
           field={@form[:value]}
+          value={selected_value(@form[:value].value, @options, @prompt)}
           options={@options}
-          prompt={@prompt}
+          placeholder={@prompt}
+          clearable={@prompt != nil}
+          searchable={@field_options[:searchable_options] == true}
+          size="sm"
           input_class={[
-            "select select-sm",
-            @valid && "not-hover:select-ghost",
-            !@valid &&
-              "select-error text-error-content bg-error/10 [&.select::picker(select)]:bg-base-100 [&.select::picker(select)]:text-base-content"
+            "input min-w-32 h-auto min-h-(--size) w-full py-1",
+            @valid && "not-hover:input-ghost",
+            !@valid && "input-error bg-error/10"
           ]}
           disabled={@readonly}
           hide_errors
+          live_resource={@live_resource}
           aria-label={@field_options[:label]}
         />
       </BackpexForm.index_form>
@@ -127,6 +144,16 @@ defmodule Backpex.Fields.Select do
 
   @impl Backpex.Field
   def index_editable_change({name, _field_options}, value, _assigns), do: %{name => value}
+
+  # Like a native select, a select without a prompt has no empty state: without a value it selects its first option.
+  defp selected_value(value, options, nil = _prompt) when value in [nil, ""] do
+    case flatten_options(options) do
+      [{_label, first} | _options] -> first
+      [] -> value
+    end
+  end
+
+  defp selected_value(value, _options, _prompt), do: value
 
   defp get_label(value, options) do
     options

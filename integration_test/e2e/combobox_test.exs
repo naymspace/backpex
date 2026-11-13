@@ -188,6 +188,29 @@ defmodule Backpex.E2E.ComboboxTest do
     end
   end
 
+  describe "phx-debounce" do
+    test "with blur, sends phx-change when focus leaves the combobox", %{conn: conn} do
+      id = "combobox_blur_choice"
+
+      conn
+      |> visit_fixture()
+      |> open(id)
+      |> click(option(id, "b"))
+      |> assert_closed(id)
+      |> assert_focus(trigger(id))
+      |> assert_state(id, anchor: "b", label: "Option B")
+      # Long enough for an event to arrive, if one had been sent.
+      |> evaluate("new Promise((resolve) => setTimeout(resolve, 300))")
+      |> assert_has("#changes", text: "Changes: 0")
+      |> press(trigger(id), "Tab")
+      |> assert_has("#changes", text: "Changes: 1")
+      |> last_change(fn params ->
+        assert params["_target"] == ["combobox", "blur_choice"]
+        assert params["combobox"]["blur_choice"] == "b"
+      end)
+    end
+  end
+
   describe "keyboard" do
     test "operates a searchable combobox with the keyboard only", %{conn: conn} do
       active_descendant =

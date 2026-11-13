@@ -245,10 +245,25 @@ defmodule Backpex.Fields.HasManyThroughTest do
       assert rows(html) == [{"Dune", false}, {"Emma", false}]
 
       for index <- 0..1 do
-        options = html |> LazyHTML.from_fragment() |> LazyHTML.query("#edit-relational-modal-#{index} select option")
+        options = html |> LazyHTML.from_fragment() |> LazyHTML.query("#edit-relational-modal-#{index} [role=option]")
 
-        assert LazyHTML.attribute(options, "value") == ["", "isbn-1", "isbn-2"]
+        assert LazyHTML.attribute(options, "data-value") == ["isbn-1", "isbn-2"]
       end
+    end
+
+    test "render_form/1 renders the select of the child as a combobox with a prompt", %{library: library} do
+      document = library |> Changeset.change() |> render_books_form() |> LazyHTML.from_fragment()
+      combobox = "#edit-relational-modal-0 [phx-hook=BackpexCombobox]"
+
+      assert document |> LazyHTML.query(combobox) |> Enum.count() == 1
+      assert document |> LazyHTML.query("#{combobox} [data-part=placeholder]") |> LazyHTML.text() =~ "Choose Book ..."
+
+      assert document |> LazyHTML.query("#{combobox} input[data-part=anchor]") |> LazyHTML.attribute("value") == [
+               "isbn-1"
+             ]
+
+      assert document |> LazyHTML.query("#{combobox} [data-part=value-label]") |> LazyHTML.text() == "Dune"
+      assert document |> LazyHTML.query("#{combobox} input[data-part=search]") |> Enum.empty?()
     end
 
     test "render_form/1 keeps the other relations after a saved relation was detached", %{library: library} do

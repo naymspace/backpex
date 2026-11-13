@@ -20,8 +20,8 @@ defmodule DemoWeb.Browser.UserBrowserTest do
       conn
       |> visit(~p"/admin/users/invite/resource-action")
       |> assert_has("body .phx-connected")
-      |> press("[id^=multi-select-][id$=-trigger]", "Enter")
-      |> assert_has("input[name='change[users][]']", count: 2)
+      |> press("#resource-form_users-trigger", "Enter")
+      |> assert_has("#resource-form_users-listbox [role=option]", count: 2)
       |> assert_a11y()
     end
   end

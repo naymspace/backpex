@@ -23,6 +23,10 @@ defmodule Backpex.Fields.MultiSelect do
   @moduledoc """
   A field for handling a multi select with predefined options.
 
+  The form renders a `Backpex.HTML.Combobox.combobox/1` with a search input and buttons to select and deselect all
+  options. The admin selects and deselects options in the browser, and the selection reaches the server with the
+  `phx-change` event of the form.
+
   This field can not be searchable.
 
   ## Field-specific options
@@ -44,7 +48,9 @@ defmodule Backpex.Fields.MultiSelect do
         ]
   """
   use Backpex.Field, config_schema: @config_schema
-  alias Backpex.HTML.Form
+
+  alias Backpex.HTML.Combobox
+
   require Backpex
 
   @impl Phoenix.LiveComponent
@@ -56,10 +62,8 @@ defmodule Backpex.Fields.MultiSelect do
       assigns.field_options[:not_found_text] || Backpex.__("No options found", assigns.live_resource)
     )
     |> assign(:prompt, prompt(assigns, assigns.field_options))
-    |> assign(:search_input, "")
     |> assign_options()
     |> assign_selected()
-    |> maybe_assign_form()
     |> ok()
   end
 
@@ -120,21 +124,6 @@ defmodule Backpex.Fields.MultiSelect do
     assign(socket, :selected, selected)
   end
 
-  defp maybe_assign_form(%{assigns: %{type: :form} = assigns} = socket) do
-    %{selected: selected, options: options} = assigns
-
-    options = flatten_options(options)
-
-    show_select_all = length(selected) != length(options)
-
-    socket
-    |> assign(:search_input, "")
-    |> assign(:show_select_all, show_select_all)
-    |> assign_filtered_options()
-  end
-
-  defp maybe_assign_form(socket), do: socket
-
   @impl Backpex.Field
   def render_value(assigns) do
     selected_labels = Enum.map(assigns.selected, fn {label, _value} = _option -> label end)
@@ -155,114 +144,30 @@ defmodule Backpex.Fields.MultiSelect do
 
   @impl Backpex.Field
   def render_form(assigns) do
+    assigns = assign(assigns, :label_id, "#{assigns.form[assigns.name].id}-label")
+
     ~H"""
     <div id={@name}>
       <Layout.field_container>
         <:label :if={not @hide_label} align={Backpex.Field.align_label(@field_options, assigns)}>
-          <Layout.input_label id={"#{@form[@name].id}-label"} as="span" text={@field_options[:label]} />
+          <Layout.input_label id={@label_id} for={"#{@form[@name].id}-trigger"} text={@field_options[:label]} />
         </:label>
-        <Form.multi_select
+        <Combobox.combobox
           field={@form[@name]}
+          options={@options}
+          multiple
+          select_all
           readonly={@readonly}
-          prompt={@prompt}
-          not_found_text={@not_found_text}
-          options={@filtered_options}
-          selected={@selected}
-          search_input={@search_input}
-          field_options={@field_options}
-          show_select_all={@show_select_all}
-          show_more={false}
-          event_target={@myself}
-          search_event="search"
-          live_resource={@live_resource}
+          placeholder={@prompt}
+          no_results_text={@not_found_text}
+          translate_error_fun={Backpex.Field.translate_error_fun(@field_options, assigns)}
           help_text={Backpex.Field.help_text(@field_options, assigns)}
-          aria_labelledby={Map.get(assigns, :aria_labelledby) || "#{@form[@name].id}-label"}
+          live_resource={@live_resource}
+          {Backpex.Field.label_attrs(assigns, @label_id)}
         />
       </Layout.field_container>
     </div>
     """
-  end
-
-  @impl Phoenix.LiveComponent
-  def handle_event("toggle-option", %{"id" => id}, socket) do
-    %{assigns: %{selected: selected, options: options}} = socket
-
-    options = flatten_options(options)
-
-    clicked_item = Enum.find(options, fn {_label, value} -> value == id end)
-
-    new_selected =
-      if clicked_item in selected do
-        selected -- [clicked_item]
-      else
-        [clicked_item] ++ selected
-      end
-
-    show_select_all = length(new_selected) != length(options)
-
-    socket
-    |> assign(:selected, new_selected)
-    |> assign(:show_select_all, show_select_all)
-    |> noreply()
-  end
-
-  @impl Phoenix.LiveComponent
-  def handle_event("search", params, socket) do
-    %{assigns: %{form: form, name: name}} = socket
-
-    search_input = Map.get(params, form[name].name <> "_search", "")
-
-    socket
-    |> assign(:search_input, search_input)
-    |> assign_filtered_options()
-    |> noreply()
-  end
-
-  @impl Phoenix.LiveComponent
-  def handle_event("toggle-select-all", _params, socket) do
-    %{assigns: %{options: options, show_select_all: show_select_all}} = socket
-
-    options = flatten_options(options)
-
-    new_selected = if show_select_all, do: options, else: []
-
-    socket
-    |> assign(:selected, new_selected)
-    |> assign(:show_select_all, not show_select_all)
-    |> noreply()
-  end
-
-  defp assign_filtered_options(socket) do
-    %{assigns: %{options: options, search_input: search_input}} = socket
-
-    assign(socket, :filtered_options, apply_search(options, search_input))
-  end
-
-  defp apply_search(options, search_input) do
-    if String.trim(search_input) == "" do
-      options
-    else
-      search_input_downcase = String.downcase(search_input)
-
-      Enum.flat_map(options, &filter_option(&1, search_input_downcase))
-    end
-  end
-
-  defp filter_option({label, options}, search_input_downcase) when is_list(options) do
-    case Enum.filter(options, &label_matches?(&1, search_input_downcase)) do
-      [] -> []
-      matching_options -> [{label, matching_options}]
-    end
-  end
-
-  defp filter_option(option, search_input_downcase) do
-    if label_matches?(option, search_input_downcase), do: [option], else: []
-  end
-
-  defp label_matches?({label, _value}, search_input_downcase) do
-    label
-    |> String.downcase()
-    |> String.contains?(search_input_downcase)
   end
 
   defp prompt(assigns, field_options) do

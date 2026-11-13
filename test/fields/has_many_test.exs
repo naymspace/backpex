@@ -66,22 +66,52 @@ defmodule Backpex.Fields.HasManyTest do
     test "renders select all as a keyboard operable button that sends its name with a change event" do
       document = render_tags_form(all_selected: false)
 
-      assert [button] = document |> LazyHTML.query("button[type=button]") |> Enum.to_list()
+      assert [button] = document |> LazyHTML.query("button[name]") |> Enum.to_list()
       assert LazyHTML.text(button) =~ "Select all"
+      assert LazyHTML.attribute(button, "type") == ["button"]
       assert LazyHTML.attribute(button, "name") == ["change[tags_select_all]"]
       assert LazyHTML.attribute(button, "value") == [""]
       assert [phx_click] = LazyHTML.attribute(button, "phx-click")
       assert phx_click =~ ~s(["dispatch",{"event":"change"}])
-
-      assert document |> LazyHTML.query("[role=button]:not([tabindex])") |> Enum.empty?()
     end
 
     test "renders deselect all when all options are selected" do
       document = render_tags_form(all_selected: true)
 
-      assert [button] = document |> LazyHTML.query("button[type=button]") |> Enum.to_list()
+      assert [button] = document |> LazyHTML.query("button[name]") |> Enum.to_list()
       assert LazyHTML.text(button) =~ "Deselect all"
       assert LazyHTML.attribute(button, "name") == ["change[tags_deselect_all]"]
+    end
+
+    test "renders no select all button without options" do
+      document = render_tags_form(options: [])
+
+      assert document |> LazyHTML.query("button[name]") |> Enum.empty?()
+      assert document |> LazyHTML.query("[data-part=empty]") |> LazyHTML.text() =~ "No options found"
+    end
+
+    test "renders a combobox that searches the options on the server" do
+      document = render_tags_form(selected: [{"3", 3}], selected_ids: [3])
+      root = LazyHTML.query(document, "#change_tags")
+
+      assert LazyHTML.attribute(root, "phx-hook") == ["BackpexCombobox"]
+      assert LazyHTML.attribute(root, "data-on-search") == ["search"]
+      assert LazyHTML.attribute(root, "phx-target") == ["1"]
+      assert document |> LazyHTML.query("[role=option]") |> LazyHTML.attribute("data-value") == ["1", "2"]
+
+      # The selected item is on no loaded page of options, but it is shown and submitted.
+      assert document |> LazyHTML.query("[data-part=badge-label]") |> LazyHTML.text() == "3"
+      assert document |> LazyHTML.query(~s|input[name="change[tags][]"]|) |> LazyHTML.attribute("value") == ["3"]
+    end
+
+    test "renders show more below the options while there are more options to load" do
+      refute render_tags_form(show_more: false) |> LazyHTML.query(~s|button[phx-click="show-more"]|) |> Enum.any?()
+
+      button = render_tags_form(show_more: true) |> LazyHTML.query(~s|button[phx-click="show-more"]|)
+
+      assert LazyHTML.text(button) =~ "Show more"
+      assert LazyHTML.attribute(button, "type") == ["button"]
+      assert LazyHTML.attribute(button, "phx-target") == ["1"]
     end
   end
 
@@ -95,24 +125,20 @@ defmodule Backpex.Fields.HasManyTest do
           live_resource: PostLive,
           hide_label: false,
           readonly: false,
-          errors: [],
           prompt: "Select options...",
-          search_input: "",
           not_found_text: "No options found",
           options: [{"1", 1}, {"2", 2}],
-          options_ids: [1, 2],
           selected: [],
           selected_ids: [],
+          all_selected: false,
           show_more: false,
           myself: %Phoenix.LiveComponent.CID{cid: 1}
         ],
         assigns
       )
 
-    html = render_component(&HasMany.render_form/1, assigns)
-
-    html
+    (&HasMany.render_form/1)
+    |> render_component(assigns)
     |> LazyHTML.from_fragment()
-    |> LazyHTML.query("#has-many-dropdown-tags-menu")
   end
 end

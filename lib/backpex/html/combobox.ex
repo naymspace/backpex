@@ -138,6 +138,9 @@ defmodule Backpex.HTML.Combobox do
   combobox keeps the admin's choice when the server renders the same value as before, since such a patch does not
   touch the field.
 
+  `phx-debounce` and `phx-throttle` are passed on to the anchor input, so they delay or limit the `phx-change` event of
+  the combobox like they do for an input. With `phx-debounce="blur"` the event is sent when focus leaves the combobox.
+
   A `disabled` combobox puts `disabled` on its inputs, so the value is not submitted. A `readonly` combobox still
   submits its value. Neither renders the popup or the hook. A `form` attribute is passed on to the inputs.
   """
@@ -219,7 +222,10 @@ defmodule Backpex.HTML.Combobox do
 
   attr :rest, :global,
     include: ~w(form),
-    doc: "attributes for the root element; `aria-*` go to the trigger button and `form` to the inputs"
+    doc: """
+    attributes for the root element; `aria-*` go to the trigger button, `form` to the inputs and `phx-debounce` and
+    `phx-throttle` to the anchor input
+    """
 
   slot :option, doc: "custom content of an option, receives the normalized option map"
   slot :header, doc: "content pinned above the options in the popup"
@@ -253,6 +259,7 @@ defmodule Backpex.HTML.Combobox do
     lookup = option_lookup(options, assigns.selected_options)
     {aria, rest} = Map.split_with(assigns.rest, fn {key, _value} -> String.starts_with?("#{key}", "aria-") end)
     {form, rest} = Map.pop(rest, :form)
+    {rate_limit, rest} = Map.split(rest, [:"phx-debounce", :"phx-throttle"])
     label_ids = (assigns.label && "#{assigns.id}-label") || aria[:"aria-labelledby"]
     aria_label = aria[:"aria-label"]
 
@@ -266,6 +273,7 @@ defmodule Backpex.HTML.Combobox do
     |> assign(:select_all_state, select_all_state(options, selected_values))
     |> assign(:show_search, show_search?(assigns, length(options)))
     |> assign(:form, form)
+    |> assign(:anchor_rest, rate_limit)
     |> assign(:root_rest, rest)
     |> assign(:trigger_rest, Map.drop(aria, [:"aria-labelledby", :"aria-label", :"aria-describedby"]))
     |> assign(:label_ids, label_ids)
@@ -280,6 +288,10 @@ defmodule Backpex.HTML.Combobox do
     ~H"""
     <div class={["fieldset py-0", @class]}>
       <label :if={@label} id={"#{@id}-label"} for={"#{@id}-trigger"} class="label mb-1">{@label}</label>
+      <%!--
+        `isolate` keeps the z-index of the clear button and the badges' remove controls inside the combobox, so they
+        don't show through a dropdown or sticky element that covers it.
+      --%>
       <div
         id={@id}
         data-part="root"
@@ -288,7 +300,7 @@ defmodule Backpex.HTML.Combobox do
         data-max={@multiple && @max}
         data-on-search={@on_search}
         data-search-debounce={@on_search && @search_debounce}
-        class="group/combobox relative"
+        class="group/combobox relative isolate"
         {@root_rest}
       >
         <div data-part="inputs">
@@ -297,6 +309,7 @@ defmodule Backpex.HTML.Combobox do
             would show before the user changed the combobox.
           --%>
           <input
+            id={"#{@id}-anchor"}
             type="text"
             hidden
             data-part="anchor"
@@ -307,6 +320,7 @@ defmodule Backpex.HTML.Combobox do
             autocomplete="off"
             disabled={@disabled}
             form={@form}
+            {@anchor_rest}
           />
           <input
             :for={value <- @selected_values}

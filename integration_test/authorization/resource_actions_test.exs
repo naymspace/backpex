@@ -8,7 +8,7 @@ defmodule Backpex.Integration.Authorization.ResourceActionsTest do
 
     conn
     |> visit(~p"/admin/users/invite/resource-action")
-    |> check("Alex")
+    |> set_combobox("change[users]", ["user_id_alex"])
     |> fill_in("Text", with: "Please join us")
     |> within("#resource-form", &click_button(&1, "Send email"))
     |> assert_has("div", text: "An email has been successfully sent")

@@ -8,8 +8,9 @@ defmodule Backpex.Test.ComboboxLive do
   after 300 ms, so tests can patch while a popup is open. `#changes` counts the `phx-change` events.
 
   The server overrules the admin's choice in `restricted` and `restricted_tags`, as a `phx-change` handler that drops
-  an invalid value would: it keeps the previous value instead of `"rejected"` and replaces `"other"` with `"allowed"`. `Backpex.Test.ComboboxSearchComponent` handles the server
-  search of its combobox itself (`phx-target`).
+  an invalid value would: it keeps the previous value instead of `"rejected"` and replaces `"other"` with `"allowed"`.
+  `blur_choice` has `phx-debounce="blur"`. `Backpex.Test.ComboboxSearchComponent` handles the server search of its
+  combobox itself (`phx-target`).
   """
   use Phoenix.LiveView
 
@@ -36,7 +37,8 @@ defmodule Backpex.Test.ComboboxLive do
     restricted_tags: {:array, :string},
     native_restricted: :string,
     long_tags: {:array, :string},
-    all_tags: {:array, :string}
+    all_tags: {:array, :string},
+    blur_choice: :string
   }
 
   @defaults %{
@@ -315,6 +317,8 @@ defmodule Backpex.Test.ComboboxLive do
 
           <%!-- Pushes the last combobox to the bottom of a page taller than the viewport. --%>
           <div class="h-[150vh] md:col-span-2" aria-hidden="true"></div>
+
+          <.combobox field={@form[:blur_choice]} label="Blur choice" options={@simple} phx-debounce="blur" />
 
           <.combobox field={@form[:bottom_choice]} label="Bottom choice" options={@countries} class="md:col-span-2" />
         </.form>

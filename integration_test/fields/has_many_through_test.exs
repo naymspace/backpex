@@ -247,5 +247,5 @@ defmodule Backpex.Integration.Fields.HasManyThroughTest do
   end
 
   # The first option is the prompt.
-  defp option_labels(socket), do: socket.assigns.options |> tl() |> Enum.map(fn {label, _id} -> label end)
+  defp option_labels(socket), do: Enum.map(socket.assigns.options, fn {label, _id} -> label end)
 end

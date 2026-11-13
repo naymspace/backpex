@@ -132,6 +132,9 @@ defmodule Backpex.Filter do
 
   @doc """
   Renders the filters options form.
+
+  The assigns hold the `form`, the `field` (the name of the filter), its `label`, the current `value` and the `errors`
+  of the filter, next to the assigns of the LiveResource.
   """
   @callback render_form(Socket.assigns()) :: Rendered.t()
 

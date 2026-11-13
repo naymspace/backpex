@@ -30,7 +30,7 @@ Backpex provides the following built-in filters:
 | Filter | Use Case | Example |
 |--------|----------|---------|
 | `Backpex.Filters.Boolean` | Checkbox-based filtering with multiple options | Published/Draft status |
-| `Backpex.Filters.Select` | Single-value dropdown selection | Category filter |
+| `Backpex.Filters.Select` | Single-value selection | Category filter |
 | `Backpex.Filters.MultiSelect` | Multiple-value selection | Tags, assignees |
 | `Backpex.Filters.Range` | Date, datetime, or number ranges | Date range, price range |
 

@@ -665,7 +665,13 @@ export default {
       event.preventDefault()
       return
     }
-    if (this.part('popup')?.contains(target) && !target.closest(FOCUSABLE)) event.preventDefault()
+    const popup = this.part('popup')
+    if (!popup?.contains(target)) return
+    // Only a focusable element of the popup takes the focus. One around the
+    // combobox, e.g. the menu of a dropdown, must not: focus would leave the
+    // combobox and close the popup before the click.
+    const focusable = target.closest(FOCUSABLE)
+    if (!focusable || !popup.contains(focusable)) event.preventDefault()
   },
   handlePointermove (event) {
     const option = event.target.closest('[data-part="option"]')
@@ -748,8 +754,13 @@ export default {
     if (event.key === ' ' && event.target === this.part('trigger')) event.preventDefault()
   },
   handleFocusout (event) {
-    if (!this.isOpen) return
     const next = event.relatedTarget
+    // With `phx-debounce="blur"` on the anchor input, LiveView holds the
+    // change back until that input blurs. It never has focus, so it blurs
+    // when focus leaves the combobox.
+    if (!next || !this.el.contains(next)) this.part('anchor')?.dispatchEvent(new window.Event('blur'))
+
+    if (!this.isOpen) return
     // A null relatedTarget is a click on something that can't take focus;
     // the pointerdown listener decides whether that was outside.
     if (this.closeOnFocusMove || (next && !this.el.contains(next))) this.close()

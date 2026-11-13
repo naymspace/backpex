@@ -13,6 +13,7 @@ defmodule Backpex.Fields.FormInputOptionsTest do
   defmodule CategoryLive do
     @moduledoc false
     def adapter_config(:repo), do: EmptyRepo
+    def translate({msg, _opts}), do: msg
   end
 
   defmodule ItemLive do
@@ -30,9 +31,11 @@ defmodule Backpex.Fields.FormInputOptionsTest do
 
   @index_form_assigns [item: %{id: 1}, live_resource: ItemLive, value: nil]
 
-  # {field module, render function, field name, required field options, extra assigns, id of the rendered input}
+  # {field module, render function, field name, required field options, extra assigns, id of the rendered input}.
+  # The input of a combobox is its anchor input.
   @fields [
-    {Fields.BelongsTo, :render_form, :category, [display_field: :name], @belongs_to_assigns, "change_category_id"},
+    {Fields.BelongsTo, :render_form, :category, [display_field: :name], @belongs_to_assigns,
+     "change_category_id-anchor"},
     {Fields.Boolean, :render_form, :value, [], [], "change_value"},
     {Fields.Boolean, :render_index_form, :value, [], @index_form_assigns, "index-form-input-value-1"},
     {Fields.Currency, :render_form, :value, [], [], "change_value"},
@@ -40,7 +43,7 @@ defmodule Backpex.Fields.FormInputOptionsTest do
     {Fields.DateTime, :render_form, :value, [], [], "change_value"},
     {Fields.Email, :render_form, :value, [], [], "change_value"},
     {Fields.Number, :render_form, :value, [], [], "change_value"},
-    {Fields.Select, :render_form, :value, [options: [A: "a"]], [], "change_value"},
+    {Fields.Select, :render_form, :value, [options: [A: "a"]], [], "change_value-anchor"},
     {Fields.Text, :render_form, :value, [], [], "change_value"},
     {Fields.Textarea, :render_form, :value, [], [], "change_value"},
     {Fields.Time, :render_form, :value, [], [], "change_value"},
@@ -110,6 +113,31 @@ defmodule Backpex.Fields.FormInputOptionsTest do
       assert Fields.Textarea |> render(:render_form, :value, [], []) |> attribute_by_id("rows") == [
                {"change_value", "2"}
              ]
+    end
+  end
+
+  describe "searchable_options" do
+    for {module, name, required_options, extra_assigns} <- [
+          {Fields.BelongsTo, :category, [display_field: :name], @belongs_to_assigns},
+          {Fields.Select, :value, [options: [A: "a"]], []}
+        ] do
+      @module module
+      @name name
+      @required_options required_options
+      @extra_assigns extra_assigns
+
+      test "#{inspect(module)}.render_form/1 renders the search input of the combobox only when it is set" do
+        for {options, expected} <- [
+              {[], false},
+              {[searchable_options: false], false},
+              {[searchable_options: true], true}
+            ] do
+          doc = render(@module, :render_form, @name, @required_options ++ options, @extra_assigns)
+
+          assert doc |> LazyHTML.query("input[data-part=search]") |> Enum.any?() == expected,
+                 "search input for #{inspect(options)}"
+        end
+      end
     end
   end
 
@@ -188,6 +216,7 @@ defmodule Backpex.Fields.FormInputOptionsTest do
         name: name,
         field_options: field_options,
         form: Phoenix.Component.to_form(%{}, as: :change),
+        live_resource: nil,
         readonly: false,
         hide_label: false
       ] ++ extra_assigns

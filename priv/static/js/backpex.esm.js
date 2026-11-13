@@ -1972,7 +1972,10 @@ var combobox_default = {
       event.preventDefault();
       return;
     }
-    if (this.part("popup")?.contains(target) && !target.closest(FOCUSABLE)) event.preventDefault();
+    const popup = this.part("popup");
+    if (!popup?.contains(target)) return;
+    const focusable = target.closest(FOCUSABLE);
+    if (!focusable || !popup.contains(focusable)) event.preventDefault();
   },
   handlePointermove(event) {
     const option = event.target.closest('[data-part="option"]');
@@ -2043,8 +2046,9 @@ var combobox_default = {
     if (event.key === " " && event.target === this.part("trigger")) event.preventDefault();
   },
   handleFocusout(event) {
-    if (!this.isOpen) return;
     const next = event.relatedTarget;
+    if (!next || !this.el.contains(next)) this.part("anchor")?.dispatchEvent(new window.Event("blur"));
+    if (!this.isOpen) return;
     if (this.closeOnFocusMove || next && !this.el.contains(next)) this.close();
   },
   // The search input has no name and must not reach LiveView's form handling,
