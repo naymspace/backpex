@@ -349,6 +349,7 @@ defmodule DemoWeb.ComboboxLive do
     "size_lg" => ["Elixir"],
     "size_xl" => ["Elixir"],
     "cities" => ["lisbon", "kyoto"],
+    "all_topics" => ["Elixir", "Phoenix"],
     "disabled_country" => "pt",
     "readonly_country" => "es",
     "readonly_topics" => ["Elixir", "Phoenix"]
@@ -606,6 +607,25 @@ defmodule DemoWeb.ComboboxLive do
             >
               Open the combobox
             </button>
+          </.form>
+        </.example>
+
+        <.example id="select-all" title="Select all" values={[{"all_topics", @params["all_topics"]}]}>
+          <:description>
+            With <code>select_all</code>, the popup of a <code>multiple</code>
+            combobox shows the number of selected values and buttons to select and deselect all. Both act on the
+            options the search currently shows: search for “li” and select all to add the matches.
+          </:description>
+          <.form for={@form} id="select-all-form" phx-change="change">
+            <.combobox
+              field={@form[:all_topics]}
+              label="Topics"
+              options={@topics}
+              placeholder="Choose topics"
+              select_all
+              multiple
+              clearable
+            />
           </.form>
         </.example>
 
