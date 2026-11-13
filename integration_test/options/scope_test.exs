@@ -65,6 +65,17 @@ defmodule Backpex.Integration.Options.ScopeTest do
       assert before?(html, "Zig", "Ash")
     end
 
+    test "sorts the options by a computed value of the related items" do
+      insert(:user, first_name: "Ann", last_name: "Zed")
+      insert(:user, first_name: "Zoe", last_name: "Abe")
+
+      # The full name of the authors is a computed value of the user in the load/1 of PostLive.
+      field = {:user, %{module: Backpex.Fields.BelongsTo, display_field: :full_name, options_sort: [full_name: :desc]}}
+      {:ok, users} = Backpex.Resource.list_options(field, [], %{}, Backpex.Test.PostLive)
+
+      assert Enum.map(users, & &1.full_name) == ["Zoe Abe", "Ann Zed"]
+    end
+
     defp before?(html, first, second), do: :binary.match(html, first) < :binary.match(html, second)
   end
 

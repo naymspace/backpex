@@ -51,7 +51,7 @@ The `Backpex.Metrics.Value` metric reads these keys from the map:
 
 ## Search and filters
 
-A value metric is computed for the items the admin currently sees in the table, on all pages. Backpex builds the same query as for the table, including your [item query](item-query.md), the search and the active filters, and replaces its `select` with the one of the metric. Ordering and pagination are not part of that query.
+A value metric is computed for the items the admin currently sees in the table, on all pages. Backpex builds the same query as for the table, including your [scope](scope-and-load.md), the search and the active filters. Ordering and pagination are not part of that query.
 
 The metrics are computed again whenever the table is loaded again, e.g. when the admin searches or changes a filter.
 
