@@ -47,7 +47,7 @@ defmodule Backpex.Test.ItemActions.UserSoftDelete do
     {:ok, _count} =
       Backpex.Resource.update_all(
         items,
-        [set: [deleted_at: DateTime.utc_now(:second)]],
+        %{deleted_at: DateTime.utc_now(:second)},
         socket.assigns,
         socket.assigns.live_resource,
         event_name: "deleted",
@@ -57,7 +57,7 @@ defmodule Backpex.Test.ItemActions.UserSoftDelete do
     # Unassigning the posts is a cascade write on another resource, not a user-initiated action on it, so it skips
     # authorization deliberately.
     for item <- items do
-      Backpex.Resource.update_all(item.posts, [set: [user_id: nil]], socket.assigns, Backpex.Test.PostLive,
+      Backpex.Resource.update_all(item.posts, %{user_id: nil}, socket.assigns, Backpex.Test.PostLive,
         event_name: "updated",
         authorize?: false
       )

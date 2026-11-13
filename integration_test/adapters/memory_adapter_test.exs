@@ -94,10 +94,23 @@ defmodule Backpex.Integration.Adapters.MemoryAdapterTest do
     refute @store |> Memory.items() |> Enum.any?(&(&1.id == 1))
   end
 
+  test "the views hide the writes an adapter doesn't support and refuse them", %{conn: conn} do
+    conn
+    |> visit(~p"/admin/read-only-notes")
+    |> assert_rows("table tbody", ["Bravo", "alpha", "Charlie", "Secret note"])
+    |> refute_has("a", text: "New Note")
+    |> refute_has("button[aria-label=Delete]")
+    |> refute_has("a[aria-label=Edit]")
+    |> assert_has("a[aria-label=Show]")
+
+    assert_error_sent 403, fn -> get(conn, ~p"/admin/read-only-notes/new") end
+    assert_error_sent 403, fn -> get(conn, ~p"/admin/read-only-notes/1/edit") end
+  end
+
   test "update_all/3 changes the stored items, not the given ones" do
     stale = %MemoryNote{id: 1, title: "Stale title", likes: 0}
 
-    assert Memory.update_all([stale], [set: [likes: 7]], MemoryNoteLive) == {1, nil}
+    assert Memory.update_all([stale], %{likes: 7}, MemoryNoteLive) == {:ok, 1}
     assert %MemoryNote{title: "Bravo", likes: 7} = @store |> Memory.items() |> Enum.find(&(&1.id == 1))
   end
 end
