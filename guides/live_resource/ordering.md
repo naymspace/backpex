@@ -82,8 +82,8 @@ The option accepts:
 - `:smallest` - `NULL` values count as the smallest value, so they come first in ascending (`ASC NULLS FIRST`) and last
   in descending order (`DESC NULLS LAST`). This was the behaviour before v0.23.
 
-Ordering by the LiveResource's `primary_key` always uses the database default, because a primary key is never `NULL`.
-This includes the default `init_order`.
+`Backpex.Adapters.Ecto` always orders a primary key column of the schema by the database default, because a primary
+key is never `NULL`. This includes the default `init_order`.
 
 > #### Indexes for `:first` and `:last` {: .warning}
 >

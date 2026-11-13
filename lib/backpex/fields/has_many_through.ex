@@ -31,13 +31,14 @@ defmodule Backpex.Fields.HasManyThrough do
     options_query: [
       doc: """
       Manipulates the list of available options in the select. Can be used to select additional data for the
-      `display_field` option or to limit the available entries.
+      `display_field` option or to limit the available entries. Receives the query of the adapter, an `Ecto.Query` for
+      `Backpex.Adapters.Ecto`, and the assigns, and returns a query.
 
       The form of the field also checks the submitted records against the options query: it links only options and
       keeps the records the item is already linked to. The check only runs for a field that is part of the form and not
       readonly, so the options query is no replacement for a check in your changeset.
 
-      Defaults to `fn (query, _field) -> query end` which returns all entries.
+      Defaults to `fn query, _assigns -> query end` which returns all entries.
       """,
       type: {:fun, 2}
     ]
@@ -499,7 +500,7 @@ defmodule Backpex.Fields.HasManyThrough do
   # through the params or, when the params have no entries, through the assocs of the form, which the buttons of the
   # field build from earlier params. `cast_assoc` replaces the entries of the assocs with the ones of the params.
   @impl Backpex.Field
-  def before_changeset(changeset, attrs, _metadata, _repo, {name, _field_options} = field, assigns) do
+  def before_changeset(changeset, attrs, _metadata, {name, _field_options} = field, assigns) do
     %{pivot: pivot, child: child} = association(assigns.live_resource, name)
     linked_ids = changeset.data |> Map.get(pivot.field) |> linked_ids(child.owner_key)
     assigns = OptionsQuery.put_submitted_form(assigns, changeset, attrs)

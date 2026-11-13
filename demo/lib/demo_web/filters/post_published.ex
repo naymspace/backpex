@@ -16,12 +16,12 @@ defmodule DemoWeb.Filters.PostPublished do
       %{
         label: "Published",
         key: "published",
-        predicate: dynamic([x], x.published)
+        predicate: expr(published == true)
       },
       %{
         label: "Not published",
         key: "not_published",
-        predicate: dynamic([x], not x.published)
+        predicate: expr(published == false)
       }
     ]
   end

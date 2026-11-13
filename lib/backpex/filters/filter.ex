@@ -8,13 +8,33 @@ defmodule Backpex.Filter do
   before being applied to queries. Each filter module can implement the `changeset/3` callback
   to apply custom validations, or rely on the default implementation which uses `type/1`.
 
+  ## Conditions
+
+  A filter doesn't query the items itself. Its `c:condition/3` callback returns an expression of the items the filter
+  keeps, and the adapter of the LiveResource turns it into a query. Write the expression with `Backpex.Expr.expr/1`,
+  which `use Backpex.Filter` imports:
+
+      def condition(field, value, _assigns), do: expr(ref(^field) >= ^value)
+
+  `ref(^field)` refers to the field the filter is configured for. An expression may also refer to other fields, to
+  fields of related items with a path such as `author.name`, and to related items with `exists/2`, e.g. to keep the
+  posts with one of the selected tags:
+
+      def condition(_field, tag_ids, _assigns), do: expr(exists(tags, id in ^tag_ids))
+
+  The adapter casts each value to the type of the field. See `Backpex.Expr` for all operators and functions, and for
+  expressions that only one adapter understands, such as a fragment of SQL.
+
+  A filter can't change the query itself, e.g. join a table or select distinct items, as the adapter decides how to
+  join, order and paginate the items.
+
   ## Implementing a Custom Filter
 
   When implementing a custom filter, you should:
 
   1. Implement `type/1` to return the Ecto type for your filter's value
   2. Optionally implement `changeset/3` for custom validations
-  3. Implement `query/4` which receives the already-validated and casted values
+  3. Implement `condition/3` which receives the already-validated and casted values
 
   ## Example
 
@@ -31,15 +51,19 @@ defmodule Backpex.Filter do
         end
 
         @impl Backpex.Filter
-        def query(query, field, value, _assigns) do
-          Ecto.Query.where(query, [x], field(x, ^field) == ^value)
-        end
+        def condition(field, value, _assigns), do: expr(ref(^field) >= ^value)
       end
 
   """
 
   alias Phoenix.LiveView.Rendered
   alias Phoenix.LiveView.Socket
+
+  @typedoc """
+  The expression of the items a filter keeps, see the [Conditions](#module-conditions) section. A keyword list stands
+  for fields that equal values, see `Backpex.Expr`.
+  """
+  @type condition :: Backpex.Expr.t() | keyword()
 
   @doc """
   Defines whether the filter can be used or not.
@@ -119,11 +143,12 @@ defmodule Backpex.Filter do
   @callback validate(value :: any(), assigns :: map()) :: {:ok, any()} | {:error, keyword()}
 
   @doc """
-  The filter query that is executed if an option was selected. Only `Backpex.Adapters.Ecto` calls this callback.
+  Returns the expression of the items the filter keeps, see the [Conditions](#module-conditions) section, or `nil` to
+  keep all items.
 
   The `value` parameter contains the already-validated and casted value from the changeset.
   """
-  @callback query(Ecto.Query.t(), any(), any(), assigns :: map()) :: Ecto.Query.t()
+  @callback condition(field :: atom(), value :: any(), assigns :: map()) :: condition() | nil
 
   @doc """
   Renders the filters selected value(s).
@@ -141,6 +166,7 @@ defmodule Backpex.Filter do
     quote do
       @behaviour Backpex.Filter
 
+      import Backpex.Expr, only: [expr: 1]
       import Ecto.Changeset
 
       @impl Backpex.Filter
@@ -165,20 +191,34 @@ defmodule Backpex.Filter do
       end
 
       @impl Backpex.Filter
-      def query(_query, _attribute, _value, _assigns) do
+      def condition(_field, _value, _assigns) do
         raise """
-        You must implement the query/4 callback in your filter module.
+        You must implement the condition/3 callback in your filter module. Filters no longer build queries with
+        query/4, see the guide on upgrading to v0.24.
 
         Example:
 
             @impl Backpex.Filter
-            def query(query, attribute, value, _assigns) do
-              Ecto.Query.where(query, [x], field(x, ^attribute) == ^value)
-            end
+            def condition(field, value, _assigns), do: expr(ref(^field) == ^value)
         """
       end
 
-      defoverridable can?: 1, type: 1, changeset: 3, validate: 2, query: 4
+      defoverridable can?: 1, type: 1, changeset: 3, validate: 2, condition: 3
+
+      @before_compile Backpex.Filter
+    end
+  end
+
+  # Backpex no longer calls `query/4`, so a filter that still defines it would raise when it is applied, or silently
+  # apply the default condition of a built-in filter.
+  defmacro __before_compile__(env) do
+    if Module.defines?(env.module, {:query, 4}, :def) do
+      raise CompileError,
+        file: env.file,
+        description: """
+        #{inspect(env.module)} defines query/4, but filters no longer build queries. Return an expression from \
+        condition/3 instead, see the guide on upgrading to v0.24.
+        """
     end
   end
 end

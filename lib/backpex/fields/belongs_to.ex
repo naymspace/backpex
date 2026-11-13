@@ -16,13 +16,14 @@ defmodule Backpex.Fields.BelongsTo do
     ],
     options_query: [
       doc: """
-      Manipulates the list of available options in the select.
+      Manipulates the list of available options in the select. Receives the query of the adapter, an `Ecto.Query` for
+      `Backpex.Adapters.Ecto`, and the assigns, and returns a query.
 
       The form and the index form of the field also check the submitted value against the options query: they save an
       option or no option, and the form also the value the item already has. The check only runs for a field that is
       part of the form and not readonly, so the options query is no replacement for a check in your changeset.
 
-      Defaults to `fn (query, _field) -> query end` which returns all entries.
+      Defaults to `fn query, _assigns -> query end` which returns all entries.
       """,
       type: {:fun, 2}
     ],
@@ -58,7 +59,7 @@ defmodule Backpex.Fields.BelongsTo do
           module: Backpex.Fields.BelongsTo,
           label: "Username",
           display_field: :username,
-          options_query: &where(&1, [user], user.role == :admin),
+          options_query: fn query, _assigns -> where(query, [user], user.role == :admin) end,
           live_resource: DemoWeb.UserLive
         }
       ]
@@ -237,7 +238,7 @@ defmodule Backpex.Fields.BelongsTo do
   # The value comes from the client, so the form saves only an option of the select, no option, or the value the item
   # already has. The item may keep a value that is no longer an option, e.g. an author who was deleted since.
   @impl Backpex.Field
-  def before_changeset(changeset, attrs, _metadata, _repo, {name, _field_options} = field, assigns) do
+  def before_changeset(changeset, attrs, _metadata, {name, _field_options} = field, assigns) do
     %{owner_key: owner_key} = Resource.association(name, assigns.live_resource)
 
     with {:ok, value} <- Map.fetch(attrs, Atom.to_string(owner_key)),
