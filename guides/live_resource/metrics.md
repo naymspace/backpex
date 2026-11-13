@@ -81,7 +81,9 @@ The metrics are rendered in the `:metrics` slot of the index view. You can add c
 
 ## Custom Metrics
 
-You can create a custom metric by using the `metric` macro from the `BackpexWeb` module. It implements the `Backpex.Metric` behaviour, uses `Phoenix.Component` and imports `Ecto.Query`.
+You can create a custom metric by using the `metric` macro from the `BackpexWeb` module. It implements the `Backpex.Metric` behaviour, imports `Phoenix.Component` and `Ecto.Query`.
+
+If the metric needs your application's Gettext backend, components, or verified routes, you can additionally `use MyAppWeb, :html`. Both `use` orders are supported. A metric that declares its own function components with `attr` or `slot` needs `use MyAppWeb, :html` or `use Phoenix.Component` as well.
 
 | Callback | Purpose |
 |----------|---------|

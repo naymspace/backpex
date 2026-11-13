@@ -32,6 +32,7 @@ defmodule Backpex.Metrics.Value do
       end
   """
 
+  use Phoenix.Component
   use BackpexWeb, :metric
 
   attr :metric, :any, required: true, doc: "the metric to be rendered"
