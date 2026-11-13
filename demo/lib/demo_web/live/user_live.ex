@@ -14,6 +14,7 @@ defmodule DemoWeb.UserLive do
   import Ecto.Query, warn: false
 
   alias Backpex.Metrics.Value
+  alias DemoWeb.Uploads
 
   @impl Backpex.LiveResource
   def layout(_assigns), do: {DemoWeb.Layouts, :admin}
@@ -75,6 +76,7 @@ defmodule DemoWeb.UserLive do
         put_upload_change: &put_upload_change/6,
         consume_upload: &consume_upload/4,
         remove_uploads: &remove_uploads/3,
+        discard_uploads: &discard_uploads/3,
         list_existing_files: &list_existing_files/1,
         render: fn
           %{value: value} = assigns when value == "" or is_nil(value) ->
@@ -268,18 +270,28 @@ defmodule DemoWeb.UserLive do
   # sobelow_skip ["Traversal"]
   defp consume_upload(_socket, _item, %{path: path} = _meta, entry) do
     file_name = file_name(entry)
-    dest = Path.join([:code.priv_dir(:demo), "static", upload_dir(), file_name])
+    dest = Uploads.path(upload_dir(), file_name)
 
-    File.cp!(path, dest)
-
-    {:ok, file_url(file_name)}
+    with :ok <- File.cp(path, dest) do
+      {:ok, file_name}
+    end
   end
 
   # sobelow_skip ["Traversal"]
   defp remove_uploads(_socket, _item, removed_entries) do
     for file <- removed_entries do
-      path = Path.join([:code.priv_dir(:demo), "static", upload_dir(), file])
-      File.rm!(path)
+      upload_dir()
+      |> Uploads.path(file)
+      |> File.rm!()
+    end
+  end
+
+  # sobelow_skip ["Traversal"]
+  defp discard_uploads(_socket, _item, stored) do
+    for file <- stored do
+      upload_dir()
+      |> Uploads.path(file)
+      |> File.rm()
     end
   end
 
