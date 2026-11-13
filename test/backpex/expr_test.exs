@@ -3,6 +3,7 @@ defmodule Backpex.ExprTest do
 
   import Backpex.Expr
 
+  alias Backpex.Adapter.Description
   alias Backpex.Expr
   alias Backpex.Expr.Call
   alias Backpex.Expr.Exists
@@ -79,6 +80,71 @@ defmodule Backpex.ExprTest do
       assert Expr.all([nil, [likes: 1]]) == %Call{name: :==, args: [%Ref{name: :likes}, 1]}
 
       assert Expr.all([expr(a == 1), expr(b == 2)]) == %Call{name: :and, args: [expr(a == 1), expr(b == 2)]}
+    end
+  end
+
+  describe "cast/2" do
+    @descriptions %{
+      [] => %Description{
+        fields: %{
+          likes: %{type: :integer, primitive: :integer},
+          title: %{type: :string, primitive: :string},
+          role: %{type: Ecto.ParameterizedType.init(Ecto.Enum, values: [:user, :admin]), primitive: :string}
+        },
+        relationships: %{
+          author: %{field: :author, cardinality: :one, owner_key: :author_id, through: []},
+          tags: %{field: :tags, cardinality: :many, owner_key: :id, through: []}
+        }
+      },
+      [:author] => %Description{fields: %{age: %{type: :integer, primitive: :integer}}},
+      [:tags] => %Description{
+        fields: %{name: %{type: :string, primitive: :string}, uses: %{type: :integer, primitive: :integer}}
+      }
+    }
+
+    defp cast(expression), do: Expr.cast(expression, &Map.get(@descriptions, &1))
+
+    test "casts the values compared to a field to the type of the field" do
+      assert cast(expr(likes >= "10")) == expr(likes >= 10)
+      assert cast(expr("10" < likes)) == expr(10 < likes)
+      assert cast(expr(role == "admin")) == expr(role == :admin)
+      assert cast(expr(likes in ["1", "2"])) == expr(likes in [1, 2])
+      assert cast(expr(author.age == "30")) == expr(author.age == 30)
+      assert cast(expr(exists(tags, uses > "1"))) == expr(exists(tags, uses > 1))
+      assert cast(likes: "5") == expr(likes == 5)
+    end
+
+    test "keeps values that can't be cast, nil, empty strings and parts of strings" do
+      assert cast(expr(likes >= 2.5)) == expr(likes >= 2.5)
+      assert cast(expr(likes == nil)) == expr(likes == nil)
+      assert cast(expr(title == "")) == expr(title == "")
+      assert cast(expr(contains(title, 1))) == expr(contains(title, 1))
+    end
+
+    test "checks the fields of comparisons, is_nil and the string functions and keeps native expressions" do
+      native = Expr.native(SomeAdapter, :anything)
+
+      assert cast(expr((is_nil(title) and contains(title, "a")) or title != role)) ==
+               expr((is_nil(title) and contains(title, "a")) or title != role)
+
+      assert cast(Expr.any([native, expr(likes > 1)])) == Expr.any([native, expr(likes > 1)])
+      assert cast(nil) == nil
+    end
+
+    test "raises for unknown fields and relationships and for paths through relationships to many items" do
+      assert_raise ArgumentError, ~r/unknown field :unknown in \[\]/, fn -> cast(expr(unknown == 1)) end
+      assert_raise ArgumentError, ~r/unknown field :name in \[:author\]/, fn -> cast(expr(author.name == 1)) end
+      assert_raise ArgumentError, ~r/unknown relationship :editor/, fn -> cast(expr(editor.age == 1)) end
+
+      assert_raise ArgumentError, ~r/unknown relationship path \[:editor\]/, fn ->
+        cast(expr(exists(editor, a == 1)))
+      end
+
+      assert_raise ArgumentError, ~r/unknown field :age in \[:tags\]/, fn -> cast(expr(exists(tags, age == 1))) end
+
+      assert_raise ArgumentError, ~r/:tags to be a relationship to one item.*exists\(tags, \.\.\.\)/, fn ->
+        cast(expr(tags.name == "elixir"))
+      end
     end
   end
 
