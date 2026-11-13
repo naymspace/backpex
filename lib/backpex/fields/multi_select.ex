@@ -121,7 +121,14 @@ defmodule Backpex.Fields.MultiSelect do
 
     selected = Enum.filter(options, fn {_label, value} -> value in selected_ids end)
 
-    assign(socket, :selected, selected)
+    # The ids of a form come from its params, which the client controls. An id that matches no option is left out, so
+    # the form does not submit it again. The order stays the one of the params, in which the combobox shows the values.
+    option_values = Enum.map(options, fn {_label, value} -> value end)
+    selected_values = Enum.filter(selected_ids, &(&1 in option_values))
+
+    socket
+    |> assign(:selected, selected)
+    |> assign(:selected_values, selected_values)
   end
 
   @impl Backpex.Field
@@ -154,6 +161,7 @@ defmodule Backpex.Fields.MultiSelect do
         </:label>
         <Combobox.combobox
           field={@form[@name]}
+          value={@selected_values}
           options={@options}
           multiple
           select_all

@@ -98,6 +98,24 @@ defmodule Backpex.Integration.ResourceActions.FormTest do
     end
   end
 
+  # The action has no saved item, so the file is stored with the data of the form before `handle/2` runs.
+  describe "with an upload field" do
+    test "runs the action with the file", %{conn: conn} do
+      conn
+      |> visit(~p"/admin/users/upload/resource-action")
+      |> unwrap(fn view ->
+        view
+        |> file_input("#resource-form", :upload, [%{name: "photo.jpg", content: "photo", type: "image/jpeg"}])
+        |> render_upload("photo.jpg")
+
+        render(view)
+      end)
+      |> fill_in("Description", with: "Photo")
+      |> unwrap(fn view -> view |> form("#resource-form") |> render_submit(%{"save-type" => "save"}) end)
+      |> assert_has("div", text: "File was uploaded successfully.")
+    end
+  end
+
   # The browser doesn't submit a form while a file input has refused files, but a save event can still reach the server.
   describe "with an upload field that has refused files" do
     test "refuses the save", %{conn: conn} do

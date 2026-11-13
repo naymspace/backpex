@@ -194,4 +194,14 @@ defmodule Backpex.Fields.MultiSelectTest do
       assert mount(@options, []) |> render() |> texts("[data-part=empty]") == ["No options found"]
     end
   end
+
+  describe "selection" do
+    # The values come from the form params, which the client controls.
+    test "ignores a submitted value that matches no option" do
+      socket = mount(@options, ["alex", "nobody"])
+
+      assert socket.assigns.selected == [{"Alex", "alex"}]
+      assert socket |> render() |> submitted_users() == ["alex"]
+    end
+  end
 end
