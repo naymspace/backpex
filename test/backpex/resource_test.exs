@@ -1,6 +1,9 @@
 defmodule Backpex.ResourceTest do
   use ExUnit.Case, async: true
 
+  import Backpex.Expr, only: [expr: 1]
+
+  alias Backpex.Expr.Call
   alias Backpex.Metrics.Value
   alias Backpex.Query
   alias Backpex.Resource
@@ -405,6 +408,123 @@ defmodule Backpex.ResourceTest do
       assert_received {:read, 1}
       assert_received {:read, 2}
       refute_received {:read, _limit}
+    end
+  end
+
+  describe "read/1, count/1 and aggregate/1 with an adapter that supports some parts of a query" do
+    defmodule FilterOnlyAdapter do
+      @moduledoc false
+      # Runs the filter, but nothing after it, and reports the query it gets.
+      use Backpex.Adapter, supports: [:filter]
+
+      def read(query) do
+        send(self(), {:read, query})
+
+        items = [%{id: 1, likes: 3}, %{id: 2, likes: 1}, %{id: 3, likes: 2}, %{id: 4, likes: 9}]
+        {:ok, Enum.reject(items, &(query.filter && &1.likes > 5))}
+      end
+
+      def describe(_path, _live_resource) do
+        %Backpex.Adapter.Description{
+          primary_key: [:id],
+          fields: %{id: %{type: :id, primitive: :id}, likes: %{type: :integer, primitive: :integer}},
+          relationships: %{}
+        }
+      end
+    end
+
+    defmodule FilterOnlyLive do
+      @moduledoc false
+      def config(:adapter), do: FilterOnlyAdapter
+    end
+
+    setup do
+      %{query: FilterOnlyLive |> Query.new() |> Query.filter(expr(likes <= 5))}
+    end
+
+    test "leaves the filter to the adapter and sorts, skips and limits the items in memory", %{query: query} do
+      query = query |> Query.sort(likes: :desc) |> Query.offset(1) |> Query.limit(1)
+
+      assert {:ok, [%{id: 3}]} = Resource.read(query)
+      assert_received {:read, %Query{filter: %Call{}, sort: [], offset: nil, limit: nil}}
+    end
+
+    test "counts and aggregates the items in memory without the callbacks", %{query: query} do
+      assert Resource.count(query) == {:ok, 3}
+      assert query |> Query.aggregate(:likes, {:sum, :likes}) |> Resource.aggregate() == {:ok, %{likes: 6}}
+    end
+
+    test "leaves a filter to an adapter that supports each of its operators" do
+      defmodule LessOrEqualAdapter do
+        @moduledoc false
+        use Backpex.Adapter, supports: [{:filter, :<=}, :sort, :offset, :limit]
+
+        defdelegate describe(path, live_resource), to: FilterOnlyAdapter
+
+        def read(query) do
+          send(self(), {:read, query})
+          {:ok, [%{id: 1, likes: 3}]}
+        end
+      end
+
+      defmodule LessOrEqualLive do
+        @moduledoc false
+        def config(:adapter), do: LessOrEqualAdapter
+      end
+
+      query = LessOrEqualLive |> Query.new() |> Query.filter(expr(likes <= 5)) |> Query.limit(1)
+
+      assert {:ok, [%{id: 1}]} = Resource.read(query)
+      assert_received {:read, %Query{filter: %Call{name: :<=}, limit: 1}}
+    end
+
+    test "loads the relationships of the paths the filter in memory reads" do
+      defmodule NoFilterAdapter do
+        @moduledoc false
+        use Backpex.Adapter, supports: [:load]
+
+        def read(query) do
+          send(self(), {:read, query})
+          {:ok, [%{id: 1, author: %{name: "Ann"}, tags: [%{category: %{name: "lang"}}]}]}
+        end
+      end
+
+      defmodule NoFilterLive do
+        @moduledoc false
+        def config(:adapter), do: NoFilterAdapter
+      end
+
+      # Built without `Backpex.Query.filter/2`, as this adapter describes no relationships to cast with.
+      filter = Backpex.Expr.all([expr(author.name == "Ann"), expr(exists(tags, category.name == "lang"))])
+      query = %{Query.new(NoFilterLive) | filter: filter}
+
+      assert {:ok, [%{id: 1}]} = Resource.read(query)
+      assert_received {:read, %Query{filter: nil, load: load}}
+      assert Enum.sort(load) == [:author, tags: [:category]]
+    end
+
+    test "applies the filter in memory if the adapter doesn't support one of its operators" do
+      defmodule NoInAdapter do
+        @moduledoc false
+        use Backpex.Adapter, supports: [{:filter, :<=}, :sort]
+
+        defdelegate describe(path, live_resource), to: FilterOnlyAdapter
+
+        def read(query) do
+          send(self(), {:read, query})
+          {:ok, [%{id: 1, likes: 3}, %{id: 2, likes: 1}]}
+        end
+      end
+
+      defmodule NoInLive do
+        @moduledoc false
+        def config(:adapter), do: NoInAdapter
+      end
+
+      query = NoInLive |> Query.new() |> Query.filter(expr(likes in [1, 2])) |> Query.sort(likes: :asc)
+
+      assert {:ok, [%{id: 2}]} = Resource.read(query)
+      assert_received {:read, %Query{filter: nil, sort: []}}
     end
   end
 

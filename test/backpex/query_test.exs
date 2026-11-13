@@ -166,4 +166,105 @@ defmodule Backpex.QueryTest do
       refute Query.key(query) == query |> Query.limit(2) |> Query.key()
     end
   end
+
+  describe "apply_to/2" do
+    @items [
+      %{id: 1, title: "Elixir", likes: 3, published: ~D[2026-01-02], author: %{name: "Ann"}, tags: [%{name: "fp"}]},
+      %{id: 2, title: "erlang", likes: nil, published: ~D[2025-12-31], author: nil, tags: []},
+      %{id: 3, title: "Gleam", likes: 5, published: nil, author: %{name: "Bob"}, tags: [%{name: "fp"}, %{name: "new"}]}
+    ]
+
+    defp ids(query), do: query |> Query.apply_to(@items) |> Enum.map(& &1.id)
+
+    defp filtered(expression), do: ids(%{Query.new(ArticleLive) | filter: expression})
+
+    test "keeps the items whose expression is true, with the nil rules of SQL" do
+      assert filtered(expr(likes > 2)) == [1, 3]
+      assert filtered(expr(not (likes > 4))) == [1]
+      assert filtered(expr(is_nil(likes) or likes == 5)) == [2, 3]
+      assert filtered(expr(likes in [3, 5])) == [1, 3]
+      # As in SQL, a value not in a list with nil is unknown, so the negation keeps it neither.
+      assert filtered(expr(likes in [5, nil])) == [3]
+      assert filtered(expr(likes not in [5, nil])) == []
+      assert filtered(expr(published < ^~D[2026-01-01])) == [2]
+    end
+
+    test "compares parts of strings, with or without the case" do
+      assert filtered(expr(starts_with(title, "E"))) == [1]
+      assert filtered(expr(starts_with(title, "E", ignore_case: true))) == [1, 2]
+      assert filtered(expr(contains(title, "LEA", ignore_case: true))) == [3]
+      assert filtered(expr(ends_with(title, "ang"))) == [2]
+    end
+
+    test "reads paths and exists from the loaded relationships" do
+      assert filtered(expr(author.name == "Bob")) == [3]
+      assert filtered(expr(exists(tags, name == "new"))) == [3]
+      assert filtered(expr(not exists(tags, name == "fp"))) == [2]
+    end
+
+    test "searches every target for the term, ignoring the case and casting values to text" do
+      query = ArticleLive |> Query.new() |> Query.search("e", [:title])
+      assert ids(query) == [1, 2, 3]
+
+      assert ArticleLive |> Query.new() |> Query.search("BO", ["author.name"]) |> ids() == [3]
+      assert ArticleLive |> Query.new() |> Query.search("5", [:likes, :title]) |> ids() == [3]
+      assert ArticleLive |> Query.new() |> Query.search("fp", [:tags]) |> ids() == [1, 3]
+    end
+
+    test "sorts with the nil rules of PostgreSQL, then skips and limits" do
+      sorted = fn sorts -> ArticleLive |> Query.new() |> Query.sort(sorts) |> ids() end
+
+      assert sorted.(likes: :asc) == [1, 3, 2]
+      assert sorted.(likes: :desc) == [2, 3, 1]
+      assert sorted.(likes: :asc_nulls_first) == [2, 1, 3]
+      assert sorted.(likes: :desc_nulls_last) == [3, 1, 2]
+      assert sorted.(published: :desc_nulls_last) == [1, 2, 3]
+
+      assert ArticleLive |> Query.new() |> Query.sort(id: :desc) |> Query.offset(1) |> Query.limit(1) |> ids() == [2]
+    end
+
+    test "raises for a native expression" do
+      query = %{Query.new(ArticleLive) | filter: Expr.native(Backpex.Adapters.Ecto, :fragment)}
+
+      assert_raise ArgumentError, ~r/can't apply the native expression/, fn -> Query.apply_to(query, @items) end
+    end
+  end
+
+  describe "aggregate_items/2" do
+    test "computes the aggregates with the nil rules of SQL" do
+      query =
+        ArticleLive
+        |> Query.new()
+        |> Query.aggregate(:total, :count)
+        |> Query.aggregate(:with_likes, {:count, :likes})
+        |> Query.aggregate(:sum, {:sum, :likes})
+        |> Query.aggregate(:avg, {:avg, :likes})
+        |> Query.aggregate(:min, {:min, :likes})
+        |> Query.aggregate(:max, {:max, :likes}, where: expr(likes < 5))
+        |> Query.aggregate(:none, {:sum, :likes}, where: expr(likes > 100))
+
+      items = [%{likes: 3}, %{likes: nil}, %{likes: 5}]
+
+      assert Query.aggregate_items(query, items) == %{
+               total: 3,
+               with_likes: 2,
+               sum: 8,
+               avg: 4.0,
+               min: 3,
+               max: 3,
+               none: nil
+             }
+    end
+
+    test "adds decimals with Decimal" do
+      query =
+        ArticleLive |> Query.new() |> Query.aggregate(:sum, {:sum, :price}) |> Query.aggregate(:max, {:max, :price})
+
+      items = [%{price: Decimal.new("1.50")}, %{price: Decimal.new("2.25")}]
+
+      assert %{sum: sum, max: max} = Query.aggregate_items(query, items)
+      assert Decimal.equal?(sum, "3.75")
+      assert Decimal.equal?(max, "2.25")
+    end
+  end
 end
