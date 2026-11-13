@@ -41,6 +41,30 @@ defmodule Backpex.Fields.Select do
           }
         ]
       end
+
+  ## Ordering and searching
+
+  The index view orders and searches select fields by the labels of their options instead of the stored values, so
+  the results match what the user sees. Values without an option are ordered and searched by the stored value.
+
+  To translate the labels, pass a function as `options`. Backpex calls it with the assigns of the index view when
+  ordering or searching, so the labels are translated into the locale of the current user:
+
+      role: %{
+        module: Backpex.Fields.Select,
+        label: "Role",
+        options: fn _assigns -> [{gettext("Admin"), "admin"}, {gettext("User"), "user"}] end
+      }
+
+  > #### Info {: .info}
+  >
+  > When ordering or searching, the `options` function receives the assigns of the index view without the assigns of a
+  > row: `:item` is `nil`, or the `base_schema` of a resource action while one is open, and assigns such as `:value`
+  > are not set. Do not read the fields of the item or the value in the `options` function of a field that is orderable
+  > or searchable.
+
+  The labels come from `c:Backpex.Field.option_labels/2`. The `Backpex.Adapters.Ecto` adapter requires PostgreSQL to
+  order and search by them.
   """
   use Backpex.Field, config_schema: @config_schema
 
@@ -127,6 +151,14 @@ defmodule Backpex.Fields.Select do
 
   @impl Backpex.Field
   def index_editable_change({name, _field_options}, value, _assigns), do: %{name => value}
+
+  @impl Backpex.Field
+  def option_labels({_name, field_options}, assigns) do
+    assigns
+    |> Map.put(:field_options, field_options)
+    |> get_options()
+    |> flatten_options()
+  end
 
   defp get_label(value, options) do
     options
