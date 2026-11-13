@@ -43,6 +43,29 @@ the `index` and `show` views only.
 > `Backpex.Adapters.Ecto` merges the values into the selected items, so add a virtual field with the name of each
 > value to your schema, e.g. `field :full_name, :string, virtual: true`.
 
+## Aggregates of related items
+
+`Backpex.Expr.aggregate/3` computes a value of the related items of a relationship to many items, e.g. the number of
+the posts of a user, the sum of their likes or the title of the post with the most likes:
+
+```elixir
+@impl Backpex.LiveResource
+def computed(_assigns) do
+  [
+    post_count: aggregate(:count, :posts),
+    published_count: aggregate(:count, :posts, where: expr(published == true)),
+    total_likes: aggregate(:sum, :posts, value: expr(likes)),
+    top_post: aggregate(:first, :posts, value: expr(title), sort: [likes: :desc]),
+    last_commenter: aggregate(:first, [:posts, :comments], value: expr(author.name), sort: [inserted_at: :desc])
+  ]
+end
+```
+
+The path can go through several relationships, e.g. `[:posts, :tags]`, and the value through relationships to one item,
+e.g. `expr(author.name)`. `Backpex.Adapters.Ecto` joins a subquery of the values by item, so an aggregate doesn't
+duplicate items. Aggregates that only differ in their `:value`, e.g. the title and the likes of the top post, share
+one subquery. The index view sorts by aggregates and searches them like any other computed value.
+
 ## Values of the database
 
 A value the expressions can't describe, e.g. a fragment of SQL, is a native expression of the adapter (see
