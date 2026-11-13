@@ -109,6 +109,12 @@ defmodule Backpex.E2E.A11yTest do
     |> assert_a11y()
     |> evaluate("document.documentElement.dataset.theme = 'light'")
     |> assert_a11y()
+    # The select all line with an enabled and a disabled button.
+    |> open.("combobox_all_tags")
+    |> assert_has("#combobox_all_tags [data-part=deselect-all-button][aria-disabled=true]")
+    |> assert_a11y()
+    |> evaluate("document.documentElement.dataset.theme = 'dark'")
+    |> assert_a11y()
   end
 
   test "pagination with a placeholder for skipped pages", %{conn: conn} do

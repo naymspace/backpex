@@ -319,6 +319,67 @@ defmodule Backpex.E2E.ComboboxTest do
       end)
     end
 
+    test "selects and deselects all options the search shows and counts the selection", %{conn: conn} do
+      id = "combobox_all_tags"
+      count = "##{id} [data-part=selected-count]"
+      select_all = "##{id} [data-part=select-all-button]"
+      deselect_all = "##{id} [data-part=deselect-all-button]"
+
+      conn
+      |> visit_fixture()
+      |> open(id)
+      |> assert_has(count, text: "0", exact: true)
+      |> refute_has("#{select_all}[aria-disabled=true]")
+      |> assert_has("#{deselect_all}[aria-disabled=true]")
+      # "Select all" only selects what the search shows, and a click on it leaves the focus in the search input.
+      |> type(search(id), "al")
+      |> assert_has("##{id}-listbox [data-part=option]", count: 2)
+      |> click(select_all)
+      |> assert_state(id, values: ~w(alpha alabama), selected: ~w(alpha alabama))
+      |> assert_has(count, text: "2", exact: true)
+      |> assert_has("#{select_all}[aria-disabled=true]")
+      |> assert_focus(search(id))
+      |> assert_open(id)
+      |> assert_has("#changes", text: "Changes: 1")
+      |> last_change(fn change ->
+        assert change["combobox"]["all_tags"] == ~w(alpha alabama)
+        assert change["_target"] == ~w(combobox all_tags)
+      end)
+      # Without the search, the disabled option is left out.
+      |> press(search(id), "Backspace")
+      |> press(search(id), "Backspace")
+      |> assert_has("##{id}-listbox [data-part=option]", count: 5)
+      |> refute_has("#{select_all}[aria-disabled=true]")
+      |> click(select_all)
+      |> assert_state(id, values: ~w(alpha alabama beta gamma))
+      |> assert_has(count, text: "4", exact: true)
+      # "Deselect all" also only acts on what the search shows.
+      |> type(search(id), "al")
+      |> click(deselect_all)
+      |> assert_state(id, values: ~w(beta gamma))
+      |> assert_has(count, text: "2", exact: true)
+      |> assert_has("#{deselect_all}[aria-disabled=true]")
+      |> assert_has("#changes", text: "Changes: 3")
+      |> last_change(&assert(&1["combobox"]["all_tags"] == ~w(beta gamma)))
+      # With the keyboard: Tab moves from the search input to the buttons, which keep the focus and the popup open.
+      |> press(search(id), "Backspace")
+      |> press(search(id), "Backspace")
+      |> press(search(id), "Tab")
+      |> assert_focus(select_all)
+      |> press(select_all, "Enter")
+      |> assert_state(id, values: ~w(beta gamma alpha alabama))
+      |> assert_focus(select_all)
+      |> assert_open(id)
+      |> press(select_all, "Tab")
+      |> assert_focus(deselect_all)
+      |> press(deselect_all, "Enter")
+      |> assert_state(id, values: [], placeholder: true)
+      |> assert_has(count, text: "0", exact: true)
+      |> assert_focus(deselect_all)
+      |> assert_has("#changes", text: "Changes: 5")
+      |> last_change(&assert(&1["combobox"]["all_tags"] == ""))
+    end
+
     test "is controlled by commands and announces changes", %{conn: conn} do
       conn
       |> visit_fixture()

@@ -35,7 +35,8 @@ defmodule Backpex.Test.ComboboxLive do
     restricted: :string,
     restricted_tags: {:array, :string},
     native_restricted: :string,
-    long_tags: {:array, :string}
+    long_tags: {:array, :string},
+    all_tags: {:array, :string}
   }
 
   @defaults %{
@@ -99,6 +100,15 @@ defmodule Backpex.Test.ComboboxLive do
 
   @simple [{"Option A", "a"}, {"Option B", "b"}, {"Option C", "c"}]
 
+  # "al" matches Alpha and Alabama; Delta is disabled, so "select all" leaves it out.
+  @all_tags [
+    {"Alpha", "alpha"},
+    {"Beta", "beta"},
+    {"Gamma", "gamma"},
+    [key: "Delta", value: "delta", disabled: true],
+    {"Alabama", "alabama"}
+  ]
+
   @restricted [{"Allowed", "allowed"}, {"Rejected", "rejected"}, {"Other", "other"}]
 
   @long_tags Enum.map(1..30, &{"Item #{String.pad_leading(to_string(&1), 2, "0")}", "item-#{&1}"})
@@ -117,6 +127,7 @@ defmodule Backpex.Test.ComboboxLive do
       simple: @simple,
       restricted: @restricted,
       long_tags: @long_tags,
+      all_tags: @all_tags,
       changes: 0,
       people_options: search_people(""),
       people_query: "",
@@ -295,6 +306,8 @@ defmodule Backpex.Test.ComboboxLive do
           </fieldset>
 
           <.combobox field={@form[:long_tags]} label="Long tags" options={@long_tags} multiple />
+
+          <.combobox field={@form[:all_tags]} label="All tags" options={@all_tags} multiple select_all />
 
           <div class="md:col-span-2">
             <button id="submit-button" type="submit" class="btn btn-primary btn-sm">Submit</button>

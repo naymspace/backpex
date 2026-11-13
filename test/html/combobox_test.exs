@@ -369,6 +369,71 @@ defmodule Backpex.HTML.ComboboxTest do
     end
   end
 
+  describe "select all" do
+    @select_all_options [{"A", "a"}, {"B", "b"}, [key: "C", value: "c", disabled: true]]
+
+    defp select_all_buttons(doc) do
+      for part <- ~w(select-all-button deselect-all-button) do
+        attribute(doc, "[data-part=#{part}]", "aria-disabled") == ["true"]
+      end
+    end
+
+    test "shows the number of selected values and disables the button that has nothing to do" do
+      render = &render_combobox(options: @select_all_options, multiple: true, select_all: true, value: &1)
+
+      none = render.([])
+      assert texts(none, "[data-part=selected-count]") == ["0"]
+      assert texts(none, "[data-part=select-all] button") == ["Select all", "Deselect all"]
+      assert attribute(none, "[data-part=select-all] button", "type") == ["button", "button"]
+      assert select_all_buttons(none) == [false, true]
+
+      some = render.(~w(a))
+      assert texts(some, "[data-part=selected-count]") == ["1"]
+      assert select_all_buttons(some) == [false, false]
+
+      # The disabled option cannot be selected, so the two others are all there is to select.
+      all = render.(~w(a b))
+      assert texts(all, "[data-part=selected-count]") == ["2"]
+      assert select_all_buttons(all) == [true, false]
+
+      assert select_all_buttons(render_combobox(options: [], multiple: true, select_all: true)) == [true, true]
+    end
+
+    test "sits between the search input and the options" do
+      doc = render_combobox(options: @select_all_options, multiple: true, select_all: true)
+
+      in_order = "[data-part=popup] > div:has([data-part=search]) + [data-part=select-all] + [data-part=listbox]"
+      assert count(doc, in_order) == 1
+    end
+
+    test "is left out for a single select, with a maximum and when not interactive" do
+      left_out = [[], [multiple: true, max: 2], [multiple: true, readonly: true], [multiple: true, disabled: true]]
+
+      for assigns <- left_out do
+        doc = render_combobox([options: @select_all_options, select_all: true] ++ assigns)
+        assert count(doc, "[data-part=select-all]") == 0
+      end
+
+      assert count(render_combobox(options: @select_all_options, multiple: true), "[data-part=select-all]") == 0
+    end
+
+    test "takes its texts from attributes" do
+      doc =
+        render_combobox(
+          options: @select_all_options,
+          multiple: true,
+          select_all: true,
+          value: ~w(a),
+          select_all_label: "All",
+          deselect_all_label: "None",
+          selected_count_label: "chosen"
+        )
+
+      assert texts(doc, "[data-part=select-all] button") == ["All", "None"]
+      assert texts(doc, "[data-part=select-all] > span:first-child") == ["1 chosen"]
+    end
+  end
+
   describe "texts" do
     test "have translated defaults" do
       doc = render_combobox(options: [], multiple: true, clearable: true)

@@ -85,6 +85,18 @@ defmodule Backpex.HTML.Combobox do
   Pass the options of the current value in `selected_options`, as they may not be in the search results. A selected
   value that is in neither list is shown as is.
 
+  ## Select all
+
+  With `select_all`, the popup of a `multiple` combobox without `max` shows the number of selected values and two
+  buttons:
+
+      <.combobox field={@form[:tags]} label="Tags" options={@tags} multiple select_all />
+
+  "Select all" selects every enabled option that the search currently shows, "Deselect all" deselects them. Values
+  that the search hides stay as they are, so searching for "el" and selecting all adds the matches to the selection.
+  The buttons only know the options that are rendered: with `on_search`, they act on the options of the last search
+  result.
+
   ## Commands and events
 
   The hook listens on the root element (the element with the combobox's `id`) for these DOM events, so other elements
@@ -175,10 +187,18 @@ defmodule Backpex.HTML.Combobox do
 
   attr :clearable, :boolean, default: false, doc: "whether a button clears the selection"
 
+  attr :select_all, :boolean,
+    default: false,
+    doc:
+      "whether the popup shows the number of selected values and buttons to select and deselect all (`multiple` without `max` only)"
+
   attr :placeholder, :string, default: nil, doc: "shown when nothing is selected"
   attr :search_placeholder, :string, default: nil, doc: "placeholder and accessible name of the search input"
   attr :no_results_text, :string, default: nil, doc: "shown when no option matches, unless the `:empty` slot is given"
   attr :clear_label, :string, default: nil, doc: "accessible name of the clear button"
+  attr :select_all_label, :string, default: nil, doc: "text of the button that selects all options"
+  attr :deselect_all_label, :string, default: nil, doc: "text of the button that deselects all options"
+  attr :selected_count_label, :string, default: nil, doc: "text after the number of selected values, e.g. `selected`"
 
   attr :disabled, :boolean, default: false, doc: "not interactive, and the value is not submitted"
   attr :readonly, :boolean, default: false, doc: "not interactive, but the value is submitted"
@@ -242,6 +262,8 @@ defmodule Backpex.HTML.Combobox do
     |> assign(:selected, Enum.map(selected_values, &Map.get(lookup, &1, %{label: &1, value: &1, disabled: false})))
     |> assign(:max_reached, assigns.multiple and is_integer(assigns.max) and length(selected_values) >= assigns.max)
     |> assign(:interactive, not assigns.disabled and not assigns.readonly)
+    |> assign(:select_all, select_all?(assigns))
+    |> assign(:select_all_state, select_all_state(options, selected_values))
     |> assign(:show_search, show_search?(assigns, length(options)))
     |> assign(:form, form)
     |> assign(:root_rest, rest)
@@ -413,6 +435,37 @@ defmodule Backpex.HTML.Combobox do
               ></span>
             </label>
           </div>
+          <%!--
+            The buttons are `aria-disabled` instead of `disabled` when they have nothing to do: a button that disables
+            itself while it has focus would drop the focus to the body.
+          --%>
+          <div
+            :if={@select_all}
+            data-part="select-all"
+            class="border-base-200 flex items-center justify-between gap-2 border-b px-3 py-1 text-xs"
+          >
+            <span class="text-base-content/70">
+              <span data-part="selected-count">{length(@selected_values)}</span> {@selected_count_label}
+            </span>
+            <span class="flex items-center gap-1">
+              <button
+                type="button"
+                data-part="select-all-button"
+                aria-disabled={@select_all_state in [:all, :empty] && "true"}
+                class="btn btn-ghost btn-xs aria-disabled:pointer-events-none aria-disabled:opacity-40"
+              >
+                {@select_all_label}
+              </button>
+              <button
+                type="button"
+                data-part="deselect-all-button"
+                aria-disabled={@select_all_state in [:none, :empty] && "true"}
+                class="btn btn-ghost btn-xs aria-disabled:pointer-events-none aria-disabled:opacity-40"
+              >
+                {@deselect_all_label}
+              </button>
+            </span>
+          </div>
           <div
             id={"#{@id}-listbox"}
             data-part="listbox"
@@ -566,6 +619,26 @@ defmodule Backpex.HTML.Combobox do
     |> assign(:search_placeholder, assigns.search_placeholder || Backpex.__("Search", live_resource))
     |> assign(:no_results_text, assigns.no_results_text || Backpex.__("No options found", live_resource))
     |> assign(:clear_label, assigns.clear_label || Backpex.__("Clear selection", live_resource))
+    |> assign(:select_all_label, assigns.select_all_label || Backpex.__("Select all", live_resource))
+    |> assign(:deselect_all_label, assigns.deselect_all_label || Backpex.__("Deselect all", live_resource))
+    |> assign(:selected_count_label, assigns.selected_count_label || Backpex.__("selected", live_resource))
+  end
+
+  # Selecting all contradicts a maximum, and a single select has nothing to select all of.
+  defp select_all?(%{select_all: true, multiple: true, max: nil, disabled: false, readonly: false}), do: true
+  defp select_all?(_assigns), do: false
+
+  # How many of the options that can be selected are selected. The hook computes the same for the options the search
+  # shows.
+  defp select_all_state(options, selected_values) do
+    selectable = for %{disabled: false, value: value} <- options, do: value
+
+    case Enum.count(selectable, &(&1 in selected_values)) do
+      _count when selectable == [] -> :empty
+      0 -> :none
+      count when count == length(selectable) -> :all
+      _count -> :some
+    end
   end
 
   defp show_search?(%{searchable: false}, _count), do: false

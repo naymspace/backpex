@@ -30,6 +30,7 @@ const TYPEAHEAD_RESET_MS = 500
 const POPUP_OFFSET = 4
 const VIEWPORT_MARGIN = 8
 const FOCUSABLE = 'a[href], button, input, select, textarea, [tabindex]'
+const SELECT_ALL_BUTTONS = '[data-part="select-all-button"], [data-part="deselect-all-button"]'
 
 /**
  * Lowercases a text and strips its diacritics, so that "Zürich" matches "zur".
@@ -318,6 +319,33 @@ export default {
       if (disabled) option.setAttribute('aria-disabled', 'true')
       else option.removeAttribute('aria-disabled')
     }
+
+    this.syncSelectAll(values)
+  },
+  // The values "select all" and "deselect all" act on: the options the search
+  // shows, except the ones the server disabled.
+  selectableValues () {
+    return this.options()
+      .filter((option) => this.isVisible(option) && !option.hasAttribute('data-disabled'))
+      .map((option) => option.dataset.value)
+  },
+  // Shows the number of selected values and marks the button that has nothing
+  // to do. `aria-disabled` instead of `disabled`: a button that disables
+  // itself while it has focus would drop the focus to the body.
+  syncSelectAll (values) {
+    const count = this.part('selected-count')
+    if (!count) return
+    count.textContent = String(values.length)
+
+    const selectable = this.selectableValues()
+    const selected = selectable.filter((value) => values.includes(value)).length
+    this.setAriaDisabled(this.part('select-all-button'), selected === selectable.length)
+    this.setAriaDisabled(this.part('deselect-all-button'), selected === 0)
+  },
+  setAriaDisabled (element, disabled) {
+    if (!element) return
+    if (disabled) element.setAttribute('aria-disabled', 'true')
+    else element.removeAttribute('aria-disabled')
   },
   notify (values) {
     const anchor = this.part('anchor')
@@ -356,6 +384,11 @@ export default {
       .map((option) => option.dataset.value)
       .slice(0, room)
     this.setSelection([...values, ...added])
+  },
+  // Deselects the options the search shows. Selected values it hides stay.
+  deselectAll () {
+    const selectable = this.selectableValues()
+    this.setSelection(this.selectedValues().filter((value) => !selectable.includes(value)))
   },
 
   // Open state
@@ -535,6 +568,8 @@ export default {
 
     const empty = this.part('empty')
     if (empty) empty.hidden = this.options().some((option) => this.isVisible(option))
+
+    this.syncSelectAll(this.selectedValues())
   },
   search (query) {
     this.query = query
@@ -604,6 +639,14 @@ export default {
       return
     }
 
+    const button = target.closest(SELECT_ALL_BUTTONS)
+    if (button) {
+      if (button.getAttribute('aria-disabled') === 'true') return
+      if (button.dataset.part === 'select-all-button') this.selectAll()
+      else this.deselectAll()
+      return
+    }
+
     const option = target.closest('[data-part="option"]')
     if (option && this.part('listbox')?.contains(option)) this.choose(option)
   },
@@ -613,6 +656,12 @@ export default {
   handleMousedown (event) {
     const target = event.target
     if (target.closest('[data-part="badge-remove"]')) {
+      event.preventDefault()
+      return
+    }
+    // The select all and deselect all buttons can take focus with the
+    // keyboard, but a click on them leaves it on the search input.
+    if (target.closest(SELECT_ALL_BUTTONS)) {
       event.preventDefault()
       return
     }
