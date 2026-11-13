@@ -387,8 +387,9 @@ defmodule Backpex.FormComponent do
     # while the form was open cannot be used.
     Authorization.authorize!(live_resource, assigns, assigns.resource_action_id, nil)
 
+    # The "save" event has already kept only the params of the editable fields. Filtering them again would drop the
+    # params that `put_upload_change` built afterwards, as an upload field submits none (`param_keys/2` is empty).
     assocs = editable_assocs(assigns)
-    params = editable_changes(params, fields, assigns)
 
     result =
       item
