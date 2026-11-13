@@ -798,44 +798,6 @@ defmodule Backpex.LiveResource do
   end
 
   @doc """
-  Returns order options by params.
-
-  ## Examples
-
-      iex> Backpex.LiveResource.order_options_by_params(%{"order_by" => "field", "order_direction" => "asc"}, [field: %{}], %{by: :id, direction: :asc}, %{})
-      %{order_by: :field, order_direction: :asc}
-      iex> Backpex.LiveResource.order_options_by_params(%{}, [field: %{}], %{by: :id, direction: :desc}, %{})
-      %{order_by: :id, order_direction: :desc}
-      iex> Backpex.LiveResource.order_options_by_params(%{"order_by" => "field", "order_direction" => "asc"}, [field: %{orderable: false}], %{by: :id, direction: :asc}, %{})
-      %{order_by: :id, order_direction: :asc}
-  """
-  def order_options_by_params(params, fields, init_order, assigns) do
-    init_order = resolve_init_order(init_order, assigns)
-
-    order_by =
-      params
-      |> Map.get("order_by")
-      |> maybe_to_atom()
-      |> value_in_permitted_or_default(
-        orderable_fields(fields),
-        Map.get(init_order, :by)
-      )
-
-    order_direction =
-      params
-      |> Map.get("order_direction")
-      |> maybe_to_atom()
-      |> value_in_permitted_or_default(
-        permitted_order_directions(),
-        Map.get(init_order, :direction)
-      )
-
-    %{order_by: order_by, order_direction: order_direction}
-  end
-
-  defp permitted_order_directions, do: ~w(asc desc)a
-
-  @doc """
   Returns all orderable fields. A field is orderable by default.
 
   ## Example
@@ -1045,33 +1007,6 @@ defmodule Backpex.LiveResource do
   end
 
   @doc """
-  Parses integer text representation map value of the given key. If the map does not contain the given key or parsing fails
-  the default value is returned.
-
-  ## Examples
-
-      iex> Backpex.LiveResource.parse_integer(%{number: "1"}, :number, 2)
-      1
-      iex> Backpex.LiveResource.parse_integer(%{number: "abc"}, :number, 1)
-      1
-  """
-  def parse_integer(map, key, default) do
-    if Map.has_key?(map, key) do
-      result =
-        map
-        |> Map.get(key)
-        |> Integer.parse()
-
-      case result do
-        {value, _reminder} -> value
-        :error -> default
-      end
-    else
-      default
-    end
-  end
-
-  @doc """
   Filters a field by a given action. It checks whether the field contains the only or
   except key and decides whether or not to keep the field.
 
@@ -1111,41 +1046,6 @@ defmodule Backpex.LiveResource do
   def calculate_total_pages(items_length, per_page), do: ceil(items_length / per_page)
 
   @doc """
-  Validates a page number.
-
-  ## Examples
-
-      iex> Backpex.LiveResource.validate_page(1, 5)
-      1
-      iex> Backpex.LiveResource.validate_page(-1, 5)
-      1
-      iex> Backpex.LiveResource.validate_page(6, 5)
-      5
-  """
-  def validate_page(_page, 0), do: 1
-
-  def validate_page(page, total_pages) do
-    cond do
-      page < 1 -> 1
-      page > total_pages -> total_pages
-      true -> page
-    end
-  end
-
-  @doc """
-  Checks whether the given value is in a list of permitted values. Otherwise return default value.
-
-  ## Examples
-      iex> Backpex.LiveResource.value_in_permitted_or_default(3, [1, 2, 3], 5)
-      3
-      iex> Backpex.LiveResource.value_in_permitted_or_default(3, [1, 2], 5)
-      5
-  """
-  def value_in_permitted_or_default(value, permitted, default) do
-    if value in permitted, do: value, else: default
-  end
-
-  @doc """
   Returns the raw filter options map from query options.
 
   This returns the filter values as stored in query_options, which may include
@@ -1168,9 +1068,6 @@ defmodule Backpex.LiveResource do
       option.module.can?(assigns)
     end)
   end
-
-  defp maybe_to_atom(nil), do: nil
-  defp maybe_to_atom(value), do: String.to_existing_atom(value)
 
   @doc """
   Subscribes to PubSub if the socket is connected.
