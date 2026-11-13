@@ -67,6 +67,7 @@ defmodule Backpex.Fields.Select do
   order and search by them.
   """
   use Backpex.Field, config_schema: @config_schema
+  alias Backpex.Fields.OptionLabels
 
   @impl Backpex.Field
   def render_value(assigns) do
@@ -153,31 +154,13 @@ defmodule Backpex.Fields.Select do
   def index_editable_change({name, _field_options}, value, _assigns), do: %{name => value}
 
   @impl Backpex.Field
-  def option_labels({_name, field_options}, assigns) do
-    assigns
-    |> Map.put(:field_options, field_options)
-    |> get_options()
-    |> flatten_options()
-  end
+  def option_labels(field, assigns), do: OptionLabels.option_labels(field, assigns)
 
   defp get_label(value, options) do
     options
-    |> flatten_options()
+    |> OptionLabels.flatten()
     |> Enum.find_value(value, fn {label, option_value} ->
       if to_string(option_value) == to_string(value), do: label
-    end)
-  end
-
-  # Normalizes all option shapes supported by `Phoenix.HTML.Form.options_for_select/2`
-  # into a flat list of `{label, value}` tuples.
-  defp flatten_options(options) do
-    Enum.flat_map(options, fn
-      {:hr, nil} -> []
-      {_group_label, group} when is_list(group) or (is_map(group) and not is_struct(group)) -> flatten_options(group)
-      {label, value} -> [{label, value}]
-      option when is_list(option) -> [{Keyword.fetch!(option, :key), Keyword.fetch!(option, :value)}]
-      :hr -> []
-      option -> [{option, option}]
     end)
   end
 

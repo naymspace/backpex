@@ -154,6 +154,32 @@ defmodule Backpex.Integration.Index.OrderingTest do
     end
   end
 
+  # Samples have a multi select field and a checkgroup field. Their labels are joined in the order of the options. An
+  # empty selection has no label, so it comes last in ascending order.
+  describe "multi select and checkgroup fields" do
+    test "orders a multi select field by the labels of its options instead of the stored values", %{conn: conn} do
+      # The stored values sort as {}, {green,red}, {red}; the labels as "Red", "Red, Green", NULL.
+      insert(:sample, text: "Green and red sample", multi_select: ["green", "red"])
+      insert(:sample, text: "Red sample", multi_select: ["red"])
+      insert(:sample, text: "Empty sample", multi_select: [])
+
+      conn
+      |> visit(~p"/admin/samples?#{%{"order_by" => "multi_select", "order_direction" => "asc"}}")
+      |> assert_order(["Red sample", "Green and red sample", "Empty sample"])
+    end
+
+    test "orders a checkgroup field by the labels of its options instead of the stored values", %{conn: conn} do
+      # The stored values sort as {}, {write}, {write,read}; the labels as "Read, Write", "Write", NULL.
+      insert(:sample, text: "Write only sample", checkgroup: ["write"])
+      insert(:sample, text: "Write and read sample", checkgroup: ["write", "read"])
+      insert(:sample, text: "Empty sample", checkgroup: [])
+
+      conn
+      |> visit(~p"/admin/samples?#{%{"order_by" => "checkgroup", "order_direction" => "asc"}}")
+      |> assert_order(["Write and read sample", "Write only sample", "Empty sample"])
+    end
+  end
+
   defp assert_order(session, texts) do
     session = assert_has(session, "table tbody tr", count: length(texts))
 

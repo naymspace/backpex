@@ -68,6 +68,19 @@ defmodule Backpex.Integration.Index.SearchTest do
     |> assert_has("tr", text: "Vienna")
   end
 
+  test "finds items by the labels of a checkgroup field", %{conn: conn} do
+    insert(:sample, text: "Reader and writer", checkgroup: ["read", "write"])
+    insert(:sample, text: "Reader only", checkgroup: ["read"])
+
+    conn
+    |> visit(~p"/admin/samples")
+    |> assert_has("table tbody tr", count: 2)
+    |> search("Write")
+    |> assert_has("table tbody tr", count: 1)
+    |> assert_has("tr", text: "Reader and writer")
+    |> refute_has("tr", text: "Reader only")
+  end
+
   defp search(session, value) do
     unwrap(session, fn view ->
       view

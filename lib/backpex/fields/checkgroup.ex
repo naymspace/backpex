@@ -34,8 +34,21 @@ defmodule Backpex.Fields.Checkgroup do
           }
         ]
       end
+
+  ## Ordering and searching
+
+  The index view orders and searches this field by the labels of the selected options, in the order of the options and
+  joined with `", "`, instead of the stored values. A search matches a row if this text contains the search term.
+  Values without an option are left out, like when rendering the field.
+
+  If you translate the labels in an `options` function, they are ordered and searched in the locale of the current
+  user. See `Backpex.Fields.Select` for which assigns the function receives when ordering or searching.
+
+  The labels come from `c:Backpex.Field.option_labels/2`. The `Backpex.Adapters.Ecto` adapter requires PostgreSQL to
+  order and search by them.
   """
   use Backpex.Field, config_schema: @config_schema
+  alias Backpex.Fields.OptionLabels
 
   @impl Backpex.Field
   def render_value(assigns) do
@@ -75,6 +88,9 @@ defmodule Backpex.Fields.Checkgroup do
     </div>
     """
   end
+
+  @impl Backpex.Field
+  def option_labels(field, assigns), do: OptionLabels.option_labels(field, assigns)
 
   defp get_labels(value, options) do
     values = List.wrap(value) |> Enum.map(&to_string/1)
