@@ -1,15 +1,39 @@
 defmodule Backpex.Metrics.Value do
+  @config_schema [
+    module: [
+      doc: "The metric module, `Backpex.Metrics.Value`.",
+      type: :atom,
+      required: true
+    ],
+    label: [
+      doc: "The headline of the metric.",
+      type: :string,
+      required: true
+    ],
+    select: [
+      doc: "Dynamic query expression defining the column to select. This is usually an aggregate function.",
+      type: :any,
+      required: true
+    ],
+    format: [
+      doc: "A function to post-process the selected value from the database to display in frontend.",
+      type: {:or, [{:fun, 1}, nil]}
+    ],
+    class: [
+      doc: "Extra css classes to be passed to the metric box.",
+      type: {:or, [:string, {:list, :any}]}
+    ]
+  ]
+
   @moduledoc """
   Value metrics display only a single value. This value is generated from the current index query by applying the given
   aggregate function. The selected value is processed by the specified formatting function and output in the frontend.
 
   ## Options
 
-    * `:module` - Defines the module to handle the metric.
-    * `:label` - Label text to define a headline for the metric.
-    * `:select` - Dynamic query expression defining the column to select. This is usually an aggregate function.
-    * `:format` - Optional format function to post-process the selected value from the database to display in frontend.
-    * `:class` - Optional extra css classes to be passed to the metric box.
+  Any other key raises a configuration error when the index view loads.
+
+  #{NimbleOptions.docs(@config_schema)}
 
   ## Example
 
@@ -43,7 +67,7 @@ defmodule Backpex.Metrics.Value do
     assigns =
       assigns
       |> assign(:label, metric.label)
-      |> assign(:value, metric.module.format(metric.data, metric.format))
+      |> assign(:value, metric.module.format(metric.data, Map.get(metric, :format)))
       |> assign(:class, Map.get(assigns.metric, :class))
 
     ~H"""
@@ -59,6 +83,9 @@ defmodule Backpex.Metrics.Value do
     </div>
     """
   end
+
+  @impl Backpex.Metric
+  def config_schema, do: @config_schema
 
   @doc """
   Performs database select to query the value of the metric

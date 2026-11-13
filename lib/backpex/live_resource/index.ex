@@ -25,7 +25,7 @@ defmodule Backpex.LiveResource.Index do
       socket
       |> LiveResource.maybe_subscribe_to_pubsub(live_resource)
       |> assign(:live_resource, live_resource)
-      |> assign(:panels, live_resource.panels())
+      |> assign(:panels, LiveResource.Config.validate_panels!(live_resource.panels(), live_resource))
       |> assign(:fluid?, live_resource.config(:fluid?))
       |> assign(:fields, live_resource.fields(socket.assigns.live_action, socket.assigns))
       |> assign(:index_edits, %{})
@@ -708,7 +708,13 @@ defmodule Backpex.LiveResource.Index do
   end
 
   defp assign_item_actions(socket) do
-    item_actions = ItemAction.default_actions() |> socket.assigns.live_resource.item_actions()
+    %{live_resource: live_resource} = socket.assigns
+
+    item_actions =
+      ItemAction.default_actions()
+      |> live_resource.item_actions()
+      |> ItemAction.validate_configs!(live_resource)
+
     assign(socket, :item_actions, item_actions)
   end
 
@@ -724,7 +730,9 @@ defmodule Backpex.LiveResource.Index do
     # The id comes from the URL: resolve it against the registered resource actions instead of
     # atomizing it, so an unknown action is a 404 rather than an ArgumentError.
     {id, action} =
-      LiveResource.fetch_action!(live_resource.resource_actions(), socket.assigns.params["backpex_id"])
+      live_resource
+      |> resource_actions()
+      |> LiveResource.fetch_action!(socket.assigns.params["backpex_id"])
 
     Authorization.authorize!(live_resource, socket.assigns, id, nil)
 
@@ -738,6 +746,10 @@ defmodule Backpex.LiveResource.Index do
     |> apply_index()
     |> assign(:changeset_function, changeset_function)
     |> assign_changeset(changeset_function, item, action.module.fields(), :resource_action)
+  end
+
+  defp resource_actions(live_resource) do
+    Backpex.ResourceAction.validate_configs!(live_resource.resource_actions(), live_resource)
   end
 
   defp apply_index(socket) do
@@ -758,7 +770,7 @@ defmodule Backpex.LiveResource.Index do
 
     init_order = maybe_override_init_order(resource_default_order, params, persisted.order, orderable_fields)
 
-    filters = LiveResource.active_filters(socket.assigns)
+    filters = LiveResource.validated_active_filters(socket.assigns)
     schema = live_resource.adapter_config(:schema)
 
     # Build filter changeset from URL params and extract valid values
@@ -810,7 +822,7 @@ defmodule Backpex.LiveResource.Index do
     |> assign(:filter_values, filter_values)
     |> assign(:orderable_fields, orderable_fields)
     |> assign(:searchable_fields, LiveResource.searchable_fields(fields))
-    |> assign(:resource_actions, live_resource.resource_actions())
+    |> assign(:resource_actions, resource_actions(live_resource))
     |> assign(:action_to_confirm, nil)
     |> assign(:selected_items, [])
     |> assign(:select_all, false)
@@ -1024,7 +1036,8 @@ defmodule Backpex.LiveResource.Index do
     ]
 
     metrics =
-      socket.assigns.live_resource.metrics()
+      live_resource.metrics()
+      |> Backpex.Metric.validate_configs!(live_resource)
       |> Enum.map(fn {key, metric} ->
         case Backpex.Metric.metrics_visible?(metric_visibility, live_resource) do
           true ->

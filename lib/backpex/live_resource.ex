@@ -178,7 +178,8 @@ defmodule Backpex.LiveResource do
   @callback item_actions(default_actions :: list(map())) :: list()
 
   @doc """
-  A list of panels to group certain fields together.
+  A list of panels to group certain fields together: a keyword list of `name: "Label"`. A label that is not a string
+  raises a configuration error when the view loads.
   """
   @callback panels() :: list()
 
@@ -276,7 +277,8 @@ defmodule Backpex.LiveResource do
   @callback layout(assigns :: map()) :: {module(), atom()} | (map() -> Rendered.t())
 
   @doc """
-  A list of metrics shown on the index view of your resource. See the [Metrics](metrics.md) guide.
+  A list of metrics shown on the index view of your resource. See the [Metrics](metrics.md) guide and the
+  Configuration section of `Backpex.Metric` for the options of a metric.
   """
   @callback metrics() :: keyword()
 
@@ -1162,8 +1164,22 @@ defmodule Backpex.LiveResource do
   has permission to use (based on the filter's `can?/1` callback).
   """
   def active_filters(assigns) do
-    filters = assigns.live_resource.filters(assigns)
+    assigns
+    |> assigns.live_resource.filters()
+    |> filters_by_can(assigns)
+  end
 
+  # Like `active_filters/1`, but validates the configuration of the filters first. The index view calls it when it
+  # loads its params; `active_filters/1` also runs on every render, so it leaves the validation out.
+  @doc false
+  def validated_active_filters(%{live_resource: live_resource} = assigns) do
+    assigns
+    |> live_resource.filters()
+    |> Backpex.Filter.validate_configs!(live_resource)
+    |> filters_by_can(assigns)
+  end
+
+  defp filters_by_can(filters, assigns) do
     Enum.filter(filters, fn {_key, option} ->
       option.module.can?(assigns)
     end)

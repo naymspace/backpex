@@ -4,6 +4,7 @@ defmodule Backpex.LiveResource.IndexTest do
   import ExUnit.CaptureLog
 
   alias Backpex.LiveResource.Index
+  alias Backpex.Metrics.Value
   alias Backpex.Test.StubAdapter
   alias Phoenix.LiveView.Socket
 
@@ -72,6 +73,22 @@ defmodule Backpex.LiveResource.IndexTest do
     def adapter_config(:schema), do: nil
     def filters(_assigns), do: []
     def metrics, do: [balance: %{module: Backpex.LiveResource.IndexTest.DataMetric, label: "Balance"}]
+  end
+
+  defmodule MetricWithoutLabelLive do
+    @moduledoc false
+    def config(:persist), do: []
+    def adapter_config(:schema), do: nil
+    def filters(_assigns), do: []
+    def metrics, do: [total: %{module: Value, select: :likes}]
+  end
+
+  defmodule MetricWithoutSelectLive do
+    @moduledoc false
+    def config(:persist), do: []
+    def adapter_config(:schema), do: nil
+    def filters(_assigns), do: []
+    def metrics, do: [total: %{module: Value, label: "Total"}]
   end
 
   defmodule LegacyField do
@@ -313,6 +330,29 @@ defmodule Backpex.LiveResource.IndexTest do
       assert [balance: metric] = assigns.metrics
       refute Map.has_key?(metric, :data)
       refute_received {:metric_data, _metric, _assigns}
+    end
+  end
+
+  describe "handle_event/3 toggling metrics with an invalid metric" do
+    # Before, the missing key raised a `KeyError`: `:select` when the data was loaded, `:label` in the render.
+    for {live_resource, key} <- [{MetricWithoutLabelLive, :label}, {MetricWithoutSelectLive, :select}] do
+      test "raises a configuration error for a value metric without #{inspect(key)}" do
+        live_resource = unquote(live_resource)
+
+        # The metrics get hidden, so their data is not loaded: the configuration is validated either way.
+        socket = socket(live_resource, %{id: 1}, %{metric_visibility: %{}, query_options: %{}, filter_values: %{}})
+
+        message =
+          Regex.escape("""
+          Configuration error for metric "total" in "#{live_resource}".
+
+          required #{inspect(unquote(key))} option not found\
+          """)
+
+        assert_raise ArgumentError, ~r/\A#{message}/, fn ->
+          Index.handle_event("toggle_metrics", %{}, socket)
+        end
+      end
     end
   end
 

@@ -1,12 +1,28 @@
 defmodule Backpex.ResourceAction do
-  @moduledoc ~S'''
+  @config_schema [
+    module: [
+      doc: "The resource action module, which implements the `Backpex.ResourceAction` behaviour.",
+      type: :atom,
+      required: true
+    ]
+  ]
+
+  @moduledoc """
   Behaviour implemented by all resource action modules.
+
+  ## Configuration
+
+  `c:Backpex.LiveResource.resource_actions/0` returns a keyword list with one map per resource action. The key is the
+  id of the action, used in its URL and passed to `c:Backpex.LiveResource.can?/3`. The map takes these options, any
+  other key raises a configuration error when the index view loads:
+
+  #{NimbleOptions.docs(@config_schema)}
 
   > #### `use Backpex.ResourceAction` {: .info}
   >
   > When you `use Backpex.ResourceAction`, the `Backpex.ResourceAction` module will set `@behavior Backpex.ResourceAction`.
   > In addition it will implement the `c:base_schema/1` function in order to generate a schemaless changeset by default.
-  '''
+  """
 
   alias Phoenix.LiveView.Socket
 
@@ -85,6 +101,20 @@ defmodule Backpex.ResourceAction do
 
       defoverridable Backpex.ResourceAction
     end
+  end
+
+  # Compiled once: `NimbleOptions.validate/2` validates a keyword list schema itself on every call.
+  @compiled_config_schema NimbleOptions.new!(@config_schema)
+
+  @doc false
+  def validate_configs!(resource_actions, live_resource) do
+    Backpex.LiveResource.Config.validate_each!(
+      resource_actions,
+      "resource action",
+      "resource_actions/0",
+      live_resource,
+      &NimbleOptions.validate(&1, @compiled_config_schema)
+    )
   end
 
   @doc """
