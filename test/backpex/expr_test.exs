@@ -44,6 +44,8 @@ defmodule Backpex.ExprTest do
     test "builds not, is_nil and the string functions" do
       assert expr(not is_nil(title)) == %Call{name: :not, args: [%Call{name: :is_nil, args: [%Ref{name: :title}]}]}
 
+      assert %Call{name: :not, args: [%Call{name: :not, args: [%Call{name: :==}]}]} = expr(not (not (likes == 1)))
+
       assert expr(contains(title, "x", ignore_case: true)) ==
                %Call{name: :contains, args: [%Ref{name: :title}, "x"], opts: [ignore_case: true]}
 

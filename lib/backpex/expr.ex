@@ -157,6 +157,9 @@ defmodule Backpex.Expr do
     call(operator, args)
   end
 
+  # The parser wraps some expressions in parentheses in a block, e.g. the inner one of `not (not (a == 1))`.
+  defp build({:__block__, _meta, [expression]}, caller), do: build(expression, caller)
+
   defp build({:not, _meta, [expression]}, caller), do: call(:not, [build(expression, caller)])
   defp build({:is_nil, _meta, [field]}, caller), do: call(:is_nil, [build(field, caller)])
 
