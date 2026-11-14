@@ -386,6 +386,8 @@ defmodule Backpex.ResourceTest do
   describe "read_by_key/1" do
     defmodule KeyAdapter do
       @moduledoc false
+      def supports?(_live_resource, _feature), do: true
+
       def read(query) do
         send(self(), {:read, query.limit})
         {:ok, [query.limit]}
@@ -481,7 +483,7 @@ defmodule Backpex.ResourceTest do
     test "loads the relationships of the paths the filter in memory reads" do
       defmodule NoFilterAdapter do
         @moduledoc false
-        use Backpex.Adapter, supports: [:load]
+        use Backpex.Adapter, supports: []
 
         def read(query) do
           send(self(), {:read, query})
@@ -528,6 +530,57 @@ defmodule Backpex.ResourceTest do
     end
   end
 
+  describe "read/1, get/4, count/1 and aggregate/1 with an adapter that doesn't define supports?/2" do
+    defmodule AllItemsAdapter do
+      @moduledoc false
+      # Returns all items for every query, and has count/1 and aggregate/1 that ignore the query, too.
+      def read(query) do
+        send(self(), {:read, query})
+
+        {:ok, [%{id: 1, likes: 3}, %{id: 2, likes: 1}, %{id: 3, likes: 2}, %{id: 4, likes: 9}]}
+      end
+
+      def count(_query), do: {:ok, 4}
+      def aggregate(_query), do: {:ok, %{likes: 15}}
+
+      defdelegate describe(path, live_resource), to: Backpex.ResourceTest.FilterOnlyAdapter
+    end
+
+    defmodule AllItemsLive do
+      @moduledoc false
+      import Backpex.Expr, only: [expr: 1]
+
+      def config(:adapter), do: AllItemsAdapter
+      def config(:primary_key), do: :id
+      def scope(_assigns), do: expr(likes <= 5)
+    end
+
+    test "applies the scope, the filter, the sort, the offset and the limit in memory" do
+      query =
+        []
+        |> Resource.items_query(%{}, AllItemsLive)
+        |> Query.filter(expr(likes > 1))
+        |> Query.sort(likes: :desc)
+        |> Query.offset(1)
+        |> Query.limit(1)
+
+      assert {:ok, [%{id: 3}]} = Resource.read(query)
+      assert_received {:read, %Query{filter: nil, search: nil, sort: [], offset: nil, limit: nil}}
+    end
+
+    test "gets the item with the primary value, in the scope only" do
+      assert {:ok, %{id: 2}} = Resource.get(2, [], %{}, AllItemsLive)
+      assert Resource.get(4, [], %{}, AllItemsLive) == {:ok, nil}
+    end
+
+    test "counts and aggregates the items of read/1 instead of calling count/1 and aggregate/1" do
+      query = Resource.items_query([], %{}, AllItemsLive)
+
+      assert Resource.count(query) == {:ok, 3}
+      assert query |> Query.aggregate(:likes, {:sum, :likes}) |> Resource.aggregate() == {:ok, %{likes: 6}}
+    end
+  end
+
   describe "read/1 and count/1" do
     test "don't call the adapter for an invalid query" do
       query = KeyLive |> Query.new() |> Query.put_error(:invalid)
@@ -541,6 +594,8 @@ defmodule Backpex.ResourceTest do
   describe "metrics/3" do
     defmodule MetricAdapter do
       @moduledoc false
+      def supports?(_live_resource, _feature), do: true
+
       def aggregate(query), do: {:ok, Map.new(query.aggregates, &{&1.name, {:adapter, &1.aggregate, query.limit}})}
     end
 

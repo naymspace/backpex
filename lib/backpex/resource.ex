@@ -152,10 +152,10 @@ defmodule Backpex.Resource do
       expression |> operators() |> Enum.all?(&supports?(adapter, live_resource, {:filter, &1}))
   end
 
+  # An adapter that doesn't say what it supports runs no part of a query, so nothing is left out by mistake.
   defp supports?(adapter, live_resource, feature) do
-    if Code.ensure_loaded?(adapter) and function_exported?(adapter, :supports?, 2),
-      do: adapter.supports?(live_resource, feature),
-      else: true
+    Code.ensure_loaded?(adapter) and function_exported?(adapter, :supports?, 2) and
+      adapter.supports?(live_resource, feature)
   end
 
   # The operators of an expression, e.g. `:==` or `:exists`. `and`, `or`, `not` and native expressions belong to every

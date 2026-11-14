@@ -16,7 +16,7 @@ defmodule Backpex.Integration.Adapters.MemoryAdapterTest do
 
   defmodule Conformance do
     use ExUnit.Case, async: false
-    use Backpex.Test.AdapterConformance, live_resource: MemoryNoteLive, field: :title
+    use Backpex.Test.AdapterConformance, live_resource: MemoryNoteLive, field: :title, nullable_field: :likes
 
     setup do
       Memory.put_items(MemoryNotes, [])
@@ -92,6 +92,73 @@ defmodule Backpex.Integration.Adapters.MemoryAdapterTest do
     |> refute_has("td", text: "Bravo")
 
     refute @store |> Memory.items() |> Enum.any?(&(&1.id == 1))
+  end
+
+  describe "insert/2 and update/2" do
+    defmodule Country do
+      use Ecto.Schema
+
+      @primary_key {:code, :string, autogenerate: false}
+      embedded_schema do
+        field :name, :string
+      end
+    end
+
+    defmodule CountryLive do
+      def config(:primary_key), do: :code
+      def adapter_config(:schema), do: Country
+      def adapter_config(:store), do: MemoryNotes
+    end
+
+    defp change_note(note, attrs), do: Ecto.Changeset.cast(note, attrs, [:id, :title, :likes])
+
+    test "insert/2 refuses a primary key another item has" do
+      assert {:error, changeset} =
+               %MemoryNote{} |> change_note(%{id: 1, title: "Copy"}) |> Memory.insert(MemoryNoteLive)
+
+      assert %{action: :insert, errors: [id: {"has already been taken", [constraint: :unique]}]} = changeset
+      assert @store |> Memory.items() |> Enum.map(&{&1.id, &1.title}) |> Enum.take(2) == [{1, "Bravo"}, {2, "alpha"}]
+      assert length(Memory.items(@store)) == 4
+    end
+
+    test "insert/2 generates the next integer and keeps a given primary key" do
+      assert {:ok, %MemoryNote{id: 5}} = %MemoryNote{} |> change_note(%{title: "Next"}) |> Memory.insert(MemoryNoteLive)
+      assert {:ok, %MemoryNote{id: 9}} = %MemoryNote{} |> change_note(%{id: 9}) |> Memory.insert(MemoryNoteLive)
+    end
+
+    test "insert/2 raises for a missing primary key of a type it can't generate and keeps the store" do
+      Memory.put_items(@store, [%Country{code: "DE", name: "Germany"}])
+
+      assert_raise ArgumentError, ~r/can't generate the primary key :code of .*Country, as its type is :string/, fn ->
+        %Country{} |> Ecto.Changeset.cast(%{name: "France"}, [:name]) |> Memory.insert(CountryLive)
+      end
+
+      assert {:ok, %Country{code: "FR"}} =
+               %Country{}
+               |> Ecto.Changeset.cast(%{code: "FR", name: "France"}, [:code, :name])
+               |> Memory.insert(CountryLive)
+
+      assert @store |> Memory.items() |> Enum.map(& &1.code) == ~w(DE FR)
+    end
+
+    test "update/2 replaces the item with the primary key it had before the change" do
+      [bravo | _notes] = Memory.items(@store)
+
+      assert {:ok, %MemoryNote{id: 7, title: "Moved"}} =
+               bravo |> change_note(%{id: 7, title: "Moved"}) |> Memory.update(MemoryNoteLive)
+
+      assert @store |> Memory.items() |> Enum.map(&{&1.id, &1.title}) |> hd() == {7, "Moved"}
+      assert length(Memory.items(@store)) == 4
+    end
+
+    test "update/2 refuses a change to the primary key of another item" do
+      [bravo | _notes] = Memory.items(@store)
+
+      assert {:error, changeset} = bravo |> change_note(%{id: 2}) |> Memory.update(MemoryNoteLive)
+
+      assert %{action: :update, errors: [id: {"has already been taken", [constraint: :unique]}]} = changeset
+      assert @store |> Memory.items() |> Enum.map(& &1.id) == [1, 2, 3, 4]
+    end
   end
 
   test "update_all/3 changes the stored items, not the given ones" do

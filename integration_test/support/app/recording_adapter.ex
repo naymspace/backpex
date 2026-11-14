@@ -21,6 +21,9 @@ defmodule Backpex.Test.RecordingAdapter do
   def field_config_schema, do: EctoAdapter.field_config_schema()
 
   @impl Backpex.Adapter
+  def supports?(live_resource, feature), do: EctoAdapter.supports?(live_resource, feature)
+
+  @impl Backpex.Adapter
   def put_field_options(query, field), do: record(:put_field_options, query.resource, [query, field])
 
   @impl Backpex.Adapter
