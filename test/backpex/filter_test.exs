@@ -56,16 +56,29 @@ defmodule Backpex.FilterTest do
         end
         """
 
-        assert_raise CompileError, ~r/defines query\/4, but filters no longer build queries/, fn ->
+        assert_raise CompileError, ~r/defines query\/4, but filters no longer build queries.*upgrading to v0\.25/, fn ->
           Code.compile_string(code)
         end
       end
     end
 
+    test "the default condition/3 tells to implement it and names the upgrade guide" do
+      defmodule WithoutCondition do
+        @moduledoc false
+        use Backpex.Filter
+      end
+
+      assert_raise RuntimeError, ~r/You must implement the condition\/3 callback.*upgrading to v0\.25/s, fn ->
+        WithoutCondition.condition(:title, "a", %{})
+      end
+    end
+
     test "refuses to compile a filter that still defines type/1 or validate/2" do
       for {name, definition, message} <- [
-            {TypeFilter, "def type(_assigns), do: :string", ~r/defines type\/1, .* Implement type\/2 instead/},
-            {ValidateFilter, "def validate(value, _assigns), do: {:ok, value}", ~r/defines validate\/2/}
+            {TypeFilter, "def type(_assigns), do: :string",
+             ~r/defines type\/1, .* Implement type\/2 instead.*upgrading to v0\.25/},
+            {ValidateFilter, "def validate(value, _assigns), do: {:ok, value}",
+             ~r/defines validate\/2.*upgrading to v0\.25/}
           ] do
         code = """
         defmodule Backpex.FilterTest.#{inspect(name)} do

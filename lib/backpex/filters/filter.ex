@@ -387,7 +387,7 @@ defmodule Backpex.Filter do
       def condition(_filter, _value, _assigns) do
         raise """
         You must implement the condition/3 callback in your filter module or pass the :condition option to the \
-        filter. Filters no longer build queries with query/4, see the guide on upgrading to v0.24.
+        filter. Filters no longer build queries with query/4, see the guide on upgrading to v0.25.
 
         Example:
 
@@ -415,7 +415,7 @@ defmodule Backpex.Filter do
       raise CompileError,
         file: env.file,
         description:
-          "#{inspect(env.module)} defines #{name}/#{arity}, but #{hint}, see the guide on upgrading to v0.24."
+          "#{inspect(env.module)} defines #{name}/#{arity}, but #{hint}, see the guide on upgrading to v0.25."
     end
 
     :ok

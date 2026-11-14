@@ -50,7 +50,9 @@ defmodule Backpex.Adapters.Memory do
         ]
 
   The forms build changesets with the schema like `Backpex.Adapters.Ecto` does. A new item without a primary key gets
-  the next integer, or a UUID for a `:binary_id` key.
+  the next integer for an `:id` or `:integer` key, or a UUID for a `:binary_id` or `Ecto.UUID` key. For a key of
+  another type, e.g. a string, the changeset has to set it, or `c:Backpex.Adapter.insert/2` raises. The primary key is
+  unique: a change to a key another item has is refused with an error on the key in the changeset.
 
   ## `adapter_config`
 
@@ -127,23 +129,55 @@ defmodule Backpex.Adapters.Memory do
   @impl Backpex.Adapter
   def insert(changeset, live_resource) do
     with {:ok, item} <- Ecto.Changeset.apply_action(changeset, :insert) do
-      store = store(live_resource)
       primary_key = live_resource.config(:primary_key)
+      # Raises here and not in the store, which would stop with it.
+      generate = if is_nil(Map.fetch!(item, primary_key)), do: generator!(primary_key, live_resource)
 
-      Agent.get_and_update(store, fn items ->
-        item = maybe_put_primary_value(item, primary_key, items, live_resource)
-
-        {{:ok, item}, Enum.concat(items, [item])}
-      end)
+      live_resource
+      |> store()
+      |> Agent.get_and_update(&insert_item(&1, item, generate, changeset, primary_key))
     end
+  end
+
+  defp insert_item(items, item, generate, changeset, primary_key) do
+    item = if generate, do: Map.put(item, primary_key, generate.(items)), else: item
+
+    if taken?(items, primary_key, item),
+      do: {{:error, taken(changeset, primary_key, :insert)}, items},
+      else: {{:ok, item}, Enum.concat(items, [item])}
   end
 
   @impl Backpex.Adapter
   def update(changeset, live_resource) do
     with {:ok, item} <- Ecto.Changeset.apply_action(changeset, :update) do
-      replace(live_resource, [item])
-      {:ok, item}
+      primary_key = live_resource.config(:primary_key)
+      # The stored item has the primary key the item had before the change, which may change it.
+      stored_value = Map.fetch!(changeset.data, primary_key)
+      stored? = &(Map.fetch!(&1, primary_key) == stored_value)
+
+      live_resource
+      |> store()
+      |> Agent.get_and_update(&replace_item(&1, item, stored?, changeset, primary_key))
     end
+  end
+
+  defp replace_item(items, item, stored?, changeset, primary_key) do
+    if items |> Enum.reject(stored?) |> taken?(primary_key, item),
+      do: {{:error, taken(changeset, primary_key, :update)}, items},
+      else: {{:ok, item}, Enum.map(items, &if(stored?.(&1), do: item, else: &1))}
+  end
+
+  defp taken?(items, primary_key, item) do
+    value = Map.fetch!(item, primary_key)
+
+    Enum.any?(items, &(Map.fetch!(&1, primary_key) == value))
+  end
+
+  # The error of a unique constraint of `Ecto.Changeset`, so forms show it like the one of a database.
+  defp taken(changeset, primary_key, action) do
+    changeset = Ecto.Changeset.add_error(changeset, primary_key, "has already been taken", constraint: :unique)
+
+    %{changeset | action: action}
   end
 
   @impl Backpex.Adapter
@@ -182,36 +216,32 @@ defmodule Backpex.Adapters.Memory do
     {:ok, deleted}
   end
 
-  defp replace(live_resource, updated) do
-    primary_key = live_resource.config(:primary_key)
-    by_value = Map.new(updated, &{Map.fetch!(&1, primary_key), &1})
+  # Returns the function that generates the primary key of a new item from the stored items.
+  defp generator!(primary_key, live_resource) do
+    schema = live_resource.adapter_config(:schema)
 
-    live_resource
-    |> store()
-    |> Agent.update(fn items ->
-      Enum.map(items, &Map.get(by_value, Map.fetch!(&1, primary_key), &1))
-    end)
-  end
+    case schema.__schema__(:type, primary_key) do
+      type when type in [:id, :integer] ->
+        &next_integer(&1, primary_key)
 
-  defp maybe_put_primary_value(item, primary_key, items, live_resource) do
-    case Map.fetch!(item, primary_key) do
-      nil -> Map.put(item, primary_key, next_primary_value(primary_key, items, live_resource))
-      _value -> item
+      type when type in [:binary_id, Ecto.UUID] ->
+        fn _items -> Ecto.UUID.generate() end
+
+      type ->
+        raise ArgumentError, """
+        #{inspect(__MODULE__)} can't generate the primary key #{inspect(primary_key)} of #{inspect(schema)}, as its \
+        type is #{inspect(type)}. It generates integers (:id and :integer) and UUIDs (:binary_id and Ecto.UUID). Set \
+        the key in the changeset, e.g. in the :create_changeset of the adapter_config.
+        """
     end
   end
 
-  defp next_primary_value(primary_key, items, live_resource) do
-    case live_resource.adapter_config(:schema).__schema__(:type, primary_key) do
-      :binary_id ->
-        Ecto.UUID.generate()
-
-      _type ->
-        items
-        |> Enum.map(&Map.fetch!(&1, primary_key))
-        |> Enum.filter(&is_integer/1)
-        |> Enum.max(fn -> 0 end)
-        |> Kernel.+(1)
-    end
+  defp next_integer(items, primary_key) do
+    items
+    |> Enum.map(&Map.fetch!(&1, primary_key))
+    |> Enum.filter(&is_integer/1)
+    |> Enum.max(fn -> 0 end)
+    |> Kernel.+(1)
   end
 
   defp store(live_resource), do: live_resource.adapter_config(:store)

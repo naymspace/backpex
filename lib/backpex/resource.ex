@@ -178,10 +178,10 @@ defmodule Backpex.Resource do
       expression |> operators() |> Enum.all?(&supports?(adapter, live_resource, {:filter, &1}))
   end
 
+  # An adapter that doesn't say what it supports runs no part of a query, so nothing is left out by mistake.
   defp supports?(adapter, live_resource, feature) do
-    if Code.ensure_loaded?(adapter) and function_exported?(adapter, :supports?, 2),
-      do: adapter.supports?(live_resource, feature),
-      else: true
+    Code.ensure_loaded?(adapter) and function_exported?(adapter, :supports?, 2) and
+      adapter.supports?(live_resource, feature)
   end
 
   # The operators of an expression, e.g. `:==` or `:exists`. `and`, `or`, `not` and native expressions belong to every
@@ -293,6 +293,7 @@ defmodule Backpex.Resource do
   defp runs_all?(%Query{resource: live_resource} = query, adapter, callback) do
     Code.ensure_loaded?(adapter) and function_exported?(adapter, callback, 1) and
       supports?(adapter, live_resource, callback) and
+      stage_supported?(query, :computed, adapter, live_resource) and
       stage_supported?(query, :filter, adapter, live_resource) and
       stage_supported?(query, :search, adapter, live_resource) and
       Enum.all?(query.aggregates, &filter_supported?(&1.where, adapter, live_resource))
@@ -331,14 +332,14 @@ defmodule Backpex.Resource do
       function_exported?(module, :query, 3) ->
         raise ArgumentError, """
         #{inspect(module)} implements query/3, but metrics no longer query their data. Implement \
-        Backpex.Metric.data/3 instead, see the guide on upgrading to v0.24.
+        Backpex.Metric.data/3 instead, see the guide on upgrading to v0.25.
         """
 
       # Backpex no longer calls `data/2` either, `data/3` also receives the query.
       function_exported?(module, :data, 2) ->
         raise ArgumentError, """
         #{inspect(module)} implements data/2, but Backpex calls Backpex.Metric.data/3 with the query of the index \
-        view. Implement data/3 instead, see the guide on upgrading to v0.24.
+        view. Implement data/3 instead, see the guide on upgrading to v0.25.
         """
 
       true ->
@@ -735,7 +736,7 @@ defmodule Backpex.Resource do
       raise ArgumentError, """
       expected the changes as a map of fields and values, e.g. %{deleted_at: now}, got: #{inspect(changes)}
 
-      update_all/5 no longer takes the updates of Ecto.Repo.update_all/3, see the guide on upgrading to v0.24.
+      update_all/5 no longer takes the updates of Ecto.Repo.update_all/3, see the guide on upgrading to v0.25.
       """
     end
 

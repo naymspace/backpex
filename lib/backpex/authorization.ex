@@ -71,13 +71,17 @@ defmodule Backpex.Authorization do
   # The actions that write, and the feature of the adapter they need, see `c:Backpex.Adapter.supports?/2`.
   @writes %{new: :insert, edit: :update, delete: :delete}
 
+  # An adapter without `supports?/2` supports nothing, so its writes are denied.
   defp adapter_supports?(live_resource, action) do
-    with {:ok, feature} <- Map.fetch(@writes, action),
-         adapter = live_resource.config(:adapter),
-         true <- Code.ensure_loaded?(adapter) and function_exported?(adapter, :supports?, 2) do
-      adapter.supports?(live_resource, feature)
-    else
-      _no_write_or_no_supports -> true
+    case Map.fetch(@writes, action) do
+      {:ok, feature} ->
+        adapter = live_resource.config(:adapter)
+
+        Code.ensure_loaded?(adapter) and function_exported?(adapter, :supports?, 2) and
+          adapter.supports?(live_resource, feature)
+
+      :error ->
+        true
     end
   end
 

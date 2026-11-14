@@ -48,7 +48,7 @@ defmodule Backpex.LiveResourceTest do
 
   defmodule SelectAdapter do
     @moduledoc false
-    use Backpex.Adapter, field_config_schema: [select: [type: :any]]
+    use Backpex.Adapter, field_config_schema: [select: [type: :any]], supports: :all
   end
 
   defmodule IndexFieldsPostLive do

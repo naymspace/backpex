@@ -8,12 +8,17 @@ data of metrics and the options of association fields. An adapter runs the parts
 and tells Backpex which parts these are with `c:Backpex.Adapter.supports?/2`. Backpex applies the other parts to the
 items in memory with `Backpex.Query.apply_to/2`. So the smallest adapter only returns all items.
 
+The `:supports` option of `use Backpex.Adapter` is required. Without it the adapter doesn't compile, as Backpex can't
+know which parts to apply itself: an adapter that returns all items but claims to run the query would show the items
+of other scopes, filters and pages.
+
 ## A read-only CSV adapter
 
 The adapter below shows the rows of a CSV file. It describes the items with an `Ecto.Schema`, so Backpex can cast the
 values of filters and the forms could build changesets, and returns all rows from `c:Backpex.Adapter.read/1`. It
-supports no part of the query, so Backpex filters, searches, sorts and paginates the rows itself. It doesn't support
-writes either, so Backpex hides the actions to create, edit and delete rows and refuses them.
+supports no part of the query (`supports: []`), so Backpex filters, searches, sorts, paginates, counts and aggregates
+the rows itself. It doesn't support writes either, so Backpex hides the actions to create, edit and delete rows and
+refuses them.
 
 ```elixir
 defmodule MyApp.CsvAdapter do
@@ -114,9 +119,36 @@ The write callbacks only return errors, as Backpex never calls them: `Backpex.Au
 To run parts of the query in the data source, e.g. a filter in the query string of an HTTP API, list them in the
 `:supports` option of `use Backpex.Adapter` or implement `c:Backpex.Adapter.supports?/2`. Backpex then leaves them to
 the adapter: `:filter` (with `{:filter, operator}` for single operators such as `:contains` or `:exists`), `:search`,
-`:sort`, `:offset`, `:limit`, `:load`, `:count` and `:aggregate`. `:insert`, `:update` and `:delete` enable the writes. A part the adapter doesn't support, and every part that
-depends on it, is applied in memory. For example, an adapter that sorts but can't filter gets a query without the
-filter and the sort, as the items have to be filtered before they are sorted.
+`:sort`, `:offset`, `:limit`, `:count` and `:aggregate`. `:insert`, `:update` and `:delete` enable the writes.
+`supports: :all` stands for all of them. A part the adapter
+doesn't support, and every part that depends on it, is applied in memory. For example, an adapter that sorts but can't
+filter gets a query without the filter and the sort, as the items have to be filtered before they are sorted.
+
+```elixir
+# Runs filters that only compare with == and in, and sorts. Backpex searches and paginates.
+use Backpex.Adapter, supports: [{:filter, :==}, {:filter, :in}, :sort]
+```
+
+List a part only if the adapter runs it for every query: Backpex doesn't apply a supported part again. `:count` and
+`:aggregate` also need `c:Backpex.Adapter.count/1` and `c:Backpex.Adapter.aggregate/1`. Without them, Backpex counts
+and aggregates the items of `c:Backpex.Adapter.read/1`.
+
+## Relationships
+
+The `:load` of a query is not a part an adapter can leave to Backpex. An adapter whose items have relationships
+describes them in `c:Backpex.Adapter.describe/2` and puts the related items of the `:load` into every item it returns:
+the related item or `nil` for a relationship to one item, a list for a relationship to many items. Backpex adds the
+relationships that the parts it applies in memory read, e.g. `author` for the filter `author.name == "Ann"`, and raises
+if an item doesn't hold a relationship it has to read. The adapter above has no relationships, so it describes none
+and only reads the items of the resource (`from: []`).
+
+## Comparing in memory
+
+`Backpex.Query.apply_to/2` follows PostgreSQL where it can: a comparison with `nil` keeps no item, and `nil` sorts
+last when ascending. It compares numbers and decimals by their value and dates and times with their `compare/2`.
+Values of different types, e.g. a date and a string, raise instead of being compared, so return items with the types
+`c:Backpex.Adapter.describe/2` names, as the adapter above does by casting the rows. Strings are compared by their
+code points, so `"B"` comes before `"a"`.
 
 ## Writing items
 

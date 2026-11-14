@@ -561,7 +561,7 @@ defmodule Backpex.Expr do
     raise ArgumentError, """
     expected an expression such as expr(published == true), got: #{inspect(expression)}
 
-    Conditions are written with Backpex.Expr.expr/1, see the guide on upgrading to v0.24. Wrap an expression of the
+    Conditions are written with Backpex.Expr.expr/1, see the guide on upgrading to v0.25. Wrap an expression of the
     adapter, e.g. an Ecto dynamic expression, with Backpex.Expr.native(Backpex.Adapters.Ecto, dynamic(...)).
     """
   end

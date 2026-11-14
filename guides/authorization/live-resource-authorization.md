@@ -124,7 +124,7 @@ Every `Backpex.Resource` mutation accepts two options:
 - `authorize?: false` — skip the check. Use this for a write the gate already covered (see above), and for system or cascade writes that are not a user-initiated action on the resource being written, for example nullifying a foreign key on another resource.
 
 ```elixir
-Backpex.Resource.update_all(item.posts, [set: [user_id: nil]], socket.assigns, MyAppWeb.PostLive,
+Backpex.Resource.update_all(item.posts, %{user_id: nil}, socket.assigns, MyAppWeb.PostLive,
   event_name: "updated",
   authorize?: false
 )

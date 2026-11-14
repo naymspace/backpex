@@ -314,7 +314,7 @@ defmodule Backpex.ResourceTest do
     test "refuses the updates of Ecto and unknown fields" do
       assigns = %{role: :admin}
 
-      assert_raise ArgumentError, ~r/expected the changes as a map of fields and values/, fn ->
+      assert_raise ArgumentError, ~r/expected the changes as a map of fields and values.*upgrading to v0\.25/s, fn ->
         Resource.update_all([%{id: 1}], [set: [x: 1]], assigns, AllowAll)
       end
 
@@ -444,6 +444,8 @@ defmodule Backpex.ResourceTest do
   describe "read_by_key/1" do
     defmodule KeyAdapter do
       @moduledoc false
+      def supports?(_live_resource, _feature), do: true
+
       def read(query) do
         send(self(), {:read, query.limit})
         {:ok, [query.limit]}
@@ -539,7 +541,7 @@ defmodule Backpex.ResourceTest do
     test "loads the relationships of the paths the filter in memory reads" do
       defmodule NoFilterAdapter do
         @moduledoc false
-        use Backpex.Adapter, supports: [:load]
+        use Backpex.Adapter, supports: []
 
         def read(query) do
           send(self(), {:read, query})
@@ -584,6 +586,88 @@ defmodule Backpex.ResourceTest do
       assert {:ok, [%{id: 2}]} = Resource.read(query)
       assert_received {:read, %Query{filter: nil, sort: []}}
     end
+
+    test "counts in memory if the adapter doesn't compute the values the filter reads" do
+      defmodule NoComputedAdapter do
+        @moduledoc false
+        use Backpex.Adapter, supports: [:filter, :search, :count]
+
+        defdelegate describe(path, live_resource), to: FilterOnlyAdapter
+
+        def read(query) do
+          send(self(), {:read, query})
+          {:ok, [%{id: 1, likes: 3}, %{id: 2, likes: 1}]}
+        end
+
+        def count(query) do
+          send(self(), {:count, query})
+          {:ok, 2}
+        end
+      end
+
+      defmodule NoComputedLive do
+        @moduledoc false
+        def config(:adapter), do: NoComputedAdapter
+      end
+
+      # Built without `Backpex.Query.filter/2`, as the adapter doesn't describe the computed value to cast with.
+      query = %{(NoComputedLive |> Query.new() |> Query.compute(:double, expr(likes * 2))) | filter: expr(double > 4)}
+
+      assert Resource.count(query) == {:ok, 1}
+      assert_received {:read, %Query{computed: computed, filter: nil}} when computed == %{}
+      refute_received {:count, _query}
+    end
+  end
+
+  describe "read/1, get/4, count/1 and aggregate/1 with an adapter that doesn't define supports?/2" do
+    defmodule AllItemsAdapter do
+      @moduledoc false
+      # Returns all items for every query, and has count/1 and aggregate/1 that ignore the query, too.
+      def read(query) do
+        send(self(), {:read, query})
+
+        {:ok, [%{id: 1, likes: 3}, %{id: 2, likes: 1}, %{id: 3, likes: 2}, %{id: 4, likes: 9}]}
+      end
+
+      def count(_query), do: {:ok, 4}
+      def aggregate(_query), do: {:ok, %{likes: 15}}
+
+      defdelegate describe(path, live_resource), to: Backpex.ResourceTest.FilterOnlyAdapter
+    end
+
+    defmodule AllItemsLive do
+      @moduledoc false
+      import Backpex.Expr, only: [expr: 1]
+
+      def config(:adapter), do: AllItemsAdapter
+      def config(:primary_key), do: :id
+      def scope(_assigns), do: expr(likes <= 5)
+    end
+
+    test "applies the scope, the filter, the sort, the offset and the limit in memory" do
+      query =
+        []
+        |> Resource.items_query(%{}, AllItemsLive)
+        |> Query.filter(expr(likes > 1))
+        |> Query.sort(likes: :desc)
+        |> Query.offset(1)
+        |> Query.limit(1)
+
+      assert {:ok, [%{id: 3}]} = Resource.read(query)
+      assert_received {:read, %Query{filter: nil, search: nil, sort: [], offset: nil, limit: nil}}
+    end
+
+    test "gets the item with the primary value, in the scope only" do
+      assert {:ok, %{id: 2}} = Resource.get(2, [], %{}, AllItemsLive)
+      assert Resource.get(4, [], %{}, AllItemsLive) == {:ok, nil}
+    end
+
+    test "counts and aggregates the items of read/1 instead of calling count/1 and aggregate/1" do
+      query = Resource.items_query([], %{}, AllItemsLive)
+
+      assert Resource.count(query) == {:ok, 3}
+      assert query |> Query.aggregate(:likes, {:sum, :likes}) |> Resource.aggregate() == {:ok, %{likes: 6}}
+    end
   end
 
   describe "read/1 and count/1" do
@@ -599,6 +683,8 @@ defmodule Backpex.ResourceTest do
   describe "metrics/3" do
     defmodule MetricAdapter do
       @moduledoc false
+      def supports?(_live_resource, _feature), do: true
+
       def aggregate(query), do: {:ok, Map.new(query.aggregates, &{&1.name, {:adapter, &1.aggregate, query.limit}})}
     end
 
@@ -634,9 +720,11 @@ defmodule Backpex.ResourceTest do
         def query(query, _select, _repo), do: query
       end
 
-      assert_raise ArgumentError, ~r/implements query\/3, but metrics no longer query their data/, fn ->
-        Resource.metrics([balance: %{module: QueryMetric, label: "Balance"}], Query.new(MetricLive), %{})
-      end
+      assert_raise ArgumentError,
+                   ~r/implements query\/3, but metrics no longer query their data.*upgrading to v0\.25/s,
+                   fn ->
+                     Resource.metrics([balance: %{module: QueryMetric, label: "Balance"}], Query.new(MetricLive), %{})
+                   end
     end
 
     test "raises for a metric module that still implements data/2" do
@@ -645,9 +733,15 @@ defmodule Backpex.ResourceTest do
         def data(_metric, _assigns), do: 1
       end
 
-      assert_raise ArgumentError, ~r/implements data\/2, but Backpex calls Backpex.Metric.data\/3/, fn ->
-        Resource.metrics([balance: %{module: LegacyDataMetric, label: "Balance"}], Query.new(MetricLive), %{})
-      end
+      assert_raise ArgumentError,
+                   ~r/implements data\/2, but Backpex calls Backpex.Metric.data\/3.*upgrading to v0\.25/s,
+                   fn ->
+                     Resource.metrics(
+                       [balance: %{module: LegacyDataMetric, label: "Balance"}],
+                       Query.new(MetricLive),
+                       %{}
+                     )
+                   end
     end
 
     test "lets the adapter compute the other metrics in one call, on all pages" do

@@ -84,7 +84,7 @@ defmodule Backpex.Adapters.Ecto do
   > The `Backpex.Adapters.Ecto` is still under development and may change in future updates.
   """
 
-  use Backpex.Adapter, config_schema: @config_schema
+  use Backpex.Adapter, config_schema: @config_schema, supports: :all
   import Ecto.Query
 
   alias Backpex.Adapters.Ecto.Where
