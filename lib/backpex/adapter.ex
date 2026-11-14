@@ -117,21 +117,15 @@ defmodule Backpex.Adapter do
   @callback new_item(assigns :: map(), live_resource :: module()) :: struct()
 
   @doc """
-  Returns the association `name` of the resource, or `nil` if the resource has no such association.
+  Returns the description of the items of the resource: their primary key, fields and relationships, see
+  `Backpex.Adapter.Description`. With a `path` of relationships, e.g. `[:author]`, returns the description of the related
+  items at its end. Returns `nil` if there is no such path.
 
-  The returned map contains:
-
-    * `:field` - the name of the association.
-    * `:cardinality` - `:one` or `:many`.
-    * `:owner_key` - the key of the resource the association is based on, e.g. `:user_id` for a `belongs_to :user`
-      association.
-    * `:related_key` - the key of the related items the owner key refers to, e.g. `:id` for a `belongs_to :user`
-      association, or `nil` for an association through other associations.
-    * `:primary_key` - the names of the fields of the primary key of the related items.
-    * `:through` - for an association through other associations, the associations it goes through, in order, as maps
-      with the same keys. An empty list for any other association.
+  Backpex checks and casts expressions with it (see `Backpex.Expr.cast/2`), finds the key of a relationship for
+  association fields and tells integer fields from others, e.g. in `Backpex.Filters.Range`. Use
+  `Backpex.Resource.describe/2` to call it.
   """
-  @callback association(name :: atom(), live_resource :: module()) :: map() | nil
+  @callback describe(path :: [atom()], live_resource :: module()) :: Backpex.Adapter.Description.t() | nil
 
   @doc """
   Returns the items that can be selected as the value of the association field `field`, e.g. the options of the select
@@ -141,7 +135,8 @@ defmodule Backpex.Adapter do
 
     * `:ids` - only the items whose `:key` is one of these values. Values that are no valid value of the key are
       ignored. The ids also limit the items if the `:options_query` of the field limits or offsets them.
-    * `:key` - the field `:ids` refer to, e.g. the `:related_key` of a `c:association/2`. Defaults to the primary key.
+    * `:key` - the field `:ids` refer to, e.g. the `:related_key` of a relationship of `c:describe/2`. Defaults to the
+      primary key.
     * `:search` - only the items whose display field contains this string. Ignored if it is `nil`.
     * `:offset` and `:limit` - skip and limit the items.
 
@@ -222,13 +217,5 @@ defmodule Backpex.Adapter do
   """
   @callback delete_all(items :: list(struct()), live_resource :: module()) :: {:ok, term()} | {:error, term()}
 
-  @doc """
-  Returns the primitive type of the field `name` of the items, e.g. `:integer` or `:string`, or `nil` if it is unknown.
-  `Backpex.Filters.Range` uses it to refuse decimal boundaries for integer fields.
-
-  Without it, `Backpex.Resource.field_type/2` returns `nil`.
-  """
-  @callback field_type(name :: atom(), live_resource :: module()) :: atom() | nil
-
-  @optional_callbacks field_config_schema: 0, list_options_by_key: 4, options_key: 3, field_type: 2
+  @optional_callbacks field_config_schema: 0, list_options_by_key: 4, options_key: 3
 end
