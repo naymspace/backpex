@@ -26,11 +26,20 @@ defmodule Backpex.Adapter do
 
       @behaviour Backpex.Adapter
 
+      @impl Backpex.Adapter
       def validate_config!(config) do
         NimbleOptions.validate!(config, @config_schema)
       end
     end
   end
+
+  @doc """
+  Validates the `:adapter_config` of a LiveResource and returns it, or raises if it is invalid.
+
+  `use Backpex.LiveResource` calls it at compile time. `use Backpex.Adapter` defines it and validates the configuration
+  against the `:config_schema` option.
+  """
+  @callback validate_config!(config :: keyword()) :: keyword()
 
   @doc """
   Gets a database record with the given primary key value.

@@ -446,7 +446,7 @@ defmodule Backpex.Filters.Range do
   defp parse_type(type, _field, _assigns), do: type
 
   defp integer_field?(field, %{live_resource: live_resource}) when is_atom(live_resource) do
-    function_exported?(live_resource, :config, 1) and
+    Code.ensure_loaded?(live_resource) and function_exported?(live_resource, :config, 1) and
       Backpex.Resource.field_type(field, live_resource) in [:integer, :id]
   end
 
