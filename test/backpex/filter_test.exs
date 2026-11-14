@@ -62,6 +62,17 @@ defmodule Backpex.FilterTest do
       end
     end
 
+    test "the default condition/3 tells to implement it and names the upgrade guide" do
+      defmodule WithoutCondition do
+        @moduledoc false
+        use Backpex.Filter
+      end
+
+      assert_raise RuntimeError, ~r/You must implement the condition\/3 callback.*upgrading to v0\.25/s, fn ->
+        WithoutCondition.condition(:title, "a", %{})
+      end
+    end
+
     test "refuses to compile a filter that still defines type/1 or validate/2" do
       for {name, definition, message} <- [
             {TypeFilter, "def type(_assigns), do: :string",
