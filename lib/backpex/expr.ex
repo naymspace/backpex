@@ -342,7 +342,7 @@ defmodule Backpex.Expr do
     raise ArgumentError, """
     expected an expression such as expr(published == true), got: #{inspect(expression)}
 
-    Conditions are written with Backpex.Expr.expr/1, see the guide on upgrading to v0.24.
+    Conditions are written with Backpex.Expr.expr/1, see the guide on upgrading to v0.25.
     """
   end
 end
