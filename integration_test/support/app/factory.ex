@@ -93,6 +93,11 @@ defmodule Backpex.Test.EctoFactory do
     %Note{title: sequence(:note_title, &"Note #{&1}")}
   end
 
+  # Kept in the store of `Backpex.Adapters.Memory`, not in the database.
+  def memory_note_factory do
+    %Backpex.Test.MemoryNote{id: sequence(:memory_note_id, & &1), title: sequence(:memory_note_title, &"Note #{&1}")}
+  end
+
   def sample_factory do
     %Sample{text: sequence(:sample_text, &"Sample #{&1}")}
   end

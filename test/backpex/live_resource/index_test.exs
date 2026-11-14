@@ -9,6 +9,7 @@ defmodule Backpex.LiveResource.IndexTest do
 
   defmodule FailingAdapter do
     @moduledoc false
+    defdelegate supports?(live_resource, feature), to: StubAdapter
     defdelegate read(query), to: StubAdapter
     defdelegate describe(path, live_resource), to: StubAdapter
 
