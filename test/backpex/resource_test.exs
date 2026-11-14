@@ -314,7 +314,7 @@ defmodule Backpex.ResourceTest do
     test "refuses the updates of Ecto and unknown fields" do
       assigns = %{role: :admin}
 
-      assert_raise ArgumentError, ~r/expected the changes as a map of fields and values/, fn ->
+      assert_raise ArgumentError, ~r/expected the changes as a map of fields and values.*upgrading to v0\.25/s, fn ->
         Resource.update_all([%{id: 1}], [set: [x: 1]], assigns, AllowAll)
       end
 

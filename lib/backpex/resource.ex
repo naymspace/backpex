@@ -697,7 +697,7 @@ defmodule Backpex.Resource do
       raise ArgumentError, """
       expected the changes as a map of fields and values, e.g. %{deleted_at: now}, got: #{inspect(changes)}
 
-      update_all/5 no longer takes the updates of Ecto.Repo.update_all/3, see the guide on upgrading to v0.24.
+      update_all/5 no longer takes the updates of Ecto.Repo.update_all/3, see the guide on upgrading to v0.25.
       """
     end
 
