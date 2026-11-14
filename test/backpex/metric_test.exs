@@ -32,7 +32,7 @@ defmodule Backpex.MetricTest do
       """
 
       assert_raise CompileError,
-                   ~r/defines data\/2, but Backpex calls data\/3 with the criteria.*upgrading to v0\.25/s,
+                   ~r/defines data\/2, but Backpex calls data\/3 with the query.*upgrading to v0\.25/s,
                    fn ->
                      Code.compile_string(code)
                    end
@@ -45,7 +45,7 @@ defmodule Backpex.MetricTest do
 
         def render(assigns), do: assigns
         def format(data, _format), do: data
-        def data(_metric, _criteria, _assigns), do: 1
+        def data(_metric, _query, _assigns), do: 1
       end
       """
 

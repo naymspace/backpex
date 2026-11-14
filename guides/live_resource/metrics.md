@@ -97,6 +97,21 @@ A value metric is computed for the items the admin currently sees in the table, 
 
 The metrics are computed again whenever the table is loaded again, e.g. when the admin searches or changes a filter.
 
+## Ignoring filters
+
+With the `:ignore_filters` option, a metric is computed without some of the active filters. It takes the names of the filters as in [filters/0](Backpex.LiveResource.html#c:filters/0). The search and the other filters still apply.
+
+```elixir
+# The index view has a `:published` filter. This box shows the number of all posts, whatever the filter is set to.
+all_posts: %{
+  module: Backpex.Metrics.Value,
+  label: "All posts",
+  aggregate: :count,
+  ignore_filters: [:published],
+  format: nil
+}
+```
+
 ## Formatting
 
 The function in `:format` receives the computed value and returns what is displayed, usually a string.
@@ -129,7 +144,7 @@ You can create a custom metric by using the `metric` macro from the `BackpexWeb`
 |----------|---------|
 | `render/1` | Renders the metric. The assigns contain the map from `metrics/0` as `@metric`, with the data of the metric under `:data` |
 | `format/2` | Formats the data. Backpex does not call it, your `render/1` does |
-| `data/3` | Returns the data. Receives the map from `metrics/0`, the criteria of the index view and the assigns of the index view. May be left out |
+| `data/3` | Returns the data. Receives the map from `metrics/0`, the `Backpex.Query` of the items of the index view and the assigns of the index view. May be left out |
 
 A metric module implements `render/1` and `format/2`. Without `data/3`, the adapter computes the data from the `:aggregate` of the metric, as for `Backpex.Metrics.Value`. With `data/3`, Backpex calls it instead of the adapter.
 
@@ -140,7 +155,7 @@ defmodule MyAppWeb.Metrics.Drafts do
   use BackpexWeb, :metric
 
   @impl Backpex.Metric
-  def data(_metric, criteria, _assigns), do: MyApp.Blog.count_drafts(criteria[:filter_values])
+  def data(_metric, _query, assigns), do: MyApp.Blog.count_drafts(assigns.filter_values)
 
   @impl Backpex.Metric
   def format(data, _format), do: "#{data} drafts"
@@ -169,15 +184,17 @@ def metrics do
 end
 ```
 
-The criteria hold the search under `:search`, and the validated values and the configurations of the active filters under `:filter_values` and `:filter_configs`. A metric with `data/3` does not follow the search and filters by itself: it passes the criteria on, as in the example above, or hands them to `Backpex.Resource.list/4` or `Backpex.Resource.count/4` to get the items of the index view:
+The query that `data/3` receives is the one of the index view: the items of the resource after the search and the active filters (except the ones of `:ignore_filters`), on all pages. A metric with `data/3` does not follow the search and filters by itself. To get the items of the index view, read the query with `Backpex.Resource.read/1` or count them with `Backpex.Resource.count/1`:
 
 ```elixir
 @impl Backpex.Metric
-def data(_metric, criteria, assigns) do
-  {:ok, orders} = Backpex.Resource.list(criteria, assigns.fields, assigns, assigns.live_resource)
+def data(_metric, query, _assigns) do
+  {:ok, orders} = Backpex.Resource.read(query)
 
   orders |> Enum.map(&MyApp.Orders.total/1) |> Enum.sum()
 end
 ```
+
+A metric that gets its data elsewhere, as the example above, has to limit it itself, e.g. with the search term in `query.search` and the validated filter values in `assigns.filter_values`.
 
 A metric module that still defines `data/2` or `query/3` of earlier versions does not compile, see the [upgrade guide](../upgrading/v0.25.md).

@@ -61,7 +61,7 @@ defmodule Backpex.FormComponentTest do
     def config(:primary_key), do: :id
     def adapter_config(:schema), do: User
     def fields, do: []
-    def get(id, _fields, _assigns, _live_resource), do: {:ok, %{id: id}}
+    def read(%Backpex.Query{filter: %Backpex.Expr.Call{args: [_ref, id]}}), do: {:ok, [%{id: id}]}
     def describe(path, live_resource), do: EctoAdapter.describe(path, live_resource)
     def translate({msg, _opts}), do: msg
     def can?(_assigns, _action, _item), do: true

@@ -10,6 +10,8 @@ defmodule Backpex.Metrics.Value do
     * `:aggregate` - The aggregate to compute, e.g. `{:sum, :quantity}`. See `t:Backpex.Metric.aggregate/0`.
     * `:where` - Optional expression that limits the items, e.g. `[published: true]` or
       `expr(likes > 10)`, see `Backpex.Expr`.
+    * `:ignore_filters` - Optional names of filters of the index view that don't limit the items, see
+      `Backpex.Metric`.
     * `:select` - Only for `Backpex.Adapters.Ecto`: a dynamic query expression to select instead of an aggregate,
       usually an aggregate function.
     * `:format` - Optional format function to post-process the value to display in frontend.
