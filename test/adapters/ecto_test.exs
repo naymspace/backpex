@@ -887,6 +887,15 @@ defmodule Backpex.Adapters.EctoTest do
       assert Macro.to_string(query.select.expr) == "count(&0.id())"
     end
 
+    test "joins the paths a native aggregate uses under their names" do
+      authors = Expr.native(EctoAdapter, dynamic([backpex_user: u], count(u.id)), uses: [:user])
+
+      metric(%{module: Value, aggregate: authors}, fn query -> Query.unset(query, [:load]) end)
+
+      assert_received {:repo, :one, %{joins: [%{as: :backpex_user, qual: :left}]} = query}
+      assert Macro.to_string(query.select.expr) == "count(&1.id())"
+    end
+
     test "ignores the sort, the offset and the limit" do
       metric(%{module: Value, aggregate: {:sum, :id}}, fn query ->
         query |> Query.sort(title: :asc) |> Query.offset(20) |> Query.limit(10)

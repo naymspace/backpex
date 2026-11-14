@@ -77,8 +77,11 @@ defmodule Backpex.Resource do
     |> put_fields(fields)
   end
 
-  # Fake LiveResources of tests may not define every callback.
+  # Fake LiveResources of tests may not define every callback. The module is loaded first: `function_exported?/3` is
+  # false for a module that is not loaded yet, which would skip its scope.
   defp callback(live_resource, name, assigns, default) do
+    Code.ensure_loaded!(live_resource)
+
     if function_exported?(live_resource, name, 1), do: apply(live_resource, name, [assigns]), else: default
   end
 

@@ -177,7 +177,7 @@ defmodule Backpex.Adapters.Ecto do
   end
 
   # An aggregate, see `t:Backpex.Metric.aggregate/0`, with the query and the joins its value needs.
-  defp aggregate_dynamic(ecto_query, %Native{adapter: __MODULE__, expr: expression}), do: {ecto_query, expression}
+  defp aggregate_dynamic(ecto_query, %Native{adapter: __MODULE__} = native), do: Where.value(ecto_query, native)
   defp aggregate_dynamic(ecto_query, :count), do: {ecto_query, dynamic(count())}
 
   defp aggregate_dynamic(ecto_query, {kind, field}) when is_atom(field),

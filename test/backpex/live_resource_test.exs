@@ -31,7 +31,6 @@ defmodule Backpex.LiveResourceTest do
   defmodule TestPostLive do
     @moduledoc false
     def adapter_config(:schema), do: Backpex.LiveResourceTest.TestPost
-    def adapter_config(:item_query), do: &EctoAdapter.default_item_query/3
     def config(:adapter), do: EctoAdapter
     def config(:full_text_search), do: nil
     def config(:primary_key), do: :id
@@ -41,7 +40,6 @@ defmodule Backpex.LiveResourceTest do
   defmodule NullsFirstPostLive do
     @moduledoc false
     def adapter_config(:schema), do: Backpex.LiveResourceTest.TestPost
-    def adapter_config(:item_query), do: &EctoAdapter.default_item_query/3
     def config(:adapter), do: EctoAdapter
     def config(:full_text_search), do: nil
     def config(:primary_key), do: :id

@@ -55,8 +55,9 @@ defmodule Backpex.Adapter do
   end
 
   @doc """
-  Returns the `NimbleOptions` schema of the options the adapter adds to every field, e.g. `:select` of
-  `Backpex.Adapters.Ecto`. Backpex validates the options of fields against it, together with the options of the field.
+  Returns the `NimbleOptions` schema of the options the adapter adds to every field, e.g. `[tenant: [type: :atom]]`.
+  Backpex validates the options of fields against it, together with the options of the field. `Backpex.Adapters.Ecto`
+  adds none.
   """
   @callback field_config_schema() :: keyword()
 
@@ -99,9 +100,9 @@ defmodule Backpex.Adapter do
   def supported?(features, feature) when is_list(features), do: feature in features
 
   @doc """
-  Puts the options the adapter adds to fields (see `c:field_config_schema/0`) into the query, e.g. the `:select` option
-  of `Backpex.Adapters.Ecto` as a computed value. Keep the data for later in the `:native` field of the query, see
-  `Backpex.Query.put_native/3`.
+  Puts the options of fields that only the adapter understands into the query: the ones it adds (see
+  `c:field_config_schema/0`), or e.g. the `:options_query` of association fields, which `Backpex.Adapters.Ecto` takes.
+  Keep the data for later in the `:native` field of the query, see `Backpex.Query.put_native/3`.
 
   Backpex calls it with every field of the LiveResource when it builds a query of the items of the resource, and with
   an association field when it builds the query of the options of the field. Then the `:from` of the query is the name
