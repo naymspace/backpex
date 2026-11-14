@@ -56,7 +56,7 @@ defmodule Backpex.FilterTest do
         end
         """
 
-        assert_raise CompileError, ~r/defines query\/4, but filters no longer build queries/, fn ->
+        assert_raise CompileError, ~r/defines query\/4, but filters no longer build queries.*upgrading to v0\.25/, fn ->
           Code.compile_string(code)
         end
       end
@@ -64,8 +64,10 @@ defmodule Backpex.FilterTest do
 
     test "refuses to compile a filter that still defines type/1 or validate/2" do
       for {name, definition, message} <- [
-            {TypeFilter, "def type(_assigns), do: :string", ~r/defines type\/1, .* Implement type\/2 instead/},
-            {ValidateFilter, "def validate(value, _assigns), do: {:ok, value}", ~r/defines validate\/2/}
+            {TypeFilter, "def type(_assigns), do: :string",
+             ~r/defines type\/1, .* Implement type\/2 instead.*upgrading to v0\.25/},
+            {ValidateFilter, "def validate(value, _assigns), do: {:ok, value}",
+             ~r/defines validate\/2.*upgrading to v0\.25/}
           ] do
         code = """
         defmodule Backpex.FilterTest.#{inspect(name)} do
