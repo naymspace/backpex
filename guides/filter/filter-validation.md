@@ -200,14 +200,14 @@ defmodule MyFilterTest do
 end
 ```
 
-## Query Receives Validated Values
+## Conditions Receive Validated Values
 
-The `query/4` callback receives already-validated and casted values:
+The `condition/3` callback receives already-validated and casted values:
 
 ```elixir
-def query(query, attribute, value, _assigns) do
+def condition(field, value, _assigns) do
   # value is already an integer
-  where(query, [x], field(x, ^attribute) == ^value)
+  expr(ref(^field) == ^value)
 end
 ```
 
@@ -218,8 +218,7 @@ Here's a complete example of a custom filter with validation:
 ```elixir
 defmodule MyAppWeb.Filters.PriceRange do
   use BackpexWeb, :filter
-
-  import Ecto.Query
+  use Backpex.Filter
 
   @impl Backpex.Filter
   def label, do: "Price Range"
@@ -272,19 +271,14 @@ defmodule MyAppWeb.Filters.PriceRange do
   end
 
   @impl Backpex.Filter
-  def query(query, attribute, %{"min" => min, "max" => max}, _assigns) do
-    query
-    |> maybe_filter_min(attribute, parse_price(min))
-    |> maybe_filter_max(attribute, parse_price(max))
+  def condition(field, %{"min" => min, "max" => max}, _assigns) do
+    min = parse_price(min)
+    max = parse_price(max)
+
+    Backpex.Expr.all([min && expr(ref(^field) >= ^min), max && expr(ref(^field) <= ^max)])
   end
 
-  def query(query, _attribute, _value, _assigns), do: query
-
-  defp maybe_filter_min(query, _attr, nil), do: query
-  defp maybe_filter_min(query, attr, min), do: where(query, [x], field(x, ^attr) >= ^min)
-
-  defp maybe_filter_max(query, _attr, nil), do: query
-  defp maybe_filter_max(query, attr, max), do: where(query, [x], field(x, ^attr) <= ^max)
+  def condition(_field, _value, _assigns), do: nil
 
   @impl Backpex.Filter
   def render(assigns) do
@@ -364,7 +358,7 @@ end
 1. **Always implement `type/1`**: Even if using the default `:string`, be explicit
 2. **Validate against options**: For select/multi-select filters, validate values exist in your options list
 3. **Handle partial values**: For range filters, allow empty start or end values
-4. **Keep `query/4` simple**: Since values are validated, focus on the query logic
+4. **Keep `condition/3` simple**: Since values are validated, focus on the condition
 5. **Test validation**: Write unit tests for your `validate/2` to ensure edge cases are handled
 6. **Use Ecto validations**: Leverage `Ecto.Changeset` validation functions for consistency
 7. **Display errors in custom filters**: Use `@errors` in `render_form/1` to show validation feedback to users

@@ -16,6 +16,8 @@ For example, the following example shows how to define a filter module for a sel
 defmodule MyAppWeb.Filters.PostCategorySelect do
   use Backpex.Filters.Select
 
+  import Ecto.Query
+
   alias MyApp.Category
   alias MyApp.Post
   alias MyApp.Repo
