@@ -7,10 +7,16 @@ defmodule Backpex.HTML.ResourceTest do
   alias Backpex.HTML.Resource
   alias Plug.Conn.Query
 
+  defmodule NoTypesAdapter do
+    @moduledoc false
+    # An adapter that doesn't know the types of the fields.
+  end
+
   defmodule ContextLive do
     @moduledoc false
     def translate({msg, _opts}), do: msg
     def config(:full_text_search), do: nil
+    def config(:adapter), do: NoTypesAdapter
   end
 
   defmodule MarkerFilter do

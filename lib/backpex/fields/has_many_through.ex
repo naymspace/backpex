@@ -89,11 +89,11 @@ defmodule Backpex.Fields.HasManyThrough do
   See the [readonly](/guides/fields/readonly.md) guide for details.
   """
   use Backpex.Field, config_schema: @config_schema
-  import Ecto.Query
   import Backpex.HTML.Layout, except: [ok: 1, noreply: 1]
   import PhoenixHTMLHelpers.Form, only: [hidden_inputs_for: 1]
   alias Backpex.Fields.OptionsQuery
   alias Backpex.LiveResource
+  alias Backpex.Resource
   alias Ecto.Changeset
   require Backpex
 
@@ -106,8 +106,7 @@ defmodule Backpex.Fields.HasManyThrough do
   end
 
   defp apply_action(socket, :form) do
-    schema = socket.assigns.live_resource.adapter_config(:schema)
-    association = association(schema, socket.assigns.name)
+    association = association(socket.assigns.live_resource, socket.assigns.name)
 
     socket
     |> assign_new(:association, fn -> association end)
@@ -117,30 +116,26 @@ defmodule Backpex.Fields.HasManyThrough do
   defp apply_action(socket, _type), do: socket
 
   # The options query may depend on other assigns, e.g. a value of the form. The options are loaded again whenever the
-  # resulting query changes.
+  # options key of the adapter changes.
   defp assign_options(socket) do
-    %{field_options: field_options, association: association} = socket.assigns
+    %{field: field, live_resource: live_resource} = socket.assigns
+    options_key = Resource.options_key(field, socket.assigns, live_resource)
 
-    query =
-      from(association.child.queryable)
-      |> maybe_options_query(field_options, socket.assigns)
-
-    if Map.get(socket.assigns, :options_base_query) == query do
+    if Map.fetch(socket.assigns, :options_key) == {:ok, options_key} do
       socket
     else
       socket
-      |> assign(:options_base_query, query)
+      |> assign(:options_key, options_key)
       |> load_options()
     end
   end
 
   defp load_options(socket) do
-    %{field_options: field_options, options_base_query: query} = socket.assigns
-    repo = socket.assigns.live_resource.adapter_config(:repo)
+    %{field: field, field_options: field_options, live_resource: live_resource} = socket.assigns
 
     display_field = Map.get(field_options, :display_field_form, Map.get(field_options, :display_field))
 
-    all_items = repo.all(query)
+    {:ok, all_items} = Resource.list_options(field, [], socket.assigns, live_resource)
 
     related_key = socket.assigns.association.child.related_key
     options = Enum.map(all_items, &{Map.get(&1, display_field), Map.get(&1, related_key)})
@@ -158,8 +153,7 @@ defmodule Backpex.Fields.HasManyThrough do
   @impl Backpex.Field
   def render_value(assigns) do
     %{item: item, name: assoc_field_name} = assigns
-    schema = assigns.live_resource.adapter_config(:schema)
-    %{pivot: %{field: pivot_field}, child: %{field: child_field}} = association(schema, assoc_field_name)
+    %{pivot: %{field: pivot_field}, child: %{field: child_field}} = association(assigns.live_resource, assoc_field_name)
 
     listables =
       Map.get(item, pivot_field, [])
@@ -505,8 +499,8 @@ defmodule Backpex.Fields.HasManyThrough do
   # through the params or, when the params have no entries, through the assocs of the form, which the buttons of the
   # field build from earlier params. `cast_assoc` replaces the entries of the assocs with the ones of the params.
   @impl Backpex.Field
-  def before_changeset(changeset, attrs, _metadata, repo, {name, field_options} = _field, assigns) do
-    %{pivot: pivot, child: child} = association(assigns.live_resource.adapter_config(:schema), name)
+  def before_changeset(changeset, attrs, _metadata, _repo, {name, _field_options} = field, assigns) do
+    %{pivot: pivot, child: child} = association(assigns.live_resource, name)
     linked_ids = changeset.data |> Map.get(pivot.field) |> linked_ids(child.owner_key)
     assigns = OptionsQuery.put_submitted_form(assigns, changeset, attrs)
 
@@ -516,8 +510,9 @@ defmodule Backpex.Fields.HasManyThrough do
         :error -> assigns |> Map.get(:assocs, []) |> Keyword.get(pivot.field, []) |> stored_ids(child.owner_key)
       end
 
-    with {:ok, ids} <- cast_ids(submitted_ids, child.queryable.__schema__(:type, child.related_key)),
-         true <- options?(Enum.uniq(ids) -- linked_ids, child, repo, field_options, assigns) do
+    with {:ok, ids} <- to_strings(submitted_ids),
+         {:ok, linked_ids} <- to_strings(linked_ids),
+         true <- options?(Enum.uniq(ids) -- linked_ids, child, field, assigns) do
       changeset
     else
       # Ecto's message and metadata for a value outside the allowed ones, so the error translation of the app applies.
@@ -525,7 +520,10 @@ defmodule Backpex.Fields.HasManyThrough do
     end
   end
 
-  defp linked_ids(entries, owner_key) when is_list(entries), do: Enum.map(entries, &Map.get(&1, owner_key))
+  defp linked_ids(entries, owner_key) when is_list(entries) do
+    entries |> Enum.map(&Map.get(&1, owner_key)) |> Enum.reject(&is_nil/1)
+  end
+
   defp linked_ids(_not_loaded, _owner_key), do: []
 
   # The form sends the pivot entries as a map of indexes to params, a client may send a list.
@@ -551,29 +549,22 @@ defmodule Backpex.Fields.HasManyThrough do
     |> Enum.reject(&(&1 in [nil, ""]))
   end
 
-  defp cast_ids(ids, type) do
-    Enum.reduce_while(ids, {:ok, []}, fn id, {:ok, acc} ->
-      case Ecto.Type.cast(type, id) do
-        {:ok, id} -> {:cont, {:ok, [id | acc]}}
-        :error -> {:halt, :error}
-      end
+  # The form renders the ids as strings, so the submitted ids are compared as strings. An id in another spelling, e.g.
+  # with a leading zero, counts as another id and has to be an option. Anything else, e.g. a map, is no id.
+  defp to_strings(ids) do
+    Enum.reduce_while(ids, {:ok, []}, fn
+      id, {:ok, acc} when is_binary(id) or is_integer(id) -> {:cont, {:ok, [to_string(id) | acc]}}
+      _id, _acc -> {:halt, :error}
     end)
   end
 
-  defp options?([], _child, _repo, _field_options, _assigns), do: true
+  defp options?([], _child, _field, _assigns), do: true
 
-  defp options?(ids, child, repo, field_options, assigns) do
-    %{queryable: queryable, related_key: related_key} = child
-
-    option_ids =
-      queryable
-      |> from()
-      |> maybe_options_query(field_options, assigns)
-      |> OptionsQuery.with_ids(queryable, related_key, ids)
-      |> exclude(:select)
-      |> exclude(:preload)
-      |> select([option], field(option, ^related_key))
-      |> repo.all()
+  defp options?(ids, child, field, assigns) do
+    %{related_key: related_key} = child
+    criteria = [ids: ids, key: related_key]
+    {:ok, options} = Resource.list_options(field, criteria, assigns, assigns.live_resource)
+    option_ids = Enum.map(options, &to_string(Map.get(&1, related_key)))
 
     ids -- option_ids == []
   end
@@ -582,7 +573,7 @@ defmodule Backpex.Fields.HasManyThrough do
   # key of the pivot, the select of the related item and the pivot fields.
   @impl Backpex.Field
   def param_keys({name, field_options}, assigns) do
-    %{pivot: pivot} = association(assigns.live_resource.adapter_config(:schema), name)
+    %{pivot: pivot} = association(assigns.live_resource, name)
 
     pivot_keys =
       field_options
@@ -592,7 +583,7 @@ defmodule Backpex.Fields.HasManyThrough do
       end)
 
     entry_keys =
-      [pivot.owner_key | pivot.queryable.__schema__(:primary_key)]
+      [pivot.owner_key | pivot.primary_key]
       |> Enum.map(&Atom.to_string/1)
       |> Enum.concat(pivot_keys)
 
@@ -630,25 +621,19 @@ defmodule Backpex.Fields.HasManyThrough do
     end
   end
 
-  defp maybe_options_query(query, %{options_query: options_query} = _field_options, assigns),
-    do: options_query.(query, assigns)
-
-  defp maybe_options_query(query, _field_options, _assigns), do: query
-
-  defp association(parent_schema, field_name) do
-    assoc = parent_schema.__schema__(:association, field_name)
-    pivot = parent_schema.__schema__(:association, List.first(assoc.through))
-    child = pivot.queryable.__schema__(:association, List.last(assoc.through))
+  defp association(live_resource, field_name) do
+    %{through: through} = Resource.association(field_name, live_resource)
+    pivot = List.first(through)
+    child = List.last(through)
 
     %{
       pivot: %{
         field: pivot.field,
-        queryable: pivot.queryable,
-        owner_key: child.owner_key
+        owner_key: child.owner_key,
+        primary_key: pivot.primary_key
       },
       child: %{
         field: child.field,
-        queryable: child.queryable,
         owner_key: child.owner_key,
         related_key: child.related_key
       }
@@ -658,7 +643,7 @@ defmodule Backpex.Fields.HasManyThrough do
   # The key that tells whether a pivot item is saved. Pivot schemas with a composite primary key or without one are not
   # supported: for them the primary key of the child LiveResource is read from the pivot item, as it was for all pivots.
   defp pivot_primary_key(association, field_options) do
-    case association.pivot.queryable.__schema__(:primary_key) do
+    case association.pivot.primary_key do
       [primary_key] -> primary_key
       _other -> field_options.live_resource.config(:primary_key)
     end

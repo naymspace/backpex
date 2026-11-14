@@ -112,6 +112,7 @@ defmodule Backpex.Fields.HasManyThroughTest do
 
   defmodule ParentLive do
     @moduledoc false
+    def config(:adapter), do: Backpex.Adapters.Ecto
     def adapter_config(:schema), do: Parent
     def adapter_config(:repo), do: ChildrenRepo
     def translate(msg), do: UntranslatedLive.translate(msg)
@@ -126,6 +127,7 @@ defmodule Backpex.Fields.HasManyThroughTest do
 
   defmodule LibraryLive do
     @moduledoc false
+    def config(:adapter), do: Backpex.Adapters.Ecto
     def adapter_config(:schema), do: Library
     def adapter_config(:repo), do: BooksRepo
     def translate(msg), do: UntranslatedLive.translate(msg)
@@ -362,7 +364,7 @@ defmodule Backpex.Fields.HasManyThroughTest do
         assigns: %{
           __changed__: %{},
           changeset: changeset,
-          association: %{pivot: %{field: :pivots, queryable: Pivot}},
+          association: %{pivot: %{field: :pivots, queryable: Pivot, primary_key: [:id]}},
           field_options: %{live_resource: ChildLive}
         }
       }
