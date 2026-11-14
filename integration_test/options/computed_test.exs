@@ -135,6 +135,31 @@ defmodule Backpex.Integration.Options.ComputedTest do
     assert Resource.count(query) == {:ok, 18}
   end
 
+  test "a page reads the same aggregates as all items", %{bob: bob} do
+    insert(:post, user: bob, title: "Only", likes: 5, published: true, tags: [build(:tag, name: "ash")])
+    carl = insert(:user, username: "carl", posts: [])
+    insert(:post, user: carl, title: "Top", likes: 7, tags: [build(:tag, name: "beam"), build(:tag, name: "otp")])
+
+    stats = fn users ->
+      Enum.map(users, &Map.take(&1, [:username | Keyword.keys(UserStatsLive.computed(%{}))]))
+    end
+
+    for sort <- [[username: :asc], [total_likes: :desc, username: :asc], [top_post: :asc]],
+        filter <- [nil, expr(^Expr.aggregate(:count, :posts) > 0), expr(username != "ann")] do
+      query = [] |> Resource.items_query(%{}, UserStatsLive) |> Query.filter(filter) |> Query.sort(sort)
+      {:ok, all} = Resource.read(query)
+
+      pages =
+        Enum.flat_map(0..2, fn page ->
+          {:ok, users} = query |> Query.offset(page) |> Query.limit(1) |> Resource.read()
+          users
+        end)
+
+      assert stats.(pages) == stats.(all)
+      assert {:ok, ^pages} = query |> Query.limit(10) |> Resource.read()
+    end
+  end
+
   test "computes a correlated subquery of the related items as a native value" do
     post_count =
       Expr.native(

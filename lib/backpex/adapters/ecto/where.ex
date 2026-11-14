@@ -6,9 +6,11 @@ defmodule Backpex.Adapters.Ecto.Where do
   # joins, named after the path, so every expression that uses the same path shares the join. `exists` becomes a
   # subquery of the primary keys of the items with a matching related item, so it never duplicates items.
   #
-  # An aggregate is a left join of a subquery of the values of the related items. `join_aggregates/2` joins the
+  # An aggregate is a left join of a subquery of the values of the related items. `join_aggregates/3` joins the
   # aggregates of expressions and returns the joined aggregates: a map of `{binding, aggregate}` to the name of the join
-  # and the key of the value in it. `where_expr/3` and `value/3` take this map and join the aggregates it lacks.
+  # and the key of the value in it. `where_expr/3` and `value/3` take this map and join the aggregates it lacks. The
+  # subquery aggregates the related items of all items, or with `:of` only the ones of the items with the given
+  # primary keys, e.g. the items of a page.
 
   import Ecto.Query
 
@@ -38,7 +40,7 @@ defmodule Backpex.Adapters.Ecto.Where do
 
   @doc """
   Adds the expression to the query as a `where` clause. Keeps the query for a `nil` expression. `aggregates` are the
-  joined aggregates of `join_aggregates/2`.
+  joined aggregates of `join_aggregates/3`.
   """
   def where_expr(query, expression, aggregates \\ %{})
 
@@ -77,7 +79,7 @@ defmodule Backpex.Adapters.Ecto.Where do
   @doc """
   Returns the query with the joins the expression needs and a dynamic expression of its value, e.g. of a computed
   value: a field, `concat`, a condition or a native expression. `aggregates` are the joined aggregates of
-  `join_aggregates/2`.
+  `join_aggregates/3`.
   """
   def value(query, expression, aggregates \\ %{}) do
     query = Ecto.Queryable.to_query(query)
@@ -104,15 +106,24 @@ defmodule Backpex.Adapters.Ecto.Where do
   Returns the query with one left join for every group of aggregates of the expressions that share the relationships,
   the kind, the `:where` and the `:sort`, e.g. the title and the likes of the post with the most likes, and the joined
   aggregates. `where_expr/3` and `value/3` take them to read the values of the aggregates from the joins.
+
+  The subqueries aggregate the related items of all items. With `of: keys`, a query of primary keys of items, they only
+  aggregate the related items of these items, so the values of all other items of the query are `nil`.
   """
-  def join_aggregates(query, expressions) do
+  def join_aggregates(query, expressions, opts \\ []) do
     query = Ecto.Queryable.to_query(query)
 
-    join_missing(query, {:root, schema(query)}, %{}, expressions)
+    join_missing(query, {:root, schema(query)}, %{}, expressions, Keyword.get(opts, :of))
   end
 
-  # Joins the aggregates of the expressions that are not joined yet, one join for every group.
-  defp join_missing(query, {binding_name, schema} = binding, joined, expressions) do
+  @doc """
+  Returns whether `join_aggregates/3` joins an aggregate for the expression.
+  """
+  def aggregates?(expression), do: aggregates(expression) != []
+
+  # Joins the aggregates of the expressions that are not joined yet, one join for every group. `of` is a query of the
+  # primary keys of the items to aggregate the related items of, or `nil` for all items.
+  defp join_missing(query, {binding_name, schema} = binding, joined, expressions, of \\ nil) do
     expressions
     |> Enum.flat_map(&aggregates/1)
     |> Enum.uniq()
@@ -122,7 +133,7 @@ defmodule Backpex.Adapters.Ecto.Where do
       name = free_aggregate_name!(query)
       keys = value_keys!(aggregates)
       primary_key = primary_key!(schema)
-      subquery = aggregate_subquery(aggregates, keys, schema, primary_key)
+      subquery = aggregates |> aggregate_subquery(keys, schema, primary_key) |> aggregate_of(of, primary_key)
 
       joined =
         aggregates
@@ -235,6 +246,10 @@ defmodule Backpex.Adapters.Ecto.Where do
 
     aggregate_select(subquery, aggregate, target, select, primary_key)
   end
+
+  defp aggregate_of(subquery, nil = _of, _primary_key), do: subquery
+
+  defp aggregate_of(subquery, of, primary_key), do: where(subquery, [item], field(item, ^primary_key) in subquery(of))
 
   defp aggregate_value(%Aggregate{kind: :count}, subquery, _target, _joined), do: {subquery, dynamic(count())}
 
