@@ -55,6 +55,21 @@ A value metric is computed for the items the admin currently sees in the table, 
 
 The metrics are computed again whenever the table is loaded again, e.g. when the admin searches or changes a filter.
 
+## Ignoring filters
+
+With the `:ignore_filters` option, a metric is computed without some of the active filters. It takes the names of the filters as in [filters/0](Backpex.LiveResource.html#c:filters/0). The search and the other filters still apply.
+
+```elixir
+# The index view has a `:published` filter. This box shows the number of all posts, whatever the filter is set to.
+all_posts: %{
+  module: Backpex.Metrics.Value,
+  label: "All posts",
+  select: dynamic([p], count(p.id)),
+  ignore_filters: [:published],
+  format: nil
+}
+```
+
 ## Formatting
 
 The function in `:format` receives the selected value and returns what is displayed, usually a string.

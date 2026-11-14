@@ -62,8 +62,10 @@ defmodule Backpex.Resource do
     |> put_fields(fields)
   end
 
+  # `function_exported?/3` is false for a module that is not loaded yet, which would read the items without their scope.
   defp scope(live_resource, assigns) do
-    if function_exported?(live_resource, :scope, 1), do: live_resource.scope(assigns)
+    if Code.ensure_loaded?(live_resource) and function_exported?(live_resource, :scope, 1),
+      do: live_resource.scope(assigns)
   end
 
   defp put_fields(query, fields) do
