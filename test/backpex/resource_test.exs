@@ -456,9 +456,11 @@ defmodule Backpex.ResourceTest do
         def query(query, _select, _repo), do: query
       end
 
-      assert_raise ArgumentError, ~r/implements query\/3, but metrics no longer query their data/, fn ->
-        Resource.metrics([balance: %{module: QueryMetric, label: "Balance"}], Query.new(MetricLive), %{})
-      end
+      assert_raise ArgumentError,
+                   ~r/implements query\/3, but metrics no longer query their data.*upgrading to v0\.25/s,
+                   fn ->
+                     Resource.metrics([balance: %{module: QueryMetric, label: "Balance"}], Query.new(MetricLive), %{})
+                   end
     end
 
     test "raises for a metric module that still implements data/2" do
@@ -467,9 +469,15 @@ defmodule Backpex.ResourceTest do
         def data(_metric, _assigns), do: 1
       end
 
-      assert_raise ArgumentError, ~r/implements data\/2, but Backpex calls Backpex.Metric.data\/3/, fn ->
-        Resource.metrics([balance: %{module: LegacyDataMetric, label: "Balance"}], Query.new(MetricLive), %{})
-      end
+      assert_raise ArgumentError,
+                   ~r/implements data\/2, but Backpex calls Backpex.Metric.data\/3.*upgrading to v0\.25/s,
+                   fn ->
+                     Resource.metrics(
+                       [balance: %{module: LegacyDataMetric, label: "Balance"}],
+                       Query.new(MetricLive),
+                       %{}
+                     )
+                   end
     end
 
     test "lets the adapter compute the other metrics in one call, on all pages" do

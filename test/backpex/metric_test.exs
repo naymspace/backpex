@@ -13,9 +13,11 @@ defmodule Backpex.MetricTest do
       end
       """
 
-      assert_raise CompileError, ~r/defines query\/3, but metrics no longer query their data/, fn ->
-        Code.compile_string(code)
-      end
+      assert_raise CompileError,
+                   ~r/defines query\/3, but metrics no longer query their data.*upgrading to v0\.25/s,
+                   fn ->
+                     Code.compile_string(code)
+                   end
     end
 
     test "refuses to compile a metric that still defines data/2 without data/3" do
@@ -29,9 +31,11 @@ defmodule Backpex.MetricTest do
       end
       """
 
-      assert_raise CompileError, ~r/defines data\/2, but Backpex calls data\/3 with the query/, fn ->
-        Code.compile_string(code)
-      end
+      assert_raise CompileError,
+                   ~r/defines data\/2, but Backpex calls data\/3 with the query.*upgrading to v0\.25/s,
+                   fn ->
+                     Code.compile_string(code)
+                   end
     end
 
     test "compiles a metric that defines data/3" do

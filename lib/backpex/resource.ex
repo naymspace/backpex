@@ -179,14 +179,14 @@ defmodule Backpex.Resource do
       function_exported?(module, :query, 3) ->
         raise ArgumentError, """
         #{inspect(module)} implements query/3, but metrics no longer query their data. Implement \
-        Backpex.Metric.data/3 instead, see the guide on upgrading to v0.24.
+        Backpex.Metric.data/3 instead, see the guide on upgrading to v0.25.
         """
 
       # Backpex no longer calls `data/2` either, `data/3` also receives the query.
       function_exported?(module, :data, 2) ->
         raise ArgumentError, """
         #{inspect(module)} implements data/2, but Backpex calls Backpex.Metric.data/3 with the query of the index \
-        view. Implement data/3 instead, see the guide on upgrading to v0.24.
+        view. Implement data/3 instead, see the guide on upgrading to v0.25.
         """
 
       true ->
