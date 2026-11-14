@@ -88,6 +88,7 @@ defmodule Backpex.Adapters.Ecto do
   import Ecto.Query
 
   alias Backpex.Adapters.Ecto.Where
+  alias Backpex.Expr.Aggregate
   alias Backpex.Expr.Call
   alias Backpex.Expr.Native
   alias Backpex.Expr.Ref
@@ -153,22 +154,25 @@ defmodule Backpex.Adapters.Ecto do
   def aggregate(%Query{resource: live_resource, aggregates: aggregates} = query) do
     repo = live_resource.adapter_config(:repo)
 
-    base =
-      query
-      |> Query.unset([:aggregates])
-      |> to_ecto_query()
-      |> exclude(:select)
-      |> exclude(:preload)
-      |> exclude(:group_by)
-      |> exclude(:order_by)
+    query = Query.unset(query, [:aggregates])
 
     {:ok,
      Map.new(aggregates, fn %{name: name, aggregate: aggregate, where: where} ->
-       {ecto_query, value} = aggregate_dynamic(base, aggregate)
+       # The aggregates of related items this aggregate reads are joined with the ones of the query.
+       {base, joined} = build_ecto_query(query, [aggregate_expression(aggregate), where])
+
+       base =
+         base
+         |> exclude(:select)
+         |> exclude(:preload)
+         |> exclude(:group_by)
+         |> exclude(:order_by)
+
+       {ecto_query, value} = aggregate_dynamic(base, aggregate, joined)
 
        data =
          ecto_query
-         |> Where.where_expr(where)
+         |> Where.where_expr(where, joined)
          |> select(^value)
          |> repo.one()
 
@@ -176,16 +180,22 @@ defmodule Backpex.Adapters.Ecto do
      end)}
   end
 
-  # An aggregate, see `t:Backpex.Metric.aggregate/0`, with the query and the joins its value needs.
-  defp aggregate_dynamic(ecto_query, %Native{adapter: __MODULE__} = native), do: Where.value(ecto_query, native)
-  defp aggregate_dynamic(ecto_query, :count), do: {ecto_query, dynamic(count())}
+  defp aggregate_expression({_kind, %_struct{} = expression}), do: expression
+  defp aggregate_expression(_aggregate), do: nil
 
-  defp aggregate_dynamic(ecto_query, {kind, field}) when is_atom(field),
-    do: aggregate_dynamic(ecto_query, {kind, Backpex.Expr.ref(field)})
+  # An aggregate, see `t:Backpex.Metric.aggregate/0`, with the query and the joins its value needs. `joined` are the
+  # joined aggregates of the query.
+  defp aggregate_dynamic(ecto_query, %Native{adapter: __MODULE__} = native, joined),
+    do: Where.value(ecto_query, native, joined)
 
-  defp aggregate_dynamic(ecto_query, {kind, %struct{} = expression})
-       when kind in [:count, :sum, :avg, :min, :max] and struct in [Ref, Call] do
-    {ecto_query, value} = Where.value(ecto_query, expression)
+  defp aggregate_dynamic(ecto_query, :count, _joined), do: {ecto_query, dynamic(count())}
+
+  defp aggregate_dynamic(ecto_query, {kind, field}, joined) when is_atom(field),
+    do: aggregate_dynamic(ecto_query, {kind, Backpex.Expr.ref(field)}, joined)
+
+  defp aggregate_dynamic(ecto_query, {kind, %struct{} = expression}, joined)
+       when kind in [:count, :sum, :avg, :min, :max] and struct in [Ref, Call, Aggregate] do
+    {ecto_query, value} = Where.value(ecto_query, expression, joined)
 
     case kind do
       :count -> {ecto_query, dynamic(count(^value))}
@@ -196,7 +206,7 @@ defmodule Backpex.Adapters.Ecto do
     end
   end
 
-  defp aggregate_dynamic(_ecto_query, aggregate) do
+  defp aggregate_dynamic(_ecto_query, aggregate, _joined) do
     raise ArgumentError, "expected an aggregate such as :count or {:sum, :field}, got: #{inspect(aggregate)}"
   end
 
@@ -508,24 +518,44 @@ defmodule Backpex.Adapters.Ecto do
   end
 
   defp related_ecto_query(schema, %Query{} = related) do
-    schema
-    |> from(as: ^name_by_schema(schema))
-    |> merge_computed(related)
-    |> Where.where_expr(related.filter)
-    |> apply_sorts(related, schema)
+    {ecto_query, joined} =
+      schema
+      |> from(as: ^name_by_schema(schema))
+      |> Where.join_aggregates(aggregate_expressions(related))
+
+    ecto_query
+    |> merge_computed(related, joined)
+    |> Where.where_expr(related.filter, joined)
+    |> apply_sorts(related, schema, joined)
     |> preload(^preloads(schema, related.load))
   end
 
-  defp merge_computed(ecto_query, %Query{computed: computed}) when computed == %{}, do: ecto_query
+  defp merge_computed(ecto_query, %Query{computed: computed}, _joined) when computed == %{}, do: ecto_query
 
-  defp merge_computed(ecto_query, %Query{computed: computed}) do
+  defp merge_computed(ecto_query, %Query{computed: computed}, joined) do
     {values, ecto_query} =
       Enum.map_reduce(computed, ecto_query, fn {name, expression}, ecto_query ->
-        {ecto_query, value} = Where.value(ecto_query, expression)
+        {ecto_query, value} = Where.value(ecto_query, expression, joined)
         {{name, value}, ecto_query}
       end)
 
     select_merge(ecto_query, ^Map.new(values))
+  end
+
+  # The expressions of a query that may read aggregates, which `Backpex.Adapters.Ecto.Where.join_aggregates/2` joins
+  # before any of them is built, so that all aggregates of a group share a join: the computed values, the filter, the
+  # values of related items that sorts and the search refer to, and the conditions of the search.
+  defp aggregate_expressions(%Query{computed: computed, filter: filter, search: search} = query) do
+    sort_targets = query |> Query.sorts() |> Enum.map(fn {ref, _direction} -> ref end)
+    search_targets = if search, do: search.targets, else: []
+
+    related =
+      Enum.flat_map(sort_targets ++ search_targets, fn
+        %Ref{} = ref -> query |> Query.computed_expr(ref) |> List.wrap()
+        condition -> [condition]
+      end)
+
+    [filter | Map.values(computed) ++ related]
   end
 
   # --- QUERIES
@@ -537,22 +567,23 @@ defmodule Backpex.Adapters.Ecto do
   @spec ecto_query(Query.t()) :: Ecto.Query.t()
   def ecto_query(%Query{} = query), do: to_ecto_query(query)
 
-  # The query of the items of the resource.
-  defp to_ecto_query(%Query{from: []} = query) do
+  defp to_ecto_query(%Query{} = query), do: query |> build_ecto_query() |> elem(0)
+
+  # The query of the items of the resource, with its joined aggregates. `expressions` are further expressions whose
+  # aggregates the query joins, e.g. the ones of a metric.
+  defp build_ecto_query(query, expressions \\ [])
+
+  defp build_ecto_query(%Query{from: []} = query, expressions) do
     schema = query.resource.adapter_config(:schema)
 
     schema
     |> from(as: ^name_by_schema(schema))
     |> preload(^preloads(schema, query.load))
-    |> merge_computed(query)
-    |> Where.where_expr(query.filter)
-    |> apply_search(query, schema)
-    |> apply_sorts(query, schema)
-    |> apply_offset_limit(query)
+    |> apply_query(query, schema, expressions)
   end
 
   # The query of related items, e.g. the options of an association field.
-  defp to_ecto_query(%Query{from: path, resource: live_resource} = query) do
+  defp build_ecto_query(%Query{from: path, resource: live_resource} = query, expressions) do
     queryable = path_queryable(live_resource.adapter_config(:schema), path)
     assigns = Map.get(query.context, :assigns, %{})
 
@@ -562,27 +593,42 @@ defmodule Backpex.Adapters.Ecto do
     |> Ecto.Queryable.to_query()
     |> keep_options_limit(queryable, query)
     |> preload(^preloads(queryable, query.load))
-    |> merge_computed(query)
-    |> Where.where_expr(query.filter)
-    |> apply_search(query, queryable)
-    |> apply_sorts(query, queryable)
-    |> apply_offset_limit(query)
+    |> apply_query(query, queryable, expressions)
+  end
+
+  defp apply_query(ecto_query, %Query{} = query, schema, expressions) do
+    {ecto_query, joined} = Where.join_aggregates(ecto_query, aggregate_expressions(query) ++ expressions)
+
+    ecto_query =
+      ecto_query
+      |> merge_computed(query, joined)
+      |> Where.where_expr(query.filter, joined)
+      |> apply_search(query, schema, joined)
+      |> apply_sorts(query, schema, joined)
+      |> apply_offset_limit(query)
+
+    {ecto_query, joined}
   end
 
   # The expression of a ref: a computed value of the query, or the column of a field.
-  defp resolve(ecto_query, %Query{} = query, ref) do
+  defp resolve(ecto_query, %Query{} = query, ref, joined) do
     case Query.computed_expr(query, ref) do
       nil -> {:column, Where.field(ecto_query, ref)}
-      expression -> {:computed, Where.value(ecto_query, expression)}
+      expression -> {:computed, Where.value(ecto_query, expression, joined)}
     end
   end
 
-  defp apply_search(ecto_query, %Query{search: nil}, _schema), do: ecto_query
+  defp apply_search(ecto_query, %Query{search: nil}, _schema, _joined), do: ecto_query
 
-  defp apply_search(ecto_query, %Query{from: [], search: %{term: term}, resource: live_resource} = query, schema) do
+  defp apply_search(
+         ecto_query,
+         %Query{from: [], search: %{term: term}, resource: live_resource} = query,
+         schema,
+         joined
+       ) do
     case live_resource.config(:full_text_search) do
       nil ->
-        search_targets(ecto_query, query, schema)
+        search_targets(ecto_query, query, schema, joined)
 
       full_text_search ->
         schema_name = name_by_schema(schema)
@@ -595,22 +641,22 @@ defmodule Backpex.Adapters.Ecto do
     end
   end
 
-  defp apply_search(ecto_query, query, schema), do: search_targets(ecto_query, query, schema)
+  defp apply_search(ecto_query, query, schema, joined), do: search_targets(ecto_query, query, schema, joined)
 
   # An item matches if any target contains the search term, ignoring the case.
-  defp search_targets(ecto_query, %Query{search: %{targets: []}}, _schema), do: ecto_query
+  defp search_targets(ecto_query, %Query{search: %{targets: []}}, _schema, _joined), do: ecto_query
 
-  defp search_targets(ecto_query, %Query{search: %{term: term, targets: targets}} = query, schema) do
+  defp search_targets(ecto_query, %Query{search: %{term: term, targets: targets}} = query, schema, joined) do
     pattern = "%#{term}%"
 
     # A field contains the term, any other target is a condition of its own.
     {conditions, ecto_query} =
       Enum.map_reduce(targets, ecto_query, fn
         %Ref{} = ref, ecto_query ->
-          ref_search(ecto_query, query, ref, schema, pattern)
+          ref_search(ecto_query, query, ref, schema, pattern, joined)
 
         condition, ecto_query ->
-          {ecto_query, condition} = Where.value(ecto_query, condition)
+          {ecto_query, condition} = Where.value(ecto_query, condition, joined)
           {condition, ecto_query}
       end)
 
@@ -620,8 +666,8 @@ defmodule Backpex.Adapters.Ecto do
   end
 
   # Searches the column of a ref, cast to text unless it is a string, or a computed value as text.
-  defp ref_search(ecto_query, query, %Ref{path: path, name: name} = ref, schema, pattern) do
-    case resolve(ecto_query, query, ref) do
+  defp ref_search(ecto_query, query, %Ref{path: path, name: name} = ref, schema, pattern, joined) do
+    case resolve(ecto_query, query, ref, joined) do
       {:column, {ecto_query, column}} ->
         if string_field?(path_queryable(schema, path), name),
           do: {dynamic(ilike(^column, ^pattern)), ecto_query},
@@ -636,11 +682,11 @@ defmodule Backpex.Adapters.Ecto do
     Enum.reduce(path, schema, fn name, schema -> related_queryable(schema, fetch_association!(schema, {name, %{}})) end)
   end
 
-  defp apply_sorts(ecto_query, %Query{} = query, schema) do
+  defp apply_sorts(ecto_query, %Query{} = query, schema, joined) do
     query
     |> Query.sorts()
     |> Enum.reduce(ecto_query, fn {ref, direction}, ecto_query ->
-      case resolve(ecto_query, query, ref) do
+      case resolve(ecto_query, query, ref, joined) do
         {:column, {ecto_query, column}} ->
           order_by(ecto_query, ^[{column_direction(ref, direction, schema), column}])
 

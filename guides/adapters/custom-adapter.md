@@ -118,7 +118,8 @@ The write callbacks only return errors, as Backpex never calls them: `Backpex.Au
 
 To run parts of the query in the data source, e.g. a filter in the query string of an HTTP API, list them in the
 `:supports` option of `use Backpex.Adapter` or implement `c:Backpex.Adapter.supports?/2`. Backpex then leaves them to
-the adapter: `:filter` (with `{:filter, operator}` for single operators such as `:contains` or `:exists`), `:search`,
+the adapter: `:filter` (with `{:filter, operator}` for single operators such as `:contains`, `:exists` or `:aggregate`,
+an aggregate of related items in a filter), `:search`,
 `:sort`, `:offset`, `:limit`, `:count` and `:aggregate`. `:insert`, `:update` and `:delete` enable the writes.
 `supports: :all` stands for all of them. A part the adapter
 doesn't support, and every part that depends on it, is applied in memory. For example, an adapter that sorts but can't
