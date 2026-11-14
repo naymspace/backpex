@@ -53,9 +53,11 @@ defmodule Backpex.Metric do
   alias Phoenix.LiveView.Rendered
 
   @typedoc """
-  The aggregate a metric computes, see the [Aggregates](#module-aggregates) section.
+  The aggregate a metric computes, see the [Aggregates](#module-aggregates) section. A native expression of the adapter
+  (`Backpex.Expr.native/3`) stands for a whole aggregate, e.g. an aggregate function in SQL.
   """
-  @type aggregate :: :count | {:count | :sum | :avg | :min | :max, atom() | Backpex.Expr.t()}
+  @type aggregate ::
+          :count | {:count | :sum | :avg | :min | :max, atom() | Backpex.Expr.t()} | Backpex.Expr.Native.t()
 
   @doc """
   Used to render the metric as a heex template on the index views.
