@@ -39,15 +39,25 @@ defmodule Backpex.Adapter do
 
       @behaviour Backpex.Adapter
 
+      @impl Backpex.Adapter
       def validate_config!(config) do
         NimbleOptions.validate!(config, @config_schema)
       end
 
+      @impl Backpex.Adapter
       def field_config_schema, do: @field_config_schema
 
       defoverridable field_config_schema: 0
     end
   end
+
+  @doc """
+  Validates the `:adapter_config` of a LiveResource and returns it, or raises if it is invalid.
+
+  `use Backpex.LiveResource` calls it at compile time. `use Backpex.Adapter` defines it and validates the configuration
+  against the `:config_schema` option.
+  """
+  @callback validate_config!(config :: keyword()) :: keyword()
 
   @doc """
   Returns the `NimbleOptions` schema of the options the adapter adds to every field, e.g. `:select` of

@@ -5,6 +5,7 @@ defmodule Backpex.Filters.RangeTest do
   import Ecto.Query, only: [from: 1]
 
   alias Backpex.Filters.Range, as: RangeFilter
+  alias Backpex.Test.NotLoadedLiveResource
 
   doctest RangeFilter
 
@@ -178,6 +179,17 @@ defmodule Backpex.Filters.RangeTest do
       result = number_changeset(:quantity, %{"start" => "10", "end" => "100"}, @assigns)
 
       assert result.valid?
+    end
+
+    test "returns error for a decimal value on an integer field of a LiveResource that is not loaded yet" do
+      :code.purge(NotLoadedLiveResource)
+      :code.delete(NotLoadedLiveResource)
+      :code.purge(NotLoadedLiveResource)
+      refute :code.is_loaded(NotLoadedLiveResource)
+
+      result = number_changeset(:quantity, %{"start" => "1.5", "end" => "100"}, %{live_resource: NotLoadedLiveResource})
+
+      refute result.valid?
     end
 
     for value <- ["1.5", "5.0", "1e2"] do
