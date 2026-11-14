@@ -373,9 +373,11 @@ defmodule Backpex.FieldTest do
       end
       """
 
-      assert_raise CompileError, ~r/defines before_changeset\/6, but the callback no longer receives the repo/, fn ->
-        Code.compile_string(code)
-      end
+      assert_raise CompileError,
+                   ~r/defines before_changeset\/6, but the callback no longer receives the repo.*upgrading to v0\.25/s,
+                   fn ->
+                     Code.compile_string(code)
+                   end
     end
   end
 

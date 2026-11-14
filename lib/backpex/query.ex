@@ -331,10 +331,12 @@ defmodule Backpex.Query do
   of an adapter that doesn't run these parts itself (see `c:Backpex.Adapter.supports?/2`).
 
   Expressions follow the rules of SQL: a comparison with `nil` keeps no item, not even negated, see `Backpex.Expr`.
-  Paths such as `author.name` and `exists/2` read the relationships in the items, so they have to be loaded. The search
-  keeps the items that contain the term in any target, ignoring the case. Sorts put `nil` last when ascending and first
-  when descending, unless their direction says otherwise. Strings sort by their code points, so `"B"` comes before
-  `"a"`. Raises for `Backpex.Expr.Native` expressions.
+  Paths such as `author.name` and `exists/2` read the relationships in the items, so they have to be loaded: it raises
+  for an item without the relationship, or with a related item without the field. Comparisons of values of different
+  types raise, too, except for numbers and decimals. The search keeps the items that contain the term in any target,
+  ignoring the case. Sorts put `nil` last when ascending and first when descending, unless their direction says
+  otherwise. Strings sort by their code points, so `"B"` comes before `"a"`. Raises for `Backpex.Expr.Native`
+  expressions.
 
       iex> items = [%{title: "Elixir", likes: 3}, %{title: "Erlang", likes: nil}, %{title: "Gleam", likes: 5}]
       iex> Backpex.Query.new(MyApp.PostLive)

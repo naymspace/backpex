@@ -1053,7 +1053,7 @@ defmodule Backpex.LiveResource do
         do: module.display_field(field) || name,
         else: Map.get(field_options, :display_field, name)
 
-    if function_exported?(module, :association?, 1) and module.association?(field),
+    if Code.ensure_loaded?(module) and function_exported?(module, :association?, 1) and module.association?(field),
       do: Backpex.Expr.ref([name], display_field),
       else: Backpex.Expr.ref(display_field)
   end

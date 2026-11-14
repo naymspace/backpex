@@ -50,6 +50,23 @@ defmodule Backpex.Integration.Options.ScopeTest do
       |> visit(~p"/admin/scoped-posts/#{published.id}/show")
       |> assert_has("dd", text: "Published post")
     end
+
+    test "applies when the LiveResource is not loaded yet", %{published: published, draft: draft} do
+      live_resource = Backpex.Test.ScopedPostLive
+
+      unload = fn ->
+        :code.purge(live_resource)
+        :code.delete(live_resource)
+        refute :code.is_loaded(live_resource)
+      end
+
+      unload.()
+      assert {:ok, nil} = Backpex.Resource.get(draft.id, [], %{}, live_resource)
+
+      unload.()
+      assert {:ok, [item]} = [] |> Backpex.Resource.items_query(%{}, live_resource) |> Backpex.Resource.read()
+      assert item.id == published.id
+    end
   end
 
   describe "options_sort" do

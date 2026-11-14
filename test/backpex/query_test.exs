@@ -223,6 +223,110 @@ defmodule Backpex.QueryTest do
       assert ArticleLive |> Query.new() |> Query.sort(id: :desc) |> Query.offset(1) |> Query.limit(1) |> ids() == [2]
     end
 
+    defmodule NotLoaded do
+      @moduledoc false
+      # Stands for the placeholder a data source puts into an item for a relationship that is not loaded.
+      defstruct [:name]
+    end
+
+    defp filter(expression), do: %{Query.new(ArticleLive) | filter: expression}
+
+    defp filtered(expression, items), do: expression |> filter() |> Query.apply_to(items) |> Enum.map(& &1.id)
+
+    # The function that applies the query, for `assert_raise/3`.
+    defp applying(query, items), do: fn -> Query.apply_to(query, items) end
+
+    test "raises for a relationship that is not loaded instead of taking it as empty" do
+      # Two items each, as one item is not sorted.
+      missing = [%{id: 1, title: "Elixir"}, %{id: 2, title: "Gleam"}]
+      placeholder = List.duplicate(%{id: 1, author: %NotLoaded{name: :author}, tags: %NotLoaded{name: :tags}}, 2)
+      nested = [%{id: 1, author: %{name: "Ann", team: %NotLoaded{name: :team}}, tags: [%{name: "fp"}]}]
+
+      expressions = [
+        expr(author.first_name == "Ann"),
+        expr(not (author.first_name == "Ann")),
+        expr(not exists(tags, label == "fp")),
+        expr(exists(tags.category, label == "fp"))
+      ]
+
+      sort = %{Query.new(ArticleLive) | sort: [{Expr.ref([:author], :first_name), :asc}]}
+      search = %{Query.new(ArticleLive) | search: %{term: "ann", targets: [Expr.ref([:author], :first_name)]}}
+
+      for query <- Enum.map(expressions, &filter/1) ++ [sort, search] do
+        assert_raise ArgumentError,
+                     ~r/can't read the relationship :(author|tags) of .* as it is not loaded.*Backpex.Adapter.read/s,
+                     applying(query, missing)
+
+        assert_raise ArgumentError,
+                     ~r/can't read .* of %[\w.]+NotLoaded{name: :(author|tags)}.*not loaded.*Backpex.Adapter.read/s,
+                     applying(query, placeholder)
+      end
+
+      assert_raise ArgumentError,
+                   ~r/can't read :label of %[\w.]+NotLoaded{name: :team}/,
+                   expr(author.team.label == "a") |> filter() |> applying(nested)
+    end
+
+    test "takes a field that is missing in a map as nil" do
+      assert filtered(expr(is_nil(subtitle))) == [1, 2, 3]
+      assert filtered(expr(is_nil(author.email))) == [1, 2, 3]
+    end
+
+    test "raises for a path through a relationship to many items" do
+      assert_raise ArgumentError,
+                   ~r/expected the relationship :tags to be one item or nil.*exists\/2/s,
+                   expr(tags.name == "fp") |> filter() |> applying(@items)
+    end
+
+    test "compares numbers and decimals by their value" do
+      items = [
+        %{id: 1, price: Decimal.new("2.5")},
+        %{id: 2, price: Decimal.new("100")},
+        %{id: 3, price: 7},
+        %{id: 4, price: 7.5},
+        %{id: 5, price: nil}
+      ]
+
+      assert filtered(expr(price > 5), items) == [2, 3, 4]
+      assert filtered(expr(price < 7.2), items) == [1, 3]
+      assert filtered(expr(price == ^Decimal.new("7.50")), items) == [4]
+      assert filtered(expr(price in [7, 100]), items) == [2, 3]
+
+      sorted = %{Query.new(ArticleLive) | sort: [{Expr.ref(:price), :asc}]}
+      assert sorted |> Query.apply_to(items) |> Enum.map(& &1.id) == [1, 3, 4, 2, 5]
+    end
+
+    test "raises for values of different types instead of comparing them by the term order" do
+      for expression <- [
+            expr(published < "2026-01-01"),
+            expr(published == ^~N[2026-01-02 00:00:00]),
+            expr(likes > "2"),
+            expr(title != :elixir),
+            expr(likes in ["3"])
+          ] do
+        assert_raise ArgumentError,
+                     ~r/can't compare .* with .*, as they are values of different types/,
+                     expression |> filter() |> applying(@items)
+      end
+
+      items = [%{id: 1, at: ~U[2026-01-02 00:00:00Z]}, %{id: 2, at: ~N[2026-01-01 00:00:00]}]
+      sort = %{Query.new(ArticleLive) | sort: [{Expr.ref(:at), :asc}]}
+
+      assert_raise ArgumentError, ~r/can't compare ~[UN]\[.* with ~[UN]\[/, applying(sort, items)
+    end
+
+    test "compares values of one type by the term order, structs with their compare/2" do
+      items = [
+        %{id: 1, state: :draft, public: false, on: ~D[2026-01-31]},
+        %{id: 2, state: :published, public: true, on: ~D[2026-02-01]}
+      ]
+
+      assert filtered(expr(state == :draft), items) == [1]
+      assert filtered(expr(public != false), items) == [2]
+      # The term order of dates compares the day before the month.
+      assert filtered(expr(on > ^~D[2026-01-31]), items) == [2]
+    end
+
     test "raises for a native expression" do
       query = %{Query.new(ArticleLive) | filter: Expr.native(Backpex.Adapters.Ecto, :fragment)}
 
@@ -265,6 +369,14 @@ defmodule Backpex.QueryTest do
       assert %{sum: sum, max: max} = Query.aggregate_items(query, items)
       assert Decimal.equal?(sum, "3.75")
       assert Decimal.equal?(max, "2.25")
+    end
+
+    test "finds the minimum and maximum of numbers and decimals by their value" do
+      query =
+        ArticleLive |> Query.new() |> Query.aggregate(:min, {:min, :price}) |> Query.aggregate(:max, {:max, :price})
+
+      assert Query.aggregate_items(query, [%{price: Decimal.new("2.5")}, %{price: 7}, %{price: 1.5}]) ==
+               %{min: 1.5, max: 7}
     end
   end
 end

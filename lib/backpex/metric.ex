@@ -86,7 +86,7 @@ defmodule Backpex.Metric do
           file: env.file,
           description: """
           #{inspect(env.module)} defines #{name}/#{arity}, but #{hint}. Implement Backpex.Metric.data/3 instead, see \
-          the guide on upgrading to v0.24.
+          the guide on upgrading to v0.25.
           """
       end
     end

@@ -69,8 +69,10 @@ defmodule Backpex.Resource do
     |> put_fields(fields)
   end
 
+  # `function_exported?/3` is false for a module that is not loaded yet, which would read the items without their scope.
   defp scope(live_resource, assigns) do
-    if function_exported?(live_resource, :scope, 1), do: live_resource.scope(assigns)
+    if Code.ensure_loaded?(live_resource) and function_exported?(live_resource, :scope, 1),
+      do: live_resource.scope(assigns)
   end
 
   defp put_fields(query, fields) do
@@ -156,10 +158,10 @@ defmodule Backpex.Resource do
       expression |> operators() |> Enum.all?(&supports?(adapter, live_resource, {:filter, &1}))
   end
 
+  # An adapter that doesn't say what it supports runs no part of a query, so nothing is left out by mistake.
   defp supports?(adapter, live_resource, feature) do
-    if Code.ensure_loaded?(adapter) and function_exported?(adapter, :supports?, 2),
-      do: adapter.supports?(live_resource, feature),
-      else: true
+    Code.ensure_loaded?(adapter) and function_exported?(adapter, :supports?, 2) and
+      adapter.supports?(live_resource, feature)
   end
 
   # The operators of an expression, e.g. `:==` or `:exists`. `and`, `or`, `not` and native expressions belong to every
@@ -307,14 +309,14 @@ defmodule Backpex.Resource do
       function_exported?(module, :query, 3) ->
         raise ArgumentError, """
         #{inspect(module)} implements query/3, but metrics no longer query their data. Implement \
-        Backpex.Metric.data/3 instead, see the guide on upgrading to v0.24.
+        Backpex.Metric.data/3 instead, see the guide on upgrading to v0.25.
         """
 
       # Backpex no longer calls `data/2` either, `data/3` also receives the query.
       function_exported?(module, :data, 2) ->
         raise ArgumentError, """
         #{inspect(module)} implements data/2, but Backpex calls Backpex.Metric.data/3 with the query of the index \
-        view. Implement data/3 instead, see the guide on upgrading to v0.24.
+        view. Implement data/3 instead, see the guide on upgrading to v0.25.
         """
 
       true ->
