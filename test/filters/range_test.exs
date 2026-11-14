@@ -31,26 +31,28 @@ defmodule Backpex.Filters.RangeTest do
     def label, do: "Likes"
   end
 
-  describe "condition/4 with :number type" do
+  describe "condition/3 with :number type" do
     test "returns nil when both start and end are empty" do
-      assert RangeFilter.condition(:number, :price, %{"start" => "", "end" => ""}, %{}) == nil
+      assert RangeFilter.condition({:price, %{type: :number}}, %{"start" => "", "end" => ""}, %{}) == nil
     end
 
     test "keeps the items from the start when only start is provided" do
-      assert RangeFilter.condition(:number, :price, %{"start" => "10", "end" => ""}, %{}) == expr(price >= 10)
+      assert RangeFilter.condition({:price, %{type: :number}}, %{"start" => "10", "end" => ""}, %{}) ==
+               expr(price >= 10)
     end
 
     test "keeps the items up to the end when only end is provided" do
-      assert RangeFilter.condition(:number, :price, %{"start" => "", "end" => "100"}, %{}) == expr(price <= 100)
+      assert RangeFilter.condition({:price, %{type: :number}}, %{"start" => "", "end" => "100"}, %{}) ==
+               expr(price <= 100)
     end
 
     test "keeps the items between start and end when both are provided" do
-      assert RangeFilter.condition(:number, :price, %{"start" => "10", "end" => "99.5"}, %{}) ==
+      assert RangeFilter.condition({:price, %{type: :number}}, %{"start" => "10", "end" => "99.5"}, %{}) ==
                expr(price >= 10 and price <= 99.5)
     end
 
     test "returns nil for a value without start and end" do
-      assert RangeFilter.condition(:number, :price, %{}, %{}) == nil
+      assert RangeFilter.condition({:price, %{type: :number}}, %{}, %{}) == nil
     end
   end
 
@@ -74,48 +76,48 @@ defmodule Backpex.Filters.RangeTest do
   defp number_changeset(field, value, assigns) do
     {%{}, %{field => :map}}
     |> Ecto.Changeset.cast(%{field => value}, [field])
-    |> RangeFilter.changeset(field, :number, assigns)
+    |> RangeFilter.changeset({field, %{type: :number}}, assigns)
   end
 
-  describe "condition/4 with :date type" do
+  describe "condition/3 with :date type" do
     test "returns nil when both start and end are empty" do
-      assert RangeFilter.condition(:date, :created_at, %{"start" => "", "end" => ""}, %{}) == nil
+      assert RangeFilter.condition({:created_at, %{type: :date}}, %{"start" => "", "end" => ""}, %{}) == nil
     end
 
     test "keeps the items from a valid start date" do
-      assert RangeFilter.condition(:date, :created_at, %{"start" => "2024-01-01", "end" => ""}, %{}) ==
+      assert RangeFilter.condition({:created_at, %{type: :date}}, %{"start" => "2024-01-01", "end" => ""}, %{}) ==
                expr(created_at >= "2024-01-01")
     end
 
     test "keeps the items up to a valid end date" do
-      assert RangeFilter.condition(:date, :created_at, %{"start" => "", "end" => "2024-12-31"}, %{}) ==
+      assert RangeFilter.condition({:created_at, %{type: :date}}, %{"start" => "", "end" => "2024-12-31"}, %{}) ==
                expr(created_at <= "2024-12-31")
     end
 
     test "returns nil for an invalid date format" do
       value = %{"start" => "not-a-date", "end" => "also-not-a-date"}
 
-      assert RangeFilter.condition(:date, :created_at, value, %{}) == nil
+      assert RangeFilter.condition({:created_at, %{type: :date}}, value, %{}) == nil
     end
   end
 
-  describe "condition/4 with :number type on an integer field" do
+  describe "condition/3 with :number type on an integer field" do
     test "ignores decimal boundaries" do
       for value <- ["1.5", "5.0", "1e2"] do
-        assert RangeFilter.condition(:number, :quantity, %{"start" => value, "end" => "10"}, @assigns) ==
+        assert RangeFilter.condition({:quantity, %{type: :number}}, %{"start" => value, "end" => "10"}, @assigns) ==
                  expr(quantity <= 10)
       end
     end
 
     test "keeps integer boundaries" do
-      assert RangeFilter.condition(:number, :quantity, %{"start" => "2", "end" => "10"}, @assigns) ==
+      assert RangeFilter.condition({:quantity, %{type: :number}}, %{"start" => "2", "end" => "10"}, @assigns) ==
                expr(quantity >= 2 and quantity <= 10)
     end
   end
 
   describe "filter validation and condition on an integer field" do
     test "a decimal value is invalid and not applied to the query" do
-      filter_configs = [quantity: %{module: QuantityRange}]
+      filter_configs = [Backpex.Filter.validate_config!({:quantity, %{module: QuantityRange}}, __MODULE__)]
       params = %{"quantity" => %{"start" => "1.5", "end" => ""}}
 
       changeset = Backpex.FilterValidation.build_changeset(params, filter_configs, @assigns)
@@ -128,24 +130,30 @@ defmodule Backpex.Filters.RangeTest do
     end
   end
 
-  describe "condition/4 with :datetime type" do
+  describe "condition/3 with :datetime type" do
     test "returns nil when both start and end are empty" do
-      assert RangeFilter.condition(:datetime, :updated_at, %{"start" => "", "end" => ""}, %{}) == nil
+      assert RangeFilter.condition({:updated_at, %{type: :datetime}}, %{"start" => "", "end" => ""}, %{}) == nil
     end
 
     test "keeps the items from the start of the start date" do
-      assert RangeFilter.condition(:datetime, :updated_at, %{"start" => "2024-01-01", "end" => ""}, %{}) ==
+      assert RangeFilter.condition({:updated_at, %{type: :datetime}}, %{"start" => "2024-01-01", "end" => ""}, %{}) ==
                expr(updated_at >= "2024-01-01T00:00:00+00:00")
     end
 
     test "keeps the items up to the end of the end date" do
-      assert RangeFilter.condition(:datetime, :updated_at, %{"start" => "", "end" => "2024-12-31"}, %{}) ==
+      assert RangeFilter.condition({:updated_at, %{type: :datetime}}, %{"start" => "", "end" => "2024-12-31"}, %{}) ==
                expr(updated_at <= "2024-12-31T23:59:59+00:00")
     end
   end
 
   test "is the condition of a filter module, with its type" do
-    assert LikeRange.condition(:likes, %{"start" => "5", "end" => ""}, %{}) == expr(likes >= 5)
+    filter = Backpex.Filter.validate_config!({:likes, %{module: LikeRange}}, __MODULE__)
+
+    assert LikeRange.condition(
+             filter,
+             %{"start" => "5", "end" => ""},
+             %{}
+           ) == expr(likes >= 5)
   end
 
   describe "changeset/3 with :number type" do
@@ -154,7 +162,7 @@ defmodule Backpex.Filters.RangeTest do
         {%{}, %{amount: :map}}
         |> Ecto.Changeset.cast(%{amount: %{"start" => "10", "end" => "100"}}, [:amount])
 
-      result = RangeFilter.changeset(changeset, :amount, :number)
+      result = RangeFilter.changeset(changeset, {:amount, %{type: :number}}, %{})
 
       assert result.valid?
     end
@@ -164,7 +172,7 @@ defmodule Backpex.Filters.RangeTest do
         {%{}, %{amount: :map}}
         |> Ecto.Changeset.cast(%{amount: %{"start" => "10.5", "end" => "100.75"}}, [:amount])
 
-      result = RangeFilter.changeset(changeset, :amount, :number)
+      result = RangeFilter.changeset(changeset, {:amount, %{type: :number}}, %{})
 
       assert result.valid?
     end
@@ -213,7 +221,7 @@ defmodule Backpex.Filters.RangeTest do
         {%{}, %{amount: :map}}
         |> Ecto.Changeset.cast(%{amount: %{"start" => "not-a-number", "end" => "100"}}, [:amount])
 
-      result = RangeFilter.changeset(changeset, :amount, :number)
+      result = RangeFilter.changeset(changeset, {:amount, %{type: :number}}, %{})
 
       refute result.valid?
       assert Keyword.has_key?(result.errors, :amount)
@@ -224,7 +232,7 @@ defmodule Backpex.Filters.RangeTest do
         {%{}, %{amount: :map}}
         |> Ecto.Changeset.cast(%{amount: %{"start" => "10", "end" => "abc"}}, [:amount])
 
-      result = RangeFilter.changeset(changeset, :amount, :number)
+      result = RangeFilter.changeset(changeset, {:amount, %{type: :number}}, %{})
 
       refute result.valid?
       assert Keyword.has_key?(result.errors, :amount)
@@ -235,7 +243,7 @@ defmodule Backpex.Filters.RangeTest do
         {%{}, %{amount: :map}}
         |> Ecto.Changeset.cast(%{amount: %{"start" => "100", "end" => "10"}}, [:amount])
 
-      result = RangeFilter.changeset(changeset, :amount, :number)
+      result = RangeFilter.changeset(changeset, {:amount, %{type: :number}}, %{})
 
       refute result.valid?
       assert Keyword.has_key?(result.errors, :amount)
@@ -246,7 +254,7 @@ defmodule Backpex.Filters.RangeTest do
         {%{}, %{amount: :map}}
         |> Ecto.Changeset.cast(%{amount: %{"start" => "10", "end" => ""}}, [:amount])
 
-      result = RangeFilter.changeset(changeset, :amount, :number)
+      result = RangeFilter.changeset(changeset, {:amount, %{type: :number}}, %{})
 
       assert result.valid?
     end
@@ -256,7 +264,7 @@ defmodule Backpex.Filters.RangeTest do
         {%{}, %{amount: :map}}
         |> Ecto.Changeset.cast(%{amount: %{"start" => "", "end" => "100"}}, [:amount])
 
-      result = RangeFilter.changeset(changeset, :amount, :number)
+      result = RangeFilter.changeset(changeset, {:amount, %{type: :number}}, %{})
 
       assert result.valid?
     end
@@ -266,19 +274,33 @@ defmodule Backpex.Filters.RangeTest do
         {%{}, %{amount: :map}}
         |> Ecto.Changeset.cast(%{amount: %{"start" => "", "end" => ""}}, [:amount])
 
-      result = RangeFilter.changeset(changeset, :amount, :number)
+      result = RangeFilter.changeset(changeset, {:amount, %{type: :number}}, %{})
 
       assert result.valid?
     end
   end
 
   describe "changeset/3 with :date type" do
+    test "validates a range of Date boundaries, as presets return them" do
+      changeset =
+        {%{}, %{date_range: :map}}
+        |> Ecto.Changeset.cast(%{date_range: %{"start" => ~D[2024-01-01], "end" => ~D[2024-12-31]}}, [:date_range])
+
+      assert RangeFilter.changeset(changeset, {:date_range, %{type: :date}}, %{}).valid?
+    end
+
+    test "leaves a value that is not a range to its type" do
+      changeset = {%{}, %{date_range: :string}} |> Ecto.Changeset.cast(%{date_range: "2024"}, [:date_range])
+
+      assert RangeFilter.changeset(changeset, {:date_range, %{type: :date}}, %{}).valid?
+    end
+
     test "validates valid date range" do
       changeset =
         {%{}, %{date_range: :map}}
         |> Ecto.Changeset.cast(%{date_range: %{"start" => "2024-01-01", "end" => "2024-12-31"}}, [:date_range])
 
-      result = RangeFilter.changeset(changeset, :date_range, :date)
+      result = RangeFilter.changeset(changeset, {:date_range, %{type: :date}}, %{})
 
       assert result.valid?
     end
@@ -288,7 +310,7 @@ defmodule Backpex.Filters.RangeTest do
         {%{}, %{date_range: :map}}
         |> Ecto.Changeset.cast(%{date_range: %{"start" => "not-a-date", "end" => "2024-12-31"}}, [:date_range])
 
-      result = RangeFilter.changeset(changeset, :date_range, :date)
+      result = RangeFilter.changeset(changeset, {:date_range, %{type: :date}}, %{})
 
       refute result.valid?
       assert Keyword.has_key?(result.errors, :date_range)
@@ -299,7 +321,7 @@ defmodule Backpex.Filters.RangeTest do
         {%{}, %{date_range: :map}}
         |> Ecto.Changeset.cast(%{date_range: %{"start" => "2024-01-01", "end" => "invalid"}}, [:date_range])
 
-      result = RangeFilter.changeset(changeset, :date_range, :date)
+      result = RangeFilter.changeset(changeset, {:date_range, %{type: :date}}, %{})
 
       refute result.valid?
       assert Keyword.has_key?(result.errors, :date_range)
@@ -310,7 +332,7 @@ defmodule Backpex.Filters.RangeTest do
         {%{}, %{date_range: :map}}
         |> Ecto.Changeset.cast(%{date_range: %{"start" => "2024-12-31", "end" => "2024-01-01"}}, [:date_range])
 
-      result = RangeFilter.changeset(changeset, :date_range, :date)
+      result = RangeFilter.changeset(changeset, {:date_range, %{type: :date}}, %{})
 
       refute result.valid?
       assert Keyword.has_key?(result.errors, :date_range)
@@ -321,7 +343,7 @@ defmodule Backpex.Filters.RangeTest do
         {%{}, %{date_range: :map}}
         |> Ecto.Changeset.cast(%{date_range: %{"start" => "2024-06-15", "end" => "2024-06-15"}}, [:date_range])
 
-      result = RangeFilter.changeset(changeset, :date_range, :date)
+      result = RangeFilter.changeset(changeset, {:date_range, %{type: :date}}, %{})
 
       assert result.valid?
     end
@@ -331,7 +353,7 @@ defmodule Backpex.Filters.RangeTest do
         {%{}, %{date_range: :map}}
         |> Ecto.Changeset.cast(%{date_range: %{"start" => "2024-01-01", "end" => ""}}, [:date_range])
 
-      result = RangeFilter.changeset(changeset, :date_range, :date)
+      result = RangeFilter.changeset(changeset, {:date_range, %{type: :date}}, %{})
 
       assert result.valid?
     end
@@ -341,7 +363,7 @@ defmodule Backpex.Filters.RangeTest do
         {%{}, %{date_range: :map}}
         |> Ecto.Changeset.cast(%{date_range: %{"start" => "", "end" => "2024-12-31"}}, [:date_range])
 
-      result = RangeFilter.changeset(changeset, :date_range, :date)
+      result = RangeFilter.changeset(changeset, {:date_range, %{type: :date}}, %{})
 
       assert result.valid?
     end
@@ -353,7 +375,7 @@ defmodule Backpex.Filters.RangeTest do
         {%{}, %{datetime_range: :map}}
         |> Ecto.Changeset.cast(%{datetime_range: %{"start" => "2024-01-01", "end" => "2024-12-31"}}, [:datetime_range])
 
-      result = RangeFilter.changeset(changeset, :datetime_range, :datetime)
+      result = RangeFilter.changeset(changeset, {:datetime_range, %{type: :datetime}}, %{})
 
       assert result.valid?
     end
@@ -363,7 +385,7 @@ defmodule Backpex.Filters.RangeTest do
         {%{}, %{datetime_range: :map}}
         |> Ecto.Changeset.cast(%{datetime_range: %{"start" => "invalid", "end" => "2024-12-31"}}, [:datetime_range])
 
-      result = RangeFilter.changeset(changeset, :datetime_range, :datetime)
+      result = RangeFilter.changeset(changeset, {:datetime_range, %{type: :datetime}}, %{})
 
       refute result.valid?
       assert Keyword.has_key?(result.errors, :datetime_range)
@@ -374,7 +396,7 @@ defmodule Backpex.Filters.RangeTest do
         {%{}, %{datetime_range: :map}}
         |> Ecto.Changeset.cast(%{datetime_range: %{"start" => "2024-12-31", "end" => "2024-01-01"}}, [:datetime_range])
 
-      result = RangeFilter.changeset(changeset, :datetime_range, :datetime)
+      result = RangeFilter.changeset(changeset, {:datetime_range, %{type: :datetime}}, %{})
 
       refute result.valid?
       assert Keyword.has_key?(result.errors, :datetime_range)
