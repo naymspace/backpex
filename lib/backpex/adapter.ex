@@ -68,7 +68,9 @@ defmodule Backpex.Adapter do
   The features are:
 
     * `:filter` - the `:filter` of a query. Backpex also asks for `{:filter, operator}` with the operators of the
-      expression, e.g. `{:filter, :contains}` or `{:filter, :exists}`, see `Backpex.Expr`.
+      expression, e.g. `{:filter, :contains}` or `{:filter, :exists}`, see `Backpex.Expr`. An aggregate of related
+      items in a filter (see `Backpex.Expr.aggregate/3`) is the operator `{:filter, :aggregate}`, next to the operators
+      of its `:value` and its `:where`.
     * `:search`, `:sort`, `:offset` and `:limit` - these parts of a query.
     * `:computed` - the `:computed` values of a query. Backpex computes them before every other part.
     * `:load` - the relationships of the `:load` of a query.

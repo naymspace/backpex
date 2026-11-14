@@ -584,6 +584,89 @@ defmodule Backpex.ResourceTest do
       assert {:ok, [%{id: 2}]} = Resource.read(query)
       assert_received {:read, %Query{filter: nil, sort: []}}
     end
+
+    test "asks for {:filter, :aggregate} and the operators in an aggregate of a filter" do
+      defmodule GreaterAdapter do
+        @moduledoc false
+        use Backpex.Adapter, supports: [{:filter, :>}, :sort]
+
+        def read(query) do
+          send(self(), {:read, query})
+          {:ok, [%{id: 1, tags: [%{name: "fp"}, %{name: "new"}]}, %{id: 2, tags: [%{name: "fp"}]}, %{id: 3, tags: []}]}
+        end
+      end
+
+      defmodule GreaterAggregateAdapter do
+        @moduledoc false
+        use Backpex.Adapter, supports: [{:filter, :>}, {:filter, :aggregate}]
+
+        defdelegate read(query), to: GreaterAdapter
+      end
+
+      defmodule GreaterLive do
+        @moduledoc false
+        def config(:adapter), do: GreaterAdapter
+      end
+
+      defmodule GreaterAggregateLive do
+        @moduledoc false
+        def config(:adapter), do: GreaterAggregateAdapter
+      end
+
+      # Built without `Backpex.Query.filter/2`, as these adapters describe no relationships to cast with.
+      tag_count = Backpex.Expr.aggregate(:count, :tags)
+      new_tag_count = Backpex.Expr.aggregate(:count, :tags, where: expr(name == "new"))
+
+      # The adapter that doesn't support aggregates gets no filter and loads the tags, Backpex filters in memory.
+      query = %{Query.new(GreaterLive) | filter: expr(^tag_count > 1)}
+
+      assert {:ok, [%{id: 1}]} = Resource.read(query)
+      assert_received {:read, %Query{filter: nil, load: [:tags]}}
+
+      assert Resource.read(%{Query.new(GreaterAggregateLive) | filter: expr(^tag_count > 0)}) |> elem(1) |> length() ==
+               3
+
+      assert_received {:read, %Query{filter: %Call{name: :>}, load: []}}
+
+      # `==` in the `:where` of the aggregate is an operator of the filter, too.
+      assert {:ok, [%{id: 1}]} = Resource.read(%{Query.new(GreaterAggregateLive) | filter: expr(^new_tag_count > 0)})
+      assert_received {:read, %Query{filter: nil, load: [:tags]}}
+    end
+
+    test "loads the relationships the values of aggregates in memory read" do
+      defmodule NoAggregateAdapter do
+        @moduledoc false
+        use Backpex.Adapter, supports: []
+
+        def read(query) do
+          send(self(), {:read, query})
+
+          {:ok,
+           [
+             %{id: 1, author: %{rating: 2}, comments: [%{likes: 1}, %{likes: 5}], tags: [%{name: "fp"}]},
+             %{id: 2, author: %{rating: 3}, comments: [%{likes: 2}], tags: []}
+           ]}
+        end
+      end
+
+      defmodule NoAggregateLive do
+        @moduledoc false
+        def config(:adapter), do: NoAggregateAdapter
+      end
+
+      # Built without `Backpex.Query.aggregate/4`, as this adapter describes no relationships to cast with.
+      aggregates = [
+        %{name: :rating, aggregate: {:sum, expr(author.rating)}, where: nil},
+        %{name: :comments, aggregate: {:sum, Backpex.Expr.aggregate(:count, :comments)}, where: nil},
+        %{name: :tagged, aggregate: :count, where: expr(exists(tags, name == "fp"))}
+      ]
+
+      query = %{Query.new(NoAggregateLive) | aggregates: aggregates}
+
+      assert Resource.aggregate(query) == {:ok, %{rating: 5, comments: 3, tagged: 1}}
+      assert_received {:read, %Query{load: load}}
+      assert Enum.sort(load) == [:author, :comments, :tags]
+    end
   end
 
   describe "read/1 and count/1" do

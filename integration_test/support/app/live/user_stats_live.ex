@@ -1,7 +1,8 @@
 defmodule Backpex.Test.UserStatsLive do
   @moduledoc """
   Users with computed values of their posts: aggregates over a relationship to many items, with a `:where`, a `:value`
-  and a `:sort`, over the path `posts.tags`, aggregates that share a join and arithmetic of aggregates.
+  and a `:sort`, over the path `posts.tags`, aggregates that share a join and arithmetic of aggregates. Its filter and
+  its metric read aggregates that only differ in their value from a computed one.
   """
   use Backpex.LiveResource,
     adapter_config: [
@@ -34,6 +35,22 @@ defmodule Backpex.Test.UserStatsLive do
       top_post_likes: aggregate(:first, :posts, value: expr(likes), sort: [likes: :desc]),
       draft_count: expr(^aggregate(:count, :posts) - ^aggregate(:count, :posts, where: expr(published == true))),
       first_tag: aggregate(:first, [:posts, :tags], value: expr(name), sort: [name: :asc])
+    ]
+  end
+
+  @impl Backpex.LiveResource
+  def filters, do: [top_post: %{module: Backpex.Test.Filters.UserTopPostPublished, label: "Top post"}]
+
+  @impl Backpex.LiveResource
+  def metrics do
+    [
+      doubled_likes: %{
+        module: Backpex.Metrics.Value,
+        label: "Doubled likes",
+        # Shares the join of `total_likes`.
+        aggregate: {:sum, aggregate(:sum, :posts, value: expr(likes * 2))},
+        format: &to_string/1
+      }
     ]
   end
 

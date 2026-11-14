@@ -7,6 +7,8 @@ defmodule Backpex.AdapterBoundaryTest do
 
   @adapter_paths ["lib/backpex/adapters/", "lib/backpex/preferences/adapters/"]
 
+  @schema_keys [:__schema__, :__struct__, :__meta__, :__changeset__]
+
   @template_violation ~r/\b(adapter_config|__schema__|__struct__)\b|\bEcto\.(?!Changeset)|\bPostgrex\b|\bBackpex\.Adapters\.|\brepo\./
 
   test "only adapters build queries, call a repo or inspect schemas" do
@@ -41,6 +43,12 @@ defmodule Backpex.AdapterBoundaryTest do
         match?(%Postgrex.Error{}, error)
         Ecto.Changeset.change(schema.__struct__())
         ~H"<p>{@live_resource.adapter_config(:schema)}</p>"
+        is_struct(error, Ecto.Association.NotLoaded) or live_resource.config(:adapter) == Backpex.Adapters.Ecto
+        function_exported?(schema, :__schema__, 1) and apply(schema, :__schema__, [:fields])
+        match?(%{__struct__: _schema, __meta__: _meta}, error)
+        live_resource.config.repo.all(schema)
+        other_repo = repo
+        other_repo.all(Ecto.Changeset.apply_changes(error))
       end
     end
     '''
@@ -57,7 +65,15 @@ defmodule Backpex.AdapterBoundaryTest do
                "16: uses Ecto.Type",
                "18: uses Postgrex.Error",
                "19: inspects a schema with __struct__",
-               "20: mentions adapter_config in a template"
+               "20: mentions adapter_config in a template",
+               "21: uses Backpex.Adapters.Ecto",
+               "21: uses Ecto.Association.NotLoaded",
+               "22: inspects a schema with __schema__",
+               "22: inspects a schema with __schema__",
+               "23: inspects a schema with __meta__",
+               "23: inspects a schema with __struct__",
+               "24: calls a repo",
+               "26: calls a repo"
              ]
   end
 
@@ -76,7 +92,7 @@ defmodule Backpex.AdapterBoundaryTest do
         node, violations -> {node, node_violations(node) ++ violations}
       end)
       |> elem(1)
-      |> Enum.sort_by(fn {line, _message} -> line end)
+      |> Enum.sort()
       |> Enum.map(fn {line, message} -> "#{path}:#{line}: #{message}" end)
     end
   end
@@ -87,26 +103,32 @@ defmodule Backpex.AdapterBoundaryTest do
     |> Enum.map(&{meta[:line], &1})
   end
 
-  defp node_violations({directive, meta, [{:__aliases__, _meta, parts} | _rest]})
-       when directive in [:import, :alias, :require, :use] do
-    module_violations(parts, meta)
+  # A module wherever it is named: in a directive, a struct, a call or as a value, e.g. `is_struct(item, Ecto.Schema)`.
+  defp node_violations({:__aliases__, meta, parts}), do: module_violations(parts, meta)
+
+  # The keys of a schema in a map, e.g. the pattern `%{__struct__: schema}`.
+  defp node_violations({:%{}, meta, pairs}) when is_list(pairs) do
+    for {key, _value} <- pairs, key in @schema_keys, do: {meta[:line], "inspects a schema with #{key}"}
   end
 
-  defp node_violations({:%, meta, [{:__aliases__, _meta, parts}, _fields]}) do
-    module_violations(parts, meta)
-  end
-
-  defp node_violations({{:., meta, [receiver, function]}, _call_meta, _args}) when is_atom(function) do
+  defp node_violations({{:., meta, [receiver, function]}, _call_meta, args}) when is_atom(function) do
     cond do
-      function in [:__schema__, :__struct__] -> [{meta[:line], "inspects a schema with #{function}"}]
+      function in @schema_keys -> [{meta[:line], "inspects a schema with #{function}"}]
       function == :adapter_config -> [{meta[:line], "reads the adapter config"}]
       repo?(receiver) -> [{meta[:line], "calls a repo"}]
-      match?({:__aliases__, _meta, _parts}, receiver) -> module_violations(elem(receiver, 2), meta)
-      true -> []
+      true -> argument_violations(args, meta)
     end
   end
 
+  defp node_violations({function, meta, args}) when is_atom(function) and function != :. and is_list(args),
+    do: argument_violations(args, meta)
+
   defp node_violations(_node), do: []
+
+  # The name of a function of a schema as an argument, e.g. `function_exported?(schema, :__schema__, 1)`.
+  defp argument_violations(args, meta) do
+    for arg <- args, arg in @schema_keys, do: {meta[:line], "inspects a schema with #{arg}"}
+  end
 
   defp module_violations(parts, meta) do
     if forbidden_module?(parts), do: [{meta[:line], "uses #{Enum.join(parts, ".")}"}], else: []
@@ -118,9 +140,13 @@ defmodule Backpex.AdapterBoundaryTest do
   defp forbidden_module?([:Backpex, :Adapters | _rest]), do: true
   defp forbidden_module?(_parts), do: false
 
-  defp repo?({:repo, _meta, context}) when is_atom(context), do: true
+  # A variable or a field named `repo` or `..._repo`, e.g. `config.repo`, or a module named `Repo`.
+  defp repo?({name, _meta, context}) when is_atom(name) and is_atom(context), do: repo_name?(name)
+  defp repo?({{:., _meta, [_receiver, name]}, _call_meta, []}) when is_atom(name), do: repo_name?(name)
   defp repo?({:__aliases__, _meta, parts}), do: List.last(parts) == :Repo
   defp repo?(_receiver), do: false
+
+  defp repo_name?(name), do: name == :repo or name |> Atom.to_string() |> String.ends_with?("_repo")
 
   defp template_violations(template, path, line) do
     @template_violation

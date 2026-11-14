@@ -66,6 +66,18 @@ e.g. `expr(author.name)`. `Backpex.Adapters.Ecto` joins a subquery of the values
 duplicate items. Aggregates that only differ in their `:value`, e.g. the title and the likes of the top post, share
 one subquery. The index view sorts by aggregates and searches them like any other computed value.
 
+The subquery of an aggregate is not limited to the items of the page or of a filter: on every read, it aggregates the
+related items of all items. If that is too slow for a very large table of related items, a native value (see below)
+can select a correlated subquery instead, which only reads the related items of one item:
+
+```elixir
+post_count:
+  Backpex.Expr.native(
+    Backpex.Adapters.Ecto,
+    dynamic([user: u], fragment("(SELECT count(*) FROM posts WHERE posts.user_id = ?)", u.id))
+  )
+```
+
 ## Values of the database
 
 A value the expressions can't describe, e.g. a fragment of SQL, is a native expression of the adapter (see

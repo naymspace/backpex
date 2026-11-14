@@ -47,6 +47,7 @@ defmodule Backpex.Resource do
   """
 
   alias Backpex.Authorization
+  alias Backpex.Expr.Aggregate
   alias Backpex.Expr.Call
   alias Backpex.Expr.Exists
   alias Backpex.Expr.Ref
@@ -181,8 +182,8 @@ defmodule Backpex.Resource do
       else: true
   end
 
-  # The operators of an expression, e.g. `:==` or `:exists`. `and`, `or`, `not` and native expressions belong to every
-  # filter.
+  # The operators of an expression, e.g. `:==`, `:exists` or `:aggregate`. `and`, `or`, `not` and native expressions
+  # belong to every filter.
   defp operators(%Call{name: name, args: args}) do
     operators = Enum.flat_map(args, &operators/1)
 
@@ -190,6 +191,9 @@ defmodule Backpex.Resource do
   end
 
   defp operators(%Exists{where: where}), do: [:exists | operators(where)]
+
+  defp operators(%Aggregate{value: value, where: where}), do: [:aggregate | operators(value) ++ operators(where)]
+
   defp operators(_expression), do: []
 
   # The relationships the parts in memory read, which the adapter has to load into the items.
@@ -211,7 +215,7 @@ defmodule Backpex.Resource do
   defp paths(%Exists{path: path, where: where}), do: [path | where |> paths() |> Enum.map(&(path ++ &1))]
   defp paths(%Backpex.Expr.Native{uses: uses}), do: uses
 
-  defp paths(%Backpex.Expr.Aggregate{path: path, value: value, where: where, sort: sort}) do
+  defp paths(%Aggregate{path: path, value: value, where: where, sort: sort}) do
     related = paths(value) ++ paths(where) ++ Enum.map(sort, fn {ref, _direction} -> ref.path end)
 
     [path | Enum.map(related, &(path ++ &1))]
@@ -285,13 +289,18 @@ defmodule Backpex.Resource do
     if runs_all?(query, adapter, :aggregate) do
       adapter.aggregate(query)
     else
-      relationships = query.aggregates |> Enum.flat_map(&paths(&1.where)) |> to_load()
+      relationships = query.aggregates |> Enum.flat_map(&aggregate_paths/1) |> to_load()
 
       with {:ok, items} <- query |> Query.unset([:aggregates]) |> Query.load(relationships) |> read() do
         {:ok, Query.aggregate_items(query, items)}
       end
     end
   end
+
+  # The paths of the relationships an aggregate of a query reads: the ones of its `:where` and of the expression it
+  # aggregates, e.g. `{:sum, expr(author.rating)}` or the number of the related items of an item.
+  defp aggregate_paths(%{aggregate: {_kind, expression}, where: where}), do: paths(where) ++ paths(expression)
+  defp aggregate_paths(%{where: where}), do: paths(where)
 
   # Whether the adapter runs the callback for the whole query, which counts and aggregates only filter and search.
   defp runs_all?(%Query{resource: live_resource} = query, adapter, callback) do

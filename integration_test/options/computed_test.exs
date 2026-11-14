@@ -4,7 +4,18 @@ defmodule Backpex.Integration.Options.ComputedTest do
   """
   use Backpex.ConnCase, async: true
 
+  import Backpex.Expr, only: [expr: 1]
+  import Ecto.Query, only: [dynamic: 2]
+
+  alias Backpex.Expr
+  alias Backpex.Query
+  alias Backpex.Resource
+  alias Backpex.Test.UserStatsLive
+
   setup do
+    # Some tests build the query of the LiveResource before any view has loaded its module.
+    Code.ensure_loaded!(UserStatsLive)
+
     ann = insert(:user, username: "ann", posts: [])
     bob = insert(:user, username: "bob", posts: [])
 
@@ -29,7 +40,7 @@ defmodule Backpex.Integration.Options.ComputedTest do
   test "reads aggregates that share a join and computes with aggregates", %{ann: ann, bob: bob} do
     {:ok, users} =
       []
-      |> Backpex.Resource.items_query(%{}, Backpex.Test.UserStatsLive)
+      |> Backpex.Resource.items_query(%{}, UserStatsLive)
       |> Backpex.Query.sort(username: :asc)
       |> Backpex.Resource.read()
 
@@ -49,6 +60,94 @@ defmodule Backpex.Integration.Options.ComputedTest do
     conn
     |> visit(~p"/admin/user-stats?#{%{search: "bi"}}")
     |> assert_rows("table tbody", ["ann"])
+  end
+
+  test "filters and aggregates by aggregates that share the join of a computed value", %{ann: ann} do
+    query = Resource.items_query([], %{}, UserStatsLive)
+    # Only differ in their value from `total_likes` and from `top_post`.
+    doubled_likes = Expr.aggregate(:sum, :posts, value: expr(likes * 2))
+    top_post_published = Expr.aggregate(:first, :posts, value: expr(published), sort: [likes: :desc])
+
+    for condition <- [expr(^doubled_likes > 10), expr(^top_post_published == true)] do
+      filtered = Query.filter(query, condition)
+
+      assert {:ok, [%{id: id, total_likes: 10, top_post: "Big"}]} = Resource.read(filtered)
+      assert id == ann.id
+      assert Resource.count(filtered) == {:ok, 1}
+    end
+
+    assert {:ok, %{doubled_likes: sum, popular: 1}} =
+             query
+             |> Query.aggregate(:doubled_likes, {:sum, doubled_likes})
+             |> Query.aggregate(:popular, :count, where: expr(^doubled_likes > 10))
+             |> Resource.aggregate()
+
+    assert Decimal.equal?(sum, 20)
+  end
+
+  test "the index view filters by an aggregate and shows a metric of an aggregate", %{conn: conn} do
+    conn
+    |> visit(~p"/admin/user-stats")
+    |> assert_rows("table tbody", ["ann", "bob"])
+    |> assert_has(".card-body", text: "Doubled likes 20", exact: true)
+
+    conn
+    |> visit(~p"/admin/user-stats?#{%{filters: %{top_post: ["published"]}}}")
+    |> assert_rows("table tbody", ["ann"])
+    |> assert_has(".card-body", text: "Doubled likes 20", exact: true)
+  end
+
+  test "paginates and counts the items sorted by an aggregate and searched by one", %{conn: conn} do
+    # With ann and bob 18 users, more than the 15 of a page. bob has no likes, which sorts last.
+    names =
+      for number <- 1..16 do
+        name = "user#{String.pad_leading("#{number}", 2, "0")}"
+        user = insert(:user, username: name, posts: [])
+        insert(:post, user: user, title: "Post of #{name}", likes: number * 100)
+
+        name
+      end
+
+    {first_page, second_page} = Enum.split(["ann" | names] ++ ["bob"], 15)
+    sorted = %{order_by: "total_likes", order_direction: "asc"}
+
+    conn
+    |> visit(~p"/admin/user-stats?#{sorted}")
+    |> assert_rows("table tbody", first_page)
+    |> assert_has("div", text: "Items 1 to 15 (18 total)", exact: true)
+
+    conn
+    |> visit(~p"/admin/user-stats?#{Map.put(sorted, :page, 2)}")
+    |> assert_rows("table tbody", second_page)
+    |> assert_has("div", text: "Items 16 to 18 (18 total)", exact: true)
+
+    # The search matches the top posts of the 16 users.
+    conn
+    |> visit(~p"/admin/user-stats?#{Map.merge(sorted, %{search: "post of", page: 2})}")
+    |> assert_rows("table tbody", ["user16"])
+    |> assert_has("div", text: "Items 16 to 16 (16 total)", exact: true)
+
+    query =
+      []
+      |> Resource.items_query(%{}, UserStatsLive)
+      |> Query.sort(total_likes: :desc_nulls_last)
+      |> Query.offset(15)
+      |> Query.limit(15)
+
+    assert {:ok, [%{username: "user01"}, %{username: "ann"}, %{username: "bob"}]} = Resource.read(query)
+    assert Resource.count(query) == {:ok, 18}
+  end
+
+  test "computes a correlated subquery of the related items as a native value" do
+    post_count =
+      Expr.native(
+        Backpex.Adapters.Ecto,
+        dynamic([user: u], fragment("(SELECT count(*) FROM posts WHERE posts.user_id = ?)", u.id))
+      )
+
+    query = UserStatsLive |> Query.new() |> Query.compute(:post_count, post_count) |> Query.sort(post_count: :desc)
+
+    assert {:ok, [%{username: "ann", post_count: 2}, %{username: "bob", post_count: 0}]} = Resource.read(query)
   end
 
   test "reads the aggregates of a single item", %{conn: conn, ann: ann} do
