@@ -25,6 +25,10 @@ end
 
 Return `nil` to keep all items.
 
+The scope limits what Backpex reads, and the views of Backpex only write items they have read. Your own code that calls
+`Backpex.Resource.update/6`, `Backpex.Resource.update_all/5` or `Backpex.Resource.delete_all/4` decides which items it
+passes: these functions check `c:Backpex.LiveResource.can?/3`, not the scope.
+
 ## Load
 
 `c:Backpex.LiveResource.load/1` returns the relationships to load into the items, besides the ones of the association

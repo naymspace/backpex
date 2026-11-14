@@ -199,12 +199,28 @@ defmodule Backpex.Query.Runtime do
 
   @doc false
   def value(%Ref{path: path, name: name}, item) do
-    path
-    |> Enum.concat([name])
-    |> Enum.reduce_while(item, fn
-      key, %{} = map -> {:cont, Map.get(map, key)}
-      _key, _value -> {:halt, nil}
-    end)
+    case related_item(item, path) do
+      %{} = related -> fetch_field!(related, name)
+      _other -> nil
+    end
+  end
+
+  # The related item at the end of a path through relationships to one item, or `nil` if there is none.
+  defp related_item(item, []), do: item
+
+  defp related_item(item, [name | path]) do
+    case fetch_relationship!(item, name) do
+      nil ->
+        nil
+
+      %{} = related ->
+        related_item(related, path)
+
+      other ->
+        raise ArgumentError,
+              "expected the relationship #{inspect(name)} to be one item or nil, got: #{inspect(other)}. " <>
+                "Use exists/2 for a relationship to many items, see Backpex.Expr"
+    end
   end
 
   # The related items of a path through relationships, e.g. the tags of a post. Relationships to one item count as a
@@ -213,10 +229,46 @@ defmodule Backpex.Query.Runtime do
 
   defp related(item, [name | path]) do
     item
-    |> Map.get(name)
+    |> fetch_relationship!(name)
     |> List.wrap()
     |> Enum.reject(&is_nil/1)
     |> Enum.flat_map(&related(&1, path))
+  end
+
+  # A relationship that is not loaded must not count as one without related items, which would keep or drop the wrong
+  # items. So an item has to hold every relationship that is read, and a struct every field that is read from it: the
+  # placeholder a data source puts into an item for a relationship that is not loaded is a struct without the fields
+  # of the related items.
+  defp fetch_relationship!(item, name) do
+    case item do
+      %{^name => related} ->
+        related
+
+      _item ->
+        raise ArgumentError,
+              "can't read the relationship #{inspect(name)} of #{inspect(item)} in memory, as it is not loaded. " <>
+                load_hint()
+    end
+  end
+
+  defp fetch_field!(item, name) do
+    case item do
+      %{^name => value} ->
+        value
+
+      %_struct{} ->
+        raise ArgumentError,
+              "can't read #{inspect(name)} of #{inspect(item)} in memory, as it has no such field. If it stands for " <>
+                "a relationship that is not loaded: " <> load_hint()
+
+      _map ->
+        nil
+    end
+  end
+
+  defp load_hint do
+    "An adapter loads the relationships in the :load of a query into the items it returns, see " <>
+      "Backpex.Adapter.read/1"
   end
 
   defp compare(_operator, nil, _right), do: nil
@@ -235,9 +287,17 @@ defmodule Backpex.Query.Runtime do
     end
   end
 
-  # Structs such as dates and decimals compare with their module, other values with the term order of Elixir.
+  # Numbers and decimals compare by their value, other structs such as dates with their module and other values of
+  # one type by the term order of Elixir. Values of different types have no order: the term order would give one, e.g.
+  # every decimal would be greater than every integer, so these raise.
+  defp order(%Decimal{} = left, right) when is_number(right), do: order(left, to_decimal(right))
+  defp order(left, %Decimal{} = right) when is_number(left), do: left |> to_decimal() |> order(right)
+
   defp order(%module{} = left, %module{} = right) do
-    if function_exported?(module, :compare, 2), do: module.compare(left, right), else: term_order(left, right)
+    # `function_exported?/3` doesn't load the module, and the term order of e.g. dates compares the day first.
+    if Code.ensure_loaded?(module) and function_exported?(module, :compare, 2),
+      do: module.compare(left, right),
+      else: term_order(left, right)
   end
 
   defp order(left, right) when is_number(left) and is_number(right) do
@@ -248,7 +308,24 @@ defmodule Backpex.Query.Runtime do
     end
   end
 
-  defp order(left, right), do: term_order(left, right)
+  defp order(left, right) do
+    if type(left) == type(right) do
+      term_order(left, right)
+    else
+      raise ArgumentError,
+            "can't compare #{inspect(left)} with #{inspect(right)} in memory, as they are values of different types"
+    end
+  end
+
+  defp type(%module{}), do: module
+  defp type(value) when is_binary(value), do: :binary
+  defp type(value) when is_boolean(value), do: :boolean
+  defp type(value) when is_atom(value), do: :atom
+  defp type(value) when is_number(value), do: :number
+  defp type(value) when is_list(value), do: :list
+  defp type(value) when is_map(value), do: :map
+  defp type(value) when is_tuple(value), do: :tuple
+  defp type(_value), do: :other
 
   defp term_order(left, right) do
     cond do

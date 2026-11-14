@@ -21,6 +21,11 @@ defmodule Backpex.AdapterBoundaryTest do
     assert violations == []
   end
 
+  test "the behaviour declares validate_config!/1, which every LiveResource calls on its adapter" do
+    assert {:validate_config!, 1} in Backpex.Adapter.behaviour_info(:callbacks)
+    refute {:validate_config!, 1} in Backpex.Adapter.behaviour_info(:optional_callbacks)
+  end
+
   test "finds the violations of a module" do
     source = ~S'''
     defmodule Violations do

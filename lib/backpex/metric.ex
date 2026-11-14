@@ -19,7 +19,10 @@ defmodule Backpex.Metric do
     * `:where` - an optional expression that limits the items, e.g. `[published: true]` or `expr(likes > 10)`. See
       `Backpex.Expr`.
 
-  `Backpex.Adapters.Ecto` also takes a `:select` expression instead of an aggregate.
+  `Backpex.Adapters.Ecto` also takes a `:select` expression instead of an aggregate. It sees no joins. For an
+  aggregate of related items, pass a path, e.g. `{:count, expr(user.id)}`, or a native expression that names the paths
+  it uses as the `:aggregate`: `Backpex.Expr.native(Backpex.Adapters.Ecto, dynamic([backpex_user: u], count(u.id)),
+  uses: [:user])`.
 
   ## Filters
 
@@ -87,7 +90,7 @@ defmodule Backpex.Metric do
           file: env.file,
           description: """
           #{inspect(env.module)} defines #{name}/#{arity}, but #{hint}. Implement Backpex.Metric.data/3 instead, see \
-          the guide on upgrading to v0.24.
+          the guide on upgrading to v0.25.
           """
       end
     end

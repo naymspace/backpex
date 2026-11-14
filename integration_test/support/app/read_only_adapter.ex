@@ -7,6 +7,7 @@ defmodule Backpex.Test.ReadOnlyAdapter do
 
   alias Backpex.Adapters.Memory
 
+  @impl Backpex.Adapter
   def validate_config!(config), do: Memory.validate_config!(config)
 
   @impl Backpex.Adapter

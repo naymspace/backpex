@@ -262,7 +262,8 @@ defmodule Backpex.LiveResource do
   current user only. See `Backpex.Expr`.
 
   Backpex adds it to every query of the items: the index view, its count and metrics, the show and edit views, and the
-  items item actions are applied to. It works with every adapter.
+  items item actions are applied to. It works with every adapter. Writes don't apply it: `Backpex.Resource.update/6`,
+  `Backpex.Resource.update_all/5` and `Backpex.Resource.delete_all/4` check `c:can?/3` for the items they are given.
 
       import Backpex.Expr
 
@@ -1108,7 +1109,7 @@ defmodule Backpex.LiveResource do
         do: module.display_field(field) || name,
         else: Map.get(field_options, :display_field, name)
 
-    if function_exported?(module, :association?, 1) and module.association?(field),
+    if Code.ensure_loaded?(module) and function_exported?(module, :association?, 1) and module.association?(field),
       do: Backpex.Expr.ref([name], display_field),
       else: Backpex.Expr.ref(display_field)
   end

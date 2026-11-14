@@ -69,11 +69,10 @@ end
 | `repo` | yes | Ecto repo module |
 | `update_changeset` | no | `fn item, attrs, metadata -> changeset` |
 | `create_changeset` | no | `fn item, attrs, metadata -> changeset` |
-| `item_query` | no | `fn query, live_action, assigns -> query` |
 
 The `metadata` keyword list contains `:assigns` and `:target` (the form field that triggered the change).
 
-The `item_query` function must build on the incoming `query` argument (use `from p in query, ...`), not the schema directly.
+There is no `item_query`: the `scope/1`, `load/1` and `computed/1` callbacks below limit and enrich the items with expressions of `Backpex.Expr`, see the [scope and load guide](https://hexdocs.pm/backpex/scope-and-load.html).
 
 ## Required Callbacks
 
@@ -89,6 +88,9 @@ The `item_query` function must build on the incoming `query` argument (use `from
 | Callback | Default | Description |
 |----------|---------|-------------|
 | `can?/3` | always true | `fn assigns, action, item -> bool` |
+| `scope/1` | `nil` (all items) | `fn assigns -> expression`, the condition every item Backpex reads matches, e.g. `expr(is_nil(archived_at))` |
+| `load/1` | `[]` | `fn assigns -> list`, relationships to load besides the ones of association fields, e.g. `[comments: :author]` or `[user: Backpex.Query.related(sort: [name: :asc])]` |
+| `computed/1` | `[]` | `fn assigns -> keyword`, values computed for every item, e.g. `[full_name: expr(concat([first_name, last_name], " "))]`; a field of the same name shows, sorts and searches the value |
 | `filters/0` | `[]` | Filter definitions |
 | `filters/1` | delegates to `filters/0` | Assigns-aware variant for dynamic filters |
 | `panels/0` | `[]` | Field grouping: `[key: "Label"]` |
@@ -139,13 +141,12 @@ defmodule MyAppWeb.ProductLive do
       schema: MyApp.Product,
       repo: MyApp.Repo,
       update_changeset: &MyApp.Product.changeset/3,
-      create_changeset: &MyApp.Product.changeset/3,
-      item_query: &__MODULE__.item_query/3
+      create_changeset: &MyApp.Product.changeset/3
     ],
     per_page_default: 25,
     init_order: %{by: :inserted_at, direction: :desc}
 
-  import Ecto.Query
+  import Backpex.Expr
 
   @impl Backpex.LiveResource
   def layout(_assigns), do: {MyAppWeb.Layouts, :admin}
@@ -200,9 +201,8 @@ defmodule MyAppWeb.ProductLive do
   def can?(_assigns, :delete, item), do: not item.published
   def can?(_assigns, _action, _item), do: true
 
-  def item_query(query, _live_action, _assigns) do
-    from p in query, where: is_nil(p.archived_at)
-  end
+  @impl Backpex.LiveResource
+  def scope(_assigns), do: expr(is_nil(archived_at))
 end
 ```
 
@@ -212,4 +212,4 @@ end
 - **Module naming**: `MyAppWeb.<Resource>Live` (e.g. `MyAppWeb.ProductLive`)
 - **Changeset functions** should accept 3 arguments: `item`, `attrs`, `metadata`
 - **Use `layout/1` callback** instead of the `layout:` option (avoids compile-time dependencies)
-- **Always build on the incoming query** in `item_query/3`
+- **Limit the items with `scope/1`**, which returns an expression; `scope/1` is not applied to items your own code passes to `Backpex.Resource.update/6`, `update_all/5` or `delete_all/4`

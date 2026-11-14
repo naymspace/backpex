@@ -172,9 +172,11 @@ defmodule Backpex.ExprTest do
     end
 
     test "refuses the condition tuples of earlier versions and other terms" do
-      assert_raise ArgumentError, ~r/expected an expression such as expr\(published == true\)/, fn ->
-        Expr.normalize({:==, :published, true})
-      end
+      assert_raise ArgumentError,
+                   ~r/expected an expression such as expr\(published == true\).*upgrading to v0\.25/s,
+                   fn ->
+                     Expr.normalize({:==, :published, true})
+                   end
 
       assert_raise ArgumentError, ~r/keyword list of fields and values/, fn -> Expr.normalize([1, 2]) end
     end

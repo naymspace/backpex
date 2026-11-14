@@ -22,7 +22,10 @@ defmodule Backpex.Adapter do
     * `:config_schema` - the `NimbleOptions` schema of the `adapter_config` option of a LiveResource.
     * `:field_config_schema` - the `NimbleOptions` schema of the options the adapter adds to fields, returned by
       `c:field_config_schema/0`.
-    * `:supports` - the parts of a `Backpex.Query` the adapter runs itself, see `c:supports?/2`. Defaults to `:all`.
+    * `:supports` - the parts of a `Backpex.Query` the adapter runs itself, see `c:supports?/2`: `:all`, or a list of
+      features such as `[:filter, :sort]`. Required. `supports: []` is right for an adapter that only returns all
+      items from `c:read/1`, as Backpex then applies every part of a query to the items in memory. There is no default,
+      because an adapter that says it runs a part and doesn't would return the items of other filters, scopes or pages.
 
   > ### Work in progress {: .warning}
   >
@@ -38,16 +41,19 @@ defmodule Backpex.Adapter do
     quote bind_quoted: [opts: opts] do
       @config_schema opts[:config_schema] || []
       @field_config_schema opts[:field_config_schema] || []
-      @supports Keyword.get(opts, :supports, :all)
+      @supports Backpex.Adapter.fetch_supports!(opts, __MODULE__)
 
       @behaviour Backpex.Adapter
 
+      @impl Backpex.Adapter
       def validate_config!(config) do
         NimbleOptions.validate!(config, @config_schema)
       end
 
+      @impl Backpex.Adapter
       def field_config_schema, do: @field_config_schema
 
+      @impl Backpex.Adapter
       def supports?(_live_resource, feature), do: Backpex.Adapter.supported?(@supports, feature)
 
       defoverridable field_config_schema: 0, supports?: 2
@@ -55,8 +61,17 @@ defmodule Backpex.Adapter do
   end
 
   @doc """
-  Returns the `NimbleOptions` schema of the options the adapter adds to every field, e.g. `:select` of
-  `Backpex.Adapters.Ecto`. Backpex validates the options of fields against it, together with the options of the field.
+  Validates the `:adapter_config` of a LiveResource and returns it, or raises if it is invalid.
+
+  `use Backpex.LiveResource` calls it at compile time. `use Backpex.Adapter` defines it and validates the configuration
+  against the `:config_schema` option.
+  """
+  @callback validate_config!(config :: keyword()) :: keyword()
+
+  @doc """
+  Returns the `NimbleOptions` schema of the options the adapter adds to every field, e.g. `[tenant: [type: :atom]]`.
+  Backpex validates the options of fields against it, together with the options of the field. `Backpex.Adapters.Ecto`
+  adds none.
   """
   @callback field_config_schema() :: keyword()
 
@@ -73,11 +88,12 @@ defmodule Backpex.Adapter do
       of its `:value` and its `:where`.
     * `:search`, `:sort`, `:offset` and `:limit` - these parts of a query.
     * `:computed` - the `:computed` values of a query. Backpex computes them before every other part.
-    * `:load` - the relationships of the `:load` of a query.
     * `:count` and `:aggregate` - `c:count/1` and `c:aggregate/1`.
     * `:insert`, `:update` and `:delete` - writing items with `c:insert/2`, `c:update/2` and `c:update_all/3`, and
       `c:delete_all/2`. Without them, `Backpex.Authorization` denies the `:new`, `:edit` and `:delete` actions, so the
       views hide them. Backpex can't apply writes in memory.
+
+  The `:load` of a query is no feature: every adapter with relationships loads them into the items, see `c:read/1`.
 
   Parts depend on the ones before them, in the order computed, filter, search, sort, offset and limit. If the adapter doesn't
   run a part, Backpex applies it and every part after it in memory, e.g. the sort of a query whose filter the adapter
@@ -86,8 +102,35 @@ defmodule Backpex.Adapter do
   `use Backpex.Adapter` defines it from its `:supports` option: `:all` or a list of features. `:filter` stands for all
   operators. A list of `{:filter, operator}` instead lets the adapter run the filters that only use these operators,
   e.g. `[{:filter, :==}, {:filter, :in}, :sort]`.
+
+  Backpex treats an adapter module that doesn't define it as one that runs no part of a query.
   """
   @callback supports?(live_resource :: module(), feature :: atom() | {atom(), atom()}) :: boolean()
+
+  @doc false
+  def fetch_supports!(opts, adapter) do
+    case Keyword.fetch(opts, :supports) do
+      {:ok, :all} ->
+        :all
+
+      {:ok, features} when is_list(features) ->
+        features
+
+      {:ok, other} ->
+        raise ArgumentError,
+              "expected the :supports option of `use Backpex.Adapter` in #{inspect(adapter)} to be :all or a list of " <>
+                "features, got: #{inspect(other)}"
+
+      :error ->
+        raise ArgumentError, """
+        #{inspect(adapter)} has to pass the :supports option to `use Backpex.Adapter`: the parts of a query the adapter \
+        runs itself, see Backpex.Adapter.supports?/2.
+
+        Pass `supports: :all` if the adapter runs every part of a query (filter, search, sort, offset, limit, count and \
+        aggregate), or `supports: []` if it only returns all items, so Backpex applies the query to them in memory.
+        """
+    end
+  end
 
   @doc false
   def supported?(:all, _feature), do: true
@@ -101,9 +144,9 @@ defmodule Backpex.Adapter do
   def supported?(features, feature) when is_list(features), do: feature in features
 
   @doc """
-  Puts the options the adapter adds to fields (see `c:field_config_schema/0`) into the query, e.g. the `:select` option
-  of `Backpex.Adapters.Ecto` as a computed value. Keep the data for later in the `:native` field of the query, see
-  `Backpex.Query.put_native/3`.
+  Puts the options of fields that only the adapter understands into the query: the ones it adds (see
+  `c:field_config_schema/0`), or e.g. the `:options_query` of association fields, which `Backpex.Adapters.Ecto` takes.
+  Keep the data for later in the `:native` field of the query, see `Backpex.Query.put_native/3`.
 
   Backpex calls it with every field of the LiveResource when it builds a query of the items of the resource, and with
   an association field when it builds the query of the options of the field. Then the `:from` of the query is the name
@@ -118,6 +161,11 @@ defmodule Backpex.Adapter do
   Returns the items of the query, see `Backpex.Query`: the items at the end of its `:from`, that match its `:filter`
   and `:search`, sorted by `Backpex.Query.sorts/1`, after its `:offset` and up to its `:limit`, with the relationships
   of its `:load` and the values of its `:computed`.
+
+  The adapter only gets the parts it supports, see `c:supports?/2`. It always gets the `:load`: the relationships of
+  association fields and the ones the parts Backpex applies in memory read, e.g. the `author` of the filter
+  `author.name == "Ann"`. A loaded relationship is the related item, a list of related items or `nil` under the name of
+  the relationship in the item. Backpex raises if it has to read a relationship in memory that is missing in an item.
 
   Backpex calls it only with valid queries, so an item that doesn't exist results in an empty list.
   """
@@ -209,5 +257,5 @@ defmodule Backpex.Adapter do
   """
   @callback delete_all(items :: list(struct()), live_resource :: module()) :: {:ok, term()} | {:error, term()}
 
-  @optional_callbacks field_config_schema: 0, put_field_options: 2, supports?: 2, count: 1, aggregate: 1
+  @optional_callbacks field_config_schema: 0, put_field_options: 2, count: 1, aggregate: 1
 end

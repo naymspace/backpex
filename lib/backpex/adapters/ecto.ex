@@ -84,7 +84,7 @@ defmodule Backpex.Adapters.Ecto do
   > The `Backpex.Adapters.Ecto` is still under development and may change in future updates.
   """
 
-  use Backpex.Adapter, config_schema: @config_schema
+  use Backpex.Adapter, config_schema: @config_schema, supports: :all
   import Ecto.Query
 
   alias Backpex.Adapters.Ecto.Where
@@ -185,8 +185,8 @@ defmodule Backpex.Adapters.Ecto do
 
   # An aggregate, see `t:Backpex.Metric.aggregate/0`, with the query and the joins its value needs. `joined` are the
   # joined aggregates of the query.
-  defp aggregate_dynamic(ecto_query, %Native{adapter: __MODULE__, expr: expression}, _joined),
-    do: {ecto_query, expression}
+  defp aggregate_dynamic(ecto_query, %Native{adapter: __MODULE__} = native, joined),
+    do: Where.value(ecto_query, native, joined)
 
   defp aggregate_dynamic(ecto_query, :count, _joined), do: {ecto_query, dynamic(count())}
 

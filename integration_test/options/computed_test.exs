@@ -13,9 +13,6 @@ defmodule Backpex.Integration.Options.ComputedTest do
   alias Backpex.Test.UserStatsLive
 
   setup do
-    # Some tests build the query of the LiveResource before any view has loaded its module.
-    Code.ensure_loaded!(UserStatsLive)
-
     ann = insert(:user, username: "ann", posts: [])
     bob = insert(:user, username: "bob", posts: [])
 

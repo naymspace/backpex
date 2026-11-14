@@ -4,6 +4,7 @@ defmodule Backpex.Integration.Adapters.EctoExpressionsTest do
   import Backpex.Expr, only: [expr: 1]
 
   alias Backpex.Adapters.Ecto, as: EctoAdapter
+  alias Backpex.Metrics.Value
   alias Backpex.Test.Post
   alias Backpex.Test.PostLive
   alias Backpex.Test.User
@@ -134,6 +135,24 @@ defmodule Backpex.Integration.Adapters.EctoExpressionsTest do
 
       assert likes == 110
       assert minutes === 0
+    end
+
+    test "of a relationship are the aggregates of metrics" do
+      metrics = [
+        authors: %{module: Value, aggregate: {:count, expr(user.id)}},
+        last_author: %{module: Value, aggregate: {:max, expr(user.username)}}
+      ]
+
+      assert Backpex.Resource.metrics(metrics, Backpex.Query.new(PostLive), %{}) == %{authors: 2, last_author: "bob"}
+    end
+  end
+
+  describe "native aggregates of metrics" do
+    test "get the joins of the paths they use" do
+      authors = dynamic([backpex_user: user], count(user.id))
+      metrics = [authors: %{module: Value, aggregate: Backpex.Expr.native(EctoAdapter, authors, uses: [:user])}]
+
+      assert Backpex.Resource.metrics(metrics, Backpex.Query.new(PostLive), %{}) == %{authors: 2}
     end
   end
 

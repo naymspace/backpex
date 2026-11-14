@@ -109,4 +109,4 @@ Backpex.Resource.update(item, change, fields, assigns, live_resource,
 )
 ```
 
-`Backpex.Resource.update_all/5` and `Backpex.Resource.delete_all/4` never call the hooks. `update_all/5` receives update instructions for the adapter instead of a change, so there is nothing to pass to `on_item_updating/2`. A custom item action that saves items with these functions, for example to soft delete them, skips the rules in your before hooks. Check them in the item action, for example in `c:Backpex.ItemAction.handle/3`.
+`Backpex.Resource.update_all/5` and `Backpex.Resource.delete_all/4` never call the hooks. `update_all/5` receives a map of fields and values for all items instead of a change of one item, so there is nothing to pass to `on_item_updating/2`. A custom item action that saves items with these functions, for example to soft delete them, skips the rules in your before hooks. Check them in the item action, for example in `c:Backpex.ItemAction.handle/3`.
