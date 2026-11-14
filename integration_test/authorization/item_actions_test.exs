@@ -125,8 +125,8 @@ defmodule Backpex.Integration.Authorization.ItemActionsTest do
       assert {{%Backpex.NoResultsError{}, _stacktrace}, _mfa} = catch_exit(submit(session))
     end
 
-    test "a record that left the item query's scope raises NoResultsError on submit", %{user: user, session: session} do
-      # `Backpex.Test.UserLive.item_query/3` hides soft-deleted users, so this row is gone as far as the resource is
+    test "a record that left the scope raises NoResultsError on submit", %{user: user, session: session} do
+      # `Backpex.Test.UserLive.scope/1` hides soft-deleted users, so this row is gone as far as the resource is
       # concerned even though it is still in the table.
       user |> Ecto.Changeset.change(deleted_at: DateTime.utc_now(:second)) |> Repo.update!()
 

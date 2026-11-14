@@ -586,6 +586,37 @@ defmodule Backpex.ResourceTest do
       assert {:ok, [%{id: 2}]} = Resource.read(query)
       assert_received {:read, %Query{filter: nil, sort: []}}
     end
+
+    test "counts in memory if the adapter doesn't compute the values the filter reads" do
+      defmodule NoComputedAdapter do
+        @moduledoc false
+        use Backpex.Adapter, supports: [:filter, :search, :count]
+
+        defdelegate describe(path, live_resource), to: FilterOnlyAdapter
+
+        def read(query) do
+          send(self(), {:read, query})
+          {:ok, [%{id: 1, likes: 3}, %{id: 2, likes: 1}]}
+        end
+
+        def count(query) do
+          send(self(), {:count, query})
+          {:ok, 2}
+        end
+      end
+
+      defmodule NoComputedLive do
+        @moduledoc false
+        def config(:adapter), do: NoComputedAdapter
+      end
+
+      # Built without `Backpex.Query.filter/2`, as the adapter doesn't describe the computed value to cast with.
+      query = %{(NoComputedLive |> Query.new() |> Query.compute(:double, expr(likes * 2))) | filter: expr(double > 4)}
+
+      assert Resource.count(query) == {:ok, 1}
+      assert_received {:read, %Query{computed: computed, filter: nil}} when computed == %{}
+      refute_received {:count, _query}
+    end
   end
 
   describe "read/1, get/4, count/1 and aggregate/1 with an adapter that doesn't define supports?/2" do

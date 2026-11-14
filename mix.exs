@@ -232,7 +232,7 @@ defmodule Backpex.MixProject do
       # Live Resource
       "guides/live_resource/what-is-a-live-resource.md",
       "guides/live_resource/templates.md",
-      "guides/live_resource/item-query.md",
+      "guides/live_resource/scope-and-load.md",
       "guides/live_resource/ordering.md",
       "guides/live_resource/pagination.md",
       "guides/live_resource/on_mount-hook.md",
@@ -253,7 +253,6 @@ defmodule Backpex.MixProject do
       "guides/fields/visibility.md",
       "guides/fields/defaults.md",
       "guides/fields/readonly.md",
-      "guides/fields/custom-alias.md",
       "guides/fields/placeholder.md",
       "guides/fields/debounce-and-throttle.md",
       "guides/fields/index-edit.md",

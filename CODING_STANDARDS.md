@@ -4,8 +4,8 @@ Backpex's own idioms for the library code in `lib/`, `assets/js/`, `guides/` and
 
 ## Extension points
 
-- Fields, filters, metrics and adapters describe data or return conditions and expressions; the adapter places them in the query it builds. Examples: `c:Backpex.Field.search_condition/3` returns a `dynamic`, the `:select` field option is a `dynamic`, `c:Backpex.Filter.condition/3` returns a `Backpex.Expr` expression, `c:Backpex.Metric.data/3` returns the data from the criteria and the assigns. A new option or callback takes this shape: it receives values or assigns and returns a condition, an expression or data.
-- These still receive the adapter's query and return it changed: the `item_query` option of `Backpex.Adapters.Ecto` and the `options_query` option of `BelongsTo`, `HasMany` and `HasManyThrough`. They are the old shape; new code follows the one above.
+- Fields, filters, metrics and adapters describe data or return conditions and expressions; the adapter places them in the query it builds. Examples: `c:Backpex.Field.search_condition/3`, `c:Backpex.Filter.condition/3` and `c:Backpex.LiveResource.scope/1` return a `Backpex.Expr`, `c:Backpex.LiveResource.computed/1` returns names and expressions, `c:Backpex.Metric.data/3` returns the data from the query and the assigns. A new option or callback takes this shape: it receives values or assigns and returns a condition, an expression or data.
+- This one still receives the adapter's query and returns it changed: the `options_query` option of `BelongsTo`, `HasMany` and `HasManyThrough`. It is the old shape; new code follows the one above.
 - Options are a NimbleOptions schema in `@config_schema`, defined above `@moduledoc`, rendered into it with `#{NimbleOptions.docs(@config_schema)}` and passed to `use Backpex.Field, config_schema: @config_schema` (adapters: `use Backpex.Adapter`), which validates the configuration against it. The options of `use Backpex.LiveResource` live in `@options_schema` in `lib/backpex/live_resource.ex`.
 
 ## Public API and docs

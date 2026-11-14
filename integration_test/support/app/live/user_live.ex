@@ -1,6 +1,7 @@
 defmodule Backpex.Test.UserLive do
   @moduledoc """
-  Users with integer primary keys. They have an `item_query` that hides soft-deleted users, an `init_order` function,
+  Users with integer primary keys. They have a `scope/1` that hides soft-deleted users, a computed full name, an
+  `init_order` function,
   a `can?/3` that denies the item action `Backpex.Test.ItemActions.UserSoftDelete` for admins, two resource actions, a
   panel, an index editable field, a HasManyThrough field with a pivot field and an InlineCRUD field of an embed.
   """
@@ -9,12 +10,11 @@ defmodule Backpex.Test.UserLive do
       schema: Backpex.Test.User,
       repo: Backpex.Test.Repo,
       update_changeset: &Backpex.Test.User.changeset/3,
-      create_changeset: &Backpex.Test.User.changeset/3,
-      item_query: &__MODULE__.item_query/3
+      create_changeset: &Backpex.Test.User.changeset/3
     ],
     init_order: &__MODULE__.init_order/1
 
-  import Ecto.Query, warn: false
+  import Backpex.Expr
 
   @impl Backpex.LiveResource
   def layout(_assigns), do: {Backpex.Test.Layouts, :admin}
@@ -29,9 +29,11 @@ defmodule Backpex.Test.UserLive do
   def can?(_assigns, :user_soft_delete, item), do: item.role != :admin
   def can?(_assigns, _action, _item), do: true
 
-  def item_query(query, _live_action, _assigns) do
-    from u in query, where: is_nil(u.deleted_at)
-  end
+  @impl Backpex.LiveResource
+  def scope(_assigns), do: expr(is_nil(deleted_at))
+
+  @impl Backpex.LiveResource
+  def computed(_assigns), do: [full_name: expr(concat([first_name, last_name], " "))]
 
   def init_order(_assigns), do: %{by: :username, direction: :asc}
 
@@ -68,7 +70,6 @@ defmodule Backpex.Test.UserLive do
         label: "Full Name",
         searchable: true,
         except: [:edit, :new],
-        select: dynamic([user: u], fragment("concat(?, ' ', ?)", u.first_name, u.last_name)),
         panel: :names
       },
       first_name: %{
