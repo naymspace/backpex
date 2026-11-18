@@ -87,7 +87,6 @@ defmodule BackpexWeb do
       use Phoenix.Component
 
       import Backpex.HTML.Form, only: [error: 1]
-      import Ecto.Query, warn: false
 
       unquote(html_helpers())
     end
@@ -99,7 +98,7 @@ defmodule BackpexWeb do
 
       use Phoenix.Component
 
-      import Ecto.Query
+      @before_compile Backpex.Metric
     end
   end
 

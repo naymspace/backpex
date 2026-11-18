@@ -163,7 +163,7 @@ defmodule DemoWeb.ProductLive do
         module: Value,
         label: "In Stock",
         class: "w-1/3",
-        select: dynamic([i], sum(i.quantity)),
+        aggregate: {:sum, :quantity},
         format: fn value ->
           Integer.to_string(value) <> " Products"
         end

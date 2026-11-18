@@ -23,9 +23,12 @@ defmodule Backpex.Filters.MultiSelect do
   > #### `use Backpex.Filters.MultiSelect` {: .info}
   >
   > When you `use Backpex.Filters.MultiSelect`, the `Backpex.Filters.MultiSelect` module will set `@behavior Backpex.Filters.Select`. In addition it will add a `render` and `render_form` function in order to display the corresponding filter.
+  > It will also implement the `c:Backpex.Filter.condition/3` callback to keep the items whose field has one of the
+  > selected values.
   """
   use BackpexWeb, :filter
 
+  import Backpex.Expr, only: [expr: 1]
   import Backpex.HTML.CoreComponents
 
   require Backpex
@@ -53,7 +56,7 @@ defmodule Backpex.Filters.MultiSelect do
       end
 
       @impl Backpex.Filter
-      defdelegate query(query, attribute, value, assigns), to: MultiSelectFilter
+      defdelegate condition(field, value, assigns), to: MultiSelectFilter
 
       @impl Backpex.Filter
       def render(assigns) do
@@ -71,7 +74,7 @@ defmodule Backpex.Filters.MultiSelect do
         MultiSelectFilter.render_form(assigns)
       end
 
-      defoverridable type: 1, changeset: 3, query: 4, render: 1, render_form: 1
+      defoverridable type: 1, changeset: 3, condition: 3, render: 1, render_form: 1
     end
   end
 
@@ -159,11 +162,22 @@ defmodule Backpex.Filters.MultiSelect do
       else: [{field, "contains invalid options"}]
   end
 
-  def query(query, _attribute, [], _assigns), do: query
+  @doc """
+  Returns the expression that keeps the items whose field has one of the selected values, or `nil` if no value is
+  selected.
 
-  def query(query, attribute, values, _assigns) do
-    where(query, [x], field(x, ^attribute) in ^values)
-  end
+  ## Examples
+
+      iex> import Backpex.Expr
+      iex> Backpex.Filters.MultiSelect.condition(:status, ["open", "pending"], %{}) ==
+      ...>   expr(status in ["open", "pending"])
+      true
+      iex> Backpex.Filters.MultiSelect.condition(:status, [], %{})
+      nil
+
+  """
+  def condition(_field, [], _assigns), do: nil
+  def condition(field, values, _assigns), do: expr(ref(^field) in ^values)
 
   @doc """
   Converts a list of option values to their corresponding labels.

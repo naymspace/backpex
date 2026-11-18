@@ -46,7 +46,7 @@ defmodule Backpex.Fields.HasManyTest do
     def translate({msg, _opts}), do: msg
   end
 
-  describe "before_changeset/6" do
+  describe "before_changeset/5" do
     test "selects all items of the options query" do
       options_query = fn query, assigns -> where(query, [tag], tag.tenant_id == ^assigns.tenant_id) end
       field = {:tags, %{module: HasMany, display_field: :id, live_resource: TagLive, options_query: options_query}}
@@ -55,7 +55,7 @@ defmodule Backpex.Fields.HasManyTest do
       changeset =
         %Post{}
         |> Ecto.Changeset.change()
-        |> HasMany.before_changeset(%{"tags_select_all" => ""}, [], TagsRepo, field, assigns)
+        |> HasMany.before_changeset(%{"tags_select_all" => ""}, [], field, assigns)
 
       assert_received {:all, %Ecto.Query{wheres: [%{params: [{1, _type}]}]}}
       assert [%Ecto.Changeset{data: %Tag{id: nil}}, %Ecto.Changeset{data: %Tag{id: 1}}] = changeset.changes.tags

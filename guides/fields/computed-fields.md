@@ -4,7 +4,7 @@ In some cases you want to compute new fields based on existing fields. Backpex a
 
 ## Configuration
 
-There is a `select` option you may add to a field. This option has to return a `dynamic`. This query will then be executed to select fields when listing your resources. In addition this query will also be used to order / search this field.
+`Backpex.Adapters.Ecto` adds a `select` option to fields. This option has to return a `dynamic`. This query will then be executed to select fields when listing your resources. In addition this query will also be used to order / search this field.
 
 ```elixir
 # in your resource configuration file

@@ -42,9 +42,33 @@ defmodule Backpex.LiveResourceTest do
     def config(:order_nulls), do: :first
   end
 
+  defmodule SelectFieldLive do
+    @moduledoc false
+    def config(:adapter), do: Backpex.Adapters.Ecto
+    def fields, do: [title: %{module: Backpex.Fields.Text, label: "Title", select: dynamic([p], p.title)}]
+  end
+
+  defmodule StubSelectFieldLive do
+    @moduledoc false
+    def config(:adapter), do: Backpex.Test.StubAdapter
+    def fields, do: [title: %{module: Backpex.Fields.Text, label: "Title", select: dynamic([p], p.title)}]
+  end
+
   defmodule AllContextLive do
     @moduledoc false
     def config(:context_assigns), do: :all
+  end
+
+  describe "fields/3" do
+    test "accepts the field options of the adapter" do
+      assert [title: %{select: %Ecto.Query.DynamicExpr{}}] = LiveResource.fields(SelectFieldLive, :index, %{})
+    end
+
+    test "rejects field options the adapter doesn't add" do
+      assert_raise RuntimeError, ~r/unknown options \[:select\]/, fn ->
+        LiveResource.fields(StubSelectFieldLive, :index, %{})
+      end
+    end
   end
 
   defmodule ListContextLive do
@@ -137,6 +161,12 @@ defmodule Backpex.LiveResourceTest do
       |> Keyword.fetch!(:order)
     end
 
+    defp order_query(order, fields) do
+      TestPost
+      |> from(as: ^EctoAdapter.name_by_schema(TestPost))
+      |> EctoAdapter.apply_criteria([order: order], fields, TestPost)
+    end
+
     test "builds an order criteria the adapter applies when ordering by a column that is not a declared field" do
       # :id is the default init_order column, but a primary key is virtually never
       # declared as a field. The order criteria must still reach the query.
@@ -164,8 +194,11 @@ defmodule Backpex.LiveResourceTest do
     test "orders by the primary key without NULLS FIRST/LAST" do
       fields = [{:id, %{module: Backpex.Fields.Text, order_nulls: :last}}, {:title, %{module: Backpex.Fields.Text}}]
 
-      assert %{by: :id, nulls: :default} = order_criteria(NullsFirstPostLive, fields, :id)
-      assert %{by: :id, field_name: nil, nulls: :default} = order_criteria(NullsFirstPostLive, fields, :unknown)
+      assert %{by: :id, nulls: :last} = order = order_criteria(NullsFirstPostLive, fields, :id)
+      assert %{order_bys: [%{expr: [{:desc, _id}]}]} = order_query(order, fields)
+
+      assert %{by: :id, field_name: nil, nulls: :first} = order = order_criteria(NullsFirstPostLive, fields, :unknown)
+      assert %{order_bys: [%{expr: [{:asc, _id}]}]} = order_query(order, fields)
     end
 
     test "uses the order_nulls option of the live resource" do
