@@ -29,6 +29,15 @@ defmodule DemoWeb.PostLive do
   def layout(_assigns), do: {Layouts, :admin}
 
   @impl LiveResource
+  def computed(_assigns), do: [show_likes: expr(likes > 0)]
+
+  # The author field shows, sorts by and searches the full name of the user, and its options get it, too.
+  @impl LiveResource
+  def load(_assigns) do
+    [user: Backpex.Query.related(computed: [full_name: expr(concat([first_name, last_name], " "))])]
+  end
+
+  @impl LiveResource
   def singular_name, do: "Post"
 
   @impl LiveResource
@@ -156,7 +165,6 @@ defmodule DemoWeb.PostLive do
       show_likes: %{
         module: Backpex.Fields.Boolean,
         label: "Show likes",
-        select: dynamic([post: p], fragment("? > 0", p.likes)),
         except: [:index, :show]
       },
       likes: %{
@@ -188,14 +196,7 @@ defmodule DemoWeb.PostLive do
         label: "Author",
         prompt: "Please select an author",
         display_field: :full_name,
-        select: dynamic([user: u], fragment("concat(?, ' ', ?)", u.first_name, u.last_name)),
-        options_query: fn query, _assigns ->
-          query
-          |> where([user], is_nil(user.deleted_at))
-          |> select_merge([user], %{
-            full_name: fragment("concat(?, ' ', ?)", user.first_name, user.last_name)
-          })
-        end,
+        options_filter: expr(is_nil(deleted_at)),
         index_editable: true,
         searchable: true,
         live_resource: UserLive
@@ -205,8 +206,7 @@ defmodule DemoWeb.PostLive do
         label: "Category",
         display_field: :name,
         searchable: true,
-        live_resource: CategoryLive,
-        custom_alias: :custom_category
+        live_resource: CategoryLive
       },
       tags: %{
         module: Backpex.Fields.HasMany,

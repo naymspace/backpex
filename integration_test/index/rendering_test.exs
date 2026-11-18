@@ -58,7 +58,7 @@ defmodule Backpex.Integration.Index.RenderingTest do
       |> assert_has("input", label: "Username", value: "integer_id_user")
     end
 
-    test "lists only the items of the item_query scope", %{conn: conn} do
+    test "lists only the items of the scope", %{conn: conn} do
       insert(:user, username: "active_user")
       insert(:user, username: "deleted_user", deleted_at: DateTime.utc_now(:second))
 

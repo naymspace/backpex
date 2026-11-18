@@ -93,7 +93,7 @@ end
 
 ## Search and filters
 
-A value metric is computed for the items the admin currently sees in the table, on all pages. The adapter computes it for the same items as the table, after your [item query](item-query.md), the search and the active filters, limited by the `:where` of the metric. Ordering and pagination play no part.
+A value metric is computed for the items the admin currently sees in the table, on all pages. The adapter computes it for the same items as the table, after your [scope](scope-and-load.md), the search and the active filters, limited by the `:where` of the metric. Ordering and pagination play no part.
 
 The metrics are computed again whenever the table is loaded again, e.g. when the admin searches or changes a filter.
 

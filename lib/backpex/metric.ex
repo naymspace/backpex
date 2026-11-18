@@ -14,11 +14,15 @@ defmodule Backpex.Metric do
   after search and filters, with these options of the metric:
 
     * `:aggregate` - `:count` for the number of items, or a tuple of `:count`, `:sum`, `:avg`, `:min` or `:max` and the
-      name of a field, e.g. `{:sum, :quantity}`.
+      name of a field or an expression, e.g. `{:sum, :quantity}` or `{:sum, expr(price * quantity)}`, see
+      `Backpex.Expr`.
     * `:where` - an optional expression that limits the items, e.g. `[published: true]` or `expr(likes > 10)`. See
       `Backpex.Expr`.
 
-  `Backpex.Adapters.Ecto` also takes a `:select` expression instead of an aggregate.
+  `Backpex.Adapters.Ecto` also takes a `:select` expression instead of an aggregate. It sees no joins. For an
+  aggregate of related items, pass a path, e.g. `{:count, expr(user.id)}`, or a native expression that names the paths
+  it uses as the `:aggregate`: `Backpex.Expr.native(Backpex.Adapters.Ecto, dynamic([backpex_user: u], count(u.id)),
+  uses: [:user])`.
 
   ## Filters
 
@@ -49,9 +53,11 @@ defmodule Backpex.Metric do
   alias Phoenix.LiveView.Rendered
 
   @typedoc """
-  The aggregate a metric computes, see the [Aggregates](#module-aggregates) section.
+  The aggregate a metric computes, see the [Aggregates](#module-aggregates) section. A native expression of the adapter
+  (`Backpex.Expr.native/3`) stands for a whole aggregate, e.g. an aggregate function in SQL.
   """
-  @type aggregate :: :count | {:count | :sum | :avg | :min | :max, atom()}
+  @type aggregate ::
+          :count | {:count | :sum | :avg | :min | :max, atom() | Backpex.Expr.t()} | Backpex.Expr.Native.t()
 
   @doc """
   Used to render the metric as a heex template on the index views.

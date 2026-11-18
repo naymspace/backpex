@@ -31,7 +31,6 @@ defmodule Backpex.LiveResourceTest do
   defmodule TestPostLive do
     @moduledoc false
     def adapter_config(:schema), do: Backpex.LiveResourceTest.TestPost
-    def adapter_config(:item_query), do: &EctoAdapter.default_item_query/3
     def config(:adapter), do: EctoAdapter
     def config(:full_text_search), do: nil
     def config(:primary_key), do: :id
@@ -41,11 +40,15 @@ defmodule Backpex.LiveResourceTest do
   defmodule NullsFirstPostLive do
     @moduledoc false
     def adapter_config(:schema), do: Backpex.LiveResourceTest.TestPost
-    def adapter_config(:item_query), do: &EctoAdapter.default_item_query/3
     def config(:adapter), do: EctoAdapter
     def config(:full_text_search), do: nil
     def config(:primary_key), do: :id
     def config(:order_nulls), do: :first
+  end
+
+  defmodule SelectAdapter do
+    @moduledoc false
+    use Backpex.Adapter, field_config_schema: [select: [type: :any]], supports: :all
   end
 
   defmodule IndexFieldsPostLive do
@@ -60,7 +63,7 @@ defmodule Backpex.LiveResourceTest do
 
   defmodule SelectFieldLive do
     @moduledoc false
-    def config(:adapter), do: Backpex.Adapters.Ecto
+    def config(:adapter), do: SelectAdapter
     def fields, do: [title: %{module: Backpex.Fields.Text, label: "Title", select: dynamic([p], p.title)}]
   end
 
@@ -230,19 +233,16 @@ defmodule Backpex.LiveResourceTest do
              ]
     end
 
+    test "sorts by a path of the init order" do
+      init_order = %{by: :"author.name", direction: :desc}
+
+      assert index_query(TestPostLive, [], :unknown, init_order).default_sort == [{Expr.ref([:author], :name), :desc}]
+    end
+
     test "prefers the order_nulls option of the field" do
       fields = [{:title, %{module: Backpex.Fields.Text, order_nulls: :last}}]
 
       assert index_query(NullsFirstPostLive, fields, :title).sort == [{Expr.ref(:title), :desc_nulls_last}]
-    end
-
-    test "applies order_nulls to a field with a select expression named like the primary key" do
-      select = dynamic([testpost: p], fragment("upper(?)", p.title))
-      fields = [{:id, %{module: Backpex.Fields.Text, select: select}}]
-
-      query = index_query(NullsFirstPostLive, fields, :id)
-      assert query.sort == [{Expr.ref(:id), :desc_nulls_first}]
-      assert [{:desc_nulls_first, _select}] = order_bys(query)
     end
 
     test "applies order_nulls to the primary key of an association" do

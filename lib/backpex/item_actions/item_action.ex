@@ -311,7 +311,7 @@ defmodule Backpex.ItemAction do
   that were just authorized, not the ones that were rendered.
 
   Failure semantics are those of `Backpex.Authorization.authorize_all!/4`: an item that no longer
-  exists, or that has left the LiveResource's `item_query/3` scope, reloads as `nil` and raises
+  exists, or that has left the `c:Backpex.LiveResource.scope/1` of the LiveResource, reloads as `nil` and raises
   `Backpex.NoResultsError`; a reloaded item that is not authorized raises `Backpex.ForbiddenError`.
   Nothing is silently dropped from the selection.
 

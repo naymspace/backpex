@@ -4,6 +4,7 @@ defmodule Backpex.Integration.Adapters.EctoExpressionsTest do
   import Backpex.Expr, only: [expr: 1]
 
   alias Backpex.Adapters.Ecto, as: EctoAdapter
+  alias Backpex.Metrics.Value
   alias Backpex.Test.Post
   alias Backpex.Test.PostLive
   alias Backpex.Test.User
@@ -112,6 +113,46 @@ defmodule Backpex.Integration.Adapters.EctoExpressionsTest do
 
     test "combine with paths" do
       assert titles(expr(user.username == "ann" and exists(tags, name == "elixir"))) == ["100% Elixir"]
+    end
+  end
+
+  describe "values" do
+    test "compare the values of arithmetic, datetime_diff and to_string" do
+      assert titles(expr(likes * 2 - 10 > 100)) == ["100% Elixir"]
+      assert titles(expr(likes / 2 == 2)) == ["Rust_Notes"]
+      assert titles(expr(to_string(likes) == "50")) == ["No author"]
+      assert titles(expr(datetime_diff(updated_at, inserted_at, :minute) == 0)) |> length() == 3
+      assert titles(expr(concat([title, user.username], " by ") == "Rust_Notes by bob")) == ["Rust_Notes"]
+    end
+
+    test "are the aggregates of metrics" do
+      {:ok, %{likes: likes, minutes: minutes}} =
+        PostLive
+        |> Backpex.Query.new()
+        |> Backpex.Query.aggregate(:likes, {:sum, expr(likes * 2)}, where: expr(likes < 100))
+        |> Backpex.Query.aggregate(:minutes, {:max, expr(datetime_diff(updated_at, inserted_at, :minute))})
+        |> Backpex.Resource.aggregate()
+
+      assert likes == 110
+      assert minutes === 0
+    end
+
+    test "of a relationship are the aggregates of metrics" do
+      metrics = [
+        authors: %{module: Value, aggregate: {:count, expr(user.id)}},
+        last_author: %{module: Value, aggregate: {:max, expr(user.username)}}
+      ]
+
+      assert Backpex.Resource.metrics(metrics, Backpex.Query.new(PostLive), %{}) == %{authors: 2, last_author: "bob"}
+    end
+  end
+
+  describe "native aggregates of metrics" do
+    test "get the joins of the paths they use" do
+      authors = dynamic([backpex_user: user], count(user.id))
+      metrics = [authors: %{module: Value, aggregate: Backpex.Expr.native(EctoAdapter, authors, uses: [:user])}]
+
+      assert Backpex.Resource.metrics(metrics, Backpex.Query.new(PostLive), %{}) == %{authors: 2}
     end
   end
 

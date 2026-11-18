@@ -54,8 +54,6 @@ You are an expert at creating fields for Backpex, a Phoenix LiveView admin panel
 | `render_form` | `fn assigns -> HEEx` | Override form rendering |
 | `help_text` | string or `fn assigns -> string` | Text below form input |
 | `default` | `fn assigns -> value` | Default value for new items |
-| `select` | `dynamic(...)` | Ecto dynamic expression for computed/virtual fields (added by `Backpex.Adapters.Ecto`) |
-| `custom_alias` | atom | Custom alias for the association binding in queries (added by `Backpex.Adapters.Ecto`) |
 | `translate_error` | `fn {msg, meta} -> {msg, meta}` | Custom error message formatting |
 
 ## Creating a Custom Field
@@ -84,12 +82,20 @@ These are provided by `use Backpex.Field` and can be overridden as needed:
 @callback param_keys(field, assigns)   # Default: [field name]; return every param name render_form submits
 ```
 
-Ecto-specific callbacks live in `Backpex.Adapters.Ecto.Field` (add `@behaviour Backpex.Adapters.Ecto.Field`):
+`search_condition/3` is optional and has no default implementation. Without it, an item matches when the value the field shows contains the search term, ignoring the case:
 
 ```elixir
-@callback schema(field, schema)        # Optional: schema of the column the field shows
-@callback search_condition(schema_name :: atom(), field_name :: atom(), search_string :: String.t()) # Optional, default: ilike
+# Receives the field, the Backpex.Expr.Ref of the value the field shows and the search term as typed (without %).
+# Returns an expression of Backpex.Expr, not an Ecto dynamic.
+@callback search_condition(field :: tuple(), ref :: Backpex.Expr.Ref.t(), term :: String.t()) :: Backpex.Expr.t()
+
+import Backpex.Expr
+
+@impl Backpex.Field
+def search_condition(_field, ref, term), do: expr(starts_with(ref(^ref.path, ^ref.name), ^term))
 ```
+
+A condition of the database is wrapped with `Backpex.Expr.native/3` and then only works with that adapter. A computed value is not a field option: the LiveResource returns it from `computed/1`, and a field of the same name shows it.
 
 ### Key Assigns Available in Templates
 
