@@ -309,27 +309,26 @@ defmodule Backpex.Fields.InlineCRUD do
   end
 
   # The schema of the rows comes from the changeset of the form, as the form of a resource action or an item action
-  # works on the `base_schema/1` of the action, not on the schema of the LiveResource.
-  defp primary_keys(%{changeset: %Ecto.Changeset{types: types}}, name) do
+  # works on the `base_schema/1` of the action, not on the schema of the LiveResource. `inputs_for` renders the primary
+  # key of each stored row as a hidden input, so these are the keys of the hidden inputs of the rows.
+  defp primary_keys(%{changeset: %Ecto.Changeset{types: types} = changeset}, name) do
     case Map.get(types, name) do
-      {tag, %{related: related}} when tag in [:embed, :assoc] -> related_primary_keys(related)
-      {:parameterized, {Ecto.Embedded, %{related: related}}} -> related_primary_keys(related)
+      {tag, _relation} when tag in [:embed, :assoc] -> hidden_keys(changeset, name)
+      {:parameterized, {_embedded, %{related: _related}}} -> hidden_keys(changeset, name)
       _type -> []
     end
   end
 
   defp primary_keys(_assigns, _name), do: []
 
-  defp related_primary_keys(related) do
-    :primary_key
-    |> related.__schema__()
-    |> Enum.map(&Atom.to_string/1)
-  end
+  defp hidden_keys(changeset, name) do
+    form = Phoenix.Component.to_form(changeset)
 
-  @impl Backpex.Field
-  def schema({name, _field_options}, schema) do
-    schema.__schema__(:association, name)
-    |> Map.get(:queryable)
+    form.source
+    |> form.impl.to_form(form, name, [])
+    |> Enum.flat_map(&Keyword.keys(&1.hidden))
+    |> Enum.uniq()
+    |> Enum.map(&Atom.to_string/1)
   end
 
   defp get_link(assigns, row) do

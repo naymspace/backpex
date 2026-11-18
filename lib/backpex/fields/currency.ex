@@ -77,8 +77,6 @@ defmodule Backpex.Fields.Currency do
   """
   use Backpex.Field, config_schema: @config_schema
 
-  import Ecto.Query
-
   @impl Backpex.Field
   def render_value(assigns) do
     ~H"""
@@ -113,13 +111,5 @@ defmodule Backpex.Fields.Currency do
       </Layout.field_container>
     </div>
     """
-  end
-
-  @impl Backpex.Field
-  def search_condition(schema_name, field_name, search_string) do
-    dynamic(
-      [{^schema_name, schema_name}],
-      ilike(fragment("CAST(? AS TEXT)", field(schema_name, ^field_name)), ^search_string)
-    )
   end
 end

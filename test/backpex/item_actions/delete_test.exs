@@ -1,6 +1,8 @@
 defmodule Backpex.ItemActions.DeleteTest do
   use ExUnit.Case, async: true
 
+  import ExUnit.CaptureLog
+
   alias Backpex.ItemActions.Delete
   alias Backpex.Test.StubAdapter
   alias Phoenix.LiveView.Socket
@@ -72,6 +74,20 @@ defmodule Backpex.ItemActions.DeleteTest do
       end
 
       refute_received {:adapter, :delete_all, _items}
+    end
+
+    test "tells that the items are used elsewhere when the adapter reports a foreign key violation" do
+      {result, log} = with_log(fn -> Delete.handle(socket(), [%{id: 1, referenced?: true}], %{}) end)
+
+      assert {:ok, %Socket{assigns: %{flash: %{"error" => message}}}} = result
+      assert message == "An error occurred while deleting the Item! The item is used elsewhere."
+      assert log =~ ":foreign_key_violation"
+
+      {result, _log} = with_log(fn -> Delete.handle(socket(), [%{id: 1, referenced?: true}, %{id: 2}], %{}) end)
+
+      assert {:ok, %Socket{assigns: %{flash: %{"error" => message}}}} = result
+      assert message == "An error occurred while deleting 2 Items! The items are used elsewhere."
+      refute_received {:on_item_deleted, _item}
     end
   end
 

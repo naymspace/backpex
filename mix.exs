@@ -276,6 +276,7 @@ defmodule Backpex.MixProject do
       "guides/translations/translations.md",
 
       # Upgrade Guides
+      "guides/upgrading/v0.25.md",
       "guides/upgrading/v0.24.md",
       "guides/upgrading/v0.23.md",
       "guides/upgrading/v0.22.md",
