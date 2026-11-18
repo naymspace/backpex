@@ -7,20 +7,20 @@ Backpex filters support changeset-based validation to ensure that URL parameters
 When a user applies a filter (via the UI or URL parameters), Backpex:
 
 1. **Builds a Changeset**: Creates an Ecto schemaless changeset from the URL parameters
-2. **Casts Values**: Converts string values to the appropriate types based on `type/1`
+2. **Casts Values**: Converts string values to the appropriate types based on `type/2`
 3. **Runs Validations**: Applies any custom validations defined in `changeset/3`
 4. **Extracts Valid Values**: Only filters that pass validation are applied to the query
 5. **Shows Errors**: Invalid filters display inline validation errors in the UI
 
 Invalid filters are **not applied** to the query - the user sees unfiltered results for that attribute while the error is displayed.
 
-## The `type/1` Callback
+## The `type/2` Callback
 
-The `type/1` callback specifies the Ecto type for your filter's value. This is used for casting URL string parameters to the correct type.
+The `type/2` callback specifies the Ecto type for your filter's value. This is used for casting URL string parameters to the correct type.
 
 ```elixir
 @impl Backpex.Filter
-def type(_assigns), do: :string
+def type(_filter, _assigns), do: :string
 ```
 
 ### Common Types
@@ -37,31 +37,31 @@ def type(_assigns), do: :string
 
 **Select filter (single value):**
 ```elixir
-def type(_assigns), do: :string
+def type(_filter, _assigns), do: :string
 ```
 
 **Boolean filter (multiple checkboxes):**
 ```elixir
-def type(_assigns), do: {:array, :string}
+def type(_filter, _assigns), do: {:array, :string}
 ```
 
 **Range filter:**
 ```elixir
-def type(_assigns), do: :map
+def type(_filter, _assigns), do: :map
 ```
 
 **Numeric filter:**
 ```elixir
-def type(_assigns), do: :integer
+def type(_filter, _assigns), do: :integer
 ```
 
 ## The `changeset/3` Callback
 
-The `changeset/3` callback allows you to add custom validations to your filter. It receives the changeset being built, the field atom, and assigns.
+The `changeset/3` callback allows you to add custom validations to your filter. It receives the changeset being built, the filter and the assigns. The filter is a `{name, config}` tuple: `name` is the key of its value in the changeset and `config` the map of its options from the LiveResource.
 
 ```elixir
 @impl Backpex.Filter
-def changeset(changeset, field, _assigns) do
+def changeset(changeset, {field, _config}, _assigns) do
   changeset
   |> Ecto.Changeset.validate_number(field, greater_than: 0, less_than: 1000)
 end
@@ -69,13 +69,13 @@ end
 
 ### Default Implementation
 
-If you don't implement `changeset/3`, the default implementation returns the changeset unchanged. Type casting still occurs based on `type/1`.
+If you don't implement `changeset/3`, the default implementation returns the changeset unchanged. Type casting still occurs based on `type/2`.
 
 ### Validation Examples
 
 **Validate numeric range:**
 ```elixir
-def changeset(changeset, field, _assigns) do
+def changeset(changeset, {field, _config}, _assigns) do
   Ecto.Changeset.validate_number(changeset, field,
     greater_than_or_equal_to: 0,
     less_than_or_equal_to: 100
@@ -85,22 +85,22 @@ end
 
 **Validate allowed values:**
 ```elixir
-def changeset(changeset, field, _assigns) do
+def changeset(changeset, {field, _config}, _assigns) do
   Ecto.Changeset.validate_inclusion(changeset, field, ["active", "pending", "closed"])
 end
 ```
 
 **Validate format:**
 ```elixir
-def changeset(changeset, field, _assigns) do
+def changeset(changeset, {field, _config}, _assigns) do
   Ecto.Changeset.validate_format(changeset, field, ~r/^[A-Z]{2,3}-\d+$/)
 end
 ```
 
 **Validate based on options (for select filters):**
 ```elixir
-def changeset(changeset, field, assigns) do
-  valid_values = Enum.map(options(assigns), fn {_label, value} -> to_string(value) end)
+def changeset(changeset, {field, config}, _assigns) do
+  valid_values = Enum.map(config.options, fn {_label, value} -> to_string(value) end)
 
   Ecto.Changeset.validate_inclusion(changeset, field, valid_values)
 end
@@ -112,10 +112,10 @@ The built-in filters automatically validate their values:
 
 ### Boolean Filter
 
-Validates that all selected checkbox keys exist in the `options/1` list.
+Validates that all selected checkbox keys exist in the `:options`.
 
 ```elixir
-# If options returns:
+# If the options are:
 [
   %{label: "Published", key: "published", predicate: ...},
   %{label: "Draft", key: "draft", predicate: ...}
@@ -127,10 +127,10 @@ Validates that all selected checkbox keys exist in the `options/1` list.
 
 ### Select Filter
 
-Validates that the selected value exists in the `options/1` list.
+Validates that the selected value exists in the `:options`.
 
 ```elixir
-# If options returns:
+# If the options are:
 [{"Active", "active"}, {"Inactive", "inactive"}]
 
 # Valid: "active", "inactive"
@@ -139,10 +139,10 @@ Validates that the selected value exists in the `options/1` list.
 
 ### MultiSelect Filter
 
-Validates that all selected values exist in the `options/1` list.
+Validates that all selected values exist in the `:options`.
 
 ```elixir
-# If options returns:
+# If the options are:
 [{"John", "user-1"}, {"Jane", "user-2"}]
 
 # Valid: ["user-1"], ["user-1", "user-2"]
@@ -151,7 +151,7 @@ Validates that all selected values exist in the `options/1` list.
 
 ### Range Filter
 
-Validates based on the range type:
+Validates based on the `:type` of the range:
 
 **Number ranges:**
 - Values must be valid integers or floats
@@ -167,18 +167,18 @@ Validates based on the range type:
 - Start must be on or before end
 - Time boundaries are automatically added (00:00:00 for start, 23:59:59 for end)
 
-## The `validate/2` Callback
+## The `validate/3` Callback
 
-The `validate/2` callback provides a public API for programmatic validation and testing:
+The `validate/3` callback provides a public API for programmatic validation and testing:
 
 ```elixir
 @impl Backpex.Filter
-def validate(value, assigns) do
+def validate(filter, value, assigns) do
   # Returns {:ok, casted_value} or {:error, errors}
 end
 ```
 
-The default implementation builds a mini-changeset and validates it using `type/1` and `changeset/3`. You typically don't need to override this.
+The default implementation builds a mini-changeset and validates it using `type/2` and `changeset/3`. You typically don't need to override this.
 
 ### Testing Validation
 
@@ -186,16 +186,21 @@ The default implementation builds a mini-changeset and validates it using `type/
 defmodule MyFilterTest do
   use ExUnit.Case
 
+  alias MyApp.Filters.AmountFilter
   alias MyApp.Filters.StatusFilter
 
   test "validates allowed values" do
-    assert {:ok, "active"} = StatusFilter.validate("active", %{})
-    assert {:error, _} = StatusFilter.validate("invalid", %{})
+    filter = {:status, %{module: StatusFilter}}
+
+    assert {:ok, "active"} = StatusFilter.validate(filter, "active", %{})
+    assert {:error, _} = StatusFilter.validate(filter, "invalid", %{})
   end
 
   test "validates numeric ranges" do
-    assert {:ok, 50} = MyApp.Filters.AmountFilter.validate("50", %{})
-    assert {:error, _} = MyApp.Filters.AmountFilter.validate("-10", %{})
+    filter = {:amount, %{module: AmountFilter}}
+
+    assert {:ok, 50} = AmountFilter.validate(filter, "50", %{})
+    assert {:error, _} = AmountFilter.validate(filter, "-10", %{})
   end
 end
 ```
@@ -205,7 +210,7 @@ end
 The `condition/3` callback receives already-validated and casted values:
 
 ```elixir
-def condition(field, value, _assigns) do
+def condition({field, _config}, value, _assigns) do
   # value is already an integer
   expr(ref(^field) == ^value)
 end
@@ -224,10 +229,10 @@ defmodule MyAppWeb.Filters.PriceRange do
   def label, do: "Price Range"
 
   @impl Backpex.Filter
-  def type(_assigns), do: :map
+  def type(_filter, _assigns), do: :map
 
   @impl Backpex.Filter
-  def changeset(changeset, field, _assigns) do
+  def changeset(changeset, {field, _config}, _assigns) do
     Ecto.Changeset.validate_change(changeset, field, fn _field, value ->
       validate_price_range(value, field)
     end)
@@ -271,14 +276,14 @@ defmodule MyAppWeb.Filters.PriceRange do
   end
 
   @impl Backpex.Filter
-  def condition(field, %{"min" => min, "max" => max}, _assigns) do
+  def condition({field, _config}, %{"min" => min, "max" => max}, _assigns) do
     min = parse_price(min)
     max = parse_price(max)
 
     Backpex.Expr.all([min && expr(ref(^field) >= ^min), max && expr(ref(^field) <= ^max)])
   end
 
-  def condition(_field, _value, _assigns), do: nil
+  def condition(_filter, _value, _assigns), do: nil
 
   @impl Backpex.Filter
   def render(assigns) do
@@ -355,10 +360,10 @@ end
 
 ## Best Practices
 
-1. **Always implement `type/1`**: Even if using the default `:string`, be explicit
+1. **Always implement `type/2`**: Even if using the default `:string`, be explicit
 2. **Validate against options**: For select/multi-select filters, validate values exist in your options list
 3. **Handle partial values**: For range filters, allow empty start or end values
 4. **Keep `condition/3` simple**: Since values are validated, focus on the condition
-5. **Test validation**: Write unit tests for your `validate/2` to ensure edge cases are handled
+5. **Test validation**: Write unit tests for your `validate/3` to ensure edge cases are handled
 6. **Use Ecto validations**: Leverage `Ecto.Changeset` validation functions for consistency
 7. **Display errors in custom filters**: Use `@errors` in `render_form/1` to show validation feedback to users

@@ -12,7 +12,7 @@ defmodule Backpex.FilterValidationTest do
     def label, do: "String Filter"
 
     @impl Backpex.Filter
-    def type(_assigns), do: :string
+    def type(_filter, _assigns), do: :string
 
     @impl Backpex.Filter
     def render(assigns), do: assigns
@@ -30,7 +30,7 @@ defmodule Backpex.FilterValidationTest do
     def label, do: "Array Filter"
 
     @impl Backpex.Filter
-    def type(_assigns), do: {:array, :string}
+    def type(_filter, _assigns), do: {:array, :string}
 
     @impl Backpex.Filter
     def render(assigns), do: assigns
@@ -48,7 +48,7 @@ defmodule Backpex.FilterValidationTest do
     def label, do: "Map Filter"
 
     @impl Backpex.Filter
-    def type(_assigns), do: :map
+    def type(_filter, _assigns), do: :map
 
     @impl Backpex.Filter
     def render(assigns), do: assigns
@@ -66,10 +66,10 @@ defmodule Backpex.FilterValidationTest do
     def label, do: "Validating Filter"
 
     @impl Backpex.Filter
-    def type(_assigns), do: :integer
+    def type(_filter, _assigns), do: :integer
 
     @impl Backpex.Filter
-    def changeset(changeset, field, _assigns) do
+    def changeset(changeset, {field, _config}, _assigns) do
       Ecto.Changeset.validate_number(changeset, field, greater_than: 0)
     end
 
@@ -153,6 +153,13 @@ defmodule Backpex.FilterValidationTest do
 
       assert changeset.valid?
       assert changeset.changes == %{status: "active", tags: ["a", "b"], count: 10}
+    end
+
+    test "passes the options of a filter to its module" do
+      filter_configs = [status: %{module: Backpex.Filters.Select, options: [{"Open", "open"}]}]
+
+      assert FilterValidation.build_changeset(%{"status" => "open"}, filter_configs, %{}).valid?
+      refute FilterValidation.build_changeset(%{"status" => "closed"}, filter_configs, %{}).valid?
     end
 
     test "ignores unknown params" do

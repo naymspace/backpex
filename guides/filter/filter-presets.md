@@ -16,8 +16,9 @@ See the example below for some preset examples. We add a preset for a date filte
 @impl Backpex.LiveResource
 def filters, do: [
   begins_at: %{
-    module: MyAppWeb.Filters.DateRange,
+    module: Backpex.Filters.Range,
     label: "Begins At",
+    type: :date,
     presets: [
       %{
         label: "Last 7 Days",
@@ -29,7 +30,12 @@ def filters, do: [
     ]
   },
   published: %{
-    module: MyAppWeb.Filters.EventPublished,
+    module: Backpex.Filters.Boolean,
+    label: "Published?",
+    options: [
+      %{label: "Published", key: "published", predicate: expr(published == true)},
+      %{label: "Not published", key: "not_published", predicate: expr(published == false)}
+    ],
     presets: [
       %{
         label: "Both",
@@ -48,7 +54,7 @@ def filters, do: [
 
 Preset values go through the same validation as manually entered filter values. This means:
 
-- Values are cast to the appropriate type based on the filter's `type/1` callback
+- Values are cast to the appropriate type based on the filter's `type/2` callback
 - Custom validations from `changeset/3` are applied
 - Invalid preset values will not be applied to the query
 

@@ -1,26 +1,84 @@
 # How to add a Filter?
 
-Adding a filter to your *LiveResource* is a two step process:
+Filters are configured in your *LiveResource*, just like fields. You don't need a module per filter.
 
-## Defining a Filter module
+## Adding a Filter to your LiveResource
 
-First, you need to define a filter module that implements one of the behaviors from the `Backpex.Filters` namespace. This may be one of the [built-in filters](what-is-a-filter.md#built-in-filters) or a [custom filter](custom-filter.md).
-
-We suggest using a `MyAppWeb.Filters.<FILTERNAME>` convention.
-
-If you want to add one of the built-in filters, you can click on the filter type in the list of [Built-in Filters](what-is-a-filter.md#built-in-filters) to see how to define a filter module for that filter type.
-
-For example, the following example shows how to define a filter module for a select filter that filters posts based on a category:
+Define the filters in the [filters/0](Backpex.LiveResource.html#c:filters/0) callback of your *LiveResource*. Each filter has a name, the field it filters by, and a map with the filter module and its options:
 
 ```elixir
-defmodule MyAppWeb.Filters.PostCategorySelect do
+@impl Backpex.LiveResource
+def filters do
+  [
+    category_id: %{
+      module: Backpex.Filters.Select,
+      label: "Category",
+      prompt: "Select category ...",
+      options: &category_options/1
+    },
+    likes: %{
+      module: Backpex.Filters.Range,
+      label: "Likes",
+      type: :number
+    }
+  ]
+end
+
+defp category_options(_assigns) do
+  MyApp.Blog.list_categories()
+  |> Enum.map(&{&1.name, &1.id})
+end
+```
+
+In this example, we add a select filter with the name `category_id` and a range filter with the name `likes` to the *LiveResource*.
+
+The `:module` may be one of the [built-in filters](what-is-a-filter.md#built-in-filters) or a [custom filter](custom-filter.md). Click on a built-in filter to see its options. The options every filter takes, such as `:label`, `:default`, `:presets`, `:can?` and `:condition`, are listed in `Backpex.Filter`.
+
+Backpex validates the options when it renders the index view and raises an error for an unknown or invalid option.
+
+The predicates of `Backpex.Filters.Boolean` and the `:condition` option take expressions, which you write with `Backpex.Expr.expr/1`. Add `import Backpex.Expr, only: [expr: 1]` to your *LiveResource* to use it there.
+
+When you use built-in filters like `Backpex.Filters.Select`, validation is handled automatically: the filter validates that the selected values exist in the options list.
+
+## Default Values
+
+The `:default` option sets the value of a filter when the index view is opened without filters:
+
+```elixir
+published: %{
+  module: Backpex.Filters.Boolean,
+  label: "Published?",
+  options: [
+    %{label: "Published", key: "published", predicate: expr(published == true)},
+    %{label: "Not published", key: "not_published", predicate: expr(published == false)}
+  ],
+  default: ["published"]
+}
+```
+
+## Changing the Condition
+
+A filter keeps the items that match its expression, see the Conditions section of `Backpex.Filter`. To change the expression of a single filter, pass a function to the `:condition` option. It receives the filter, the validated value and the assigns, and returns an expression built with `Backpex.Expr.expr/1`:
+
+```elixir
+age: %{
+  module: Backpex.Filters.Select,
+  label: "Age",
+  options: [{"Under 18", "minor"}, {"18 and older", "adult"}],
+  condition: fn
+    {field, _config}, "minor", _assigns -> expr(ref(^field) < 18)
+    {field, _config}, "adult", _assigns -> expr(ref(^field) >= 18)
+  end
+}
+```
+
+## Reusable Filter Modules
+
+If you use the same filter in several *LiveResources*, you can define a module for it. The built-in filters have callbacks that provide the defaults of their options. We suggest using a `MyAppWeb.Filters.<FILTERNAME>` convention.
+
+```elixir
+defmodule MyAppWeb.Filters.CategorySelect do
   use Backpex.Filters.Select
-
-  import Ecto.Query
-
-  alias MyApp.Category
-  alias MyApp.Post
-  alias MyApp.Repo
 
   @impl Backpex.Filter
   def label, do: "Category"
@@ -30,51 +88,24 @@ defmodule MyAppWeb.Filters.PostCategorySelect do
 
   @impl Backpex.Filters.Select
   def options(_assigns) do
-    query =
-      from p in Post,
-        join: c in Category,
-        on: p.category_id == c.id,
-        distinct: c.name,
-        select: {c.name, c.id}
-
-    Repo.all(query)
+    MyApp.Blog.list_categories()
+    |> Enum.map(&{&1.name, &1.id})
   end
 end
 ```
 
-When using built-in filters like `Backpex.Filters.Select`, validation is handled automatically - the filter validates that selected values exist in the options list.
-
-## Adding the Filter to your LiveResource
-
-After you have defined the filter module, you need to add the filter to your *LiveResource*.
-
-To do this, you need to define the filter in the [filters/0](Backpex.LiveResource.html#c:filters/0) callback in your *LiveResource* module.
-
-Here is an example of how to add a filter to your *LiveResource*:
+Use the module as the `:module` of a filter. The options of the filter take precedence over the callbacks of the module:
 
 ```elixir
 @impl Backpex.LiveResource
-def filters, do: [
-  category_id: %{
-    module: MyAppWeb.Filters.PostCategorySelect
-  }
-]
-```
-
-In this example, we add a filter with the name `category_id` to the *LiveResource*. The filter uses the `MyAppWeb.Filters.PostCategorySelect` module we defined earlier.
-
-## Overwriting the Filter Label
-
-You can overwrite the filter label defined in the filter module by adding a `label` key to the filter map:
-
-```elixir
-@impl Backpex.LiveResource
-def filters, do: [
-  category_id: %{
-    module: MyAppWeb.Filters.PostCategorySelect,
-    label: "Category"
-  }
-]
+def filters do
+  [
+    category_id: %{
+      module: MyAppWeb.Filters.CategorySelect,
+      label: "Post category"
+    }
+  ]
+end
 ```
 
 ## Filter Validation
