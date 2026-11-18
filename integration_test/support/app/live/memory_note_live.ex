@@ -62,3 +62,22 @@ defmodule Backpex.Test.MemoryNoteLive do
     ]
   end
 end
+
+defmodule Backpex.Test.ReadOnlyNoteLive do
+  @moduledoc "The notes of `Backpex.Test.MemoryNoteLive` through `Backpex.Test.ReadOnlyAdapter`, which can't write."
+  use Backpex.LiveResource,
+    adapter: Backpex.Test.ReadOnlyAdapter,
+    adapter_config: [schema: Backpex.Test.MemoryNote, store: Backpex.Test.MemoryNotes]
+
+  @impl Backpex.LiveResource
+  def layout(_assigns), do: {Backpex.Test.Layouts, :admin}
+
+  @impl Backpex.LiveResource
+  def singular_name, do: "Note"
+
+  @impl Backpex.LiveResource
+  def plural_name, do: "Notes"
+
+  @impl Backpex.LiveResource
+  def fields, do: [title: %{module: Backpex.Fields.Text, label: "Title"}]
+end

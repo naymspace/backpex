@@ -221,7 +221,7 @@ defmodule DemoWeb.ItemAction.SoftDelete do
           {:ok, _items} =
             Backpex.Resource.update_all(
               items,
-              [set: [deleted_at: datetime, reason: data.reason]],
+              %{deleted_at: datetime, reason: data.reason},
               socket.assigns,
               socket.assigns.live_resource,
               event_name: "deleted",
@@ -291,7 +291,7 @@ Backpex.Resource.update_all(other_items, updates, socket.assigns, socket.assigns
 A cascade write to a *different* resource (nullifying a foreign key, for example) is not a user-initiated action on that resource at all — pass `authorize?: false`:
 
 ```elixir
-Backpex.Resource.update_all(item.posts, [set: [user_id: nil]], socket.assigns, MyAppWeb.PostLive,
+Backpex.Resource.update_all(item.posts, %{user_id: nil}, socket.assigns, MyAppWeb.PostLive,
   event_name: "updated",
   authorize?: false
 )

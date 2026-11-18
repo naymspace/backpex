@@ -11,7 +11,56 @@ defmodule Backpex.AuthorizationTest do
 
   @assigns %{live_resource: AllowAll}
 
+  defmodule ReadOnlyAdapter do
+    @moduledoc false
+    use Backpex.Adapter, supports: [:filter, :update]
+  end
+
+  defmodule ReadOnlyLive do
+    @moduledoc false
+    def config(:adapter), do: ReadOnlyAdapter
+
+    def can?(_assigns, action, _item) do
+      send(self(), {:can?, action})
+      true
+    end
+  end
+
+  defmodule UndeclaredAdapter do
+    @moduledoc false
+  end
+
+  defmodule UndeclaredLive do
+    @moduledoc false
+    def config(:adapter), do: UndeclaredAdapter
+
+    def can?(_assigns, action, _item) do
+      send(self(), {:can?, action})
+      true
+    end
+  end
+
   describe "can?/4" do
+    test "denies the writes of an adapter that doesn't define supports?/2" do
+      refute Authorization.can?(UndeclaredLive, @assigns, :new, nil)
+      refute Authorization.can?(UndeclaredLive, @assigns, :edit, %{id: 1})
+      refute Authorization.can?(UndeclaredLive, @assigns, :delete, %{id: 1})
+      refute_received {:can?, _action}
+
+      assert Authorization.can?(UndeclaredLive, @assigns, :index, nil)
+    end
+
+    test "denies the writes the adapter doesn't support without asking the live resource" do
+      refute Authorization.can?(ReadOnlyLive, @assigns, :new, nil)
+      refute Authorization.can?(ReadOnlyLive, @assigns, :delete, %{id: 1})
+      refute_received {:can?, _action}
+
+      assert Authorization.can?(ReadOnlyLive, @assigns, :edit, %{id: 1})
+      assert Authorization.can?(ReadOnlyLive, @assigns, :index, nil)
+      assert_received {:can?, :edit}
+      assert_received {:can?, :index}
+    end
+
     test "delegates to the live resource" do
       assert Authorization.can?(AllowAll, @assigns, :new, nil)
       refute Authorization.can?(DenyAll, @assigns, :new, nil)
