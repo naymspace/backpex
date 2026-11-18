@@ -7,6 +7,11 @@ defmodule Backpex.Test.StubAdapter do
   """
 
   @doc """
+  The stub runs every query itself: `read/1` takes the primary value from the filter.
+  """
+  def supports?(_live_resource, _feature), do: true
+
+  @doc """
   Reads one record from the fake store in `assigns.stub_records`, a map of primary value to record.
 
   `Backpex.Resource.get/4` and `Backpex.Resource.reload/4` — and therefore every item action execution gate — read

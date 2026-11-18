@@ -280,6 +280,9 @@ defmodule Backpex.MixProject do
       "guides/searching/basic-search.md",
       "guides/searching/full-text-search.md",
 
+      # Adapters
+      "guides/adapters/custom-adapter.md",
+
       # Translations
       "guides/translations/translations.md",
 
@@ -322,6 +325,7 @@ defmodule Backpex.MixProject do
       Actions: ~r/guides\/actions\/.?/,
       Authorization: ~r/guides\/authorization\/.?/,
       Searching: ~r/guides\/searching\/.?/,
+      Adapters: ~r/guides\/adapters\/.?/,
       Translations: ~r/guides\/translations\/.?/,
       "Upgrade Guides": ~r{guides/upgrading/.*}
     ]
@@ -334,7 +338,7 @@ defmodule Backpex.MixProject do
       Fields: ~r/Backpex\.Field.?/,
       Actions: ~r/Backpex\.(ItemAction|ResourceAction).?/,
       Filters: ~r/Backpex\.Filter.?/,
-      Expressions: ~r/Backpex\.Expr.?/,
+      Queries: ~r/Backpex\.(Expr|Query).?/,
       Metrics: ~r/Backpex\.Metric.?/,
       Preferences: ~r/Backpex\.Preferences.*/,
       Testing: ~r/Backpex\.Testing/

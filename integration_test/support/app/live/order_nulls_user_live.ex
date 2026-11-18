@@ -28,7 +28,7 @@ defmodule Backpex.Test.OrderNullsUserLive do
       @impl Backpex.LiveResource
       def fields do
         [
-          username: %{module: Backpex.Fields.Text, label: "Username"},
+          username: %{module: Backpex.Fields.Text, label: "Username", searchable: true},
           age: %{module: Backpex.Fields.Number, label: "Age"},
           avatar: %{module: Backpex.Fields.Text, label: "Avatar", order_nulls: :last}
         ]

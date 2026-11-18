@@ -1,7 +1,7 @@
 defmodule Backpex.Integration.Adapters.EctoAdapterTest do
   @moduledoc """
   Runs the adapter conformance tests against `Backpex.Adapters.Ecto` and PostgreSQL, with a UUID, a string and an integer
-  primary key.
+  primary key, and with a field that may be `nil`.
   """
 
   defmodule UUIDPrimaryKey do
@@ -30,5 +30,18 @@ defmodule Backpex.Integration.Adapters.EctoAdapterTest do
 
     def insert_item(attrs), do: insert(:note, attrs)
     def new_item, do: %Backpex.Test.Note{}
+  end
+
+  defmodule NullableField do
+    use Backpex.DataCase, async: true
+
+    use Backpex.Test.AdapterConformance,
+      live_resource: Backpex.Test.OrderNullsDefaultUserLive,
+      field: :username,
+      nullable_field: :age,
+      attrs: %{"first_name" => "Ann", "last_name" => "Ant", "role" => "user"}
+
+    def insert_item(attrs), do: insert(:user, attrs)
+    def new_item, do: %Backpex.Test.User{}
   end
 end

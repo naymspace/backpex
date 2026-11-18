@@ -1,6 +1,7 @@
 defmodule Backpex.Integration.HarnessTest do
   use Backpex.ConnCase, async: true
 
+  alias Backpex.Adapters.Memory
   alias Backpex.Test.EctoFactory
 
   test "renders the index view of every routed LiveResource", %{conn: conn} do
@@ -19,7 +20,12 @@ defmodule Backpex.Integration.HarnessTest do
              live_routes |> Enum.map(&elem(&1, 1)) |> Enum.uniq() |> Enum.sort()
 
     for {_path, live_resource} <- index_routes do
-      live_resource.adapter_config(:schema) |> build_with_factory() |> insert()
+      item = live_resource.adapter_config(:schema) |> build_with_factory()
+
+      case live_resource.config(:adapter) do
+        Memory -> live_resource.adapter_config(:store) |> Memory.put_items([item])
+        _adapter -> insert(item)
+      end
     end
 
     for {path, live_resource} <- index_routes do
