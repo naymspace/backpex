@@ -13,6 +13,14 @@ defmodule Backpex.Test.User do
     field :first_name, :string
     field :last_name, :string
     field :full_name, :string, virtual: true
+    # The computed values of `Backpex.Test.UserStatsLive`.
+    field :post_count, :integer, virtual: true
+    field :published_count, :integer, virtual: true
+    field :total_likes, :integer, virtual: true
+    field :top_post, :string, virtual: true
+    field :top_post_likes, :integer, virtual: true
+    field :draft_count, :integer, virtual: true
+    field :first_tag, :string, virtual: true
     field :age, :integer
     field :role, Ecto.Enum, values: [:user, :admin]
     field :avatar, :string

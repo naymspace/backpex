@@ -256,6 +256,23 @@ defmodule Backpex.QueryTest do
                query |> Query.unset([:search]) |> Query.apply_to(@items) |> List.first()
     end
 
+    test "computes aggregates of the loaded related items" do
+      # The schema of `ArticleLive` has no tags, so the values are not cast.
+      computed = %{
+        tag_count: Expr.aggregate(:count, :tags),
+        fp_count: Expr.aggregate(:count, :tags, where: expr(name == "fp")),
+        last_tag: Expr.aggregate(:first, :tags, value: expr(name), sort: [name: :desc])
+      }
+
+      query = ArticleLive |> Query.new() |> Map.put(:computed, computed) |> Query.sort(id: :asc)
+
+      assert [
+               %{tag_count: 1, fp_count: 1, last_tag: "fp"},
+               %{tag_count: 0, fp_count: 0, last_tag: nil},
+               %{tag_count: 2, fp_count: 1, last_tag: "new"}
+             ] = Query.apply_to(query, @items)
+    end
+
     test "computes with numbers, datetimes and strings, with the nil rules of SQL" do
       computed = %{
         double: expr(likes * 2),

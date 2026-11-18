@@ -240,6 +240,18 @@ defmodule Backpex.Adapters.EctoTest do
       assert [%{expr: {:==, _meta, _args}, params: [{"Ann", _type}]}] = query.wheres
     end
 
+    test "takes a search condition of a field with computed values" do
+      condition = Expr.native(EctoAdapter, dynamic([item], fragment("upper(?)", item.name) == ^"ANN"))
+
+      query =
+        []
+        |> Resource.items_query(%{live_action: :index}, ComputedUserLive)
+        |> Query.search("Ann", [:label, condition])
+        |> EctoAdapter.ecto_query()
+
+      assert [%{expr: {:or, _meta, [_label, _condition]}}] = query.wheres
+    end
+
     test "takes a native search condition of a field and ORs it with the other targets" do
       condition = Expr.native(EctoAdapter, dynamic([item], fragment("upper(?)", item.name) == ^"ANN"))
 
@@ -966,6 +978,122 @@ defmodule Backpex.Adapters.EctoTest do
       query = [] |> Resource.items_query(%{}, UsesPostLive) |> ecto_query()
 
       assert [%{as: :backpex_user, qual: :left}] = query.joins
+    end
+
+    test "joins an aggregate as a subquery of the related items by the primary key of the items" do
+      defmodule AggregatePostLive do
+        @moduledoc false
+        use FakeLiveResource, schema: Backpex.Adapters.EctoTest.TestPost
+
+        def computed(_assigns) do
+          [
+            tag_count: Expr.aggregate(:count, :tags),
+            first_tag: Expr.aggregate(:first, :tags, value: expr(name), sort: [name: :asc])
+          ]
+        end
+      end
+
+      query = [] |> Resource.items_query(%{}, AggregatePostLive) |> ecto_query()
+
+      assert [first_join, count_join] = Enum.sort_by(query.joins, &is_nil(&1.source.query.distinct))
+      assert %{qual: :left, source: %Ecto.SubQuery{query: %{group_bys: [_id], distinct: nil}}} = count_join
+      assert %{qual: :left, source: %Ecto.SubQuery{query: %{group_bys: [], distinct: %{expr: [_id]}}}} = first_join
+    end
+
+    test "shares one join for the aggregates of the same relationships, kind, where and sort" do
+      defmodule SharedAggregatePostLive do
+        @moduledoc false
+        use FakeLiveResource, schema: Backpex.Adapters.EctoTest.TestPost
+
+        def computed(_assigns) do
+          name = expr(name)
+          id = expr(id)
+          tag_count = Expr.aggregate(:count, :tags)
+
+          [
+            first_tag: Expr.aggregate(:first, :tags, value: name, sort: [name: :asc]),
+            first_tag_id: Expr.aggregate(:first, :tags, value: id, sort: [name: :asc]),
+            tag_count: tag_count,
+            # Arithmetic of two aggregates of the same group, and an aggregate with another sort.
+            tag_count_twice: expr(^tag_count + ^tag_count),
+            last_tag: Expr.aggregate(:first, :tags, value: expr(name), sort: [name: :desc])
+          ]
+        end
+      end
+
+      query =
+        []
+        |> Resource.items_query(%{}, SharedAggregatePostLive)
+        |> Query.sort(first_tag: :asc)
+        |> Query.search("x", [:first_tag_id])
+        |> ecto_query()
+
+      assert [first_tags, count, last_tags] =
+               query.joins
+               |> Enum.map(& &1.source.query)
+               |> Enum.sort_by(&(&1.select.expr |> elem(2) |> length()), :desc)
+
+      assert %{select: %{expr: {:%{}, _meta, [_key, _first_tag, _first_tag_id]}}} = first_tags
+      assert %{group_bys: [_id], select: %{expr: {:%{}, _count_meta, [_count_key, _count]}}} = count
+      assert %{distinct: %{expr: [_id_expr]}, order_bys: [%{expr: [desc: _name]}]} = last_tags
+    end
+
+    test "selects the value of an aggregate of a filter or a metric in the join it shares with a computed value" do
+      defmodule FilteredAggregatePostLive do
+        @moduledoc false
+        use FakeLiveResource, schema: Backpex.Adapters.EctoTest.TestPost
+
+        def computed(_assigns), do: [first_tag: Expr.aggregate(:first, :tags, value: expr(name), sort: [name: :asc])]
+      end
+
+      first_tag_id = Expr.aggregate(:first, :tags, value: expr(id), sort: [name: :asc])
+      query = Resource.items_query([], %{}, FilteredAggregatePostLive)
+
+      filtered = query |> Query.filter(expr(^first_tag_id > 1)) |> ecto_query()
+
+      # One join selects both values, and the filter reads the key of one of them.
+      assert [%{as: :backpex_aggregates_1, source: %{query: %{select: %{expr: {:%{}, _meta, values}}}}}] =
+               filtered.joins
+
+      assert Keyword.keys(values) == [:key, :value_1, :value_2]
+      assert [%{expr: where}] = filtered.wheres
+      assert Macro.to_string(where) == "&1.value_1() > ^0"
+
+      Process.put({FakeRepo, :one}, 3)
+
+      assert {:ok, %{tag_ids: 3, tagged: 3}} =
+               query
+               |> Query.aggregate(:tag_ids, {:sum, first_tag_id})
+               |> Query.aggregate(:tagged, :count, where: expr(^first_tag_id > 1))
+               |> Resource.aggregate()
+
+      # The query of each aggregate selects its value in the join of the computed value, too.
+      for _aggregate <- 1..2 do
+        assert_received {:repo, :one, aggregated}
+        assert [%{source: %{query: %{select: %{expr: {:%{}, _meta, [_key, _value, _other_value]}}}}}] = aggregated.joins
+      end
+    end
+
+    test "joins the aggregates of an exists and of an aggregate in their subqueries" do
+      tag_count = Expr.aggregate(:count, :tags)
+      tagged_post_count = Expr.aggregate(:count, :post, where: expr(^tag_count > 1))
+
+      query = PostLive |> Query.new() |> Query.filter(expr(exists(post_tags, ^tagged_post_count > 0))) |> ecto_query()
+
+      # Every subquery has its own names, so the joins of both are the first of their query.
+      assert [] = query.joins
+      assert [%{subqueries: [%{query: post_tags}]}] = query.wheres
+      assert [%{as: :backpex_post_tags}, %{as: :backpex_aggregates_1, source: %{query: posts}}] = post_tags.joins
+      assert [%{as: :backpex_post}, %{as: :backpex_aggregates_1, source: %{query: tags}}] = posts.joins
+      assert [%{as: :backpex_tags}] = tags.joins
+    end
+
+    test "raises for more joins of aggregates than there are names" do
+      filter = Enum.map(1..101, &expr(^Expr.aggregate(:count, :tags, where: expr(id > ^&1)) > 0))
+
+      assert_raise ArgumentError, ~r/expected at most 100 joins of aggregates in a query/, fn ->
+        PostLive |> Query.new() |> Query.filter(Expr.all(filter)) |> ecto_query()
+      end
     end
 
     test "computes arithmetic, datetime_diff and to_string" do
