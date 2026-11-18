@@ -10,7 +10,8 @@ defmodule Backpex.HTML.ResourceTest do
 
   defmodule NoTypesAdapter do
     @moduledoc false
-    # An adapter that doesn't know the types of the fields.
+    # An adapter that doesn't know the fields.
+    def describe(_path, _live_resource), do: %Backpex.Adapter.Description{}
   end
 
   defmodule ContextLive do

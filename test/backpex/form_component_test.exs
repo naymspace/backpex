@@ -62,7 +62,7 @@ defmodule Backpex.FormComponentTest do
     def adapter_config(:schema), do: User
     def fields, do: []
     def get(id, _fields, _assigns, _live_resource), do: {:ok, %{id: id}}
-    def association(name, live_resource), do: EctoAdapter.association(name, live_resource)
+    def describe(path, live_resource), do: EctoAdapter.describe(path, live_resource)
     def translate({msg, _opts}), do: msg
     def can?(_assigns, _action, _item), do: true
     def singular_name, do: "Item"

@@ -5,6 +5,7 @@ defmodule Backpex.Integration.Adapters.EctoExpressionsTest do
 
   alias Backpex.Adapters.Ecto, as: EctoAdapter
   alias Backpex.Test.Post
+  alias Backpex.Test.PostLive
   alias Backpex.Test.User
 
   defmodule ExpressionFilter do
@@ -133,19 +134,43 @@ defmodule Backpex.Integration.Adapters.EctoExpressionsTest do
     end
   end
 
-  defp titles(expression) do
-    Post |> filter_query([expression]) |> Repo.all() |> Enum.map(& &1.title) |> Enum.sort()
+  describe "with the LiveResource" do
+    test "casts the values to the types of the fields of its description" do
+      assert titles(expr(likes > "100"), PostLive) == ["100% Elixir"]
+      assert titles(expr(user.role == "user" and user.age == "30"), PostLive) == ["100% Elixir"]
+    end
+
+    test "raises for unknown fields and paths through relationships to many items" do
+      assert_raise ArgumentError, ~r/unknown field :unknown/, fn -> titles(expr(unknown == 1), PostLive) end
+
+      assert_raise ArgumentError, ~r/:tags to be a relationship to one item/, fn ->
+        titles(expr(tags.name == "elixir"), PostLive)
+      end
+    end
+
+    test "describes the resource and related items" do
+      assert %{fields: %{likes: %{primitive: :integer}}, relationships: %{user: %{owner_key: :user_id}}} =
+               Backpex.Resource.describe(PostLive)
+
+      assert %{fields: %{role: %{primitive: :string}}} = Backpex.Resource.describe([:user], PostLive)
+      assert Backpex.Resource.field_type(:likes, PostLive) == :integer
+      assert %{cardinality: :many, through: []} = Backpex.Resource.association(:tags, PostLive)
+    end
+  end
+
+  defp titles(expression, live_resource \\ nil) do
+    Post |> filter_query([expression], live_resource) |> Repo.all() |> Enum.map(& &1.title) |> Enum.sort()
   end
 
   defp usernames(expression) do
     User |> filter_query([expression]) |> Repo.all() |> Enum.map(& &1.username) |> Enum.sort()
   end
 
-  defp filter_query(schema, expressions) do
+  defp filter_query(schema, expressions, live_resource \\ nil) do
     names = Enum.take([:first, :second, :third], length(expressions))
     configs = Enum.map(names, &{&1, %{module: ExpressionFilter}})
     query = from(schema)
 
-    EctoAdapter.apply_filters(query, names |> Enum.zip(expressions) |> Map.new(), configs, %{})
+    EctoAdapter.apply_filters(query, names |> Enum.zip(expressions) |> Map.new(), configs, %{}, live_resource)
   end
 end
