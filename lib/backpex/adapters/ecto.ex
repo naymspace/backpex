@@ -128,23 +128,25 @@ defmodule Backpex.Adapters.Ecto do
     |> maybe_join(associations)
     |> maybe_preload(associations, fields)
     |> maybe_merge_dynamic_fields(fields)
-    |> apply_search(schema, full_text_search, criteria[:search])
+    |> apply_search(schema, full_text_search, criteria[:search], assigns)
     |> apply_filters(criteria[:filter_values], criteria[:filter_configs], assigns)
-    |> apply_criteria(criteria, fields)
+    |> apply_criteria(criteria, fields, assigns)
   end
 
-  def apply_search(query, _schema, nil, {_search_string, []}), do: query
+  def apply_search(query, schema, full_text_search, search, assigns \\ %{})
 
-  def apply_search(query, _schema, nil, {"", _searchable_fields}), do: query
+  def apply_search(query, _schema, nil, {_search_string, []}, _assigns), do: query
 
-  def apply_search(query, _schema, nil, {search_string, searchable_fields}) do
+  def apply_search(query, _schema, nil, {"", _searchable_fields}, _assigns), do: query
+
+  def apply_search(query, _schema, nil, {search_string, searchable_fields}, assigns) do
     search_string = "%#{search_string}%"
 
-    conditions = search_conditions(searchable_fields, search_string)
+    conditions = search_conditions(searchable_fields, search_string, assigns)
     where(query, ^conditions)
   end
 
-  def apply_search(query, schema, full_text_search, {search_string, _searchable_fields}) do
+  def apply_search(query, schema, full_text_search, {search_string, _searchable_fields}, _assigns) do
     case search_string do
       "" ->
         query
@@ -160,23 +162,32 @@ defmodule Backpex.Adapters.Ecto do
     end
   end
 
-  defp search_conditions([field], search_string) do
-    search_condition(field, search_string)
+  defp search_conditions([field], search_string, assigns) do
+    search_condition(field, search_string, assigns)
   end
 
-  defp search_conditions([field | searchable_fields], search_string) do
-    dynamic(^search_condition(field, search_string) or ^search_conditions(searchable_fields, search_string))
+  defp search_conditions([field | searchable_fields], search_string, assigns) do
+    dynamic(
+      ^search_condition(field, search_string, assigns) or
+        ^search_conditions(searchable_fields, search_string, assigns)
+    )
   end
 
-  defp search_condition({_name, %{select: select} = _field_options}, search_string) do
+  defp search_condition({_name, %{select: select} = _field_options}, search_string, _assigns) do
     dynamic(ilike(^select, ^search_string))
   end
 
-  defp search_condition({name, %{queryable: queryable} = field_options}, search_string) do
+  defp search_condition({name, %{queryable: queryable} = field_options} = field, search_string, assigns) do
     field_name = Map.get(field_options, :display_field, name)
     schema_name = Map.get(field_options, :custom_alias, name_by_schema(queryable))
 
-    dynamic(^field_options.module.search_condition(schema_name, field_name, search_string))
+    if option_labels?(field_options.module) do
+      labels = field_options.module.option_labels(field, assigns)
+
+      dynamic(ilike(^label_expression(schema_name, field_name, queryable, labels), ^search_string))
+    else
+      dynamic(^field_options.module.search_condition(schema_name, field_name, search_string))
+    end
   end
 
   @doc """
@@ -198,12 +209,14 @@ defmodule Backpex.Adapters.Ecto do
 
   def apply_filters(query, _filter_values, _filter_configs, _assigns), do: query
 
-  def apply_criteria(query, [], _fields), do: query
+  def apply_criteria(query, criteria, fields, assigns \\ %{})
 
-  def apply_criteria(query, criteria, fields) do
+  def apply_criteria(query, [], _fields, _assigns), do: query
+
+  def apply_criteria(query, criteria, fields, assigns) do
     Enum.reduce(criteria, query, fn
       {:order, order}, query ->
-        apply_order(query, order, fields)
+        apply_order(query, order, fields, assigns)
 
       {:limit, limit}, query ->
         query
@@ -219,35 +232,85 @@ defmodule Backpex.Adapters.Ecto do
     end)
   end
 
-  defp apply_order(query, %{by: by, direction: direction, schema: schema} = order, fields) do
+  defp apply_order(query, %{by: by, direction: direction, schema: schema} = order, fields, assigns) do
     field_name = Map.get(order, :field_name)
     schema_name = get_custom_alias(fields, field_name, name_by_schema(schema))
 
     direction = order_direction(direction, Map.get(order, :nulls, :default))
 
-    field =
-      Enum.find(fields, fn
-        {^by, field} -> field
-        {^field_name, %{display_field: ^by} = field} -> field
-        _field -> nil
-      end)
+    expression =
+      case order_field(fields, field_name, by) do
+        {_name, %{select: select} = _field_options} ->
+          select
 
-    case field do
-      {_name, %{select: select} = _field_options} ->
-        query
-        |> order_by([{^schema_name, schema_name}], ^[{direction, select}])
+        {_name, %{module: module}} = field ->
+          if option_labels?(module) do
+            label_expression(schema_name, by, schema, module.option_labels(field, assigns))
+          else
+            dynamic([{^schema_name, schema_name}], field(schema_name, ^by))
+          end
 
-      _field ->
-        query
-        |> order_by([{^schema_name, schema_name}], [
-          {^direction, field(schema_name, ^by)}
-        ])
-    end
+        _field ->
+          dynamic([{^schema_name, schema_name}], field(schema_name, ^by))
+      end
+
+    order_by(query, ^[{direction, expression}])
   end
 
-  defp apply_order(_query, order, _fields) do
+  defp apply_order(_query, order, _fields, _assigns) do
     raise ArgumentError,
           "expected order criteria to be a map with the keys :by, :direction and :schema, got: #{inspect(order)}"
+  end
+
+  # The field the user ordered by is identified by its name. Without one, e.g. for the `init_order`, `by` names a column
+  # of the schema.
+  defp order_field(fields, nil = _field_name, by), do: Enum.find(fields, &match?({^by, _field_options}, &1))
+  defp order_field(fields, field_name, _by), do: Enum.find(fields, &match?({^field_name, _field_options}, &1))
+
+  defp option_labels?(module), do: Code.ensure_loaded?(module) and function_exported?(module, :option_labels, 2)
+
+  # Maps the stored value to its label from `c:Backpex.Field.option_labels/2`, so that searching and ordering match what
+  # the user sees. Values without a label fall back to the stored value.
+  #
+  # The values are compared in their database representation: the values of an `Ecto.Enum` are dumped, e.g. `:draft` to
+  # `1` for `values: [draft: 1]`. A `NULL` column matches a `nil` or `""` value, as `to_string(nil)` does.
+  defp label_expression(schema_name, field_name, queryable, labels) do
+    type = column_type(queryable, field_name)
+
+    {labels, values} =
+      labels
+      |> Enum.map(fn {label, value} -> {to_string(label), value |> dump_label_value(type) |> to_string()} end)
+      |> Enum.unzip()
+
+    dynamic(
+      [{^schema_name, schema_name}],
+      fragment(
+        "coalesce((?::text[])[array_position(?::text[], coalesce(?::text, ''))], ?::text)",
+        ^labels,
+        ^values,
+        field(schema_name, ^field_name),
+        field(schema_name, ^field_name)
+      )
+    )
+  end
+
+  defp column_type(queryable, field_name) when is_atom(queryable) do
+    if function_exported?(queryable, :__schema__, 2), do: queryable.__schema__(:type, field_name)
+  end
+
+  defp column_type(_queryable, _field_name), do: nil
+
+  defp dump_label_value(value, {:parameterized, {Ecto.Enum, _params}} = type), do: dump_enum_value(value, type)
+  defp dump_label_value(value, {:parameterized, Ecto.Enum, _params} = type), do: dump_enum_value(value, type)
+  defp dump_label_value(value, _type), do: value
+
+  defp dump_enum_value(value, type) do
+    with {:ok, cast_value} <- Ecto.Type.cast(type, value),
+         {:ok, dumped_value} <- Ecto.Type.dump(type, cast_value) do
+      dumped_value
+    else
+      _error -> value
+    end
   end
 
   defp order_direction(direction, :default) when direction in [:asc, :desc], do: direction

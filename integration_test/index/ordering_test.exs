@@ -142,6 +142,18 @@ defmodule Backpex.Integration.Index.OrderingTest do
     end
   end
 
+  # Addresses have a select field with grouped options for the country.
+  describe "select field" do
+    test "orders by the labels of its options instead of the stored values", %{conn: conn} do
+      # Stored values sort as at, ca, ch, de, us; the labels as Austria, Canada, Germany, Switzerland, USA.
+      for country <- [:us, :ch, :de, :ca, :at], do: insert(:address, street: "Street #{country}", country: country)
+
+      conn
+      |> visit(~p"/admin/addresses?#{%{"order_by" => "country", "order_direction" => "asc"}}")
+      |> assert_order(["Street at", "Street ca", "Street de", "Street ch", "Street us"])
+    end
+  end
+
   defp assert_order(session, texts) do
     session = assert_has(session, "table tbody tr", count: length(texts))
 

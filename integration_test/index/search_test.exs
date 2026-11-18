@@ -55,6 +55,19 @@ defmodule Backpex.Integration.Index.SearchTest do
     |> refute_has("tr", text: "Inception")
   end
 
+  test "finds items by the label of a select field", %{conn: conn} do
+    insert(:address, city: "Berlin", country: :de)
+    insert(:address, city: "Vienna", country: :at)
+
+    conn
+    |> visit(~p"/admin/addresses")
+    |> assert_has("table tbody tr", count: 2)
+    |> search("austr")
+    |> assert_has("table tbody tr", count: 1)
+    |> refute_has("tr", text: "Berlin")
+    |> assert_has("tr", text: "Vienna")
+  end
+
   defp search(session, value) do
     unwrap(session, fn view ->
       view

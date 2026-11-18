@@ -29,6 +29,7 @@ defmodule Backpex.Test.AddressLive do
       country: %{
         module: Backpex.Fields.Select,
         label: "Country",
+        searchable: true,
         options: %{
           "Europe" => [Germany: "de", Austria: "at", Switzerland: "ch"],
           "North America" => [USA: "us", Canada: "ca"]
