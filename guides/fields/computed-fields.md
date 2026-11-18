@@ -66,17 +66,15 @@ e.g. `expr(author.name)`. `Backpex.Adapters.Ecto` joins a subquery of the values
 duplicate items. Aggregates that only differ in their `:value`, e.g. the title and the likes of the top post, share
 one subquery. The index view sorts by aggregates and searches them like any other computed value.
 
-The subquery of an aggregate is not limited to the items of the page or of a filter: on every read, it aggregates the
-related items of all items. If that is too slow for a very large table of related items, a native value (see below)
-can select a correlated subquery instead, which only reads the related items of one item:
+With a limit, e.g. for a page of the index view or a single item, the subqueries only aggregate the related items of
+the items the query returns: the adapter first finds the primary keys of these items (the common table expression
+`backpex_page`), so the cost of an aggregate grows with the page, not with the table. An index on the foreign key of
+the relationship, e.g. on `posts.user_id`, lets the database find the related items of a page.
 
-```elixir
-post_count:
-  Backpex.Expr.native(
-    Backpex.Adapters.Ecto,
-    dynamic([user: u], fragment("(SELECT count(*) FROM posts WHERE posts.user_id = ?)", u.id))
-  )
-```
+An aggregate that decides which items the query returns, as the filter, the search or the sort reads it, is aggregated
+over the related items of all items first. So is every aggregate of a query without a limit, e.g. an export, and of a
+metric. On a very large table of related items, sorting or filtering by an aggregate takes as long as aggregating the
+whole table.
 
 ## Values of the database
 

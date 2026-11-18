@@ -94,6 +94,9 @@ defmodule Backpex.Adapters.Ecto do
   alias Backpex.Expr.Ref
   alias Backpex.Query
 
+  # The name of the common table expression of the primary keys of the items of a page, see `apply_page/3`.
+  @page "backpex_page"
+
   @doc false
   def default_changeset(item, attrs, _metadata), do: Ecto.Changeset.cast(item, attrs, [])
 
@@ -542,10 +545,17 @@ defmodule Backpex.Adapters.Ecto do
     select_merge(ecto_query, ^Map.new(values))
   end
 
-  # The expressions of a query that may read aggregates, which `Backpex.Adapters.Ecto.Where.join_aggregates/2` joins
+  # The expressions of a query that may read aggregates, which `Backpex.Adapters.Ecto.Where.join_aggregates/3` joins
   # before any of them is built, so that all aggregates of a group share a join: the computed values, the filter, the
   # values of related items that sorts and the search refer to, and the conditions of the search.
-  defp aggregate_expressions(%Query{computed: computed, filter: filter, search: search} = query) do
+  defp aggregate_expressions(%Query{computed: computed} = query) do
+    [filter | related] = condition_expressions(query)
+
+    [filter | Map.values(computed) ++ related]
+  end
+
+  # The expressions of `aggregate_expressions/1` that decide which items a query returns and in which order.
+  defp condition_expressions(%Query{filter: filter, search: search} = query) do
     sort_targets = query |> Query.sorts() |> Enum.map(fn {ref, _direction} -> ref end)
     search_targets = if search, do: search.targets, else: []
 
@@ -555,7 +565,7 @@ defmodule Backpex.Adapters.Ecto do
         condition -> [condition]
       end)
 
-    [filter | Map.values(computed) ++ related]
+    [filter | related]
   end
 
   # --- QUERIES
@@ -597,15 +607,74 @@ defmodule Backpex.Adapters.Ecto do
   end
 
   defp apply_query(ecto_query, %Query{} = query, schema, expressions) do
-    {ecto_query, joined} = Where.join_aggregates(ecto_query, aggregate_expressions(query) ++ expressions)
+    # Further expressions read their aggregates for all items of the query.
+    if expressions == [] and page_aggregates?(ecto_query, query, schema) do
+      apply_page(ecto_query, query, schema)
+    else
+      {ecto_query, joined} = Where.join_aggregates(ecto_query, aggregate_expressions(query) ++ expressions)
+
+      ecto_query =
+        ecto_query
+        |> merge_computed(query, joined)
+        |> apply_conditions(query, schema, joined)
+
+      {ecto_query, joined}
+    end
+  end
+
+  defp apply_conditions(ecto_query, %Query{} = query, schema, joined) do
+    ecto_query
+    |> Where.where_expr(query.filter, joined)
+    |> apply_search(query, schema, joined)
+    |> apply_sorts(query, schema, joined)
+    |> apply_offset_limit(query)
+  end
+
+  # Whether the query selects aggregates for a limited number of items, which `apply_page/3` then aggregates the
+  # related items of. The query of a page finds its items by their primary key, so it needs a query that returns every
+  # item once, e.g. not an options query with a join.
+  defp page_aggregates?(%Ecto.Query{} = ecto_query, %Query{limit: limit, computed: computed}, schema) do
+    is_integer(limit) and is_atom(schema) and match?([_primary_key], schema.__schema__(:primary_key)) and
+      match?(
+        %Ecto.Query{
+          joins: [],
+          select: nil,
+          distinct: nil,
+          group_bys: [],
+          havings: [],
+          combinations: [],
+          limit: nil,
+          offset: nil,
+          with_ctes: nil
+        },
+        ecto_query
+      ) and Enum.any?(computed, fn {_name, expression} -> Where.aggregates?(expression) end)
+  end
+
+  # The items of a page with their aggregates. The common table expression `backpex_page` finds the primary keys of the
+  # items of the page: it applies the filter, the search, the sorts, the offset and the limit, and joins only the
+  # aggregates these read, over all items. The query then selects the items of these keys in the order of the sorts,
+  # and the aggregates it selects only aggregate the related items of these keys. So the cost of an aggregate that is
+  # only selected grows with the page, not with the table.
+  defp apply_page(ecto_query, %Query{computed: computed} = query, schema) do
+    primary_key = get_primary_key_field(schema)
+
+    {keys, joined} = ecto_query |> exclude(:preload) |> Where.join_aggregates(condition_expressions(query))
+
+    keys =
+      keys
+      |> apply_conditions(query, schema, joined)
+      |> select([item], %{key: field(item, ^primary_key)})
+
+    page = from(page in @page, select: page.key)
+    {ecto_query, joined} = Where.join_aggregates(ecto_query, Map.values(computed), of: page)
 
     ecto_query =
       ecto_query
+      |> with_cte(@page, as: ^keys)
+      |> where([item], field(item, ^primary_key) in subquery(page))
       |> merge_computed(query, joined)
-      |> Where.where_expr(query.filter, joined)
-      |> apply_search(query, schema, joined)
       |> apply_sorts(query, schema, joined)
-      |> apply_offset_limit(query)
 
     {ecto_query, joined}
   end

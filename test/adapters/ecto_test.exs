@@ -1074,6 +1074,126 @@ defmodule Backpex.Adapters.EctoTest do
       end
     end
 
+    test "aggregates only the related items of the items of a page for a query with a limit" do
+      defmodule PagedAggregatePostLive do
+        @moduledoc false
+        use FakeLiveResource, schema: Backpex.Adapters.EctoTest.TestPost
+
+        def computed(_assigns) do
+          [
+            tag_count: Expr.aggregate(:count, :tags),
+            first_tag: Expr.aggregate(:first, :tags, value: expr(name), sort: [name: :asc]),
+            first_tag_id: Expr.aggregate(:first, :tags, value: expr(id), sort: [name: :asc])
+          ]
+        end
+      end
+
+      query =
+        []
+        |> Resource.items_query(%{}, PagedAggregatePostLive)
+        |> Query.filter(expr(title == "Hello"))
+        |> Query.sort(title: :asc)
+        |> Query.offset(30)
+        |> Query.limit(15)
+        |> ecto_query()
+
+      # The page finds its primary keys without any aggregate, as the filter and the sort read none.
+      assert %{with_ctes: %{queries: [{"backpex_page", _opts, page}]}} = query
+      assert %{joins: [], wheres: [_filter], order_bys: [_sort], limit: %{}, offset: %{}} = page
+      assert Macro.to_string(page.select.expr) == "%{key: &0.id()}"
+
+      # The query selects the items of these keys in the order of the sort, and one join for every group of aggregates
+      # aggregates the related items of these keys.
+      assert %{limit: nil, offset: nil, order_bys: [_sort], wheres: [%{subqueries: [%{query: keys}]}]} = query
+      assert %{from: %{source: {"backpex_page", nil}}} = keys
+      assert [_count, _first] = query.joins
+
+      for %{qual: :left, source: %Ecto.SubQuery{query: aggregate}} <- query.joins do
+        assert [%{expr: where, subqueries: [%{query: ^keys}]}] = aggregate.wheres
+        assert Macro.to_string(where) == "&0.id() in {:subquery, 0}"
+      end
+
+      assert %{select: %{expr: {:merge, _meta, [_item, {:%{}, _map_meta, values}]}}} = query
+      assert values |> Keyword.keys() |> Enum.sort() == [:first_tag, :first_tag_id, :tag_count]
+    end
+
+    test "aggregates the related items of all items for what decides the items of a page" do
+      defmodule SortedAggregatePostLive do
+        @moduledoc false
+        use FakeLiveResource, schema: Backpex.Adapters.EctoTest.TestPost
+
+        def computed(_assigns) do
+          [
+            tag_count: Expr.aggregate(:count, :tags),
+            first_tag: Expr.aggregate(:first, :tags, value: expr(name), sort: [name: :asc])
+          ]
+        end
+      end
+
+      first_tag_id = Expr.aggregate(:first, :tags, value: expr(id), sort: [name: :asc])
+
+      query =
+        []
+        |> Resource.items_query(%{}, SortedAggregatePostLive)
+        |> Query.filter(expr(^first_tag_id > 1))
+        |> Query.sort(tag_count: :desc)
+        |> Query.limit(15)
+        |> ecto_query()
+
+      # The page joins the aggregates of the filter and of the sort over all items, but not the value it only selects.
+      assert %{with_ctes: %{queries: [{"backpex_page", _opts, page}]}} = query
+      assert [first, count] = Enum.sort_by(page.joins, &is_nil(&1.source.query.distinct))
+      assert %{wheres: [], select: %{expr: {:%{}, _meta, [_key, _first_tag_id]}}} = first.source.query
+      assert %{wheres: [], group_bys: [_id]} = count.source.query
+      assert %{wheres: [_filter], order_bys: [_sort], limit: %{}} = page
+
+      # The query sorts the items of the page by the aggregate of these items.
+      assert [_count, _first] = query.joins
+      assert Enum.all?(query.joins, &match?([_page], &1.source.query.wheres))
+      assert %{order_bys: [_sort], limit: nil} = query
+    end
+
+    test "aggregates the related items of all items without a limit, without selected aggregates or with a join" do
+      # All items, e.g. of an export.
+      tag_count = Expr.aggregate(:count, :tags)
+      query = PostLive |> Query.new() |> Query.compute(:tag_count, tag_count) |> Query.offset(15) |> ecto_query()
+
+      assert %{with_ctes: nil, joins: [%{source: %{query: %{wheres: []}}}], offset: %{}} = query
+
+      # An aggregate that is only filtered by.
+      query = PostLive |> Query.new() |> Query.filter(expr(^tag_count > 1)) |> Query.limit(15) |> ecto_query()
+
+      assert %{with_ctes: nil, joins: [%{source: %{query: %{wheres: []}}}], limit: %{}} = query
+
+      # An options query with a join may return an item more than once, which the primary keys of a page would not.
+      options_query = fn query, _assigns -> join(query, :inner, [post_tag], tag in assoc(post_tag, :tag)) end
+
+      query =
+        PostLive
+        |> Query.new()
+        |> Query.from([:post_tags])
+        |> EctoAdapter.put_field_options({:post_tags, %{options_query: options_query}})
+        |> Query.compute(:post_count, Expr.aggregate(:count, :post))
+        |> Query.limit(15)
+        |> ecto_query()
+
+      assert %{with_ctes: nil, joins: [_tag, %{source: %{query: %{wheres: []}}}], limit: %{}} = query
+    end
+
+    test "aggregates the related items of all items for the aggregates of a metric" do
+      Process.put({FakeRepo, :one}, 3)
+
+      assert {:ok, %{tags: 3}} =
+               PostLive
+               |> Query.new()
+               |> Query.compute(:first_tag, Expr.aggregate(:first, :tags, value: expr(name), sort: [name: :asc]))
+               |> Query.limit(15)
+               |> Query.aggregate(:tags, {:sum, Expr.aggregate(:count, :tags)})
+               |> EctoAdapter.aggregate()
+
+      assert_received {:repo, :one, %{with_ctes: nil, joins: [_count, _first]}}
+    end
+
     test "joins the aggregates of an exists and of an aggregate in their subqueries" do
       tag_count = Expr.aggregate(:count, :tags)
       tagged_post_count = Expr.aggregate(:count, :post, where: expr(^tag_count > 1))
