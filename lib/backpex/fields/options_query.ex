@@ -1,7 +1,7 @@
 defmodule Backpex.Fields.OptionsQuery do
   @moduledoc false
   # What the relation fields share to check submitted values against their `options_query`. The adapter limits the
-  # options to the submitted ids, see the `:ids` criterion of `c:Backpex.Adapter.list_options/4`.
+  # options to the submitted ids, see the `:ids` criterion of `Backpex.Resource.list_options/4`.
 
   alias Phoenix.HTML.Form
 

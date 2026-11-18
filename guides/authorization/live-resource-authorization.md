@@ -132,7 +132,7 @@ Backpex.Resource.update_all(item.posts, [set: [user_id: nil]], socket.assigns, M
 
 ### Reads are not gated in `Backpex.Resource`
 
-`Backpex.Resource.list/4`, `get/4`, `count/4` and `reload/4` do not call `can?/3`. Row-level read filtering belongs in [`item_query/3`](item-query.html) — dropping rows after pagination would corrupt item counts and select-all. `:index` and `:show` are enforced when the view mounts. `reload/4` is the read the item action gates use before they authorize; it is the gate that follows it, not the read, that raises.
+`Backpex.Resource.read/1`, `get/4`, `count/1` and `reload/4` do not call `can?/3`. Row-level read filtering belongs in `c:Backpex.LiveResource.scope/1` or [`item_query/3`](item-query.html) — dropping rows after pagination would corrupt item counts and select-all. `:index` and `:show` are enforced when the view mounts. `reload/4` is the read the item action gates use before they authorize; it is the gate that follows it, not the read, that raises.
 
 ### Calling the checks yourself
 
