@@ -43,6 +43,7 @@ defmodule Backpex.Test.SampleLive do
       checkgroup: %{
         module: Backpex.Fields.Checkgroup,
         label: "Checkgroup",
+        searchable: true,
         options: [{"Read", "read"}, {"Write", "write"}]
       },
       date: %{module: Backpex.Fields.Date, label: "Date"},

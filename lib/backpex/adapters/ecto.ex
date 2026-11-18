@@ -270,17 +270,21 @@ defmodule Backpex.Adapters.Ecto do
   defp option_labels?(module), do: Code.ensure_loaded?(module) and function_exported?(module, :option_labels, 2)
 
   # Maps the stored value to its label from `c:Backpex.Field.option_labels/2`, so that searching and ordering match what
-  # the user sees. Values without a label fall back to the stored value.
+  # the user sees. Values without a label fall back to the stored value. An array column maps to the labels of its
+  # values instead, see `array_label_expression/4`.
   #
   # The values are compared in their database representation: the values of an `Ecto.Enum` are dumped, e.g. `:draft` to
-  # `1` for `values: [draft: 1]`. A `NULL` column matches a `nil` or `""` value, as `to_string(nil)` does.
+  # `1` for `values: [draft: 1]`, also in an array of enums. A `NULL` column matches a `nil` or `""` value, as
+  # `to_string(nil)` does.
   defp label_expression(schema_name, field_name, queryable, labels) do
-    type = column_type(queryable, field_name)
+    case column_type(queryable, field_name) do
+      {:array, type} -> array_label_expression(schema_name, field_name, type, labels)
+      type -> single_label_expression(schema_name, field_name, type, labels)
+    end
+  end
 
-    {labels, values} =
-      labels
-      |> Enum.map(fn {label, value} -> {to_string(label), value |> dump_label_value(type) |> to_string()} end)
-      |> Enum.unzip()
+  defp single_label_expression(schema_name, field_name, type, labels) do
+    {labels, values} = labels_and_values(labels, type)
 
     dynamic(
       [{^schema_name, schema_name}],
@@ -292,6 +296,30 @@ defmodule Backpex.Adapters.Ecto do
         field(schema_name, ^field_name)
       )
     )
+  end
+
+  # Joins the labels of the values in the array with `", "`, in the order of the labels. Values without a label are left
+  # out, and a `NULL` element matches a `nil` or `""` value. Returns `NULL` if no value has a label, so these rows are
+  # ordered like rows without a value.
+  defp array_label_expression(schema_name, field_name, type, labels) do
+    {labels, values} = labels_and_values(labels, type)
+
+    dynamic(
+      [{^schema_name, schema_name}],
+      fragment(
+        "nullif(array_to_string(array(select (?::text[])[i] from generate_subscripts(?::text[], 1) as i where (?::text[])[i] = any(array_replace(?::text[], null, '')) order by i), ', '), '')",
+        ^labels,
+        ^labels,
+        ^values,
+        field(schema_name, ^field_name)
+      )
+    )
+  end
+
+  defp labels_and_values(labels, type) do
+    labels
+    |> Enum.map(fn {label, value} -> {to_string(label), value |> dump_label_value(type) |> to_string()} end)
+    |> Enum.unzip()
   end
 
   defp column_type(queryable, field_name) when is_atom(queryable) do

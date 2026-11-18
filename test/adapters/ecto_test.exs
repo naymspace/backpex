@@ -14,6 +14,7 @@ defmodule Backpex.Adapters.EctoTest do
       field :name, :string
       field :age, :integer
       field :active, :boolean
+      field :teams, {:array, :string}
     end
   end
 
@@ -22,6 +23,7 @@ defmodule Backpex.Adapters.EctoTest do
 
     schema "tickets" do
       field :status, Ecto.Enum, values: [draft: 1, published: 2]
+      field :labels, {:array, Ecto.Enum}, values: [bug: 1, feature: 2]
     end
   end
 
@@ -204,6 +206,50 @@ defmodule Backpex.Adapters.EctoTest do
     end
   end
 
+  describe "apply_search/5 with a field of multiple options" do
+    test "searches the joined labels of a multi select field" do
+      base_query = from(TestUser, as: ^EctoAdapter.name_by_schema(TestUser))
+
+      searchable_fields = [
+        {:teams,
+         %{
+           module: Backpex.Fields.MultiSelect,
+           queryable: TestUser,
+           options: fn assigns -> [{"Team", [{assigns.alex_label, "alex"}, {"Bob", "bob"}]}] end
+         }}
+      ]
+
+      query =
+        EctoAdapter.apply_search(base_query, TestUser, nil, {"lex", searchable_fields}, %{alex_label: "Alex"})
+
+      assert [%{expr: ilike_expr, params: params}] = query.wheres
+      assert match?({:ilike, _, _}, ilike_expr)
+      assert Macro.to_string(ilike_expr) =~ "array_to_string"
+
+      assert [["Alex", "Bob"], ["Alex", "Bob"], ["alex", "bob"], "%lex%"] = Enum.map(params, &elem(&1, 0))
+    end
+
+    test "compares the dumped values of an array of Ecto.Enum values" do
+      base_query = from(TestTicket, as: ^EctoAdapter.name_by_schema(TestTicket))
+
+      searchable_fields = [
+        {:labels,
+         %{
+           module: Backpex.Fields.MultiSelect,
+           queryable: TestTicket,
+           options: [{"Bug", :bug}, {"Feature", "feature"}, {"Unknown", :unknown}, {"None", nil}]
+         }}
+      ]
+
+      query = EctoAdapter.apply_search(base_query, TestTicket, nil, {"bug", searchable_fields})
+
+      assert [%{expr: ilike_expr, params: params}] = query.wheres
+      assert Macro.to_string(ilike_expr) =~ "::text[], null, ''))"
+      assert [labels, labels, ["1", "2", "unknown", ""], "%bug%"] = Enum.map(params, &elem(&1, 0))
+      assert labels == ["Bug", "Feature", "Unknown", "None"]
+    end
+  end
+
   describe "apply_search/4 (with full text search configured)" do
     test "returns original query on empty search string" do
       base_query = from(TestUser)
@@ -347,6 +393,44 @@ defmodule Backpex.Adapters.EctoTest do
 
       assert %{order_bys: [%{expr: [{:desc, _order_expression}], params: params}]} = query
       assert [["Administrator"], ["admin"]] = Enum.map(params, &elem(&1, 0))
+    end
+
+    test "orders a checkgroup field by the joined labels of its options" do
+      base_query = from(TestUser, as: ^EctoAdapter.name_by_schema(TestUser))
+
+      fields = [
+        {:teams, %{module: Backpex.Fields.Checkgroup, options: [{"Admin", "admin"}, {"User", :user}]}}
+      ]
+
+      criteria = [
+        order: %{by: :teams, direction: :asc, schema: TestUser, field_name: :teams}
+      ]
+
+      query = EctoAdapter.apply_criteria(base_query, criteria, fields)
+
+      assert %{order_bys: [%{expr: [{:asc, order_expression}], params: params}]} = query
+      assert Macro.to_string(order_expression) =~ "array_to_string"
+      assert [["Admin", "User"], ["Admin", "User"], ["admin", "user"]] = Enum.map(params, &elem(&1, 0))
+    end
+
+    test "orders a checkgroup field of Ecto.Enum values by the dumped values of its options" do
+      base_query = from(TestTicket, as: ^EctoAdapter.name_by_schema(TestTicket))
+
+      fields = [
+        {:labels, %{module: Backpex.Fields.Checkgroup, options: [Bug: :bug, Feature: :feature, None: nil]}}
+      ]
+
+      criteria = [
+        order: %{by: :labels, direction: :asc, schema: TestTicket, field_name: :labels}
+      ]
+
+      query = EctoAdapter.apply_criteria(base_query, criteria, fields)
+
+      assert %{order_bys: [%{expr: [{:asc, order_expression}], params: params}]} = query
+      assert Macro.to_string(order_expression) =~ "::text[], null, ''))"
+
+      assert [["Bug", "Feature", "None"], ["Bug", "Feature", "None"], ["1", "2", ""]] =
+               Enum.map(params, &elem(&1, 0))
     end
 
     test "orders an Ecto.Enum select field by the dumped values of its options" do
