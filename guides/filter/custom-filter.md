@@ -6,6 +6,8 @@ Backpex ships with a set of default filters that can be used to filter the data.
 
 You can create a custom filter by using the `filter` macro from the `BackpexWeb` module. It automatically implements the `Backpex.Filter` behavior and defines some aliases and imports.
 
+If the filter needs your application's Gettext backend, components, or verified routes, you can additionally `use MyAppWeb, :html`. This also works with the built-in filter macros such as `use Backpex.Filters.Select`, and both `use` orders are supported.
+
 ### Required Callbacks
 
 When creating a custom filter, you need to implement the following callbacks:

@@ -24,6 +24,7 @@ defmodule Backpex.Filters.MultiSelect do
   >
   > When you `use Backpex.Filters.MultiSelect`, the `Backpex.Filters.MultiSelect` module will set `@behavior Backpex.Filters.Select`. In addition it will add a `render` and `render_form` function in order to display the corresponding filter.
   """
+  use Phoenix.Component
   use BackpexWeb, :filter
 
   import Backpex.HTML.CoreComponents

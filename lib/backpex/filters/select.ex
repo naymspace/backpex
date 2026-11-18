@@ -30,6 +30,7 @@ defmodule Backpex.Filters.Select do
   > When you `use Backpex.Filters.Select`, the `Backpex.Filters.Select` module will set `@behavior Backpex.Filters.Select`.
   > In addition it will add a `render` and `render_form` function in order to display the corresponding filter.
   """
+  use Phoenix.Component
   use BackpexWeb, :filter
 
   @doc """
