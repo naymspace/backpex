@@ -25,7 +25,7 @@ def resource_actions() do
 end
 ```
 
-Each resource action is a map with at least the module key. The module key should point to the module that implements the resource action. The key in the keyword list is the unique `id` of the resource action.
+Each resource action is a map with the `:module` key, which points to the module that implements the resource action. Backpex validates the maps when the index view loads and raises a configuration error for any other key. The key in the keyword list is the unique `id` of the resource action.
 
 ## Implementing a Resource Action
 

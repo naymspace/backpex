@@ -1,6 +1,43 @@
 defmodule Backpex.Filter do
+  @config_schema [
+    module: [
+      doc: "The filter module, which implements the `Backpex.Filter` behaviour.",
+      type: :atom,
+      required: true
+    ],
+    label: [
+      doc: "The label of the filter. Defaults to the `c:label/0` callback of the filter module.",
+      type: :string
+    ],
+    default: [
+      doc: "The value the filter is applied with when the index view is opened without filter params.",
+      type: :any
+    ],
+    presets: [
+      doc: """
+      Preset values admins can apply with one click. Each preset is a map with a `:label` (string) and `:values`, a
+      function of arity 0 that returns the value of the filter. See the
+      [filter presets](/guides/filter/filter-presets.md) guide.
+      """,
+      type:
+        {:list,
+         {:map,
+          [
+            label: [type: :string, required: true],
+            values: [type: {:fun, 0}, required: true]
+          ]}}
+    ]
+  ]
+
   @moduledoc """
   The base behaviour for all filters. Injects also basic layout, form and delete button for a filters rendering.
+
+  ## Configuration
+
+  `c:Backpex.LiveResource.filters/1` returns a keyword list with one map per filter. The key is the name of the
+  filter. The map takes these options, any other key raises a configuration error when the index view loads:
+
+  #{NimbleOptions.docs(@config_schema)}
 
   ## Validation
 
@@ -136,6 +173,16 @@ defmodule Backpex.Filter do
   @callback render_form(Socket.assigns()) :: Rendered.t()
 
   @optional_callbacks label: 0
+
+  # Compiled once: `NimbleOptions.validate/2` validates a keyword list schema itself on every call.
+  @compiled_config_schema NimbleOptions.new!(@config_schema)
+
+  @doc false
+  def validate_configs!(filters, live_resource) do
+    Backpex.LiveResource.Config.validate_each!(filters, "filter", "filters/1", live_resource, fn options ->
+      NimbleOptions.validate(options, @compiled_config_schema)
+    end)
+  end
 
   defmacro __using__(_opts) do
     quote do

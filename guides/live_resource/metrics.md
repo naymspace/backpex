@@ -26,8 +26,7 @@ def metrics do
       module: Backpex.Metrics.Value,
       label: "Posts",
       class: "lg:w-1/4",
-      select: dynamic([p], count(p.id)),
-      format: nil
+      select: dynamic([p], count(p.id))
     }
   ]
 end
@@ -42,12 +41,10 @@ The `Backpex.Metrics.Value` metric reads these keys from the map:
 | `:module` | module | The metric module, here `Backpex.Metrics.Value` |
 | `:label` | string | The headline of the box |
 | `:select` | `dynamic` expression | What to select from the query of the index view, usually an aggregate such as `sum`, `count`, `avg`, `min` or `max`. The first binding is the schema of the resource |
-| `:format` | function with one argument or `nil` | Turns the selected value into what is displayed. With `nil` the value is displayed as it is |
+| `:format` | function with one argument or `nil` | Turns the selected value into what is displayed. Without it, or with `nil`, the value is displayed as it is. May be left out |
 | `:class` | string | Extra CSS classes for the box, e.g. a width. May be left out |
 
-> #### Info {: .info}
->
-> The options of a metric are not validated. `:module`, `:label`, `:select` and `:format` have no default and have to be present, so set `format: nil` if you do not need a format function.
+Backpex validates the map of each metric when the index view loads. A missing `:module`, `:label` or `:select`, or a key that is not in the table above, e.g. a typo, raises an `ArgumentError` that names the LiveResource and the metric.
 
 ## Search and filters
 
@@ -89,6 +86,7 @@ You can create a custom metric by using the `metric` macro from the `BackpexWeb`
 | `format/2` | Formats the data. Backpex does not call it, your `render/1` does |
 | `data/2` | Returns the data. Receives the map from `metrics/0` and the assigns of the index view |
 | `query/3` | Returns the data from the query of the index view. Receives that query, the `:select` option and the repo. Not called if the module implements `data/2` |
+| `config_schema/0` | Optional. Returns the NimbleOptions schema of the keys your module reads from its map, so Backpex validates them, see the Configuration section of `Backpex.Metric` |
 
 A metric module implements `render/1`, `format/2` and one of `data/2` and `query/3`.
 

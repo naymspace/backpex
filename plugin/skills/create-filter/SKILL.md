@@ -169,6 +169,8 @@ end
 | `:default` | no | Pre-selected value on initial page load |
 | `:presets` | no | Quick-select shortcuts: `[%{label: String.t(), values: (-> value)}]` |
 
+Backpex validates the map when the index view loads. Any other key, also in a preset, raises a configuration error.
+
 ## Conventions
 
 - **Module naming**: `MyAppWeb.Filters.<Resource><FilterName>` (e.g. `MyAppWeb.Filters.PostPublished`)

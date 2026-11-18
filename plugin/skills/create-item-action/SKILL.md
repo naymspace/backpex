@@ -196,7 +196,7 @@ end
 | `:index` | Button in index toolbar (acts on selected items) |
 | `:show` | Button on the show/detail page |
 
-Use `only: [...]` or `except: [...]` in the action map to control placement.
+Use `only: [...]` or `except: [...]` in the action map to control placement. `:module`, `:only` and `:except` are the only keys of the map: Backpex validates it when the view loads and raises a configuration error for any other key or placement.
 
 ## Conventions
 
