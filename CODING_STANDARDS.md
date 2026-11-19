@@ -23,7 +23,7 @@ Wrap every user-facing string in `Backpex.__/2`, with the LiveResource as second
 
 ## Styling
 
-Build on the components in `lib/backpex/html/`, compose daisyUI components with Tailwind utilities, and use theme colors (`primary`, `base-content`, …). Look up daisyUI and Tailwind in the Context7 MCP.
+Build on the components in `lib/backpex/html/`, compose daisyUI components with Tailwind utilities, and use theme colors (`primary`, `base-content`, …). Look up daisyUI 5 at https://daisyui.com/components/ and Tailwind 4 at https://tailwindcss.com/docs.
 
 ## Accessibility
 
