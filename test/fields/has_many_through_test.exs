@@ -227,6 +227,28 @@ defmodule Backpex.Fields.HasManyThroughTest do
 
       assert rows(html) == [{"Alpha", false}, {"Zulu", false}]
     end
+
+    # Without the id of its pivot record, saving the form would insert the relation again instead of updating it.
+    test "renders the hidden inputs of each pivot row" do
+      pivots = [
+        loaded_pivot(%Pivot{id: 11, child_id: 1, note: "first"}),
+        loaded_pivot(%Pivot{id: 12, child_id: 2, note: "second"}),
+        %Pivot{child_id: 3, note: "new"}
+      ]
+
+      changeset =
+        %Parent{id: 1, pivots: pivots}
+        |> Ecto.put_meta(state: :loaded)
+        |> Changeset.change()
+
+      html = render_form(changeset)
+
+      # The third row is new and has no id yet.
+      assert hidden_inputs(html) == [
+               ~s(<input id="parent_pivots_0_id" name="parent[pivots][0][id]" type="hidden" value="11">),
+               ~s(<input id="parent_pivots_1_id" name="parent[pivots][1][id]" type="hidden" value="12">)
+             ]
+    end
   end
 
   describe "a child whose key differs from the key of the pivot" do
@@ -338,6 +360,11 @@ defmodule Backpex.Fields.HasManyThroughTest do
       readonly: false,
       type: :form
     )
+  end
+
+  # Returns the hidden inputs as they are written in the HTML.
+  defp hidden_inputs(html) do
+    ~r/<input[^>]*type="hidden"[^>]*>/ |> Regex.scan(html) |> List.flatten()
   end
 
   # Returns the child name of each table row and whether the row shows the error icon.
