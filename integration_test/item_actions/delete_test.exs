@@ -1,8 +1,10 @@
 defmodule Backpex.Integration.ItemActions.DeleteTest do
   use Backpex.ConnCase, async: true
 
+  alias Backpex.Test.Address
   alias Backpex.Test.Category
   alias Backpex.Test.Repo
+  alias Backpex.Test.UsersAddresses
 
   setup do
     %{category: insert(:category, name: "Elixir")}
@@ -81,6 +83,43 @@ defmodule Backpex.Integration.ItemActions.DeleteTest do
     |> assert_has("dd", text: "Elixir", exact: true)
 
     assert Repo.get(Category, category.id)
+  end
+
+  describe "an item that other records reference" do
+    setup do
+      addresses = insert_pair(:address)
+      insert(:user, users_addresses: Enum.map(addresses, &%UsersAddresses{address: &1, type: :billing}))
+
+      %{addresses: addresses}
+    end
+
+    test "is not deleted and the error says so", %{conn: conn, addresses: [address | _addresses]} do
+      conn
+      |> visit(~p"/admin/addresses/#{address.id}/show")
+      |> click_button("Delete")
+      |> confirm()
+      |> assert_has("div",
+        text: "An error occurred while deleting the Address! The item is used elsewhere.",
+        exact: true
+      )
+
+      assert Repo.get(Address, address.id)
+    end
+
+    test "is not deleted with the other selected items", %{conn: conn, addresses: addresses} do
+      addresses
+      |> Enum.reduce(visit(conn, ~p"/admin/addresses"), fn address, session ->
+        check(session, "#select-input-#{address.id}", "Select item with id: #{address.id}")
+      end)
+      |> click_button("button.btn-outline", "Delete")
+      |> confirm()
+      |> assert_has("div",
+        text: "An error occurred while deleting 2 Addresses! The items are used elsewhere.",
+        exact: true
+      )
+
+      assert Repo.aggregate(Address, :count) == 2
+    end
   end
 
   describe "an update of the shown item while the confirmation dialog is open" do

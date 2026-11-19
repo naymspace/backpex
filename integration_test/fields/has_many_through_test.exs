@@ -4,6 +4,7 @@ defmodule Backpex.Integration.Fields.HasManyThroughTest do
   import Ecto.Query
 
   alias Backpex.Fields.HasManyThrough
+  alias Backpex.Test.Repo
   alias Backpex.Test.User
   alias Backpex.Test.UsersAddresses
   alias Phoenix.LiveView.Socket
@@ -48,6 +49,24 @@ defmodule Backpex.Integration.Fields.HasManyThroughTest do
       |> visit(~p"/admin/users/#{user.id}/show")
       |> assert_has("h1", text: "User", exact: true)
       |> assert_has("td", text: "Billing")
+    end
+  end
+
+  describe "an existing relation" do
+    setup do
+      %{user: insert(:user, users_addresses: [%UsersAddresses{address: build(:address), type: :billing}])}
+    end
+
+    test "keeps its pivot record when the form is saved", %{conn: conn, user: user} do
+      [%UsersAddresses{id: pivot_id}] = user.users_addresses
+
+      conn
+      |> visit(~p"/admin/users/#{user.id}/edit")
+      |> fill_in("First Name", with: "Changed")
+      |> click_button("Save")
+      |> assert_path(~p"/admin/users")
+
+      assert [%UsersAddresses{id: ^pivot_id, type: :billing}] = Repo.all(UsersAddresses)
     end
   end
 

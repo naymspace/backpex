@@ -128,7 +128,8 @@ defmodule Backpex.ItemActions.Delete do
     )
   end
 
-  defp error_message(assigns, %Postgrex.Error{postgres: %{code: :foreign_key_violation}}, [_item] = items) do
+  # `Postgrex.Error` is matched as a map, so Backpex compiles in an app without the optional `postgrex`.
+  defp error_message(assigns, %{__struct__: Postgrex.Error, postgres: %{code: :foreign_key_violation}}, [_item] = items) do
     "#{error_message(assigns, :error, items)} #{Backpex.__("The item is used elsewhere.", assigns.live_resource)}"
   end
 
@@ -136,7 +137,7 @@ defmodule Backpex.ItemActions.Delete do
     "#{error_message(assigns, :error, items)} #{Backpex.__("The item is used elsewhere.", assigns.live_resource)}"
   end
 
-  defp error_message(assigns, %Postgrex.Error{postgres: %{code: :foreign_key_violation}}, items) do
+  defp error_message(assigns, %{__struct__: Postgrex.Error, postgres: %{code: :foreign_key_violation}}, items) do
     "#{error_message(assigns, :error, items)} #{Backpex.__("The items are used elsewhere.", assigns.live_resource)}"
   end
 
