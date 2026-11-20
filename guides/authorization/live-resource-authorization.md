@@ -73,6 +73,8 @@ There are two kinds of checks, and both run:
 | --- | --- | --- |
 | `:index` / `:show` view mounts | `:index` / `:show` | the item, for `:show` |
 | `:new` / `:edit` form mounts | `:new` / `:edit` | the item, for `:edit` |
+| `:edit` form is saved | `:edit` | the item, **re-read** |
+| inline edit of an `index_editable` field is saved | `:edit` | the item, **re-read** |
 | `Backpex.Resource.insert/6` | `:new` | `nil` |
 | `Backpex.Resource.update/6` | `:edit` | the item |
 | `Backpex.Resource.update_all/5` | `:edit` | each item |
@@ -97,6 +99,18 @@ The check when the modal *opens* is deliberately not re-read: it only decides wh
 > #### A re-read is not a lock {: .warning}
 >
 > A window remains between the re-read and whatever `c:Backpex.ItemAction.handle/3` writes. Backpex does not open a transaction or lock the rows here — `handle/3` owns the write and decides what isolation it needs. An action that requires strict atomicity has to re-read and lock inside its own `handle/3`, for example in an `c:Ecto.Repo.transaction/2` with a `lock: "FOR UPDATE"` query.
+
+### Saving an edit re-reads the item
+
+The edit form holds the item as it was when the form was mounted, and a form can stay open as long as a confirmation modal. When it is saved, Backpex therefore re-reads the item by its primary key first, and it is the **re-read** record that `Backpex.Resource.update/6` checks with `can?(assigns, :edit, item)`, that the changeset is built on and that `c:Backpex.LiveResource.on_item_updating/2` sees. The re-read goes through the adapter like the one of the item actions: a row that was deleted, or that has left the scope of [`item_query/3`](item-query.html), raises `Backpex.NoResultsError`, and a record the user may no longer edit raises `Backpex.ForbiddenError`.
+
+The values of the form are applied to the re-read record. A field the form does not contain keeps the value it has in the database, and a field of the form is saved with the value the form shows, also when the record got another value for it while the form was open. Validating the form while typing still uses the item of the mount.
+
+Inline edits of `index_editable` fields do the same, whether the index view saves them or a custom field saves them with `Backpex.Field.handle_index_editable/3`. They do not raise: an edit of an item that is gone, out of scope or no longer editable is not saved and its value is marked as invalid.
+
+As for item actions, the re-read is not a lock. `Backpex.Resource.update/6` runs in no transaction with it, so a change made between the re-read and the write is not seen. If a rule must hold at the moment of the write, enforce it in the changeset with `Ecto.Changeset.prepare_changes/2`, which runs in the transaction of the write, or with a database constraint.
+
+`Backpex.Resource.update/6` itself does not re-read: it authorizes and updates the item you pass. Pass a current one when you call it in your own code.
 
 ### Strict semantics
 
