@@ -218,6 +218,23 @@ defmodule Backpex.TestingTest do
       assert [%Category{name: "News"}] = Repo.all(Category)
     end
 
+    test "fills in a select with a value and a field for multiple values with a list", %{conn: conn} do
+      user = insert(:user)
+      category = insert(:category)
+      [tag, other_tag, _unselected_tag] = insert_list(3, :tag)
+      {:ok, view, _html} = live(conn, Testing.path(Router, PostLive, :new))
+
+      params = %{title: "Title", body: "Body", user_id: user.id, category_id: category.id, tags: [tag.id, other_tag.id]}
+      Testing.submit_form(view, params)
+
+      assert_redirect(view)
+      post = Post |> Repo.get_by!(title: "Title") |> Repo.preload(:tags)
+
+      assert post.user_id == user.id
+      assert post.category_id == category.id
+      assert post.tags |> Enum.map(& &1.id) |> Enum.sort() == Enum.sort([tag.id, other_tag.id])
+    end
+
     test "submits with another button", %{conn: conn} do
       post = insert(:post)
       {:ok, view, _html} = live(conn, Testing.path(Router, PostLive, :edit, post))

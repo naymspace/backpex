@@ -1,6 +1,7 @@
 defmodule Backpex.Filters.MultiSelect do
   @moduledoc """
-  The multi select filter renders checkboxes for a given list of options, hence allowing the user to select multiple values.
+  The multi select filter renders a `Backpex.HTML.Combobox.combobox/1` for a given list of options, hence allowing the
+  user to select multiple values.
 
   See the following example for an implementation of a multi select user filter.
 
@@ -26,9 +27,7 @@ defmodule Backpex.Filters.MultiSelect do
   """
   use BackpexWeb, :filter
 
-  import Backpex.HTML.CoreComponents
-
-  require Backpex
+  alias Backpex.HTML.Combobox
 
   @doc """
   The list of options for the multi select filter.
@@ -92,51 +91,26 @@ defmodule Backpex.Filters.MultiSelect do
   attr :options, :list, required: true
   attr :prompt, :string, required: true
   attr :errors, :list, default: []
+  attr :label, :string, default: nil, doc: "the label of the filter, the accessible name of the combobox"
+  attr :searchable, :boolean, default: true, doc: "whether the popup has a search input"
+  attr :live_resource, :atom, default: nil
 
   def render_form(assigns) do
-    value = if is_nil(assigns.value), do: [], else: assigns.value
-
-    trigger_text =
-      case assigns.value do
-        v when is_nil(v) or v == [] -> assigns.prompt
-        _prompt -> "#{Enum.count(assigns.value)} #{Backpex.__("selected", assigns.live_resource)}"
-      end
-
-    assigns =
-      assigns
-      |> assign(:value, value)
-      |> assign(:trigger_text, trigger_text)
-
     ~H"""
-    <.dropdown id={"multi-select-#{@form[@field].id}"} class="mt-2 w-full">
-      <:trigger
-        aria_label={@trigger_text}
-        class={[
-          "select select-sm",
-          @errors != [] && "select-error bg-error/10"
-        ]}
-      >
-        {@trigger_text}
-      </:trigger>
-      <:menu class="min-w-60 w-max max-h-96 overflow-y-auto">
-        <div class="space-y-2 p-2">
-          <input type="hidden" name={@form[@field].name} value="" tabindex="-1" aria-hidden="true" />
-          <label :for={{label, v} <- @options} class="flex cursor-pointer items-center gap-x-2">
-            <input
-              type="checkbox"
-              name={@form[@field].name <> "[]"}
-              class="checkbox checkbox-sm checkbox-primary"
-              value={v}
-              checked={to_string(v) in @value}
-            />
-            <span class="label-text">
-              {label}
-            </span>
-          </label>
-        </div>
-      </:menu>
-    </.dropdown>
-    <.error :for={msg <- @errors} class="mt-1">{msg}</.error>
+    <Combobox.combobox
+      id={@form[@field].id}
+      name={@form[@field].name}
+      value={@value}
+      options={@options}
+      multiple
+      size="sm"
+      class="mt-2"
+      placeholder={to_string(@prompt)}
+      searchable={@searchable}
+      errors={@errors}
+      live_resource={@live_resource}
+      aria-label={@label || to_string(@prompt)}
+    />
     """
   end
 

@@ -1,6 +1,7 @@
 defmodule Backpex.Filters.Select do
   @moduledoc """
-  The select filter renders a select box for the implemented `options/1` and `prompt/0` callbacks. The `prompt/0` callback defines the key for the `nil` value added as first option.
+  The select filter renders a `Backpex.HTML.Combobox.combobox/1` for the implemented `options/1` and `prompt/0`
+  callbacks. The `prompt/0` callback defines the text that is shown while no option is selected.
 
   See the following example for an implementation of an event status filter.
 
@@ -31,6 +32,8 @@ defmodule Backpex.Filters.Select do
   > In addition it will add a `render` and `render_form` function in order to display the corresponding filter.
   """
   use BackpexWeb, :filter
+
+  alias Backpex.HTML.Combobox
 
   @doc """
   The select's default option.
@@ -99,25 +102,25 @@ defmodule Backpex.Filters.Select do
   attr :options, :list, required: true
   attr :prompt, :string, required: true
   attr :errors, :list, default: []
+  attr :label, :string, default: nil, doc: "the label of the filter, the accessible name of the combobox"
+  attr :searchable, :boolean, default: false, doc: "whether the popup has a search input"
+  attr :live_resource, :atom, default: nil
 
   def render_form(assigns) do
     ~H"""
-    <select
+    <Combobox.combobox
       id={@form[@field].id}
       name={@form[@field].name}
-      class={[
-        "select select-sm",
-        @errors != [] && "select-error bg-error/10"
-      ]}
-      aria-label={@prompt}
-    >
-      <button>
-        <selectedcontent></selectedcontent>
-      </button>
-      <option value="">{@prompt}</option>
-      {Phoenix.HTML.Form.options_for_select(@options, selected(@value))}
-    </select>
-    <.error :for={msg <- @errors} class="mt-1">{msg}</.error>
+      value={@value}
+      options={@options}
+      size="sm"
+      placeholder={to_string(@prompt)}
+      clearable
+      searchable={@searchable}
+      errors={@errors}
+      live_resource={@live_resource}
+      aria-label={@label || to_string(@prompt)}
+    />
     """
   end
 

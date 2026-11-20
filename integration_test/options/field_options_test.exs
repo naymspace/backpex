@@ -19,7 +19,8 @@ defmodule Backpex.Integration.Options.FieldOptionsTest do
       |> visit(~p"/admin/field-options-samples/new")
       |> assert_has("input[name='change[text]'][value='Prefilled text']")
       |> assert_has("input[name='change[number]'][value='42']")
-      |> assert_has("select[name='change[category_id]'] option[value='#{category.id}'][selected]")
+      |> assert_has("input[data-part=anchor][name='change[category_id]'][value='#{category.id}']")
+      |> assert_has("#resource-form_category_id [role=option][data-value='#{category.id}'][aria-selected=true]")
     end
 
     test "is saved with the new item", %{conn: conn, category: category} do

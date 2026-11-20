@@ -14,12 +14,13 @@ defmodule Backpex.Integration.Form.RenderingTest do
 
     conn
     |> visit(~p"/admin/posts/new")
-    |> assert_has("label", text: "Author")
-    |> assert_has("select[name='change[user_id]']")
-    |> assert_has("label", text: "Category")
-    |> assert_has("select[name='change[category_id]']")
-    # HasMany fields render their label as a span.
-    |> assert_has("span", text: "Tags")
+    # The label of a combobox opens it through its trigger; the anchor input holds the value of the form field.
+    |> assert_has("label[for=resource-form_user_id-trigger]", text: "Author")
+    |> assert_has("#resource-form_user_id input[data-part=anchor][name='change[user_id]']")
+    |> assert_has("label[for=resource-form_category_id-trigger]", text: "Category")
+    |> assert_has("#resource-form_category_id input[data-part=anchor][name='change[category_id]']")
+    |> assert_has("label[for=resource-form_tags-trigger]", text: "Tags")
+    |> assert_has("#resource-form_tags[data-multiple] input[data-part=anchor][name='change[tags]']")
   end
 
   test "hides a field whose visible function returns false", %{conn: conn} do

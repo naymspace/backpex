@@ -39,6 +39,9 @@ defmodule Backpex.Testing do
         end
       end
 
+  `submit_form/3` and `confirm_item_action/2` take the value of a select as the value of its option, and the values of a
+  multi select or a has many field as a list of them: `%{category_id: category.id, tags: [tag.id]}`.
+
   The helpers take an item or its primary value. With an item, they read the primary value with the LiveResource of
   the view, so pass the primary value when you test a LiveView that isn't a view of a LiveResource.
 
@@ -191,9 +194,11 @@ defmodule Backpex.Testing do
   Confirms the item action whose confirmation modal is open. `params` fill in the fields of the item action.
   """
   def confirm_item_action(view, params \\ %{}) do
+    {params, selections} = split_selections(view, "#action-confirm-modal form", params)
+
     view
     |> form("#action-confirm-modal form", change: params)
-    |> render_submit()
+    |> render_submit(%{change: selections})
 
     view
   end
@@ -208,12 +213,27 @@ defmodule Backpex.Testing do
   `Phoenix.LiveViewTest.live/2`.
   """
   def submit_form(view, params, submitter \\ "save") do
+    {params, selections} = split_selections(view, "#resource-form", params)
+
     view
     |> form("#resource-form", change: params)
     |> put_submitter(~s|button[type="submit"][name="save-type"][value="#{escape(submitter)}"]|)
-    |> render_submit()
+    |> render_submit(%{change: selections})
 
     view
+  end
+
+  # A combobox for multiple values (`Backpex.Fields.MultiSelect`, `Backpex.Fields.HasMany`) has one input per selected
+  # value, which its hook adds in the browser. `Phoenix.LiveViewTest.form/3` only fills in inputs the form renders, so
+  # the values of these fields are sent with the event instead.
+  defp split_selections(view, form_selector, params) do
+    {selections, params} =
+      Enum.split_with(params, fn {key, _value} ->
+        anchor = ~s|[data-part="root"][data-multiple] input[data-part="anchor"][name="change[#{escape(key)}]"]|
+        has_element?(view, "#{form_selector} #{anchor}")
+      end)
+
+    {Map.new(params), Map.new(selections)}
   end
 
   defp primary_value(item, %Phoenix.LiveViewTest.View{module: module}) when is_map(item) do

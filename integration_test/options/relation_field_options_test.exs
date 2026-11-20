@@ -1,7 +1,7 @@
 defmodule Backpex.Integration.Options.RelationFieldOptionsTest do
   use Backpex.ConnCase, async: true
 
-  import Phoenix.LiveViewTest, only: [element: 2, render_change: 2]
+  import Phoenix.LiveViewTest, only: [element: 2, render_hook: 3]
 
   alias Backpex.Test.UsersAddresses
 
@@ -14,8 +14,10 @@ defmodule Backpex.Integration.Options.RelationFieldOptionsTest do
 
       conn
       |> visit(~p"/admin/post-relation-options/#{post.id}/edit")
-      |> assert_has("select", label: "Author", selected: "Jane")
-      |> refute_has("select option", text: "jdoe")
+      |> assert_has("label[for=resource-form_user_id-trigger]", text: "Author")
+      |> assert_has("#resource-form_user_id [data-part=value-label]", text: "Jane", exact: true)
+      |> assert_has("#resource-form_user_id [role=option][aria-selected=true]", text: "Jane", exact: true)
+      |> refute_has("#resource-form_user_id [role=option]", text: "jdoe")
 
       conn
       |> visit(~p"/admin/post-relation-options/#{post.id}/show")
@@ -34,9 +36,9 @@ defmodule Backpex.Integration.Options.RelationFieldOptionsTest do
     test "labels the options and the selected badges of the form", %{conn: conn, user: user} do
       conn
       |> visit(~p"/admin/user-relation-options/#{user.id}/edit")
-      |> assert_has("#has-many-posts label:has(input[checked]) span", text: "Hello body", exact: true)
-      |> assert_has("#has-many-posts label:has(input:not([checked])) span", text: "Other body", exact: true)
-      |> assert_has("#has-many-posts .badge span", text: "Hello body", exact: true)
+      |> assert_has("#has-many-posts [role=option][aria-selected=true]", text: "Hello body", exact: true)
+      |> assert_has("#has-many-posts [role=option][aria-selected=false]", text: "Other body", exact: true)
+      |> assert_has("#has-many-posts [data-part=badge-label]", text: "Hello body", exact: true)
       |> refute_has("#has-many-posts span", text: "Hello", exact: true)
     end
 
@@ -87,19 +89,22 @@ defmodule Backpex.Integration.Options.RelationFieldOptionsTest do
     test "are shown without a selection and for a search without options", %{conn: conn} do
       conn
       |> visit(~p"/admin/post-relation-options/new")
-      |> assert_has("#has-many-tags p", text: "Pick some tags", exact: true)
-      |> refute_has("#has-many-tags p", text: "No tags match")
+      |> assert_has("#has-many-tags [data-part=placeholder]:not([hidden])", text: "Pick some tags", exact: true)
+      |> assert_has("#has-many-tags [role=option]", text: "Elixir", exact: true)
+      # The empty state is rendered hidden while there are options.
+      |> assert_has("#has-many-tags [data-part=empty][hidden]", text: "No tags match", exact: true)
       |> search_tags("zzz")
-      |> assert_has("#has-many-tags p", text: "No tags match", exact: true)
-      |> refute_has("#has-many-tags p", text: "No options found")
+      |> refute_has("#has-many-tags [role=option]")
+      |> assert_has("#has-many-tags [data-part=empty]:not([hidden])", text: "No tags match", exact: true)
+      |> refute_has("#has-many-tags", text: "No options found")
     end
 
     test "default to Backpex's texts", %{conn: conn} do
       conn
       |> visit(~p"/admin/posts/new")
-      |> assert_has("#has-many-tags p", text: "Select options...", exact: true)
+      |> assert_has("#has-many-tags [data-part=placeholder]:not([hidden])", text: "Select options...", exact: true)
       |> search_tags("zzz")
-      |> assert_has("#has-many-tags p", text: "No options found", exact: true)
+      |> assert_has("#has-many-tags [data-part=empty]:not([hidden])", text: "No options found", exact: true)
     end
   end
 
@@ -122,11 +127,12 @@ defmodule Backpex.Integration.Options.RelationFieldOptionsTest do
     end
   end
 
+  # The combobox pushes the text of its search input to the field.
   defp search_tags(session, search) do
     unwrap(session, fn view ->
       view
-      |> element("#has-many-tags input[type=search]")
-      |> render_change(%{"tags_search" => search})
+      |> element("#resource-form_tags")
+      |> render_hook("search", %{"query" => search, "id" => "resource-form_tags"})
     end)
   end
 

@@ -67,16 +67,19 @@ defmodule Backpex.Integration.Index.FiltersTest do
       conn
       |> visit(~p"/admin/posts")
       |> assert_has("table tbody tr", count: 2)
-      |> select("Select category ...", option: category.name)
+      |> assert_has("#filter-form_category_id [data-part=placeholder]", text: "Select category ...", exact: true)
+      |> assert_has("#filter-form_category_id [role=option][data-value='#{category.id}']", text: category.name)
+      |> set_combobox("filters[category_id]", category.id)
+      |> assert_has("#filter-form_category_id [data-part=value-label]", text: category.name, exact: true)
       |> assert_has("table tbody tr", count: 1)
       |> assert_has("td", text: "Tech Post")
       |> refute_has("td", text: "Sports Post")
     end
 
-    test "derives the select id from the id of the filter form", %{conn: conn} do
+    test "derives the id of the combobox from the id of the filter form", %{conn: conn} do
       conn
       |> visit(~p"/admin/posts")
-      |> assert_has("select#filter-form_category_id")
+      |> assert_has("#filter-form_category_id[phx-hook=BackpexCombobox]:not([data-multiple])")
     end
   end
 
@@ -114,7 +117,11 @@ defmodule Backpex.Integration.Index.FiltersTest do
       conn
       |> visit(~p"/admin/posts")
       |> assert_has("table tbody tr", count: 3)
-      |> check("#{alice.first_name} #{alice.last_name}")
+      |> assert_has("#filter-form_user_id[data-multiple] [role=option][data-value='#{alice.id}']",
+        text: "#{alice.first_name} #{alice.last_name}"
+      )
+      |> set_combobox("filters[user_id]", [alice.id])
+      |> assert_has("#filter-form_user_id [data-part=badge-label]", text: "Alice Smith", exact: true)
       |> assert_has("table tbody tr", count: 1)
       |> assert_has("td", text: "Alice Post")
       |> refute_has("td", text: "Bob Post")

@@ -493,6 +493,7 @@ defmodule Backpex.HTML.Resource do
           fn assigns -> field_data.filter.module.render_form(assigns) end,
           Map.merge(@backpex_context, %{
             field: field_data.field,
+            label: field_data.label,
             value: field_data.value,
             form: f,
             live_resource: @live_resource,

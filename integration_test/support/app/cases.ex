@@ -94,6 +94,37 @@ defmodule Backpex.ConnCase do
   end
 
   @doc """
+  Sets the value of the combobox whose form field has the given `name` (e.g. `"change[tags]"`), like its hook does in
+  the browser: it changes the inputs of the combobox and the form sends its `phx-change` event. `value` is the value
+  of an option, or a list of them for a combobox with `multiple`.
+
+  Takes a `PhoenixTest` session or a `Phoenix.LiveViewTest` view. PhoenixTest has no function for a combobox, and
+  `Phoenix.LiveViewTest.form/3` can't fill in the inputs that the hook adds for the values of `multiple`.
+  """
+  def set_combobox(%Phoenix.LiveViewTest.View{} = view, name, value) do
+    params =
+      case value do
+        [] -> [{name, ""}]
+        values when is_list(values) -> Enum.map(values, &{name <> "[]", to_string(&1)})
+        value -> [{name, to_string(value)}]
+      end
+
+    # LiveView sends the name of the changed input as `_target`, here the anchor input of the combobox.
+    target = String.split(name, ["[", "]"], trim: true)
+
+    view
+    |> Phoenix.LiveViewTest.element(~s|form:has(input[data-part="anchor"][name="#{name}"])|)
+    |> Phoenix.LiveViewTest.render_change(
+      params
+      |> URI.encode_query()
+      |> Plug.Conn.Query.decode()
+      |> Map.put("_target", target)
+    )
+  end
+
+  def set_combobox(session, name, value), do: PhoenixTest.unwrap(session, &set_combobox(&1, name, value))
+
+  @doc """
   Asserts that the table body `tbody` has one row per text, in this order, each with a cell of exactly that text.
   """
   def assert_rows(session, tbody, texts) do

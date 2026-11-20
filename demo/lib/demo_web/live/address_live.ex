@@ -42,7 +42,8 @@ defmodule DemoWeb.AddressLive do
         options: %{
           "Europe" => [Germany: "de", Austria: "at", Switzerland: "ch"],
           "North America" => [USA: "us", Canada: "ca"]
-        }
+        },
+        searchable_options: true
       }
     ]
   end

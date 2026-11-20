@@ -4,10 +4,14 @@ defmodule Backpex.Integration.HarnessTest do
   alias Backpex.Test.EctoFactory
 
   test "renders the index view of every routed LiveResource", %{conn: conn} do
+    # The router also mounts plain LiveViews, e.g. `Backpex.Test.ComboboxLive`; a LiveResource routes its own
+    # `Index`, `Show` and `Form` LiveViews.
     live_routes =
       for %{path: path, metadata: %{phoenix_live_view: {view, action, _opts, _extra}}} <-
-            Phoenix.Router.routes(Backpex.Test.Router) do
-        {path, view |> Module.split() |> Enum.drop(-1) |> Module.safe_concat(), action}
+            Phoenix.Router.routes(Backpex.Test.Router),
+          {parent, [name]} = view |> Module.split() |> Enum.split(-1),
+          name in ~w(Index Show Form) do
+        {path, Module.safe_concat(parent), action}
       end
 
     index_routes = for {path, live_resource, :index} <- live_routes, do: {path, live_resource}

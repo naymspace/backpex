@@ -57,6 +57,10 @@ defmodule Backpex.Fields.HasMany do
   @moduledoc """
   A field for handling a `has_many` or `many_to_many` relation.
 
+  The form renders a `Backpex.HTML.Combobox.combobox/1`. It loads `query_limit` options at a time, searches them on the
+  server by the `display_field` and loads further options with "Show more". The admin selects and deselects options in
+  the browser, and the selection reaches the server with the `phx-change` event of the form.
+
   This field can not be orderable or searchable.
 
   ## Field-specific options
@@ -86,7 +90,7 @@ defmodule Backpex.Fields.HasMany do
 
   alias Backpex.Adapters.Ecto, as: EctoAdapter
   alias Backpex.Authorization
-  alias Backpex.HTML.Form
+  alias Backpex.HTML.Combobox
   alias Backpex.Router
 
   require Backpex
@@ -114,7 +118,6 @@ defmodule Backpex.Fields.HasMany do
     |> assign_new(:search_input, fn -> "" end)
     |> maybe_assign_options()
     |> assign_selected()
-    |> assign_form_errors()
   end
 
   defp apply_action(socket, _type), do: socket
@@ -139,160 +142,56 @@ defmodule Backpex.Fields.HasMany do
 
   @impl Backpex.Field
   def render_form(assigns) do
-    field_id = assigns.form[assigns.name].id
-    label_id = Map.get(assigns, :aria_labelledby) || "#{field_id}-label"
-
-    assigns =
-      assigns
-      |> assign(:labelledby, "#{label_id} #{field_id}-selection")
-      |> assign(:help_text, Backpex.Field.help_text(assigns.field_options, assigns))
+    assigns = assign(assigns, :label_id, "#{assigns.form[assigns.name].id}-label")
 
     ~H"""
     <div id={"has-many-#{@name}"}>
       <Layout.field_container>
         <:label :if={not @hide_label} align={Backpex.Field.align_label(@field_options, assigns)}>
-          <Layout.input_label id={"#{@form[@name].id}-label"} as="span" text={@field_options[:label]} />
+          <Layout.input_label id={@label_id} for={"#{@form[@name].id}-trigger"} text={@field_options[:label]} />
         </:label>
 
-        <Backpex.HTML.CoreComponents.dropdown id={"has-many-dropdown-#{@name}"} class="w-full" readonly={@readonly}>
-          <:trigger
-            class={[
-              "block h-fit w-full p-2",
-              not @readonly && "input",
-              not @readonly && @errors == [] && "bg-transparent",
-              not @readonly && @errors != [] && "input-error bg-error/10",
-              @readonly && "rounded-field border-(length:--border) border min-h-10",
-              Backpex.HTML.Form.readonly_input_class(@readonly),
-              @readonly && @errors != [] && "border-error bg-error/10"
-            ]}
-            aria_labelledby={@labelledby}
-          >
-            <div id={"#{@form[@name].id}-selection"} class="flex h-full w-full flex-wrap items-center gap-1 px-2">
-              <p :if={@selected == []} class="p-0.5 text-sm">{@prompt}</p>
-              <.badge
-                :for={{label, value} <- @selected}
-                label={label}
-                value={value}
-                readonly={@readonly}
-                name={@name}
-              />
-            </div>
-          </:trigger>
-          <:menu class="w-full overflow-y-auto">
-            <div class="max-h-72 p-2">
-              <%!-- Search Input --%>
-              <input
-                type="search"
-                name={"#{@name}_search"}
-                class="input input-sm mb-2 w-full"
-                placeholder={Backpex.__("Search", @live_resource)}
-                value={@search_input}
-                phx-change="search"
-                phx-target={@myself}
-              />
-
-              <%!-- Empty State --%>
-              <p :if={@options == []} class="mt-2 w-full">{@not_found_text}</p>
-
-              <%!-- Toggle all button --%>
-              <.toggle_all
-                :if={Enum.any?(@options)}
-                live_resource={@live_resource}
-                name={@name}
-                form={@form}
-                all_selected={@all_selected}
-              />
-
-              <%!-- Hidden input to make sure the change is always present, even if no options are selected --%>
-              <input class="hidden" name={"#{@form[@name].name}[]"} value="" tabindex="-1" aria-hidden="true" />
-
-              <%!-- Hidden Options --%>
-              <.hidden_option
-                :for={value <- @selected_ids}
-                :if={value not in @options_ids}
-                form={@form}
-                value={value}
-                name={@name}
-              />
-
-              <%!-- Options --%>
-              <div class="my-2 w-full">
-                <.option
-                  :for={{label, value} <- @options}
-                  class="mt-2"
-                  form={@form}
-                  name={@name}
-                  label={label}
-                  value={value}
-                  selected={value in @selected_ids}
-                />
-              </div>
-
-              <.show_more_button :if={@show_more} live_resource={@live_resource} event_target={@myself} />
-            </div>
-          </:menu>
-        </Backpex.HTML.CoreComponents.dropdown>
-
-        <Form.error :for={msg <- @errors} class="mt-1">{msg}</Form.error>
-
-        <Backpex.HTML.Form.help_text :if={@help_text} class="mt-1">
-          {@help_text}
-        </Backpex.HTML.Form.help_text>
+        <%!--
+          The options are one page of the options query, so the server searches them and "Show more" loads the next
+          page. The selected items are passed on their own, as they may be on no loaded page.
+        --%>
+        <Combobox.combobox
+          field={@form[@name]}
+          value={@selected_ids}
+          options={@options}
+          selected_options={@selected}
+          multiple
+          on_search="search"
+          phx-target={@myself}
+          readonly={@readonly}
+          placeholder={@prompt}
+          no_results_text={@not_found_text}
+          translate_error_fun={Backpex.Field.translate_error_fun(@field_options, assigns)}
+          help_text={Backpex.Field.help_text(@field_options, assigns)}
+          live_resource={@live_resource}
+          {Backpex.Field.label_attrs(assigns, @label_id)}
+        >
+          <:header :if={@options != []}>
+            <.toggle_all live_resource={@live_resource} name={@name} form={@form} all_selected={@all_selected} />
+          </:header>
+          <:footer :if={@show_more}>
+            <button type="button" phx-click="show-more" phx-target={@myself} class="link block text-sm">
+              {Backpex.__("Show more", @live_resource)}
+            </button>
+          </:footer>
+        </Combobox.combobox>
       </Layout.field_container>
     </div>
     """
   end
 
-  attr :class, :any, default: nil
-  attr :label, :string, required: true
-  attr :value, :string, required: true
-  attr :name, :string, required: true
-  attr :selected, :boolean, required: true
-  attr :form, Phoenix.HTML.Form, required: true
-
-  defp option(assigns) do
-    ~H"""
-    <label class={["flex cursor-pointer items-center gap-x-2", @class]}>
-      <input
-        id={"has-many-#{@name}-checkbox-value-#{@value}"}
-        type="checkbox"
-        name={"#{@form[@name].name}[]"}
-        value={@value}
-        checked={@selected}
-        class="checkbox checkbox-sm checkbox-primary"
-      />
-      <span class="label-text">
-        {@label}
-      </span>
-    </label>
-    """
-  end
-
-  attr :value, :string, required: true
-  attr :name, :string, required: true
-  attr :form, Phoenix.HTML.Form, required: true
-
-  defp hidden_option(assigns) do
-    ~H"""
-    <input
-      id={"has-many-#{@name}-checkbox-value-#{@value}"}
-      type="checkbox"
-      value={@value}
-      name={"#{@form[@name].name}[]"}
-      class="hidden"
-      checked
-      tabindex="-1"
-      aria-hidden="true"
-    />
-    """
-  end
-
-  attr :class, :any, default: nil
   attr :live_resource, :atom, required: true
   attr :all_selected, :boolean, required: true
   attr :name, :string, required: true
   attr :form, Phoenix.HTML.Form, required: true
 
+  # "Select all" selects every option of the options query, also the ones on pages that are not loaded. The browser
+  # only knows the loaded options, so the server selects them: the button submits a param of its own.
   defp toggle_all(assigns) do
     {param, button_text} =
       if assigns.all_selected,
@@ -306,67 +205,18 @@ defmodule Backpex.Fields.HasMany do
 
     # LiveView sends the button's name with the change event it dispatches, as for any other form input.
     ~H"""
-    <button
-      type="button"
-      name={@button_name}
-      value=""
-      phx-click={JS.dispatch("change")}
-      class={["link block text-sm", @class]}
-    >
+    <button type="button" name={@button_name} value="" phx-click={JS.dispatch("change")} class="link block text-sm">
       {@button_text}
     </button>
     """
   end
 
-  attr :readonly, :boolean, default: false
-  attr :name, :string, required: true
-  attr :label, :string, required: true
-  attr :value, :string, required: true
-
-  defp badge(%{readonly: true} = assigns) do
-    ~H"""
-    <span class="badge badge-sm badge-soft">{@label}</span>
-    """
-  end
-
-  defp badge(assigns) do
-    ~H"""
-    <div class="badge badge-sm badge-soft badge-primary pointer-events-auto pr-0">
-      <span>{@label}</span>
-      <label
-        class="flex cursor-pointer items-center pr-2"
-        for={"has-many-#{@name}-checkbox-value-#{@value}"}
-        aria-hidden="true"
-      >
-        <Backpex.HTML.CoreComponents.icon name="hero-x-mark" class="size-4 scale-105 hover:scale-110" />
-      </label>
-    </div>
-    """
-  end
-
-  attr :live_resource, :atom, required: true
-  attr :event_target, :any, required: true
-
-  defp show_more_button(assigns) do
-    ~H"""
-    <button
-      type="button"
-      phx-click="show-more"
-      phx-target={@event_target}
-      class="link mb-2 text-sm"
-    >
-      {Backpex.__("Show more", @live_resource)}
-    </button>
-    """
-  end
-
+  # The combobox pushes the search with the text of its search input.
   @impl Phoenix.LiveComponent
-  def handle_event("search", params, socket) do
-    search_input = Map.get(params, to_string(socket.assigns.name) <> "_search", "")
-
+  def handle_event("search", %{"query" => query}, socket) when is_binary(query) do
     socket
     |> assign(:offset, 0)
-    |> assign(:search_input, search_input)
+    |> assign(:search_input, query)
     |> assign_options()
     |> noreply()
   end
@@ -536,7 +386,6 @@ defmodule Backpex.Fields.HasMany do
 
     socket
     |> assign(:options, options)
-    |> assign(:options_ids, Enum.map(options, fn {_label, value} -> value end))
     |> assign(:show_more, show_more)
   end
 
@@ -663,15 +512,6 @@ defmodule Backpex.Fields.HasMany do
   end
 
   defp extract_selected_ids(_value, _primary_key), do: []
-
-  defp assign_form_errors(socket) do
-    %{assigns: %{form: form, name: name, field_options: field_options}} = socket
-
-    errors = if Phoenix.Component.used_input?(form[name]), do: form[name].errors, else: []
-    translate_error_fun = Map.get(field_options, :translate_error, &Function.identity/1)
-
-    assign(socket, :errors, Form.translate_form_errors(errors, translate_error_fun))
-  end
 
   defp display_field_form({_name, field_options} = field),
     do: Map.get(field_options, :display_field_form, display_field(field))

@@ -34,20 +34,14 @@ defmodule Backpex.Integration.ResourceActions.FormTest do
   end
 
   describe "with a multi select field" do
-    test "keeps the selected options when searching before the submit", %{conn: conn} do
+    test "submits the options selected in the combobox", %{conn: conn} do
       conn
       |> visit(~p"/admin/users/invite/resource-action")
-      |> check("Alex")
-      # The search input of the multi select has no label, so phoenix_test can't fill it in.
-      |> unwrap(fn view ->
-        view
-        |> element(~s(input[name="change[users]_search"]))
-        |> render_change(%{"change[users]_search" => "bob"})
-      end)
-      |> assert_has("label", text: "Bob")
-      |> refute_has("label", text: "Alex")
-      # phoenix_test remembers the checked option, so the test checks that the form still sends it on its own.
+      |> assert_has("#resource-form_users [role=option]", count: 2)
+      |> set_combobox("change[users]", ["user_id_alex"])
+      # The form keeps the selection, so the server renders the input the combobox submits it with.
       |> assert_has(~s(input[type="hidden"][name="change[users][]"][value="user_id_alex"]))
+      |> assert_has("#resource-form_users [data-part=badge-label]", text: "Alex", exact: true)
       |> within("#resource-form", fn session ->
         session
         |> fill_in("Text", with: "Hello")
@@ -77,7 +71,7 @@ defmodule Backpex.Integration.ResourceActions.FormTest do
       |> visit(~p"/admin/post-relation-options/assign_author/resource-action")
       |> validate(%{first_name: "Anna", user_id: anna.id})
       |> save(%{first_name: "Bert", user_id: anna.id})
-      |> assert_has("div.fieldset:has(select[name='change[user_id]']) > p.text-error", text: "is invalid", exact: true)
+      |> assert_has("#resource-form_user_id-errors > p.text-error", text: "is invalid", exact: true)
       |> refute_has("div", text: "The author has been assigned.")
     end
 
@@ -85,7 +79,7 @@ defmodule Backpex.Integration.ResourceActions.FormTest do
       conn
       |> visit(~p"/admin/post-relation-options/assign_author/resource-action")
       |> save(%{first_name: "Anna", user_id: younger_anna.id})
-      |> assert_has("div.fieldset:has(select[name='change[user_id]']) > p.text-error", text: "is invalid", exact: true)
+      |> assert_has("#resource-form_user_id-errors > p.text-error", text: "is invalid", exact: true)
       |> refute_has("div", text: "The author has been assigned.")
     end
   end
@@ -97,8 +91,8 @@ defmodule Backpex.Integration.ResourceActions.FormTest do
       |> visit(~p"/admin/users/invite/resource-action")
       |> unwrap(fn view ->
         view
-        |> form("#resource-form", change: %{users: ["user_id_alex"], text: "Hello"})
-        |> render_submit()
+        |> form("#resource-form", change: %{text: "Hello"})
+        |> render_submit(%{change: %{users: ["user_id_alex"]}})
       end)
       |> assert_has("div", text: "An email has been successfully sent to the specified users.")
     end

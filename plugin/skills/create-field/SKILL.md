@@ -19,16 +19,16 @@ You are an expert at creating fields for Backpex, a Phoenix LiveView admin panel
 | `Backpex.Fields.Textarea` | Multi-line text inputs |
 | `Backpex.Fields.Number` | Numeric values |
 | `Backpex.Fields.Boolean` | Checkboxes / toggles |
-| `Backpex.Fields.Select` | Dropdown with static options |
-| `Backpex.Fields.MultiSelect` | Multi-value dropdown |
+| `Backpex.Fields.Select` | Select with static options (`searchable_options: true` adds a search input) |
+| `Backpex.Fields.MultiSelect` | Searchable select for multiple values |
 | `Backpex.Fields.Date` | Date picker |
 | `Backpex.Fields.DateTime` | Date and time picker |
 | `Backpex.Fields.Time` | Time picker |
 | `Backpex.Fields.Currency` | Formatted currency values |
 | `Backpex.Fields.URL` | URLs with link rendering |
 | `Backpex.Fields.Email` | Email addresses |
-| `Backpex.Fields.BelongsTo` | belongs_to associations |
-| `Backpex.Fields.HasMany` | has_many associations |
+| `Backpex.Fields.BelongsTo` | belongs_to associations (`searchable_options: true` adds a search input) |
+| `Backpex.Fields.HasMany` | has_many associations, searched on the server |
 | `Backpex.Fields.HasManyThrough` | has_many through associations |
 | `Backpex.Fields.InlineCRUD` | Inline editing of embeds_many / has_many |
 | `Backpex.Fields.Upload` | File uploads |
@@ -200,3 +200,4 @@ end
 - **Always declare `@config_schema`** before `use Backpex.Field` for custom field-specific options
 - **Use `Layout.field_container`** and `Layout.input_label`  in `render_form/1` for consistent form layout
 - **Use `BackpexForm.input`** for standard input rendering with error handling
+- **Use `Backpex.HTML.Combobox.combobox`** for a select with search, multiple selection or custom option markup; it takes `field` and `options` and submits like a native select (see its module docs and the custom fields guide)

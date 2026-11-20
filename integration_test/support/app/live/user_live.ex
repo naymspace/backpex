@@ -100,6 +100,7 @@ defmodule Backpex.Test.UserLive do
         display_field: :street,
         except: [:index],
         live_resource: Backpex.Test.AddressLive,
+        searchable_options: true,
         pivot_fields: [
           type: %{
             module: Backpex.Fields.Select,

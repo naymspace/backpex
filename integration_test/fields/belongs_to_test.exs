@@ -15,7 +15,7 @@ defmodule Backpex.Integration.Fields.BelongsToTest do
       conn
       |> visit(~p"/admin/posts/#{post.id}/edit")
       |> save(%{user_id: deleted_user.id})
-      |> assert_has("div.fieldset:has(select[name='change[user_id]']) > p.text-error", text: "is invalid", exact: true)
+      |> assert_has("#resource-form_user_id-errors > p.text-error", text: "is invalid", exact: true)
 
       assert Repo.get!(Post, post.id).user_id == post.user_id
     end
@@ -56,6 +56,8 @@ defmodule Backpex.Integration.Fields.BelongsToTest do
 
   # `Backpex.Test.ProductShortLinksLive` has a BelongsTo field of `Backpex.Test.ShortLink`, whose key is `short_key`.
   describe "a related schema whose key is not id" do
+    @combobox "#resource-form_featured_short_link_key"
+
     setup do
       # The keys come from the factory's sequence: equal keys would make concurrent tests wait for each other.
       link = insert(:short_link, url: "https://docs.example.com/")
@@ -69,15 +71,24 @@ defmodule Backpex.Integration.Fields.BelongsToTest do
 
       conn
       |> visit(~p"/admin/product-short-links/#{product.id}/edit")
-      |> assert_has("select", label: "Featured Short Link", selected: "https://docs.example.com/")
-      |> assert_has("select option[value='#{link.short_key}'][selected]", text: link.url, exact: true)
-      |> assert_has("select option[value='#{other_link.short_key}']:not([selected])", text: other_link.url, exact: true)
+      |> assert_has("label[for=resource-form_featured_short_link_key-trigger]", text: "Featured Short Link")
+      |> assert_has("#{@combobox} [data-part=value-label]", text: "https://docs.example.com/", exact: true)
+      |> assert_has("#{@combobox} input[name='change[featured_short_link_key]'][value='#{link.short_key}']")
+      |> assert_has("#{@combobox} [role=option][data-value='#{link.short_key}'][aria-selected=true]",
+        text: link.url,
+        exact: true
+      )
+      |> assert_has("#{@combobox} [role=option][data-value='#{other_link.short_key}'][aria-selected=false]",
+        text: other_link.url,
+        exact: true
+      )
     end
 
     test "saves the key of the chosen option", %{conn: conn, product: product, other_link: other_link} do
       conn
       |> visit(~p"/admin/product-short-links/#{product.id}/edit")
-      |> select("Featured Short Link", option: other_link.url)
+      |> set_combobox("change[featured_short_link_key]", other_link.short_key)
+      |> assert_has("#{@combobox} [data-part=value-label]", text: other_link.url, exact: true)
       |> click_button("Save")
       |> assert_path(~p"/admin/product-short-links")
 

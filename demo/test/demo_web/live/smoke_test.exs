@@ -45,7 +45,15 @@ defmodule DemoWeb.Live.SmokeTest do
     test "send an email", %{conn: conn} do
       conn
       |> visit(~p"/admin/users/invite/resource-action")
-      |> check("Alex")
+      # The multi select is a combobox, whose hook adds the inputs of the selection in the browser.
+      |> unwrap(fn view ->
+        view
+        |> Phoenix.LiveViewTest.form("#resource-form")
+        |> Phoenix.LiveViewTest.render_change(%{
+          "change" => %{"users" => ["user_id_alex"]},
+          "_target" => ["change", "users"]
+        })
+      end)
       |> fill_in("Text", with: "Hello")
       |> within("#resource-form", &click_button(&1, "Send email"))
       |> assert_has("div", text: "An email has been successfully sent to the specified users.")
