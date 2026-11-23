@@ -35,6 +35,10 @@ defmodule Backpex.FormComponentTest do
     def can?(assigns, _action, _item), do: Map.get(assigns, :allowed?, true)
     def translate({msg, _opts}), do: msg
     def on_item_creating(_socket, change), do: change
+    def on_item_created(_socket, _item), do: :ok
+    def singular_name, do: "Item"
+    def return_to(_socket, _assigns, _live_action, _form_action, _item), do: "/items"
+    def pubsub, do: [server: PubSub, topic: "items"]
   end
 
   # A custom upload field. The name of the file decides what `consume_upload/5` returns, and the calls are reported to
@@ -550,14 +554,31 @@ defmodule Backpex.FormComponentTest do
       refute_received :saved
     end
 
-    test "refuses the save at {:postpone, _} and at an exception" do
-      for name <- ["postpone.png", "raise.png"] do
+    test "stores the files, saves, removes the removed files and drops the entries" do
+      start_supervised!({Phoenix.PubSub, name: PubSub})
+      socket = upload_socket(["one.png", "two.png"], removed_uploads: [images: ["old.png"]])
+      channels = channels(socket)
+
+      {:noreply, _socket} = save(socket)
+
+      assert_received {:consume, "one.png"}
+      assert_received {:consume, "two.png"}
+      assert_received :saved
+      assert_received {:remove, ["old.png"]}
+      refute_received {:discard, _stored}
+      refute Enum.any?(channels, &Process.alive?/1)
+    end
+
+    # LiveView's upload channel deletes the file of an entry it consumed, so a refused entry has to stay postponed.
+    test "refuses the save at {:postpone, _} and at an exception, and keeps the entry" do
+      for {name, message} <- [{"postpone.png", "did not store a file"}, {"raise.png", "could not store a file"}] do
         socket = upload_socket([name])
 
         {{:noreply, socket}, log} = with_log(fn -> save(socket) end)
 
         assert_refused(socket)
-        assert log =~ "could not store a file" or log =~ "did not store a file"
+        assert log =~ message
+        assert socket |> channels() |> Enum.all?(&Process.alive?/1)
         refute_received {:discard, _stored}
         refute_received :saved
       end
@@ -625,10 +646,12 @@ defmodule Backpex.FormComponentTest do
         title: %{module: Backpex.Fields.Text, label: "Title"}
       ],
       item: %{},
-      removed_uploads: [],
+      removed_uploads: Keyword.get(opts, :removed_uploads, []),
       allowed?: Keyword.get(opts, :allowed?, true)
     )
   end
+
+  defp channels(socket), do: Map.values(socket.assigns.uploads.images.entry_refs_to_pids)
 
   defp done_entry(conf, name, index) do
     %UploadEntry{

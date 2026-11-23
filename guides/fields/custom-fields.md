@@ -140,7 +140,9 @@ The form component calls them in this order: it builds the changeset and stops i
 one and stops at the first that can't be stored, saves the item, then removes the files the user removed. If the save
 fails, it discards the stored files instead, and the next save calls `consume_upload/5` again for the same entries. So
 `consume_upload/5` gets the item without its changes (on create, the new empty item with an `id` of `nil`), and the
-file name has to be known in `put_upload_change/7` already.
+file name has to be known in `put_upload_change/7` already. Use a name the item doesn't reference yet (for example from
+`entry.uuid`): a file stored under one of the item's names before a failed save would be deleted by `discard_uploads/4`
+while the item still points to it.
 
 `Backpex.Fields.Upload` implements them by calling the functions you pass as options. A custom upload field gets the
 field (`{name, field_options}`) as the first argument, so it can implement them once for every field it's used for and

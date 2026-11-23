@@ -718,7 +718,9 @@ defmodule Backpex.FormComponent do
     end
   catch
     # Required: on an exception, LiveView's upload channel consumes the entry and deletes its temporary file, so the
-    # next save would have no file to store. Caught here, the entry stays postponed.
+    # next save would have no file to store. An exit or a throw would crash the LiveView instead. Caught here, the entry
+    # stays postponed. Work the callback started and didn't wait for (a timed out task, say) may still store a file that
+    # nothing references.
     kind, reason ->
       Logger.error(
         "Upload field #{inspect(name)} could not store a file: " <> Exception.format(kind, reason, __STACKTRACE__)

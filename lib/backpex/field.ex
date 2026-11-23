@@ -317,6 +317,10 @@ defmodule Backpex.Field do
 
   After a failed save, the next save calls it again for the same entry, so the write has to work for a file name that
   may exist already. See `c:list_existing_files/2`.
+
+  Store every entry under a name the item doesn't reference yet, such as one built from `entry.uuid`. A name that only
+  depends on the item (`"\#{item.id}.jpg"`) overwrites the file of the item before the save, and if the save fails,
+  `c:discard_uploads/4` deletes the file the item still points to.
   """
   @callback consume_upload(
               field :: tuple(),
@@ -341,7 +345,7 @@ defmodule Backpex.Field do
   The form component calls it when saving the item fails (for example on a constraint error) or when another file of
   the form couldn't be stored. `stored` holds the values that `c:consume_upload/5` returned in `{:ok, value}` for the
   entries of this field, `item` is the item that `c:consume_upload/5` got. The entries stay in the form, so the files
-  are stored again on the next save.
+  are stored again on the next save. The item wasn't saved, so it still references its old files: don't delete them.
 
   Direct uploads (`external` in `Phoenix.LiveView.allow_upload/3`) aren't passed: the browser uploaded the objects
   before the save, and their entries stay in the form, so the next save uses the same objects again.
