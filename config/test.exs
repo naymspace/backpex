@@ -27,8 +27,8 @@ alias Backpex.Test.Translator
       {"5432", nil}
   end
 
-# Port 0 lets the OS pick a free port, so several checkouts can run their tests at the same time. `test_helper.exs` hands
-# the actual port to `phoenix_test`.
+# Port 0 lets the OS pick a free port, so several checkouts can run their tests at the same time. Fluffy takes the
+# actual port from the running endpoint.
 config :backpex, Endpoint,
   adapter: Bandit.PhoenixAdapter,
   http: [ip: {127, 0, 0, 1}, port: 0],
@@ -59,6 +59,9 @@ config :backpex,
   translator_function: {Translator, :translate},
   error_translator_function: {Translator, :translate}
 
+config :fluffy, Fluffy.Sandbox, header: "user-agent"
+config :fluffy, ecto_repos: [Repo], endpoint: Endpoint
+
 # The test helpers start ExUnit with `capture_log: true`, so the log of a test, like a LiveView crash report, is only
 # printed when the test fails.
 config :logger, :level, :warning
@@ -74,11 +77,8 @@ config :phoenix, :plug_init_mode, :runtime
 
 config :phoenix_test,
   endpoint: Endpoint,
-  otp_app: :backpex,
-  playwright: [
-    assets_dir: "./",
-    browser: :chromium,
-    browser_launch_timeout: 10_000,
-    trace: System.get_env("PW_TRACE", "false") in ~w(t true),
-    trace_dir: "tmp/e2e/traces"
-  ]
+  otp_app: :backpex
+
+config :playwright, :test,
+  trace: if(System.get_env("PW_TRACE", "false") in ~w(t true), do: :on, else: :off),
+  output_dir: "tmp/e2e/traces"

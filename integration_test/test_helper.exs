@@ -63,15 +63,7 @@ File.rm_rf!(Backpex.Test.Uploads.dir())
 Ecto.Migrator.run(Repo, Path.join(repo_config[:priv], "migrations"), :up, all: true, log: false)
 Sandbox.mode(Repo, :manual)
 
-# The endpoint listens on a random port, see `config/test.exs`.
-{:ok, {_ip, port}} = Endpoint.server_info(:http)
-Application.put_env(:phoenix_test, :base_url, "http://localhost:#{port}")
-
-# The browser tests are tagged `:e2e` and need Playwright (`bun install`) and the assets of `bun run e2e:assets`.
+# The browser tests are tagged `:e2e` and need Chromium (`bun run e2e:install`) and the assets of `bun run e2e:assets`.
 # They only run with `mix test --only e2e` or `--include e2e`.
-if Enum.any?(ExUnit.configuration()[:include], &(&1 == :e2e or match?({:e2e, _value}, &1))) do
-  {:ok, _pid} = PhoenixTest.Playwright.Supervisor.start_link()
-end
-
 ExUnit.configure(exclude: [e2e: true])
 ExUnit.start(capture_log: true)

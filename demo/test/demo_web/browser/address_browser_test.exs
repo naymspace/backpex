@@ -1,9 +1,11 @@
 defmodule DemoWeb.Browser.AddressBrowserTest do
-  use PhoenixTest.Playwright.Case, async: false
+  use DemoWeb.BrowserCase, async: false
   use DemoWeb, :verified_routes
   use DemoWeb.A11yAssertions
 
   import Demo.EctoFactory
+
+  alias Playwright.Page
 
   @moduletag :playwright
 
@@ -22,7 +24,7 @@ defmodule DemoWeb.Browser.AddressBrowserTest do
       conn
       |> visit(~p"/admin/addresses")
       |> assert_has("body .phx-connected")
-      |> click("#item-action-delete-#{address.id}")
+      |> unwrap(&Page.click!(&1, "#item-action-delete-#{address.id}"))
       |> assert_has("#action-confirm-modal[open]")
       |> assert_a11y()
     end

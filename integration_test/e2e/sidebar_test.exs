@@ -1,6 +1,8 @@
 defmodule Backpex.E2E.SidebarTest do
   use Backpex.E2ECase, async: false
 
+  alias Playwright.Page
+
   # LiveView freezes the session at websocket-connect time, so a re-mount
   # after live_redirect inside the same live_session reads a stale cookie
   # and re-renders the sidebar (and its sections) from the default. The
@@ -109,10 +111,10 @@ defmodule Backpex.E2E.SidebarTest do
       |> assert_has("body .phx-connected")
       |> assert_has(~s|#{@blog_toggle}[aria-expanded="true"]|)
       |> assert_a11y()
-      |> click(@blog_toggle)
+      |> unwrap(&Page.click!(&1, @blog_toggle))
       |> assert_has(~s|#{@blog_toggle}[aria-expanded="false"]|)
       |> assert_a11y()
-      |> click(~s|a[href="/admin/invoices"]|)
+      |> unwrap(&Page.click!(&1, ~s|a[href="/admin/invoices"]|))
       |> assert_path("/admin/invoices")
       |> assert_has(~s|#{@blog_toggle}[aria-expanded="false"]|)
     end
@@ -129,10 +131,10 @@ defmodule Backpex.E2E.SidebarTest do
       |> assert_has("body .phx-connected")
       |> assert_has(~s|#{@sidebar_toggle}[aria-expanded="true"]|)
       |> assert_a11y()
-      |> click(@sidebar_toggle)
+      |> unwrap(&Page.click!(&1, @sidebar_toggle))
       |> assert_has(~s|#{@sidebar_toggle}[aria-expanded="false"]|)
       |> assert_a11y()
-      |> evaluate(~s|document.querySelector('a[href="/admin/invoices"]').click()|)
+      |> unwrap(&Page.evaluate!(&1, ~s|document.querySelector('a[href="/admin/invoices"]').click()|))
       |> assert_path("/admin/invoices")
       |> assert_has(~s|#{@sidebar_toggle}[aria-expanded="false"]|)
     end
@@ -141,30 +143,34 @@ defmodule Backpex.E2E.SidebarTest do
   describe "sidebar scroll position across navigation" do
     # A short viewport makes the menu scrollable. The links are clicked
     # programmatically because a Playwright click scrolls its target into view.
-    @tag browser_context_opts: [viewport: %{width: 1280, height: 250}]
+    @tag Playwright.Test.use(viewport: %{width: 1280, height: 250})
     test "menu keeps its scroll position after live_redirect and reload", %{conn: conn} do
       conn
       |> visit(~p"/admin/posts")
       |> assert_has("body .phx-connected")
-      |> evaluate(
-        """
-        new Promise((resolve) => {
-          const menu = document.querySelector('#backpex-sidebar-menu')
-          menu.addEventListener('scroll', () => resolve(menu.scrollTop), { once: true })
-          menu.scrollTop = 100
-        })
-        """,
-        fn scroll_top -> assert scroll_top == 100 end
-      )
-      |> evaluate(~s|document.querySelector('a[href="/admin/invoices"]').click()|)
+      |> unwrap(fn page ->
+        scroll_top =
+          Page.evaluate!(page, """
+          new Promise((resolve) => {
+            const menu = document.querySelector('#backpex-sidebar-menu')
+            menu.addEventListener('scroll', () => resolve(menu.scrollTop), { once: true })
+            menu.scrollTop = 100
+          })
+          """)
+
+        assert scroll_top == 100
+      end)
+      |> unwrap(&Page.evaluate!(&1, ~s|document.querySelector('a[href="/admin/invoices"]').click()|))
       |> assert_path("/admin/invoices")
       |> assert_has("body .phx-connected")
-      |> evaluate(~s|document.querySelector('#backpex-sidebar-menu').scrollTop|, fn scroll_top ->
+      |> unwrap(fn page ->
+        scroll_top = Page.evaluate!(page, ~s|document.querySelector('#backpex-sidebar-menu').scrollTop|)
         assert scroll_top == 100
       end)
       |> visit(~p"/admin/posts")
       |> assert_has("body .phx-connected")
-      |> evaluate(~s|document.querySelector('#backpex-sidebar-menu').scrollTop|, fn scroll_top ->
+      |> unwrap(fn page ->
+        scroll_top = Page.evaluate!(page, ~s|document.querySelector('#backpex-sidebar-menu').scrollTop|)
         assert scroll_top == 100
       end)
     end
@@ -175,49 +181,49 @@ defmodule Backpex.E2E.SidebarTest do
       conn
       |> visit(~p"/admin/posts")
       |> assert_has("body .phx-connected")
-      |> evaluate(
-        """
-        (() => {
-          const parent = document.createElement('li')
-          parent.id = 'empty-section-parent'
-          parent.className = 'not-has-[[data-sidebar-item]]:hidden'
-          parent.innerHTML = `
-            <ul>
-              <li id="empty-section-child" class="not-has-[[data-sidebar-item]]:hidden">
-                <ul id="empty-section-content"></ul>
-              </li>
-            </ul>
-          `
-          document.querySelector('#backpex-sidebar').appendChild(parent)
+      |> unwrap(fn page ->
+        display =
+          Page.evaluate!(page, """
+          (() => {
+            const parent = document.createElement('li')
+            parent.id = 'empty-section-parent'
+            parent.className = 'not-has-[[data-sidebar-item]]:hidden'
+            parent.innerHTML = `
+              <ul>
+                <li id="empty-section-child" class="not-has-[[data-sidebar-item]]:hidden">
+                  <ul id="empty-section-content"></ul>
+                </li>
+              </ul>
+            `
+            document.querySelector('#backpex-sidebar').appendChild(parent)
 
-          return {
-            parent: getComputedStyle(parent).display,
-            child: getComputedStyle(parent.querySelector('#empty-section-child')).display
-          }
-        })()
-        """,
-        fn display ->
-          assert display == %{"child" => "none", "parent" => "none"}
-        end
-      )
-      |> evaluate(
-        """
-        (() => {
-          const item = document.createElement('li')
-          item.dataset.sidebarItem = ''
-          document.querySelector('#empty-section-content').appendChild(item)
+            return {
+              parent: getComputedStyle(parent).display,
+              child: getComputedStyle(parent.querySelector('#empty-section-child')).display
+            }
+          })()
+          """)
 
-          return {
-            parent: getComputedStyle(document.querySelector('#empty-section-parent')).display,
-            child: getComputedStyle(document.querySelector('#empty-section-child')).display
-          }
-        })()
-        """,
-        fn display ->
-          refute display["parent"] == "none"
-          refute display["child"] == "none"
-        end
-      )
+        assert display == %{"child" => "none", "parent" => "none"}
+      end)
+      |> unwrap(fn page ->
+        display =
+          Page.evaluate!(page, """
+          (() => {
+            const item = document.createElement('li')
+            item.dataset.sidebarItem = ''
+            document.querySelector('#empty-section-content').appendChild(item)
+
+            return {
+              parent: getComputedStyle(document.querySelector('#empty-section-parent')).display,
+              child: getComputedStyle(document.querySelector('#empty-section-child')).display
+            }
+          })()
+          """)
+
+        refute display["parent"] == "none"
+        refute display["child"] == "none"
+      end)
     end
   end
 
@@ -226,9 +232,12 @@ defmodule Backpex.E2E.SidebarTest do
       conn
       |> visit(~p"/admin/posts")
       |> assert_has("body .phx-connected")
-      |> evaluate(@install_preference_gate, is_function: true)
-      |> evaluate(~s|document.querySelector('[data-section-id="blog"] [data-menu-dropdown-toggle]').click()|)
-      |> evaluate(@await_preference_calls, [is_function: true, arg: 1], fn gate ->
+      |> unwrap(&Page.evaluate!(&1, @install_preference_gate))
+      |> unwrap(
+        &Page.evaluate!(&1, ~s|document.querySelector('[data-section-id="blog"] [data-menu-dropdown-toggle]').click()|)
+      )
+      |> unwrap(fn page ->
+        gate = Page.evaluate!(page, @await_preference_calls, 1)
         assert gate["active"] == 1
         assert gate["maxActive"] == 1
 
@@ -236,14 +245,16 @@ defmodule Backpex.E2E.SidebarTest do
                  %{"key" => "global.sidebar_section.blog", "value" => false}
                ]
       end)
-      |> evaluate(~s|document.querySelector('#backpex-sidebar-toggle').click()|)
-      |> evaluate(@preference_gate_state, [is_function: true], fn gate ->
+      |> unwrap(&Page.evaluate!(&1, ~s|document.querySelector('#backpex-sidebar-toggle').click()|))
+      |> unwrap(fn page ->
+        gate = Page.evaluate!(page, @preference_gate_state)
         assert gate["active"] == 1
         assert gate["maxActive"] == 1
         assert length(gate["calls"]) == 1
       end)
-      |> evaluate(@release_preference_call, is_function: true, arg: 0)
-      |> evaluate(@await_preference_calls, [is_function: true, arg: 2], fn gate ->
+      |> unwrap(&Page.evaluate!(&1, @release_preference_call, 0))
+      |> unwrap(fn page ->
+        gate = Page.evaluate!(page, @await_preference_calls, 2)
         assert gate["active"] == 1
         assert gate["maxActive"] == 1
 
@@ -251,11 +262,12 @@ defmodule Backpex.E2E.SidebarTest do
                  %{"key" => "global.sidebar_open", "value" => false}
                ]
       end)
-      |> evaluate(@release_preference_call, is_function: true, arg: 1)
-      |> evaluate(@await_preference_gate_settled, [is_function: true], fn gate ->
+      |> unwrap(&Page.evaluate!(&1, @release_preference_call, 1))
+      |> unwrap(fn page ->
+        gate = Page.evaluate!(page, @await_preference_gate_settled)
         assert gate == %{"active" => 0, "maxActive" => 1}
       end)
-      |> evaluate(@clear_preference_mirrors, is_function: true)
+      |> unwrap(&Page.evaluate!(&1, @clear_preference_mirrors))
       |> visit(~p"/admin/posts")
       |> assert_has("body .phx-connected")
       |> assert_has(~s|#backpex-app-shell[data-sidebar-open="false"]|)
@@ -266,23 +278,26 @@ defmodule Backpex.E2E.SidebarTest do
       conn
       |> visit(~p"/admin/posts")
       |> assert_has("body .phx-connected")
-      |> evaluate(@install_preference_gate, is_function: true)
-      |> evaluate(@select_theme, is_function: true, arg: "dark")
-      |> evaluate(@await_preference_calls, [is_function: true, arg: 1], fn gate ->
+      |> unwrap(&Page.evaluate!(&1, @install_preference_gate))
+      |> unwrap(&Page.evaluate!(&1, @select_theme, "dark"))
+      |> unwrap(fn page ->
+        gate = Page.evaluate!(page, @await_preference_calls, 1)
         assert gate["active"] == 1
 
         assert body_entries(List.first(gate["calls"])) == [
                  %{"key" => "global.theme", "value" => "dark"}
                ]
       end)
-      |> evaluate(@select_theme, is_function: true, arg: "cupcake")
-      |> evaluate(@preference_gate_state, [is_function: true], fn gate ->
+      |> unwrap(&Page.evaluate!(&1, @select_theme, "cupcake"))
+      |> unwrap(fn page ->
+        gate = Page.evaluate!(page, @preference_gate_state)
         assert gate["active"] == 1
         assert gate["maxActive"] == 1
         assert length(gate["calls"]) == 1
       end)
-      |> evaluate(@release_preference_call, is_function: true, arg: 0)
-      |> evaluate(@await_preference_calls, [is_function: true, arg: 2], fn gate ->
+      |> unwrap(&Page.evaluate!(&1, @release_preference_call, 0))
+      |> unwrap(fn page ->
+        gate = Page.evaluate!(page, @await_preference_calls, 2)
         assert gate["active"] == 1
         assert gate["maxActive"] == 1
 
@@ -290,17 +305,17 @@ defmodule Backpex.E2E.SidebarTest do
                  %{"key" => "global.theme", "value" => "cupcake"}
                ]
       end)
-      |> evaluate(@release_preference_call, is_function: true, arg: 1)
-      |> evaluate(@await_preference_gate_settled, [is_function: true], fn gate ->
+      |> unwrap(&Page.evaluate!(&1, @release_preference_call, 1))
+      |> unwrap(fn page ->
+        gate = Page.evaluate!(page, @await_preference_gate_settled)
         assert gate == %{"active" => 0, "maxActive" => 1}
       end)
-      |> evaluate(@clear_preference_mirrors, is_function: true)
+      |> unwrap(&Page.evaluate!(&1, @clear_preference_mirrors))
       |> visit(~p"/admin/posts")
       |> assert_has("body .phx-connected")
       |> assert_has(~s|html[data-theme="cupcake"]|)
-      |> evaluate(
-        ~s|document.querySelector('input[name="theme-selector"][value="cupcake"]').checked|,
-        &assert/1
+      |> unwrap(
+        &assert(Page.evaluate!(&1, ~s|document.querySelector('input[name="theme-selector"][value="cupcake"]').checked|))
       )
     end
   end
@@ -325,19 +340,19 @@ defmodule Backpex.E2E.SidebarTest do
       conn
       |> visit(~p"/admin/posts")
       |> assert_has("body .phx-connected")
-      |> evaluate(@install_preference_gate, is_function: true)
-      |> evaluate(
-        """
+      |> unwrap(&Page.evaluate!(&1, @install_preference_gate))
+      |> unwrap(
+        &Page.evaluate!(&1, """
         () => {
           document.querySelector('input[name="theme-selector"][value="dark"]').click()
           document.querySelector('#backpex-sidebar-toggle').click()
           document.querySelector('[data-section-id="blog"] [data-menu-dropdown-toggle]').click()
           return true
         }
-        """,
-        is_function: true
+        """)
       )
-      |> evaluate(@await_preference_calls, [is_function: true, arg: 1], fn gate ->
+      |> unwrap(fn page ->
+        gate = Page.evaluate!(page, @await_preference_calls, 1)
         assert gate["active"] == 1
 
         assert body_entries(List.first(gate["calls"])) == [
@@ -346,8 +361,9 @@ defmodule Backpex.E2E.SidebarTest do
                  %{"key" => "global.sidebar_section.blog", "value" => false}
                ]
       end)
-      |> evaluate(@release_preference_call, is_function: true, arg: 0)
-      |> evaluate(@await_preference_calls, [is_function: true, arg: 2], fn gate ->
+      |> unwrap(&Page.evaluate!(&1, @release_preference_call, 0))
+      |> unwrap(fn page ->
+        gate = Page.evaluate!(page, @await_preference_calls, 2)
         assert gate["active"] == 1
         assert gate["maxActive"] == 1
 
@@ -356,11 +372,12 @@ defmodule Backpex.E2E.SidebarTest do
                  %{"key" => "global.sidebar_section.blog", "value" => false}
                ]
       end)
-      |> evaluate(@release_preference_call, is_function: true, arg: 1)
-      |> evaluate(@await_preference_gate_settled, [is_function: true], fn gate ->
+      |> unwrap(&Page.evaluate!(&1, @release_preference_call, 1))
+      |> unwrap(fn page ->
+        gate = Page.evaluate!(page, @await_preference_gate_settled)
         assert gate == %{"active" => 0, "maxActive" => 1}
       end)
-      |> evaluate(@clear_preference_mirrors, is_function: true)
+      |> unwrap(&Page.evaluate!(&1, @clear_preference_mirrors))
       |> visit(~p"/admin/posts")
       |> assert_has("body .phx-connected")
       |> assert_has(~s|html[data-theme="dark"]|)
@@ -428,11 +445,12 @@ defmodule Backpex.E2E.SidebarTest do
       |> visit(~p"/admin/posts")
       |> assert_has("body .phx-connected")
       |> assert_has(~s|#{@sidebar_toggle}[aria-expanded="true"]|)
-      |> evaluate(@stall_preferences, is_function: true)
-      |> click(@sidebar_toggle)
+      |> unwrap(&Page.evaluate!(&1, @stall_preferences))
+      |> unwrap(&Page.click!(&1, @sidebar_toggle))
       |> assert_has(~s|#{@sidebar_toggle}[aria-expanded="false"]|)
       # (a) The write is in the cookie, synchronously, before any round trip.
-      |> evaluate("document.cookie", fn cookie ->
+      |> unwrap(fn page ->
+        cookie = Page.evaluate!(page, "document.cookie")
         entry = cookie |> String.split("; ") |> Enum.find(&String.starts_with?(&1, "backpex_prefs="))
         assert is_binary(entry)
 
@@ -442,7 +460,8 @@ defmodule Backpex.E2E.SidebarTest do
         assert is_binary(get_in(envelope, ["values", "global.sidebar_open", "token"]))
       end)
       # (b) THE FLASH ITSELF: the document the browser would paint first.
-      |> evaluate(@fetch_dead_render, [is_function: true], fn html ->
+      |> unwrap(fn page ->
+        html = Page.evaluate!(page, @fetch_dead_render)
         assert html =~ ~s(data-sidebar-open="false")
         refute html =~ ~s(data-sidebar-open="true")
         refute html =~ "lg:translate-x-0"
@@ -461,22 +480,23 @@ defmodule Backpex.E2E.SidebarTest do
       |> assert_a11y()
       # (d) The pending entry retires on the replay's response: the cookie holds
       # unacknowledged writes only and cannot shadow the adapter.
-      |> evaluate(@await_cookie_retired, [is_function: true], fn result ->
+      |> unwrap(fn page ->
+        result = Page.evaluate!(page, @await_cookie_retired)
         assert result == "retired"
       end)
       # The mirror survives — it is the live_redirect carrier and has a
       # different job.
-      |> evaluate(
-        """
-        (() => {
-          const manifest = JSON.parse(document.getElementById('backpex-preferences').dataset.preferencesManifest)
-          return sessionStorage.getItem(`backpex.prefs.${manifest.routes[0].token}.global.sidebar_open`)
-        })()
-        """,
-        fn value ->
-          assert value == "false"
-        end
-      )
+      |> unwrap(fn page ->
+        value =
+          Page.evaluate!(page, """
+          (() => {
+            const manifest = JSON.parse(document.getElementById('backpex-preferences').dataset.preferencesManifest)
+            return sessionStorage.getItem(`backpex.prefs.${manifest.routes[0].token}.global.sidebar_open`)
+          })()
+          """)
+
+        assert value == "false"
+      end)
     end
   end
 
@@ -494,7 +514,7 @@ defmodule Backpex.E2E.SidebarTest do
       |> assert_has("body .phx-connected")
       |> assert_has(~s|#backpex-sidebar:not([data-suppress-transition])|)
       # Sorting re-renders the shell in place, without re-mounting the hook.
-      |> click(~s|thead a[href*="order_by=street"]|)
+      |> unwrap(&Page.click!(&1, ~s|thead a[href*="order_by=street"]|))
       |> assert_has(~s|#backpex-sidebar:not([data-suppress-transition])|)
       |> assert_has(~s|#backpex-main:not([data-suppress-transition])|)
     end

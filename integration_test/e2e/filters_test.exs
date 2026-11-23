@@ -14,23 +14,22 @@ defmodule Backpex.E2E.FiltersTest do
   end
 
   defp assert_badge_fits(conn) do
-    evaluate(
-      conn,
-      """
-      (() => {
-        const badge = document.querySelector('button[aria-label="Clear Users filter"]').closest('.indicator')
-        return {
-          page: document.documentElement.scrollWidth,
-          viewport: window.innerWidth,
-          badgeRight: badge.getBoundingClientRect().right
-        }
-      })()
-      """,
-      fn widths ->
-        assert widths["page"] <= widths["viewport"]
-        assert widths["badgeRight"] <= widths["viewport"]
-      end
-    )
+    unwrap(conn, fn page ->
+      widths =
+        Playwright.Page.evaluate!(page, """
+        (() => {
+          const badge = document.querySelector('button[aria-label="Clear Users filter"]').closest('.indicator')
+          return {
+            page: document.documentElement.scrollWidth,
+            viewport: window.innerWidth,
+            badgeRight: badge.getBoundingClientRect().right
+          }
+        })()
+        """)
+
+      assert widths["page"] <= widths["viewport"]
+      assert widths["badgeRight"] <= widths["viewport"]
+    end)
   end
 
   describe "filter badge" do
@@ -40,7 +39,7 @@ defmodule Backpex.E2E.FiltersTest do
       |> assert_badge_fits()
     end
 
-    @tag browser_context_opts: [viewport: %{width: 360, height: 640}]
+    @tag Playwright.Test.use(viewport: %{width: 360, height: 640})
     test "keeps a long value inside a mobile viewport", %{conn: conn} do
       conn
       |> visit_with_long_user_filter()

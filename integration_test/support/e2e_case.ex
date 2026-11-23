@@ -1,24 +1,32 @@
 defmodule Backpex.E2ECase do
   @moduledoc """
-  The case for browser tests of the test app. It runs the tests in Chromium with `PhoenixTest.Playwright` and tags them
+  The case for browser tests of the test app. It runs the tests in Chromium with `Fluffy.PhoenixTest` and tags them
   `:e2e`, so they only run with `mix test --only e2e`.
 
   The browser loads the assets of `bun run e2e:assets` from `tmp/e2e/assets`.
   """
   use ExUnit.CaseTemplate
 
-  alias PlaywrightEx.Frame
-
   using opts do
     quote do
-      use PhoenixTest.Playwright.Case, unquote(opts)
+      use Playwright.Test, unquote(opts)
       use Phoenix.VerifiedRoutes, endpoint: Backpex.Test.Endpoint, router: Backpex.Test.Router
 
       import Backpex.E2ECase
       import Backpex.Test.EctoFactory
+      import Fluffy.PhoenixTest
 
       @moduletag :e2e
+
+      setup do
+        %{conn: start_session(:playwright)}
+      end
     end
+  end
+
+  setup tags do
+    Backpex.DataCase.setup_sandbox(tags)
+    :ok
   end
 
   # Turns off animations and transitions during the audit (e.g. a dropdown fading in), so axe measures the final colors
@@ -40,10 +48,8 @@ defmodule Backpex.E2ECase do
   Runs axe-core on the current page and fails on any accessibility violation.
   """
   def assert_a11y(session) do
-    timeout = PhoenixTest.Playwright.Config.global(:timeout)
-
-    Frame.evaluate(session.frame_id, expression: A11yAudit.JS.axe_core(), timeout: timeout)
-    {:ok, json} = Frame.evaluate(session.frame_id, expression: @axe_run_without_animations, timeout: timeout)
+    Fluffy.Playwright.evaluate(session.session, A11yAudit.JS.axe_core())
+    json = Fluffy.Playwright.evaluate(session.session, @axe_run_without_animations)
 
     json
     |> A11yAudit.Results.from_json()

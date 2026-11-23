@@ -15,7 +15,7 @@ defmodule Backpex.Test.Sandbox do
   @moduledoc """
   Allows the LiveViews of a browser test to use the database connection of the test.
 
-  `PhoenixTest.Playwright.Case` puts the sandbox metadata of the test into the user agent of the browser. Tests that use
+  Fluffy puts the sandbox metadata of the test into the user agent of the browser. Tests that use
   `Phoenix.LiveViewTest` need no allowance, the LiveView process has the test process in its `$callers`.
   """
   import Phoenix.LiveView

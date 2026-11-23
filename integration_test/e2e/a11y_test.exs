@@ -1,6 +1,8 @@
 defmodule Backpex.E2E.A11yTest do
   use Backpex.E2ECase, async: true
 
+  alias Playwright.Page
+
   # Every view of every LiveResource of the test app, so a markup change in Backpex that breaks accessibility fails here
   # even if no other test looks at that view. `{path, factory, primary key, views}`.
   @resources [
@@ -47,7 +49,7 @@ defmodule Backpex.E2E.A11yTest do
     conn
     |> visit(~p"/admin/addresses")
     |> assert_has("body .phx-connected")
-    |> click("#item-action-delete-#{address.id}")
+    |> unwrap(&Page.click!(&1, "#item-action-delete-#{address.id}"))
     |> assert_has("#action-confirm-modal[open]")
     |> assert_a11y()
   end
@@ -58,9 +60,9 @@ defmodule Backpex.E2E.A11yTest do
     conn
     |> visit(~p"/admin/posts")
     |> assert_has("body .phx-connected")
-    |> press("#filter-dropdown-trigger", "Enter")
-    |> press("#filter-dropdown-menu [id^=multi-select-][id$=-trigger]", "Enter")
-    |> assert_has("#filter-dropdown-menu input[name='filters[user_id][]']", count: 3)
+    |> unwrap(&Page.press!(&1, "#filter-dropdown-trigger", "Enter"))
+    |> unwrap(&Page.press!(&1, "#filter-dropdown-menu [id^=multi-select-][id$=-trigger]", "Enter"))
+    |> assert_has("#filter-dropdown-menu input[name='filters[user_id][]']:visible", count: 3)
     |> assert_a11y()
   end
 
@@ -70,10 +72,10 @@ defmodule Backpex.E2E.A11yTest do
     conn
     |> visit(~p"/admin/posts/new")
     |> assert_has("body .phx-connected")
-    |> press("#has-many-dropdown-tags-trigger", "Enter")
-    |> assert_has("#has-many-dropdown-tags-menu input[name='change[tags][]']", count: 3)
+    |> unwrap(&Page.press!(&1, "#has-many-dropdown-tags-trigger", "Enter"))
+    |> assert_has("#has-many-dropdown-tags-menu input[name='change[tags][]']:visible", count: 3)
     |> assert_a11y()
-    |> evaluate("document.documentElement.dataset.theme = 'dark'")
+    |> unwrap(&Page.evaluate!(&1, "document.documentElement.dataset.theme = 'dark'"))
     |> assert_a11y()
   end
 
@@ -90,8 +92,8 @@ defmodule Backpex.E2E.A11yTest do
     conn
     |> visit(~p"/admin/users/invite/resource-action")
     |> assert_has("body .phx-connected")
-    |> press("[id^=multi-select-][id$=-trigger]", "Enter")
-    |> assert_has("input[name='change[users][]']", count: 2)
+    |> unwrap(&Page.press!(&1, "[id^=multi-select-][id$=-trigger]", "Enter"))
+    |> assert_has("input[name='change[users][]']:visible", count: 2)
     |> assert_a11y()
   end
 end

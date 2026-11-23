@@ -1,9 +1,11 @@
 defmodule DemoWeb.Browser.PostBrowserTest do
-  use PhoenixTest.Playwright.Case, async: false
+  use DemoWeb.BrowserCase, async: false
   use DemoWeb, :verified_routes
   use DemoWeb.A11yAssertions
 
   import Demo.EctoFactory
+
+  alias Playwright.Page
 
   @moduletag :playwright
 
@@ -22,9 +24,9 @@ defmodule DemoWeb.Browser.PostBrowserTest do
       conn
       |> visit(~p"/admin/posts")
       |> assert_has("body .phx-connected")
-      |> press("#filter-dropdown-trigger", "Enter")
-      |> press("#filter-dropdown-menu [id^=multi-select-][id$=-trigger]", "Enter")
-      |> assert_has("#filter-dropdown-menu input[name='filters[user_id][]']", count: 3)
+      |> unwrap(&Page.press!(&1, "#filter-dropdown-trigger", "Enter"))
+      |> unwrap(&Page.press!(&1, "#filter-dropdown-menu [id^=multi-select-][id$=-trigger]", "Enter"))
+      |> assert_has("#filter-dropdown-menu input[name='filters[user_id][]']:visible", count: 3)
       |> assert_a11y()
     end
   end
@@ -62,10 +64,10 @@ defmodule DemoWeb.Browser.PostBrowserTest do
       conn
       |> visit(~p"/admin/posts/new")
       |> assert_has("body .phx-connected")
-      |> press("#has-many-dropdown-tags-trigger", "Enter")
-      |> assert_has("#has-many-dropdown-tags-menu input[name='change[tags][]']", count: 3)
+      |> unwrap(&Page.press!(&1, "#has-many-dropdown-tags-trigger", "Enter"))
+      |> assert_has("#has-many-dropdown-tags-menu input[name='change[tags][]']:visible", count: 3)
       |> assert_a11y()
-      |> evaluate("document.documentElement.dataset.theme = 'dark'")
+      |> unwrap(&Page.evaluate!(&1, "document.documentElement.dataset.theme = 'dark'"))
       |> assert_a11y()
     end
   end

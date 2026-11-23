@@ -1,9 +1,11 @@
 defmodule DemoWeb.Browser.UserBrowserTest do
-  use PhoenixTest.Playwright.Case, async: false
+  use DemoWeb.BrowserCase, async: false
   use DemoWeb, :verified_routes
   use DemoWeb.A11yAssertions
 
   import Demo.EctoFactory
+
+  alias Playwright.Page
 
   @moduletag :playwright
 
@@ -20,8 +22,8 @@ defmodule DemoWeb.Browser.UserBrowserTest do
       conn
       |> visit(~p"/admin/users/invite/resource-action")
       |> assert_has("body .phx-connected")
-      |> press("[id^=multi-select-][id$=-trigger]", "Enter")
-      |> assert_has("input[name='change[users][]']", count: 2)
+      |> unwrap(&Page.press!(&1, "[id^=multi-select-][id$=-trigger]", "Enter"))
+      |> assert_has("input[name='change[users][]']:visible", count: 2)
       |> assert_a11y()
     end
   end

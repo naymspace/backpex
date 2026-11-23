@@ -4,8 +4,6 @@ defmodule DemoWeb.A11yAssertions do
   """
   defmacro __using__(_opts) do
     quote do
-      alias PlaywrightEx.Frame
-
       # Turns off animations and transitions during the audit (e.g. a dropdown fading in), so axe
       # measures the final colors instead of colors blended with the background.
       @axe_run_without_animations """
@@ -22,9 +20,9 @@ defmodule DemoWeb.A11yAssertions do
       """
 
       def assert_a11y(session) do
-        Frame.evaluate(session.frame_id, expression: A11yAudit.JS.axe_core(), timeout: timeout())
+        Fluffy.Playwright.evaluate(session.session, A11yAudit.JS.axe_core())
 
-        {:ok, json} = Frame.evaluate(session.frame_id, expression: @axe_run_without_animations, timeout: timeout())
+        json = Fluffy.Playwright.evaluate(session.session, @axe_run_without_animations)
 
         json
         |> A11yAudit.Results.from_json()

@@ -3,6 +3,7 @@ defmodule Backpex.E2E.KeyboardTest do
 
   alias Backpex.Test.Product
   alias Backpex.Test.Repo
+  alias Playwright.Page
 
   describe "filters" do
     test "applies a filter preset with the keyboard", %{conn: conn} do
@@ -11,13 +12,14 @@ defmodule Backpex.E2E.KeyboardTest do
       conn
       |> visit(~p"/admin/posts")
       |> assert_has("body .phx-connected")
-      |> press("#filter-dropdown-trigger", "Enter")
+      |> unwrap(&Page.press!(&1, "#filter-dropdown-trigger", "Enter"))
       |> assert_has("#filter-dropdown-menu button", text: "Over 100")
-      |> press(~s|input[name="filters[likes][end]"]|, "Tab")
+      |> unwrap(&Page.press!(&1, ~s|input[name="filters[likes][end]"]|, "Tab"))
       |> assert_has("button[type=button]:focus", text: "Over 100")
-      |> press("button:focus", "Enter")
+      |> unwrap(&Page.press!(&1, "button:focus", "Enter"))
       |> assert_has(~s|button[aria-label="Clear Likes filter"]|)
-      |> evaluate("decodeURIComponent(window.location.search)", fn search ->
+      |> unwrap(fn page ->
+        search = Page.evaluate!(page, "decodeURIComponent(window.location.search)")
         assert search =~ "filters[likes][start]=100"
       end)
     end
@@ -32,16 +34,16 @@ defmodule Backpex.E2E.KeyboardTest do
       |> visit(~p"/admin/posts/new")
       |> assert_has("body .phx-connected")
       |> assert_has("#has-many-dropdown-tags-trigger[aria-expanded=false]")
-      |> press("#has-many-dropdown-tags-trigger", "Tab")
-      |> evaluate(focus_in_menu, &refute/1)
-      |> press("#has-many-dropdown-tags-trigger", "Enter")
+      |> unwrap(&Page.press!(&1, "#has-many-dropdown-tags-trigger", "Tab"))
+      |> unwrap(&refute(Page.evaluate!(&1, focus_in_menu)))
+      |> unwrap(&Page.press!(&1, "#has-many-dropdown-tags-trigger", "Enter"))
       |> assert_has("#has-many-dropdown-tags-trigger[aria-expanded=true]")
-      |> press("#has-many-dropdown-tags-trigger", "Tab")
-      |> evaluate(focus_in_menu, &assert/1)
-      |> press("#has-many-dropdown-tags-trigger", "Enter")
+      |> unwrap(&Page.press!(&1, "#has-many-dropdown-tags-trigger", "Tab"))
+      |> unwrap(&assert(Page.evaluate!(&1, focus_in_menu)))
+      |> unwrap(&Page.press!(&1, "#has-many-dropdown-tags-trigger", "Enter"))
       |> assert_has("#has-many-dropdown-tags-trigger[aria-expanded=false]")
-      |> press("#has-many-dropdown-tags-trigger", "Tab")
-      |> evaluate(focus_in_menu, &refute/1)
+      |> unwrap(&Page.press!(&1, "#has-many-dropdown-tags-trigger", "Tab"))
+      |> unwrap(&refute(Page.evaluate!(&1, focus_in_menu)))
     end
 
     test "selects and deselects all options with the keyboard", %{conn: conn} do
@@ -53,14 +55,14 @@ defmodule Backpex.E2E.KeyboardTest do
       conn
       |> visit(~p"/admin/posts/new")
       |> assert_has("body .phx-connected")
-      |> press("#has-many-dropdown-tags-trigger", "Enter")
+      |> unwrap(&Page.press!(&1, "#has-many-dropdown-tags-trigger", "Enter"))
       |> assert_has("#has-many-dropdown-tags-trigger[aria-expanded=true]")
-      |> press("#has-many-dropdown-tags-menu input[type=search]", "Tab")
+      |> unwrap(&Page.press!(&1, "#has-many-dropdown-tags-menu input[type=search]", "Tab"))
       |> assert_has("#has-many-tags button:focus", text: "Select all", exact: true)
-      |> press("#has-many-tags button:has-text('Select all')", "Enter")
+      |> unwrap(&Page.press!(&1, "#has-many-tags button:has-text('Select all')", "Enter"))
       |> assert_has(checked_tags, count: 3)
       |> assert_has("#has-many-tags button:focus", text: "Deselect all", exact: true)
-      |> press("#has-many-tags button:has-text('Deselect all')", "Space")
+      |> unwrap(&Page.press!(&1, "#has-many-tags button:has-text('Deselect all')", "Space"))
       |> refute_has(checked_tags)
       |> assert_has("#has-many-tags button:focus", text: "Select all", exact: true)
     end
@@ -79,15 +81,15 @@ defmodule Backpex.E2E.KeyboardTest do
       conn
       |> visit(~p"/admin/products/#{product.id}/edit")
       |> assert_has("body .phx-connected")
-      |> press(url_input.(0), "Tab")
-      |> evaluate("document.activeElement.getAttribute('aria-label')", &assert(&1 == "Delete entry 1"))
-      |> press("button[aria-label='Delete entry 1']", "Enter")
+      |> unwrap(&Page.press!(&1, url_input.(0), "Tab"))
+      |> unwrap(&assert(Page.evaluate!(&1, "document.activeElement.getAttribute('aria-label')") == "Delete entry 1"))
+      |> unwrap(&Page.press!(&1, "button[aria-label='Delete entry 1']", "Enter"))
       |> refute_has(url_input.(1))
       |> assert_has(url_input.(0), value: "https://example.com/second")
-      |> evaluate("document.activeElement.getAttribute('aria-label')", &assert(&1 == "Delete entry 1"))
-      |> press("button[aria-label='Delete entry 1']", "Space")
+      |> unwrap(&assert(Page.evaluate!(&1, "document.activeElement.getAttribute('aria-label')") == "Delete entry 1"))
+      |> unwrap(&Page.press!(&1, "button[aria-label='Delete entry 1']", "Space"))
       |> refute_has(url_input.(0))
-      |> evaluate("document.activeElement.getAttribute('aria-label')", &assert(&1 == "Add entry"))
+      |> unwrap(&assert(Page.evaluate!(&1, "document.activeElement.getAttribute('aria-label')") == "Add entry"))
       |> assert_a11y()
       |> click_button("Save")
       |> assert_path(~p"/admin/products")

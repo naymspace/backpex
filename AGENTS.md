@@ -4,7 +4,7 @@ Backpex is the library in the repository root; `demo/` is a Phoenix app that use
 
 **Tests** of a Backpex feature go in the library: `test/` for units, `integration_test/` for anything that needs a LiveView, the database or a browser. The demo's tests only smoke-test its own LiveResources.
 
-**Coding standards:** before writing or reviewing Elixir, HEEx, JavaScript, tests, guides or translations, read `CODING_STANDARDS.md`. It also links the upstream rules of Phoenix, Igniter, Sobelow and PhoenixTest.Playwright.
+**Coding standards:** before writing or reviewing Elixir, HEEx, JavaScript, tests, guides or translations, read `CODING_STANDARDS.md`. It also links the upstream rules of Phoenix, Igniter, Sobelow and Fluffy.
 
 **Pull requests:** before opening one, read CONTRIBUTING.md › Pull Requests.
 
