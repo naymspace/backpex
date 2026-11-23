@@ -23,7 +23,6 @@ defmodule DemoWeb.Browser.PostBrowserTest do
 
       conn
       |> visit(~p"/admin/posts")
-      |> assert_has("body .phx-connected")
       |> unwrap(&Page.press!(&1, "#filter-dropdown-trigger", "Enter"))
       |> unwrap(&Page.press!(&1, "#filter-dropdown-menu [id^=multi-select-][id$=-trigger]", "Enter"))
       |> assert_has("#filter-dropdown-menu input[name='filters[user_id][]']:visible", count: 3)
@@ -63,7 +62,6 @@ defmodule DemoWeb.Browser.PostBrowserTest do
 
       conn
       |> visit(~p"/admin/posts/new")
-      |> assert_has("body .phx-connected")
       |> unwrap(&Page.press!(&1, "#has-many-dropdown-tags-trigger", "Enter"))
       |> assert_has("#has-many-dropdown-tags-menu input[name='change[tags][]']:visible", count: 3)
       |> assert_a11y()

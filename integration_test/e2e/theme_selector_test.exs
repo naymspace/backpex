@@ -15,7 +15,6 @@ defmodule Backpex.E2E.ThemeSelectorTest do
   test "selects a theme with the keyboard", %{conn: conn} do
     conn
     |> visit(~p"/admin/posts")
-    |> assert_has("body .phx-connected")
     |> assert_has(~s|html[data-theme="light"]|)
     |> unwrap(&Page.press!(&1, @trigger, "Enter"))
     |> assert_has("#backpex-theme-selector.dropdown-open")

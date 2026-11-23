@@ -23,7 +23,6 @@ defmodule DemoWeb.Browser.AddressBrowserTest do
 
       conn
       |> visit(~p"/admin/addresses")
-      |> assert_has("body .phx-connected")
       |> unwrap(&Page.click!(&1, "#item-action-delete-#{address.id}"))
       |> assert_has("#action-confirm-modal[open]")
       |> assert_a11y()

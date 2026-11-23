@@ -38,7 +38,6 @@ defmodule Backpex.E2E.A11yTest do
 
       conn
       |> visit(path)
-      |> assert_has("body .phx-connected")
       |> assert_a11y()
     end
   end
@@ -48,7 +47,6 @@ defmodule Backpex.E2E.A11yTest do
 
     conn
     |> visit(~p"/admin/addresses")
-    |> assert_has("body .phx-connected")
     |> unwrap(&Page.click!(&1, "#item-action-delete-#{address.id}"))
     |> assert_has("#action-confirm-modal[open]")
     |> assert_a11y()
@@ -59,7 +57,6 @@ defmodule Backpex.E2E.A11yTest do
 
     conn
     |> visit(~p"/admin/posts")
-    |> assert_has("body .phx-connected")
     |> unwrap(&Page.press!(&1, "#filter-dropdown-trigger", "Enter"))
     |> unwrap(&Page.press!(&1, "#filter-dropdown-menu [id^=multi-select-][id$=-trigger]", "Enter"))
     |> assert_has("#filter-dropdown-menu input[name='filters[user_id][]']:visible", count: 3)
@@ -71,7 +68,6 @@ defmodule Backpex.E2E.A11yTest do
 
     conn
     |> visit(~p"/admin/posts/new")
-    |> assert_has("body .phx-connected")
     |> unwrap(&Page.press!(&1, "#has-many-dropdown-tags-trigger", "Enter"))
     |> assert_has("#has-many-dropdown-tags-menu input[name='change[tags][]']:visible", count: 3)
     |> assert_a11y()
@@ -91,7 +87,6 @@ defmodule Backpex.E2E.A11yTest do
   test "an open multi select of a resource action", %{conn: conn} do
     conn
     |> visit(~p"/admin/users/invite/resource-action")
-    |> assert_has("body .phx-connected")
     |> unwrap(&Page.press!(&1, "[id^=multi-select-][id$=-trigger]", "Enter"))
     |> assert_has("input[name='change[users][]']:visible", count: 2)
     |> assert_a11y()

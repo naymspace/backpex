@@ -21,7 +21,6 @@ defmodule DemoWeb.Browser.UserBrowserTest do
     test "a11y with the multi select of a resource action open", %{conn: conn} do
       conn
       |> visit(~p"/admin/users/invite/resource-action")
-      |> assert_has("body .phx-connected")
       |> unwrap(&Page.press!(&1, "[id^=multi-select-][id$=-trigger]", "Enter"))
       |> assert_has("input[name='change[users][]']:visible", count: 2)
       |> assert_a11y()

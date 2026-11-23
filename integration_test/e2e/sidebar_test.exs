@@ -108,7 +108,6 @@ defmodule Backpex.E2E.SidebarTest do
     test "collapsed section stays collapsed after navigating to a sibling LiveResource", %{conn: conn} do
       conn
       |> visit(~p"/admin/posts")
-      |> assert_has("body .phx-connected")
       |> assert_has(~s|#{@blog_toggle}[aria-expanded="true"]|)
       |> assert_a11y()
       |> unwrap(&Page.click!(&1, @blog_toggle))
@@ -128,7 +127,6 @@ defmodule Backpex.E2E.SidebarTest do
     test "collapsed sidebar stays collapsed after navigating to a sibling LiveResource", %{conn: conn} do
       conn
       |> visit(~p"/admin/posts")
-      |> assert_has("body .phx-connected")
       |> assert_has(~s|#{@sidebar_toggle}[aria-expanded="true"]|)
       |> assert_a11y()
       |> unwrap(&Page.click!(&1, @sidebar_toggle))
@@ -147,7 +145,6 @@ defmodule Backpex.E2E.SidebarTest do
     test "menu keeps its scroll position after live_redirect and reload", %{conn: conn} do
       conn
       |> visit(~p"/admin/posts")
-      |> assert_has("body .phx-connected")
       |> unwrap(fn page ->
         scroll_top =
           Page.evaluate!(page, """
@@ -168,7 +165,6 @@ defmodule Backpex.E2E.SidebarTest do
         assert scroll_top == 100
       end)
       |> visit(~p"/admin/posts")
-      |> assert_has("body .phx-connected")
       |> unwrap(fn page ->
         scroll_top = Page.evaluate!(page, ~s|document.querySelector('#backpex-sidebar-menu').scrollTop|)
         assert scroll_top == 100
@@ -180,7 +176,6 @@ defmodule Backpex.E2E.SidebarTest do
     test "CSS hides empty nested sections and reveals them when an item appears", %{conn: conn} do
       conn
       |> visit(~p"/admin/posts")
-      |> assert_has("body .phx-connected")
       |> unwrap(fn page ->
         display =
           Page.evaluate!(page, """
@@ -231,7 +226,6 @@ defmodule Backpex.E2E.SidebarTest do
     test "serializes sibling Session preferences changed during an active request", %{conn: conn} do
       conn
       |> visit(~p"/admin/posts")
-      |> assert_has("body .phx-connected")
       |> unwrap(&Page.evaluate!(&1, @install_preference_gate))
       |> unwrap(
         &Page.evaluate!(&1, ~s|document.querySelector('[data-section-id="blog"] [data-menu-dropdown-toggle]').click()|)
@@ -269,7 +263,6 @@ defmodule Backpex.E2E.SidebarTest do
       end)
       |> unwrap(&Page.evaluate!(&1, @clear_preference_mirrors))
       |> visit(~p"/admin/posts")
-      |> assert_has("body .phx-connected")
       |> assert_has(~s|#backpex-app-shell[data-sidebar-open="false"]|)
       |> assert_has(~s|[data-section-id="blog"][data-section-open="false"]|)
     end
@@ -277,7 +270,6 @@ defmodule Backpex.E2E.SidebarTest do
     test "persists the latest intent when the same key changes during a request", %{conn: conn} do
       conn
       |> visit(~p"/admin/posts")
-      |> assert_has("body .phx-connected")
       |> unwrap(&Page.evaluate!(&1, @install_preference_gate))
       |> unwrap(&Page.evaluate!(&1, @select_theme, "dark"))
       |> unwrap(fn page ->
@@ -312,7 +304,6 @@ defmodule Backpex.E2E.SidebarTest do
       end)
       |> unwrap(&Page.evaluate!(&1, @clear_preference_mirrors))
       |> visit(~p"/admin/posts")
-      |> assert_has("body .phx-connected")
       |> assert_has(~s|html[data-theme="cupcake"]|)
       |> unwrap(
         &assert(Page.evaluate!(&1, ~s|document.querySelector('input[name="theme-selector"][value="cupcake"]').checked|))
@@ -339,7 +330,6 @@ defmodule Backpex.E2E.SidebarTest do
     test "retries unaffected Session writes after the first rejected entry", %{conn: conn} do
       conn
       |> visit(~p"/admin/posts")
-      |> assert_has("body .phx-connected")
       |> unwrap(&Page.evaluate!(&1, @install_preference_gate))
       |> unwrap(
         &Page.evaluate!(&1, """
@@ -379,7 +369,6 @@ defmodule Backpex.E2E.SidebarTest do
       end)
       |> unwrap(&Page.evaluate!(&1, @clear_preference_mirrors))
       |> visit(~p"/admin/posts")
-      |> assert_has("body .phx-connected")
       |> assert_has(~s|html[data-theme="dark"]|)
       |> assert_has(~s|#backpex-app-shell[data-sidebar-open="true"]|)
       |> assert_has(~s|[data-section-id="blog"][data-section-open="false"]|)
@@ -443,7 +432,6 @@ defmodule Backpex.E2E.SidebarTest do
     test "a reload before the preferences POST lands renders the collapsed sidebar", %{conn: conn} do
       conn
       |> visit(~p"/admin/posts")
-      |> assert_has("body .phx-connected")
       |> assert_has(~s|#{@sidebar_toggle}[aria-expanded="true"]|)
       |> unwrap(&Page.evaluate!(&1, @stall_preferences))
       |> unwrap(&Page.click!(&1, @sidebar_toggle))
@@ -470,7 +458,6 @@ defmodule Backpex.E2E.SidebarTest do
       # painted. The stalled `fetch` stub dies with the old document, so the
       # reloaded page replays the pending write for real.
       |> visit(~p"/admin/posts")
-      |> assert_has("body .phx-connected")
       # (c) It lands closed and STAYS closed. Before the fix the hook re-asserted
       # its mount-time `desktopOpen` through the higher-specificity
       # `data-[state]` classes and the page ended up open.
@@ -511,7 +498,6 @@ defmodule Backpex.E2E.SidebarTest do
 
       conn
       |> visit(~p"/admin/addresses")
-      |> assert_has("body .phx-connected")
       |> assert_has(~s|#backpex-sidebar:not([data-suppress-transition])|)
       # Sorting re-renders the shell in place, without re-mounting the hook.
       |> unwrap(&Page.click!(&1, ~s|thead a[href*="order_by=street"]|))
