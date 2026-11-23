@@ -42,7 +42,7 @@
   },
   "devDependencies": {
     "@tailwindcss/cli": "4.3.5",
-    "daisyui": "5.8.1",
+    "daisyui": "5.8.2",
     "heroicons": "2.2.0",
     "playwright": "1.65.0",
     "standard": "17.1.2",
