@@ -491,7 +491,7 @@ defmodule Backpex.Fields.HasMany do
     live_resource = Map.get(field_options, :live_resource)
 
     link =
-      if (link_assocs and live_resource) && Authorization.can?(live_resource, assigns, :show, item) do
+      if link_assocs and not is_nil(live_resource) and Authorization.can?(live_resource, assigns, :show, item) do
         Router.get_path(socket, live_resource, params, :show, item)
       end
 
