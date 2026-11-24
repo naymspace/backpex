@@ -9,7 +9,7 @@ ARG OTP_VERSION=29.1.2
 # renovate: datasource=docker depName=ubuntu packageName=ubuntu versioning=ubuntu
 ARG UBUNTU_VERSION=resolute-20261024.1
 # renovate: datasource=node-version depName=node versioning=node
-ARG NODE_VERSION=26.13.0
+ARG NODE_VERSION=26.13.1
 # renovate: datasource=github-tags depName=bun packageName=oven-sh/bun versioning=semver extractVersion=^bun-v(?<version>\S+)
 ARG BUN_VERSION=1.4.4
 
