@@ -6,8 +6,8 @@ defmodule DemoWeb.Browser.InvoiceBrowserTest do
   @moduletag :playwright
 
   describe "invoices index" do
-    test "a11y", %{conn: conn} do
-      conn
+    test "a11y", %{session: session} do
+      session
       |> visit(~p"/admin/invoices")
       |> assert_a11y()
     end

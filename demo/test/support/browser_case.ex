@@ -1,17 +1,19 @@
 defmodule DemoWeb.BrowserCase do
   @moduledoc """
-  The case for browser tests. It runs the tests in Chromium with `Fluffy.PhoenixTest`.
+  The case for browser tests. It runs the tests in Chromium with Fluffy's native API.
   """
   use ExUnit.CaseTemplate
 
   using opts do
     quote do
       use Playwright.Test, unquote(opts)
+      use Fluffy.Assert
 
-      import Fluffy.PhoenixTest
+      import Fluffy
+      import Fluffy.Locator
 
       setup do
-        %{conn: start_session(:playwright)}
+        %{session: start_session(:playwright)}
       end
     end
   end

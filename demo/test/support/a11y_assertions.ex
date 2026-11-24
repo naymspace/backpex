@@ -19,12 +19,10 @@ defmodule DemoWeb.A11yAssertions do
       })()
       """
 
-      def assert_a11y(session) do
-        Fluffy.Playwright.evaluate(session.session, A11yAudit.JS.axe_core())
-
-        json = Fluffy.Playwright.evaluate(session.session, @axe_run_without_animations)
-
-        json
+      def assert_a11y(%Fluffy.Session{} = session) do
+        session
+        |> Fluffy.Playwright.add_script_tag(content: A11yAudit.JS.axe_core())
+        |> Fluffy.Playwright.evaluate(@axe_run_without_animations)
         |> A11yAudit.Results.from_json()
         |> A11yAudit.Assertions.assert_no_violations()
 

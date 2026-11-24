@@ -8,38 +8,38 @@ defmodule DemoWeb.Browser.ProductBrowserTest do
   @moduletag :playwright
 
   describe "products index" do
-    test "a11y", %{conn: conn} do
+    test "a11y", %{session: session} do
       insert_list(10, :product)
 
-      conn
+      session
       |> visit(~p"/admin/products")
       |> assert_a11y()
     end
   end
 
   describe "products show" do
-    test "a11y", %{conn: conn} do
+    test "a11y", %{session: session} do
       product = insert(:product)
 
-      conn
+      session
       |> visit(~p"/admin/products/#{product.id}/show")
       |> assert_a11y()
     end
   end
 
   describe "products edit" do
-    test "a11y", %{conn: conn} do
+    test "a11y", %{session: session} do
       product = insert(:product)
 
-      conn
+      session
       |> visit(~p"/admin/products/#{product.id}/edit")
       |> assert_a11y()
     end
   end
 
   describe "products new" do
-    test "a11y", %{conn: conn} do
-      conn
+    test "a11y", %{session: session} do
+      session
       |> visit(~p"/admin/products/new")
       |> assert_a11y()
     end
