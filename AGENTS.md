@@ -28,3 +28,17 @@ Backpex is the library in the repository root; `demo/` is a Phoenix app that use
   - User docs: a change to public API or behaviour updates every place users read about it: the moduledoc, the guide in `guides/`, `usage-rules.md`, the skill in `plugin/skills/` for that area, and for a breaking change the upgrade guide (CODING_STANDARDS.md › Breaking changes).
 - Run `MIX_ENV=test mix lint`: it compiles, formats, runs credo and the tests, so the `postgres` service must run. `MIX_ENV=test mix ci` adds the other checks of the CI job `test` (JS lint and tests, gettext, sobelow, docs, assets); run it before opening a PR. After demo changes, also run `docker compose exec -T app bun run lint`.
 - Check UI changes in the demo with the Chrome DevTools MCP at mobile, tablet and desktop widths, and read the console. An empty database gets data from the seed command in CONTRIBUTING.md › Setting up your development environment.
+
+## Agent skills
+
+### Issue tracker
+
+Issues live in GitHub Issues of `naymspace/backpex`, used through `gh`. See `docs/agents/issue-tracker.md`.
+
+### Triage labels
+
+The five default labels: `needs-triage`, `needs-info`, `ready-for-agent`, `ready-for-human`, `wontfix`. See `docs/agents/triage-labels.md`.
+
+### Domain docs
+
+Single-context: `GLOSSARY.md` and `docs/adr/` at the repository root, created when first needed. See `docs/agents/domain.md`.
