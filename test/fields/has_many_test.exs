@@ -62,6 +62,26 @@ defmodule Backpex.Fields.HasManyTest do
     end
   end
 
+  describe "render_value/1" do
+    test "renders the items without links when the field has no live resource" do
+      assigns = [
+        field: {:tags, %{module: HasMany, label: "Tags", display_field: :id, link_assocs: true}},
+        field_options: %{module: HasMany, label: "Tags", display_field: :id, link_assocs: true},
+        value: [%Tag{id: 2}, %Tag{id: 1}],
+        live_action: :show,
+        link_assocs: true,
+        socket: %Phoenix.LiveView.Socket{},
+        params: %{}
+      ]
+
+      html = render_component(&HasMany.render_value/1, assigns)
+      document = LazyHTML.from_fragment(html)
+
+      assert document |> LazyHTML.query("a") |> Enum.empty?()
+      assert document |> LazyHTML.query("span") |> Enum.map(&(&1 |> LazyHTML.text() |> String.trim())) == ~w[1 2]
+    end
+  end
+
   describe "render_form/1" do
     test "renders select all as a keyboard operable button that sends its name with a change event" do
       document = render_tags_form(all_selected: false)

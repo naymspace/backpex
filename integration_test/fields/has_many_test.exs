@@ -5,6 +5,7 @@ defmodule Backpex.Integration.Fields.HasManyTest do
 
   alias Backpex.Fields.HasMany
   alias Backpex.Test.Post
+  alias Backpex.Test.ProductShortLinksLive
   alias Backpex.Test.ShortLink
   alias Phoenix.LiveView.Socket
   alias Phoenix.LiveViewTest
@@ -100,7 +101,7 @@ defmodule Backpex.Integration.Fields.HasManyTest do
         name: :short_links,
         field: {:short_links, field_options},
         field_options: field_options,
-        live_resource: Backpex.Test.ProductShortLinksLive,
+        live_resource: ProductShortLinksLive,
         form: product |> Ecto.Changeset.change() |> Phoenix.Component.to_form(as: :change)
       }
 
@@ -108,6 +109,36 @@ defmodule Backpex.Integration.Fields.HasManyTest do
 
       assert socket.assigns.options == [{"https://blog.example.com/", other_link.short_key}]
       assert socket.assigns.selected == [{"https://docs.example.com/", link.short_key}]
+    end
+
+    test "takes the key from the schema when the field has no live resource", context do
+      %{product: product, link: link, other_link: other_link} = context
+      field_options = %{module: HasMany, label: "Short Links", display_field: :url}
+      field = {:short_links, field_options}
+
+      assigns = %{
+        type: :form,
+        name: :short_links,
+        field: field,
+        field_options: field_options,
+        live_resource: ProductShortLinksLive,
+        form: product |> Ecto.Changeset.change() |> Phoenix.Component.to_form(as: :change)
+      }
+
+      {:ok, socket} = HasMany.update(assigns, %Socket{})
+
+      assert {"https://blog.example.com/", other_link.short_key} in socket.assigns.options
+      assert socket.assigns.selected_ids == [link.short_key]
+
+      changeset =
+        product
+        |> Ecto.Changeset.change()
+        |> HasMany.before_changeset(%{"short_links" => ["", other_link.short_key]}, [], Repo, field, assigns)
+
+      assert [%{action: :update, data: %ShortLink{short_key: short_key}} | _rest] =
+               Enum.filter(changeset.changes.short_links, &(&1.action == :update))
+
+      assert short_key == other_link.short_key
     end
 
     test "saves a changed selection", %{conn: conn, product: product, other_link: other_link} do
