@@ -73,7 +73,7 @@ end
 
 The `metadata` keyword list contains `:assigns` and `:target` (the form field that triggered the change).
 
-The `item_query` function must build on the incoming `query` argument (use `from p in query, ...`), not the schema directly.
+The `item_query` function must build on the incoming `query` argument (use `from p in query, ...`), not the schema directly. It also scopes saves: the edit form and inline edits read the item again through it right before they save.
 
 ## Required Callbacks
 
@@ -96,10 +96,10 @@ The `item_query` function must build on the incoming `query` argument (use `from
 | `resource_actions/0` | `[]` | Resource-level actions |
 | `item_actions/1` | returns default_actions unchanged | Modify default item actions |
 | `on_item_creating/2` | returns the change | `fn socket, change -> change`, before the item is created; add an error to cancel |
-| `on_item_updating/2` | returns the change | `fn socket, change -> change`, before the item is updated; add an error to cancel |
+| `on_item_updating/2` | returns the change | `fn socket, change -> change`, before the item is updated; add an error to cancel. The `item` assign is the item as re-read right before the save |
 | `on_item_deleting/2` | `:ok` | `fn socket, item -> :ok \| {:error, message}`, before the item is deleted |
 | `on_item_created/2` | noop | `fn socket, item -> socket` |
-| `on_item_updated/2` | noop | `fn socket, item -> socket` |
+| `on_item_updated/2` | noop | `fn socket, item -> socket`; the `item` assign still holds the item as re-read right before the save |
 | `on_item_deleted/2` | noop | `fn socket, item -> socket` |
 | `return_to/5` | index page | Custom redirect after save |
 | `index_row_class/4` | nil | Custom CSS for table rows |

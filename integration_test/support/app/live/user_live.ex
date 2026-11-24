@@ -3,7 +3,8 @@ defmodule Backpex.Test.UserLive do
   Users with integer primary keys. They have an `item_query` that hides soft-deleted users, an `init_order` function,
   a `can?/3` that denies the item action `Backpex.Test.ItemActions.UserSoftDelete` for admins and `:edit` for the user
   named "locked", an `on_item_updated/2` that reports to the test, two resource actions, a panel, an index editable
-  field, a HasManyThrough field with a pivot field and an InlineCRUD field of an embed.
+  field, an age field that is readonly for users with the avatar "frozen.png", a HasManyThrough field with a pivot field
+  and an InlineCRUD field of an embed.
   """
   use Backpex.LiveResource,
     adapter_config: [
@@ -31,7 +32,7 @@ defmodule Backpex.Test.UserLive do
   def can?(_assigns, :edit, %{username: "locked"}), do: false
   def can?(_assigns, _action, _item), do: true
 
-  # Sends the `item` assign of the socket and the saved item to the test that started the LiveView.
+  # The LiveView runs in its own process; `$callers` holds the test process that started it.
   @impl Backpex.LiveResource
   def on_item_updated(socket, item) do
     for pid <- Process.get(:"$callers", []), do: send(pid, {:on_item_updated, socket.assigns[:item], item})
@@ -95,7 +96,7 @@ defmodule Backpex.Test.UserLive do
         searchable: true,
         panel: :names
       },
-      age: %{module: Backpex.Fields.Number, label: "Age"},
+      age: %{module: Backpex.Fields.Number, label: "Age", readonly: &(&1.item.avatar == "frozen.png")},
       role: %{module: Backpex.Fields.Select, label: "Role", options: [Admin: "admin", User: "user"]},
       posts: %{
         module: Backpex.Fields.HasMany,

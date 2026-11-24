@@ -31,7 +31,7 @@ defmodule Backpex.Integration.Form.SaveTest do
 
   # The form holds the item as it was when the form was mounted. Every test changes the row behind the LiveView's back
   # and then saves the form.
-  describe "an item that changed while the edit form was open" do
+  describe "saving an item that changed while the edit form was open" do
     setup %{conn: conn} do
       # `visit/2` links the LiveView to the test process. Some of these tests make it crash, so the EXIT signal has to
       # arrive as a message instead of killing the test.
@@ -47,7 +47,7 @@ defmodule Backpex.Integration.Form.SaveTest do
       %{user: user, session: session}
     end
 
-    test "is not updated when the user may no longer edit it", %{user: user, session: session} do
+    test "raises ForbiddenError when the admin may no longer edit it", %{user: user, session: session} do
       # `Backpex.Test.UserLive.can?/3` denies `:edit` for the user named "locked".
       user |> Ecto.Changeset.change(username: "locked") |> Repo.update!()
 
@@ -56,7 +56,7 @@ defmodule Backpex.Integration.Form.SaveTest do
       assert Repo.get(User, user.id).username == "locked"
     end
 
-    test "is not updated when it has left the scope of the item query", %{user: user, session: session} do
+    test "raises NoResultsError when it has left the scope of the item query", %{user: user, session: session} do
       # `Backpex.Test.UserLive.item_query/3` hides soft-deleted users.
       user |> Ecto.Changeset.change(deleted_at: DateTime.utc_now(:second)) |> Repo.update!()
 
@@ -71,7 +71,19 @@ defmodule Backpex.Integration.Form.SaveTest do
       assert {{%Backpex.NoResultsError{}, _stacktrace}, _mfa} = catch_exit(click_button(session, "Save"))
     end
 
-    test "is saved with the values of the form and keeps the new values the form has no field for", %{
+    test "keeps the value of a field that turned readonly", %{user: user, session: session} do
+      # The age field of `Backpex.Test.UserLive` is readonly for users with this avatar. The form still holds the age
+      # the item had on mount.
+      user |> Ecto.Changeset.change(avatar: "frozen.png", age: 40) |> Repo.update!()
+
+      session
+      |> click_button("Save")
+      |> assert_path(~p"/admin/users")
+
+      assert %User{username: "bob", age: 40} = Repo.get(User, user.id)
+    end
+
+    test "saves the values of the form and keeps the new values the form has no field for", %{
       user: user,
       session: session
     } do

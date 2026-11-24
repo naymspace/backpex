@@ -716,7 +716,7 @@ defmodule Backpex.Field do
   field component. With a list of `:context_assigns`, these only include the listed assigns, see the
   `:context_assigns` option of `Backpex.LiveResource`.
 
-  The item is read again with `Backpex.Resource.reload/4` before it is saved, so the checks, the changeset and the hooks
+  The item is read again with `Backpex.Resource.get/4` before it is saved, so the checks, the changeset and the hooks
   see its current values instead of the ones that were rendered. The `item_query` of the adapter config therefore
   receives the assigns of the field component as well.
 
@@ -725,12 +725,16 @@ defmodule Backpex.Field do
   changeset of the resource action. The value is then kept in the form and marked as invalid.
   """
   def handle_index_editable(socket, value, change) do
+    %{assigns: %{item: rendered_item, fields: fields, live_resource: live_resource}} = socket
+
     # A component rendered outside of a LiveResource, e.g. by `Backpex.HTML.Resource.resource_index_table/1` in a
-    # LiveView of your own, may have no `:live_action`.
+    # LiveView of your own, may have no `:live_action`. The item that was rendered may have changed since. It is read
+    # again, as the index view does for its own inline edits, so the checks and the changeset see its current values.
     with true <- Map.get(socket.assigns, :live_action, :index) == :index,
-         %{} = item <- current_item(socket),
+         primary_value = Backpex.LiveResource.primary_value(rendered_item, live_resource),
+         {:ok, %{} = item} <- Backpex.Resource.get(primary_value, fields, socket.assigns, live_resource),
          socket = assign(socket, :item, item),
-         %{field_options: field_options, live_resource: live_resource} = assigns = socket.assigns,
+         %{field_options: field_options} = assigns = socket.assigns,
          true <- index_editable_enabled?(field_options, assigns) not in [false, nil],
          true <- !readonly?(field_options, assigns),
          # `Backpex.Resource.update/6` enforces `:edit` as well, but would raise.
@@ -739,17 +743,6 @@ defmodule Backpex.Field do
     else
       _not_saved -> {:noreply, assign_index_editable_result(socket, value, false)}
     end
-  end
-
-  # The item in the assigns is the one that was rendered, which may have changed since. It is read again, as the index
-  # view does for its own inline edits, so the checks and the changeset see its current values. An item that was
-  # deleted or has left the scope of the `item_query` is `nil`.
-  defp current_item(socket) do
-    %{assigns: %{item: item, fields: fields, live_resource: live_resource} = assigns} = socket
-
-    [current_item] = Backpex.Resource.reload([item], fields, assigns, live_resource)
-
-    current_item
   end
 
   defp save_index_editable(socket, value, change) do

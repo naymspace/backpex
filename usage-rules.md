@@ -68,7 +68,7 @@ end
 - Return the layout from `c:Backpex.LiveResource.layout/1`; the `layout:` option is deprecated. The layout wraps its content in `Backpex.HTML.Layout.app_shell/1` and renders `Backpex.HTML.Layout.flash_messages/1`.
 - `singular_name/0` and `plural_name/0` have no default. Every other callback has one: `fields/0`, `filters/0` (or `filters/1` with assigns), `panels/0`, `metrics/0`, `item_actions/1`, `resource_actions/0`, `can?/3`, the `on_item_*` hooks, `return_to/5`, `render_resource_slot/3`, `translate/1`.
 - The options of `use Backpex.LiveResource` (`primary_key`, `init_order`, `per_page_default`, `full_text_search`, `fluid?`, `persist`, `context_assigns`, …) are validated against the schema in the `Backpex.LiveResource` docs. Set `primary_key:` when the key is not `:id`; Backpex supports one primary key column, not compound keys.
-- `adapter_config` belongs to `Backpex.Adapters.Ecto`: `schema` and `repo` are required; the changeset functions take `(item, attrs, metadata)`, where `metadata` holds `:assigns` and `:target`; `item_query` takes `(query, live_action, assigns)` and builds on the given query (`from p in query, where: ...`).
+- `adapter_config` belongs to `Backpex.Adapters.Ecto`: `schema` and `repo` are required; the changeset functions take `(item, attrs, metadata)`, where `metadata` holds `:assigns` and `:target`; `item_query` takes `(query, live_action, assigns)` and builds on the given query (`from p in query, where: ...`). It also scopes saves: the edit form and inline edits read the item again through it right before they save, so an item that has left its scope raises `Backpex.NoResultsError` in the form and is not saved inline.
 
 ## Fields
 
