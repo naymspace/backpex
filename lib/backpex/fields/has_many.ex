@@ -11,7 +11,11 @@ defmodule Backpex.Fields.HasMany do
       type: :atom
     ],
     live_resource: [
-      doc: "The live resource of the association.",
+      doc: """
+      The live resource of the association. The field links the items to their show view with it (see `:link_assocs`)
+      and takes the primary key of the items from its config. Without it, the items are not linked and the primary key
+      comes from the schema of the association.
+      """,
       type: :atom
     ],
     link_assocs: [
@@ -403,14 +407,11 @@ defmodule Backpex.Fields.HasMany do
 
   @impl Backpex.Field
   def before_changeset(changeset, attrs, _metadata, repo, field, assigns) do
-    {field_name, field_options} = field
-    validate_live_resource(field_name, field_options)
-
-    # TODO: do not rely on specific adapter
-    schema = field_options.live_resource.adapter_config(:schema)
+    {field_name, _field_options} = field
+    schema = schema(field, changeset.data.__struct__)
     field_name_string = to_string(field_name)
 
-    new_assocs = get_new_assocs(attrs, field_name_string, schema, repo, field_options, assigns)
+    new_assocs = get_new_assocs(attrs, field_name_string, schema, repo, field, assigns)
 
     if is_nil(new_assocs) do
       changeset
@@ -419,13 +420,7 @@ defmodule Backpex.Fields.HasMany do
     end
   end
 
-  defp validate_live_resource(field_name, field_options) do
-    if !Map.has_key?(field_options, :live_resource) do
-      raise "The field #{field_name} does not have the required key :live_resource defined."
-    end
-  end
-
-  defp get_new_assocs(attrs, field_name_string, schema, repo, field_options, assigns) do
+  defp get_new_assocs(attrs, field_name_string, schema, repo, {_name, field_options} = field, assigns) do
     cond do
       # It is important add empty maps when selecting or deselecting all items to force the list to be always present
       # in the changes. Otherwise it would not work if the item already contains all items ("select all") or
@@ -437,18 +432,18 @@ defmodule Backpex.Fields.HasMany do
         [%{}]
 
       assoc_ids = Map.get(attrs, field_name_string) ->
-        get_assocs_by_ids(assoc_ids, schema, repo, field_options, assigns)
+        get_assocs_by_ids(assoc_ids, schema, repo, field, assigns)
 
       true ->
         nil
     end
   end
 
-  defp get_assocs_by_ids(assoc_ids, schema, repo, field_options, assigns) do
+  defp get_assocs_by_ids(assoc_ids, schema, repo, {_name, field_options} = field, assigns) do
     case assoc_ids do
       ids when is_list(ids) and ids != [] ->
         filtered_ids = Enum.reject(ids, &(&1 == ""))
-        primary_key = field_options.live_resource.config(:primary_key)
+        primary_key = primary_key(field, schema)
 
         schema
         |> where([x], field(x, ^primary_key) in ^filtered_ids)
@@ -493,9 +488,11 @@ defmodule Backpex.Fields.HasMany do
       link_assocs: link_assocs
     } = assigns
 
+    live_resource = Map.get(field_options, :live_resource)
+
     link =
-      if link_assocs and Authorization.can?(field_options.live_resource, assigns, :show, item) do
-        Router.get_path(socket, Map.get(field_options, :live_resource), params, :show, item)
+      if link_assocs and not is_nil(live_resource) and Authorization.can?(live_resource, assigns, :show, item) do
+        Router.get_path(socket, live_resource, params, :show, item)
       end
 
     assign(assigns, :link, link)
@@ -518,9 +515,8 @@ defmodule Backpex.Fields.HasMany do
   end
 
   defp options_base_query(assigns) do
-    %{field_options: field_options, name: name} = assigns
-    schema = assigns.live_resource.adapter_config(:schema)
-    %{queryable: queryable} = schema.__schema__(:association, name)
+    %{field_options: field_options} = assigns
+    queryable = queryable(assigns)
 
     from(queryable, as: ^EctoAdapter.name_by_schema(queryable))
     |> maybe_options_query(field_options, assigns)
@@ -543,7 +539,7 @@ defmodule Backpex.Fields.HasMany do
   defp options(assigns, opts) do
     %{field: field, field_options: field_options, options_base_query: query} = assigns
     repo = assigns.live_resource.adapter_config(:repo)
-    primary_key = primary_key(field)
+    primary_key = primary_key(field, queryable(assigns))
 
     query
     |> maybe_search_query(query.from.as, field_options, display_field(field), Keyword.get(opts, :search))
@@ -592,7 +588,7 @@ defmodule Backpex.Fields.HasMany do
   end
 
   def assign_selected(socket) do
-    primary_key = primary_key(socket.assigns.field)
+    primary_key = primary_key(socket.assigns.field, queryable(socket.assigns))
 
     selected_ids = extract_selected_ids(socket.assigns.form[socket.assigns.name].value, primary_key)
     selected_items = fetch_selected_items(socket, selected_ids)
@@ -626,7 +622,7 @@ defmodule Backpex.Fields.HasMany do
 
   defp fetch_from_db(ids_to_fetch, socket) do
     repo = socket.assigns.live_resource.adapter_config(:repo)
-    primary_key = primary_key(socket.assigns.field)
+    primary_key = primary_key(socket.assigns.field, queryable(socket.assigns))
 
     socket.assigns.options_base_query
     |> where([x], field(x, ^primary_key) in ^ids_to_fetch)
@@ -636,11 +632,29 @@ defmodule Backpex.Fields.HasMany do
     end)
   end
 
-  # The primary key of the related items, as configured in their LiveResource.
-  defp primary_key({field_name, field_options} = _field) do
-    validate_live_resource(field_name, field_options)
+  defp queryable(%{live_resource: live_resource, field: field}) do
+    schema(field, live_resource.adapter_config(:schema))
+  end
 
-    field_options.live_resource.config(:primary_key)
+  # The primary key of the related items: as configured in their LiveResource, else the one of their schema.
+  defp primary_key({name, field_options}, queryable) do
+    case Map.get(field_options, :live_resource) do
+      nil -> schema_primary_key(name, queryable)
+      live_resource -> live_resource.config(:primary_key)
+    end
+  end
+
+  defp schema_primary_key(name, {_source, schema}), do: schema_primary_key(name, schema)
+
+  defp schema_primary_key(name, schema) do
+    case schema.__schema__(:primary_key) do
+      [primary_key] ->
+        primary_key
+
+      _other ->
+        raise ArgumentError,
+              "The schema of the field #{name} has no single primary key. Set the :live_resource option of the field."
+    end
   end
 
   defp extract_selected_ids(value, primary_key) when is_list(value) and is_atom(primary_key) do

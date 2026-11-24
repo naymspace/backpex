@@ -24,6 +24,26 @@ defmodule Backpex.Fields.HasManyTest do
     end
   end
 
+  defmodule Pin do
+    @moduledoc false
+    use Ecto.Schema
+
+    @primary_key false
+    schema "pins" do
+      field :board_id, :integer
+    end
+  end
+
+  defmodule Board do
+    @moduledoc false
+    use Ecto.Schema
+
+    schema "boards" do
+      many_to_many :archived_tags, {"archived_tags", Backpex.Fields.HasManyTest.Tag}, join_through: "boards_tags"
+      has_many :pins, Backpex.Fields.HasManyTest.Pin
+    end
+  end
+
   defmodule TagsRepo do
     @moduledoc false
     def all(query) do
@@ -59,6 +79,52 @@ defmodule Backpex.Fields.HasManyTest do
 
       assert_received {:all, %Ecto.Query{wheres: [%{params: [{1, _type}]}]}}
       assert [%Ecto.Changeset{data: %Tag{id: nil}}, %Ecto.Changeset{data: %Tag{id: 1}}] = changeset.changes.tags
+    end
+  end
+
+  describe "before_changeset/6 without a live resource" do
+    test "loads the selected items by the primary key of the association's schema" do
+      field = {:archived_tags, %{module: HasMany, display_field: :id}}
+
+      changeset =
+        %Board{}
+        |> Ecto.Changeset.change()
+        |> HasMany.before_changeset(%{"archived_tags" => ["", "1"]}, [], TagsRepo, field, %{})
+
+      assert_received {:all,
+                       %Ecto.Query{from: %{source: {"archived_tags", Tag}}, wheres: [%{params: [{["1"], _type}]}]}}
+
+      assert [%Ecto.Changeset{data: %Tag{id: 1}}] = changeset.changes.archived_tags
+    end
+
+    test "raises when the schema of the association has no single primary key" do
+      field = {:pins, %{module: HasMany, display_field: :board_id}}
+
+      assert_raise ArgumentError, ~r/The schema of the field pins has no single primary key/, fn ->
+        %Board{}
+        |> Ecto.Changeset.change()
+        |> HasMany.before_changeset(%{"pins" => ["1"]}, [], TagsRepo, field, %{})
+      end
+    end
+  end
+
+  describe "render_value/1" do
+    test "renders the items without links when the field has no live resource" do
+      assigns = [
+        field: {:tags, %{module: HasMany, label: "Tags", display_field: :id, link_assocs: true}},
+        field_options: %{module: HasMany, label: "Tags", display_field: :id, link_assocs: true},
+        value: [%Tag{id: 2}, %Tag{id: 1}],
+        live_action: :show,
+        link_assocs: true,
+        socket: %Phoenix.LiveView.Socket{},
+        params: %{}
+      ]
+
+      html = render_component(&HasMany.render_value/1, assigns)
+      document = LazyHTML.from_fragment(html)
+
+      assert document |> LazyHTML.query("a") |> Enum.empty?()
+      assert document |> LazyHTML.query("span") |> Enum.map(&(&1 |> LazyHTML.text() |> String.trim())) == ~w[1 2]
     end
   end
 
