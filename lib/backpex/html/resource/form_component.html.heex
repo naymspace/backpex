@@ -1,4 +1,19 @@
 <div id="form-component">
+  <%!-- PROTOTYPE conflict UI (#2576), throwaway --%>
+  <%= if Backpex.PrototypeConflictUI.enabled?() and @live_action == :edit and @action_type == nil do %>
+    <Backpex.PrototypeConflictUI.notice
+      conflict={@prototype_conflict}
+      variant={Backpex.PrototypeConflictUI.variant(@params)}
+      live_resource={@live_resource}
+      target={@myself}
+    />
+    <Backpex.PrototypeConflictUI.switcher
+      variant={Backpex.PrototypeConflictUI.variant(@params)}
+      current_url={@current_url}
+      simulated={@prototype_simulated}
+      target={@myself}
+    />
+  <% end %>
   <.form
     :let={f}
     for={@form}
@@ -13,6 +28,13 @@
       <:panel>
         <%= for {name, _field_options} <- visible_fields_by_panel(@fields, :default, assigns) do %>
           {resource_form_field(assign(assigns, name: name, form: f))}
+          <Backpex.PrototypeConflictUI.inline_note
+            :if={@prototype_conflict}
+            conflict={@prototype_conflict}
+            variant={Backpex.PrototypeConflictUI.variant(@params)}
+            name={name}
+            target={@myself}
+          />
         <% end %>
       </:panel>
 
@@ -25,6 +47,13 @@
       >
         <%= for {field_name, _field_options} <- visible_fields_by_panel(@fields, name, assigns) do %>
           {resource_form_field(assign(assigns, name: field_name, form: f))}
+          <Backpex.PrototypeConflictUI.inline_note
+            :if={@prototype_conflict}
+            conflict={@prototype_conflict}
+            variant={Backpex.PrototypeConflictUI.variant(@params)}
+            name={field_name}
+            target={@myself}
+          />
         <% end %>
       </:panel>
 

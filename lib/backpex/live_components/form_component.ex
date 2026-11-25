@@ -21,6 +21,8 @@ defmodule Backpex.FormComponent do
     |> assign(assigns)
     |> assign_new(:action_type, fn -> nil end)
     |> assign_new(:show_form_errors, fn -> false end)
+    |> assign_new(:prototype_conflict, fn -> nil end)
+    |> assign_new(:prototype_simulated, fn -> nil end)
     # Before `update_assigns/1`, as a readonly function of an upload field may read the form when it assigns uploads.
     |> assign_form()
     |> update_assigns()
@@ -228,6 +230,79 @@ defmodule Backpex.FormComponent do
     save(socket, live_action, change, :save)
   end
 
+  ## PROTOTYPE conflict UI events (#2576). Throwaway.
+
+  def handle_event("prototype-reload", _params, socket) do
+    uri = URI.parse(socket.assigns.current_url)
+    socket |> push_navigate(to: "#{uri.path}?#{uri.query}") |> noreply()
+  end
+
+  def handle_event("prototype-back", _params, socket) do
+    %{live_resource: live_resource, item: item} = assigns = socket.assigns
+    socket |> push_navigate(to: live_resource.return_to(socket, assigns, :edit, :cancel, item)) |> noreply()
+  end
+
+  def handle_event("prototype-dismiss", _params, socket) do
+    socket |> assign(:prototype_conflict, nil) |> noreply()
+  end
+
+  def handle_event("prototype-overwrite", _params, socket) do
+    conflict = socket.assigns.prototype_conflict
+    socket = prototype_rebase(socket, conflict.mine)
+
+    handle_save(
+      assign(socket, :prototype_conflict, nil),
+      :edit,
+      socket.assigns.prototype_conflict.params,
+      conflict.form_action
+    )
+  end
+
+  def handle_event("prototype-resolve", %{"choice" => choice}, socket) do
+    conflict = socket.assigns.prototype_conflict
+    theirs = for {key, "theirs"} <- choice, do: key
+    keep = Enum.reject(conflict.mine, &(to_string(&1) in theirs))
+    socket = prototype_rebase(socket, keep)
+
+    handle_save(
+      assign(socket, :prototype_conflict, nil),
+      :edit,
+      socket.assigns.prototype_conflict.params,
+      conflict.form_action
+    )
+  end
+
+  def handle_event("prototype-use-theirs", %{"key" => key}, socket) do
+    %{prototype_conflict: conflict, live_resource: live_resource, fields: fields, item: item} = socket.assigns
+    params = Map.delete(socket.assigns.changeset.params || conflict.params, key)
+
+    changeset =
+      Resource.change(item, params, fields, socket.assigns, live_resource, assocs: editable_assocs(socket.assigns))
+
+    entries = Enum.map(conflict.fields, &if(to_string(&1.key) == key, do: %{&1 | resolved: true}, else: &1))
+
+    send(self(), {:prototype_rebase, item, changeset})
+
+    socket
+    |> assign(:prototype_conflict, %{conflict | fields: entries})
+    |> assign(:changeset, changeset)
+    |> assign_form()
+    |> noreply()
+  end
+
+  def handle_event("prototype-simulate-save", _params, socket) do
+    names = Backpex.PrototypeConflictUI.simulate_save(socket.assigns)
+
+    socket
+    |> assign(:prototype_simulated, "Another writer changed #{Enum.join(names, ", ")} in the database (no PubSub).")
+    |> noreply()
+  end
+
+  def handle_event("prototype-simulate-delete", _params, socket) do
+    Backpex.PrototypeConflictUI.simulate_delete(socket.assigns)
+    socket |> assign(:prototype_simulated, "Another writer deleted the row (no PubSub).") |> noreply()
+  end
+
   # Fields are live components that handle their own events. Anything else that reaches the form,
   # such as an unknown event or an upload event without its params, is ignored.
   def handle_event(_event, _params, socket) do
@@ -323,7 +398,64 @@ defmodule Backpex.FormComponent do
     end
   end
 
+  # PROTOTYPE conflict UI (#2576), see `Backpex.PrototypeConflictUI`. Throwaway.
   defp handle_save(socket, :edit, params, form_action) do
+    alias Backpex.PrototypeConflictUI, as: P
+
+    if P.enabled?() do
+      variant = P.variant(socket.assigns.params)
+
+      case P.check(socket.assigns, params, editable_assocs(socket.assigns)) do
+        :ok ->
+          handle_edit_save(socket, params, form_action)
+
+        :gone ->
+          socket |> assign(:prototype_conflict, %{gone: true}) |> noreply()
+
+        {:conflict, conflict} ->
+          conflict = Map.merge(conflict, %{params: params, form_action: form_action})
+          socket = assign(socket, :prototype_conflict, conflict)
+
+          if variant == "D",
+            do: socket |> prototype_rebase(conflict.mine) |> noreply(),
+            else: noreply(socket)
+      end
+    else
+      handle_edit_save(socket, params, form_action)
+    end
+  end
+
+  defp handle_save(socket, :resource_action, params, form_action),
+    do: handle_resource_action_save(socket, params, form_action)
+
+  # PROTOTYPE: moves the base item to the current item and puts only the admin's changes `keep` on top.
+  defp prototype_rebase(socket, keep) do
+    %{live_resource: live_resource, fields: fields, item: item, prototype_conflict: conflict} = socket.assigns
+
+    current =
+      Resource.get!(
+        Backpex.PrototypeConflictUI.primary_value(item, live_resource),
+        fields,
+        socket.assigns,
+        live_resource
+      )
+
+    keys = Enum.map(keep, &to_string/1)
+    params = Map.take(conflict.params, keys)
+    socket = assign(socket, :item, current)
+
+    changeset =
+      Resource.change(current, params, fields, socket.assigns, live_resource, assocs: editable_assocs(socket.assigns))
+
+    send(self(), {:prototype_rebase, current, changeset})
+
+    socket
+    |> assign(:changeset, changeset)
+    |> assign(:prototype_conflict, Map.put(conflict, :params, params))
+    |> assign_form()
+  end
+
+  defp handle_edit_save(socket, params, form_action) do
     %{
       live_resource: live_resource,
       item: item,
@@ -371,7 +503,7 @@ defmodule Backpex.FormComponent do
     end
   end
 
-  defp handle_save(socket, :resource_action, params, _form_action) do
+  defp handle_resource_action_save(socket, params, _form_action) do
     %{
       assigns:
         %{

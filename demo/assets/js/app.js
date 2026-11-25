@@ -78,3 +78,11 @@ if (process.env.NODE_ENV === 'development') {
     window.liveReloader = reloader
   })
 }
+
+// PROTOTYPE conflict UI (#2576), throwaway: ← / → cycle the variants of the prototype switcher.
+window.addEventListener('keydown', (e) => {
+  if (!['ArrowLeft', 'ArrowRight'].includes(e.key)) return
+  if (e.target.closest('input, textarea, select, [contenteditable]')) return
+  const link = document.getElementById(e.key === 'ArrowLeft' ? 'prototype-prev' : 'prototype-next')
+  if (link) link.click()
+})

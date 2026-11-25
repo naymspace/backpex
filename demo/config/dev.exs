@@ -40,3 +40,6 @@ config :phoenix_live_view,
   debug_heex_annotations: true,
   debug_attributes: true,
   enable_expensive_runtime_checks: true
+
+# PROTOTYPE conflict UI (#2576), throwaway: see `Backpex.PrototypeConflictUI`.
+config :backpex, :conflict_prototype, true

@@ -27,8 +27,11 @@ defmodule Backpex.LiveResource.Form do
     |> ok()
   end
 
-  def handle_params(_params, _url, socket) do
-    noreply(socket)
+  # PROTOTYPE conflict UI (#2576): keeps `?variant=` current on patch.
+  def handle_params(params, _url, socket) do
+    socket
+    |> assign(:params, params)
+    |> noreply()
   end
 
   def render(assigns) do
@@ -49,6 +52,14 @@ defmodule Backpex.LiveResource.Form do
 
     socket
     |> assign(:assocs, assocs)
+    |> assign(:changeset, changeset)
+    |> noreply()
+  end
+
+  # PROTOTYPE conflict UI (#2576): the form takes over the current item as its base item.
+  def handle_info({:prototype_rebase, item, changeset}, socket) do
+    socket
+    |> assign(:item, item)
     |> assign(:changeset, changeset)
     |> noreply()
   end
