@@ -55,11 +55,11 @@ defmodule Backpex.Field do
       type: {:or, [{:in, [:top, :center, :bottom]}, {:fun, 1}]}
     ],
     searchable: [
-      doc: "Define wether this field should be searchable on the index view.",
+      doc: "Define whether this field should be searchable on the index view.",
       type: :boolean
     ],
     orderable: [
-      doc: "Define wether this field should be orderable on the index view.",
+      doc: "Define whether this field should be orderable on the index view.",
       type: :boolean
     ],
     order_nulls: [
@@ -87,7 +87,7 @@ defmodule Backpex.Field do
     ],
     index_editable: [
       doc: """
-      Define wether this field should be editable on the index view. Also see the
+      Define whether this field should be editable on the index view. Also see the
       [index edit](/guides/authorization/index-edit.md) guide.
       """,
       type: {:or, [:boolean, {:fun, 1}]}
