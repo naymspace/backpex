@@ -67,6 +67,30 @@ defmodule Backpex.FormComponentTest do
     def discard_uploads(_field, _socket, _item, stored), do: send(self(), {:discard, stored})
   end
 
+  defmodule KeepingUpload do
+    defdelegate param_keys(field, assigns), to: StoringUpload
+    defdelegate list_existing_files(field, item), to: StoringUpload
+    defdelegate put_upload_change(field, socket, params, item, entries, removed, action), to: StoringUpload
+    defdelegate consume_upload(field, socket, item, meta, entry), to: StoringUpload
+    defdelegate remove_uploads(field, socket, item, removed_entries), to: StoringUpload
+  end
+
+  defmodule FailingDiscardUpload do
+    defdelegate param_keys(field, assigns), to: StoringUpload
+    defdelegate list_existing_files(field, item), to: StoringUpload
+    defdelegate put_upload_change(field, socket, params, item, entries, removed, action), to: StoringUpload
+    defdelegate consume_upload(field, socket, item, meta, entry), to: StoringUpload
+    defdelegate remove_uploads(field, socket, item, removed_entries), to: StoringUpload
+    def discard_uploads(_field, _socket, _item, _stored), do: raise("disk gone")
+  end
+
+  defmodule RefusingAction do
+    def handle(_socket, _data) do
+      changeset = Ecto.Changeset.change({%{}, %{title: :string}})
+      {:error, changeset |> Ecto.Changeset.add_error(:title, "refused") |> Map.put(:action, :insert)}
+    end
+  end
+
   # Answers LiveView's calls to an upload channel, so entries can be consumed without a browser.
   defmodule FakeUploadChannel do
     use GenServer
@@ -602,6 +626,44 @@ defmodule Backpex.FormComponentTest do
       assert_received {:discard, ["bare.png"]}
     end
 
+    test "keeps the stored files of a field without discard_uploads/4, with a warning" do
+      socket = upload_socket(["one.png"], module: KeepingUpload)
+
+      {{:noreply, _socket}, log} = with_log(fn -> save(socket, "taken") end)
+
+      assert log =~ "has no discard_uploads/4 and keeps the files"
+      assert log =~ "one.png"
+    end
+
+    test "logs an exception from discard_uploads/4 and shows the error of the save" do
+      socket = upload_socket(["one.png"], module: FailingDiscardUpload)
+
+      {{:noreply, socket}, log} = with_log(fn -> save(socket, "taken") end)
+
+      assert log =~ "could not discard its stored files"
+      assert log =~ "disk gone"
+      assert {"has already been taken", _opts} = socket.assigns.form.errors[:title]
+    end
+
+    test "discards the stored files when a resource action returns an error" do
+      socket =
+        ["one.png"]
+        |> upload_socket()
+        |> Phoenix.Component.assign(
+          live_action: :resource_action,
+          resource_action: %{module: RefusingAction},
+          resource_action_id: :refuse,
+          return_to: "/items"
+        )
+
+      {:noreply, socket} = save(socket)
+
+      assert {"refused", _opts} = socket.assigns.form.errors[:title]
+      assert_received {:consume, "one.png"}
+      assert_received {:discard, ["one.png"]}
+      refute_received {:remove, _removed}
+    end
+
     test "doesn't discard direct uploads" do
       socket = upload_socket(["one.png", "error.png"], external: true)
 
@@ -642,7 +704,7 @@ defmodule Backpex.FormComponentTest do
       live_resource: UploadLive,
       live_action: :new,
       fields: [
-        images: %{module: StoringUpload, label: "Images"},
+        images: %{module: Keyword.get(opts, :module, StoringUpload), label: "Images"},
         title: %{module: Backpex.Fields.Text, label: "Title"}
       ],
       item: %{},
