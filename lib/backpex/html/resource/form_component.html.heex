@@ -8,11 +8,23 @@
     phx-submit="save"
     multipart
   >
+    <%!-- PROTOTYPE (#2577) --%>
+    <Backpex.LiveResource.FormLiveNoticePrototype.banner
+      :if={assigns[:proto]}
+      proto={@proto}
+      rows={@proto_rows}
+      back={@live_resource.return_to(@socket, assigns, @live_action, :cancel, @item)}
+    />
     <.edit_card>
       <%!-- Default panel --%>
       <:panel>
         <%= for {name, _field_options} <- visible_fields_by_panel(@fields, :default, assigns) do %>
           {resource_form_field(assign(assigns, name: name, form: f))}
+          <Backpex.LiveResource.FormLiveNoticePrototype.marker
+            :if={assigns[:proto]}
+            variant={@proto.variant}
+            row={Enum.find(@proto_rows, &(&1.field == name))}
+          />
         <% end %>
       </:panel>
 
@@ -25,6 +37,11 @@
       >
         <%= for {field_name, _field_options} <- visible_fields_by_panel(@fields, name, assigns) do %>
           {resource_form_field(assign(assigns, name: field_name, form: f))}
+          <Backpex.LiveResource.FormLiveNoticePrototype.marker
+            :if={assigns[:proto]}
+            variant={@proto.variant}
+            row={Enum.find(@proto_rows, &(&1.field == field_name))}
+          />
         <% end %>
       </:panel>
 
@@ -58,6 +75,7 @@
             type="submit"
             name="save-type"
             value={key}
+            disabled={Backpex.LiveResource.FormLiveNoticePrototype.deleted?(assigns)}
             class={[
               "btn",
               action[:soft] && "btn-soft",

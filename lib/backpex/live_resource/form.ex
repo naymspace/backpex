@@ -6,6 +6,7 @@ defmodule Backpex.LiveResource.Form do
 
   alias Backpex.Authorization
   alias Backpex.LiveResource
+  alias Backpex.LiveResource.FormLiveNoticePrototype, as: Proto
   alias Backpex.Resource
 
   require Backpex
@@ -24,15 +25,52 @@ defmodule Backpex.LiveResource.Form do
     |> assign_item(live_action)
     |> can?(live_resource, live_action)
     |> assign_changeset(live_action)
+    |> maybe_init_prototype(live_action, live_resource)
     |> ok()
+  end
+
+  # PROTOTYPE (#2577): the edit form subscribes to PubSub like Show and Index do.
+  defp maybe_init_prototype(socket, :edit, live_resource) do
+    socket
+    |> LiveResource.maybe_subscribe_to_pubsub(live_resource)
+    |> Proto.init()
+  end
+
+  defp maybe_init_prototype(socket, _live_action, _live_resource), do: socket
+
+  def handle_params(params, _url, %{assigns: %{proto: _proto}} = socket) do
+    socket
+    |> Proto.put_variant(params["variant"] || "banner")
+    |> noreply()
   end
 
   def handle_params(_params, _url, socket) do
     noreply(socket)
   end
 
+  def render(%{proto: _proto} = assigns) do
+    assigns = assign(assigns, :proto_rows, Proto.rows(assigns))
+
+    ~H"""
+    {Backpex.HTML.Resource.resource_form(assigns)}
+    <Proto.overlay proto={@proto} rows={@proto_rows} />
+    """
+  end
+
   def render(assigns) do
     Backpex.HTML.Resource.resource_form(assigns)
+  end
+
+  def handle_info({"backpex:updated", item}, %{assigns: %{proto: _proto}} = socket) do
+    if Proto.same_item?(socket, item),
+      do: socket |> Proto.handle_remote(item) |> noreply(),
+      else: noreply(socket)
+  end
+
+  def handle_info({"backpex:deleted", item}, %{assigns: %{proto: _proto}} = socket) do
+    if Proto.same_item?(socket, item),
+      do: socket |> Proto.handle_remote(:deleted) |> noreply(),
+      else: noreply(socket)
   end
 
   # credo:disable-for-this-file Credo.Check.Design.DuplicatedCode
@@ -56,6 +94,17 @@ defmodule Backpex.LiveResource.Form do
   def handle_info(_event, socket) do
     noreply(socket)
   end
+
+  def handle_event("proto-take-over", _params, socket), do: socket |> Proto.take_over_untouched() |> noreply()
+  def handle_event("proto-discard", _params, socket), do: socket |> Proto.discard_mine() |> noreply()
+  def handle_event("proto-dry-run", _params, socket), do: socket |> Proto.dry_run() |> noreply()
+  def handle_event("proto-simulate", %{"what" => what}, socket), do: socket |> Proto.simulate(what) |> noreply()
+
+  def handle_event("proto-use-theirs", %{"key" => key}, socket),
+    do: socket |> Proto.use_theirs(String.to_existing_atom(key)) |> noreply()
+
+  def handle_event("proto-keep-mine", %{"key" => key}, socket),
+    do: socket |> Proto.keep_mine(String.to_existing_atom(key)) |> noreply()
 
   def handle_event(_event, _params, socket) do
     noreply(socket)
