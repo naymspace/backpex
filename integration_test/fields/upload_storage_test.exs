@@ -6,7 +6,7 @@ defmodule Backpex.Integration.Fields.UploadStorageTest do
   # The tests list the upload directory of the test app and replace it with a file to make every write fail.
   use Backpex.ConnCase, async: false
 
-  import Phoenix.LiveViewTest
+  import Backpex.UploadHelpers
 
   alias Backpex.Test.Product
 
@@ -174,17 +174,7 @@ defmodule Backpex.Integration.Fields.UploadStorageTest do
 
   defp stored?(dir, file), do: dir |> Path.join(file) |> File.exists?()
 
-  defp image(name, size), do: %{name: name, content: :binary.copy("a", size), type: "image/jpeg"}
-
-  defp short_link(short_key), do: %{"0" => %{short_key: short_key, url: "https://example.com"}}
-
-  defp fill_in_new_product(conn) do
-    conn
-    |> visit(~p"/admin/products/new")
-    |> fill_in("Name", with: "Widget")
-    |> fill_in("Quantity", with: "5")
-    |> fill_in("Manufacturer URL", with: "https://example.com")
-  end
+  defp short_link(short_key), do: %{short_links: %{"0" => %{short_key: short_key, url: "https://example.com"}}}
 
   defp replace_image(conn, product, old_file) do
     conn
@@ -192,33 +182,5 @@ defmodule Backpex.Integration.Fields.UploadStorageTest do
     |> fill_in("Name", with: "New Widget")
     |> click_button("Remove #{old_file}")
     |> upload_images([image("new.jpg", 100)])
-  end
-
-  # phoenix_test can't keep an upload entry across two saves, so the tests upload with LiveViewTest and send the save
-  # event themselves.
-  defp upload_images(session, files) do
-    unwrap(session, fn view ->
-      input = file_input(view, "#resource-form", :images, files)
-
-      for %{name: name} <- files, do: render_upload(input, name)
-
-      render(view)
-    end)
-  end
-
-  defp submit_new_product(session, short_links \\ nil) do
-    # The price is a hidden input that a JS hook fills in, so it's sent as a value of the submit.
-    change = if short_links, do: %{price: "12.34", short_links: short_links}, else: %{price: "12.34"}
-
-    send_save(session, %{change: change})
-  end
-
-  defp send_save(session, params \\ %{}) do
-    unwrap(session, fn view ->
-      view
-      |> form("#resource-form")
-      |> put_submitter("button[value=save]")
-      |> render_submit(params)
-    end)
   end
 end

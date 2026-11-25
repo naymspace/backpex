@@ -668,14 +668,14 @@ defmodule Backpex.FormComponent do
   defp store_uploads(socket, item, uploads) do
     Enum.reduce_while(uploads, {:ok, []}, fn {field, upload}, {:ok, stored} ->
       case store_field_uploads(socket, item, field, upload) do
-        {:ok, values} -> {:cont, {:ok, put_stored(stored, field, upload, values)}}
-        {:error, values} -> {:halt, {:error, field, put_stored(stored, field, upload, values)}}
+        {:ok, values} -> {:cont, {:ok, put_discardable(stored, field, upload, values)}}
+        {:error, values} -> {:halt, {:error, field, put_discardable(stored, field, upload, values)}}
       end
     end)
   end
 
   defp store_field_uploads(socket, item, field, upload) do
-    result =
+    {result, values} =
       Enum.reduce_while(upload.entries, {:ok, []}, fn entry, {:ok, values} ->
         case consume_uploaded_entry(socket, entry, &{:postpone, store_upload(socket, item, field, &1, entry)}) do
           {:ok, value} -> {:cont, {:ok, [value | values]}}
@@ -683,15 +683,12 @@ defmodule Backpex.FormComponent do
         end
       end)
 
-    case result do
-      {:ok, values} -> {:ok, Enum.reverse(values)}
-      {:error, values} -> {:error, Enum.reverse(values)}
-    end
+    {result, Enum.reverse(values)}
   end
 
-  defp put_stored(stored, _field, _upload, []), do: stored
-  defp put_stored(stored, _field, %{external: external}, _values) when external != false, do: stored
-  defp put_stored(stored, field, _upload, values), do: [{field, values} | stored]
+  defp put_discardable(stored, _field, _upload, []), do: stored
+  defp put_discardable(stored, _field, %{external: external}, _values) when external != false, do: stored
+  defp put_discardable(stored, field, _upload, values), do: [{field, values} | stored]
 
   # `{:error, reason}`, `{:postpone, _}` and an exception mean the file wasn't stored. Any other value counts as stored,
   # as it did for LiveView, with a warning.
@@ -735,7 +732,6 @@ defmodule Backpex.FormComponent do
     end
   end
 
-  # Deletes the files stored before a save that failed. A field without `discard_uploads/4` keeps them.
   defp discard_uploads(socket, item, stored) do
     for {field, values} <- stored, do: discard_field_uploads(socket, item, field, values)
   end
