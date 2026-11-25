@@ -294,7 +294,12 @@ jobs:
     name: "Publish package on hex.pm"
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    # Hex.pm trusts this workflow file in this environment (Workload Identity), so the job needs no API key.
+    # See https://hex.pm/docs/workload-identity
     environment: hex
+    permissions:
+      contents: read
+      id-token: write
 
     steps:
       - name: Checkout code
@@ -313,8 +318,8 @@ jobs:
           mix deps.get
 
       - name: Publish package on hex.pm
-        env:
-          HEX_API_KEY: ${{ secrets.HEX_API_KEY }}
+        # Mix exchanges the GitHub OIDC token for a short-lived Hex token. Any other Hex credential in the job
+        # (e.g. HEX_API_KEY) would take precedence, so none may be set.
         run: mix hex.publish --yes
 
   test-demo:
