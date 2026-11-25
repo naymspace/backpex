@@ -194,6 +194,7 @@ defmodule Backpex.FormComponent do
   # `save-type` is the name of the submit buttons, so it is missing when the form is submitted without one, e.g. by
   # `form.requestSubmit()`. Such a submit saves the values like the default `:save` form action.
   def handle_event("save", %{"change" => change} = params, socket) do
+    socket = reread_item(socket)
     %{assigns: %{live_action: live_action, fields: fields} = assigns} = socket
 
     form_action =
@@ -218,6 +219,7 @@ defmodule Backpex.FormComponent do
 
   # A form without any `change` params, e.g. one that only has upload fields.
   def handle_event("save", _params, socket) do
+    socket = reread_item(socket)
     %{assigns: %{live_action: live_action, fields: fields} = assigns} = socket
 
     change =
@@ -233,6 +235,21 @@ defmodule Backpex.FormComponent do
   def handle_event(_event, _params, socket) do
     noreply(socket)
   end
+
+  # The item in the assigns is the snapshot taken when the edit form was mounted, and the form may have been open for a
+  # long time. It is read again before the submitted values are filtered, so the editable and readonly checks, the
+  # uploads, the `:edit` check of `Backpex.Resource.update/6`, the changeset and the hooks all see the current record.
+  # An item that was deleted or has left the scope of the `item_query` raises `Backpex.NoResultsError`, as it does when
+  # the form is mounted.
+  defp reread_item(%{assigns: %{live_action: :edit}} = socket) do
+    %{live_resource: live_resource, item: item, fields: fields} = socket.assigns
+
+    primary_value = Backpex.LiveResource.primary_value(item, live_resource)
+
+    assign(socket, :item, Resource.get!(primary_value, fields, socket.assigns, live_resource))
+  end
+
+  defp reread_item(socket), do: socket
 
   # Only keys of the rendered form actions count; anything else from the client is ignored.
   defp form_action(%{assigns: %{form_actions: form_actions}}, save_type) do

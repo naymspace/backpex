@@ -93,7 +93,7 @@ def on_item_created(socket, item) do
 end
 ```
 
-When an item is saved with the form, the item before the update is still in the `item` assign of the socket that `on_item_updated/2` receives.
+When an item is saved with the form, the item before the update is still in the `item` assign of the socket that `on_item_updated/2` receives. The form reads it again right before it saves, so it is the item as it was in the database then, not as it was when the form was opened.
 
 ## Custom Code
 
