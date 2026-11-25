@@ -408,13 +408,13 @@ defmodule Backpex.HTML.Resource do
 
   def filter_badge(assigns) do
     ~H"""
-    <div class="indicator">
-      <div class="join">
-        <div class="btn btn-sm join-item bg-base-300 border-base-content/20 pointer-events-none font-semibold">
+    <div class="indicator min-w-0 max-w-full">
+      <div class="join min-w-0 max-w-full">
+        <div class="btn btn-sm join-item bg-base-300 border-base-content/20 pointer-events-none shrink-0 font-semibold">
           {@label}
         </div>
-        <div class="btn btn-sm btn-outline join-item border-base-content/20 pointer-events-none border-l-transparent">
-          {render_slot(@inner_block)}
+        <div class="btn btn-sm btn-outline join-item border-base-content/20 pointer-events-none min-w-0 max-w-80 shrink border-l-transparent">
+          <span class="truncate">{render_slot(@inner_block)}</span>
         </div>
       </div>
       <button
