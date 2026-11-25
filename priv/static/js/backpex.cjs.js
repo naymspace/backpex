@@ -1529,24 +1529,38 @@ var combobox_default = {
     this.popupMaxHeight = Infinity;
     this.controller = new AbortController();
     const options = { signal: this.controller.signal };
-    this.el.addEventListener("click", (event) => this.handleClick(event), options);
-    this.el.addEventListener("mousedown", (event) => this.handleMousedown(event), options);
-    this.el.addEventListener("pointermove", (event) => this.handlePointermove(event), options);
-    this.el.addEventListener("keydown", (event) => this.handleKeydown(event), options);
-    this.el.addEventListener("keyup", (event) => this.handleKeyup(event), options);
-    this.el.addEventListener("focusout", (event) => this.handleFocusout(event), options);
-    this.el.addEventListener("focusin", () => {
+    const on = (type, handler) => {
+      this.el.addEventListener(type, (event) => {
+        if (this.isInteractive()) handler(event);
+      }, options);
+    };
+    on("click", (event) => this.handleClick(event));
+    on("mousedown", (event) => this.handleMousedown(event));
+    on("pointermove", (event) => this.handlePointermove(event));
+    on("keydown", (event) => this.handleKeydown(event));
+    on("keyup", (event) => this.handleKeyup(event));
+    on("focusout", (event) => this.handleFocusout(event));
+    on("focusin", () => {
       if (this.isOpen) this.syncOpenState();
-    }, options);
-    this.el.addEventListener("input", (event) => this.handleSearchEvent(event), options);
-    this.el.addEventListener("change", (event) => this.handleSearchEvent(event), options);
-    this.el.addEventListener("combobox:open", () => this.open(), options);
-    this.el.addEventListener("combobox:close", () => this.close(), options);
-    this.el.addEventListener("combobox:clear", () => this.setSelection([]), options);
-    this.el.addEventListener("combobox:select-all", () => this.selectAll(), options);
+    });
+    on("input", (event) => this.handleSearchEvent(event));
+    on("change", (event) => this.handleSearchEvent(event));
+    on("combobox:open", () => this.open());
+    on("combobox:close", () => this.close());
+    on("combobox:clear", () => this.setSelection([]));
+    on("combobox:select-all", () => this.selectAll());
     this.rememberLabels();
   },
+  beforeUpdate() {
+    this.focusedBeforeUpdate = this.el.contains(document.activeElement);
+  },
   updated() {
+    const hadFocus = this.focusedBeforeUpdate;
+    this.focusedBeforeUpdate = false;
+    if (!this.isInteractive()) {
+      this.close();
+      return;
+    }
     this.rememberLabels();
     this.syncOptions(this.selectedValues());
     if (this.isOpen) {
@@ -1556,6 +1570,9 @@ var combobox_default = {
         return;
       }
       if (!popup.matches(":popover-open")) popup.showPopover();
+      if (hadFocus && !this.el.contains(document.activeElement)) {
+        (this.part("search") ?? this.part("trigger"))?.focus({ preventScroll: true });
+      }
       const search = this.part("search");
       if (search && search.value !== this.query) search.value = this.query;
       this.filterOptions();
@@ -1577,6 +1594,9 @@ var combobox_default = {
   // Parts
   part(name) {
     return this.el.querySelector(`[data-part="${name}"]`);
+  },
+  isInteractive() {
+    return this.el.hasAttribute("phx-hook");
   },
   options() {
     const listbox = this.part("listbox");
@@ -1652,7 +1672,7 @@ var combobox_default = {
     this.reconcile(container, existing, values, (input) => input.value, (value) => {
       const input = document.createElement("input");
       input.type = "hidden";
-      input.name = `${anchor.name}[]`;
+      if (anchor.name) input.name = `${anchor.name}[]`;
       input.value = value;
       if (anchor.hasAttribute("form")) input.setAttribute("form", anchor.getAttribute("form"));
       return input;
@@ -1765,8 +1785,8 @@ var combobox_default = {
   open() {
     const popup = this.part("popup");
     if (this.isOpen || !popup) return;
-    this.isOpen = true;
     if (!popup.matches(":popover-open")) popup.showPopover();
+    this.isOpen = true;
     this.attachOpenListeners();
     const selected = this.selectedValues().map((value) => this.optionByValue(value)).find((option) => option && this.isNavigable(option));
     this.setActive(selected ? selected.dataset.value : this.firstNavigableValue(), { scroll: false });
@@ -2055,7 +2075,8 @@ var combobox_default = {
         return;
       default:
         if (!onTrigger || !isPrintableKey(event)) return;
-        if (search) this.open();
+        if (search && this.isOpen) search.focus({ preventScroll: true });
+        else if (search) this.open();
         else {
           event.preventDefault();
           this.typeaheadKey(event.key);

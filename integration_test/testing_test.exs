@@ -182,6 +182,18 @@ defmodule Backpex.TestingTest do
       assert Tag |> Repo.all() |> Enum.map(& &1.name) |> Enum.sort() == ["Elixir", "Phoenix"]
     end
 
+    test "fill in a field for multiple values of an item action with a list", %{conn: conn} do
+      user = insert(:user)
+      {:ok, view, _html} = live(conn, Testing.path(Router, UserLive, :index))
+
+      view
+      |> Testing.click_item_action(:user_soft_delete, user)
+      |> Testing.confirm_item_action(%{reason: "Requested", notify: ["authors", "admins"]})
+
+      {_path, flash} = assert_redirect(view)
+      assert flash["info"] =~ "Notified: authors, admins."
+    end
+
     test "follow a link item action from a row", %{conn: conn} do
       short_link = insert(:short_link, short_key: ~S(a"b\c))
       {:ok, view, _html} = live(conn, Testing.path(Router, ShortLinkLive, :index))
@@ -233,6 +245,16 @@ defmodule Backpex.TestingTest do
       assert post.user_id == user.id
       assert post.category_id == category.id
       assert post.tags |> Enum.map(& &1.id) |> Enum.sort() == Enum.sort([tag.id, other_tag.id])
+    end
+
+    test "clears a field for multiple values with an empty list", %{conn: conn} do
+      post = insert(:post)
+      {:ok, view, _html} = live(conn, Testing.path(Router, PostLive, :edit, post))
+
+      Testing.submit_form(view, %{tags: []})
+
+      assert_redirect(view)
+      assert Post |> Repo.get!(post.id) |> Repo.preload(:tags) |> Map.fetch!(:tags) == []
     end
 
     test "submits with another button", %{conn: conn} do

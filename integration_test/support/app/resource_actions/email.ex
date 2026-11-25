@@ -34,7 +34,9 @@ defmodule Backpex.Test.ResourceActions.Email do
   end
 
   @impl Backpex.ResourceAction
-  def handle(socket, _data) do
-    {:ok, Phoenix.LiveView.put_flash(socket, :info, "An email has been successfully sent to the specified users.")}
+  def handle(socket, data) do
+    message = "An email has been successfully sent to the specified users: #{Enum.join(data.users, ", ")}."
+
+    {:ok, Phoenix.LiveView.put_flash(socket, :info, message)}
   end
 end

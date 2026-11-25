@@ -61,7 +61,7 @@ defmodule Backpex.E2E.SelectFieldsTest do
       |> assert_has("#{trigger(id)}[aria-expanded=false]")
       |> fill_in("Text", with: "Hello")
       |> click("#form-action-save")
-      |> assert_has("div", text: "An email has been successfully sent to the specified users.")
+      |> assert_has("div", text: "An email has been successfully sent to the specified users: user_id_bob.")
     end
   end
 
@@ -81,6 +81,8 @@ defmodule Backpex.E2E.SelectFieldsTest do
       |> assert_has(options(id), count: 12)
       |> refute_has("##{id}-popup button", text: "Show more")
       |> assert_has("#{trigger(id)}[aria-expanded=true]")
+      # The patch removed the focused button; the focus stays in the combobox.
+      |> assert_has("#{search(id)}:focus")
       |> click(option(id, Enum.at(tags, 0).id))
       |> assert_has(badges(id), count: 1)
       |> type(search(id), "Topic 12")

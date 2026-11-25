@@ -260,8 +260,9 @@ defmodule Backpex.HTML.Combobox do
     {aria, rest} = Map.split_with(assigns.rest, fn {key, _value} -> String.starts_with?("#{key}", "aria-") end)
     {form, rest} = Map.pop(rest, :form)
     {rate_limit, rest} = Map.split(rest, [:"phx-debounce", :"phx-throttle"])
-    label_ids = (assigns.label && "#{assigns.id}-label") || aria[:"aria-labelledby"]
-    aria_label = aria[:"aria-label"]
+    # `false` means not set, as in HEEx attributes.
+    label_ids = (assigns.label && "#{assigns.id}-label") || aria[:"aria-labelledby"] || nil
+    aria_label = aria[:"aria-label"] || nil
 
     assigns
     |> assign(:entries, entries)

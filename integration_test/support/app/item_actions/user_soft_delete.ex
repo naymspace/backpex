@@ -1,7 +1,7 @@
 defmodule Backpex.Test.ItemActions.UserSoftDelete do
   @moduledoc """
   An item action with fields that soft deletes users and unassigns their posts, with the labels of the default delete
-  item action.
+  item action. Its `notify` field takes multiple values.
   """
 
   use BackpexWeb, :item_action
@@ -20,14 +20,20 @@ defmodule Backpex.Test.ItemActions.UserSoftDelete do
   @impl Backpex.ItemAction
   def fields do
     [
-      reason: %{module: Backpex.Fields.Textarea, label: "Reason", type: :string}
+      reason: %{module: Backpex.Fields.Textarea, label: "Reason", type: :string},
+      notify: %{
+        module: Backpex.Fields.MultiSelect,
+        label: "Notify",
+        options: fn _assigns -> [{"Authors", "authors"}, {"Admins", "admins"}] end,
+        type: {:array, :string}
+      }
     ]
   end
 
   @impl Backpex.ItemAction
   def changeset(change, attrs, _metadata) do
     change
-    |> cast(attrs, [:reason])
+    |> cast(attrs, [:reason, :notify])
     |> validate_required([:reason])
   end
 
@@ -41,7 +47,7 @@ defmodule Backpex.Test.ItemActions.UserSoftDelete do
   def confirm(_assigns), do: "Why do you want to delete the selected items?"
 
   @impl Backpex.ItemAction
-  def handle(socket, items, _data) do
+  def handle(socket, items, data) do
     # Backpex re-read these items and authorized exactly them under this action's key before calling handle/3, so the
     # write does not check again.
     {:ok, _count} =
@@ -63,8 +69,11 @@ defmodule Backpex.Test.ItemActions.UserSoftDelete do
       )
     end
 
-    {:ok, put_flash(socket, :info, success_message(socket.assigns, items))}
+    {:ok, put_flash(socket, :info, success_message(socket.assigns, items) <> notified_message(data))}
   end
+
+  defp notified_message(%{notify: [_value | _values] = notify}), do: " Notified: #{Enum.join(notify, ", ")}."
+  defp notified_message(_data), do: ""
 
   defp success_message(assigns, [_item]), do: "#{assigns.live_resource.singular_name()} has been deleted successfully."
 

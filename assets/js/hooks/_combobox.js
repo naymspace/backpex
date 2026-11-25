@@ -126,23 +126,40 @@ export default {
     this.controller = new AbortController()
 
     const options = { signal: this.controller.signal }
-    this.el.addEventListener('click', (event) => this.handleClick(event), options)
-    this.el.addEventListener('mousedown', (event) => this.handleMousedown(event), options)
-    this.el.addEventListener('pointermove', (event) => this.handlePointermove(event), options)
-    this.el.addEventListener('keydown', (event) => this.handleKeydown(event), options)
-    this.el.addEventListener('keyup', (event) => this.handleKeyup(event), options)
-    this.el.addEventListener('focusout', (event) => this.handleFocusout(event), options)
-    this.el.addEventListener('focusin', () => { if (this.isOpen) this.syncOpenState() }, options)
-    this.el.addEventListener('input', (event) => this.handleSearchEvent(event), options)
-    this.el.addEventListener('change', (event) => this.handleSearchEvent(event), options)
-    this.el.addEventListener('combobox:open', () => this.open(), options)
-    this.el.addEventListener('combobox:close', () => this.close(), options)
-    this.el.addEventListener('combobox:clear', () => this.setSelection([]), options)
-    this.el.addEventListener('combobox:select-all', () => this.selectAll(), options)
+    // Before LiveView 1.2.10, a combobox that turns disabled or readonly keeps
+    // its hook although the server renders it without one, so the handlers
+    // only run while the root has `phx-hook`.
+    const on = (type, handler) => {
+      this.el.addEventListener(type, (event) => { if (this.isInteractive()) handler(event) }, options)
+    }
+    on('click', (event) => this.handleClick(event))
+    on('mousedown', (event) => this.handleMousedown(event))
+    on('pointermove', (event) => this.handlePointermove(event))
+    on('keydown', (event) => this.handleKeydown(event))
+    on('keyup', (event) => this.handleKeyup(event))
+    on('focusout', (event) => this.handleFocusout(event))
+    on('focusin', () => { if (this.isOpen) this.syncOpenState() })
+    on('input', (event) => this.handleSearchEvent(event))
+    on('change', (event) => this.handleSearchEvent(event))
+    on('combobox:open', () => this.open())
+    on('combobox:close', () => this.close())
+    on('combobox:clear', () => this.setSelection([]))
+    on('combobox:select-all', () => this.selectAll())
 
     this.rememberLabels()
   },
+  beforeUpdate () {
+    this.focusedBeforeUpdate = this.el.contains(document.activeElement)
+  },
   updated () {
+    const hadFocus = this.focusedBeforeUpdate
+    this.focusedBeforeUpdate = false
+
+    if (!this.isInteractive()) {
+      this.close()
+      return
+    }
+
     this.rememberLabels()
     this.syncOptions(this.selectedValues())
 
@@ -153,6 +170,13 @@ export default {
         return
       }
       if (!popup.matches(':popover-open')) popup.showPopover()
+
+      // The patch may have removed the focused element, e.g. the "Show more"
+      // button of the footer after the last page. Keep the focus in the
+      // combobox, so the keyboard still reaches it.
+      if (hadFocus && !this.el.contains(document.activeElement)) {
+        (this.part('search') ?? this.part('trigger'))?.focus({ preventScroll: true })
+      }
 
       // LiveView keeps the value of the focused input; restore it in case
       // focus is elsewhere in the popup, e.g. on a button of the footer.
@@ -183,6 +207,9 @@ export default {
 
   part (name) {
     return this.el.querySelector(`[data-part="${name}"]`)
+  },
+  isInteractive () {
+    return this.el.hasAttribute('phx-hook')
   },
   options () {
     const listbox = this.part('listbox')
@@ -264,7 +291,8 @@ export default {
     this.reconcile(container, existing, values, (input) => input.value, (value) => {
       const input = document.createElement('input')
       input.type = 'hidden'
-      input.name = `${anchor.name}[]`
+      // A combobox without a name submits nothing, like its server-rendered inputs.
+      if (anchor.name) input.name = `${anchor.name}[]`
       input.value = value
       if (anchor.hasAttribute('form')) input.setAttribute('form', anchor.getAttribute('form'))
       return input
@@ -396,9 +424,11 @@ export default {
   open () {
     const popup = this.part('popup')
     if (this.isOpen || !popup) return
-    this.isOpen = true
 
+    // Mark the combobox as open only once the popup shows, so a failing
+    // showPopover() does not leave it open without a popup.
     if (!popup.matches(':popover-open')) popup.showPopover()
+    this.isOpen = true
     this.attachOpenListeners()
 
     const selected = this.selectedValues().map((value) => this.optionByValue(value)).find((option) => option && this.isNavigable(option))
@@ -741,8 +771,10 @@ export default {
       default:
         if (!onTrigger || !isPrintableKey(event)) return
         // With a search input, opening moves focus there and the typed
-        // character lands in it.
-        if (search) this.open()
+        // character lands in it. An open popup, e.g. after removing a badge
+        // left focus on the trigger, only needs the focus moved.
+        if (search && this.isOpen) search.focus({ preventScroll: true })
+        else if (search) this.open()
         else {
           event.preventDefault()
           this.typeaheadKey(event.key)

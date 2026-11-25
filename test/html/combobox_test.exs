@@ -574,6 +574,14 @@ defmodule Backpex.HTML.ComboboxTest do
       assert count(doc, "#choice-label") == 0
     end
 
+    test "treats a false aria-labelledby as not set" do
+      doc = render_combobox(options: ~w(a b), value: "a", "aria-labelledby": false, "aria-label": "Hidden label")
+
+      assert attribute(doc, "#choice-trigger", "aria-labelledby") == ["choice-trigger choice-value"]
+      assert attribute(doc, "#choice-trigger", "aria-label") == ["Hidden label"]
+      assert attribute(doc, "#choice-listbox", "aria-label") == ["Hidden label"]
+    end
+
     test "describes the trigger by errors and help text" do
       doc = render_combobox(options: [], errors: ["is wrong"], help_text: "Pick one", label: "L")
 

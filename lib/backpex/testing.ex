@@ -40,7 +40,8 @@ defmodule Backpex.Testing do
       end
 
   `submit_form/3` and `confirm_item_action/2` take the value of a select as the value of its option, and the values of a
-  multi select or a has many field as a list of them: `%{category_id: category.id, tags: [tag.id]}`.
+  multi select or a has many field as a list of them: `%{category_id: category.id, tags: [tag.id]}`. An empty list
+  clears such a field.
 
   The helpers take an item or its primary value. With an item, they read the primary value with the LiveResource of
   the view, so pass the primary value when you test a LiveView that isn't a view of a LiveResource.
@@ -225,7 +226,8 @@ defmodule Backpex.Testing do
 
   # A combobox for multiple values (`Backpex.Fields.MultiSelect`, `Backpex.Fields.HasMany`) has one input per selected
   # value, which its hook adds in the browser. `Phoenix.LiveViewTest.form/3` only fills in inputs the form renders, so
-  # the values of these fields are sent with the event instead.
+  # the values of these fields are sent with the event instead. An empty list is sent as the empty value of the anchor
+  # input, as the browser does, because the event drops empty lists.
   defp split_selections(view, form_selector, params) do
     {selections, params} =
       Enum.split_with(params, fn {key, _value} ->
@@ -233,7 +235,9 @@ defmodule Backpex.Testing do
         has_element?(view, "#{form_selector} #{anchor}")
       end)
 
-    {Map.new(params), Map.new(selections)}
+    selections = Map.new(selections, fn {key, value} -> {key, if(value == [], do: "", else: value)} end)
+
+    {Map.new(params), selections}
   end
 
   defp primary_value(item, %Phoenix.LiveViewTest.View{module: module}) when is_map(item) do

@@ -225,6 +225,8 @@ defmodule Backpex.Fields.HasMany do
     |> noreply()
   end
 
+  def handle_event("search", _params, socket), do: noreply(socket)
+
   @impl Phoenix.LiveComponent
   def handle_event("show-more", _params, socket) do
     %{assigns: %{field_options: field_options, offset: offset, options: options}} = socket

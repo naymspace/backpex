@@ -247,3 +247,100 @@ describe('BackpexCombobox server search', () => {
     expect(hook.el.listeners).toEqual([])
   })
 })
+
+describe('BackpexCombobox writeInputs', () => {
+  class FakeInput {
+    constructor () {
+      this.attributes = new Map()
+      this.name = ''
+      this.value = ''
+    }
+
+    hasAttribute (name) { return this.attributes.has(name) }
+    getAttribute (name) { return this.attributes.get(name) ?? null }
+    setAttribute (name, value) { this.attributes.set(name, value) }
+    remove () { this.container.children = this.container.children.filter((child) => child !== this) }
+  }
+
+  class FakeContainer {
+    constructor () { this.children = [] }
+
+    querySelectorAll () { return [...this.children] }
+    appendChild (child) {
+      child.container = this
+      this.children = this.children.filter((c) => c !== child).concat(child)
+    }
+  }
+
+  function writeInputs (anchorName, values) {
+    const realDocument = globalThis.document
+    globalThis.document = { createElement: () => new FakeInput() }
+
+    try {
+      const anchor = new FakeInput()
+      anchor.name = anchorName
+      const container = new FakeContainer()
+      const hook = Object.create(Combobox)
+      hook.part = (name) => ({ anchor, inputs: container })[name]
+      hook.isMultiple = () => true
+      hook.writeInputs(values)
+      return container.children
+    } finally {
+      globalThis.document = realDocument
+    }
+  }
+
+  test('names the inputs of a multiple combobox after the anchor', () => {
+    expect(writeInputs('tags', ['a', 'b']).map((input) => [input.name, input.value])).toEqual([['tags[]', 'a'], ['tags[]', 'b']])
+  })
+
+  test('leaves the inputs of a multiple combobox without a name unnamed', () => {
+    expect(writeInputs('', ['a', 'b']).map((input) => [input.name, input.value])).toEqual([['', 'a'], ['', 'b']])
+  })
+})
+
+describe('BackpexCombobox events', () => {
+  function mountHook (attributes) {
+    const listeners = []
+    const hook = Object.create(Combobox)
+    hook.el = {
+      attributes: new Map(Object.entries(attributes)),
+      dataset: {},
+      hasAttribute (name) { return this.attributes.has(name) },
+      getAttribute (name) { return this.attributes.get(name) ?? null },
+      querySelector () { return null },
+      querySelectorAll () { return [] },
+      addEventListener (type, listener) { listeners.push({ type, listener }) }
+    }
+    hook.mounted()
+    hook.dispatch = (type, event = {}) => listeners.filter((l) => l.type === type).forEach((l) => l.listener(event))
+    return hook
+  }
+
+  test('ignores events while the server renders the combobox without its hook', () => {
+    const cleared = []
+    const hook = mountHook({})
+    hook.setSelection = (values) => cleared.push(values)
+    hook.dispatch('combobox:clear')
+    expect(cleared).toEqual([])
+
+    hook.el.attributes.set('phx-hook', 'BackpexCombobox')
+    hook.dispatch('combobox:clear')
+    expect(cleared).toEqual([[]])
+  })
+
+  test('a printable key on the trigger of an open popup moves the focus to the search input', () => {
+    const hook = mountHook({ 'phx-hook': 'BackpexCombobox' })
+    const trigger = {}
+    let focused = 0
+    const search = { focus: () => { focused++ } }
+    hook.part = (name) => ({ trigger, search })[name] ?? null
+    hook.isOpen = true
+    let prevented = false
+
+    hook.handleKeydown({ key: 'a', target: trigger, preventDefault: () => { prevented = true } })
+
+    expect(focused).toBe(1)
+    expect(prevented).toBe(false)
+  })
+})

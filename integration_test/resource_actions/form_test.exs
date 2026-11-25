@@ -47,7 +47,7 @@ defmodule Backpex.Integration.ResourceActions.FormTest do
         |> fill_in("Text", with: "Hello")
         |> click_button("Send email")
       end)
-      |> assert_has("div", text: "An email has been successfully sent to the specified users.")
+      |> assert_has("div", text: "An email has been successfully sent to the specified users: user_id_alex.")
     end
   end
 
@@ -94,7 +94,7 @@ defmodule Backpex.Integration.ResourceActions.FormTest do
         |> form("#resource-form", change: %{text: "Hello"})
         |> render_submit(%{change: %{users: ["user_id_alex"]}})
       end)
-      |> assert_has("div", text: "An email has been successfully sent to the specified users.")
+      |> assert_has("div", text: "An email has been successfully sent to the specified users: user_id_alex.")
     end
   end
 
