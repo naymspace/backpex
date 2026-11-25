@@ -291,16 +291,27 @@ defmodule Backpex.FormComponent do
   end
 
   def handle_event("prototype-simulate-save", _params, socket) do
-    names = Backpex.PrototypeConflictUI.simulate_save(socket.assigns)
+    message =
+      try do
+        names = Backpex.PrototypeConflictUI.simulate_save(socket.assigns)
+        "Another writer changed #{Enum.join(names, ", ")} in the database (no PubSub). Now save the form."
+      rescue
+        error -> "Simulation failed: #{Exception.message(error)}"
+      end
 
-    socket
-    |> assign(:prototype_simulated, "Another writer changed #{Enum.join(names, ", ")} in the database (no PubSub).")
-    |> noreply()
+    socket |> assign(:prototype_simulated, message) |> noreply()
   end
 
   def handle_event("prototype-simulate-delete", _params, socket) do
-    Backpex.PrototypeConflictUI.simulate_delete(socket.assigns)
-    socket |> assign(:prototype_simulated, "Another writer deleted the row (no PubSub).") |> noreply()
+    message =
+      try do
+        Backpex.PrototypeConflictUI.simulate_delete(socket.assigns)
+        "Another writer deleted the row (no PubSub). Now save the form."
+      rescue
+        error -> "Simulation failed: #{Exception.message(error)}"
+      end
+
+    socket |> assign(:prototype_simulated, message) |> noreply()
   end
 
   # Fields are live components that handle their own events. Anything else that reaches the form,

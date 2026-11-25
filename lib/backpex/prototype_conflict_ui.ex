@@ -139,11 +139,21 @@ defmodule Backpex.PrototypeConflictUI do
       for {name, %{module: module}} <- fields,
           module in [Backpex.Fields.Text, Backpex.Fields.Textarea],
           schema.__schema__(:type, name) == :string do
-        {name, "#{Map.get(current, name)} [other admin #{stamp}]"}
+        {name, mark(Map.get(current, name), stamp)}
       end
 
     repo.update_all(from(x in schema, where: field(x, ^pk) == ^id), set: set)
     Enum.map(set, fn {name, _value} -> name end)
+  end
+
+  # Replaces an earlier marker instead of appending another one, and stays within `varchar(255)`.
+  defp mark(value, stamp) do
+    base =
+      (value || "")
+      |> String.replace(~r/ ?\[other admin [0-9:]+\]/, "")
+      |> String.slice(0, 200)
+
+    "#{base} [other admin #{stamp}]"
   end
 
   def simulate_delete(assigns) do
