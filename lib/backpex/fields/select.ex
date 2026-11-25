@@ -127,8 +127,9 @@ defmodule Backpex.Fields.Select do
           clearable={@prompt != nil}
           searchable={@field_options[:searchable_options] == true}
           size="sm"
+          class="min-w-max"
           input_class={[
-            "input min-w-32 h-auto min-h-(--size) w-full py-1",
+            "input min-w-32 max-w-80 h-auto min-h-(--size) w-max py-1",
             @valid && "not-hover:input-ghost",
             !@valid && "input-error bg-error/10"
           ]}

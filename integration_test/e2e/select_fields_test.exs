@@ -21,6 +21,22 @@ defmodule Backpex.E2E.SelectFieldsTest do
     |> assert_has("#{trigger(id)}[aria-expanded=true]")
   end
 
+  defp widths(id) do
+    """
+    (() => {
+      const control = document.getElementById('#{id}-trigger').parentElement
+      const label = control.querySelector('[data-part=value-label]')
+      return {
+        control: control.getBoundingClientRect().width,
+        column: control.closest('.fieldset').getBoundingClientRect().width,
+        page: document.documentElement.scrollWidth,
+        viewport: window.innerWidth,
+        truncated: label.scrollWidth > label.clientWidth
+      }
+    })()
+    """
+  end
+
   describe "multi select field" do
     test "selects, searches and deselects in the browser and submits the selection", %{conn: conn} do
       id = "resource-form_users"
@@ -128,6 +144,56 @@ defmodule Backpex.E2E.SelectFieldsTest do
       |> assert_has("##{id} [data-part=placeholder]", text: "Choose one", exact: true)
       |> evaluate("new Promise((resolve) => setTimeout(resolve, 200))")
       |> tap(fn _conn -> assert Repo.get!(Sample, sample.id).select == nil end)
+    end
+  end
+
+  describe "long option labels" do
+    @long_label String.duplicate("A category with a very long name ", 6)
+    @long_word String.duplicate("Categoryname", 12)
+
+    test "stay inside the form column and truncate the selected label", %{conn: conn} do
+      post = insert(:post, category: insert(:category, name: @long_label))
+
+      conn
+      |> visit(~p"/admin/posts/#{post.id}/edit")
+      |> assert_has("body .phx-connected")
+      |> evaluate(widths("resource-form_category_id"), fn widths ->
+        assert widths["control"] <= widths["column"]
+        assert widths["page"] <= widths["viewport"]
+        assert widths["truncated"]
+      end)
+    end
+
+    test "cap the control of the index form and keep short labels whole", %{conn: conn} do
+      long = insert(:sample, category: insert(:category, name: @long_label))
+      short = insert(:sample, category: insert(:category, name: "Short"))
+
+      conn
+      |> visit(~p"/admin/index-edit-samples")
+      |> assert_has("body .phx-connected")
+      |> evaluate(widths("index-form-input-category-#{long.id}"), fn widths ->
+        assert widths["control"] <= 320
+        assert widths["truncated"]
+      end)
+      |> evaluate(widths("index-form-input-category-#{short.id}"), fn widths ->
+        refute widths["truncated"]
+      end)
+    end
+
+    @tag browser_context_opts: [viewport: %{width: 360, height: 640}]
+    test "wrap a word longer than the popup", %{conn: conn} do
+      insert(:category, name: @long_word)
+      id = "resource-form_category_id"
+
+      conn
+      |> visit(~p"/admin/posts/new")
+      |> assert_has("body .phx-connected")
+      |> open(id)
+      |> assert_has(options(id), text: @long_word)
+      |> evaluate(
+        "(() => { const l = document.getElementById('#{id}-listbox'); return l.scrollWidth <= l.clientWidth })()",
+        fn fits -> assert fits end
+      )
     end
   end
 

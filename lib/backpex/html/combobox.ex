@@ -300,7 +300,7 @@ defmodule Backpex.HTML.Combobox do
         data-max={@multiple && @max}
         data-on-search={@on_search}
         data-search-debounce={@on_search && @search_debounce}
-        class="group/combobox relative isolate"
+        class="group/combobox relative isolate min-w-0"
         {@root_rest}
       >
         <div data-part="inputs">
@@ -589,7 +589,7 @@ defmodule Backpex.HTML.Combobox do
       >
         <.icon name="hero-check" class="group-aria-selected/option:visible invisible size-3" />
       </span>
-      <span class="min-w-0 flex-1">
+      <span class="min-w-0 flex-1 break-words">
         <%= if @content != [] do %>
           {render_slot(@content, @option)}
         <% else %>
