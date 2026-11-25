@@ -212,8 +212,8 @@ defmodule Backpex.LiveResource.FormLiveNoticePrototype do
 
   def banner(%{proto: %{remote: :deleted, variant: variant}} = assigns) when variant != "nothing" do
     ~H"""
-    <div role="alert" class="alert alert-error mb-4">
-      <span>
+    <div role="alert" class="alert alert-error mb-4 flex flex-wrap items-center justify-between">
+      <span class="min-w-0 flex-1 basis-80">
         <strong>Someone else deleted this post.</strong>
         It can't be saved anymore. Your input stays here so you can copy it.
       </span>
@@ -229,8 +229,8 @@ defmodule Backpex.LiveResource.FormLiveNoticePrototype do
       |> assign(:conflicts, Enum.filter(assigns.rows, & &1.conflict?))
 
     ~H"""
-    <div :if={@theirs != [] or @conflicts != []} role="status" class={["alert mb-4", if(@conflicts != [], do: "alert-warning", else: "alert-info")]}>
-      <div>
+    <div :if={@theirs != [] or @conflicts != []} role="status" class={["alert mb-4 flex flex-wrap items-center justify-between", if(@conflicts != [], do: "alert-warning", else: "alert-info")]}>
+      <div class="min-w-0 flex-1 basis-80">
         <p><strong>Someone else saved this post</strong> while you were editing it.</p>
         <p :if={@theirs != []} class="text-sm">
           Their changes: {Enum.map_join(@theirs, ", ", & &1.label)}.
@@ -240,7 +240,7 @@ defmodule Backpex.LiveResource.FormLiveNoticePrototype do
           You'll choose when you save.
         </p>
       </div>
-      <div class="flex gap-2">
+      <div class="flex flex-wrap gap-2">
         <button :if={@theirs != []} type="button" class="btn btn-sm btn-primary" phx-click="proto-take-over">
           Take over their changes
         </button>
