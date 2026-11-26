@@ -341,11 +341,7 @@ defmodule Backpex.E2E.SidebarTest do
 
   # A write retires its pending entry once its response is handled, and the cookie goes with the last one.
   defp assert_preference_writes_settled(session) do
-    Playwright.Expect.poll!(fn -> pending_preferences_cookie(session) end, &assert(&1 == nil),
-      message: "the preference writes settle"
-    )
-
-    session
+    assert(session, poll(&pending_preferences_cookie/1, &assert(&1 == nil), message: "the preference writes settle"))
   end
 
   # sessionStorage is per tab, so a new tab renders what the server stored, not the hook's mirror.

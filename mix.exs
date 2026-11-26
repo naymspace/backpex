@@ -114,7 +114,7 @@ defmodule Backpex.MixProject do
         {:ecto_sql, "~> 3.10", only: :test},
         {:bandit, "~> 1.14", only: :test},
         {:phoenix_test, "~> 0.13.0", only: :test, runtime: false},
-        {:fluffy, "~> 0.9.0-rc.6", only: :test},
+        {:fluffy, "~> 0.9.0-rc.7", only: :test},
         {:a11y_audit, "~> 0.5.0", only: :test},
         {:ex_machina, "~> 2.8", only: :test},
         {:money, "~> 1.14", only: :test}
