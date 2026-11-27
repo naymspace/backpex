@@ -88,6 +88,8 @@ config :phoenix_test,
     browser: browser,
     browser_pools: [[id: :default_pool, browser: browser]],
     browser_launch_timeout: 10_000,
+    # Firefox and WebKit often took longer than the default 2 seconds on CI to open a page or show an element.
+    timeout: if(browser == :chromium, do: 2_000, else: 5_000),
     trace: System.get_env("PW_TRACE", "false") in ~w(t true),
     trace_dir: "tmp/e2e/traces"
   ]
