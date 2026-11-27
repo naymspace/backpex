@@ -7,6 +7,28 @@ import Combobox, {
   typeaheadIndex
 } from '../../assets/js/hooks/_combobox'
 
+// Bun has no DOM, and the hook listens on the document, so every test gets a fake one.
+let realDocument
+
+beforeEach(() => {
+  realDocument = globalThis.document
+  globalThis.document = {
+    listeners: [],
+    addEventListener (type, listener, { signal }) {
+      const entry = { type, listener }
+      this.listeners.push(entry)
+      signal.addEventListener('abort', () => { this.listeners = this.listeners.filter((e) => e !== entry) })
+    },
+    dispatch (type, event) {
+      this.listeners.filter((l) => l.type === type).forEach((l) => l.listener(event))
+    }
+  }
+})
+
+afterEach(() => {
+  globalThis.document = realDocument
+})
+
 describe('normalizeText and matchesQuery', () => {
   test('ignore case and diacritics', () => {
     expect(normalizeText('Zürich')).toBe('zurich')
@@ -208,31 +230,17 @@ describe('BackpexCombobox server search', () => {
     expect(hook.el.hasAttribute('data-loading')).toBe(false)
   })
 
-  test('destroyed() removes the document listener and stops the positioning of an open popup', () => {
-    const realDocument = globalThis.document
-    globalThis.document = {
-      listeners: [],
-      addEventListener (type, listener, { signal }) {
-        const entry = { type }
-        this.listeners.push(entry)
-        signal.addEventListener('abort', () => { this.listeners = this.listeners.filter((e) => e !== entry) })
-      }
-    }
+  test('destroyed() removes the document listeners and stops the positioning of an open popup', () => {
+    const hook = mountHook()
+    let stopped = 0
+    hook.attachOpenListeners()
+    hook.stopAutoUpdate = () => { stopped++ }
+    expect(document.listeners.map((l) => l.type)).toEqual(['reset', 'pointerdown'])
 
-    try {
-      const hook = mountHook()
-      let stopped = 0
-      hook.attachOpenListeners()
-      hook.stopAutoUpdate = () => { stopped++ }
-      expect(document.listeners.map((l) => l.type)).toEqual(['pointerdown'])
-
-      hook.destroyed()
-      expect(document.listeners).toEqual([])
-      expect(stopped).toBe(1)
-      expect(hook.stopAutoUpdate).toBe(null)
-    } finally {
-      globalThis.document = realDocument
-    }
+    hook.destroyed()
+    expect(document.listeners).toEqual([])
+    expect(stopped).toBe(1)
+    expect(hook.stopAutoUpdate).toBe(null)
   })
 
   test('destroyed() cancels a pending search and removes the listeners', () => {
@@ -273,21 +281,16 @@ describe('BackpexCombobox writeInputs', () => {
   }
 
   function writeInputs (anchorName, values) {
-    const realDocument = globalThis.document
-    globalThis.document = { createElement: () => new FakeInput() }
+    globalThis.document.createElement = () => new FakeInput()
 
-    try {
-      const anchor = new FakeInput()
-      anchor.name = anchorName
-      const container = new FakeContainer()
-      const hook = Object.create(Combobox)
-      hook.part = (name) => ({ anchor, inputs: container })[name]
-      hook.isMultiple = () => true
-      hook.writeInputs(values)
-      return container.children
-    } finally {
-      globalThis.document = realDocument
-    }
+    const anchor = new FakeInput()
+    anchor.name = anchorName
+    const container = new FakeContainer()
+    const hook = Object.create(Combobox)
+    hook.part = (name) => ({ anchor, inputs: container })[name]
+    hook.isMultiple = () => true
+    hook.writeInputs(values)
+    return container.children
   }
 
   test('names the inputs of a multiple combobox after the anchor', () => {
@@ -327,6 +330,36 @@ describe('BackpexCombobox events', () => {
     hook.el.attributes.set('phx-hook', 'BackpexCombobox')
     hook.dispatch('combobox:clear')
     expect(cleared).toEqual([[]])
+  })
+
+  test('a reset of its form restores the selection the server rendered, closed', () => {
+    const hook = mountHook({ 'phx-hook': 'BackpexCombobox' })
+    hook.el.dataset.defaultValue = '["a","c"]'
+    const form = {}
+    const anchor = { form }
+    hook.part = (name) => ({ anchor })[name] ?? null
+    const calls = []
+    for (const name of ['close', 'writeInputs', 'renderSelection', 'syncOptions', 'notify']) {
+      hook[name] = (values) => calls.push(values === undefined ? [name] : [name, values])
+    }
+
+    // Another form, a reset that a listener cancelled and a form without the combobox's anchor.
+    document.dispatch('reset', { target: {}, defaultPrevented: false })
+    document.dispatch('reset', { target: form, defaultPrevented: true })
+    anchor.form = null
+    document.dispatch('reset', { target: form, defaultPrevented: false })
+    expect(calls).toEqual([])
+
+    // A combobox can belong to a form it is not inside, so the anchor's form decides.
+    anchor.form = form
+    document.dispatch('reset', { target: form, defaultPrevented: false })
+    expect(calls).toEqual([['close'], ['writeInputs', ['a', 'c']], ['renderSelection', ['a', 'c']], ['syncOptions', ['a', 'c']]])
+
+    // Not while the server renders the combobox without its hook.
+    calls.length = 0
+    hook.el.attributes.delete('phx-hook')
+    document.dispatch('reset', { target: form, defaultPrevented: false })
+    expect(calls).toEqual([])
   })
 
   test('a printable key on the trigger of an open popup moves the focus to the search input', () => {

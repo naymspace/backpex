@@ -138,6 +138,10 @@ defmodule Backpex.HTML.Combobox do
   combobox keeps the admin's choice when the server renders the same value as before, since such a patch does not
   touch the field.
 
+  A form `reset` brings back the selection the server rendered last, as it does for a native `<select>`, and LiveView
+  then sends the form's `phx-change` with the reset values. This also works for a combobox that belongs to the form
+  through a `form` attribute.
+
   `phx-debounce` and `phx-throttle` are passed on to the anchor input, so they delay or limit the `phx-change` event of
   the combobox like they do for an input. With `phx-debounce="blur"` the event is sent when focus leaves the combobox.
 
@@ -301,6 +305,7 @@ defmodule Backpex.HTML.Combobox do
         data-max={@multiple && @max}
         data-on-search={@on_search}
         data-search-debounce={@on_search && @search_debounce}
+        data-default-value={@interactive && Phoenix.json_library().encode!(@selected_values)}
         class="group/combobox relative isolate min-w-0"
         {@root_rest}
       >

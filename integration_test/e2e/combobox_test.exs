@@ -549,6 +549,71 @@ defmodule Backpex.E2E.ComboboxTest do
     end
   end
 
+  # The comboboxes of `#reset-form` have values the server renders the same whatever the form sends.
+  describe "form reset" do
+    test "restores the selection the server rendered and sends it with phx-change", %{conn: conn} do
+      conn
+      |> visit_fixture()
+      |> open("reset-choice")
+      |> click(option("reset-choice", "c"))
+      |> assert_state("reset-choice", anchor: "c", label: "Option C", selected: ["c"])
+      |> open("reset-tags")
+      |> click(option("reset-tags", "a"))
+      |> click(option("reset-tags", "b"))
+      |> click("h1")
+      |> assert_state("reset-tags", values: ["c", "b"], selected: ["b", "c"])
+      # A combobox outside the form that belongs to it through the `form` attribute.
+      |> open("reset-outside")
+      |> click(option("reset-outside", "b"))
+      |> click("h1")
+      |> assert_state("reset-outside", values: [], placeholder: true)
+      |> assert_has("#changes", text: "Changes: 4")
+      |> click("#reset-button")
+      |> assert_state("reset-choice", anchor: "b", label: "Option B", placeholder: false, selected: ["b"])
+      |> assert_has("#reset-choice [data-part=clear]:not([hidden])")
+      |> assert_state("reset-tags",
+        anchor: "",
+        values: ["a", "c"],
+        badges: [["a", "Option A", true], ["c", "Option C", true]],
+        placeholder: false,
+        selected: ["a", "c"]
+      )
+      |> assert_state("reset-outside", values: ["b"], badges: [["b", "Option B", true]], selected: ["b"])
+      # LiveView sends the form's phx-change with the reset values one frame after the reset, and the reset fields
+      # count as unused again, like native inputs.
+      |> assert_has("#changes", text: "Changes: 5")
+      |> last_change(fn params ->
+        assert params["reset"] == %{
+                 "choice" => "b",
+                 "tags" => ["a", "c"],
+                 "outside" => ["b"],
+                 "_unused_choice" => "",
+                 "_unused_tags" => "",
+                 "_unused_outside" => ""
+               }
+      end)
+    end
+
+    test "closes an open popup and clears its query", %{conn: conn} do
+      conn
+      |> visit_fixture()
+      |> open("reset-choice")
+      |> click(option("reset-choice", "a"))
+      |> assert_state("reset-choice", anchor: "a", label: "Option A")
+      |> open("reset-choice")
+      |> type(search("reset-choice"), "C")
+      |> assert_has("#reset-choice-listbox [data-part=option]", count: 1)
+      |> evaluate("document.getElementById('reset-form').reset()")
+      |> assert_closed("reset-choice")
+      |> assert_state("reset-choice", anchor: "b", label: "Option B", selected: ["b"])
+      |> assert_has("#changes", text: "Changes: 2")
+      |> last_change(&assert(&1["reset"]["choice"] == "b"))
+      |> open("reset-choice")
+      |> assert_has(search("reset-choice"), value: "")
+      |> assert_has("#reset-choice-listbox [data-part=option]", count: 3)
+    end
+  end
+
   describe "server search" do
     test "searches on the server and keeps the label of a selected option that the search filtered out",
          %{conn: conn} do

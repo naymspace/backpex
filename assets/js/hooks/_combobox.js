@@ -12,7 +12,8 @@
  * server-rendered inputs are the truth again: `updated()` re-derives the state
  * from the DOM and re-applies what only the client knows (open popup, query,
  * active option, position), because morphdom strips attributes the server did
- * not render.
+ * not render. A form reset restores the selection the server rendered last,
+ * which the root keeps in `data-default-value`.
  *
  * Parts are looked up by `data-part` when needed instead of in `mounted()`,
  * as a patch can re-create them while the hook stays mounted.
@@ -145,6 +146,11 @@ export default {
     on('combobox:close', () => this.close())
     on('combobox:clear', () => this.setSelection([]))
     on('combobox:select-all', () => this.selectAll())
+    // On the document, as the anchor's form can change with a patch, and a
+    // `form` attribute can tie the combobox to a form it is not inside.
+    document.addEventListener('reset', (event) => {
+      if (this.isInteractive() && event.target === this.part('anchor')?.form && !event.defaultPrevented) this.handleReset()
+    }, options)
 
     this.rememberLabels()
   },
@@ -796,6 +802,21 @@ export default {
     // A null relatedTarget is a click on something that can't take focus;
     // the pointerdown listener decides whether that was outside.
     if (this.closeOnFocusMove || (next && !this.el.contains(next))) this.close()
+  },
+  // A form reset brings back the selection the server rendered last, like the
+  // `value` and `selected` attributes of native inputs; the root keeps it in
+  // `data-default-value`, which the hook never writes. The reset event fires
+  // before the browser resets the inputs, but it leaves the hook's hidden
+  // inputs alone and sets the anchor to its `value` attribute, which is the
+  // same render. So the selection is restored right away, before LiveView
+  // sends `phx-change` with the reset values one frame later. Like a native
+  // reset, it dispatches no `input`, `change` or `combobox:change`.
+  handleReset () {
+    const values = JSON.parse(this.el.dataset.defaultValue ?? '[]')
+    this.close()
+    this.writeInputs(values)
+    this.renderSelection(values)
+    this.syncOptions(values)
   },
   // The search input has no name and must not reach LiveView's form handling,
   // which would send `phx-change` for every keystroke.

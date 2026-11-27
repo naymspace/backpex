@@ -141,6 +141,8 @@ defmodule Backpex.HTML.ComboboxTest do
       assert attribute(doc, "[data-part=placeholder]", "hidden") == [""]
       assert attribute(doc, "[data-part=clear]", "hidden") == []
       assert submitted_params(doc) == %{"choice" => "2"}
+      # The hook restores this selection on a form reset.
+      assert attribute(doc, "#choice", "data-default-value") == [~s(["2"])]
 
       # Values are compared as strings, so a list value uses its first element.
       assert render_combobox(options: [{"One", 1}], value: ["1"]) |> texts("[data-part=value-label]") == ["One"]
@@ -154,6 +156,7 @@ defmodule Backpex.HTML.ComboboxTest do
       assert attribute(doc, "[data-part=value-label]", "hidden") == [""]
       assert attribute(doc, "[data-part=clear]", "hidden") == [""]
       assert submitted_params(doc) == %{"choice" => ""}
+      assert attribute(doc, "#choice", "data-default-value") == ["[]"]
     end
 
     test "the anchor input is a hidden text input, so LiveView tracks whether it was used" do
@@ -192,6 +195,7 @@ defmodule Backpex.HTML.ComboboxTest do
 
       assert attribute(doc, "[data-part=inputs] input", "name") == ["choice", "choice[]", "choice[]"]
       assert submitted_params(doc) == %{"choice" => ["erl", "ex"]}
+      assert attribute(doc, "#choice", "data-default-value") == [~s(["erl","ex"])]
       assert submitted_params(render_combobox(options: ["a"], value: [], multiple: true)) == %{"choice" => ""}
     end
 
@@ -294,6 +298,7 @@ defmodule Backpex.HTML.ComboboxTest do
         doc = render_combobox([{state, true}, options: ~w(a b c), value: ~w(a c), multiple: true, clearable: true])
 
         assert attribute(doc, "#choice", "phx-hook") == []
+        assert attribute(doc, "#choice", "data-default-value") == []
         assert count(doc, "[data-part=popup]") == 0
         assert count(doc, "[data-part=clear]") == 0
         assert count(doc, "template") == 0

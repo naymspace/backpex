@@ -1528,6 +1528,9 @@ var combobox_default = {
     on("combobox:close", () => this.close());
     on("combobox:clear", () => this.setSelection([]));
     on("combobox:select-all", () => this.selectAll());
+    document.addEventListener("reset", (event) => {
+      if (this.isInteractive() && event.target === this.part("anchor")?.form && !event.defaultPrevented) this.handleReset();
+    }, options);
     this.rememberLabels();
   },
   beforeUpdate() {
@@ -2071,6 +2074,21 @@ var combobox_default = {
     if (!next || !this.el.contains(next)) this.part("anchor")?.dispatchEvent(new window.Event("blur"));
     if (!this.isOpen) return;
     if (this.closeOnFocusMove || next && !this.el.contains(next)) this.close();
+  },
+  // A form reset brings back the selection the server rendered last, like the
+  // `value` and `selected` attributes of native inputs; the root keeps it in
+  // `data-default-value`, which the hook never writes. The reset event fires
+  // before the browser resets the inputs, but it leaves the hook's hidden
+  // inputs alone and sets the anchor to its `value` attribute, which is the
+  // same render. So the selection is restored right away, before LiveView
+  // sends `phx-change` with the reset values one frame later. Like a native
+  // reset, it dispatches no `input`, `change` or `combobox:change`.
+  handleReset() {
+    const values = JSON.parse(this.el.dataset.defaultValue ?? "[]");
+    this.close();
+    this.writeInputs(values);
+    this.renderSelection(values);
+    this.syncOptions(values);
   },
   // The search input has no name and must not reach LiveView's form handling,
   // which would send `phx-change` for every keystroke.

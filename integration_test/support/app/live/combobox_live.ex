@@ -9,7 +9,11 @@ defmodule Backpex.Test.ComboboxLive do
 
   The server overrules the admin's choice in `restricted` and `restricted_tags`, as a `phx-change` handler that drops
   an invalid value would: it keeps the previous value instead of `"rejected"` and replaces `"other"` with `"allowed"`.
-  `blur_choice` has `phx-debounce="blur"`. `Backpex.Test.ComboboxSearchComponent` handles the server search of its
+  `blur_choice` has `phx-debounce="blur"`.
+
+  The comboboxes of the form `#reset-form` have values the server renders the same whatever the form sends, so its
+  reset button `#reset-button` has a selection to bring back. `reset-outside` belongs to it through the `form`
+  attribute. Its `phx-change` also goes to `#last-change` and `#changes`. `Backpex.Test.ComboboxSearchComponent` handles the server search of its
   combobox itself (`phx-target`).
   """
   use Phoenix.LiveView
@@ -323,6 +327,32 @@ defmodule Backpex.Test.ComboboxLive do
           <.combobox field={@form[:bottom_choice]} label="Bottom choice" options={@countries} class="md:col-span-2" />
         </.form>
 
+        <form id="reset-form" phx-change="reset-change" class="grid gap-4 md:grid-cols-2">
+          <.combobox id="reset-choice" name="reset[choice]" value="b" label="Reset choice" options={@simple} clearable />
+          <.combobox
+            id="reset-tags"
+            name="reset[tags]"
+            value={~w(a c)}
+            label="Reset tags"
+            options={@simple}
+            multiple
+            clearable
+          />
+          <div class="md:col-span-2">
+            <button id="reset-button" type="reset" class="btn btn-sm">Reset</button>
+          </div>
+        </form>
+
+        <.combobox
+          id="reset-outside"
+          name="reset[outside]"
+          value={~w(b)}
+          label="Reset outside"
+          options={@simple}
+          multiple
+          form="reset-form"
+        />
+
         <.combobox
           id="standalone"
           name="standalone"
@@ -383,6 +413,13 @@ defmodule Backpex.Test.ComboboxLive do
     socket
     |> assign(:last_submit, all_params)
     |> assign_form(params, true)
+    |> then(&{:noreply, &1})
+  end
+
+  def handle_event("reset-change", params, socket) do
+    socket
+    |> assign(:last_change, params)
+    |> update(:changes, &(&1 + 1))
     |> then(&{:noreply, &1})
   end
 
