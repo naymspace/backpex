@@ -394,9 +394,11 @@ jobs:
         run: bun run e2e:assets
 
       - name: Run browser tests
-        # A failed test runs again with traces for the artifact, but the step fails anyway, so a flaky test shows up.
+        # One test per core: Firefox and WebKit need more CPU per page than Chromium, and with ExUnit's default of two
+        # tests per core, opening and loading pages exceeded the 2 second timeout of Playwright. A failed test runs again
+        # with traces for the artifact, but the step fails anyway, so a flaky test shows up.
         run: |
-          mix test --only e2e || {
+          mix test --only e2e --max-cases "$(nproc)" || {
             status=$?
             if [[ $status = 2 ]]; then PW_TRACE=true mix test --only e2e --max-cases 1 --failed || true; fi
             exit $status
