@@ -94,6 +94,7 @@ defmodule Backpex.Fields.HasMany do
 
   alias Backpex.Adapters.Ecto, as: EctoAdapter
   alias Backpex.Authorization
+  alias Backpex.Fields.OptionsQuery
   alias Backpex.HTML.Combobox
   alias Backpex.Router
 
@@ -375,68 +376,28 @@ defmodule Backpex.Fields.HasMany do
   end
 
   defp assign_options(socket, other_options \\ []) do
-    %{assigns: %{field_options: field_options, search_input: search_input, offset: offset} = assigns} = socket
-    limit = field_options[:query_limit]
-
-    options = other_options ++ options(assigns, offset: offset, limit: limit, search: search_input)
-
-    show_more = count_options(assigns, search: search_input) > length(options)
-
-    socket
-    |> assign(:options, options)
-    |> assign(:show_more, show_more)
+    OptionsQuery.assign_page(socket, options_opts(socket.assigns), other_options)
   end
 
-  defp options(assigns, opts) do
-    %{field: field, field_options: field_options, options_base_query: query} = assigns
-    repo = assigns.live_resource.adapter_config(:repo)
-    primary_key = primary_key(field, queryable(assigns))
-
-    query
-    |> maybe_search_query(query.from.as, field_options, display_field(field), Keyword.get(opts, :search))
-    |> maybe_offset_query(Keyword.get(opts, :offset))
-    |> maybe_limit_query(Keyword.get(opts, :limit))
-    |> repo.all()
-    |> Enum.map(fn item ->
-      {Map.get(item, display_field_form(field)), Map.fetch!(item, primary_key)}
-    end)
+  defp count_options(assigns) do
+    OptionsQuery.count(assigns.options_base_query, [], options_opts(assigns))
   end
 
-  defp maybe_limit_query(query, nil), do: query
-  defp maybe_limit_query(query, limit), do: query |> limit(^limit)
+  # How the field reads its options, see `Backpex.Fields.OptionsQuery.list/3`.
+  defp options_opts(%{field: {_name, field_options} = field} = assigns) do
+    queryable = queryable(assigns)
 
-  defp maybe_offset_query(query, nil), do: query
-  defp maybe_offset_query(query, offset), do: query |> offset(^offset)
+    [
+      repo: assigns.live_resource.adapter_config(:repo),
+      queryable: queryable,
+      label: display_field_form(field),
+      value: primary_key(field, queryable),
+      search_by: Map.get(field_options, :select) || display_field(field)
+    ]
+  end
 
   defp maybe_options_query(query, %{options_query: options_query}, assigns), do: options_query.(query, assigns)
   defp maybe_options_query(query, _field_options, _assigns), do: query
-
-  defp maybe_search_query(query, _schema_name, _field_options, _display_field, nil), do: query
-
-  defp maybe_search_query(query, schema_name, field_options, display_field, search_input) do
-    if String.trim(search_input) == "" do
-      query
-    else
-      search_input = "%#{search_input}%"
-      select = Map.get(field_options, :select)
-
-      if select do
-        where(query, ^dynamic(ilike(^select, ^search_input)))
-      else
-        where(query, [{^schema_name, schema_name}], ilike(field(schema_name, ^display_field), ^search_input))
-      end
-    end
-  end
-
-  defp count_options(assigns, opts \\ []) do
-    %{field: field, field_options: field_options, options_base_query: query} = assigns
-    repo = assigns.live_resource.adapter_config(:repo)
-
-    query
-    |> maybe_search_query(query.from.as, field_options, display_field(field), Keyword.get(opts, :search))
-    |> subquery()
-    |> repo.aggregate(:count)
-  end
 
   def assign_selected(socket) do
     primary_key = primary_key(socket.assigns.field, queryable(socket.assigns))
@@ -472,15 +433,9 @@ defmodule Backpex.Fields.HasMany do
   defp fetch_from_db([], _socket), do: []
 
   defp fetch_from_db(ids_to_fetch, socket) do
-    repo = socket.assigns.live_resource.adapter_config(:repo)
-    primary_key = primary_key(socket.assigns.field, queryable(socket.assigns))
+    %{assigns: assigns} = socket
 
-    socket.assigns.options_base_query
-    |> where([x], field(x, ^primary_key) in ^ids_to_fetch)
-    |> repo.all()
-    |> Enum.map(fn item ->
-      {Map.get(item, display_field_form(socket.assigns.field)), Map.fetch!(item, primary_key)}
-    end)
+    OptionsQuery.list(assigns.options_base_query, [ids: ids_to_fetch], options_opts(assigns))
   end
 
   defp queryable(%{live_resource: live_resource, field: field}) do
