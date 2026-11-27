@@ -180,6 +180,16 @@ defmodule Backpex.Fields.InlineCRUDTest do
     end
   end
 
+  # The form of another adapter has no Ecto changeset to read the cardinality from.
+  describe "render_form/1 for a form without an Ecto changeset" do
+    test "renders the rows of a list with their controls" do
+      html = render_form(:links, form: to_form(%{}, as: :change))
+
+      assert html |> LazyHTML.query("button[name='change[links_delete][]']") |> Enum.count() == 1
+      assert html |> LazyHTML.query("input[type=checkbox][name='change[links_order][]']") |> Enum.count() == 1
+    end
+  end
+
   # The form of a resource action or an item action works on the base schema of the action, so the rows are looked up in
   # the changeset of the form and no LiveResource with that schema is needed.
   describe "param_keys/2" do

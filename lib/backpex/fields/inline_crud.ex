@@ -352,21 +352,21 @@ defmodule Backpex.Fields.InlineCRUD do
 
   defp primary_keys(_assigns, _name), do: []
 
-  # The `Ecto.Embedded` or `Ecto.Association` struct of the field in the types of a changeset.
+  # The `Ecto.Embedded` or `Ecto.Association` struct of the field in the types of a changeset. `cast_embed/3`,
+  # `cast_assoc/3` and `inputs_for` take only these two shapes.
   defp relation(types, name) do
     case Map.get(types, name) do
       {tag, %{related: _related} = relation} when tag in [:embed, :assoc] -> relation
-      {:parameterized, {Ecto.Embedded, relation}} -> relation
       _type -> nil
     end
   end
 
   # Whether the form renders a list of rows (`embeds_many`, `has_many`) or the one row of an `embeds_one`.
+  # `row_count/1` has already raised for a field of a changeset that is no relation. A form of another adapter
+  # renders a list.
   defp cardinality(%FormField{form: %{source: %Ecto.Changeset{types: types}}, field: field}) do
-    case relation(types, field) do
-      %{cardinality: cardinality} -> cardinality
-      nil -> :many
-    end
+    %{cardinality: cardinality} = relation(types, field)
+    cardinality
   end
 
   defp cardinality(_form_field), do: :many
