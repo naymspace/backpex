@@ -22,5 +22,6 @@ defmodule Backpex.Test.ShortLink do
     short_link
     |> cast(attrs, @required_fields)
     |> validate_required(@required_fields)
+    |> unique_constraint(:short_key, name: :short_links_pkey)
   end
 end

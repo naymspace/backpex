@@ -86,6 +86,21 @@ These are provided by `use Backpex.Field` and can be overridden as needed:
 @callback search_condition(schema_name :: binary(), field_name :: binary(), search_string :: binary()) # Default: ilike
 ```
 
+### Upload Callbacks (optional)
+
+A custom upload field implements these instead of passing functions as options, like `Backpex.Fields.Upload` does:
+
+```elixir
+@callback list_existing_files(field, item)
+@callback put_upload_change(field, socket, params, item, uploaded_entries, removed_entries, action)
+@callback consume_upload(field, socket, item, meta, entry) # {:ok, value} | {:error, reason}
+@callback remove_uploads(field, socket, item, removed_entries)
+@callback discard_uploads(field, socket, item, stored)     # optional
+@callback upload_error(field, error, upload, assigns)      # optional
+```
+
+`consume_upload/5` runs before the item is saved and gets the item without its changes (on create, `id` is `nil`), so build the file name from the entry (`entry.uuid`), never from the item. A failed write returns `{:error, reason}` and refuses the save. If the save fails afterwards, `discard_uploads/4` gets the values of `{:ok, value}` to delete the files, and the next save calls `consume_upload/5` again for the same entries. See the "Custom upload fields" section of `guides/fields/custom-fields.md`.
+
 ### Key Assigns Available in Templates
 
 | Assign | Description |
