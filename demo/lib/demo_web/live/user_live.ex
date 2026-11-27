@@ -208,6 +208,22 @@ defmodule DemoWeb.UserLive do
             label: "Notes"
           }
         ]
+      },
+      emergency_contact: %{
+        module: Backpex.Fields.InlineCRUD,
+        label: "Emergency contact",
+        type: :embed,
+        except: [:index],
+        child_fields: [
+          name: %{
+            module: Backpex.Fields.Text,
+            label: "Name"
+          },
+          phone: %{
+            module: Backpex.Fields.Text,
+            label: "Phone"
+          }
+        ]
       }
     ]
   end

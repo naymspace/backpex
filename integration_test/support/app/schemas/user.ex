@@ -27,6 +27,11 @@ defmodule Backpex.Test.User do
       field :url, :string
     end
 
+    embeds_one :emergency_contact, EmergencyContact do
+      field :name, :string
+      field :phone, :string
+    end
+
     timestamps()
   end
 
@@ -42,6 +47,7 @@ defmodule Backpex.Test.User do
       sort_param: :social_links_order,
       drop_param: :social_links_delete
     )
+    |> cast_embed(:emergency_contact, with: &emergency_contact_changeset/2)
     |> validate_required(@required_fields)
   end
 
@@ -49,5 +55,9 @@ defmodule Backpex.Test.User do
     social_link
     |> cast(attrs, [:label, :url])
     |> validate_required([:label, :url])
+  end
+
+  def emergency_contact_changeset(emergency_contact, attrs) do
+    cast(emergency_contact, attrs, [:name, :phone])
   end
 end

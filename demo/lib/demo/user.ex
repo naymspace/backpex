@@ -34,6 +34,11 @@ defmodule Demo.User do
       field :notes, :string
     end
 
+    embeds_one :emergency_contact, EmergencyContact do
+      field :name, :string
+      field :phone, :string
+    end
+
     timestamps()
   end
 
@@ -55,6 +60,7 @@ defmodule Demo.User do
       sort_param: :web_links_order,
       drop_param: :web_links_delete
     )
+    |> cast_embed(:emergency_contact, with: &emergency_contact_changeset/2)
     |> validate_required(@required_fields)
     |> validate_posts()
     |> validate_change(:avatar, fn
@@ -81,6 +87,10 @@ defmodule Demo.User do
     schema
     |> cast(attrs, @required_fields ++ @optional_fields)
     |> validate_required(@required_fields)
+  end
+
+  def emergency_contact_changeset(schema, attrs) do
+    cast(schema, attrs, [:name, :phone])
   end
 
   defp validate_posts(changeset) do

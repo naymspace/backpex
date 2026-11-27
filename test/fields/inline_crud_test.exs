@@ -33,6 +33,7 @@ defmodule Backpex.Fields.InlineCRUDTest do
 
     schema "products" do
       embeds_many :links, Link, on_replace: :delete
+      embeds_one :main_link, Link
       has_many :suppliers, Supplier, on_replace: :delete
     end
   end
@@ -48,6 +49,7 @@ defmodule Backpex.Fields.InlineCRUDTest do
   defp product do
     %Product{
       links: [%Link{id: "a", url: "https://a.example"}, %Link{id: "b", url: "https://b.example"}],
+      main_link: %Link{id: "c", url: "https://c.example"},
       suppliers: [%Supplier{id: 1, url: "https://a.example"}, %Supplier{id: 2, url: "https://b.example"}]
     }
   end
@@ -147,6 +149,33 @@ defmodule Backpex.Fields.InlineCRUDTest do
         assert render_form(@name, readonly: true)
                |> LazyHTML.query("button[name='change[#{@name}_delete][]']")
                |> Enum.empty?()
+      end
+    end
+  end
+
+  describe "render_form/1 for an embeds_one" do
+    setup do
+      %{
+        child_fields: [
+          label: %{module: Backpex.Fields.Text, label: "Label"},
+          url: %{module: Backpex.Fields.Text, label: "URL"}
+        ]
+      }
+    end
+
+    test "renders one labelled row without controls to add, delete or reorder it", %{child_fields: child_fields} do
+      html = render_form(:main_link, child_fields: child_fields)
+
+      assert html |> LazyHTML.query("input[name='change[main_link][url]']") |> LazyHTML.attribute("value") == [
+               "https://c.example"
+             ]
+
+      assert html |> LazyHTML.query("[name^='change[main_link_']") |> Enum.empty?()
+      assert html |> LazyHTML.query("button") |> Enum.empty?()
+
+      for ids <- html |> LazyHTML.query("input[aria-labelledby]") |> LazyHTML.attribute("aria-labelledby"),
+          id <- String.split(ids) do
+        assert html |> LazyHTML.query("##{id}") |> Enum.count() == 1
       end
     end
   end
