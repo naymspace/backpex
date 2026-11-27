@@ -21,7 +21,7 @@ defmodule Backpex.Metrics.Value do
     ],
     class: [
       doc: "Extra css classes to be passed to the metric box.",
-      type: {:or, [:string, {:list, :any}]}
+      type: {:or, [:string, {:list, :any}, nil]}
     ]
   ]
 

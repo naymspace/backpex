@@ -178,8 +178,8 @@ defmodule Backpex.LiveResource do
   @callback item_actions(default_actions :: list(map())) :: list()
 
   @doc """
-  A list of panels to group certain fields together: a keyword list of `name: "Label"`. A label that is not a string
-  raises a configuration error when the view loads.
+  A list of panels to group certain fields together: a keyword list of `name: "Label"`. A label is a string, or `nil`
+  for a panel without a headline; anything else raises a configuration error when the view loads.
   """
   @callback panels() :: list()
 

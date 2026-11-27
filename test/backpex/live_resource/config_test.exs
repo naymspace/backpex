@@ -6,9 +6,13 @@ defmodule Backpex.LiveResource.ConfigTest do
   alias Backpex.Filter
   alias Backpex.ItemAction
   alias Backpex.LiveResource.Config
+  alias Backpex.LiveResource.Form
+  alias Backpex.LiveResource.Index
+  alias Backpex.LiveResource.Show
   alias Backpex.Metric
   alias Backpex.Metrics.Value
   alias Backpex.ResourceAction
+  alias Phoenix.LiveView.Socket
 
   defmodule PostLive do
     @moduledoc false
@@ -28,6 +32,68 @@ defmodule Backpex.LiveResource.ConfigTest do
     @moduledoc false
     def data(_metric, _assigns), do: 1
     def config_schema, do: [color: [type: {:in, [:primary, :secondary]}, required: true]]
+  end
+
+  defmodule QuerySchemaMetric do
+    @moduledoc false
+    def query(_query, _select, _repo), do: 1
+    def config_schema, do: [select: [type: :any, doc: "The column to count."]]
+  end
+
+  defmodule TranslatedSchemaMetric do
+    @moduledoc false
+    def data(_metric, _assigns), do: 1
+    def config_schema, do: [label: [type: :string, doc: "Label #{System.unique_integer()}"]]
+  end
+
+  # A LiveResource whose configuration is valid. Each view test overrides one callback with an invalid configuration.
+  defmodule ViewLive do
+    @moduledoc false
+    defmacro __using__(_opts) do
+      quote do
+        def config(:fluid?), do: false
+        def config(:per_page_options), do: [15]
+        def config(:per_page_default), do: 15
+        def config(:init_order), do: %{by: :id, direction: :asc}
+        def fields(_action, _assigns), do: []
+        def singular_name, do: "Post"
+        def can?(_assigns, _action, _item), do: true
+        def panels, do: []
+        def item_actions(default_actions), do: default_actions
+        def resource_actions, do: []
+        def filters(_assigns), do: []
+
+        defoverridable panels: 0, item_actions: 1, resource_actions: 0, filters: 1
+      end
+    end
+  end
+
+  defmodule InvalidPanelsLive do
+    @moduledoc false
+    use ViewLive
+
+    def panels, do: [names: %{label: "Names"}]
+  end
+
+  defmodule InvalidItemActionsLive do
+    @moduledoc false
+    use ViewLive
+
+    def item_actions(default_actions), do: Keyword.put(default_actions, :archive, %{module: SomeAction, olny: [:row]})
+  end
+
+  defmodule InvalidResourceActionsLive do
+    @moduledoc false
+    use ViewLive
+
+    def resource_actions, do: [invite: %{module: SomeAction, label: "Invite"}]
+  end
+
+  defmodule InvalidFiltersLive do
+    @moduledoc false
+    use ViewLive
+
+    def filters(_assigns), do: [published: %{module: SomeFilter, lable: "Published?"}]
   end
 
   defp error(kind, key, message) do
@@ -81,6 +147,14 @@ defmodule Backpex.LiveResource.ConfigTest do
       end
     end
 
+    test "rejects a map with keys that are not atoms" do
+      assert_raise ArgumentError,
+                   error("filter", "published", ~s(expected a map with atom keys, got: %{"module")),
+                   fn ->
+                     Filter.validate_configs!([published: %{"module" => SomeFilter}], PostLive)
+                   end
+    end
+
     test "rejects a return value that is not a keyword list of maps" do
       message = shape_error("filters/1", "a keyword list of maps")
 
@@ -104,7 +178,8 @@ defmodule Backpex.LiveResource.ConfigTest do
           select: dynamic([p], sum(p.likes)),
           format: &Integer.to_string/1
         },
-        classes: %{module: Value, label: "Total", class: ["w-full", "lg:w-1/3"], select: :likes, format: nil}
+        classes: %{module: Value, label: "Total", class: ["w-full", "lg:w-1/3"], select: :likes, format: nil},
+        no_class: %{module: Value, label: "Total", class: nil, select: :likes}
       ]
 
       assert Metric.validate_configs!(metrics, PostLive) == metrics
@@ -145,6 +220,22 @@ defmodule Backpex.LiveResource.ConfigTest do
       assert_raise ArgumentError, error("metric", "custom", "required :select option not found"), fn ->
         Metric.validate_configs!([custom: %{module: QueryMetric, label: "Custom"}], PostLive)
       end
+    end
+
+    test "keeps the select required when the config_schema/0 of a metric module describes it again" do
+      assert_raise ArgumentError, error("metric", "custom", "required :select option not found"), fn ->
+        Metric.validate_configs!([custom: %{module: QuerySchemaMetric}], PostLive)
+      end
+    end
+
+    test "compiles the config_schema/0 of a metric module only once" do
+      metrics = [balance: %{module: TranslatedSchemaMetric, label: "Balance"}]
+
+      Metric.validate_configs!(metrics, PostLive)
+      compiled_schema = :persistent_term.get({Metric, TranslatedSchemaMetric})
+
+      Metric.validate_configs!(metrics, PostLive)
+      assert :persistent_term.get({Metric, TranslatedSchemaMetric}) == compiled_schema
     end
 
     test "validates against the config_schema/0 of the metric module" do
@@ -223,16 +314,18 @@ defmodule Backpex.LiveResource.ConfigTest do
 
   describe "validate_panels!/2" do
     test "returns valid panels unchanged" do
-      panels = [names: "Names", contact: "Contact"]
+      panels = [names: "Names", contact: "Contact", extra: nil]
 
       assert Config.validate_panels!(panels, PostLive) == panels
       assert Config.validate_panels!([], PostLive) == []
     end
 
     test "rejects a label that is not a string" do
-      assert_raise ArgumentError, error("panel", "names", "invalid value for :names option: expected string"), fn ->
-        Config.validate_panels!([names: %{label: "Names"}], PostLive)
-      end
+      assert_raise ArgumentError,
+                   error("panel", "names", "expected :names option to match at least one given type"),
+                   fn ->
+                     Config.validate_panels!([names: %{label: "Names"}], PostLive)
+                   end
     end
 
     test "rejects a return value that is not a keyword list" do
@@ -240,5 +333,49 @@ defmodule Backpex.LiveResource.ConfigTest do
 
       assert_raise ArgumentError, message, fn -> Config.validate_panels!(["Names"], PostLive) end
     end
+  end
+
+  describe "validation in the views" do
+    test "the index, show and form views validate the panels when they mount" do
+      for {view, live_action} <- [{Index, :index}, {Show, :show}, {Form, :edit}] do
+        assert_raise ArgumentError, view_error("panel", "names", InvalidPanelsLive), fn ->
+          view.mount(%{}, %{}, socket(live_action), InvalidPanelsLive)
+        end
+      end
+    end
+
+    test "the index view validates the item actions" do
+      assert_raise ArgumentError, view_error("item action", "archive", InvalidItemActionsLive), fn ->
+        Index.handle_params(%{}, "", socket(:index, InvalidItemActionsLive))
+      end
+    end
+
+    test "the show view validates the item actions when it mounts" do
+      assert_raise ArgumentError, view_error("item action", "archive", InvalidItemActionsLive), fn ->
+        Show.mount(%{}, %{}, socket(:show), InvalidItemActionsLive)
+      end
+    end
+
+    test "the index view validates the resource actions" do
+      socket = socket(:resource_action, InvalidResourceActionsLive)
+
+      assert_raise ArgumentError, view_error("resource action", "invite", InvalidResourceActionsLive), fn ->
+        Index.handle_params(%{"backpex_id" => "invite"}, "", socket)
+      end
+    end
+
+    test "the index view validates the filters" do
+      assert_raise ArgumentError, view_error("filter", "published", InvalidFiltersLive), fn ->
+        Index.handle_params(%{}, "", socket(:index, InvalidFiltersLive))
+      end
+    end
+  end
+
+  defp view_error(kind, key, live_resource) do
+    ~r/\AConfiguration error for #{kind} "#{key}" in "#{Regex.escape(to_string(live_resource))}"/
+  end
+
+  defp socket(live_action, live_resource \\ nil) do
+    %Socket{assigns: %{__changed__: %{}, live_action: live_action, live_resource: live_resource, fields: []}}
   end
 end

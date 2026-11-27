@@ -6,7 +6,7 @@ defmodule Backpex.LiveResource.Config do
   # `Backpex.Filter`, `Backpex.Metric`, `Backpex.ItemAction` and `Backpex.ResourceAction`.
 
   # Compiled once: `NimbleOptions.validate/2` validates a keyword list schema itself on every call.
-  @panels_schema NimbleOptions.new!(*: [type: :string])
+  @panels_schema NimbleOptions.new!(*: [type: {:or, [:string, nil]}])
 
   @doc """
   Validates a keyword list of configuration maps and returns it unchanged.
@@ -18,10 +18,7 @@ defmodule Backpex.LiveResource.Config do
   def validate_each!(configs, kind, callback, live_resource, validate) when is_list(configs) do
     Enum.each(configs, fn
       {key, config} when is_atom(key) and is_map(config) and not is_struct(config) ->
-        case validate.(Keyword.new(config)) do
-          {:ok, _validated_options} -> :ok
-          {:error, error} -> raise ArgumentError, entry_message(kind, key, live_resource, Exception.message(error))
-        end
+        validate_entry!(config, kind, key, live_resource, validate)
 
       other ->
         raise ArgumentError, shape_message(callback, live_resource, "a keyword list of maps", other)
@@ -32,6 +29,20 @@ defmodule Backpex.LiveResource.Config do
 
   def validate_each!(configs, _kind, callback, live_resource, _validate) do
     raise ArgumentError, shape_message(callback, live_resource, "a keyword list of maps", configs)
+  end
+
+  defp validate_entry!(config, kind, key, live_resource, validate) do
+    if config |> Map.keys() |> Enum.any?(&(not is_atom(&1))) do
+      raise ArgumentError,
+            entry_message(kind, key, live_resource, "expected a map with atom keys, got: #{inspect(config)}")
+    end
+
+    options = Map.to_list(config)
+
+    case validate.(options) do
+      {:ok, _validated_options} -> :ok
+      {:error, error} -> raise ArgumentError, entry_message(kind, key, live_resource, Exception.message(error))
+    end
   end
 
   @doc """

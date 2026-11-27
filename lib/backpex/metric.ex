@@ -119,20 +119,28 @@ defmodule Backpex.Metric do
   end
 
   # The schema of a metric module is only known at runtime, so the compiled schema is kept in a persistent term. It
-  # is compiled again when `c:config_schema/0` returns another schema, e.g. after the module was recompiled.
+  # is compiled again only after a module was recompiled: an update of the term triggers a global garbage collection.
   defp compiled_module_schema(module, base_schema) do
-    schema = Keyword.merge(base_schema, module.config_schema())
     key = {__MODULE__, module}
+    version = {module.module_info(:md5), __MODULE__.module_info(:md5)}
 
     case :persistent_term.get(key, nil) do
-      {^schema, compiled_schema} ->
+      {^version, compiled_schema} ->
         compiled_schema
 
       _other ->
-        compiled_schema = NimbleOptions.new!(schema)
-        :persistent_term.put(key, {schema, compiled_schema})
+        compiled_schema = base_schema |> merge_schemas(module.config_schema()) |> NimbleOptions.new!()
+        :persistent_term.put(key, {version, compiled_schema})
         compiled_schema
     end
+  end
+
+  # A metric module may describe an option of the base schema again, e.g. with its own doc, but cannot make a
+  # required one optional.
+  defp merge_schemas(base_schema, module_schema) do
+    Keyword.merge(base_schema, module_schema, fn _key, base_spec, module_spec ->
+      if base_spec[:required], do: Keyword.put(module_spec, :required, true), else: module_spec
+    end)
   end
 
   @doc """
