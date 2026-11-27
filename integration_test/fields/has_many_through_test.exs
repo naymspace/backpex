@@ -2,6 +2,7 @@ defmodule Backpex.Integration.Fields.HasManyThroughTest do
   use Backpex.ConnCase, async: true
 
   import Ecto.Query
+  import Phoenix.LiveViewTest, only: [element: 2, element: 3, render_click: 1, render_hook: 3]
 
   alias Backpex.Fields.HasManyThrough
   alias Backpex.Test.Repo
@@ -207,6 +208,55 @@ defmodule Backpex.Integration.Fields.HasManyThroughTest do
       assert %User{username: "after"} = Repo.get!(User, user.id)
       assert linked_addresses(user) == [american.id]
     end
+  end
+
+  # The addresses of `Backpex.Test.UserRelationOptionsLive` load 2 options at a time and are searched on the server by
+  # their street. The pages are ordered by the key of the addresses.
+  describe "server search" do
+    @combobox "#resource-form_users_addresses_0_address_id"
+
+    setup do
+      addresses = for street <- ["Elm Street", "Oak Street", "Pine Street"], do: insert(:address, street: street)
+      insert(:address, street: "Oak Avenue", country: :us)
+
+      %{addresses: Enum.sort_by(addresses, & &1.id)}
+    end
+
+    test "loads a page of options, loads more and searches them", %{conn: conn, addresses: addresses} do
+      [first, second, third] = addresses
+
+      conn
+      |> visit(~p"/admin/user-relation-options/#{insert(:user).id}/edit")
+      |> click_button("Attach Address")
+      |> assert_has("#{@combobox} [role=option]", count: 2)
+      |> assert_has("#{@combobox} [role=option][data-value='#{first.id}']", text: first.street, exact: true)
+      |> assert_has("#{@combobox} [role=option][data-value='#{second.id}']", text: second.street, exact: true)
+      |> assert_has("#{@combobox}[data-on-search=search]")
+      |> unwrap(&(&1 |> element("#{@combobox}-popup button", "Show more") |> render_click()))
+      |> assert_has("#{@combobox} [role=option]", count: 3)
+      |> assert_has("#{@combobox} [role=option][data-value='#{third.id}']", text: third.street, exact: true)
+      |> refute_has("#{@combobox}-popup button", text: "Show more")
+      # The options query only offers German addresses, also to the search.
+      |> search(@combobox, "oak")
+      |> assert_has("#{@combobox} [role=option]", count: 1)
+      |> assert_has("#{@combobox} [role=option]", text: "Oak Street", exact: true)
+    end
+
+    test "shows the linked address that is on no loaded page", %{conn: conn, addresses: [_first, _second, third]} do
+      user = insert(:user, users_addresses: [%UsersAddresses{address_id: third.id, type: :billing}])
+
+      conn
+      |> visit(~p"/admin/user-relation-options/#{user.id}/edit")
+      |> assert_has("td", text: third.street)
+      |> assert_has("#{@combobox} [role=option]", count: 2)
+      |> refute_has("#{@combobox} [role=option][data-value='#{third.id}']")
+      |> assert_has("#{@combobox} [data-part=value-label]", text: third.street, exact: true)
+    end
+  end
+
+  # The combobox pushes the text of its search input to the field.
+  defp search(session, combobox, query) do
+    unwrap(session, &(&1 |> element(combobox) |> render_hook("search", %{"query" => query})))
   end
 
   # A crafted client can send any value, not only the options of the select.

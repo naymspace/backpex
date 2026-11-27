@@ -29,9 +29,26 @@ defmodule Backpex.Fields.HasManyThrough do
       type: :keyword_list
     ],
     searchable_options: [
-      doc: "Whether the select of the related record has a search input that filters the options.",
-      type: :boolean,
+      doc: """
+      How the select of the related record searches its options:
+
+        * `false` - it has no search input.
+        * `true` - it loads every option of the `options_query` and filters them in the browser.
+        * `:server` - it loads `query_limit` options at a time, searches them on the server by the
+          `display_field_form`, or the `display_field` if it has none, and loads further options with "Show more".
+          Use it for a relation with many records.
+      """,
+      type: {:or, [:boolean, {:in, [:server]}]},
       default: false
+    ],
+    query_limit: [
+      doc: """
+      The number of options the select loads at a time with `searchable_options: :server`. Set it to `nil` to load
+      every option. Only applies with `searchable_options: :server`.
+
+      The default value is `10`.
+      """,
+      type: {:or, [:pos_integer, nil]}
     ],
     options_query: [
       doc: """
@@ -122,7 +139,7 @@ defmodule Backpex.Fields.HasManyThrough do
   defp apply_action(socket, _type), do: socket
 
   # The options query may depend on other assigns, e.g. a value of the form. The options are loaded again whenever the
-  # resulting query changes.
+  # resulting query changes. Without server search, they are every option of the options query.
   defp assign_options(socket) do
     %{field_options: field_options, association: association} = socket.assigns
 
@@ -130,33 +147,65 @@ defmodule Backpex.Fields.HasManyThrough do
       from(association.child.queryable)
       |> maybe_options_query(field_options, socket.assigns)
 
-    if Map.get(socket.assigns, :options_base_query) == query do
-      socket
-    else
-      socket
-      |> assign(:options_base_query, query)
-      |> load_options()
+    socket =
+      if Map.get(socket.assigns, :options_base_query) == query do
+        socket
+      else
+        socket
+        |> assign(options_base_query: query, offset: 0)
+        |> assign_new(:search_input, fn -> "" end)
+        |> OptionsQuery.assign_page(&options_opts/1)
+      end
+
+    socket
+    |> assign_linked_records()
+    |> assign_new(:prompt, fn ->
+      live_resource = field_options.live_resource
+      Backpex.__({"Choose %{resource} ...", %{resource: live_resource.singular_name()}}, live_resource)
+    end)
+  end
+
+  # The related records of the entries, which the table shows. With server search they may be on no loaded page, so
+  # they are loaded on their own. They are loaded again only when the entries or the options query change.
+  defp assign_linked_records(socket) do
+    %{assigns: %{association: association, options_base_query: query} = assigns} = socket
+    %{owner_key: owner_key, related_key: related_key} = association.child
+
+    ids =
+      case Map.get(assigns, :changeset) || assigns.form.source do
+        %Changeset{} = changeset ->
+          changeset |> get_change_or_field(association.pivot.field) |> stored_ids(owner_key) |> Enum.uniq()
+
+        _source ->
+          []
+      end
+
+    loaded = Map.new(assigns.option_records, &{Map.get(&1, related_key), &1})
+
+    case assigns do
+      %{linked_records_of: {^query, ^ids}} ->
+        socket
+
+      _assigns ->
+        missing_ids = Enum.reject(ids, &Map.has_key?(loaded, &1))
+        fetched = if missing_ids == [], do: [], else: OptionsQuery.all(query, [ids: missing_ids], options_opts(assigns))
+        linked_records = Enum.map(ids, &Map.get(loaded, &1)) |> Enum.reject(&is_nil/1) |> Enum.concat(fetched)
+
+        assign(socket, linked_records: linked_records, linked_records_of: {query, ids})
     end
   end
 
-  defp load_options(socket) do
-    %{field_options: field_options, options_base_query: query} = socket.assigns
-    repo = socket.assigns.live_resource.adapter_config(:repo)
-
+  # How the field reads its options, see `Backpex.Fields.OptionsQuery.list/3`.
+  defp options_opts(%{field_options: field_options, association: association} = assigns) do
     display_field = Map.get(field_options, :display_field_form, Map.get(field_options, :display_field))
 
-    all_items = repo.all(query)
-
-    related_key = socket.assigns.association.child.related_key
-    options = Enum.map(all_items, &{Map.get(&1, display_field), Map.get(&1, related_key)})
-
-    live_resource = field_options.live_resource
-    singular_name = live_resource.singular_name()
-
-    socket
-    |> assign(:all_items, all_items)
-    |> assign(:options, options)
-    |> assign(:prompt, Backpex.__({"Choose %{resource} ...", %{resource: singular_name}}, live_resource))
+    [
+      repo: assigns.live_resource.adapter_config(:repo),
+      queryable: association.child.queryable,
+      label: display_field,
+      value: association.child.related_key,
+      search_by: display_field
+    ]
   end
 
   @impl Backpex.Field
@@ -234,7 +283,11 @@ defmodule Backpex.Fields.HasManyThrough do
   @impl Backpex.Field
   def render_form(assigns) do
     %{field: assoc_field} = assigns = assign_fallback_child_fields(assigns)
-    %{form: form, changeset: changeset, association: association, all_items: all_items} = assigns
+    %{form: form, changeset: changeset, association: association} = assigns
+
+    all_items =
+      Enum.uniq_by(assigns.option_records ++ assigns.linked_records, &Map.get(&1, association.child.related_key))
+
     {_assoc_field_name, assoc_field_options} = assoc_field
     editables = editables(form, changeset, association, pivot_primary_key(association, assoc_field_options))
 
@@ -386,8 +439,12 @@ defmodule Backpex.Fields.HasManyThrough do
               label={@field_options.live_resource.singular_name()}
               owner_key={@owner_key}
               options={@options}
+              selected_options={linked_options(@linked_records, assigns)}
               prompt={@prompt}
-              searchable={@field_options[:searchable_options] == true}
+              searchable={@field_options[:searchable_options] in [true, :server]}
+              on_search={OptionsQuery.server_search?(@field_options) && "search"}
+              show_more={@show_more}
+              target={@myself}
               readonly={@readonly}
               live_resource={@live_resource}
             />
@@ -433,6 +490,20 @@ defmodule Backpex.Fields.HasManyThrough do
   def handle_event(event, _params, %{assigns: %{readonly: true}} = socket)
       when event in ["new-relational", "detach-relational"] do
     noreply(socket)
+  end
+
+  @impl Phoenix.LiveComponent
+  def handle_event("search", params, socket) do
+    socket
+    |> OptionsQuery.handle_search(params, &options_opts/1)
+    |> noreply()
+  end
+
+  @impl Phoenix.LiveComponent
+  def handle_event("show-more", _params, socket) do
+    socket
+    |> OptionsQuery.handle_show_more(&options_opts/1)
+    |> noreply()
   end
 
   @impl Phoenix.LiveComponent
@@ -642,6 +713,16 @@ defmodule Backpex.Fields.HasManyThrough do
     end
   end
 
+  defp linked_options(linked_records, assigns),
+    do: Enum.map(linked_records, &OptionsQuery.to_option(&1, options_opts(assigns)))
+
+  @doc false
+  def validate_config!(field, live_resource) do
+    field
+    |> super(live_resource)
+    |> OptionsQuery.validate_search!(field, live_resource)
+  end
+
   defp maybe_options_query(query, %{options_query: options_query} = _field_options, assigns),
     do: options_query.(query, assigns)
 
@@ -713,8 +794,12 @@ defmodule Backpex.Fields.HasManyThrough do
   attr :label, :string, required: true
   attr :owner_key, :atom, required: true
   attr :options, :list, required: true
+  attr :selected_options, :list, required: true
   attr :prompt, :string, required: true
   attr :searchable, :boolean, required: true
+  attr :on_search, :any, required: true
+  attr :show_more, :boolean, required: true
+  attr :target, :any, required: true
   attr :readonly, :boolean, default: false
   attr :live_resource, :atom, required: true
 
@@ -726,16 +811,29 @@ defmodule Backpex.Fields.HasManyThrough do
       <:label :if={not @hide_label}>
         <Layout.input_label id={@label_id} for={"#{@form[@owner_key].id}-trigger"} text={@label} />
       </:label>
+      <%!--
+        With server search, the options are one page of the options query. The related records of the entries are passed
+        on their own, as they may be on no loaded page.
+      --%>
       <Combobox.combobox
         field={@form[@owner_key]}
         options={@options}
+        selected_options={@selected_options}
         placeholder={@prompt}
         searchable={@searchable}
+        on_search={@on_search}
         readonly={@readonly}
         live_resource={@live_resource}
+        phx-target={@on_search && @target}
         aria-labelledby={not @hide_label && @label_id}
         aria-label={@hide_label && @label}
-      />
+      >
+        <:footer :if={@show_more}>
+          <button type="button" phx-click="show-more" phx-target={@target} class="link block text-sm">
+            {Backpex.__("Show more", @live_resource)}
+          </button>
+        </:footer>
+      </Combobox.combobox>
     </Layout.field_container>
     """
   end

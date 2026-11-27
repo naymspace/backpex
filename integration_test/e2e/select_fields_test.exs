@@ -251,6 +251,31 @@ defmodule Backpex.E2E.SelectFieldsTest do
     end
   end
 
+  describe "has many through field with server search" do
+    test "loads more options, searches them on the server and selects one in the modal", %{conn: conn} do
+      # The field loads 2 options at a time and only offers German addresses.
+      for street <- ["Elm Street", "Oak Street", "Pine Street"], do: insert(:address, street: street)
+      id = "resource-form_users_addresses_0_address_id"
+
+      conn
+      |> visit(~p"/admin/user-relation-options/#{insert(:user).id}/edit")
+      |> assert_has("body .phx-connected")
+      |> click_button("Attach Address")
+      |> assert_has("#edit-relational-modal-0[open]")
+      |> open(id)
+      |> assert_has(options(id), count: 2)
+      |> click("##{id}-popup button", "Show more")
+      |> assert_has(options(id), count: 3)
+      |> type(search(id), "pine")
+      |> assert_has(options(id), count: 1)
+      |> click("#{options(id)}", "Pine Street")
+      |> assert_has("##{id} [data-part=value-label]", text: "Pine Street", exact: true)
+      |> assert_has("#edit-relational-modal-0[open]")
+      |> click_button("Apply")
+      |> assert_has("td", text: "Pine Street")
+    end
+  end
+
   describe "filters" do
     test "filter by the selected options while the filter dropdown and the combobox stay open", %{conn: conn} do
       [post, other_post, _third_post] = insert_list(3, :post)

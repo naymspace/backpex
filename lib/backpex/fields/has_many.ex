@@ -51,19 +51,36 @@ defmodule Backpex.Fields.HasMany do
       """,
       type: :string
     ],
+    searchable_options: [
+      doc: """
+      How the multi select searches its options:
+
+        * `false` - it loads every option of the `options_query` and has no search input.
+        * `true` - it loads every option of the `options_query` and filters them in the browser.
+        * `:server` - it loads `query_limit` options at a time, searches them on the server by the `display_field`, or
+          the `select` expression of the field if it has one, and loads further options with "Show more".
+      """,
+      type: {:or, [:boolean, {:in, [:server]}]},
+      default: :server
+    ],
     query_limit: [
-      doc: "Limit passed to the query to fetch new items. Set to `nil` to have no limit.",
-      type: {:or, [:non_neg_integer, nil]},
-      default: 10
+      doc: """
+      The number of options the multi select loads at a time with `searchable_options: :server`. Set it to `nil` to
+      load every option. Only applies with `searchable_options: :server`.
+
+      The default value is `10`.
+      """,
+      type: {:or, [:pos_integer, nil]}
     ]
   ]
 
   @moduledoc """
   A field for handling a `has_many` or `many_to_many` relation.
 
-  The form renders a `Backpex.HTML.Combobox.combobox/1`. It loads `query_limit` options at a time, searches them on the
-  server by the `display_field` and loads further options with "Show more". The admin selects and deselects options in
-  the browser, and the selection reaches the server with the `phx-change` event of the form.
+  The form renders a `Backpex.HTML.Combobox.combobox/1`. By default it loads `query_limit` options at a time, searches
+  them on the server by the `display_field` and loads further options with "Show more", see `searchable_options`. The
+  admin selects and deselects options in the browser, and the selection reaches the server with the `phx-change` event
+  of the form.
 
   This field can not be orderable or searchable.
 
@@ -157,8 +174,8 @@ defmodule Backpex.Fields.HasMany do
         </:label>
 
         <%!--
-          The options are one page of the options query, so the server searches them and "Show more" loads the next
-          page. The selected items are passed on their own, as they may be on no loaded page.
+          With server search, the options are one page of the options query, so the server searches them and "Show
+          more" loads the next page. The selected items are passed on their own, as they may be on no loaded page.
         --%>
         <Combobox.combobox
           field={@form[@name]}
@@ -166,7 +183,8 @@ defmodule Backpex.Fields.HasMany do
           options={@options}
           selected_options={@selected}
           multiple
-          on_search="search"
+          on_search={OptionsQuery.server_search?(@field_options) && "search"}
+          searchable={@field_options[:searchable_options] != false}
           phx-target={@myself}
           readonly={@readonly}
           placeholder={@prompt}
@@ -216,26 +234,25 @@ defmodule Backpex.Fields.HasMany do
     """
   end
 
-  # The combobox pushes the search with the text of its search input.
   @impl Phoenix.LiveComponent
-  def handle_event("search", %{"query" => query}, socket) when is_binary(query) do
+  def handle_event("search", params, socket) do
     socket
-    |> assign(:offset, 0)
-    |> assign(:search_input, query)
-    |> assign_options()
+    |> OptionsQuery.handle_search(params, &options_opts/1)
     |> noreply()
   end
 
-  def handle_event("search", _params, socket), do: noreply(socket)
-
   @impl Phoenix.LiveComponent
   def handle_event("show-more", _params, socket) do
-    %{assigns: %{field_options: field_options, offset: offset, options: options}} = socket
-
     socket
-    |> assign(:offset, field_options[:query_limit] + offset)
-    |> assign_options(options)
+    |> OptionsQuery.handle_show_more(&options_opts/1)
     |> noreply()
+  end
+
+  @doc false
+  def validate_config!(field, live_resource) do
+    field
+    |> super(live_resource)
+    |> OptionsQuery.validate_search!(field, live_resource)
   end
 
   @impl Backpex.Field
@@ -375,9 +392,7 @@ defmodule Backpex.Fields.HasMany do
     |> maybe_options_query(field_options, assigns)
   end
 
-  defp assign_options(socket, other_options \\ []) do
-    OptionsQuery.assign_page(socket, options_opts(socket.assigns), other_options)
-  end
+  defp assign_options(socket), do: OptionsQuery.assign_page(socket, &options_opts/1)
 
   defp count_options(assigns) do
     OptionsQuery.count(assigns.options_base_query, [], options_opts(assigns))

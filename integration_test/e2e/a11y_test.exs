@@ -15,6 +15,7 @@ defmodule Backpex.E2E.A11yTest do
     {"/admin/index-edit-samples", :sample, :id, [:index]},
     {"/admin/posts", :post, :id, [:index, :new, :show, :edit]},
     {"/admin/post-relation-options", :post, :id, [:index, :edit]},
+    {"/admin/user-relation-options", :user, :id, [:edit]},
     {"/admin/categories", :category, :id, [:index, :new, :show, :edit]},
     {"/admin/tags", :tag, :id, [:index, :new, :show, :edit]},
     {"/admin/notes", :note, :id, [:index, :new, :show, :edit]}

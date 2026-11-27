@@ -181,7 +181,8 @@ defmodule DemoWeb.PostLive do
         end,
         index_editable: true,
         searchable: true,
-        # Loads 5 authors at a time and searches them on the server, as an app with many users would.
+        # Searches the authors on the server and loads 5 at a time, as an app with many users would.
+        searchable_options: :server,
         query_limit: 5,
         live_resource: UserLive
       },

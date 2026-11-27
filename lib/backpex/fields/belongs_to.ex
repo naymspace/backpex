@@ -32,25 +32,26 @@ defmodule Backpex.Fields.BelongsTo do
     ],
     searchable_options: [
       doc: """
-      Whether the select has a search input that filters the options. Ignored with `:query_limit`, as the select then
-      always has a search input.
+      How the select searches its options:
+
+        * `false` - it has no search input.
+        * `true` - it loads every option of the `options_query` and filters them in the browser.
+        * `:server` - it loads `query_limit` options at a time, searches them on the server and loads further options
+          with "Show more". Use it for a relation with many records, e.g. users. The search matches the
+          `display_field_form`, or the `select` expression of the field if it has one and no `display_field_form`, so
+          these have to be columns of the related schema or a `select` expression.
       """,
-      type: :boolean,
+      type: {:or, [:boolean, {:in, [:server]}]},
       default: false
     ],
     query_limit: [
       doc: """
-      The number of options the select loads at a time. With a limit, the select searches the options on the server
-      and loads further options with "Show more", instead of loading every option of the `options_query`. Set it for a
-      relation with many records, e.g. users.
+      The number of options the select loads at a time with `searchable_options: :server`. Set it to `nil` to load
+      every option. Only applies with `searchable_options: :server`.
 
-      The search matches the `display_field_form`, or the `select` expression of the field if it has one and no
-      `display_field_form`, so these have to be columns of the related schema or a `select` expression.
-
-      Defaults to `nil`, which loads every option.
+      The default value is `10`.
       """,
-      type: {:or, [:pos_integer, nil]},
-      default: nil
+      type: {:or, [:pos_integer, nil]}
     ],
     debounce: [
       doc: "Timeout value (in milliseconds), \"blur\" or function that receives the assigns.",
@@ -70,9 +71,9 @@ defmodule Backpex.Fields.BelongsTo do
   Without a `prompt` the select has no empty state, like a native select: it selects its first option while the item
   has no value.
 
-  For a relation with many records, set `query_limit`: the select then loads that many options at a time, searches
-  them on the server and loads further options with "Show more". The current value is shown even if it is on no loaded
-  page.
+  For a relation with many records, set `searchable_options: :server`: the select then loads `query_limit` options at
+  a time, searches them on the server and loads further options with "Show more". The current value is shown even if
+  it is on no loaded page.
 
   ## Field-specific options
 
@@ -90,6 +91,7 @@ defmodule Backpex.Fields.BelongsTo do
           label: "Username",
           display_field: :username,
           options_query: &where(&1, [user], user.role == :admin),
+          searchable_options: :server,
           query_limit: 20,
           live_resource: DemoWeb.UserLive
         }
@@ -232,26 +234,29 @@ defmodule Backpex.Fields.BelongsTo do
     end
   end
 
-  # Loads the options of each distinct options query once. With `query_limit`, the first page of the options and the
+  # Loads the options of each distinct options query once. With server search, the first page of the options and the
   # options of the values of the rows, as these may be on no loaded page.
-  defp index_form_options(options_queries, %{query_limit: limit}, opts) when is_integer(limit) do
+  defp index_form_options(options_queries, %{searchable_options: :server} = field_options, opts) do
+    limit = OptionsQuery.query_limit(field_options)
+
     pages =
       options_queries
       |> Map.values()
       |> Enum.group_by(fn {query, _value} -> query end, fn {_query, value} -> value end)
       |> Map.new(fn {query, values} ->
-        {options, show_more} = OptionsQuery.page(query, [limit: limit], opts)
+        {records, show_more} = OptionsQuery.page_records(query, [limit: limit], opts)
+        page = %{option_records: records, options: Enum.map(records, &OptionsQuery.to_option(&1, opts))}
         values = values |> Enum.reject(&is_nil/1) |> Enum.uniq()
         value_options = if values == [], do: [], else: OptionsQuery.list(query, [ids: values], opts)
 
-        {query, %{options: options, show_more: show_more, value_options: options ++ value_options}}
+        {query, Map.merge(page, %{show_more: show_more, value_options: page.options ++ value_options})}
       end)
 
     index_form_pages =
       Map.new(options_queries, fn {key, {query, value}} ->
-        %{options: options, show_more: show_more, value_options: value_options} = Map.fetch!(pages, query)
+        {value_options, page} = pages |> Map.fetch!(query) |> Map.pop!(:value_options)
 
-        {key, %{options: options, show_more: show_more, selected_option: find_option(value_options, value)}}
+        {key, Map.put(page, :selected_option, find_option(value_options, value))}
       end)
 
     %{index_form_pages: index_form_pages}
@@ -328,24 +333,17 @@ defmodule Backpex.Fields.BelongsTo do
     """
   end
 
-  # The combobox pushes the search with the text of its search input, and an empty search when its popup closes.
   @impl Phoenix.LiveComponent
-  def handle_event("search", %{"query" => query}, socket) when is_binary(query) do
+  def handle_event("search", params, socket) do
     socket
-    |> assign(search_input: query, offset: 0)
-    |> assign_options()
+    |> OptionsQuery.handle_search(params, &options_opts/1)
     |> noreply()
   end
 
-  def handle_event("search", _params, socket), do: noreply(socket)
-
   @impl Phoenix.LiveComponent
   def handle_event("show-more", _params, socket) do
-    %{assigns: %{field_options: field_options, offset: offset, options: options}} = socket
-
     socket
-    |> assign(:offset, offset + field_options[:query_limit])
-    |> assign_options(options)
+    |> OptionsQuery.handle_show_more(&options_opts/1)
     |> noreply()
   end
 
@@ -407,6 +405,13 @@ defmodule Backpex.Fields.BelongsTo do
   end
 
   defp cast_value(queryable, key, value), do: queryable.__schema__(:type, key) |> Ecto.Type.cast(value)
+
+  @doc false
+  def validate_config!(field, live_resource) do
+    field
+    |> super(live_resource)
+    |> OptionsQuery.validate_search!(field, live_resource)
+  end
 
   @impl Backpex.Field
   def display_field({_name, field_options}) do
@@ -475,9 +480,9 @@ defmodule Backpex.Fields.BelongsTo do
     ]
   end
 
-  # With `query_limit`, the form and the index form keep a page of options, the search and the offset of the next page
+  # With server search, the form and the index form keep a page of options, the search and the offset of the next page
   # in the assigns of the component. Without it, they load every option when they render.
-  defp assign_server_options(%{assigns: %{field_options: %{query_limit: limit}}} = socket) when is_integer(limit) do
+  defp assign_server_options(%{assigns: %{field_options: %{searchable_options: :server}}} = socket) do
     case socket.assigns do
       %{type: :form} = assigns ->
         assign_form_options(socket, assigns.form[assigns.owner_key].value)
@@ -534,7 +539,7 @@ defmodule Backpex.Fields.BelongsTo do
       |> assign(:default_option, List.first(page.options))
 
     if socket.assigns.search_input == "" and socket.assigns.offset == 0,
-      do: assign(socket, options: page.options, show_more: page.show_more),
+      do: assign(socket, Map.take(page, [:option_records, :options, :show_more])),
       else: socket
   end
 
@@ -542,17 +547,16 @@ defmodule Backpex.Fields.BelongsTo do
     %{options_base_query: query, field_options: field_options, item: item, owner_key: owner_key} = assigns
     opts = options_opts(assigns)
 
-    {options, show_more} = OptionsQuery.page(query, [limit: field_options[:query_limit]], opts)
+    {records, show_more} = OptionsQuery.page_records(query, [limit: OptionsQuery.query_limit(field_options)], opts)
+    options = Enum.map(records, &OptionsQuery.to_option(&1, opts))
 
     selected_option =
       find_option(options, Map.get(item, owner_key)) || fetch_option(query, Map.get(item, owner_key), opts)
 
-    %{options: options, show_more: show_more, selected_option: selected_option}
+    %{option_records: records, options: options, show_more: show_more, selected_option: selected_option}
   end
 
-  defp assign_options(socket, other_options \\ []) do
-    OptionsQuery.assign_page(socket, options_opts(socket.assigns), other_options)
-  end
+  defp assign_options(socket), do: OptionsQuery.assign_page(socket, &options_opts/1)
 
   # The first option of the options query, which a select without a prompt selects while the item has no value.
   defp assign_default_option(%{assigns: %{search_input: ""}} = socket) do
@@ -593,8 +597,8 @@ defmodule Backpex.Fields.BelongsTo do
     end
   end
 
-  # The assigns of the select in the form: the options the component loaded with `query_limit`, else every option.
-  defp assign_form_select(%{field_options: %{query_limit: limit}} = assigns) when is_integer(limit) do
+  # The assigns of the select in the form: the options the component loaded with server search, else every option.
+  defp assign_form_select(%{field_options: %{searchable_options: :server}} = assigns) do
     assign_search_select(assigns)
   end
 
@@ -604,7 +608,7 @@ defmodule Backpex.Fields.BelongsTo do
     assign_local_select(assigns, options)
   end
 
-  defp assign_index_form_select(%{field_options: %{query_limit: limit}} = assigns) when is_integer(limit) do
+  defp assign_index_form_select(%{field_options: %{searchable_options: :server}} = assigns) do
     assign_search_select(assigns)
   end
 

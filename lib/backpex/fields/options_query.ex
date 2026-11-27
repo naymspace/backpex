@@ -6,6 +6,34 @@ defmodule Backpex.Fields.OptionsQuery do
 
   alias Phoenix.HTML.Form
 
+  @default_query_limit 10
+
+  @doc """
+  Whether the field searches its options on the server, i.e. its `searchable_options` is `:server`.
+  """
+  def server_search?(field_options), do: Map.get(field_options, :searchable_options) == :server
+
+  @doc """
+  The number of options a page holds with server search: the `query_limit` of the field, `#{@default_query_limit}` if
+  it has none. An explicit `nil` loads every option.
+  """
+  def query_limit(field_options), do: Map.get(field_options, :query_limit, @default_query_limit)
+
+  @doc """
+  Refuses a `query_limit` without server search, as only server search loads the options page by page.
+  """
+  def validate_search!(validated_options, {name, _options} = _field, live_resource) do
+    if Keyword.has_key?(validated_options, :query_limit) and validated_options[:searchable_options] != :server do
+      raise """
+      Configuration error for field "#{name}" in "#{live_resource}".
+
+      `query_limit` only applies with `searchable_options: :server`, which loads the options page by page.
+      """
+    end
+
+    validated_options
+  end
+
   @doc """
   Loads the options of the options query as `{label, value}` tuples.
 
@@ -26,6 +54,15 @@ defmodule Backpex.Fields.OptionsQuery do
     * `:search_by` - a field of the first binding or a `dynamic` expression that `:search` is matched against.
   """
   def list(query, criteria, opts) do
+    query
+    |> all(criteria, opts)
+    |> Enum.map(&to_option(&1, opts))
+  end
+
+  @doc """
+  Loads the records of the options that `list/3` returns.
+  """
+  def all(query, criteria, opts) do
     {offset, limit} = {criteria[:offset], criteria[:limit]}
 
     query
@@ -34,8 +71,12 @@ defmodule Backpex.Fields.OptionsQuery do
     |> maybe_offset(offset)
     |> maybe_limit(limit)
     |> opts[:repo].all()
-    |> Enum.map(&{Map.get(&1, opts[:label]), Map.fetch!(&1, opts[:value])})
   end
+
+  @doc """
+  Returns the record as a `{label, value}` option.
+  """
+  def to_option(record, opts), do: {Map.get(record, opts[:label]), Map.fetch!(record, opts[:value])}
 
   @doc """
   Loads a page of `:limit` options with `list/3` and tells whether more options follow.
@@ -43,30 +84,98 @@ defmodule Backpex.Fields.OptionsQuery do
   It loads one option more than the page holds instead of counting the options.
   """
   def page(query, criteria, opts) do
+    {records, more} = page_records(query, criteria, opts)
+
+    {Enum.map(records, &to_option(&1, opts)), more}
+  end
+
+  @doc """
+  Loads the records of the options that `page/3` returns and tells whether more options follow.
+  """
+  def page_records(query, criteria, opts) do
     case criteria[:limit] do
       nil ->
-        {list(query, criteria, opts), false}
+        {all(query, criteria, opts), false}
 
       limit ->
-        options = list(query, Keyword.put(criteria, :limit, limit + 1), opts)
+        records = all(query, Keyword.put(criteria, :limit, limit + 1), opts)
 
-        {Enum.take(options, limit), length(options) > limit}
+        {Enum.take(records, limit), length(records) > limit}
     end
   end
 
   @doc """
-  Assigns a page of options with `page/3` and whether more follow, as `:options` and `:show_more`.
+  Assigns a page of options with `page_records/3`: the records as `:option_records`, them as options as `:options` and
+  whether more follow as `:show_more`. `opts_fun` returns the `opts` of `list/3` for the assigns.
 
-  The page starts at the `:offset` of the assigns and matches their `:search_input`, and the options of the assigns'
-  `:options_base_query`. The page follows `other_options`, e.g. the options of the pages before with "Show more".
+  The page holds the options of the assigns' `:options_base_query` that match their `:search_input`, from their
+  `:offset` on, and follows `previous_records`, e.g. the records of the pages before with "Show more". Without server
+  search it holds every option.
   """
-  def assign_page(socket, opts, other_options \\ []) do
+  def assign_page(socket, opts_fun, previous_records \\ []) do
     %{assigns: %{field_options: field_options, search_input: search_input, offset: offset} = assigns} = socket
-    criteria = [search: search_input, offset: offset, limit: field_options[:query_limit]]
+    opts = opts_fun.(assigns)
+    criteria = [search: search_input, offset: offset, limit: page_limit(field_options)]
 
-    {options, show_more} = page(assigns.options_base_query, criteria, opts)
+    {records, show_more} = page_records(assigns.options_base_query, criteria, opts)
+    records = previous_records ++ records
 
-    Phoenix.Component.assign(socket, options: other_options ++ options, show_more: show_more)
+    Phoenix.Component.assign(socket,
+      option_records: records,
+      options: Enum.map(records, &to_option(&1, opts)),
+      show_more: show_more
+    )
+  end
+
+  @doc """
+  Handles the `search` event of the combobox, which it pushes with the text of its search input, and with an empty
+  text when its popup closes. Loads the first page of the matching options.
+
+  A field without server search or without loaded options ignores it, as a crafted client can send it anyway.
+  """
+  def handle_search(socket, %{"query" => query}, opts_fun) when is_binary(query) do
+    if searching?(socket) do
+      socket
+      |> Phoenix.Component.assign(search_input: query, offset: 0)
+      |> assign_page(opts_fun)
+    else
+      socket
+    end
+  end
+
+  def handle_search(socket, _params, _opts_fun), do: socket
+
+  @doc """
+  Handles the `show-more` event of the "Show more" button: loads the next page and appends it to the options.
+  """
+  def handle_show_more(socket, opts_fun) do
+    %{assigns: %{field_options: field_options} = assigns} = socket
+
+    case query_limit(field_options) do
+      limit when is_integer(limit) ->
+        if searching?(socket) do
+          socket
+          |> Phoenix.Component.assign(:offset, assigns.offset + limit)
+          |> assign_page(opts_fun, assigns.option_records)
+        else
+          socket
+        end
+
+      nil ->
+        socket
+    end
+  end
+
+  defp searching?(%{assigns: assigns}) do
+    server_search?(assigns.field_options) and Map.has_key?(assigns, :options_base_query) and
+      Map.has_key?(assigns, :option_records)
+  end
+
+  @doc """
+  The limit of a page: the `query_limit` with server search, else none.
+  """
+  def page_limit(field_options) do
+    if server_search?(field_options), do: query_limit(field_options)
   end
 
   @doc """

@@ -137,6 +137,7 @@ defmodule Backpex.Integration.Fields.HasManyTest do
         label: "Short Links",
         display_field: :url,
         live_resource: Backpex.Test.ShortLinkLive,
+        searchable_options: :server,
         query_limit: 1,
         options_query: fn query, _assigns ->
           query |> where([link], like(link.url, "https://%.example.com/")) |> order_by([link], link.url)
@@ -209,6 +210,7 @@ defmodule Backpex.Integration.Fields.HasManyTest do
        label: "Tags",
        display_field: :name,
        live_resource: Backpex.Test.TagLive,
+       searchable_options: :server,
        query_limit: 10,
        options_query: fn query, assigns ->
          prefix = Phoenix.HTML.Form.input_value(assigns.form, :title) || ""

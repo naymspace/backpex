@@ -105,6 +105,73 @@ defmodule Backpex.Fields.OptionsQueryTest do
     end
   end
 
+  describe "handle_search/3 and handle_show_more/2" do
+    test "load the matching page and the next page with server search" do
+      Process.put(:users, for(id <- 1..3, do: %User{id: id, name: "User #{id}"}))
+      socket = socket(%{searchable_options: :server, query_limit: 2})
+
+      socket = OptionsQuery.handle_search(socket, %{"query" => "user"}, fn _assigns -> @opts end)
+
+      assert socket.assigns.options == [{"User 1", 1}, {"User 2", 2}]
+      assert socket.assigns.show_more
+      assert_received {:all, %Ecto.Query{wheres: [_search], offset: %{params: [{0, :integer}]}}}
+
+      socket = OptionsQuery.handle_show_more(socket, fn _assigns -> @opts end)
+
+      assert socket.assigns.offset == 2
+      assert_received {:all, %Ecto.Query{offset: %{params: [{2, :integer}]}}}
+    end
+
+    # A crafted client can send the events to any field.
+    test "ignore the events without server search, a query or a limit" do
+      for field_options <- [%{searchable_options: true}, %{searchable_options: false}, %{}] do
+        socket = socket(field_options)
+
+        assert OptionsQuery.handle_search(socket, %{"query" => "user"}, &flunk/1) == socket
+        assert OptionsQuery.handle_show_more(socket, &flunk/1) == socket
+      end
+
+      socket = socket(%{searchable_options: :server, query_limit: nil})
+
+      assert OptionsQuery.handle_search(socket, %{"query" => 1}, &flunk/1) == socket
+      assert OptionsQuery.handle_show_more(socket, &flunk/1) == socket
+
+      socket = %{socket | assigns: Map.delete(socket.assigns, :options_base_query)}
+      socket = put_in(socket.assigns.field_options.query_limit, 2)
+
+      assert OptionsQuery.handle_search(socket, %{"query" => "user"}, &flunk/1) == socket
+      assert OptionsQuery.handle_show_more(socket, &flunk/1) == socket
+    end
+
+    defp socket(field_options) do
+      assigns = %{
+        __changed__: %{},
+        field_options: field_options,
+        options_base_query: from(User),
+        option_records: [],
+        search_input: "",
+        offset: 0
+      }
+
+      %Phoenix.LiveView.Socket{assigns: assigns}
+    end
+  end
+
+  describe "validate_search!/3" do
+    test "refuses a query_limit without server search" do
+      field = {:user, []}
+
+      assert OptionsQuery.validate_search!([searchable_options: :server, query_limit: 5], field, Live) ==
+               [searchable_options: :server, query_limit: 5]
+
+      assert OptionsQuery.validate_search!([searchable_options: true], field, Live) == [searchable_options: true]
+
+      assert_raise RuntimeError, ~r/field "user" in "Elixir.Live".*`query_limit` only applies/s, fn ->
+        OptionsQuery.validate_search!([searchable_options: true, query_limit: 5], field, Live)
+      end
+    end
+  end
+
   describe "count/3" do
     test "counts the options of the search" do
       User |> from() |> OptionsQuery.count([search: "ann"], @opts)

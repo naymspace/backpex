@@ -20,6 +20,7 @@ defmodule Backpex.Integration.Fields.BelongsToTest do
   alias Backpex.Test.PostLive
   alias Backpex.Test.PostRelationOptionsLive
   alias Backpex.Test.Product
+  alias Phoenix.HTML.Form
   alias Phoenix.LiveView.Socket
 
   # The author of a post is a BelongsTo field with an `options_query` that excludes deleted users.
@@ -258,11 +259,10 @@ defmodule Backpex.Integration.Fields.BelongsToTest do
 
       %{index_form_pages: pages} = BelongsTo.index_assigns(field, posts, assigns)
 
-      assert pages[post.id] == %{
-               options: [{"Anna", anna.id}, {"Bert", bert.id}],
-               show_more: true,
-               selected_option: {"Carl", carl.id}
-             }
+      assert %{options: options, option_records: records, show_more: true, selected_option: selected} = pages[post.id]
+      assert options == [{"Anna", anna.id}, {"Bert", bert.id}]
+      assert Enum.map(records, & &1.id) == [anna.id, bert.id]
+      assert selected == {"Carl", carl.id}
 
       assert pages[other_post.id].selected_option == {"Bert", bert.id}
     end
@@ -272,7 +272,7 @@ defmodule Backpex.Integration.Fields.BelongsToTest do
     test "searches by the select expression of the field", %{users: [anna | _users]} do
       anna = anna |> Ecto.Changeset.change(last_name: "Smith") |> Repo.update!()
       {name, field_options} = Enum.find(PostLive.fields(), &(elem(&1, 0) == :user))
-      field_options = Map.put(field_options, :query_limit, 2)
+      field_options = Map.merge(field_options, %{searchable_options: :server, query_limit: 2})
 
       assigns = %{
         type: :form,
@@ -294,7 +294,7 @@ defmodule Backpex.Integration.Fields.BelongsToTest do
 
       field_options =
         Map.put(field_options, :options_query, fn query, assigns ->
-          where(query, [user], user.first_name >= ^(Phoenix.HTML.Form.input_value(assigns.form, :title) || ""))
+          where(query, [user], user.first_name >= ^(Form.input_value(assigns.form, :title) || ""))
         end)
 
       assigns = fn title ->
@@ -319,6 +319,65 @@ defmodule Backpex.Integration.Fields.BelongsToTest do
       assert socket.assigns.options == [{"Bert", bert.id}, {"Carl", carl.id}]
       # The current value is no longer an option, so it has no label.
       assert socket.assigns.selected_option == nil
+    end
+
+    test "keeps the first option of the options query as the default while a search is active", context do
+      %{users: [_anna, bert, _carl]} = context
+      {name, field_options} = Enum.find(PostRelationOptionsLive.fields(), &(elem(&1, 0) == :user))
+
+      field_options =
+        Map.put(field_options, :options_query, fn query, assigns ->
+          where(query, [user], user.first_name >= ^(Form.input_value(assigns.form, :title) || ""))
+        end)
+
+      assigns = fn title, user_id ->
+        %{
+          type: :form,
+          name: name,
+          field: {name, field_options},
+          field_options: field_options,
+          live_resource: PostRelationOptionsLive,
+          form: %Post{user_id: user_id} |> Ecto.Changeset.change(title: title) |> Phoenix.Component.to_form(as: :change)
+        }
+      end
+
+      {:ok, socket} = "A" |> assigns.(nil) |> BelongsTo.update(%Socket{})
+      {:noreply, socket} = BelongsTo.handle_event("search", %{"query" => "Carl"}, socket)
+      {:ok, socket} = "B" |> assigns.(nil) |> BelongsTo.update(socket)
+
+      assert socket.assigns.default_option == {"Bert", bert.id}
+
+      # A value that is no valid key of the options has no option.
+      {:ok, socket} = "B" |> assigns.("invalid") |> BelongsTo.update(socket)
+
+      assert socket.assigns.selected_option == nil
+    end
+
+    # A row that is not among the items of `c:Backpex.Field.index_assigns/3` loads its own page.
+    test "loads the page of an index row without the options of the index view", %{post: post, users: users} do
+      [anna, bert, carl] = users
+      {name, field_options} = Enum.find(PostRelationOptionsLive.fields(), &(elem(&1, 0) == :user))
+
+      assigns = %{
+        type: :index,
+        name: name,
+        field: {name, field_options},
+        field_options: field_options,
+        live_resource: PostRelationOptionsLive,
+        live_action: :index,
+        item: post,
+        value: post.user
+      }
+
+      {:ok, socket} = BelongsTo.update(assigns, %Socket{})
+
+      assert socket.assigns.options == [{"Anna", anna.id}, {"Bert", bert.id}]
+      assert socket.assigns.show_more
+      assert socket.assigns.selected_option == {"Carl", carl.id}
+
+      {:noreply, socket} = BelongsTo.handle_event("show-more", %{}, socket)
+
+      assert length(socket.assigns.options) == 3
     end
   end
 

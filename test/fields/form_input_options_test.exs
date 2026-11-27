@@ -31,6 +31,15 @@ defmodule Backpex.Fields.FormInputOptionsTest do
 
   @index_form_assigns [item: %{id: 1}, live_resource: ItemLive, value: nil]
 
+  # The assigns `Backpex.Fields.MultiSelect.update/2` adds.
+  @multi_select_assigns [
+    options: [A: "a"],
+    selected_values: [],
+    selected_labels: [],
+    prompt: "Select options...",
+    not_found_text: "No options found"
+  ]
+
   # {field module, render function, field name, required field options, extra assigns, id of the rendered input}.
   # The input of a combobox is its anchor input.
   @fields [
@@ -117,18 +126,21 @@ defmodule Backpex.Fields.FormInputOptionsTest do
   end
 
   describe "searchable_options" do
-    for {module, name, required_options, extra_assigns} <- [
-          {Fields.BelongsTo, :category, [display_field: :name], @belongs_to_assigns},
-          {Fields.Select, :value, [options: [A: "a"]], []}
+    # {field module, field name, required field options, extra assigns, whether it searches by default}
+    for {module, name, required_options, extra_assigns, default} <- [
+          {Fields.BelongsTo, :category, [display_field: :name], @belongs_to_assigns, false},
+          {Fields.Select, :value, [options: [A: "a"]], [], false},
+          {Fields.MultiSelect, :value, [options: [A: "a"]], @multi_select_assigns, true}
         ] do
       @module module
       @name name
       @required_options required_options
       @extra_assigns extra_assigns
+      @default default
 
       test "#{inspect(module)}.render_form/1 renders the search input of the combobox only when it is set" do
         for {options, expected} <- [
-              {[], false},
+              {[], @default},
               {[searchable_options: false], false},
               {[searchable_options: true], true}
             ] do
