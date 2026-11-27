@@ -141,8 +141,8 @@ defmodule Backpex.MixProject do
     [
       lint: lint(),
       ci: ci(),
-      "assets.build": &build_assets/1,
-      "assets.watch": &watch_assets/1,
+      "assets.build": "run --no-start --no-compile scripts/build_assets.exs",
+      "assets.watch": "run --no-start --no-compile scripts/build_assets.exs --watch",
       "assets.check": ["assets.build", "cmd ./scripts/check_assets.sh"]
     ]
   end
@@ -166,67 +166,6 @@ defmodule Backpex.MixProject do
       "docs --warnings-as-errors",
       "cmd env MIX_ENV=dev mix assets.check"
     ]
-  end
-
-  # The bundles end with the licenses of the third-party packages they include, in a legal comment (`/*!`) that the
-  # bundlers of Backpex users keep. A first build writes esbuild's metafile, which lists the bundled files.
-  defp build_assets(_args) do
-    footer = third_party_notices()
-
-    Mix.Task.rerun("esbuild", ["module", "--footer:js=" <> footer])
-    Mix.Task.rerun("esbuild", ["main", "--footer:js=" <> footer])
-  end
-
-  defp watch_assets(_args) do
-    Mix.Task.rerun("esbuild", ["module", "--watch", "--footer:js=" <> third_party_notices()])
-  end
-
-  defp third_party_notices do
-    metafile = Path.join(Mix.Project.build_path(), "esbuild.meta.json")
-    Mix.Task.rerun("esbuild", ["module", "--metafile=" <> metafile])
-
-    notices =
-      metafile
-      |> File.read!()
-      |> Jason.decode!()
-      |> Map.fetch!("inputs")
-      |> Map.keys()
-      |> Enum.map(&(&1 |> Path.expand(Path.join(__DIR__, "assets")) |> Path.dirname() |> package_dir()))
-      |> Enum.uniq()
-      |> Enum.reject(&(&1 == __DIR__))
-      |> Enum.map(&license_notice/1)
-      |> Enum.sort()
-
-    case notices do
-      [] -> ""
-      notices -> "/*! Licenses of the third-party packages in this bundle\n\n" <> Enum.join(notices, "\n\n") <> "\n*/"
-    end
-  end
-
-  # The nearest directory above `dir` with the `package.json` of a package; nested ones may hold only a `type`.
-  defp package_dir(dir) do
-    package_json = Path.join(dir, "package.json")
-
-    cond do
-      File.exists?(package_json) and Map.has_key?(Jason.decode!(File.read!(package_json)), "name") -> dir
-      Path.dirname(dir) == dir -> Mix.raise("No package.json with a name above a bundled file in #{dir}")
-      true -> package_dir(Path.dirname(dir))
-    end
-  end
-
-  defp license_notice(dir) do
-    package = dir |> Path.join("package.json") |> File.read!() |> Jason.decode!()
-
-    license_file =
-      dir
-      |> File.ls!()
-      |> Enum.sort()
-      |> Enum.find(&(&1 =~ ~r/^(licen[cs]e|copying)/i)) ||
-        Mix.raise("#{package["name"]} is bundled but ships no license file to copy into the bundle")
-
-    text = dir |> Path.join(license_file) |> File.read!() |> String.trim() |> String.replace("*/", "* /")
-
-    "#{package["name"]} #{package["version"]} (#{package["license"]})\n\n#{text}"
   end
 
   defp docs do
