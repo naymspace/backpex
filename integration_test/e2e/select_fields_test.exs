@@ -101,6 +101,34 @@ defmodule Backpex.E2E.SelectFieldsTest do
     end
   end
 
+  describe "belongs to field with query_limit" do
+    test "loads more options, searches them on the server and saves the selection", %{conn: conn} do
+      # The field loads 2 options at a time and is labelled with the first name.
+      [anna, _bert, carl] = for name <- ~w[Anna Bert Carl], do: insert(:user, first_name: name)
+      post = insert(:post, user: anna)
+      id = "resource-form_user_id"
+
+      conn
+      |> visit(~p"/admin/post-relation-options/#{post.id}/edit")
+      |> assert_has("body .phx-connected")
+      |> open(id)
+      |> assert_has(options(id), count: 2)
+      |> click("##{id}-popup button", "Show more")
+      |> assert_has(options(id), count: 3)
+      |> refute_has("##{id}-popup button", text: "Show more")
+      |> assert_has("#{search(id)}:focus")
+      |> type(search(id), "car")
+      |> assert_has(options(id), count: 1)
+      |> click(option(id, carl.id))
+      |> assert_has("#{trigger(id)}[aria-expanded=false]")
+      |> assert_has("##{id} [data-part=value-label]", text: "Carl", exact: true)
+      |> click("#form-action-save")
+      |> assert_path(~p"/admin/post-relation-options")
+
+      assert Repo.get!(Post, post.id).user_id == carl.id
+    end
+  end
+
   describe "select field" do
     test "searches its options and saves the selected one", %{conn: conn} do
       id = "resource-form_country"

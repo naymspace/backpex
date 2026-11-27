@@ -14,6 +14,7 @@ defmodule Backpex.E2E.A11yTest do
     {"/admin/samples", :sample, :id, [:index, :new, :show, :edit]},
     {"/admin/index-edit-samples", :sample, :id, [:index]},
     {"/admin/posts", :post, :id, [:index, :new, :show, :edit]},
+    {"/admin/post-relation-options", :post, :id, [:index, :edit]},
     {"/admin/categories", :category, :id, [:index, :new, :show, :edit]},
     {"/admin/tags", :tag, :id, [:index, :new, :show, :edit]},
     {"/admin/notes", :note, :id, [:index, :new, :show, :edit]}
@@ -67,6 +68,19 @@ defmodule Backpex.E2E.A11yTest do
     |> press("#filter-form_user_id-search", "Escape")
     |> press("#filter-form_category_id-trigger", "Enter")
     |> assert_has("#filter-form_category_id-trigger[aria-expanded=true]")
+    |> assert_a11y()
+  end
+
+  test "an open belongs to combobox that loads its options page by page", %{conn: conn} do
+    post = insert(:post)
+    insert_list(2, :user)
+
+    conn
+    |> visit(~p"/admin/post-relation-options/#{post.id}/edit")
+    |> assert_has("body .phx-connected")
+    |> press("#resource-form_user_id-trigger", "Enter")
+    |> assert_has("#resource-form_user_id-listbox [role=option]", count: 2)
+    |> assert_has("#resource-form_user_id-popup button", text: "Show more")
     |> assert_a11y()
   end
 

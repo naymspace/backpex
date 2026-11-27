@@ -1,8 +1,8 @@
 defmodule Backpex.Test.PostRelationOptionsLive do
   @moduledoc """
   A LiveResource of posts whose relation fields set the options that `Backpex.Test.PostLive` leaves at their defaults:
-  `display_field_form` of `Backpex.Fields.BelongsTo` and `link_assocs`, `prompt` and `not_found_text` of
-  `Backpex.Fields.HasMany`.
+  `display_field_form` and `query_limit` of an index editable `Backpex.Fields.BelongsTo` without a prompt, and
+  `link_assocs`, `prompt` and `not_found_text` of `Backpex.Fields.HasMany`.
   Its resource action `Backpex.Test.ResourceActions.AssignAuthor` has a BelongsTo field.
   """
   use Backpex.LiveResource,
@@ -36,6 +36,8 @@ defmodule Backpex.Test.PostRelationOptionsLive do
         label: "Author",
         display_field: :username,
         display_field_form: :first_name,
+        query_limit: 2,
+        index_editable: true,
         live_resource: Backpex.Test.UserLive
       },
       tags: %{

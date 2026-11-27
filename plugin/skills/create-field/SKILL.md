@@ -27,7 +27,7 @@ You are an expert at creating fields for Backpex, a Phoenix LiveView admin panel
 | `Backpex.Fields.Currency` | Formatted currency values |
 | `Backpex.Fields.URL` | URLs with link rendering |
 | `Backpex.Fields.Email` | Email addresses |
-| `Backpex.Fields.BelongsTo` | belongs_to associations (`searchable_options: true` adds a search input) |
+| `Backpex.Fields.BelongsTo` | belongs_to associations (`searchable_options: true` adds a search input; `query_limit: 20` loads 20 options at a time and searches them on the server, for large tables) |
 | `Backpex.Fields.HasMany` | has_many associations, searched on the server |
 | `Backpex.Fields.HasManyThrough` | has_many through associations |
 | `Backpex.Fields.InlineCRUD` | Inline editing of embeds_many / has_many |
