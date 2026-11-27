@@ -11,8 +11,12 @@
  * anchor input, so LiveView sends the form's `phx-change`. After a patch the
  * server-rendered inputs are the truth again: `updated()` re-derives the state
  * from the DOM and re-applies what only the client knows (open popup, query,
- * active option, position), because morphdom strips attributes the server did
- * not render. A form reset restores the selection the server rendered last,
+ * active option), because morphdom strips attributes the server did not
+ * render. Only the popup's position and side (`style`, `data-placement`) are
+ * exempt: the popup marks them with `JS.ignore_attributes/1`, as removing them
+ * for the moment of a patch resizes the popup, which clamps the scroll position
+ * of its listbox, and makes a closing popup jump while it fades out. A form
+ * reset restores the selection the server rendered last,
  * which the root keeps in `data-default-value`.
  *
  * Parts are looked up by `data-part` when needed instead of in `mounted()`,
@@ -156,14 +160,10 @@ export default {
   },
   beforeUpdate () {
     this.focusedBeforeUpdate = this.el.contains(document.activeElement)
-
-    const popup = this.part('popup')
-    this.popupAttributes = popup ? { style: popup.getAttribute('style'), placement: popup.dataset.placement } : null
   },
   updated () {
     const hadFocus = this.focusedBeforeUpdate
     this.focusedBeforeUpdate = false
-    this.restorePopupAttributes()
 
     if (!this.isInteractive()) {
       this.close()
@@ -196,8 +196,7 @@ export default {
       this.filterOptions()
       const active = this.optionByValue(this.activeValue)
       this.setActive(active && this.isNavigable(active) ? this.activeValue : this.firstNavigableValue(), { scroll: false })
-      // The patch may have removed the inline position or re-created the
-      // control or the popup.
+      // The patch may have re-created the control or the popup.
       this.startPositioning()
     }
 
@@ -528,19 +527,6 @@ export default {
     this.stopAutoUpdate?.()
     this.stopAutoUpdate = null
   },
-  // A patch removes the position and the side the hook set on the popup, as
-  // the server renders neither. A closing popup still fades out after its
-  // positioning stopped, so it would jump to the corner of the viewport and
-  // shrink towards the wrong side.
-  restorePopupAttributes () {
-    const popup = this.part('popup')
-    const saved = this.popupAttributes
-    this.popupAttributes = null
-    if (!popup || !saved) return
-
-    if (saved.style !== null && !popup.hasAttribute('style')) popup.setAttribute('style', saved.style)
-    if (saved.placement && !popup.dataset.placement) popup.dataset.placement = saved.placement
-  },
   // The popup opens below the control and flips above it when it does not
   // fit below. It is at least as wide as the control, stays inside the
   // viewport and is never taller than the room on its side.
@@ -712,19 +698,22 @@ export default {
       event.preventDefault()
       return
     }
-    // The select all and deselect all buttons can take focus with the
-    // keyboard, but a click on them leaves it on the search input.
-    if (target.closest(SELECT_ALL_BUTTONS)) {
-      event.preventDefault()
-      return
-    }
     const popup = this.part('popup')
     if (!popup?.contains(target)) return
     // Only a focusable element of the popup takes the focus. One around the
     // combobox, e.g. the menu of a dropdown, must not: focus would leave the
     // combobox and close the popup before the click.
     const focusable = target.closest(FOCUSABLE)
-    if (!focusable || !popup.contains(focusable)) event.preventDefault()
+    if (!focusable || !popup.contains(focusable)) {
+      event.preventDefault()
+      return
+    }
+    // Buttons and links of the popup, e.g. select all or "Show more" in the
+    // footer, take focus with the keyboard, but a click on them leaves it where
+    // it is. Safari focuses no button on a click, so the focus would move to
+    // the body and the hook could not keep it in the combobox when a patch
+    // removes the button.
+    if (focusable.matches('a[href], button')) event.preventDefault()
   },
   handlePointermove (event) {
     const option = event.target.closest('[data-part="option"]')

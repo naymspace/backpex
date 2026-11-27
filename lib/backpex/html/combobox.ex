@@ -155,6 +155,7 @@ defmodule Backpex.HTML.Combobox do
 
   alias Backpex.HTML.Form
   alias Phoenix.HTML.FormField
+  alias Phoenix.LiveView.JS
 
   require Backpex
 
@@ -425,12 +426,16 @@ defmodule Backpex.HTML.Combobox do
           It fades and scales in from the side of the control (`data-placement`, set by the hook), and out again: the
           discrete transition of `display` and `overlay` keeps a closing popup in the top layer until it has faded out.
           A closing popup takes no clicks.
+
+          The hook sets the position (`style`) and `data-placement`. Patches leave both alone: removing them for a moment
+          would resize the popup, which clamps the scroll position of the listbox, and let a closing popup jump.
         --%>
         <div
           :if={@interactive}
           id={"#{@id}-popup"}
           data-part="popup"
           popover="manual"
+          phx-mounted={JS.ignore_attributes(["style", "data-placement"])}
           class={[
             "rounded-box border-base-300 bg-base-100 text-base-content fixed inset-auto m-0 flex-col overflow-hidden border p-0 shadow-lg open:flex",
             "origin-top-left scale-95 opacity-0 not-open:pointer-events-none open:scale-100 open:opacity-100 starting:open:scale-95 starting:open:opacity-0 data-[placement=top]:origin-bottom-left",

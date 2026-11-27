@@ -793,8 +793,11 @@ defmodule Backpex.E2E.ComboboxTest do
       id = "combobox_country"
 
       # `[still fading out, side it shrinks towards, popup touches the control below it, popup starts at its left edge]`
+      # Without the `overlay` property (Safari) a closing popover leaves the top layer right away, so the popup closes
+      # without fading out.
       geometry = """
       (() => {
+        if (!CSS.supports('overlay', 'auto')) return 'no fade-out'
         const control = document.querySelector('##{id} [data-part=control]').getBoundingClientRect()
         const popup = document.getElementById('#{id}-popup')
         const rect = popup.getBoundingClientRect()
@@ -818,7 +821,7 @@ defmodule Backpex.E2E.ComboboxTest do
       |> open(id)
       |> click(option(id, "ch"))
       |> assert_has("#changes", text: "Changes: 1")
-      |> evaluate(geometry, &assert(&1 == [true, "bottom", true, true]))
+      |> evaluate(geometry, &assert(&1 in [[true, "bottom", true, true], "no fade-out"]))
     end
 
     test "follows the control when the layout shifts without a scroll or resize", %{conn: conn} do
