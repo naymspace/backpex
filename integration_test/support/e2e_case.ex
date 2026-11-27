@@ -23,13 +23,18 @@ defmodule Backpex.E2ECase do
 
   # Turns off animations and transitions during the audit (e.g. a dropdown fading in), so axe measures the final colors
   # instead of colors blended with the background.
+  #
+  # The selects render a `<button>` with `<selectedcontent>` for the customizable select (`appearance: base-select`). A
+  # browser without it (Firefox) shows the native dropdown instead and leaves `<selectedcontent>` empty, so axe would
+  # flag a button without a name that the select does not use. Such browsers skip that button.
   @axe_run_without_animations """
   (async () => {
     const style = document.createElement('style')
     style.textContent = '*, *::before, *::after { animation: none !important; transition: none !important; }'
     document.head.appendChild(style)
     try {
-      return await axe.run()
+      const context = CSS.supports('appearance', 'base-select') ? document : { exclude: ['select > button'] }
+      return await axe.run(context)
     } finally {
       style.remove()
     }
