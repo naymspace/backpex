@@ -2,7 +2,7 @@
 defmodule Backpex.Fields.InlineCRUD do
   @config_schema [
     type: [
-      doc: "The type of the field.",
+      doc: "The type of the field: `:embed` for an `embeds_many` or `embeds_one`, `:assoc` for a `has_many`.",
       type: {:in, [:embed, :assoc]},
       required: true
     ],
@@ -31,7 +31,8 @@ defmodule Backpex.Fields.InlineCRUD do
   ]
 
   @moduledoc """
-  A field to handle inline CRUD operations. It can be used with either an `embeds_many` or `has_many` (association) type column.
+  A field to handle inline CRUD operations. It can be used with an `embeds_many`, an `embeds_one` or a `has_many`
+  (association) type column.
 
   ## Field-specific options
 
@@ -59,6 +60,23 @@ defmodule Backpex.Fields.InlineCRUD do
   > #### Important {: .info}
   >
   > We use the Ecto `:sort_param` and `:drop_param` to keep track of order and dropped items. Therefore, you need to use these options as well in your changeset. The name has to be `<field_name>_order` and `<field_name>_delete`.
+
+  ### EmbedsOne
+
+  An `embeds_one` uses `type: :embed` as well. The field in the migration must be of type `:map`. The form renders one
+  row of child fields without controls to add, delete or reorder it, so use `cast_embed/3` without `:sort_param` and
+  `:drop_param`:
+
+      def changeset(your_schema, attrs) do
+        your_schema
+        ...
+        |> cast_embed(:your_field, with: &your_field_changeset/2)
+        ...
+      end
+
+  The form always renders the row, also for an item without an entry, so saving the form saves an entry. Validate its
+  child fields in the changeset of the embed if an entry needs values. An embedded schema without a primary key
+  (`@primary_key false`) needs `on_replace: :update`, as Ecto can't tell then that the form updates the existing entry.
 
   ### HasMany (Association)
 
@@ -108,6 +126,7 @@ defmodule Backpex.Fields.InlineCRUD do
 
   alias Backpex.Authorization
   alias Backpex.Router
+  alias Phoenix.HTML.FormField
   alias Phoenix.LiveView.JS
 
   require Backpex
@@ -142,8 +161,11 @@ defmodule Backpex.Fields.InlineCRUD do
     end)
   end
 
+  # The value of an `embeds_many` or `has_many` is a list of rows, the value of an `embeds_one` one row or `nil`.
   @impl Backpex.Field
   def render_value(assigns) do
+    assigns = assign(assigns, :rows, List.wrap(assigns.value))
+
     ~H"""
     <div class="ring-base-content/10 rounded-box overflow-x-auto ring-1">
       <table class="table">
@@ -158,7 +180,7 @@ defmodule Backpex.Fields.InlineCRUD do
           </tr>
         </thead>
         <tbody class="text-base-content/75">
-          <tr :for={{row, index} <- Enum.with_index(@value)} class="border-base-content/10 border-b last:border-b-0">
+          <tr :for={{row, index} <- Enum.with_index(@rows)} class="border-base-content/10 border-b last:border-b-0">
             <td :for={{name, field_options} <- @child_fields}>
               {Backpex.HTML.Resource.inlined_resource_field(
                 assign(assigns,
@@ -192,10 +214,13 @@ defmodule Backpex.Fields.InlineCRUD do
 
   @impl Backpex.Field
   def render_form(assigns) do
+    form_field = assigns.form[assigns.name]
+
     assigns =
       assigns
-      |> assign(:add_entry_id, "#{assigns.form[assigns.name].id}_add_entry")
-      |> assign(:row_count, row_count(assigns.form[assigns.name]))
+      |> assign(:add_entry_id, "#{form_field.id}_add_entry")
+      |> assign(:row_count, row_count(form_field))
+      |> assign(:many, cardinality(form_field) == :many)
 
     ~H"""
     <div>
@@ -217,11 +242,12 @@ defmodule Backpex.Fields.InlineCRUD do
             >
               {child_field_options.label}
             </div>
-            <div :if={not @readonly} class="table-cell" />
+            <div :if={@many and not @readonly} class="table-cell" />
           </div>
 
           <.inputs_for :let={f_nested} field={@form[@name]}>
             <input
+              :if={@many}
               type="hidden"
               name={"change[#{@name}_order][]"}
               value={f_nested.index}
@@ -246,7 +272,7 @@ defmodule Backpex.Fields.InlineCRUD do
                 )}
               </div>
 
-              <div :if={not @readonly} class="table-cell w-px pb-3 align-top">
+              <div :if={@many and not @readonly} class="table-cell w-px pb-3 align-top">
                 <button
                   type="button"
                   name={"change[#{@name}_delete][]"}
@@ -261,10 +287,17 @@ defmodule Backpex.Fields.InlineCRUD do
             </div>
           </.inputs_for>
 
-          <input type="hidden" name={"change[#{@name}_delete][]"} tabindex="-1" aria-hidden="true" disabled={@readonly} />
+          <input
+            :if={@many}
+            type="hidden"
+            name={"change[#{@name}_delete][]"}
+            tabindex="-1"
+            aria-hidden="true"
+            disabled={@readonly}
+          />
         </div>
         <input
-          :if={not @readonly}
+          :if={@many and not @readonly}
           id={@add_entry_id}
           name={"change[#{@name}_order][]"}
           type="checkbox"
@@ -311,20 +344,32 @@ defmodule Backpex.Fields.InlineCRUD do
   # The schema of the rows comes from the changeset of the form, as the form of a resource action or an item action
   # works on the `base_schema/1` of the action, not on the schema of the LiveResource.
   defp primary_keys(%{changeset: %Ecto.Changeset{types: types}}, name) do
-    case Map.get(types, name) do
-      {tag, %{related: related}} when tag in [:embed, :assoc] -> related_primary_keys(related)
-      {:parameterized, {Ecto.Embedded, %{related: related}}} -> related_primary_keys(related)
-      _type -> []
+    case relation(types, name) do
+      %{related: related} -> :primary_key |> related.__schema__() |> Enum.map(&Atom.to_string/1)
+      nil -> []
     end
   end
 
   defp primary_keys(_assigns, _name), do: []
 
-  defp related_primary_keys(related) do
-    :primary_key
-    |> related.__schema__()
-    |> Enum.map(&Atom.to_string/1)
+  # The `Ecto.Embedded` or `Ecto.Association` struct of the field in the types of a changeset. `cast_embed/3`,
+  # `cast_assoc/3` and `inputs_for` take only these two shapes.
+  defp relation(types, name) do
+    case Map.get(types, name) do
+      {tag, %{related: _related} = relation} when tag in [:embed, :assoc] -> relation
+      _type -> nil
+    end
   end
+
+  # Whether the form renders a list of rows (`embeds_many`, `has_many`) or the one row of an `embeds_one`.
+  # `row_count/1` has already raised for a field of a changeset that is no relation. A form of another adapter
+  # renders a list.
+  defp cardinality(%FormField{form: %{source: %Ecto.Changeset{types: types}}, field: field}) do
+    %{cardinality: cardinality} = relation(types, field)
+    cardinality
+  end
+
+  defp cardinality(_form_field), do: :many
 
   @impl Backpex.Field
   def schema({name, _field_options}, schema) do
@@ -341,7 +386,7 @@ defmodule Backpex.Fields.InlineCRUD do
   end
 
   # The rows `inputs_for` renders for the field.
-  defp row_count(%Phoenix.HTML.FormField{form: form, field: field}) do
+  defp row_count(%FormField{form: form, field: field}) do
     length(form.impl.to_form(form.source, form, field, []))
   end
 
