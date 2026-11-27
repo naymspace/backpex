@@ -254,7 +254,7 @@ bun run lint:standard
 mix assets.build
 ```
 
-`mix assets.build` compiles the hooks to `priv/static/js`, which is committed and published with the package. CI fails if it is out of date (`mix assets.check`). The browser tests in `integration_test/e2e` bundle `assets/js` themselves, so run `bun run e2e:assets` again before them.
+`mix assets.build` compiles the hooks to `priv/static/js`, which is committed and published with the package. CI fails if it is out of date (`mix assets.check`). It ends each bundle with the license files of the third-party packages it includes, found through esbuild's metafile, so a new dependency of the hooks needs no manual notice; the build fails if a bundled package ships no license file. The browser tests in `integration_test/e2e` bundle `assets/js` themselves, so run `bun run e2e:assets` again before them.
 
 #### Dockerfile
 
