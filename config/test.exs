@@ -27,6 +27,14 @@ alias Backpex.Test.Translator
       {"5432", nil}
   end
 
+# The browser tests run in Chromium unless `PW_BROWSER` names another browser. The default pool launches its browsers
+# with its own `browser` option, so the pool gets it as well.
+browser =
+  Map.fetch!(
+    %{"chromium" => :chromium, "firefox" => :firefox, "webkit" => :webkit},
+    System.get_env("PW_BROWSER", "chromium")
+  )
+
 # Port 0 lets the OS pick a free port, so several checkouts can run their tests at the same time. `test_helper.exs` hands
 # the actual port to `phoenix_test`.
 config :backpex, Endpoint,
@@ -77,7 +85,8 @@ config :phoenix_test,
   otp_app: :backpex,
   playwright: [
     assets_dir: "./",
-    browser: :chromium,
+    browser: browser,
+    browser_pools: [[id: :default_pool, browser: browser]],
     browser_launch_timeout: 10_000,
     trace: System.get_env("PW_TRACE", "false") in ~w(t true),
     trace_dir: "tmp/e2e/traces"

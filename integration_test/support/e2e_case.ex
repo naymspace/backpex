@@ -1,7 +1,7 @@
 defmodule Backpex.E2ECase do
   @moduledoc """
-  The case for browser tests of the test app. It runs the tests in Chromium with `PhoenixTest.Playwright` and tags them
-  `:e2e`, so they only run with `mix test --only e2e`.
+  The case for browser tests of the test app. It runs the tests with `PhoenixTest.Playwright` in Chromium, or in the
+  browser `PW_BROWSER` names (`firefox`, `webkit`), and tags them `:e2e`, so they only run with `mix test --only e2e`.
 
   The browser loads the assets of `bun run e2e:assets` from `tmp/e2e/assets`.
   """
