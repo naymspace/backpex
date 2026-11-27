@@ -2,7 +2,8 @@ defmodule Backpex.Test.UserLive do
   @moduledoc """
   Users with integer primary keys. They have an `item_query` that hides soft-deleted users, an `init_order` function,
   a `can?/3` that denies the item action `Backpex.Test.ItemActions.UserSoftDelete` for admins, two resource actions, a
-  panel, an index editable field, a HasManyThrough field with a pivot field and an InlineCRUD field of an embed.
+  panel, an index editable field, a HasManyThrough field with a pivot field and InlineCRUD fields of an `embeds_many`
+  and an `embeds_one`.
   """
   use Backpex.LiveResource,
     adapter_config: [
@@ -116,6 +117,16 @@ defmodule Backpex.Test.UserLive do
         child_fields: [
           label: %{module: Backpex.Fields.Text, label: "Label"},
           url: %{module: Backpex.Fields.Text, label: "URL"}
+        ]
+      },
+      emergency_contact: %{
+        module: Backpex.Fields.InlineCRUD,
+        label: "Emergency contact",
+        type: :embed,
+        except: [:index],
+        child_fields: [
+          name: %{module: Backpex.Fields.Text, label: "Name"},
+          phone: %{module: Backpex.Fields.Text, label: "Phone"}
         ]
       }
     ]

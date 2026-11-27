@@ -13,6 +13,7 @@ defmodule Backpex.Test.Repo.Migrations.CreateTables do
       add(:role, :string, null: false)
       add(:avatar, :string)
       add(:social_links, :map)
+      add(:emergency_contact, :map)
       add(:deleted_at, :utc_datetime)
       timestamps()
     end
