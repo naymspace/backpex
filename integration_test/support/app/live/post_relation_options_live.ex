@@ -1,8 +1,8 @@
 defmodule Backpex.Test.PostRelationOptionsLive do
   @moduledoc """
   A LiveResource of posts whose relation fields set the options that `Backpex.Test.PostLive` leaves at their defaults:
-  `display_field_form`, server search (`searchable_options: :server`) and `query_limit` of an index editable
-  `Backpex.Fields.BelongsTo` without a prompt, and
+  `display_field_form`, an ordering `options_query`, server search (`searchable_options: :server`) and `query_limit`
+  of an index editable `Backpex.Fields.BelongsTo` without a prompt, and
   `link_assocs`, `prompt` and `not_found_text` of `Backpex.Fields.HasMany`.
   Its resource action `Backpex.Test.ResourceActions.AssignAuthor` has a BelongsTo field.
   """
@@ -13,6 +13,8 @@ defmodule Backpex.Test.PostRelationOptionsLive do
       update_changeset: &Backpex.Test.Post.update_changeset/3,
       create_changeset: &Backpex.Test.Post.create_changeset/3
     ]
+
+  import Ecto.Query
 
   @impl Backpex.LiveResource
   def layout(_assigns), do: {Backpex.Test.Layouts, :admin}
@@ -37,6 +39,7 @@ defmodule Backpex.Test.PostRelationOptionsLive do
         label: "Author",
         display_field: :username,
         display_field_form: :first_name,
+        options_query: fn query, _assigns -> order_by(query, [user], user.first_name) end,
         searchable_options: :server,
         query_limit: 2,
         index_editable: true,

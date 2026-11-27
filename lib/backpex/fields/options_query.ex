@@ -42,9 +42,8 @@ defmodule Backpex.Fields.OptionsQuery do
     * `:search` - only the options whose `:search_by` contains this string, ignoring case. Ignored if it is `nil` or
       blank.
     * `:ids` - only the options whose `:value` is one of these values.
-    * `:offset` and `:limit` - skip and limit the options. Ignored if they are `nil`. With either of them, the options
-      are also ordered by their `:value`, so that pages neither overlap nor skip options when the options query has no
-      order or orders by a column with equal values.
+    * `:offset` and `:limit` - skip and limit the options. Ignored if they are `nil`. The pages follow the order of the
+      options query, so an options query without an order may return pages that overlap or skip options.
 
   The `opts` tell how the field reads its options:
 
@@ -67,7 +66,6 @@ defmodule Backpex.Fields.OptionsQuery do
 
     query
     |> filter(criteria, opts)
-    |> maybe_order_page(opts[:value], offset || limit)
     |> maybe_offset(offset)
     |> maybe_limit(limit)
     |> opts[:repo].all()
@@ -211,10 +209,6 @@ defmodule Backpex.Fields.OptionsQuery do
       end
     end
   end
-
-  # Appended to the order of the options query, so it only orders options that are equal by that order.
-  defp maybe_order_page(query, _key, nil), do: query
-  defp maybe_order_page(query, key, _page), do: order_by(query, [option], field(option, ^key))
 
   defp maybe_offset(query, nil), do: query
   defp maybe_offset(query, offset), do: offset(query, ^offset)

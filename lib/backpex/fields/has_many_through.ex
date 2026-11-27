@@ -36,7 +36,8 @@ defmodule Backpex.Fields.HasManyThrough do
         * `true` - it loads every option of the `options_query` and filters them in the browser.
         * `:server` - it loads `query_limit` options at a time, searches them on the server by the
           `display_field_form`, or the `display_field` if it has none, and loads further options with "Show more".
-          Use it for a relation with many records.
+          Use it for a relation with many records. The pages follow the order of the
+          `options_query`, so give it an `order_by` for pages that neither overlap nor skip options.
       """,
       type: {:or, [:boolean, {:in, [:server]}]},
       default: false

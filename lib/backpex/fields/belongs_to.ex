@@ -39,7 +39,8 @@ defmodule Backpex.Fields.BelongsTo do
         * `:server` - it loads `query_limit` options at a time, searches them on the server and loads further options
           with "Show more". Use it for a relation with many records, e.g. users. The search matches the
           `display_field_form`, or the `select` expression of the field if it has one and no `display_field_form`, so
-          these have to be columns of the related schema or a `select` expression.
+          these have to be columns of the related schema or a `select` expression. The pages follow the order of the
+          `options_query`, so give it an `order_by` for pages that neither overlap nor skip options.
       """,
       type: {:or, [:boolean, {:in, [:server]}]},
       default: false

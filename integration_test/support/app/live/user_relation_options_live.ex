@@ -45,7 +45,9 @@ defmodule Backpex.Test.UserRelationOptionsLive do
         except: [:index],
         live_resource: Backpex.Test.AddressLive,
         sort_by: [:city],
-        options_query: fn query, _assigns -> where(query, [address], address.country == :de) end,
+        options_query: fn query, _assigns ->
+          query |> where([address], address.country == :de) |> order_by([address], address.street)
+        end,
         searchable_options: :server,
         query_limit: 2,
         pivot_fields: [

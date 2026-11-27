@@ -211,7 +211,7 @@ defmodule Backpex.Integration.Fields.HasManyThroughTest do
   end
 
   # The addresses of `Backpex.Test.UserRelationOptionsLive` load 2 options at a time and are searched on the server by
-  # their street. The pages are ordered by the key of the addresses.
+  # their street, by which the options query orders them.
   describe "server search" do
     @combobox "#resource-form_users_addresses_0_address_id"
 
@@ -219,7 +219,7 @@ defmodule Backpex.Integration.Fields.HasManyThroughTest do
       addresses = for street <- ["Elm Street", "Oak Street", "Pine Street"], do: insert(:address, street: street)
       insert(:address, street: "Oak Avenue", country: :us)
 
-      %{addresses: Enum.sort_by(addresses, & &1.id)}
+      %{addresses: addresses}
     end
 
     test "loads a page of options, loads more and searches them", %{conn: conn, addresses: addresses} do

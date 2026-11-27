@@ -122,8 +122,7 @@ defmodule Backpex.Integration.Fields.BelongsToTest do
   end
 
   # The author of `Backpex.Test.PostRelationOptionsLive` is an index editable BelongsTo field with a `query_limit` of 2
-  # and no prompt. Its options are labelled with the first name. Without an order in the options query, the pages are
-  # ordered by the key of the options.
+  # and no prompt. Its options are labelled and ordered by the first name.
   describe "query_limit" do
     @combobox "#resource-form_user_id"
 

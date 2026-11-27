@@ -40,14 +40,13 @@ defmodule Backpex.Fields.OptionsQueryTest do
       assert_received {:all, %Ecto.Query{order_bys: [], limit: nil, offset: nil}}
     end
 
-    test "orders a page by the value after the order of the options query" do
+    test "keeps the order of the options query for a page" do
       query = User |> from() |> order_by([user], user.name)
 
-      OptionsQuery.list(query, [offset: 2, limit: 2], @opts)
+      User |> from() |> order_by([user], user.name) |> OptionsQuery.list([offset: 2, limit: 2], @opts)
 
-      assert_received {:all, %Ecto.Query{order_bys: [name_order, value_order], limit: limit, offset: offset}}
-      assert Macro.to_string(name_order.expr) == "[asc: &0.name()]"
-      assert Macro.to_string(value_order.expr) == "[asc: &0.id()]"
+      assert_received {:all, %Ecto.Query{order_bys: [order], limit: limit, offset: offset}}
+      assert order.expr == hd(query.order_bys).expr
       assert %{params: [{2, :integer}]} = limit
       assert %{params: [{2, :integer}]} = offset
     end

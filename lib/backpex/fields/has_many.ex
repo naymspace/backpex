@@ -58,7 +58,8 @@ defmodule Backpex.Fields.HasMany do
         * `false` - it loads every option of the `options_query` and has no search input.
         * `true` - it loads every option of the `options_query` and filters them in the browser.
         * `:server` - it loads `query_limit` options at a time, searches them on the server by the `display_field`, or
-          the `select` expression of the field if it has one, and loads further options with "Show more".
+          the `select` expression of the field if it has one, and loads further options with "Show more". The pages follow the order of the
+          `options_query`, so give it an `order_by` for pages that neither overlap nor skip options.
       """,
       type: {:or, [:boolean, {:in, [:server]}]},
       default: :server
