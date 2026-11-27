@@ -60,7 +60,7 @@ defmodule Backpex.MixProject do
   end
 
   # `mix usage_rules.sync` links the rules of these packages at the end of CODING_STANDARDS.md. It only sees dev
-  # dependencies, so CODING_STANDARDS.md links the rules of the test-only `phoenix_test_playwright` by hand.
+  # dependencies, so CODING_STANDARDS.md links the rules of the test-only `fluffy` by hand.
   defp usage_rules do
     [
       file: "CODING_STANDARDS.md",
@@ -114,7 +114,7 @@ defmodule Backpex.MixProject do
         {:ecto_sql, "~> 3.10", only: :test},
         {:bandit, "~> 1.14", only: :test},
         {:phoenix_test, "~> 0.13.0", only: :test, runtime: false},
-        {:phoenix_test_playwright, "~> 0.19.0", only: :test, runtime: false},
+        {:fluffy, "~> 0.9.0-rc.7", only: :test},
         {:a11y_audit, "~> 0.5.0", only: :test},
         {:ex_machina, "~> 2.8", only: :test},
         {:money, "~> 1.14", only: :test}

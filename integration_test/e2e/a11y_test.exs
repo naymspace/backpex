@@ -21,7 +21,7 @@ defmodule Backpex.E2E.A11yTest do
 
   for {path, factory, primary_key, views} <- @resources, view <- views do
     @tag path: path, factory: factory, primary_key: primary_key, view: view
-    test "#{path} #{view}", %{conn: conn} = context do
+    test "#{path} #{view}", %{session: session} = context do
       item = insert(context.factory)
       # Encoded like the router encodes a path segment: a space becomes `%20`, not `+`.
       id = item |> Map.fetch!(context.primary_key) |> to_string() |> URI.encode(&URI.char_unreserved?/1)
@@ -34,64 +34,69 @@ defmodule Backpex.E2E.A11yTest do
           :edit -> "#{context.path}/#{id}/edit"
         end
 
-      conn
+      session
       |> visit(path)
-      |> assert_has("body .phx-connected")
       |> assert_a11y()
     end
   end
 
-  test "the delete confirmation modal", %{conn: conn} do
+  test "the delete confirmation modal", %{session: session} do
     address = insert(:address)
 
-    conn
+    session
     |> visit(~p"/admin/addresses")
-    |> assert_has("body .phx-connected")
-    |> click("#item-action-delete-#{address.id}")
-    |> assert_has("#action-confirm-modal[open]")
+    |> click(by_css("#item-action-delete-#{address.id}"))
+    |> assert_has(by_css("#action-confirm-modal[open]"))
     |> assert_a11y()
   end
 
-  test "the filter dropdown with an open multi select", %{conn: conn} do
+  test "the filter dropdown with an open multi select", %{session: session} do
     insert_list(3, :post)
+    user_options = by_css("#filter-dropdown-menu input[name='filters[user_id][]']") |> filter(visible: true)
 
-    conn
+    session
     |> visit(~p"/admin/posts")
-    |> assert_has("body .phx-connected")
-    |> press("#filter-dropdown-trigger", "Enter")
-    |> press("#filter-dropdown-menu [id^=multi-select-][id$=-trigger]", "Enter")
-    |> assert_has("#filter-dropdown-menu input[name='filters[user_id][]']", count: 3)
+    |> press(by_css("#filter-dropdown-trigger"), "Enter")
+    |> press(by_css("#filter-dropdown-menu [id^=multi-select-][id$=-trigger]"), "Enter")
+    |> assert(count(user_options, 3))
     |> assert_a11y()
   end
 
-  test "an open has many dropdown in light and dark mode", %{conn: conn} do
+  test "an open has many dropdown in light and dark mode", %{session: session} do
     insert_list(3, :tag)
+    tag_options = by_css("#has-many-dropdown-tags-menu input[name='change[tags][]']") |> filter(visible: true)
 
-    conn
+    session
     |> visit(~p"/admin/posts/new")
-    |> assert_has("body .phx-connected")
-    |> press("#has-many-dropdown-tags-trigger", "Enter")
-    |> assert_has("#has-many-dropdown-tags-menu input[name='change[tags][]']", count: 3)
+    |> press(by_css("#has-many-dropdown-tags-trigger"), "Enter")
+    |> assert(count(tag_options, 3))
     |> assert_a11y()
-    |> evaluate("document.documentElement.dataset.theme = 'dark'")
+    # Choosing a theme closes the tags dropdown, so it is opened again for the audit in dark mode.
+    |> click(by_css("#backpex-theme-selector-trigger"))
+    |> click(by_css("#backpex-theme-selector label") |> filter(has_text: "Dark"))
+    |> assert(attribute(by_css("html"), "data-theme", "dark"))
+    |> assert(attribute(by_css("#has-many-dropdown-tags-trigger"), "aria-expanded", "false"))
+    |> press(by_css("#has-many-dropdown-tags-trigger"), "Enter")
+    |> assert(count(tag_options, 3))
     |> assert_a11y()
   end
 
-  test "pagination with a placeholder for skipped pages", %{conn: conn} do
+  test "pagination with a placeholder for skipped pages", %{session: session} do
     insert_list(100, :film_review)
 
-    conn
+    session
     |> visit(~p"/admin/film-reviews")
-    |> assert_has(".join-item", text: "...")
+    |> assert_has(by_css(".join-item") |> filter(has_text: "..."))
     |> assert_a11y()
   end
 
-  test "an open multi select of a resource action", %{conn: conn} do
-    conn
+  test "an open multi select of a resource action", %{session: session} do
+    user_options = by_css("input[name='change[users][]']") |> filter(visible: true)
+
+    session
     |> visit(~p"/admin/users/invite/resource-action")
-    |> assert_has("body .phx-connected")
-    |> press("[id^=multi-select-][id$=-trigger]", "Enter")
-    |> assert_has("input[name='change[users][]']", count: 2)
+    |> press(by_css("[id^=multi-select-][id$=-trigger]"), "Enter")
+    |> assert(count(user_options, 2))
     |> assert_a11y()
   end
 end

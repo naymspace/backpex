@@ -21,7 +21,7 @@ defmodule Backpex.Test.Router do
 
     backpex_routes()
 
-    live_session :default, on_mount: [Backpex.Test.Sandbox, Backpex.InitAssigns] do
+    live_session :default, on_mount: [Fluffy.Sandbox, Backpex.InitAssigns] do
       live_resources "/users", Backpex.Test.UserLive
       live_resources "/products", Backpex.Test.ProductLive
       live_resources "/invoices", Backpex.Test.InvoiceLive, only: [:index]

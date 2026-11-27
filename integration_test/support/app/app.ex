@@ -11,26 +11,6 @@ defmodule Backpex.Test.ErrorHTML do
   def render(template, _assigns), do: Phoenix.Controller.status_message_from_template(template)
 end
 
-defmodule Backpex.Test.Sandbox do
-  @moduledoc """
-  Allows the LiveViews of a browser test to use the database connection of the test.
-
-  `PhoenixTest.Playwright.Case` puts the sandbox metadata of the test into the user agent of the browser. Tests that use
-  `Phoenix.LiveViewTest` need no allowance, the LiveView process has the test process in its `$callers`.
-  """
-  import Phoenix.LiveView
-
-  def on_mount(:default, _params, _session, socket) do
-    if connected?(socket) do
-      socket
-      |> get_connect_info(:user_agent)
-      |> Phoenix.Ecto.SQL.Sandbox.allow(Ecto.Adapters.SQL.Sandbox)
-    end
-
-    {:cont, socket}
-  end
-end
-
 defmodule Backpex.Test.Endpoint do
   @moduledoc """
   The endpoint of the test app. It serves the LiveResources in `Backpex.Test.Router` to `Phoenix.LiveViewTest` and,

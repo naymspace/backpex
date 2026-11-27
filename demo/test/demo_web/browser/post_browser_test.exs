@@ -1,5 +1,5 @@
 defmodule DemoWeb.Browser.PostBrowserTest do
-  use PhoenixTest.Playwright.Case, async: false
+  use DemoWeb.BrowserCase, async: false
   use DemoWeb, :verified_routes
   use DemoWeb.A11yAssertions
 
@@ -8,64 +8,70 @@ defmodule DemoWeb.Browser.PostBrowserTest do
   @moduletag :playwright
 
   describe "posts index" do
-    test "a11y", %{conn: conn} do
+    test "a11y", %{session: session} do
       insert_list(10, :post)
 
-      conn
+      session
       |> visit(~p"/admin/posts")
       |> assert_a11y()
     end
 
-    test "a11y with the filter dropdown and its multi select open", %{conn: conn} do
+    test "a11y with the filter dropdown and its multi select open", %{session: session} do
       insert_list(3, :post)
+      user_options = by_css("#filter-dropdown-menu input[name='filters[user_id][]']") |> filter(visible: true)
 
-      conn
+      session
       |> visit(~p"/admin/posts")
-      |> assert_has("body .phx-connected")
-      |> press("#filter-dropdown-trigger", "Enter")
-      |> press("#filter-dropdown-menu [id^=multi-select-][id$=-trigger]", "Enter")
-      |> assert_has("#filter-dropdown-menu input[name='filters[user_id][]']", count: 3)
+      |> press(by_css("#filter-dropdown-trigger"), "Enter")
+      |> press(by_css("#filter-dropdown-menu [id^=multi-select-][id$=-trigger]"), "Enter")
+      |> assert(count(user_options, 3))
       |> assert_a11y()
     end
   end
 
   describe "posts show" do
-    test "a11y", %{conn: conn} do
+    test "a11y", %{session: session} do
       post = insert(:post)
 
-      conn
+      session
       |> visit(~p"/admin/posts/#{post.id}/show")
       |> assert_a11y()
     end
   end
 
   describe "posts edit" do
-    test "a11y", %{conn: conn} do
+    test "a11y", %{session: session} do
       post = insert(:post)
 
-      conn
+      session
       |> visit(~p"/admin/posts/#{post.id}/edit")
       |> assert_a11y()
     end
   end
 
   describe "posts new" do
-    test "a11y", %{conn: conn} do
-      conn
+    test "a11y", %{session: session} do
+      session
       |> visit(~p"/admin/posts/new")
       |> assert_a11y()
     end
 
-    test "a11y with the tags dropdown open", %{conn: conn} do
+    test "a11y with the tags dropdown open", %{session: session} do
       insert_list(3, :tag)
+      tag_options = by_css("#has-many-dropdown-tags-menu input[name='change[tags][]']") |> filter(visible: true)
 
-      conn
+      session
       |> visit(~p"/admin/posts/new")
-      |> assert_has("body .phx-connected")
-      |> press("#has-many-dropdown-tags-trigger", "Enter")
-      |> assert_has("#has-many-dropdown-tags-menu input[name='change[tags][]']", count: 3)
+      |> press(by_css("#has-many-dropdown-tags-trigger"), "Enter")
+      |> assert(count(tag_options, 3))
       |> assert_a11y()
-      |> evaluate("document.documentElement.dataset.theme = 'dark'")
+      # Choosing a theme closes the tags dropdown, so it is opened again for the audit in dark mode.
+      |> click(by_css("#backpex-theme-selector-trigger"))
+      |> click(by_css("#backpex-theme-selector label") |> filter(has_text: "Dark"))
+      |> assert(attribute(by_css("html"), "data-theme", "dark"))
+      |> assert(attribute(by_css("#has-many-dropdown-tags-trigger"), "aria-expanded", "false"))
+      |> press(by_css("#has-many-dropdown-tags-trigger"), "Enter")
+      |> assert(count(tag_options, 3))
       |> assert_a11y()
     end
   end

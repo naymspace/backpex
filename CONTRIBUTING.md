@@ -220,7 +220,7 @@ The tests find the port of the database with `docker compose port`. Set `DB_HOST
 INTEGRATION_TESTS=false mix test
 ```
 
-The browser tests run with [Playwright](https://playwright.dev), which needs Node.js, and are excluded by default:
+The browser tests run with [Playwright](https://playwright.dev) through [Fluffy](https://hexdocs.pm/fluffy) and are excluded by default:
 
 ```bash
 bun install
