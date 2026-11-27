@@ -156,10 +156,14 @@ export default {
   },
   beforeUpdate () {
     this.focusedBeforeUpdate = this.el.contains(document.activeElement)
+
+    const popup = this.part('popup')
+    this.popupAttributes = popup ? { style: popup.getAttribute('style'), placement: popup.dataset.placement } : null
   },
   updated () {
     const hadFocus = this.focusedBeforeUpdate
     this.focusedBeforeUpdate = false
+    this.restorePopupAttributes()
 
     if (!this.isInteractive()) {
       this.close()
@@ -523,6 +527,19 @@ export default {
   stopPositioning () {
     this.stopAutoUpdate?.()
     this.stopAutoUpdate = null
+  },
+  // A patch removes the position and the side the hook set on the popup, as
+  // the server renders neither. A closing popup still fades out after its
+  // positioning stopped, so it would jump to the corner of the viewport and
+  // shrink towards the wrong side.
+  restorePopupAttributes () {
+    const popup = this.part('popup')
+    const saved = this.popupAttributes
+    this.popupAttributes = null
+    if (!popup || !saved) return
+
+    if (saved.style !== null && !popup.hasAttribute('style')) popup.setAttribute('style', saved.style)
+    if (saved.placement && !popup.dataset.placement) popup.dataset.placement = saved.placement
   },
   // The popup opens below the control and flips above it when it does not
   // fit below. It is at least as wide as the control, stays inside the

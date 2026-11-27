@@ -20,10 +20,20 @@ defmodule Backpex.E2E.ComboboxTest do
     |> assert_open(id)
   end
 
+  # Waits for the popup to finish its opening transition, which scales it, so measurements see its final size.
   defp assert_open(conn, id) do
     conn
     |> assert_has("#{trigger(id)}[aria-expanded=true]")
     |> assert_has("##{id}[data-open] ##{id}-listbox")
+    |> evaluate(popup_settled_js(id))
+  end
+
+  defp popup_settled_js(id) do
+    """
+    Promise.all(
+      document.getElementById('#{id}-popup').getAnimations().map((animation) => animation.finished.catch(() => null))
+    )
+    """
   end
 
   defp assert_closed(conn, id) do
@@ -739,6 +749,76 @@ defmodule Backpex.E2E.ComboboxTest do
         """,
         &assert(&1 == [true, true, true])
       )
+    end
+
+    test "fades and scales in from the side of the control it opens on", %{conn: conn} do
+      bottom = "combobox_bottom_choice"
+
+      # `[transition properties, vertical transform origin relative to the popup's height]`
+      motion = fn id ->
+        """
+        (() => {
+          const popup = document.getElementById('#{id}-popup')
+          const style = getComputedStyle(popup)
+          const originY = parseFloat(style.transformOrigin.split(' ')[1])
+          return [style.transitionProperty, Math.round(originY / popup.offsetHeight)]
+        })()
+        """
+      end
+
+      # The opening transition runs right after the click, before `assert_open` waits for it to finish.
+      opening = """
+      new Promise((resolve) => {
+        const popup = document.getElementById('combobox_country-popup')
+        document.getElementById('combobox_country-trigger').click()
+        requestAnimationFrame(() => resolve(popup.getAnimations().map((animation) => animation.transitionProperty).sort()))
+      })
+      """
+
+      conn
+      |> visit_fixture()
+      |> evaluate(opening, &assert(&1 == ["opacity", "scale"]))
+      |> assert_open("combobox_country")
+      |> evaluate(motion.("combobox_country"), &assert(&1 == ["opacity, scale, display, overlay", 0]))
+      |> click("h1")
+      |> assert_closed("combobox_country")
+      |> evaluate("document.getElementById('#{bottom}').scrollIntoView({ block: 'end' })")
+      |> evaluate("document.getElementById('#{bottom}-trigger').click()")
+      |> assert_open(bottom)
+      |> assert_has("##{bottom}-popup[data-placement=top]")
+      |> evaluate(motion.(bottom), &assert(&1 == ["opacity, scale, display, overlay", 1]))
+    end
+
+    test "stays next to the control while it fades out after a patch", %{conn: conn} do
+      id = "combobox_country"
+
+      # `[still fading out, side it shrinks towards, popup touches the control below it, popup starts at its left edge]`
+      geometry = """
+      (() => {
+        const control = document.querySelector('##{id} [data-part=control]').getBoundingClientRect()
+        const popup = document.getElementById('#{id}-popup')
+        const rect = popup.getBoundingClientRect()
+        return [
+          !popup.matches(':popover-open') && getComputedStyle(popup).display !== 'none',
+          popup.dataset.placement,
+          Math.abs(rect.top - control.bottom - 4) < 1,
+          Math.abs(rect.left - control.left) < 1
+        ]
+      })()
+      """
+
+      conn
+      |> visit_fixture()
+      # A long fade-out outlasts the patch that answers the change.
+      |> evaluate("""
+      const style = document.createElement('style')
+      style.textContent = '##{id}-popup:not(:popover-open) { transition-duration: 5s !important }'
+      document.head.append(style)
+      """)
+      |> open(id)
+      |> click(option(id, "ch"))
+      |> assert_has("#changes", text: "Changes: 1")
+      |> evaluate(geometry, &assert(&1 == [true, "bottom", true, true]))
     end
 
     test "follows the control when the layout shifts without a scroll or resize", %{conn: conn} do

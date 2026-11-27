@@ -421,6 +421,10 @@ defmodule Backpex.HTML.Combobox do
           A manual popover sits in the top layer while open, so no overflow container, table or modal clips it. It is
           flex only while open (`open:`), as a display class would override the browser's style that hides a closed
           popover.
+
+          It fades and scales in from the side of the control (`data-placement`, set by the hook), and out again: the
+          discrete transition of `display` and `overlay` keeps a closing popup in the top layer until it has faded out.
+          A closing popup takes no clicks.
         --%>
         <div
           :if={@interactive}
@@ -429,6 +433,8 @@ defmodule Backpex.HTML.Combobox do
           popover="manual"
           class={[
             "rounded-box border-base-300 bg-base-100 text-base-content fixed inset-auto m-0 flex-col overflow-hidden border p-0 shadow-lg open:flex",
+            "origin-top-left scale-95 opacity-0 not-open:pointer-events-none open:scale-100 open:opacity-100 starting:open:scale-95 starting:open:opacity-0 data-[placement=top]:origin-bottom-left",
+            "motion-safe:transition-[opacity,scale,display,overlay] motion-safe:transition-discrete motion-safe:duration-100 motion-safe:ease-in motion-safe:open:duration-150 motion-safe:open:ease-out",
             @popup_class || "max-h-80"
           ]}
         >
