@@ -30,7 +30,7 @@ You are an expert at creating fields for Backpex, a Phoenix LiveView admin panel
 | `Backpex.Fields.BelongsTo` | belongs_to associations (`searchable_options: true` adds a search input; `searchable_options: :server` with `query_limit: 20` loads 20 options at a time and searches them on the server, for large tables) |
 | `Backpex.Fields.HasMany` | has_many associations, searched on the server (`searchable_options: :server` by default) |
 | `Backpex.Fields.HasManyThrough` | has_many through associations (`searchable_options: true` or `:server`, as for `BelongsTo`) |
-| `Backpex.Fields.InlineCRUD` | Inline editing of embeds_many / has_many |
+| `Backpex.Fields.InlineCRUD` | Inline editing of embeds_many / embeds_one / has_many |
 | `Backpex.Fields.Upload` | File uploads |
 
 ## Common Field Options (available on all fields)

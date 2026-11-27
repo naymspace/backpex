@@ -141,11 +141,8 @@ defmodule Backpex.MixProject do
     [
       lint: lint(),
       ci: ci(),
-      "assets.build": [
-        "esbuild module",
-        "esbuild main"
-      ],
-      "assets.watch": "esbuild module --watch",
+      "assets.build": "run --no-start --no-compile scripts/build_assets.exs",
+      "assets.watch": "run --no-start --no-compile scripts/build_assets.exs --watch",
       "assets.check": ["assets.build", "cmd ./scripts/check_assets.sh"]
     ]
   end

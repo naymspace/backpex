@@ -21,7 +21,8 @@ defmodule Demo.EctoFactory do
       age: Enum.random(18..100),
       last_name: Faker.Person.last_name(),
       role: :user,
-      social_links: generate_social_links()
+      social_links: generate_social_links(),
+      emergency_contact: %{name: Faker.Person.name(), phone: Faker.Phone.EnUs.phone()}
     }
   end
 
