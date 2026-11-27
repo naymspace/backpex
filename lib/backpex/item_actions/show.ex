@@ -7,6 +7,10 @@ defmodule Backpex.ItemActions.Show do
 
   require Backpex
 
+  # Reads no options of its own, so any other key in its map is a typo.
+  @impl Backpex.ItemAction
+  def config_schema, do: []
+
   @impl Backpex.ItemAction
   def icon(assigns, _item) do
     ~H"""

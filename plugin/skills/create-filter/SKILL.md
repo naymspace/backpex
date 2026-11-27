@@ -169,7 +169,7 @@ end
 | `:default` | no | Pre-selected value on initial page load |
 | `:presets` | no | Quick-select shortcuts: `[%{label: String.t(), values: (-> value)}]` |
 
-Backpex validates the map when the index view loads. Any other key, also in a preset, raises a configuration error.
+Backpex validates these keys when the index view loads; any other key in a preset raises a configuration error. Further keys of the map are passed on to the filter module, which can declare them with `config_schema/0` to have them validated strictly.
 
 ## Conventions
 

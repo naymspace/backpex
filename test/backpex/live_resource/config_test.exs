@@ -40,6 +40,16 @@ defmodule Backpex.LiveResource.ConfigTest do
     def config_schema, do: [select: [type: :any, doc: "The column to count."]]
   end
 
+  defmodule SchemaFilter do
+    @moduledoc false
+    def config_schema, do: [column: [type: :atom, required: true]]
+  end
+
+  defmodule SchemaAction do
+    @moduledoc false
+    def config_schema, do: [format: [type: {:in, [:csv, :xlsx]}, required: true]]
+  end
+
   defmodule TranslatedSchemaMetric do
     @moduledoc false
     def data(_metric, _assigns), do: 1
@@ -79,21 +89,21 @@ defmodule Backpex.LiveResource.ConfigTest do
     @moduledoc false
     use ViewLive
 
-    def item_actions(default_actions), do: Keyword.put(default_actions, :archive, %{module: SomeAction, olny: [:row]})
+    def item_actions(default_actions), do: Keyword.put(default_actions, :archive, %{module: SomeAction, only: [:rows]})
   end
 
   defmodule InvalidResourceActionsLive do
     @moduledoc false
     use ViewLive
 
-    def resource_actions, do: [invite: %{module: SomeAction, label: "Invite"}]
+    def resource_actions, do: [invite: %{label: "Invite"}]
   end
 
   defmodule InvalidFiltersLive do
     @moduledoc false
     use ViewLive
 
-    def filters(_assigns), do: [published: %{module: SomeFilter, lable: "Published?"}]
+    def filters(_assigns), do: [published: %{module: SomeFilter, label: :published}]
   end
 
   defp error(kind, key, message) do
@@ -123,13 +133,31 @@ defmodule Backpex.LiveResource.ConfigTest do
       assert Filter.validate_configs!([], PostLive) == []
     end
 
-    test "rejects an unknown key" do
+    test "passes on the keys of a filter module without config_schema/0" do
+      filters = [published: %{module: SomeFilter, label: "Published?", column: :published_at}]
+
+      assert Filter.validate_configs!(filters, PostLive) == filters
+    end
+
+    test "validates the options of every filter" do
+      assert_raise ArgumentError,
+                   error("filter", "published", "invalid value for :label option: expected string"),
+                   fn ->
+                     Filter.validate_configs!([published: %{module: SomeFilter, label: :published}], PostLive)
+                   end
+    end
+
+    test "validates against the config_schema/0 of the filter module" do
+      filters = [published: %{module: SchemaFilter, label: "Published?", column: :published_at}]
+
+      assert Filter.validate_configs!(filters, PostLive) == filters
+
       assert_raise ArgumentError, error("filter", "published", "unknown options [:lable], valid options are:"), fn ->
-        Filter.validate_configs!([published: %{module: SomeFilter, lable: "Published?"}], PostLive)
+        Filter.validate_configs!([published: %{module: SchemaFilter, column: :published_at, lable: "P"}], PostLive)
       end
 
-      assert_raise ArgumentError, error("filter", "published", "unknown options [:preset]"), fn ->
-        Filter.validate_configs!([published: %{module: SomeFilter, preset: []}], PostLive)
+      assert_raise ArgumentError, error("filter", "published", "required :column option not found"), fn ->
+        Filter.validate_configs!([published: %{module: SchemaFilter}], PostLive)
       end
     end
 
@@ -232,10 +260,10 @@ defmodule Backpex.LiveResource.ConfigTest do
       metrics = [balance: %{module: TranslatedSchemaMetric, label: "Balance"}]
 
       Metric.validate_configs!(metrics, PostLive)
-      compiled_schema = :persistent_term.get({Metric, TranslatedSchemaMetric})
+      compiled_schema = :persistent_term.get({Config, TranslatedSchemaMetric})
 
       Metric.validate_configs!(metrics, PostLive)
-      assert :persistent_term.get({Metric, TranslatedSchemaMetric}) == compiled_schema
+      assert :persistent_term.get({Config, TranslatedSchemaMetric}) == compiled_schema
     end
 
     test "validates against the config_schema/0 of the metric module" do
@@ -266,9 +294,25 @@ defmodule Backpex.LiveResource.ConfigTest do
       assert ItemAction.validate_configs!(item_actions, PostLive) == item_actions
     end
 
-    test "rejects an unknown key" do
-      assert_raise ArgumentError, error("item action", "archive", "unknown options [:olny], valid options are:"), fn ->
-        ItemAction.validate_configs!([archive: %{module: SomeAction, olny: [:row]}], PostLive)
+    test "passes on the keys of an item action module without config_schema/0" do
+      item_actions = [archive: %{module: SomeAction, only: [:row], status: :archived}]
+
+      assert ItemAction.validate_configs!(item_actions, PostLive) == item_actions
+    end
+
+    test "rejects an unknown key of a default item action" do
+      assert_raise ArgumentError, error("item action", "show", "unknown options [:olny], valid options are:"), fn ->
+        ItemAction.validate_configs!([show: %{module: Backpex.ItemActions.Show, olny: [:row]}], PostLive)
+      end
+    end
+
+    test "validates against the config_schema/0 of the item action module" do
+      item_actions = [export: %{module: SchemaAction, only: [:index], format: :csv}]
+
+      assert ItemAction.validate_configs!(item_actions, PostLive) == item_actions
+
+      assert_raise ArgumentError, error("item action", "export", "invalid value for :format option"), fn ->
+        ItemAction.validate_configs!([export: %{module: SchemaAction, format: :pdf}], PostLive)
       end
     end
 
@@ -299,9 +343,19 @@ defmodule Backpex.LiveResource.ConfigTest do
       assert ResourceAction.validate_configs!([], PostLive) == []
     end
 
-    test "rejects an unknown key" do
-      assert_raise ArgumentError, error("resource action", "invite", "unknown options [:label]"), fn ->
-        ResourceAction.validate_configs!([invite: %{module: SomeAction, label: "Invite"}], PostLive)
+    test "passes on the keys of a resource action module without config_schema/0" do
+      resource_actions = [invite: %{module: SomeAction, role: :editor}]
+
+      assert ResourceAction.validate_configs!(resource_actions, PostLive) == resource_actions
+    end
+
+    test "validates against the config_schema/0 of the resource action module" do
+      resource_actions = [export: %{module: SchemaAction, format: :csv}]
+
+      assert ResourceAction.validate_configs!(resource_actions, PostLive) == resource_actions
+
+      assert_raise ArgumentError, error("resource action", "export", "unknown options [:fromat]"), fn ->
+        ResourceAction.validate_configs!([export: %{module: SchemaAction, format: :csv, fromat: :csv}], PostLive)
       end
     end
 

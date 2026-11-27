@@ -87,7 +87,7 @@ The `only` and `except` keys must provide a list and accept the following option
 * `:index` - displays a button at the top of the resource table, clicking it will trigger the item action for selected items
 * `:show` - displays an icon on the show view near the page title, clicking it triggers the item action for the displayed item
 
-`:module`, `:only` and `:except` are the only keys of an item action map. Backpex validates the maps when the view loads and raises a configuration error for any other key or placement.
+Backpex validates the maps when the view loads and raises a configuration error for a missing `:module` or an unknown placement. Further keys of the map are options of the item action module: it validates them by implementing `c:Backpex.ItemAction.config_schema/0`, see the Configuration section of `Backpex.ItemAction`.
 
 The following example shows how to place the `show` item action on the index table rows only.
 

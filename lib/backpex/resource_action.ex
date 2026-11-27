@@ -13,10 +13,20 @@ defmodule Backpex.ResourceAction do
   ## Configuration
 
   `c:Backpex.LiveResource.resource_actions/0` returns a keyword list with one map per resource action. The key is the
-  id of the action, used in its URL and passed to `c:Backpex.LiveResource.can?/3`. The map takes these options, any
-  other key raises a configuration error when the index view loads:
+  id of the action, used in its URL and passed to `c:Backpex.LiveResource.can?/3`. Backpex validates the map when the
+  index view loads and raises a configuration error that names the LiveResource and the resource action. Every
+  resource action takes these options:
 
   #{NimbleOptions.docs(@config_schema)}
+
+  The resource action module can read its whole map as `socket.assigns.resource_action` in `c:handle/2`, so the map
+  may hold options of the module's own. A module that implements `c:config_schema/0` returns the NimbleOptions schema
+  of these options. Backpex then validates the map against it and rejects every key that is in neither schema, e.g. a
+  typo. For a module without `c:config_schema/0`, only the options above are validated and other keys are passed on as
+  they are.
+
+      @impl Backpex.ResourceAction
+      def config_schema, do: [format: [type: {:in, [:csv, :xlsx]}, required: true]]
 
   > #### `use Backpex.ResourceAction` {: .info}
   >
@@ -24,6 +34,7 @@ defmodule Backpex.ResourceAction do
   > In addition it will implement the `c:base_schema/1` function in order to generate a schemaless changeset by default.
   """
 
+  alias Backpex.LiveResource.Config
   alias Phoenix.LiveView.Socket
 
   @doc """
@@ -86,6 +97,14 @@ defmodule Backpex.ResourceAction do
               {:ok, Socket.t()} | {:error, Ecto.Changeset.t()}
 
   @doc """
+  Returns the NimbleOptions schema of the options the resource action module reads from its configuration map, see
+  the [Configuration](#module-configuration) section.
+  """
+  @callback config_schema() :: keyword()
+
+  @optional_callbacks config_schema: 0
+
+  @doc """
   Defines `Backpex.ResourceAction` behaviour.
   """
   defmacro __using__(_opts) do
@@ -108,12 +127,12 @@ defmodule Backpex.ResourceAction do
 
   @doc false
   def validate_configs!(resource_actions, live_resource) do
-    Backpex.LiveResource.Config.validate_each!(
+    Config.validate_each!(
       resource_actions,
       "resource action",
       "resource_actions/0",
       live_resource,
-      &NimbleOptions.validate(&1, @compiled_config_schema)
+      &Config.validate_options(&1, @config_schema, @compiled_config_schema)
     )
   end
 

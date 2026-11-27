@@ -24,10 +24,21 @@ defmodule Backpex.ItemAction do
   ## Configuration
 
   `c:Backpex.LiveResource.item_actions/1` returns a keyword list with one map per item action. The key is the key of
-  the action, passed to `c:Backpex.LiveResource.can?/3`. The map takes these options, any other key raises a
-  configuration error when the index or show view loads:
+  the action, passed to `c:Backpex.LiveResource.can?/3`. Backpex validates the map when the index or show view loads
+  and raises a configuration error that names the LiveResource and the item action. Every item action takes these
+  options:
 
   #{NimbleOptions.docs(@config_schema)}
+
+  The item action module can read its whole map, e.g. as `assigns.action_to_confirm` in `c:confirm/1` and in the
+  socket passed to `c:handle/3` after the confirmation dialog, so the map may hold options of the module's own. A
+  module that implements `c:config_schema/0` returns the NimbleOptions schema of these options, as the default
+  actions `Backpex.ItemActions.Show`, `Backpex.ItemActions.Edit` and `Backpex.ItemActions.Delete` do. Backpex then
+  validates the map against it and rejects every key that is in neither schema, e.g. a typo. For a module without
+  `c:config_schema/0`, only the options above are validated and other keys are passed on as they are.
+
+      @impl Backpex.ItemAction
+      def config_schema, do: [status: [type: {:in, [:published, :archived]}, required: true]]
   """
   import Phoenix.Component
 
@@ -36,6 +47,7 @@ defmodule Backpex.ItemAction do
   alias Backpex.ItemActions.Edit
   alias Backpex.ItemActions.Show
   alias Backpex.LiveResource
+  alias Backpex.LiveResource.Config
   alias Backpex.Resource
   alias Phoenix.LiveView.Rendered
   alias Phoenix.LiveView.Socket
@@ -136,7 +148,20 @@ defmodule Backpex.ItemAction do
   @callback handle(socket :: Socket.t(), items :: list(map()), params :: map() | struct()) ::
               {:ok, Socket.t()} | {:error, Ecto.Changeset.t()}
 
-  @optional_callbacks confirm: 1, confirm_label: 1, cancel_label: 1, changeset: 3, fields: 0, link: 2, handle: 3
+  @doc """
+  Returns the NimbleOptions schema of the options the item action module reads from its configuration map, see the
+  [Configuration](#module-configuration) section.
+  """
+  @callback config_schema() :: keyword()
+
+  @optional_callbacks confirm: 1,
+                      confirm_label: 1,
+                      cancel_label: 1,
+                      changeset: 3,
+                      fields: 0,
+                      link: 2,
+                      handle: 3,
+                      config_schema: 0
 
   @doc """
   Defines `Backpex.ItemAction` behaviour and provides default implementations.
@@ -250,12 +275,12 @@ defmodule Backpex.ItemAction do
 
   @doc false
   def validate_configs!(item_actions, live_resource) do
-    Backpex.LiveResource.Config.validate_each!(
+    Config.validate_each!(
       item_actions,
       "item action",
       "item_actions/1",
       live_resource,
-      &NimbleOptions.validate(&1, @compiled_config_schema)
+      &Config.validate_options(&1, @config_schema, @compiled_config_schema)
     )
   end
 

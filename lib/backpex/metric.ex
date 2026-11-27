@@ -56,6 +56,7 @@ defmodule Backpex.Metric do
       end
   """
 
+  alias Backpex.LiveResource.Config
   alias Phoenix.LiveView.Rendered
 
   @doc """
@@ -97,50 +98,18 @@ defmodule Backpex.Metric do
 
   @doc false
   def validate_configs!(metrics, live_resource) do
-    Backpex.LiveResource.Config.validate_each!(metrics, "metric", "metrics/0", live_resource, &validate_config/1)
+    Config.validate_each!(metrics, "metric", "metrics/0", live_resource, &validate_config/1)
   end
 
   defp validate_config(options) do
     module = options[:module]
-    loaded? = is_atom(module) and Code.ensure_loaded?(module)
+    data? = is_atom(module) and Code.ensure_loaded?(module) and function_exported?(module, :data, 2)
 
-    data? = loaded? and function_exported?(module, :data, 2)
-
-    if loaded? and function_exported?(module, :config_schema, 0) do
-      base_schema = if data?, do: @config_schema, else: @query_config_schema
-
-      NimbleOptions.validate(options, compiled_module_schema(module, base_schema))
+    if data? do
+      Config.validate_options(options, @config_schema, @compiled_config_schema)
     else
-      # The module receives the map and has no schema for its own options, so unknown keys are not rejected.
-      options
-      |> Keyword.take(Keyword.keys(@config_schema))
-      |> NimbleOptions.validate(if(data?, do: @compiled_config_schema, else: @compiled_query_config_schema))
+      Config.validate_options(options, @query_config_schema, @compiled_query_config_schema)
     end
-  end
-
-  # The schema of a metric module is only known at runtime, so the compiled schema is kept in a persistent term. It
-  # is compiled again only after a module was recompiled: an update of the term triggers a global garbage collection.
-  defp compiled_module_schema(module, base_schema) do
-    key = {__MODULE__, module}
-    version = {module.module_info(:md5), __MODULE__.module_info(:md5)}
-
-    case :persistent_term.get(key, nil) do
-      {^version, compiled_schema} ->
-        compiled_schema
-
-      _other ->
-        compiled_schema = base_schema |> merge_schemas(module.config_schema()) |> NimbleOptions.new!()
-        :persistent_term.put(key, {version, compiled_schema})
-        compiled_schema
-    end
-  end
-
-  # A metric module may describe an option of the base schema again, e.g. with its own doc, but cannot make a
-  # required one optional.
-  defp merge_schemas(base_schema, module_schema) do
-    Keyword.merge(base_schema, module_schema, fn _key, base_spec, module_spec ->
-      if base_spec[:required], do: Keyword.put(module_spec, :required, true), else: module_spec
-    end)
   end
 
   @doc """
