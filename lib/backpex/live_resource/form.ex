@@ -15,7 +15,7 @@ defmodule Backpex.LiveResource.Form do
 
     socket
     |> assign(:live_resource, live_resource)
-    |> assign(:panels, live_resource.panels())
+    |> assign(:panels, LiveResource.Config.validate_panels!(live_resource.panels(), live_resource))
     |> assign(:fluid?, live_resource.config(:fluid?))
     |> assign(:fields, live_resource.fields(live_action, socket.assigns))
     |> assign(:params, params)

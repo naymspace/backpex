@@ -1,6 +1,52 @@
 defmodule Backpex.Filter do
+  @config_schema [
+    module: [
+      doc: "The filter module, which implements the `Backpex.Filter` behaviour.",
+      type: :atom,
+      required: true
+    ],
+    label: [
+      doc: "The label of the filter. Defaults to the `c:label/0` callback of the filter module.",
+      type: :string
+    ],
+    default: [
+      doc: "The value the filter is applied with when the index view is opened without filter params.",
+      type: :any
+    ],
+    presets: [
+      doc: """
+      Preset values admins can apply with one click. Each preset is a map with a `:label` (string) and `:values`, a
+      function of arity 0 that returns the value of the filter. See the
+      [filter presets](/guides/filter/filter-presets.md) guide.
+      """,
+      type:
+        {:list,
+         {:map,
+          [
+            label: [type: :string, required: true],
+            values: [type: {:fun, 0}, required: true]
+          ]}}
+    ]
+  ]
+
   @moduledoc """
   The base behaviour for all filters. Injects also basic layout, form and delete button for a filters rendering.
+
+  ## Configuration
+
+  `c:Backpex.LiveResource.filters/1` returns a keyword list with one map per filter. The key is the name of the
+  filter. Backpex validates the map when the index view loads and raises a configuration error that names the
+  LiveResource and the filter. Every filter takes these options:
+
+  #{NimbleOptions.docs(@config_schema)}
+
+  The filter module can read its whole map, e.g. from `assigns.filters` in `c:query/4`, so the map may hold options of
+  the module's own. A module that implements `c:config_schema/0` returns the NimbleOptions schema of these options.
+  Backpex then validates the map against it and rejects every key that is in neither schema, e.g. a typo. For a
+  module without `c:config_schema/0`, only the options above are validated and other keys are passed on as they are.
+
+      @impl Backpex.Filter
+      def config_schema, do: [column: [type: :atom, required: true]]
 
   ## Validation
 
@@ -38,6 +84,7 @@ defmodule Backpex.Filter do
 
   """
 
+  alias Backpex.LiveResource.Config
   alias Phoenix.LiveView.Rendered
   alias Phoenix.LiveView.Socket
 
@@ -135,7 +182,23 @@ defmodule Backpex.Filter do
   """
   @callback render_form(Socket.assigns()) :: Rendered.t()
 
-  @optional_callbacks label: 0
+  @doc """
+  Returns the NimbleOptions schema of the options the filter module reads from its configuration map, see the
+  [Configuration](#module-configuration) section.
+  """
+  @callback config_schema() :: keyword()
+
+  @optional_callbacks label: 0, config_schema: 0
+
+  # Compiled once: `NimbleOptions.validate/2` validates a keyword list schema itself on every call.
+  @compiled_config_schema NimbleOptions.new!(@config_schema)
+
+  @doc false
+  def validate_configs!(filters, live_resource) do
+    Config.validate_each!(filters, "filter", "filters/1", live_resource, fn options ->
+      Config.validate_options(options, @config_schema, @compiled_config_schema)
+    end)
+  end
 
   defmacro __using__(_opts) do
     quote do

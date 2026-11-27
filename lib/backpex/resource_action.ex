@@ -1,13 +1,40 @@
 defmodule Backpex.ResourceAction do
-  @moduledoc ~S'''
+  @config_schema [
+    module: [
+      doc: "The resource action module, which implements the `Backpex.ResourceAction` behaviour.",
+      type: :atom,
+      required: true
+    ]
+  ]
+
+  @moduledoc """
   Behaviour implemented by all resource action modules.
+
+  ## Configuration
+
+  `c:Backpex.LiveResource.resource_actions/0` returns a keyword list with one map per resource action. The key is the
+  id of the action, used in its URL and passed to `c:Backpex.LiveResource.can?/3`. Backpex validates the map when the
+  index view loads and raises a configuration error that names the LiveResource and the resource action. Every
+  resource action takes these options:
+
+  #{NimbleOptions.docs(@config_schema)}
+
+  The resource action module can read its whole map as `socket.assigns.resource_action` in `c:handle/2`, so the map
+  may hold options of the module's own. A module that implements `c:config_schema/0` returns the NimbleOptions schema
+  of these options. Backpex then validates the map against it and rejects every key that is in neither schema, e.g. a
+  typo. For a module without `c:config_schema/0`, only the options above are validated and other keys are passed on as
+  they are.
+
+      @impl Backpex.ResourceAction
+      def config_schema, do: [format: [type: {:in, [:csv, :xlsx]}, required: true]]
 
   > #### `use Backpex.ResourceAction` {: .info}
   >
   > When you `use Backpex.ResourceAction`, the `Backpex.ResourceAction` module will set `@behavior Backpex.ResourceAction`.
   > In addition it will implement the `c:base_schema/1` function in order to generate a schemaless changeset by default.
-  '''
+  """
 
+  alias Backpex.LiveResource.Config
   alias Phoenix.LiveView.Socket
 
   @doc """
@@ -70,6 +97,14 @@ defmodule Backpex.ResourceAction do
               {:ok, Socket.t()} | {:error, Ecto.Changeset.t()}
 
   @doc """
+  Returns the NimbleOptions schema of the options the resource action module reads from its configuration map, see
+  the [Configuration](#module-configuration) section.
+  """
+  @callback config_schema() :: keyword()
+
+  @optional_callbacks config_schema: 0
+
+  @doc """
   Defines `Backpex.ResourceAction` behaviour.
   """
   defmacro __using__(_opts) do
@@ -85,6 +120,20 @@ defmodule Backpex.ResourceAction do
 
       defoverridable Backpex.ResourceAction
     end
+  end
+
+  # Compiled once: `NimbleOptions.validate/2` validates a keyword list schema itself on every call.
+  @compiled_config_schema NimbleOptions.new!(@config_schema)
+
+  @doc false
+  def validate_configs!(resource_actions, live_resource) do
+    Config.validate_each!(
+      resource_actions,
+      "resource action",
+      "resource_actions/0",
+      live_resource,
+      &Config.validate_options(&1, @config_schema, @compiled_config_schema)
+    )
   end
 
   @doc """
