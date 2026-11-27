@@ -7,6 +7,7 @@ defmodule Backpex.E2ECase do
   """
   use ExUnit.CaseTemplate
 
+  alias PhoenixTest.Playwright.Config
   alias PlaywrightEx.Frame
 
   using opts do
@@ -23,18 +24,13 @@ defmodule Backpex.E2ECase do
 
   # Turns off animations and transitions during the audit (e.g. a dropdown fading in), so axe measures the final colors
   # instead of colors blended with the background.
-  #
-  # The selects render a `<button>` with `<selectedcontent>` for the customizable select (`appearance: base-select`). A
-  # browser without it (Firefox) shows the native dropdown instead and leaves `<selectedcontent>` empty, so axe would
-  # flag a button without a name that the select does not use. Such browsers skip that button.
   @axe_run_without_animations """
   (async () => {
     const style = document.createElement('style')
     style.textContent = '*, *::before, *::after { animation: none !important; transition: none !important; }'
     document.head.appendChild(style)
     try {
-      const context = CSS.supports('appearance', 'base-select') ? document : { exclude: ['select > button'] }
-      return await axe.run(context)
+      return await axe.run()
     } finally {
       style.remove()
     }
@@ -43,9 +39,17 @@ defmodule Backpex.E2ECase do
 
   @doc """
   Runs axe-core on the current page and fails on any accessibility violation.
+
+  Chromium and WebKit audit the markup; Firefox skips the audit. In Firefox, about one in four audits of a form whose
+  inputs have an `aria-labelledby` with two ids (`InlineCRUD`, `HasMany`) crashed the page, while a page with only such
+  an input did not. Firefox also does not support the customizable select yet, so axe flagged its unused `<button>`.
   """
   def assert_a11y(session) do
-    timeout = PhoenixTest.Playwright.Config.global(:timeout)
+    if Config.global(:browser) == :firefox, do: session, else: audit(session)
+  end
+
+  defp audit(session) do
+    timeout = Config.global(:timeout)
 
     Frame.evaluate(session.frame_id, expression: A11yAudit.JS.axe_core(), timeout: timeout)
     {:ok, json} = Frame.evaluate(session.frame_id, expression: @axe_run_without_animations, timeout: timeout)
