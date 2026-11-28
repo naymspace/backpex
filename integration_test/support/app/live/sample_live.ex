@@ -67,7 +67,8 @@ defmodule Backpex.Test.SampleLive do
         label: "Category",
         display_field: :name,
         live_resource: Backpex.Test.CategoryLive,
-        prompt: "Choose a category"
+        prompt: "Choose a category",
+        searchable_options: true
       }
     ]
   end

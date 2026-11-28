@@ -20,6 +20,10 @@ Backpex uses Tailwind CSS for styling. Make sure you have Tailwind CSS installed
 
 *Note that the current version of Backpex requires Tailwind CSS version 4*
 
+### Browser support
+
+The selects of Backpex open their options in a popover, so the admin panel needs a browser with the [Popover API](https://developer.mozilla.org/en-US/docs/Web/API/Popover_API): Chrome and Edge 114, Firefox 125 or Safari 17 and later.
+
 ### Ecto
 
 Backpex currently depends on Ecto as the database layer and on PostgreSQL as the database. Make sure you have a running Ecto repository with the `Ecto.Adapters.Postgres` adapter in your application, which needs the `postgrex` package in your dependencies.

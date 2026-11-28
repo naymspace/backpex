@@ -181,6 +181,7 @@ defmodule DemoWeb.PostLive do
         end,
         index_editable: true,
         searchable: true,
+        searchable_options: true,
         live_resource: UserLive
       },
       category: %{

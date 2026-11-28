@@ -1,7 +1,7 @@
 defmodule Backpex.Test.AddressLive do
   @moduledoc """
-  Addresses with UUID primary keys and the default `init_order`. They are the children of the HasManyThrough field of
-  `Backpex.Test.UserLive`.
+  Addresses with UUID primary keys, the default `init_order` and a select with grouped options and a search input. They
+  are the children of the HasManyThrough field of `Backpex.Test.UserLive`.
   """
   use Backpex.LiveResource,
     adapter_config: [
@@ -32,7 +32,8 @@ defmodule Backpex.Test.AddressLive do
         options: %{
           "Europe" => [Germany: "de", Austria: "at", Switzerland: "ch"],
           "North America" => [USA: "us", Canada: "ca"]
-        }
+        },
+        searchable_options: true
       }
     ]
   end

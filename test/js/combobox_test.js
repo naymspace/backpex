@@ -1,0 +1,379 @@
+import { afterEach, beforeEach, describe, expect, test } from 'bun:test'
+
+import Combobox, {
+  matchesQuery,
+  nextEnabledIndex,
+  normalizeText,
+  typeaheadIndex
+} from '../../assets/js/hooks/_combobox'
+
+// Bun has no DOM, and the hook listens on the document, so every test gets a fake one.
+let realDocument
+
+beforeEach(() => {
+  realDocument = globalThis.document
+  globalThis.document = {
+    listeners: [],
+    addEventListener (type, listener, { signal }) {
+      const entry = { type, listener }
+      this.listeners.push(entry)
+      signal.addEventListener('abort', () => { this.listeners = this.listeners.filter((e) => e !== entry) })
+    },
+    dispatch (type, event) {
+      this.listeners.filter((l) => l.type === type).forEach((l) => l.listener(event))
+    }
+  }
+})
+
+afterEach(() => {
+  globalThis.document = realDocument
+})
+
+describe('normalizeText and matchesQuery', () => {
+  test('ignore case and diacritics', () => {
+    expect(normalizeText('Zürich')).toBe('zurich')
+    expect(normalizeText('ÉCOLE Ångström')).toBe('ecole angstrom')
+    // Decomposed input (e + combining acute) normalizes the same as composed.
+    expect(normalizeText('René')).toBe('rene')
+    expect(normalizeText(null)).toBe('')
+    expect(normalizeText(42)).toBe('42')
+
+    expect(matchesQuery('René Descartes', 'rene')).toBe(true)
+    expect(matchesQuery('Rene Descartes', 'RENÉ')).toBe(true)
+    expect(matchesQuery('Zürich', 'ZUR')).toBe(true)
+  })
+
+  test('match substrings and treat a blank query as a match', () => {
+    expect(matchesQuery('Strawberry', 'berr')).toBe(true)
+    expect(matchesQuery('Strawberry', 'cherry')).toBe(false)
+    expect(matchesQuery('Strawberry', '')).toBe(true)
+    expect(matchesQuery('Strawberry', '   ')).toBe(true)
+    expect(matchesQuery('Straw berry', 'w b')).toBe(true)
+  })
+
+  test('keep letters that are not a base letter plus diacritic', () => {
+    // ß and ø do not decompose; they must stay searchable as themselves.
+    expect(matchesQuery('Straße', 'straß')).toBe(true)
+    expect(matchesQuery('København', 'københ')).toBe(true)
+  })
+})
+
+describe('nextEnabledIndex', () => {
+  const enabled = [false, true, true, false, true, false]
+
+  test('moves to the next and previous enabled index, skipping disabled ones', () => {
+    expect(nextEnabledIndex(enabled, 1, 'next')).toBe(2)
+    expect(nextEnabledIndex(enabled, 2, 'next')).toBe(4)
+    expect(nextEnabledIndex(enabled, 4, 'previous')).toBe(2)
+    expect(nextEnabledIndex(enabled, 2, 'previous')).toBe(1)
+  })
+
+  test('does not wrap at either end', () => {
+    expect(nextEnabledIndex(enabled, 4, 'next')).toBe(4)
+    expect(nextEnabledIndex(enabled, 1, 'previous')).toBe(1)
+  })
+
+  test('starts at the first or last without a current index', () => {
+    expect(nextEnabledIndex(enabled, -1, 'next')).toBe(1)
+    expect(nextEnabledIndex(enabled, -1, 'previous')).toBe(4)
+  })
+
+  test('leaves a current index that became disabled towards the nearest enabled one', () => {
+    expect(nextEnabledIndex(enabled, 3, 'next')).toBe(4)
+    expect(nextEnabledIndex(enabled, 3, 'previous')).toBe(2)
+    expect(nextEnabledIndex(enabled, 5, 'next')).toBe(4)
+    expect(nextEnabledIndex(enabled, 0, 'previous')).toBe(1)
+  })
+
+  test('jumps to the first and last enabled index', () => {
+    expect(nextEnabledIndex(enabled, 2, 'first')).toBe(1)
+    expect(nextEnabledIndex(enabled, 2, 'last')).toBe(4)
+  })
+
+  test('returns -1 when nothing is enabled', () => {
+    for (const direction of ['next', 'previous', 'first', 'last']) {
+      expect(nextEnabledIndex([false, false], 0, direction)).toBe(-1)
+      expect(nextEnabledIndex([], -1, direction)).toBe(-1)
+    }
+  })
+})
+
+describe('typeaheadIndex', () => {
+  const labels = ['Low', 'Medium', 'High', 'Highest', 'Urgent', 'Hold']
+  const enabled = [true, true, true, true, true, true]
+
+  test('finds the first label starting with the buffer, ignoring case and diacritics', () => {
+    expect(typeaheadIndex(labels, enabled, 'h', -1)).toBe(2)
+    expect(typeaheadIndex(labels, enabled, 'M', -1)).toBe(1)
+    expect(typeaheadIndex(['Émile', 'Eva'], [true, true], 'em', -1)).toBe(0)
+  })
+
+  test('refines the current match with a longer buffer', () => {
+    expect(typeaheadIndex(labels, enabled, 'hi', 2)).toBe(2)
+    expect(typeaheadIndex(labels, enabled, 'highe', 2)).toBe(3)
+    expect(typeaheadIndex(labels, enabled, 'ho', 2)).toBe(5)
+  })
+
+  test('cycles through the labels of a repeated character, wrapping around', () => {
+    expect(typeaheadIndex(labels, enabled, 'hh', 2)).toBe(3)
+    expect(typeaheadIndex(labels, enabled, 'hhh', 3)).toBe(5)
+    expect(typeaheadIndex(labels, enabled, 'hhhh', 5)).toBe(2)
+  })
+
+  test('skips disabled options and returns -1 without a match', () => {
+    expect(typeaheadIndex(labels, [true, true, false, true, true, true], 'h', -1)).toBe(3)
+    expect(typeaheadIndex(labels, enabled, 'x', -1)).toBe(-1)
+    expect(typeaheadIndex(labels, enabled, '', 0)).toBe(-1)
+    expect(typeaheadIndex(labels, enabled.map(() => false), 'h', -1)).toBe(-1)
+  })
+})
+
+// The hook's DOM behaviour is covered by the browser tests. These cover what a
+// browser test cannot observe deterministically: timers and the order in which
+// search replies arrive.
+describe('BackpexCombobox server search', () => {
+  class FakeRoot {
+    constructor (attributes) {
+      this.id = 'person'
+      this.attributes = new Map(Object.entries(attributes))
+      this.dataset = { onSearch: 'search', searchDebounce: '100' }
+      this.listeners = []
+    }
+
+    getAttribute (name) { return this.attributes.get(name) ?? null }
+    hasAttribute (name) { return this.attributes.has(name) }
+    toggleAttribute (name, force) {
+      force ? this.attributes.set(name, '') : this.attributes.delete(name)
+      return force
+    }
+
+    querySelector () { return null }
+    querySelectorAll () { return [] }
+    addEventListener (type, listener, { signal }) {
+      const entry = { type, listener }
+      this.listeners.push(entry)
+      signal.addEventListener('abort', () => { this.listeners = this.listeners.filter((e) => e !== entry) })
+    }
+  }
+
+  let realSetTimeout, realClearTimeout, timers
+
+  beforeEach(() => {
+    timers = new Map()
+    let next = 1
+    realSetTimeout = globalThis.setTimeout
+    realClearTimeout = globalThis.clearTimeout
+    globalThis.setTimeout = (fun) => { const id = next++; timers.set(id, fun); return id }
+    globalThis.clearTimeout = (id) => timers.delete(id)
+  })
+
+  afterEach(() => {
+    globalThis.setTimeout = realSetTimeout
+    globalThis.clearTimeout = realClearTimeout
+  })
+
+  function runTimers () {
+    const pending = [...timers.values()]
+    timers.clear()
+    for (const fun of pending) fun()
+  }
+
+  function mountHook (attributes = { 'data-on-search': 'search' }) {
+    const hook = Object.create(Combobox)
+    hook.el = new FakeRoot(attributes)
+    hook.pushes = []
+    hook.pushEvent = (event, payload) => {
+      return new Promise((resolve) => hook.pushes.push({ event, payload, resolve }))
+    }
+    hook.pushEventTo = (target, event, payload) => {
+      hook.pushes.push({ target, event, payload, resolve: () => {} })
+      return Promise.resolve([])
+    }
+    hook.mounted()
+    return hook
+  }
+
+  test('pushes only the last query after the debounce', () => {
+    const hook = mountHook()
+    hook.search('a')
+    hook.search('ad')
+    expect(hook.pushes).toEqual([])
+
+    runTimers()
+    expect(hook.pushes.map((push) => push.payload)).toEqual([{ query: 'ad', id: 'person' }])
+  })
+
+  test('pushes to phx-target when the root has one', () => {
+    const hook = mountHook({ 'data-on-search': 'search', 'phx-target': '3' })
+    hook.search('ad')
+    runTimers()
+
+    expect(hook.pushes).toMatchObject([{ target: '3', event: 'search', payload: { query: 'ad', id: 'person' } }])
+  })
+
+  test('a late reply to an older query keeps the loading state of a newer one', async () => {
+    const hook = mountHook()
+    hook.search('a')
+    runTimers()
+    hook.search('ad')
+    runTimers()
+    expect(hook.el.hasAttribute('data-loading')).toBe(true)
+
+    hook.pushes[0].resolve()
+    await Promise.resolve()
+    await Promise.resolve()
+    expect(hook.el.hasAttribute('data-loading')).toBe(true)
+
+    hook.pushes[1].resolve()
+    await Promise.resolve()
+    await Promise.resolve()
+    expect(hook.el.hasAttribute('data-loading')).toBe(false)
+  })
+
+  test('destroyed() removes the document listeners and stops the positioning of an open popup', () => {
+    const hook = mountHook()
+    let stopped = 0
+    hook.attachOpenListeners()
+    hook.stopAutoUpdate = () => { stopped++ }
+    expect(document.listeners.map((l) => l.type)).toEqual(['reset', 'pointerdown'])
+
+    hook.destroyed()
+    expect(document.listeners).toEqual([])
+    expect(stopped).toBe(1)
+    expect(hook.stopAutoUpdate).toBe(null)
+  })
+
+  test('destroyed() cancels a pending search and removes the listeners', () => {
+    const hook = mountHook()
+    expect(hook.el.listeners.length).toBeGreaterThan(0)
+
+    hook.search('ad')
+    hook.destroyed()
+    runTimers()
+
+    expect(hook.pushes).toEqual([])
+    expect(hook.el.listeners).toEqual([])
+  })
+})
+
+describe('BackpexCombobox writeInputs', () => {
+  class FakeInput {
+    constructor () {
+      this.attributes = new Map()
+      this.name = ''
+      this.value = ''
+    }
+
+    hasAttribute (name) { return this.attributes.has(name) }
+    getAttribute (name) { return this.attributes.get(name) ?? null }
+    setAttribute (name, value) { this.attributes.set(name, value) }
+    remove () { this.container.children = this.container.children.filter((child) => child !== this) }
+  }
+
+  class FakeContainer {
+    constructor () { this.children = [] }
+
+    querySelectorAll () { return [...this.children] }
+    appendChild (child) {
+      child.container = this
+      this.children = this.children.filter((c) => c !== child).concat(child)
+    }
+  }
+
+  function writeInputs (anchorName, values) {
+    globalThis.document.createElement = () => new FakeInput()
+
+    const anchor = new FakeInput()
+    anchor.name = anchorName
+    const container = new FakeContainer()
+    const hook = Object.create(Combobox)
+    hook.part = (name) => ({ anchor, inputs: container })[name]
+    hook.isMultiple = () => true
+    hook.writeInputs(values)
+    return container.children
+  }
+
+  test('names the inputs of a multiple combobox after the anchor', () => {
+    expect(writeInputs('tags', ['a', 'b']).map((input) => [input.name, input.value])).toEqual([['tags[]', 'a'], ['tags[]', 'b']])
+  })
+
+  test('leaves the inputs of a multiple combobox without a name unnamed', () => {
+    expect(writeInputs('', ['a', 'b']).map((input) => [input.name, input.value])).toEqual([['', 'a'], ['', 'b']])
+  })
+})
+
+describe('BackpexCombobox events', () => {
+  function mountHook (attributes) {
+    const listeners = []
+    const hook = Object.create(Combobox)
+    hook.el = {
+      attributes: new Map(Object.entries(attributes)),
+      dataset: {},
+      hasAttribute (name) { return this.attributes.has(name) },
+      getAttribute (name) { return this.attributes.get(name) ?? null },
+      querySelector () { return null },
+      querySelectorAll () { return [] },
+      addEventListener (type, listener) { listeners.push({ type, listener }) }
+    }
+    hook.mounted()
+    hook.dispatch = (type, event = {}) => listeners.filter((l) => l.type === type).forEach((l) => l.listener(event))
+    return hook
+  }
+
+  test('ignores events while the server renders the combobox without its hook', () => {
+    const cleared = []
+    const hook = mountHook({})
+    hook.setSelection = (values) => cleared.push(values)
+    hook.dispatch('combobox:clear')
+    expect(cleared).toEqual([])
+
+    hook.el.attributes.set('phx-hook', 'BackpexCombobox')
+    hook.dispatch('combobox:clear')
+    expect(cleared).toEqual([[]])
+  })
+
+  test('a reset of its form restores the selection the server rendered, closed', () => {
+    const hook = mountHook({ 'phx-hook': 'BackpexCombobox' })
+    hook.el.dataset.defaultValue = '["a","c"]'
+    const form = {}
+    const anchor = { form }
+    hook.part = (name) => ({ anchor })[name] ?? null
+    const calls = []
+    for (const name of ['close', 'writeInputs', 'renderSelection', 'syncOptions', 'notify']) {
+      hook[name] = (values) => calls.push(values === undefined ? [name] : [name, values])
+    }
+
+    // Another form, a reset that a listener cancelled and a form without the combobox's anchor.
+    document.dispatch('reset', { target: {}, defaultPrevented: false })
+    document.dispatch('reset', { target: form, defaultPrevented: true })
+    anchor.form = null
+    document.dispatch('reset', { target: form, defaultPrevented: false })
+    expect(calls).toEqual([])
+
+    // A combobox can belong to a form it is not inside, so the anchor's form decides.
+    anchor.form = form
+    document.dispatch('reset', { target: form, defaultPrevented: false })
+    expect(calls).toEqual([['close'], ['writeInputs', ['a', 'c']], ['renderSelection', ['a', 'c']], ['syncOptions', ['a', 'c']]])
+
+    // Not while the server renders the combobox without its hook.
+    calls.length = 0
+    hook.el.attributes.delete('phx-hook')
+    document.dispatch('reset', { target: form, defaultPrevented: false })
+    expect(calls).toEqual([])
+  })
+
+  test('a printable key on the trigger of an open popup moves the focus to the search input', () => {
+    const hook = mountHook({ 'phx-hook': 'BackpexCombobox' })
+    const trigger = {}
+    let focused = 0
+    const search = { focus: () => { focused++ } }
+    hook.part = (name) => ({ trigger, search })[name] ?? null
+    hook.isOpen = true
+    let prevented = false
+
+    hook.handleKeydown({ key: 'a', target: trigger, preventDefault: () => { prevented = true } })
+
+    expect(focused).toBe(1)
+    expect(prevented).toBe(false)
+  })
+})

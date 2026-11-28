@@ -23,46 +23,67 @@ defmodule Backpex.E2E.KeyboardTest do
     end
   end
 
-  describe "has many dropdown" do
-    test "keeps the options of the closed dropdown out of the tab order", %{conn: conn} do
+  describe "has many combobox" do
+    test "keeps the options of the closed popup out of the tab order", %{conn: conn} do
       insert_list(3, :tag)
-      focus_in_menu = "document.activeElement.closest('#has-many-dropdown-tags-menu') !== null"
+      focus_in_popup = "document.activeElement.closest('#resource-form_tags-popup') !== null"
 
       conn
       |> visit(~p"/admin/posts/new")
       |> assert_has("body .phx-connected")
-      |> assert_has("#has-many-dropdown-tags-trigger[aria-expanded=false]")
-      |> press("#has-many-dropdown-tags-trigger", "Tab")
-      |> evaluate(focus_in_menu, &refute/1)
-      |> press("#has-many-dropdown-tags-trigger", "Enter")
-      |> assert_has("#has-many-dropdown-tags-trigger[aria-expanded=true]")
-      |> press("#has-many-dropdown-tags-trigger", "Tab")
-      |> evaluate(focus_in_menu, &assert/1)
-      |> press("#has-many-dropdown-tags-trigger", "Enter")
-      |> assert_has("#has-many-dropdown-tags-trigger[aria-expanded=false]")
-      |> press("#has-many-dropdown-tags-trigger", "Tab")
-      |> evaluate(focus_in_menu, &refute/1)
+      |> assert_has("#resource-form_tags-trigger[aria-expanded=false]")
+      |> press("#resource-form_tags-trigger", "Tab")
+      |> evaluate(focus_in_popup, &refute/1)
+      |> press("#resource-form_tags-trigger", "Enter")
+      |> assert_has("#resource-form_tags-trigger[aria-expanded=true]")
+      |> assert_has("#resource-form_tags-search:focus")
+      |> evaluate(focus_in_popup, &assert/1)
+      |> press("#resource-form_tags-search", "Escape")
+      |> assert_has("#resource-form_tags-trigger[aria-expanded=false]")
+      |> assert_has("#resource-form_tags-trigger:focus")
+      |> press("#resource-form_tags-trigger", "Tab")
+      |> evaluate(focus_in_popup, &refute/1)
     end
 
     test "selects and deselects all options with the keyboard", %{conn: conn} do
       insert_list(3, :tag)
-      checked_tags = "#has-many-tags input[name='change[tags][]']:checked"
+      selected_tags = "#has-many-tags [data-part=badge]"
 
       # "Select all" sends an event to the server, so the LiveView has to be connected before the key presses. The focus
-      # assertions retry, since the buttons are patched after each event.
+      # assertions retry, since the buttons are patched after each event. The button is above the search input.
       conn
       |> visit(~p"/admin/posts/new")
       |> assert_has("body .phx-connected")
-      |> press("#has-many-dropdown-tags-trigger", "Enter")
-      |> assert_has("#has-many-dropdown-tags-trigger[aria-expanded=true]")
-      |> press("#has-many-dropdown-tags-menu input[type=search]", "Tab")
+      |> press("#resource-form_tags-trigger", "Enter")
+      |> assert_has("#resource-form_tags-search:focus")
+      |> press("#resource-form_tags-search", "Shift+Tab")
       |> assert_has("#has-many-tags button:focus", text: "Select all", exact: true)
       |> press("#has-many-tags button:has-text('Select all')", "Enter")
-      |> assert_has(checked_tags, count: 3)
+      |> assert_has(selected_tags, count: 3)
       |> assert_has("#has-many-tags button:focus", text: "Deselect all", exact: true)
       |> press("#has-many-tags button:has-text('Deselect all')", "Space")
-      |> refute_has(checked_tags)
+      |> refute_has(selected_tags)
       |> assert_has("#has-many-tags button:focus", text: "Select all", exact: true)
+      |> assert_has("#resource-form_tags-trigger[aria-expanded=true]")
+    end
+
+    test "selects an option with the keyboard and saves it", %{conn: conn} do
+      [tag | _tags] = Enum.map(~w[Alpha Beta Gamma], &insert(:tag, name: &1))
+      post = insert(:post, tags: [])
+
+      conn
+      |> visit(~p"/admin/posts/#{post.id}/edit")
+      |> assert_has("body .phx-connected")
+      |> press("#resource-form_tags-trigger", "ArrowDown")
+      |> assert_has("#resource-form_tags-listbox [role=option][data-active]", text: "Alpha", exact: true)
+      |> press("#resource-form_tags-search", "Enter")
+      |> assert_has("#has-many-tags [data-part=badge-label]", text: "Alpha", exact: true)
+      |> press("#resource-form_tags-search", "Escape")
+      |> click("#form-action-save")
+      |> assert_path(~p"/admin/posts")
+
+      assert [%{id: id}] = post |> Repo.preload(:tags, force: true) |> Map.fetch!(:tags)
+      assert id == tag.id
     end
   end
 

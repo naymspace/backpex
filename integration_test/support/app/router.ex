@@ -51,6 +51,8 @@ defmodule Backpex.Test.Router do
       live_resources "/on-mount-module-notes", Backpex.Test.OnMountModuleNoteLive
       live_resources "/on-mount-tuple-notes", Backpex.Test.OnMountTupleNoteLive
       live_resources "/on-mount-list-notes", Backpex.Test.OnMountListNoteLive
+
+      live "/combobox", Backpex.Test.ComboboxLive
     end
   end
 end

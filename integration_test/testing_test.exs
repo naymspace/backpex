@@ -182,6 +182,18 @@ defmodule Backpex.TestingTest do
       assert Tag |> Repo.all() |> Enum.map(& &1.name) |> Enum.sort() == ["Elixir", "Phoenix"]
     end
 
+    test "fill in a field for multiple values of an item action with a list", %{conn: conn} do
+      user = insert(:user)
+      {:ok, view, _html} = live(conn, Testing.path(Router, UserLive, :index))
+
+      view
+      |> Testing.click_item_action(:user_soft_delete, user)
+      |> Testing.confirm_item_action(%{reason: "Requested", notify: ["authors", "admins"]})
+
+      {_path, flash} = assert_redirect(view)
+      assert flash["info"] =~ "Notified: authors, admins."
+    end
+
     test "follow a link item action from a row", %{conn: conn} do
       short_link = insert(:short_link, short_key: ~S(a"b\c))
       {:ok, view, _html} = live(conn, Testing.path(Router, ShortLinkLive, :index))
@@ -216,6 +228,33 @@ defmodule Backpex.TestingTest do
 
       assert_redirect(view, Testing.path(Router, CategoryLive, :index))
       assert [%Category{name: "News"}] = Repo.all(Category)
+    end
+
+    test "fills in a select with a value and a field for multiple values with a list", %{conn: conn} do
+      user = insert(:user)
+      category = insert(:category)
+      [tag, other_tag, _unselected_tag] = insert_list(3, :tag)
+      {:ok, view, _html} = live(conn, Testing.path(Router, PostLive, :new))
+
+      params = %{title: "Title", body: "Body", user_id: user.id, category_id: category.id, tags: [tag.id, other_tag.id]}
+      Testing.submit_form(view, params)
+
+      assert_redirect(view)
+      post = Post |> Repo.get_by!(title: "Title") |> Repo.preload(:tags)
+
+      assert post.user_id == user.id
+      assert post.category_id == category.id
+      assert post.tags |> Enum.map(& &1.id) |> Enum.sort() == Enum.sort([tag.id, other_tag.id])
+    end
+
+    test "clears a field for multiple values with an empty list", %{conn: conn} do
+      post = insert(:post)
+      {:ok, view, _html} = live(conn, Testing.path(Router, PostLive, :edit, post))
+
+      Testing.submit_form(view, %{tags: []})
+
+      assert_redirect(view)
+      assert Post |> Repo.get!(post.id) |> Repo.preload(:tags) |> Map.fetch!(:tags) == []
     end
 
     test "submits with another button", %{conn: conn} do

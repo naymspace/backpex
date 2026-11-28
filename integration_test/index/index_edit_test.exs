@@ -23,7 +23,9 @@ defmodule Backpex.Integration.Index.IndexEditTest do
   #   * `initial` - the stored value before the edit
   #   * `send` - the valid value as the browser sends it, `stored` - that value in the database
   #   * `rendered` - what the input of the row matches after the edit was saved
-  #   * `invalid` - a value that must not be saved, `error_class` - the class that marks the input as invalid
+  #   * `invalid` - a value that must not be saved, `error` - what the input matches while it is marked as invalid
+  #
+  # The input of a combobox is its root element: the value is in its anchor input, the error class on its control.
   @index_edit_matrix [
     %{
       module: Backpex.Fields.Text,
@@ -33,7 +35,7 @@ defmodule Backpex.Integration.Index.IndexEditTest do
       stored: "After",
       rendered: "[value='After']",
       invalid: "",
-      error_class: "input-error"
+      error: ".input-error"
     },
     %{
       module: Backpex.Fields.Number,
@@ -43,7 +45,7 @@ defmodule Backpex.Integration.Index.IndexEditTest do
       stored: 42,
       rendered: "[value='42']",
       invalid: "forty-two",
-      error_class: "input-error"
+      error: ".input-error"
     },
     %{
       module: Backpex.Fields.Boolean,
@@ -53,7 +55,7 @@ defmodule Backpex.Integration.Index.IndexEditTest do
       stored: true,
       rendered: "[checked]",
       invalid: "maybe",
-      error_class: "toggle-error"
+      error: ".toggle-error"
     },
     %{
       module: Backpex.Fields.Select,
@@ -61,9 +63,9 @@ defmodule Backpex.Integration.Index.IndexEditTest do
       initial: :one,
       send: "two",
       stored: :two,
-      rendered: " option[selected][value='two']",
+      rendered: " input[data-part=anchor][value='two']",
       invalid: "four",
-      error_class: "select-error"
+      error: " [data-part=control].input-error"
     },
     %{
       module: Backpex.Fields.Date,
@@ -73,7 +75,7 @@ defmodule Backpex.Integration.Index.IndexEditTest do
       stored: ~D[2026-03-04],
       rendered: "[value='2026-03-04']",
       invalid: "2026-02-30",
-      error_class: "input-error"
+      error: ".input-error"
     },
     %{
       module: Backpex.Fields.DateTime,
@@ -83,7 +85,7 @@ defmodule Backpex.Integration.Index.IndexEditTest do
       stored: ~U[2026-03-04 05:06:00Z],
       rendered: "[value='2026-03-04T05:06']",
       invalid: "2026-02-30T05:06",
-      error_class: "input-error"
+      error: ".input-error"
     },
     %{
       module: Backpex.Fields.Time,
@@ -93,7 +95,7 @@ defmodule Backpex.Integration.Index.IndexEditTest do
       stored: ~T[05:06:00],
       rendered: "[value='05:06:00']",
       invalid: "25:06",
-      error_class: "input-error"
+      error: ".input-error"
     },
     %{
       module: Backpex.Fields.Email,
@@ -103,7 +105,7 @@ defmodule Backpex.Integration.Index.IndexEditTest do
       stored: "after@example.com",
       rendered: "[value='after@example.com']",
       invalid: "no-at-sign",
-      error_class: "input-error"
+      error: ".input-error"
     },
     %{
       module: BelongsTo,
@@ -112,9 +114,9 @@ defmodule Backpex.Integration.Index.IndexEditTest do
       initial: @category_id,
       send: @other_category_id,
       stored: @other_category_id,
-      rendered: " option[selected][value='#{@other_category_id}']",
+      rendered: " input[data-part=anchor][value='#{@other_category_id}']",
       invalid: @unknown_category_id,
-      error_class: "select-error"
+      error: " [data-part=control].input-error"
     }
   ]
 
@@ -165,19 +167,19 @@ defmodule Backpex.Integration.Index.IndexEditTest do
 
         assert stored_value(sample, row) == row.stored
         assert has_element?(view, input <> row.rendered)
-        refute has_element?(view, "#{input}.#{row.error_class}")
+        refute has_element?(view, input <> row.error)
       end
 
       @tag row: row
       test "#{inspect(row.module)} marks an invalid change that is not saved", %{row: row, sample: sample, view: view} do
         input = "#index-form-input-#{row.field}-#{sample.id}"
 
-        refute has_element?(view, "#{input}.#{row.error_class}")
+        refute has_element?(view, input <> row.error)
 
         send_index_edit(view, row.field, sample, row.invalid)
 
         assert stored_value(sample, row) == row.initial
-        assert has_element?(view, "#{input}.#{row.error_class}")
+        assert has_element?(view, input <> row.error)
       end
     end
   end
@@ -205,13 +207,13 @@ defmodule Backpex.Integration.Index.IndexEditTest do
       session = visit(conn, ~p"/admin/posts")
 
       for post <- posts do
-        options = "#index-form-user-#{post.id} option:not([value=''])"
+        options = "#index-form-user-#{post.id} [role=option]"
 
         session
         |> assert_has(options, count: length(posts))
-        |> refute_has("#{options}[value='#{deleted_user.id}']")
+        |> refute_has("#{options}[data-value='#{deleted_user.id}']")
 
-        for author <- posts, do: assert_has(session, "#{options}[value='#{author.user_id}']")
+        for author <- posts, do: assert_has(session, "#{options}[data-value='#{author.user_id}']")
       end
     end
 
@@ -280,15 +282,18 @@ defmodule Backpex.Integration.Index.IndexEditTest do
       session =
         conn
         |> visit(~p"/admin/posts")
-        |> select("#index-form-input-user-#{post.id}", "Author",
-          option: "#{other_user.first_name} #{other_user.last_name}"
-        )
+        |> assert_has("#index-form-input-user-#{post.id}-trigger[aria-label=Author]")
+        |> unwrap(&send_index_edit(&1, :user, post, other_user.id))
 
       assert Repo.get!(Post, post.id).user_id == other_user.id
 
       session
-      |> assert_has("#index-form-user-#{post.id} option[selected]", count: 1)
-      |> assert_has("#index-form-user-#{post.id} option[selected][value='#{other_user.id}']")
+      |> assert_has("#index-form-user-#{post.id} [role=option][aria-selected=true]", count: 1)
+      |> assert_has("#index-form-user-#{post.id} [role=option][aria-selected=true][data-value='#{other_user.id}']")
+      |> assert_has("#index-form-user-#{post.id} [data-part=value-label]",
+        text: "#{other_user.first_name} #{other_user.last_name}",
+        exact: true
+      )
     end
   end
 
@@ -309,16 +314,15 @@ defmodule Backpex.Integration.Index.IndexEditTest do
       session =
         conn
         |> visit(~p"/admin/product-short-links")
-        |> assert_has("#{form} option[selected][value='docs']")
-        |> select("#index-form-input-featured_short_link-#{product.id}", "Featured Short Link",
-          option: "https://blog.example.com/"
-        )
+        |> assert_has("#{form} [role=option][aria-selected=true][data-value='docs']")
+        |> assert_has("#{form} [role=option][data-value='blog']", text: "https://blog.example.com/", exact: true)
+        |> unwrap(&send_index_edit(&1, :featured_short_link, product, "blog"))
 
       assert Repo.get!(Product, product.id).featured_short_link_key == "blog"
 
       session
-      |> assert_has("#{form} option[selected]", count: 1)
-      |> assert_has("#{form} option[selected][value='blog']")
+      |> assert_has("#{form} [role=option][aria-selected=true]", count: 1)
+      |> assert_has("#{form} [role=option][aria-selected=true][data-value='blog']")
     end
 
     test "saves an option and refuses a value that is not an option" do

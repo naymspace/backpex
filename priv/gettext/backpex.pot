@@ -84,6 +84,10 @@ msgid "Clear %{name} filter"
 msgstr ""
 
 #, elixir-autogen, elixir-format
+msgid "Clear selection"
+msgstr ""
+
+#, elixir-autogen, elixir-format
 msgid "Close modal"
 msgstr ""
 
@@ -209,6 +213,10 @@ msgstr ""
 
 #, elixir-autogen, elixir-format
 msgid "Select all items"
+msgstr ""
+
+#, elixir-autogen, elixir-format
+msgid "Select an option..."
 msgstr ""
 
 #, elixir-autogen, elixir-format
