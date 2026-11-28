@@ -229,6 +229,18 @@ bun run e2e:assets
 mix test --only e2e
 ```
 
+They run in Chromium. CI runs them in Firefox and WebKit as well; to do the same, install the browser and name it in `PW_BROWSER`:
+
+```bash
+bun x playwright install firefox webkit
+```
+
+```bash
+PW_BROWSER=webkit mix test --only e2e
+```
+
+On macOS, WebKit moves the focus with Tab only between text fields, like Safari by default, so the tests that tab to a button or a radio fail there. They pass in WebKit on Linux, where CI runs it.
+
 CI merges the coverage of all tests and fails if it drops below the threshold in `mix.exs`. To see the same report on your machine, export the coverage of both runs and merge it:
 
 ```bash
