@@ -31,9 +31,28 @@ defmodule Backpex.Fields.BelongsTo do
       type: {:or, [:string, {:fun, 1}]}
     ],
     searchable_options: [
-      doc: "Whether the select has a search input that filters the options.",
-      type: :boolean,
+      doc: """
+      How the select searches its options:
+
+        * `false` - it has no search input.
+        * `true` - it loads every option of the `options_query` and filters them in the browser.
+        * `:server` - it loads `query_limit` options at a time, searches them on the server and loads further options
+          with "Show more". Use it for a relation with many records, e.g. users. The search matches the
+          `display_field_form`, or the `select` expression of the field if it has one and no `display_field_form`, so
+          these have to be columns of the related schema or a `select` expression. The pages follow the order of the
+          `options_query`, so give it an `order_by` for pages that neither overlap nor skip options.
+      """,
+      type: {:or, [:boolean, {:in, [:server]}]},
       default: false
+    ],
+    query_limit: [
+      doc: """
+      The number of options the select loads at a time with `searchable_options: :server`. Set it to `nil` to load
+      every option. Only applies with `searchable_options: :server`.
+
+      The default value is `10`.
+      """,
+      type: {:or, [:pos_integer, nil]}
     ],
     debounce: [
       doc: "Timeout value (in milliseconds), \"blur\" or function that receives the assigns.",
@@ -53,6 +72,10 @@ defmodule Backpex.Fields.BelongsTo do
   Without a `prompt` the select has no empty state, like a native select: it selects its first option while the item
   has no value.
 
+  For a relation with many records, set `searchable_options: :server`: the select then loads `query_limit` options at
+  a time, searches them on the server and loads further options with "Show more". The current value is shown even if
+  it is on no loaded page.
+
   ## Field-specific options
 
   See `Backpex.Field` for general field options.
@@ -69,6 +92,8 @@ defmodule Backpex.Fields.BelongsTo do
           label: "Username",
           display_field: :username,
           options_query: &where(&1, [user], user.role == :admin),
+          searchable_options: :server,
+          query_limit: 20,
           live_resource: DemoWeb.UserLive
         }
       ]
@@ -76,10 +101,13 @@ defmodule Backpex.Fields.BelongsTo do
   """
   use Backpex.Field, config_schema: @config_schema
   import Ecto.Query
+  alias Backpex.Adapters.Ecto, as: EctoAdapter
   alias Backpex.Authorization
   alias Backpex.Fields.OptionsQuery
   alias Backpex.HTML.Combobox
   alias Backpex.Router
+
+  require Backpex
 
   @impl Phoenix.LiveComponent
   def update(assigns, socket) do
@@ -97,6 +125,7 @@ defmodule Backpex.Fields.BelongsTo do
     |> assign(related_key: related_key)
     |> assign(display_field: display_field)
     |> assign(display_field_form: display_field_form)
+    |> assign_server_options()
     |> ok()
   end
 
@@ -139,7 +168,7 @@ defmodule Backpex.Fields.BelongsTo do
 
     assigns =
       assigns
-      |> assign(:options, assigns |> options_query() |> load_options(assigns.related_key))
+      |> assign_form_select()
       |> assign(:owner_key, owner_key)
       |> assign(:label_id, "#{assigns.form[owner_key].id}-label")
       |> assign_prompt(field_options)
@@ -152,19 +181,26 @@ defmodule Backpex.Fields.BelongsTo do
         </:label>
         <Combobox.combobox
           field={@form[@owner_key]}
-          value={selected_value(@form[@owner_key].value, @options, @prompt)}
+          value={selected_value(@form[@owner_key].value, @default_option, @prompt)}
           options={@options}
+          selected_options={@selected_options}
+          on_search={@on_search}
           placeholder={@prompt}
           clearable={@prompt != nil}
-          searchable={@field_options[:searchable_options] == true}
+          searchable={@searchable}
           readonly={@readonly}
           translate_error_fun={Backpex.Field.translate_error_fun(@field_options, assigns)}
           help_text={Backpex.Field.help_text(@field_options, assigns)}
           live_resource={@live_resource}
+          phx-target={@search_target}
           phx-debounce={Backpex.Field.debounce(@field_options, assigns)}
           phx-throttle={Backpex.Field.throttle(@field_options, assigns)}
           {Backpex.Field.label_attrs(assigns, @label_id)}
-        />
+        >
+          <:footer :if={@show_more}>
+            <.show_more live_resource={@live_resource} target={@search_target} />
+          </:footer>
+        </Combobox.combobox>
       </Layout.field_container>
     </div>
     """
@@ -175,7 +211,7 @@ defmodule Backpex.Fields.BelongsTo do
     if Backpex.Field.index_editable_enabled?(field_options, assigns) do
       %{live_resource: live_resource} = assigns
       association = live_resource.adapter_config(:schema).__schema__(:association, name)
-      %{queryable: queryable, related_key: related_key} = association
+      %{queryable: queryable, related_key: related_key, owner_key: owner_key} = association
 
       field_assigns =
         Map.merge(assigns, %{
@@ -183,36 +219,66 @@ defmodule Backpex.Fields.BelongsTo do
           field: field,
           field_options: field_options,
           queryable: queryable,
+          related_key: related_key,
           display_field_form: display_field_form(field, display_field(field))
         })
 
       options_queries =
         Map.new(items, fn item ->
           item_assigns = Map.merge(field_assigns, %{item: item, value: Map.get(item, name)})
-          {LiveResource.primary_value(item, live_resource), options_query(item_assigns)}
+          {LiveResource.primary_value(item, live_resource), {options_query(item_assigns), Map.get(item, owner_key)}}
         end)
 
-      options_by_query = options_queries |> Map.values() |> Enum.uniq() |> Map.new(&{&1, load_options(&1, related_key)})
-
-      %{index_form_options: Map.new(options_queries, fn {key, query} -> {key, Map.fetch!(options_by_query, query)} end)}
+      index_form_options(options_queries, field_options, options_opts(field_assigns))
     else
       %{}
     end
   end
 
+  # Loads the options of each distinct options query once. With server search, the first page of the options and the
+  # options of the values of the rows, as these may be on no loaded page.
+  defp index_form_options(options_queries, %{searchable_options: :server} = field_options, opts) do
+    limit = OptionsQuery.query_limit(field_options)
+
+    pages =
+      options_queries
+      |> Map.values()
+      |> Enum.group_by(fn {query, _value} -> query end, fn {_query, value} -> value end)
+      |> Map.new(fn {query, values} ->
+        {records, show_more} = OptionsQuery.page_records(query, [limit: limit], opts)
+        page = %{option_records: records, options: Enum.map(records, &OptionsQuery.to_option(&1, opts))}
+        values = values |> Enum.reject(&is_nil/1) |> Enum.uniq()
+        value_options = if values == [], do: [], else: OptionsQuery.list(query, [ids: values], opts)
+
+        {query, Map.merge(page, %{show_more: show_more, value_options: page.options ++ value_options})}
+      end)
+
+    index_form_pages =
+      Map.new(options_queries, fn {key, {query, value}} ->
+        {value_options, page} = pages |> Map.fetch!(query) |> Map.pop!(:value_options)
+
+        {key, Map.put(page, :selected_option, find_option(value_options, value))}
+      end)
+
+    %{index_form_pages: index_form_pages}
+  end
+
+  defp index_form_options(options_queries, _field_options, opts) do
+    options_by_query =
+      options_queries
+      |> Map.values()
+      |> Enum.map(fn {query, _value} -> query end)
+      |> Enum.uniq()
+      |> Map.new(&{&1, OptionsQuery.list(&1, [], opts)})
+
+    %{index_form_options: Map.new(options_queries, fn {key, {query, _value}} -> {key, options_by_query[query]} end)}
+  end
+
   @impl Backpex.Field
   def render_index_form(assigns) do
-    primary_value = LiveResource.primary_value(assigns.item, assigns.live_resource)
-
-    options =
-      case assigns do
-        %{index_form_options: %{^primary_value => options}} -> options
-        _assigns -> assigns |> options_query() |> load_options(assigns.related_key)
-      end
-
     assigns =
       assigns
-      |> assign(:options, options)
+      |> assign_index_form_select()
       |> Backpex.Field.assign_index_form()
       |> assign_prompt(assigns.field_options)
 
@@ -223,13 +289,15 @@ defmodule Backpex.Fields.BelongsTo do
           id={"index-form-input-#{@name}-#{LiveResource.primary_value(@item, @live_resource)}"}
           field={@form[:value]}
           options={@options}
+          selected_options={@selected_options}
+          on_search={@on_search}
           placeholder={@prompt}
           clearable={@prompt != nil}
-          searchable={@field_options[:searchable_options] == true}
+          searchable={@searchable}
           value={
             selected_value(
               if(@valid, do: @value && Map.get(@value, @related_key), else: @form[:value].value),
-              @options,
+              @default_option,
               @prompt
             )
           }
@@ -243,11 +311,41 @@ defmodule Backpex.Fields.BelongsTo do
           disabled={@readonly}
           hide_errors
           live_resource={@live_resource}
+          phx-target={@search_target}
           aria-label={@field_options[:label]}
-        />
+        >
+          <:footer :if={@show_more}>
+            <.show_more live_resource={@live_resource} target={@search_target} />
+          </:footer>
+        </Combobox.combobox>
       </BackpexForm.index_form>
     </div>
     """
+  end
+
+  attr :live_resource, :atom, required: true
+  attr :target, :any, required: true
+
+  defp show_more(assigns) do
+    ~H"""
+    <button type="button" phx-click="show-more" phx-target={@target} class="link block text-sm">
+      {Backpex.__("Show more", @live_resource)}
+    </button>
+    """
+  end
+
+  @impl Phoenix.LiveComponent
+  def handle_event("search", params, socket) do
+    socket
+    |> OptionsQuery.handle_search(params, &options_opts/1)
+    |> noreply()
+  end
+
+  @impl Phoenix.LiveComponent
+  def handle_event("show-more", _params, socket) do
+    socket
+    |> OptionsQuery.handle_show_more(&options_opts/1)
+    |> noreply()
   end
 
   @impl Backpex.Field
@@ -288,26 +386,32 @@ defmodule Backpex.Fields.BelongsTo do
 
   defp option?({_name, field_options} = field, association, value, assigns) do
     %{queryable: queryable, related_key: related_key} = association
-    type = queryable.__schema__(:type, related_key)
 
-    case Ecto.Type.cast(type, value) do
+    case cast_value(queryable, related_key, value) do
       {:ok, id} ->
-        {repo, query, _display_field} =
-          assigns
-          |> Map.merge(%{
-            queryable: queryable,
-            field_options: field_options,
-            display_field_form: display_field_form(field, display_field(field))
-          })
-          |> options_query()
-
-        query
+        assigns
+        |> Map.merge(%{
+          field: field,
+          queryable: queryable,
+          field_options: field_options,
+          display_field_form: display_field_form(field, display_field(field))
+        })
+        |> options_query()
         |> OptionsQuery.with_ids(queryable, related_key, [id])
-        |> repo.exists?()
+        |> assigns.live_resource.adapter_config(:repo).exists?()
 
       _error ->
         false
     end
+  end
+
+  defp cast_value(queryable, key, value), do: queryable.__schema__(:type, key) |> Ecto.Type.cast(value)
+
+  @doc false
+  def validate_config!(field, live_resource) do
+    field
+    |> super(live_resource)
+    |> OptionsQuery.validate_search!(field, live_resource)
   end
 
   @impl Backpex.Field
@@ -333,29 +437,211 @@ defmodule Backpex.Fields.BelongsTo do
   end
 
   # Like a native select, a select without a prompt has no empty state: without a value it selects its first option.
-  defp selected_value(value, [{_label, first} | _options], nil = _prompt) when value in [nil, ""], do: first
-  defp selected_value(value, _options, _prompt), do: value
+  defp selected_value(value, {_label, first} = _default_option, nil = _prompt) when value in [nil, ""], do: first
+  defp selected_value(value, _default_option, _prompt), do: value
 
   defp display_field_form({_name, field_options} = _field, display_field) do
     Map.get(field_options, :display_field_form, display_field)
   end
 
+  # The root binding is named like the binding of the relation in the index query, so a `select` expression of the field
+  # works in the search of the options, too.
   defp options_query(assigns) do
-    %{live_resource: live_resource, queryable: queryable, field_options: field_options} = assigns
+    %{queryable: queryable, field_options: field_options} = assigns
 
-    query =
-      queryable
-      |> from()
-      |> maybe_options_query(field_options, assigns)
-
-    {live_resource.adapter_config(:repo), query, assigns.display_field_form}
+    queryable
+    |> from_named(binding_name(field_options, queryable))
+    |> maybe_options_query(field_options, assigns)
   end
 
-  # The value of an option is the key of the related item that the foreign key references.
-  defp load_options({repo, query, display_field}, related_key) do
-    query
-    |> repo.all()
-    |> Enum.map(&{Map.get(&1, display_field), Map.get(&1, related_key)})
+  defp from_named(queryable, nil), do: from(queryable)
+  defp from_named(queryable, binding), do: from(queryable, as: ^binding)
+
+  defp binding_name(%{custom_alias: custom_alias}, _queryable), do: custom_alias
+  defp binding_name(_field_options, {_source, schema}) when is_atom(schema), do: EctoAdapter.name_by_schema(schema)
+  defp binding_name(_field_options, schema) when is_atom(schema), do: EctoAdapter.name_by_schema(schema)
+  defp binding_name(_field_options, _queryable), do: nil
+
+  # How the field reads its options, see `Backpex.Fields.OptionsQuery.list/3`. The value of an option is the key of the
+  # related item that the foreign key references.
+  defp options_opts(%{field_options: field_options} = assigns) do
+    search_by =
+      case field_options do
+        %{display_field_form: display_field_form} -> display_field_form
+        %{select: select} -> select
+        _field_options -> assigns.display_field_form
+      end
+
+    [
+      repo: assigns.live_resource.adapter_config(:repo),
+      queryable: assigns.queryable,
+      label: assigns.display_field_form,
+      value: assigns.related_key,
+      search_by: search_by
+    ]
+  end
+
+  # With server search, the form and the index form keep a page of options, the search and the offset of the next page
+  # in the assigns of the component. Without it, they load every option when they render.
+  defp assign_server_options(%{assigns: %{field_options: %{searchable_options: :server}}} = socket) do
+    case socket.assigns do
+      %{type: :form} = assigns ->
+        assign_form_options(socket, assigns.form[assigns.owner_key].value)
+
+      %{type: :index} = assigns ->
+        if Backpex.Field.index_editable_enabled?(assigns.field_options, assigns),
+          do: assign_index_form_options(socket),
+          else: socket
+
+      _assigns ->
+        socket
+    end
+  end
+
+  defp assign_server_options(socket), do: socket
+
+  # The options query may depend on other assigns, e.g. a value of the form. The options are loaded again whenever the
+  # resulting query changes.
+  defp assign_form_options(socket, value) do
+    query = options_query(socket.assigns)
+
+    socket =
+      if Map.get(socket.assigns, :options_base_query) == query do
+        socket
+      else
+        socket
+        |> assign(options_base_query: query, offset: 0)
+        |> assign_new(:search_input, fn -> "" end)
+        |> assign_options()
+        |> assign_default_option()
+      end
+
+    assign_selected_option(socket, value)
+  end
+
+  # Rows share their options while no search or "Show more" changed them. The row keeps its own options otherwise, also
+  # when the index view renders again.
+  defp assign_index_form_options(socket) do
+    %{assigns: assigns} = socket
+    primary_value = LiveResource.primary_value(assigns.item, assigns.live_resource)
+    socket = assign(socket, options_base_query: options_query(assigns))
+
+    page =
+      case assigns do
+        %{index_form_pages: %{^primary_value => page}} -> page
+        _assigns -> load_index_form_page(socket.assigns)
+      end
+
+    socket =
+      socket
+      |> assign_new(:search_input, fn -> "" end)
+      |> assign_new(:offset, fn -> 0 end)
+      |> assign(:selected_option, page.selected_option)
+      |> assign(:default_option, List.first(page.options))
+
+    if socket.assigns.search_input == "" and socket.assigns.offset == 0,
+      do: assign(socket, Map.take(page, [:option_records, :options, :show_more])),
+      else: socket
+  end
+
+  defp load_index_form_page(assigns) do
+    %{options_base_query: query, field_options: field_options, item: item, owner_key: owner_key} = assigns
+    opts = options_opts(assigns)
+
+    {records, show_more} = OptionsQuery.page_records(query, [limit: OptionsQuery.query_limit(field_options)], opts)
+    options = Enum.map(records, &OptionsQuery.to_option(&1, opts))
+
+    selected_option =
+      find_option(options, Map.get(item, owner_key)) || fetch_option(query, Map.get(item, owner_key), opts)
+
+    %{option_records: records, options: options, show_more: show_more, selected_option: selected_option}
+  end
+
+  defp assign_options(socket), do: OptionsQuery.assign_page(socket, &options_opts/1)
+
+  # The first option of the options query, which a select without a prompt selects while the item has no value.
+  defp assign_default_option(%{assigns: %{search_input: ""}} = socket) do
+    assign(socket, :default_option, List.first(socket.assigns.options))
+  end
+
+  defp assign_default_option(socket) do
+    %{assigns: %{options_base_query: query} = assigns} = socket
+
+    assign(socket, :default_option, query |> OptionsQuery.list([limit: 1], options_opts(assigns)) |> List.first())
+  end
+
+  # The option of the current value, which may be on no loaded page. It is loaded again only when the value or the
+  # options query changes.
+  defp assign_selected_option(socket, value) do
+    %{assigns: %{options_base_query: query} = assigns} = socket
+
+    case assigns do
+      %{selected_option_of: {^query, ^value}} ->
+        socket
+
+      _assigns ->
+        option = find_option(assigns.options, value) || fetch_option(query, value, options_opts(assigns))
+
+        assign(socket, selected_option: option, selected_option_of: {query, value})
+    end
+  end
+
+  defp find_option(_options, value) when value in [nil, ""], do: nil
+  defp find_option(options, value), do: Enum.find(options, fn {_label, key} -> to_string(key) == to_string(value) end)
+
+  defp fetch_option(_query, value, _opts) when value in [nil, ""], do: nil
+
+  defp fetch_option(query, value, opts) do
+    case cast_value(opts[:queryable], opts[:value], value) do
+      {:ok, id} -> query |> OptionsQuery.list([ids: [id], limit: 1], opts) |> List.first()
+      _error -> nil
+    end
+  end
+
+  # The assigns of the select in the form: the options the component loaded with server search, else every option.
+  defp assign_form_select(%{field_options: %{searchable_options: :server}} = assigns) do
+    assign_search_select(assigns)
+  end
+
+  defp assign_form_select(assigns) do
+    options = assigns |> options_query() |> OptionsQuery.list([], options_opts(assigns))
+
+    assign_local_select(assigns, options)
+  end
+
+  defp assign_index_form_select(%{field_options: %{searchable_options: :server}} = assigns) do
+    assign_search_select(assigns)
+  end
+
+  defp assign_index_form_select(assigns) do
+    primary_value = LiveResource.primary_value(assigns.item, assigns.live_resource)
+
+    options =
+      case assigns do
+        %{index_form_options: %{^primary_value => options}} -> options
+        _assigns -> assigns |> options_query() |> OptionsQuery.list([], options_opts(assigns))
+      end
+
+    assign_local_select(assigns, options)
+  end
+
+  defp assign_search_select(assigns) do
+    assigns
+    |> assign(:selected_options, Enum.reject([assigns.selected_option, assigns.default_option], &is_nil/1))
+    |> assign(:on_search, "search")
+    |> assign(:search_target, assigns.myself)
+    |> assign(:searchable, true)
+  end
+
+  defp assign_local_select(assigns, options) do
+    assigns
+    |> assign(:options, options)
+    |> assign(:default_option, List.first(options))
+    |> assign(:selected_options, [])
+    |> assign(:show_more, false)
+    |> assign(:on_search, nil)
+    |> assign(:search_target, nil)
+    |> assign(:searchable, assigns.field_options[:searchable_options] == true)
   end
 
   defp assign_link(assigns) do

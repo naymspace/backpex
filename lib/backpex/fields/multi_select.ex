@@ -17,14 +17,22 @@ defmodule Backpex.Fields.MultiSelect do
       The default value is `"No options found"`.
       """,
       type: :string
+    ],
+    searchable_options: [
+      doc: """
+      Whether the multi select has a search input that filters the options in the browser. The options are
+      predefined, so there is no server search.
+      """,
+      type: :boolean,
+      default: true
     ]
   ]
 
   @moduledoc """
   A field for handling a multi select with predefined options.
 
-  The form renders a `Backpex.HTML.Combobox.combobox/1` with a search input and buttons to select and deselect all
-  options. The admin selects and deselects options in the browser, and the selection reaches the server with the
+  The form renders a `Backpex.HTML.Combobox.combobox/1` with a search input (see `searchable_options`) and buttons to
+  select and deselect all options. The admin selects and deselects options in the browser, and the selection reaches the server with the
   `phx-change` event of the form.
 
   This field can not be searchable.
@@ -165,6 +173,7 @@ defmodule Backpex.Fields.MultiSelect do
           options={@options}
           multiple
           select_all
+          searchable={@field_options[:searchable_options] != false}
           readonly={@readonly}
           placeholder={@prompt}
           no_results_text={@not_found_text}

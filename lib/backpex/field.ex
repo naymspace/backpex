@@ -409,6 +409,8 @@ defmodule Backpex.Field do
             """
         end
       end
+
+      defoverridable validate_config!: 2
     end
   end
 

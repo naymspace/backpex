@@ -51,19 +51,37 @@ defmodule Backpex.Fields.HasMany do
       """,
       type: :string
     ],
+    searchable_options: [
+      doc: """
+      How the multi select searches its options:
+
+        * `false` - it loads every option of the `options_query` and has no search input.
+        * `true` - it loads every option of the `options_query` and filters them in the browser.
+        * `:server` - it loads `query_limit` options at a time, searches them on the server by the `display_field`, or
+          the `select` expression of the field if it has one, and loads further options with "Show more". The pages follow the order of the
+          `options_query`, so give it an `order_by` for pages that neither overlap nor skip options.
+      """,
+      type: {:or, [:boolean, {:in, [:server]}]},
+      default: :server
+    ],
     query_limit: [
-      doc: "Limit passed to the query to fetch new items. Set to `nil` to have no limit.",
-      type: {:or, [:non_neg_integer, nil]},
-      default: 10
+      doc: """
+      The number of options the multi select loads at a time with `searchable_options: :server`. Set it to `nil` to
+      load every option. Only applies with `searchable_options: :server`.
+
+      The default value is `10`.
+      """,
+      type: {:or, [:pos_integer, nil]}
     ]
   ]
 
   @moduledoc """
   A field for handling a `has_many` or `many_to_many` relation.
 
-  The form renders a `Backpex.HTML.Combobox.combobox/1`. It loads `query_limit` options at a time, searches them on the
-  server by the `display_field` and loads further options with "Show more". The admin selects and deselects options in
-  the browser, and the selection reaches the server with the `phx-change` event of the form.
+  The form renders a `Backpex.HTML.Combobox.combobox/1`. By default it loads `query_limit` options at a time, searches
+  them on the server by the `display_field` and loads further options with "Show more", see `searchable_options`. The
+  admin selects and deselects options in the browser, and the selection reaches the server with the `phx-change` event
+  of the form.
 
   This field can not be orderable or searchable.
 
@@ -94,6 +112,7 @@ defmodule Backpex.Fields.HasMany do
 
   alias Backpex.Adapters.Ecto, as: EctoAdapter
   alias Backpex.Authorization
+  alias Backpex.Fields.OptionsQuery
   alias Backpex.HTML.Combobox
   alias Backpex.Router
 
@@ -156,8 +175,8 @@ defmodule Backpex.Fields.HasMany do
         </:label>
 
         <%!--
-          The options are one page of the options query, so the server searches them and "Show more" loads the next
-          page. The selected items are passed on their own, as they may be on no loaded page.
+          With server search, the options are one page of the options query, so the server searches them and "Show
+          more" loads the next page. The selected items are passed on their own, as they may be on no loaded page.
         --%>
         <Combobox.combobox
           field={@form[@name]}
@@ -165,7 +184,8 @@ defmodule Backpex.Fields.HasMany do
           options={@options}
           selected_options={@selected}
           multiple
-          on_search="search"
+          on_search={OptionsQuery.server_search?(@field_options) && "search"}
+          searchable={@field_options[:searchable_options] != false}
           phx-target={@myself}
           readonly={@readonly}
           placeholder={@prompt}
@@ -215,26 +235,25 @@ defmodule Backpex.Fields.HasMany do
     """
   end
 
-  # The combobox pushes the search with the text of its search input.
   @impl Phoenix.LiveComponent
-  def handle_event("search", %{"query" => query}, socket) when is_binary(query) do
+  def handle_event("search", params, socket) do
     socket
-    |> assign(:offset, 0)
-    |> assign(:search_input, query)
-    |> assign_options()
+    |> OptionsQuery.handle_search(params, &options_opts/1)
     |> noreply()
   end
 
-  def handle_event("search", _params, socket), do: noreply(socket)
-
   @impl Phoenix.LiveComponent
   def handle_event("show-more", _params, socket) do
-    %{assigns: %{field_options: field_options, offset: offset, options: options}} = socket
-
     socket
-    |> assign(:offset, field_options[:query_limit] + offset)
-    |> assign_options(options)
+    |> OptionsQuery.handle_show_more(&options_opts/1)
     |> noreply()
+  end
+
+  @doc false
+  def validate_config!(field, live_resource) do
+    field
+    |> super(live_resource)
+    |> OptionsQuery.validate_search!(field, live_resource)
   end
 
   @impl Backpex.Field
@@ -374,69 +393,27 @@ defmodule Backpex.Fields.HasMany do
     |> maybe_options_query(field_options, assigns)
   end
 
-  defp assign_options(socket, other_options \\ []) do
-    %{assigns: %{field_options: field_options, search_input: search_input, offset: offset} = assigns} = socket
-    limit = field_options[:query_limit]
+  defp assign_options(socket), do: OptionsQuery.assign_page(socket, &options_opts/1)
 
-    options = other_options ++ options(assigns, offset: offset, limit: limit, search: search_input)
-
-    show_more = count_options(assigns, search: search_input) > length(options)
-
-    socket
-    |> assign(:options, options)
-    |> assign(:show_more, show_more)
+  defp count_options(assigns) do
+    OptionsQuery.count(assigns.options_base_query, [], options_opts(assigns))
   end
 
-  defp options(assigns, opts) do
-    %{field: field, field_options: field_options, options_base_query: query} = assigns
-    repo = assigns.live_resource.adapter_config(:repo)
-    primary_key = primary_key(field, queryable(assigns))
+  # How the field reads its options, see `Backpex.Fields.OptionsQuery.list/3`.
+  defp options_opts(%{field: {_name, field_options} = field} = assigns) do
+    queryable = queryable(assigns)
 
-    query
-    |> maybe_search_query(query.from.as, field_options, display_field(field), Keyword.get(opts, :search))
-    |> maybe_offset_query(Keyword.get(opts, :offset))
-    |> maybe_limit_query(Keyword.get(opts, :limit))
-    |> repo.all()
-    |> Enum.map(fn item ->
-      {Map.get(item, display_field_form(field)), Map.fetch!(item, primary_key)}
-    end)
+    [
+      repo: assigns.live_resource.adapter_config(:repo),
+      queryable: queryable,
+      label: display_field_form(field),
+      value: primary_key(field, queryable),
+      search_by: Map.get(field_options, :select) || display_field(field)
+    ]
   end
-
-  defp maybe_limit_query(query, nil), do: query
-  defp maybe_limit_query(query, limit), do: query |> limit(^limit)
-
-  defp maybe_offset_query(query, nil), do: query
-  defp maybe_offset_query(query, offset), do: query |> offset(^offset)
 
   defp maybe_options_query(query, %{options_query: options_query}, assigns), do: options_query.(query, assigns)
   defp maybe_options_query(query, _field_options, _assigns), do: query
-
-  defp maybe_search_query(query, _schema_name, _field_options, _display_field, nil), do: query
-
-  defp maybe_search_query(query, schema_name, field_options, display_field, search_input) do
-    if String.trim(search_input) == "" do
-      query
-    else
-      search_input = "%#{search_input}%"
-      select = Map.get(field_options, :select)
-
-      if select do
-        where(query, ^dynamic(ilike(^select, ^search_input)))
-      else
-        where(query, [{^schema_name, schema_name}], ilike(field(schema_name, ^display_field), ^search_input))
-      end
-    end
-  end
-
-  defp count_options(assigns, opts \\ []) do
-    %{field: field, field_options: field_options, options_base_query: query} = assigns
-    repo = assigns.live_resource.adapter_config(:repo)
-
-    query
-    |> maybe_search_query(query.from.as, field_options, display_field(field), Keyword.get(opts, :search))
-    |> subquery()
-    |> repo.aggregate(:count)
-  end
 
   def assign_selected(socket) do
     primary_key = primary_key(socket.assigns.field, queryable(socket.assigns))
@@ -472,15 +449,9 @@ defmodule Backpex.Fields.HasMany do
   defp fetch_from_db([], _socket), do: []
 
   defp fetch_from_db(ids_to_fetch, socket) do
-    repo = socket.assigns.live_resource.adapter_config(:repo)
-    primary_key = primary_key(socket.assigns.field, queryable(socket.assigns))
+    %{assigns: assigns} = socket
 
-    socket.assigns.options_base_query
-    |> where([x], field(x, ^primary_key) in ^ids_to_fetch)
-    |> repo.all()
-    |> Enum.map(fn item ->
-      {Map.get(item, display_field_form(socket.assigns.field)), Map.fetch!(item, primary_key)}
-    end)
+    OptionsQuery.list(assigns.options_base_query, [ids: ids_to_fetch], options_opts(assigns))
   end
 
   defp queryable(%{live_resource: live_resource, field: field}) do

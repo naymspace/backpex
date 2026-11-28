@@ -112,4 +112,6 @@ end
 As the data only reflects saved items, options that depend on another field of the row are updated once that field
 has been saved and Backpex received the item event.
 
-`Backpex.Fields.BelongsTo` uses this callback to load its options once for all rows.
+`Backpex.Fields.BelongsTo` uses this callback to load its options once for all rows. With `searchable_options: :server`,
+it loads the first page of options and the options of the rows' values; a row that is searched or shows more options
+then loads them itself.

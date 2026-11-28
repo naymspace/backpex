@@ -1,8 +1,9 @@
 defmodule Backpex.Test.UserRelationOptionsLive do
   @moduledoc """
   A LiveResource of users whose relation fields set the options that `Backpex.Test.UserLive` leaves at their defaults:
-  `display_field_form` of `Backpex.Fields.HasMany`, and `sort_by` and an `options_query` that only offers German
-  addresses of `Backpex.Fields.HasManyThrough`.
+  `display_field_form` and browser search (`searchable_options: true`) of `Backpex.Fields.HasMany`, and `sort_by`, an
+  `options_query` that only offers German addresses and server search with a `query_limit` of 2 of
+  `Backpex.Fields.HasManyThrough`.
 
   The `url` child field of `Backpex.Fields.InlineCRUD` is readonly.
   """
@@ -34,6 +35,7 @@ defmodule Backpex.Test.UserRelationOptionsLive do
         label: "Posts",
         display_field: :title,
         display_field_form: :body,
+        searchable_options: true,
         live_resource: Backpex.Test.PostLive
       },
       addresses: %{
@@ -43,7 +45,11 @@ defmodule Backpex.Test.UserRelationOptionsLive do
         except: [:index],
         live_resource: Backpex.Test.AddressLive,
         sort_by: [:city],
-        options_query: fn query, _assigns -> where(query, [address], address.country == :de) end,
+        options_query: fn query, _assigns ->
+          query |> where([address], address.country == :de) |> order_by([address], address.street)
+        end,
+        searchable_options: :server,
+        query_limit: 2,
         pivot_fields: [
           type: %{
             module: Backpex.Fields.Select,

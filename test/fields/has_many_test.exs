@@ -170,6 +170,19 @@ defmodule Backpex.Fields.HasManyTest do
       assert document |> LazyHTML.query(~s|input[name="change[tags][]"]|) |> LazyHTML.attribute("value") == ["3"]
     end
 
+    test "filters the options in the browser with searchable_options: true and has no search with false" do
+      field_options = %{module: HasMany, label: "Tags", display_field: :id, live_resource: TagLive}
+
+      document = render_tags_form(field_options: Map.put(field_options, :searchable_options, true))
+
+      assert document |> LazyHTML.query("#change_tags") |> LazyHTML.attribute("data-on-search") == []
+      assert document |> LazyHTML.query("#change_tags-search") |> Enum.any?()
+
+      document = render_tags_form(field_options: Map.put(field_options, :searchable_options, false))
+
+      refute document |> LazyHTML.query("#change_tags-search") |> Enum.any?()
+    end
+
     test "renders show more below the options while there are more options to load" do
       refute render_tags_form(show_more: false) |> LazyHTML.query(~s|button[phx-click="show-more"]|) |> Enum.any?()
 
@@ -186,7 +199,13 @@ defmodule Backpex.Fields.HasManyTest do
       Keyword.merge(
         [
           name: :tags,
-          field_options: %{module: HasMany, label: "Tags", display_field: :id, live_resource: TagLive},
+          field_options: %{
+            module: HasMany,
+            label: "Tags",
+            display_field: :id,
+            live_resource: TagLive,
+            searchable_options: :server
+          },
           form: Phoenix.Component.to_form(%{}, as: :change),
           live_resource: PostLive,
           hide_label: false,

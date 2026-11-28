@@ -1,0 +1,181 @@
+defmodule Backpex.Fields.OptionsQueryTest do
+  use ExUnit.Case, async: true
+
+  import Ecto.Query
+
+  alias Backpex.Fields.OptionsQuery
+
+  defmodule User do
+    @moduledoc false
+    use Ecto.Schema
+
+    schema "users" do
+      field :name, :string
+    end
+  end
+
+  # Returns the users it is configured with and sends the query to the test process.
+  defmodule UsersRepo do
+    @moduledoc false
+    def all(query) do
+      send(self(), {:all, query})
+
+      Process.get(:users, [])
+    end
+
+    def aggregate(query, :count) do
+      send(self(), {:aggregate, query})
+
+      0
+    end
+  end
+
+  @opts [repo: UsersRepo, queryable: User, label: :name, value: :id, search_by: :name]
+
+  describe "list/3" do
+    test "returns the options as label and value" do
+      Process.put(:users, [%User{id: 1, name: "Anna"}, %User{id: 2, name: "Bert"}])
+
+      assert User |> from() |> OptionsQuery.list([], @opts) == [{"Anna", 1}, {"Bert", 2}]
+      assert_received {:all, %Ecto.Query{order_bys: [], limit: nil, offset: nil}}
+    end
+
+    test "keeps the order of the options query for a page" do
+      query = User |> from() |> order_by([user], user.name)
+
+      User |> from() |> order_by([user], user.name) |> OptionsQuery.list([offset: 2, limit: 2], @opts)
+
+      assert_received {:all, %Ecto.Query{order_bys: [order], limit: limit, offset: offset}}
+      assert order.expr == hd(query.order_bys).expr
+      assert %{params: [{2, :integer}]} = limit
+      assert %{params: [{2, :integer}]} = offset
+    end
+
+    test "searches the field, ignoring case" do
+      User |> from() |> OptionsQuery.list([search: "ann"], @opts)
+
+      assert_received {:all, %Ecto.Query{wheres: [where]}}
+      assert Macro.to_string(where.expr) == "ilike(&0.name(), ^0)"
+      assert where.params == [{"%ann%", :string}]
+    end
+
+    test "searches a dynamic expression" do
+      search_by = dynamic([user: user], fragment("upper(?)", user.name))
+
+      opts = Keyword.put(@opts, :search_by, search_by)
+
+      User |> from(as: :user) |> OptionsQuery.list([search: "ann"], opts)
+
+      assert_received {:all, %Ecto.Query{wheres: [where]}}
+      assert Macro.to_string(where.expr) =~ "ilike(fragment"
+    end
+
+    test "ignores a blank search" do
+      User |> from() |> OptionsQuery.list([search: " "], @opts)
+
+      assert_received {:all, %Ecto.Query{wheres: []}}
+    end
+
+    test "limits the options to the ids" do
+      User |> from() |> OptionsQuery.list([ids: [1, 2]], @opts)
+
+      assert_received {:all, %Ecto.Query{wheres: [where]}}
+      assert Macro.to_string(where.expr) == "&0.id() in ^0"
+    end
+  end
+
+  describe "page/3" do
+    test "loads one option more than the page to tell whether more follow" do
+      Process.put(:users, for(id <- 1..3, do: %User{id: id, name: "User #{id}"}))
+
+      assert User |> from() |> OptionsQuery.page([limit: 2], @opts) == {[{"User 1", 1}, {"User 2", 2}], true}
+      assert_received {:all, %Ecto.Query{limit: %{params: [{3, :integer}]}}}
+
+      Process.put(:users, [%User{id: 1, name: "User 1"}])
+
+      assert User |> from() |> OptionsQuery.page([limit: 2], @opts) == {[{"User 1", 1}], false}
+    end
+
+    test "loads every option without a limit" do
+      Process.put(:users, [%User{id: 1, name: "User 1"}])
+
+      assert User |> from() |> OptionsQuery.page([], @opts) == {[{"User 1", 1}], false}
+      assert_received {:all, %Ecto.Query{limit: nil}}
+    end
+  end
+
+  describe "handle_search/3 and handle_show_more/2" do
+    test "load the matching page and the next page with server search" do
+      Process.put(:users, for(id <- 1..3, do: %User{id: id, name: "User #{id}"}))
+      socket = socket(%{searchable_options: :server, query_limit: 2})
+
+      socket = OptionsQuery.handle_search(socket, %{"query" => "user"}, fn _assigns -> @opts end)
+
+      assert socket.assigns.options == [{"User 1", 1}, {"User 2", 2}]
+      assert socket.assigns.show_more
+      assert_received {:all, %Ecto.Query{wheres: [_search], offset: %{params: [{0, :integer}]}}}
+
+      socket = OptionsQuery.handle_show_more(socket, fn _assigns -> @opts end)
+
+      assert socket.assigns.offset == 2
+      assert_received {:all, %Ecto.Query{offset: %{params: [{2, :integer}]}}}
+    end
+
+    # A crafted client can send the events to any field.
+    test "ignore the events without server search, a query or a limit" do
+      for field_options <- [%{searchable_options: true}, %{searchable_options: false}, %{}] do
+        socket = socket(field_options)
+
+        assert OptionsQuery.handle_search(socket, %{"query" => "user"}, &flunk/1) == socket
+        assert OptionsQuery.handle_show_more(socket, &flunk/1) == socket
+      end
+
+      socket = socket(%{searchable_options: :server, query_limit: nil})
+
+      assert OptionsQuery.handle_search(socket, %{"query" => 1}, &flunk/1) == socket
+      assert OptionsQuery.handle_show_more(socket, &flunk/1) == socket
+
+      socket = %{socket | assigns: Map.delete(socket.assigns, :options_base_query)}
+      socket = put_in(socket.assigns.field_options.query_limit, 2)
+
+      assert OptionsQuery.handle_search(socket, %{"query" => "user"}, &flunk/1) == socket
+      assert OptionsQuery.handle_show_more(socket, &flunk/1) == socket
+    end
+
+    defp socket(field_options) do
+      assigns = %{
+        __changed__: %{},
+        field_options: field_options,
+        options_base_query: from(User),
+        option_records: [],
+        search_input: "",
+        offset: 0
+      }
+
+      %Phoenix.LiveView.Socket{assigns: assigns}
+    end
+  end
+
+  describe "validate_search!/3" do
+    test "refuses a query_limit without server search" do
+      field = {:user, []}
+
+      assert OptionsQuery.validate_search!([searchable_options: :server, query_limit: 5], field, Live) ==
+               [searchable_options: :server, query_limit: 5]
+
+      assert OptionsQuery.validate_search!([searchable_options: true], field, Live) == [searchable_options: true]
+
+      assert_raise RuntimeError, ~r/field "user" in "Elixir.Live".*`query_limit` only applies/s, fn ->
+        OptionsQuery.validate_search!([searchable_options: true, query_limit: 5], field, Live)
+      end
+    end
+  end
+
+  describe "count/3" do
+    test "counts the options of the search" do
+      User |> from() |> OptionsQuery.count([search: "ann"], @opts)
+
+      assert_received {:aggregate, %Ecto.SubQuery{query: %Ecto.Query{wheres: [_where], limit: nil}}}
+    end
+  end
+end

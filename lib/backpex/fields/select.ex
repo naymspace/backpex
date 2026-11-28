@@ -11,7 +11,10 @@ defmodule Backpex.Fields.Select do
       type: {:or, [:string, {:fun, 1}]}
     ],
     searchable_options: [
-      doc: "Whether the select has a search input that filters the options.",
+      doc: """
+      Whether the select has a search input that filters the options in the browser. The options are predefined, so
+      there is no server search.
+      """,
       type: :boolean,
       default: false
     ],
